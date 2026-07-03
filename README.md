@@ -36,3 +36,4 @@ python3 scripts/export_app_dataset_json.py
 - `docs/PRODUCT_PLAN.md` contains the current MVP plan.
 - `CONTEXT.md` contains the domain language.
 - `docs/adr/0001-multi-factor-crawl-routes.md` records the decision to rank routes with multiple signals, not only cheapest pint price.
+- `docs/screenshots/README.md` contains reference screenshots of the current prototype.
