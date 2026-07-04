@@ -10,10 +10,20 @@ import { getSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
 const TABLE = "visit_reports";
 
-// The route attaches an uploaded Storage key here before persisting. Kept off
-// the core PintDrop type in lib/pintDrops.ts (photos are a Supabase-only
-// concern); the fallback store ignores it entirely.
-export type PersistableDrop = PintDrop & { pintPhotoKey?: string };
+// The route attaches uploaded Storage keys here before persisting. Kept off the
+// core PintDrop type in lib/pintDrops.ts (photos are a Supabase-only concern);
+// the fallback store ignores them entirely.
+export type PersistableDrop = PintDrop & {
+  pintPhotoKey?: string;
+  venuePhotoKey?: string;
+};
+
+// Public read shape. Storage keys never leave the server — they map to public
+// URLs (or null for hidden/pending rows). This is what GET/POST return.
+export type PintDropDTO = PintDrop & {
+  pintPhotoUrl: string | null;
+  venuePhotoUrl: string | null;
+};
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB
@@ -50,13 +60,14 @@ function toRow(drop: PersistableDrop) {
     passed_down_note: drop.passedDownNote,
     era: drop.era,
     pint_photo_key: drop.pintPhotoKey ?? null,
+    venue_photo_key: drop.venuePhotoKey ?? null,
     provenance: drop.provenance,
     status: drop.status,
     created_at: drop.createdAt,
   };
 }
 
-function fromRow(row: Record<string, unknown>): PintDrop {
+function fromRow(row: Record<string, unknown>): PersistableDrop {
   return {
     id: String(row.id),
     venueId: String(row.venue_id),
@@ -68,6 +79,28 @@ function fromRow(row: Record<string, unknown>): PintDrop {
     provenance: row.provenance as Provenance,
     status: row.status as PintDropStatus,
     createdAt: String(row.created_at),
+    pintPhotoKey: row.pint_photo_key ? String(row.pint_photo_key) : undefined,
+    venuePhotoKey: row.venue_photo_key ? String(row.venue_photo_key) : undefined,
+  };
+}
+
+// A Storage key becomes a public URL only for visible rows — hidden/pending
+// drops read as null so a reported photo stops being served. Keys never reach
+// the client; getPublicUrl is a pure string build (no network call).
+function publicUrl(key: string | undefined, visible: boolean): string | null {
+  if (!key || !visible) return null;
+  return admin().storage.from(STORAGE_BUCKET).getPublicUrl(key).data.publicUrl;
+}
+
+/** Strip Storage keys, emit public photo URLs. The only shape the API returns. */
+export function toDTO(drop: PersistableDrop): PintDropDTO {
+  const visible = drop.status === "visible";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
+  return {
+    ...rest,
+    pintPhotoUrl: publicUrl(pintPhotoKey, visible),
+    venuePhotoUrl: publicUrl(venuePhotoKey, visible),
   };
 }
 
@@ -76,8 +109,8 @@ export async function persistDrop(drop: PersistableDrop): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/** Public read: newest-first, visible-only. */
-export async function listVisibleDropsRemote(venueId: string): Promise<PintDrop[]> {
+/** Public read: newest-first, visible-only. Rows carry keys; map via toDTO. */
+export async function listVisibleDropsRemote(venueId: string): Promise<PersistableDrop[]> {
   const { data, error } = await admin()
     .from(TABLE)
     .select("*")
@@ -88,7 +121,7 @@ export async function listVisibleDropsRemote(venueId: string): Promise<PintDrop[
   return (data ?? []).map(fromRow);
 }
 
-export async function listAllVisibleDropsRemote(): Promise<PintDrop[]> {
+export async function listAllVisibleDropsRemote(): Promise<PersistableDrop[]> {
   const { data, error } = await admin()
     .from(TABLE)
     .select("*")
@@ -108,21 +141,45 @@ export async function setDropStatusRemote(id: string, status: PintDropStatus): P
   return (data ?? []).length > 0;
 }
 
+function ext(type: string): string {
+  return type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
+}
+
 /**
- * Validate + upload a pint photo to Storage. Returns the object key to stash on
- * the drop. Throws a user-safe Error on an invalid file (trust boundary — the
- * client is untrusted, so type/size are checked here, not just in the browser).
+ * Validate + upload one photo (pint or venue) to Storage. Returns the object key
+ * to stash on the drop. Keys are deterministic (`${venueId}/${dropId}/${slot}.${ext}`)
+ * so a failed insert has an exact key to clean up — no orphan hunt. Throws a
+ * user-safe Error on an invalid file (trust boundary — the client is untrusted,
+ * so type/size are checked here, not just in the browser).
  */
-export async function uploadPintPhoto(file: File): Promise<string> {
+export async function uploadPhoto(
+  slot: "pint" | "venue",
+  venueId: string,
+  dropId: string,
+  file: File,
+): Promise<string> {
   const invalid = validatePhoto(file.type, file.size);
   if (invalid) throw new Error(invalid);
 
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const key = `${crypto.randomUUID()}.${ext}`;
+  const key = `${venueId}/${dropId}/${slot}.${ext(file.type)}`;
 
   const { error } = await admin()
     .storage.from(STORAGE_BUCKET)
     .upload(key, file, { contentType: file.type, upsert: false });
   if (error) throw new Error(error.message);
   return key;
+}
+
+/** Best-effort delete of uploaded objects — called to undo orphans when the
+ *  DB insert fails after upload. Never throws: cleanup must not mask the
+ *  original 503. */
+export async function deletePhotos(keys: string[]): Promise<void> {
+  const present = keys.filter(Boolean);
+  if (!present.length) return;
+  try {
+    await admin().storage.from(STORAGE_BUCKET).remove(present);
+  } catch {
+    // ponytail: swallow — a stray object is a cleanup-job problem, not a
+    // request-path one. Upgrade to a logged retry if orphans pile up.
+  }
 }

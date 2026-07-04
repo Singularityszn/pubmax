@@ -1,6 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { validatePhoto } from "@/lib/pintDropsStore";
+// Mock the Supabase admin so toDTO/deletePhotos exercise Storage without a live
+// project. getPublicUrl is a pure string build in the real client; we mirror it.
+const removeMock = vi.fn(async () => ({ data: [], error: null }));
+const getPublicUrl = vi.fn((key: string) => ({
+  data: { publicUrl: `https://cdn.test/pint-drops/${key}` },
+}));
+vi.mock("@/lib/supabase", () => ({
+  getSupabaseAdmin: () => ({ storage: { from: () => ({ getPublicUrl, remove: removeMock }) } }),
+  STORAGE_BUCKET: "pint-drops",
+}));
+
+import { validatePhoto, toDTO, deletePhotos } from "@/lib/pintDropsStore";
+import type { PersistableDrop } from "@/lib/pintDropsStore";
 
 // Pure validation only — no live Supabase. These run in the same node env as
 // the rest of the suite (no keys required).
@@ -20,5 +32,61 @@ describe("validatePhoto", () => {
 
   it("rejects a file over 5MB", () => {
     expect(validatePhoto("image/jpeg", 5 * 1024 * 1024 + 1)).toMatch(/5MB/);
+  });
+});
+
+function drop(overrides: Partial<PersistableDrop> = {}): PersistableDrop {
+  return {
+    id: "d1",
+    venueId: "the-crown",
+    handle: "ale",
+    drink: "",
+    priceGbp: 4.2,
+    passedDownNote: "",
+    era: "",
+    provenance: "contributor",
+    status: "visible",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("toDTO", () => {
+  it("maps storage keys to public URLs and never leaks the keys", () => {
+    const dto = toDTO(
+      drop({ pintPhotoKey: "the-crown/d1/pint.jpg", venuePhotoKey: "the-crown/d1/venue.png" }),
+    );
+    expect(dto.pintPhotoUrl).toBe("https://cdn.test/pint-drops/the-crown/d1/pint.jpg");
+    expect(dto.venuePhotoUrl).toBe("https://cdn.test/pint-drops/the-crown/d1/venue.png");
+    expect(dto).not.toHaveProperty("pintPhotoKey");
+    expect(dto).not.toHaveProperty("venuePhotoKey");
+  });
+
+  it("emits null URLs when a drop has no photos", () => {
+    const dto = toDTO(drop());
+    expect(dto.pintPhotoUrl).toBeNull();
+    expect(dto.venuePhotoUrl).toBeNull();
+  });
+
+  it("returns null URLs for a hidden drop even when keys exist", () => {
+    const dto = toDTO(
+      drop({ status: "hidden", pintPhotoKey: "the-crown/d1/pint.jpg", venuePhotoKey: "the-crown/d1/venue.png" }),
+    );
+    expect(dto.pintPhotoUrl).toBeNull();
+    expect(dto.venuePhotoUrl).toBeNull();
+  });
+});
+
+describe("deletePhotos", () => {
+  it("removes the given keys and skips empty ones", async () => {
+    removeMock.mockClear();
+    await deletePhotos(["the-crown/d1/pint.jpg", "the-crown/d1/venue.png"]);
+    expect(removeMock).toHaveBeenCalledWith(["the-crown/d1/pint.jpg", "the-crown/d1/venue.png"]);
+  });
+
+  it("no-ops (no Storage call) when there is nothing to delete", async () => {
+    removeMock.mockClear();
+    await deletePhotos([]);
+    expect(removeMock).not.toHaveBeenCalled();
   });
 });
