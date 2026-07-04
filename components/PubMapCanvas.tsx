@@ -619,7 +619,16 @@ export default function PubMapCanvas({
       rafId = requestAnimationFrame(frame);
       const dt = Math.min(now - last, 100);
       last = now;
-      if (reducedRef.current || document.hidden || !map.getLayer("pubs-point")) return;
+      // isStyleLoaded() is null-safe and false mid-swap; check it BEFORE
+      // getLayer, which throws on the transiently-null style during a theme
+      // setStyle({diff:false}) or on teardown.
+      if (
+        reducedRef.current ||
+        document.hidden ||
+        !map.isStyleLoaded() ||
+        !map.getLayer("pubs-point")
+      )
+        return;
       if (now >= holdUntilRef.current) {
         map.setBearing(map.getBearing() - (ORBIT_DEG_PER_SEC * dt) / 1000);
       }
