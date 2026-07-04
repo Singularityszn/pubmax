@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -93,6 +94,14 @@ export default function PubMap() {
 
   return (
     <main className="appShell dark">
+      <nav className="siteNav appNav" aria-label="Site navigation">
+        <Link href="/">Home</Link>
+        <Link href="/map" aria-current="page">
+          Map
+        </Link>
+        <Link href="/admin">Admin</Link>
+      </nav>
+
       <ControlRail
         mode={mode}
         onModeChange={setMode}

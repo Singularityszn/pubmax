@@ -89,6 +89,49 @@ button {
   display: grid;
   grid-template-columns: 356px minmax(0, 1fr) 372px;
   overflow: hidden;
+  position: relative;
+}
+
+.siteNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.siteNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.siteNav a:hover {
+  background: rgba(176, 129, 58, 0.12);
+  color: var(--ink);
+}
+
+.siteNav a[aria-current="page"] {
+  background: var(--ink-deep);
+  color: var(--paper);
+}
+
+.appNav {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 1200;
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
 }
 
 .controlRail,

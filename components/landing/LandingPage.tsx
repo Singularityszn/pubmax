@@ -100,6 +100,7 @@ export default function LandingPage() {
             <a href="#wedge">How it works</a>
             <a href="#landlord">The Landlord</a>
             <a href="#drops">Pint Drops</a>
+            <Link href="/admin">Admin</Link>
             <Link href="/map" className="btn btnPrimary topbarCta">
               Open the map
             </Link>
@@ -353,6 +354,7 @@ export default function LandingPage() {
                 />
                 The map
               </Link>
+              <Link href="/admin">Moderation</Link>
               <a href="#wedge">How it works</a>
               <a href="#drops">Pint Drops</a>
             </div>

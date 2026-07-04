@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import "./admin.css";
@@ -95,6 +96,14 @@ export default function AdminPage() {
 
   return (
     <main className="admin">
+      <nav className="siteNav adminNav" aria-label="Site navigation">
+        <Link href="/">Home</Link>
+        <Link href="/map">Map</Link>
+        <Link href="/admin" aria-current="page">
+          Admin
+        </Link>
+      </nav>
+
       <h1>Pint Drop moderation</h1>
       <p className="admin-sub">Review reported community drops. Restore the good, keep the rest hidden.</p>
 
