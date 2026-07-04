@@ -150,7 +150,9 @@ async function writeSupabase(norm, facts) {
         prefer: "resolution=merge-duplicates",
       },
       body: JSON.stringify(
-        facts.map((f) => ({ venue_name: norm, source: f.source, fact: f.fact, source_ref: f.sourceRef ?? null })),
+        // venue_key = normaliseVenueName(name); matches the migration column and
+        // the retrieval query in lib/heritage.ts. `norm` is already normalised.
+        facts.map((f) => ({ venue_key: norm, source: f.source, fact: f.fact, source_ref: f.sourceRef ?? null })),
       ),
     });
   } catch {
