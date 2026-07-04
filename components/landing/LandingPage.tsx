@@ -341,7 +341,7 @@ export default function LandingPage() {
               <a
                 href="https://twitter.com/London_W4"
                 target="_blank"
-                rel="noreferrer noopener"
+                rel="noreferrer"
               >
                 Alastair Hilton (@London_W4)
               </a>

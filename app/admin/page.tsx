@@ -192,14 +192,14 @@ export default function AdminPage() {
                   onClick={() => decide(d.id, "restore")}
                   disabled={pendingId === d.id}
                 >
-                  {pendingId === d.id ? "Working..." : "Restore"}
+                  {pendingId === d.id ? "Working…" : "Restore"}
                 </button>
                 <button
                   className="admin-btn admin-keep"
                   onClick={() => decide(d.id, "keep_hidden")}
                   disabled={pendingId === d.id}
                 >
-                  {pendingId === d.id ? "Working..." : "Keep hidden"}
+                  {pendingId === d.id ? "Working…" : "Keep hidden"}
                 </button>
               </div>
             </article>

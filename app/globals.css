@@ -100,7 +100,7 @@ button {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow);
 }
 
 .siteNav a {
@@ -618,6 +618,7 @@ input[type="range"] {
   color: var(--ink-soft);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -786,7 +787,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ink-soft);
+  color: #3d4842; /* light-theme ink-soft; legend chip bg is always light */
 }
 
 .mapLegend i {
@@ -937,9 +938,9 @@ input[type="range"] {
 
 /* Needs Source: unverified editorial — visibly distinct from Sourced. */
 .provChip.needs-source {
-  color: var(--brass);
-  border-color: rgba(176, 129, 58, 0.4);
-  background: rgba(176, 129, 58, 0.1);
+  color: var(--amber);
+  border-color: rgba(194, 136, 42, 0.4);
+  background: rgba(194, 136, 42, 0.1);
 }
 
 .provChip.baseline {
@@ -1098,7 +1099,12 @@ input[type="range"] {
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   color: var(--ink);
-  outline: 0;
+}
+
+.landlordForm input:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
 }
 
 .landlordForm button {
@@ -1109,7 +1115,12 @@ input[type="range"] {
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
-  color: #fffdf6;
+  color: #fdfaf2;
+}
+
+.landlordForm button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .landlordSuggest {
@@ -1349,6 +1360,9 @@ input[type="range"] {
 .venuePickerList strong {
   display: block;
   font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .venuePickerList small {
@@ -1438,6 +1452,10 @@ input[type="range"] {
 .dropCard .dropHandle {
   font-weight: 800;
   font-size: 0.84rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dropCard .dropPrice {
@@ -1617,7 +1635,13 @@ input[type="range"] {
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   color: var(--ink);
-  outline: 0;
+}
+
+.dropComposer input:focus-visible,
+.dropComposer textarea:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
 }
 
 .dropComposer textarea {
@@ -1640,7 +1664,7 @@ input[type="range"] {
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
-  color: #fffdf6;
+  color: #fdfaf2;
   font-weight: 700;
   transition: filter 0.15s ease;
 }

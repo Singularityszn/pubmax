@@ -80,10 +80,14 @@
 
 .admin-msg {
   padding: 0.7rem 0.9rem;
-  border: 1px solid var(--brick);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  color: var(--brick);
+  color: var(--ink-soft);
   margin-bottom: 1.25rem;
+}
+.admin-msg[role="alert"] {
+  border-color: var(--brick);
+  color: var(--brick);
 }
 
 .admin-empty {
