@@ -1,0 +1,61 @@
+/* Dark theme: a candlelit pub at night — deep charcoal-greens, warm cream ink,
+   accents nudged lighter so they read against dark surfaces. Overrides the
+   same tokens :root sets in globals.css. Do NOT edit globals.css here. */
+
+html:not([data-theme="dark"]) {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #ece3d2; /* warm cream text on dark */
+  --ink-soft: #c4bca9;
+  --muted: #8f8875;
+  --line: #35362e; /* subtle light-on-dark divider */
+  --line-soft: #2a2b24;
+  --paper: #12100c; /* deep charcoal-green base */
+  --panel: #171712;
+  --panel-raised: #201f18; /* lifted surface */
+  --ink-deep: #0b0a07;
+
+  --pint: #46b378; /* cheap pint / positive */
+  --amber: #d99f45; /* mid price / caution */
+  --brick: #d16353; /* expensive / destructive */
+  --brass: #d3a44a; /* route + writer + guidebook accent */
+  --brass-bright: #e6bd63; /* map marker */
+  --river: #4f9ec4; /* by-water + heritage */
+  --river-bright: #6fb9db;
+
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* Floating theme toggle — small raised pill, top-right. */
+.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.themeToggle:hover {
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.themeToggle.floating {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
+}
