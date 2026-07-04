@@ -6,13 +6,18 @@ const removeMock = vi.fn(async () => ({ data: [], error: null }));
 const getPublicUrl = vi.fn((key: string) => ({
   data: { publicUrl: `https://cdn.test/pint-drops/${key}` },
 }));
+const rpcMock = vi.fn();
 vi.mock("@/lib/supabase", () => ({
-  getSupabaseAdmin: () => ({ storage: { from: () => ({ getPublicUrl, remove: removeMock }) } }),
+  getSupabaseAdmin: () => ({
+    storage: { from: () => ({ getPublicUrl, remove: removeMock }) },
+    rpc: rpcMock,
+  }),
   STORAGE_BUCKET: "pint-drops",
 }));
 
-import { validatePhoto, toDTO, deletePhotos } from "@/lib/pintDropsStore";
+import { validatePhoto, toDTO, deletePhotos, supabasePintDropStore } from "@/lib/pintDropsStore";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
+import { REPORT_HIDE_THRESHOLD } from "@/lib/pintDrops";
 
 // Pure validation only — no live Supabase. These run in the same node env as
 // the rest of the suite (no keys required).
@@ -88,5 +93,27 @@ describe("deletePhotos", () => {
     removeMock.mockClear();
     await deletePhotos([]);
     expect(removeMock).not.toHaveBeenCalled();
+  });
+});
+
+// H4 / migration 0004: the atomic report_pint_drop RPC. The route maps a false
+// return to a 404, so the unknown-id path is a real contract, not a detail.
+describe("supabasePintDropStore.report (atomic RPC)", () => {
+  it("passes the server-side hide threshold (one report can't hide content) and returns true on success", async () => {
+    rpcMock.mockClear();
+    rpcMock.mockResolvedValueOnce({ data: 1, error: null });
+    const result = await supabasePintDropStore.report("d1", "spam");
+    expect(result).toBe(true);
+    expect(rpcMock).toHaveBeenCalledWith("report_pint_drop", {
+      p_id: "d1",
+      p_reason: "spam",
+      p_hide_threshold: REPORT_HIDE_THRESHOLD,
+    });
+  });
+
+  it("returns false for an unknown id (null data → 404 upstream)", async () => {
+    rpcMock.mockClear();
+    rpcMock.mockResolvedValueOnce({ data: null, error: null });
+    expect(await supabasePintDropStore.report("nope")).toBe(false);
   });
 });
