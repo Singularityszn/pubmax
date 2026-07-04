@@ -13,24 +13,27 @@ import {
   type VenuePrice,
 } from "@/lib/venues";
 import PubMapCanvas from "@/components/PubMapCanvas";
-import ControlRail, { initialFilters, type CrawlMode } from "@/components/map/ControlRail";
+import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
 import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector from "@/components/map/VenueInspector";
 import { usePintDrops } from "@/components/map/usePintDrops";
+import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
 // a bare price is never a story, and demo seeds never move prices or hasStory.
 
 export default function PubMap() {
+  // Seed the crawl from the shareable URL (falls back to defaults / honors
+  // ?style=heritage from the landing page). Lazy init keeps this off effects.
+  const seed = useMemo(
+    () => seedCrawlState(typeof window === "undefined" ? "" : window.location.search),
+    [],
+  );
   const [rows, setRows] = useState<VenuePrice[]>([]);
-  const [selectedVenueId, setSelectedVenueId] = useState<string>("");
-  const [filters, setFilters] = useState<Filters>(() => {
-    if (typeof window === "undefined") return initialFilters;
-    const style = new URLSearchParams(window.location.search).get("style");
-    return style === "heritage" ? { ...initialFilters, crawlStyle: "heritage" } : initialFilters;
-  });
-  const [mode, setMode] = useState<CrawlMode>("suggest");
-  const [builtIds, setBuiltIds] = useState<string[]>([]);
+  const [selectedVenueId, setSelectedVenueId] = useState<string>(seed.selectedVenueId);
+  const [filters, setFilters] = useState<Filters>(seed.filters);
+  const [mode, setMode] = useState<CrawlMode>(seed.mode);
+  const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   const pintDrops = usePintDrops();
@@ -63,6 +66,14 @@ export default function PubMap() {
   const selectedVenue = useMemo(
     () => venueById.get(selectedVenueId) ?? route[0],
     [route, selectedVenueId, venueById],
+  );
+
+  // Keep the URL in sync so "Copy link" shares the current crawl.
+  useCrawlUrlSync(
+    useMemo(
+      () => ({ mode, filters, builtIds, selectedVenueId }),
+      [mode, filters, builtIds, selectedVenueId],
+    ),
   );
 
   // Load the venue's community Pint Drops whenever the inspected venue changes.

@@ -4,13 +4,15 @@ import {
   Anchor,
   BadgePoundSterling,
   BookOpen,
+  Check,
   Landmark,
+  Link2,
   MapPin,
   PlusCircle,
   Route,
   Trophy,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { crawlSummary, formatPrice, type Filters, type Venue } from "@/lib/venues";
 import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
@@ -50,6 +52,17 @@ export default function RoutePanel({
   const routeHeritageCount = route.filter((venue) => venue.hasStory).length;
   const routeWriterCount = route.filter((venue) => venue.curation.writerPick).length;
 
+  const [copied, setCopied] = useState(false);
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ponytail: clipboard denied (permissions/insecure origin) — no-op, no crash.
+    }
+  }
+
   return (
     <aside className="routePanel">
       <div className="routeHeader">
@@ -57,6 +70,15 @@ export default function RoutePanel({
           <p className="eyebrow">{mode === "build" ? "Your Crawl" : "Suggested Crawl"}</p>
           <h2>{mode === "build" ? "Hand-built route" : `${styleLabels[crawlStyle]} route`}</h2>
         </div>
+        <button
+          type="button"
+          className="shareBtn"
+          onClick={copyLink}
+          aria-label="Copy a shareable link to this crawl"
+        >
+          {copied ? <Check size={14} /> : <Link2 size={14} />}
+          {copied ? "Copied!" : "Copy link"}
+        </button>
         <Route size={24} />
       </div>
 
