@@ -685,6 +685,15 @@
   color: var(--ink);
 }
 
+.lp .footerColophon {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
 /* ── Reveal-on-scroll (progressive; no JS = fully visible) ───────────── */
 .lp .reveal {
   opacity: 0;

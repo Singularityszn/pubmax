@@ -372,6 +372,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+        <p className="container footerColophon">Built by Karan Manoharan</p>
       </footer>
     </div>
   );
