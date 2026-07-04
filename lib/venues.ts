@@ -1,7 +1,10 @@
+import { getVenueCuration, type VenueCuration } from "@/lib/curation";
+
 export type CrawlStyle =
   | "balanced"
   | "cheapest"
   | "heritage"
+  | "writerTrail"
   | "beerGarden"
   | "sports"
   | "dateNight";
@@ -80,6 +83,7 @@ export type Venue = {
   description: string;
   dataQualityNotes: string[];
   sourceDatasets: string[];
+  curation: VenueCuration;
 };
 
 export type Filters = {
@@ -92,6 +96,8 @@ export type Filters = {
   requireLiveSports: boolean;
   requireFood: boolean;
   requireCocktails: boolean;
+  requireWater: boolean;
+  requireHeritage: boolean;
   canonicalOnly: boolean;
 };
 
@@ -110,19 +116,36 @@ export function formatPrice(value: number | null): string {
   return typeof value === "number" ? `£${value.toFixed(2)}` : "No price";
 }
 
+function normaliseVenueKeyPart(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function venueGroupingKey(row: VenuePrice): string {
+  return [
+    normaliseVenueKeyPart(row.pub_name),
+    normaliseVenueKeyPart(row.address),
+    row.latitude.toFixed(5),
+    row.longitude.toFixed(5),
+  ].join("|");
+}
+
+export function stableVenueIdFromKey(key: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i += 1) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `venue-${(hash >>> 0).toString(36)}`;
+}
+
 export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
   const grouped = new Map<string, VenuePrice[]>();
   for (const row of rows) {
-    const key = [
-      row.pub_name.trim().toLowerCase(),
-      row.address.trim().toLowerCase(),
-      row.latitude.toFixed(5),
-      row.longitude.toFixed(5),
-    ].join("|");
+    const key = venueGroupingKey(row);
     grouped.set(key, [...(grouped.get(key) ?? []), row]);
   }
 
-  return Array.from(grouped.values()).map((prices, index) => {
+  return Array.from(grouped.entries()).map(([key, prices]) => {
     const sortedPrices = [...prices].sort((a, b) => {
       const left = a.price_gbp ?? Number.POSITIVE_INFINITY;
       const right = b.price_gbp ?? Number.POSITIVE_INFINITY;
@@ -139,8 +162,10 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       splitList(price.data_quality_notes).forEach((note) => dataQualityNotes.add(note));
     }
 
+    const curation = getVenueCuration(sortedPrices);
+
     return {
-      id: `venue-${index + 1}`,
+      id: stableVenueIdFromKey(key),
       name: first.pub_name,
       address: first.address,
       latitude: first.latitude,
@@ -170,6 +195,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       description: prices.find((price) => price.description)?.description ?? "",
       dataQualityNotes: Array.from(dataQualityNotes),
       sourceDatasets: Array.from(sourceDatasets),
+      curation,
     };
   });
 }
@@ -193,11 +219,15 @@ export function filterVenues(venues: Venue[], filters: Filters): Venue[] {
       (!filters.requireFood || venue.amenities.food) &&
       (!filters.requireCocktails || venue.amenities.cocktails);
 
+    const matchesCuration =
+      (!filters.requireWater || Boolean(venue.curation.nearWater)) &&
+      (!filters.requireHeritage || Boolean(venue.curation.heritageNote));
+
     const matchesCanonical =
       !filters.canonicalOnly ||
       venue.prices.some((price) => price.is_clean_canonical_app_row);
 
-    return matchesQuery && matchesPrice && matchesAmenities && matchesCanonical;
+    return matchesQuery && matchesPrice && matchesAmenities && matchesCuration && matchesCanonical;
   });
 }
 
@@ -230,7 +260,10 @@ export function scoreVenue(venue: Venue, style: CrawlStyle): number {
     Number(venue.amenities.cocktails) +
     Number(venue.amenities.liveMusic) +
     Number(venue.amenities.pubQuiz);
-  const hasStory = venue.description.length > 80 ? 2 : 0;
+  const hasVenueContext = venue.description.length > 80 ? 1 : 0;
+  const hasHeritage = venue.curation.heritageNote ? 2.5 : 0;
+  const nearWater = venue.curation.nearWater ? 1.5 : 0;
+  const writerPick = venue.curation.writerPick ? 5 : 0;
   const sourceTrust = venue.prices.some((priceItem) => priceItem.is_clean_canonical_app_row)
     ? 1
     : 0;
@@ -238,17 +271,20 @@ export function scoreVenue(venue: Venue, style: CrawlStyle): number {
   if (style === "cheapest") return cheapness * 3 + sourceTrust;
   if (style === "beerGarden") return Number(venue.amenities.beerGarden) * 7 + cheapness;
   if (style === "sports") return Number(venue.amenities.liveSports) * 7 + cheapness;
-  if (style === "heritage") return hasStory * 4 + amenityScore + sourceTrust;
+  if (style === "heritage") return hasHeritage * 4 + nearWater * 2 + amenityScore + sourceTrust;
+  if (style === "writerTrail") {
+    return writerPick * 5 + hasHeritage * 3 + nearWater * 2 + hasVenueContext + cheapness + sourceTrust;
+  }
   if (style === "dateNight") {
     return (
       Number(venue.amenities.cocktails) * 2 +
       Number(venue.amenities.food) * 2 +
       Number(venue.amenities.beerGarden) * 2 +
-      hasStory * 2 +
+      (hasVenueContext + hasHeritage) * 2 +
       cheapness
     );
   }
-  return cheapness * 1.5 + amenityScore + hasStory + sourceTrust;
+  return cheapness * 1.5 + amenityScore + hasVenueContext + hasHeritage + nearWater + sourceTrust;
 }
 
 export function buildCrawlRoute(venues: Venue[], filters: Filters): Venue[] {

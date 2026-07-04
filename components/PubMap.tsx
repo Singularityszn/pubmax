@@ -1,20 +1,27 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-
 import {
+  Anchor,
   BadgePoundSterling,
   Beer,
+  BookOpen,
+  Camera,
+  ExternalLink,
+  Landmark,
   MapPin,
   Route,
   Search,
   SlidersHorizontal,
+  Sparkles,
   Trophy,
   Waves,
+  Hand,
+  Trash2,
+  PlusCircle,
+  Send,
+  Quote,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
-import type { LatLngExpression } from "leaflet";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import {
   buildCrawlRoute,
@@ -22,19 +29,33 @@ import {
   filterVenues,
   formatPrice,
   groupVenuePrices,
-  priceColor,
   type CrawlStyle,
   type Filters,
   type Venue,
   type VenuePrice,
 } from "@/lib/venues";
+import { pubSources, writerProfile, type Provenance } from "@/lib/curation";
+import type { PintDrop } from "@/lib/pintDrops";
+import PubMapCanvas from "@/components/PubMapCanvas";
+import LandlordPanel from "@/components/LandlordPanel";
 
-const LONDON_CENTER: LatLngExpression = [51.515, -0.118];
+type CrawlMode = "suggest" | "build";
+
+const PROVENANCE_LABEL: Record<Provenance, string> = {
+  sourced: "Sourced",
+  contributor: "Contributor",
+  anecdote: "Anecdote",
+};
+
+function ProvenanceChip({ provenance }: { provenance: Provenance }) {
+  return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
+}
 
 const styleLabels: Record<CrawlStyle, string> = {
   balanced: "Balanced",
   cheapest: "Cheapest",
   heritage: "Historic",
+  writerTrail: "Writer Trail",
   beerGarden: "Beer Garden",
   sports: "Live Sports",
   dateNight: "Date Night",
@@ -50,6 +71,8 @@ const initialFilters: Filters = {
   requireLiveSports: false,
   requireFood: false,
   requireCocktails: false,
+  requireWater: false,
+  requireHeritage: false,
   canonicalOnly: true,
 };
 
@@ -57,40 +80,62 @@ function Amenity({ active, label }: { active: boolean; label: string }) {
   return <span className={active ? "amenity active" : "amenity"}>{label}</span>;
 }
 
-function VenuePopup({ venue }: { venue: Venue }) {
-  const previewPrices = venue.prices.slice(0, 5);
-  return (
-    <div className="popup">
-      <h3>{venue.name}</h3>
-      <p>{venue.address}</p>
-      <div className="popupPrice">
-        <strong>{formatPrice(venue.cheapestPrice)}</strong>
-        <span>{venue.cheapestPint}</span>
-      </div>
-      <div className="popupAmenities">
-        <Amenity active={venue.amenities.beerGarden} label="garden" />
-        <Amenity active={venue.amenities.liveSports} label="sports" />
-        <Amenity active={venue.amenities.food} label="food" />
-        <Amenity active={venue.amenities.cocktails} label="cocktails" />
-      </div>
-      <ul>
-        {previewPrices.map((price) => (
-          <li key={price.app_price_id}>
-            {price.pint_name} <span>{formatPrice(price.price_gbp)}</span>
-          </li>
-        ))}
-      </ul>
-      {venue.dataQualityNotes.length > 0 ? (
-        <small>{venue.dataQualityNotes.join(", ")}</small>
-      ) : null}
-    </div>
-  );
+function groupDropsByVenueId(drops: PintDrop[]): Map<string, PintDrop[]> {
+  const grouped = new Map<string, PintDrop[]>();
+  for (const drop of drops) {
+    grouped.set(drop.venueId, [...(grouped.get(drop.venueId) ?? []), drop]);
+  }
+  return grouped;
+}
+
+function mergeVenueDrops(venues: Venue[], dropsByVenueId: Map<string, PintDrop[]>): Venue[] {
+  if (dropsByVenueId.size === 0) return venues;
+  return venues.map((venue) => {
+    const venueDrops = dropsByVenueId.get(venue.id) ?? [];
+    if (venueDrops.length === 0) return venue;
+
+    const latestPriceDrop = venueDrops.find((drop) => typeof drop.priceGbp === "number");
+    const latestNoteDrop = venueDrops.find((drop) => drop.passedDownNote);
+    const contributorPrice = latestPriceDrop?.priceGbp ?? null;
+    const contributorEra = latestNoteDrop?.era || "Contributor note";
+    const cheapestPrice =
+      contributorPrice === null
+        ? venue.cheapestPrice
+        : Math.min(venue.cheapestPrice ?? Number.POSITIVE_INFINITY, contributorPrice);
+
+    return {
+      ...venue,
+      cheapestPrice,
+      cheapestPint: latestPriceDrop?.drink || venue.cheapestPint,
+      curation: latestNoteDrop
+        ? {
+            ...venue.curation,
+            heritageEra: venue.curation.heritageEra ?? contributorEra,
+            heritageNote: venue.curation.heritageNote ?? latestNoteDrop.passedDownNote,
+            storyTag: venue.curation.storyTag ?? "Pint Drop",
+            provenance: venue.curation.provenance ?? latestNoteDrop.provenance,
+          }
+        : venue.curation,
+    };
+  });
 }
 
 export default function PubMap() {
   const [rows, setRows] = useState<VenuePrice[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>("");
   const [filters, setFilters] = useState<Filters>(initialFilters);
+  const [mode, setMode] = useState<CrawlMode>("suggest");
+  const [builtIds, setBuiltIds] = useState<string[]>([]);
+
+  // Community Pint Drops for the currently-inspected venue.
+  const [handle, setHandle] = useState(() =>
+    typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
+  );
+  const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, PintDrop[]>>(() => new Map());
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [dropForm, setDropForm] = useState({ price: "", drink: "", note: "", era: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [dropMsg, setDropMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     fetch("/data/pint_prices_app_dataset.json")
@@ -98,22 +143,163 @@ export default function PubMap() {
       .then((data: VenuePrice[]) => setRows(data));
   }, []);
 
-  const venues = useMemo(() => groupVenuePrices(rows), [rows]);
-  const filteredVenues = useMemo(() => filterVenues(venues, filters), [venues, filters]);
-  const route = useMemo(() => buildCrawlRoute(filteredVenues, filters), [filteredVenues, filters]);
-  const summary = useMemo(() => crawlSummary(route), [route]);
-  const selectedVenue = useMemo(
-    () => venues.find((venue) => venue.id === selectedVenueId) ?? route[0],
-    [route, selectedVenueId, venues],
-  );
+  useEffect(() => {
+    fetch("/api/pint-drops")
+      .then((response) => (response.ok ? response.json() : { drops: [] }))
+      .then((data: { drops?: PintDrop[] }) => setDropsByVenueId(groupDropsByVenueId(data.drops ?? [])))
+      .catch(() => setDropsByVenueId(new Map()));
+  }, []);
 
-  const visibleMarkers = filteredVenues.slice(0, 650);
+  const baseVenues = useMemo(() => groupVenuePrices(rows), [rows]);
+  const venues = useMemo(
+    () => mergeVenueDrops(baseVenues, dropsByVenueId),
+    [baseVenues, dropsByVenueId],
+  );
+  const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  const filteredVenues = useMemo(() => filterVenues(venues, filters), [venues, filters]);
+
+  const suggestedRoute = useMemo(
+    () => buildCrawlRoute(filteredVenues, filters),
+    [filteredVenues, filters],
+  );
+  const builtRoute = useMemo(
+    () => builtIds.map((id) => venueById.get(id)).filter((v): v is Venue => Boolean(v)),
+    [builtIds, venueById],
+  );
+  const route = mode === "suggest" ? suggestedRoute : builtRoute;
+  const summary = useMemo(() => crawlSummary(route), [route]);
+
+  const selectedVenue = useMemo(
+    () => venueById.get(selectedVenueId) ?? route[0],
+    [route, selectedVenueId, venueById],
+  );
   const cheapCount = filteredVenues.filter(
     (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
   ).length;
+  const waterCount = filteredVenues.filter((venue) => venue.curation.nearWater).length;
+  const heritageCount = filteredVenues.filter((venue) => venue.curation.heritageNote).length;
+  const writerCount = filteredVenues.filter((venue) => venue.curation.writerPick).length;
+  const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
+  const routeHeritageCount = route.filter((venue) => venue.curation.heritageNote).length;
+  const routeWriterCount = route.filter((venue) => venue.curation.writerPick).length;
+  const drops = selectedVenue ? (dropsByVenueId.get(selectedVenue.id) ?? []) : [];
+  const venueSignals = useMemo(() => {
+    const signals = new Map<string, { hasPintDrops: boolean; latestContributorPrice: number | null }>();
+    for (const [venueId, venueDrops] of dropsByVenueId) {
+      const latestContributorPrice =
+        venueDrops.find((drop) => typeof drop.priceGbp === "number")?.priceGbp ?? null;
+      signals.set(venueId, {
+        hasPintDrops: venueDrops.length > 0,
+        latestContributorPrice,
+      });
+    }
+    return signals;
+  }, [dropsByVenueId]);
+
+  const filtersDirty = useMemo(
+    () => JSON.stringify(filters) !== JSON.stringify(initialFilters),
+    [filters],
+  );
+  function resetFilters() {
+    setFilters({ ...initialFilters, crawlStyle: filters.crawlStyle });
+  }
+
+  // Load the venue's community Pint Drops whenever the inspected venue changes.
+  const selectedId = selectedVenue?.id;
+  useEffect(() => {
+    if (!selectedId) {
+      return;
+    }
+    let active = true;
+    fetch(`/api/pint-drops?venueId=${encodeURIComponent(selectedId)}`)
+      .then((response) => (response.ok ? response.json() : { drops: [] }))
+      .then((data: { drops?: PintDrop[] }) => {
+        if (active) {
+          setDropsByVenueId((current) => {
+            const next = new Map(current);
+            next.set(selectedId, data.drops ?? []);
+            return next;
+          });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDropsByVenueId((current) => {
+            const next = new Map(current);
+            next.set(selectedId, []);
+            return next;
+          });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedId]);
+
+  async function submitDrop(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedVenue) return;
+    setSubmitting(true);
+    setDropMsg(null);
+    try {
+      const response = await fetch("/api/pint-drops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId: selectedVenue.id,
+          handle,
+          priceGbp: dropForm.price ? Number(dropForm.price) : undefined,
+          drink: dropForm.drink || undefined,
+          passedDownNote: dropForm.note || undefined,
+          era: dropForm.era || undefined,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setDropMsg({ ok: false, text: data.error ?? "Could not save that drop." });
+      } else {
+        window.localStorage.setItem("pubmax_handle", handle.trim());
+        setDropsByVenueId((current) => {
+          const next = new Map(current);
+          next.set(selectedVenue.id, [data.drop, ...(next.get(selectedVenue.id) ?? [])]);
+          return next;
+        });
+        setDropForm({ price: "", drink: "", note: "", era: "" });
+        setComposerOpen(false);
+        setDropMsg({ ok: true, text: "Cheers — your Pint Drop is live." });
+      }
+    } catch {
+      setDropMsg({ ok: false, text: "Network error — try again." });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const selectVenue = useCallback(
+    (id: string) => {
+      setSelectedVenueId(id);
+      setDropMsg(null);
+      setComposerOpen(false);
+    },
+    [],
+  );
+
+  const toggleBuiltStop = useCallback((id: string) => {
+    setBuiltIds((current) =>
+      current.includes(id) ? current.filter((existing) => existing !== id) : [...current, id],
+    );
+  }, []);
+
+  const handleVenueClick = useCallback(
+    (id: string) => {
+      selectVenue(id);
+      if (mode === "build") toggleBuiltStop(id);
+    },
+    [mode, selectVenue, toggleBuiltStop],
+  );
 
   return (
-    <main className="appShell">
+    <main className="appShell dark">
       <aside className="controlRail">
         <div className="brandBlock">
           <div className="brandMark">
@@ -125,6 +311,30 @@ export default function PubMap() {
           </div>
         </div>
 
+        <div className="modeToggle">
+          <button
+            className={mode === "suggest" ? "selected" : ""}
+            onClick={() => setMode("suggest")}
+          >
+            <Sparkles size={15} /> Suggest a crawl
+          </button>
+          <button className={mode === "build" ? "selected" : ""} onClick={() => setMode("build")}>
+            <Hand size={15} /> Build your own
+          </button>
+        </div>
+
+        {mode === "build" ? (
+          <p className="buildHint">
+            Tap pubs on the map to add or remove them. Use the route list to inspect stops.{" "}
+            {builtIds.length} stop{builtIds.length === 1 ? "" : "s"} picked.
+            {builtIds.length > 0 ? (
+              <button className="clearBtn" onClick={() => setBuiltIds([])}>
+                <Trash2 size={13} /> Clear
+              </button>
+            ) : null}
+          </p>
+        ) : null}
+
         <label className="searchBox">
           <Search size={18} />
           <input
@@ -134,23 +344,25 @@ export default function PubMap() {
           />
         </label>
 
-        <section className="panelSection">
-          <div className="sectionTitle">
-            <SlidersHorizontal size={16} />
-            <span>Crawl Style</span>
-          </div>
-          <div className="segmented">
-            {(Object.keys(styleLabels) as CrawlStyle[]).map((style) => (
-              <button
-                key={style}
-                className={filters.crawlStyle === style ? "selected" : ""}
-                onClick={() => setFilters({ ...filters, crawlStyle: style })}
-              >
-                {styleLabels[style]}
-              </button>
-            ))}
-          </div>
-        </section>
+        {mode === "suggest" ? (
+          <section className="panelSection">
+            <div className="sectionTitle">
+              <SlidersHorizontal size={16} />
+              <span>Crawl Style</span>
+            </div>
+            <div className="segmented">
+              {(Object.keys(styleLabels) as CrawlStyle[]).map((style) => (
+                <button
+                  key={style}
+                  className={filters.crawlStyle === style ? "selected" : ""}
+                  onClick={() => setFilters({ ...filters, crawlStyle: style })}
+                >
+                  {styleLabels[style]}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="panelSection">
           <div className="rangeLine">
@@ -163,41 +375,70 @@ export default function PubMap() {
             max="9"
             step="0.25"
             value={filters.maxPrice}
-            onChange={(event) =>
-              setFilters({ ...filters, maxPrice: Number(event.target.value) })
-            }
+            onChange={(event) => setFilters({ ...filters, maxPrice: Number(event.target.value) })}
           />
-          <div className="rangeLine">
-            <span>Stops</span>
-            <strong>{filters.stopCount}</strong>
-          </div>
-          <input
-            type="range"
-            min="4"
-            max="7"
-            step="1"
-            value={filters.stopCount}
-            onChange={(event) =>
-              setFilters({ ...filters, stopCount: Number(event.target.value) })
-            }
-          />
-          <div className="rangeLine">
-            <span>Route Window</span>
-            <strong>{filters.routeWindow} min</strong>
-          </div>
-          <input
-            type="range"
-            min="15"
-            max="30"
-            step="5"
-            value={filters.routeWindow}
-            onChange={(event) =>
-              setFilters({ ...filters, routeWindow: Number(event.target.value) })
-            }
-          />
+          {mode === "suggest" ? (
+            <>
+              <div className="rangeLine">
+                <span>Stops</span>
+                <strong>{filters.stopCount}</strong>
+              </div>
+              <input
+                type="range"
+                min="4"
+                max="7"
+                step="1"
+                value={filters.stopCount}
+                onChange={(event) =>
+                  setFilters({ ...filters, stopCount: Number(event.target.value) })
+                }
+              />
+              <div className="rangeLine">
+                <span>Route Window</span>
+                <strong>{filters.routeWindow} min</strong>
+              </div>
+              <input
+                type="range"
+                min="15"
+                max="30"
+                step="5"
+                value={filters.routeWindow}
+                onChange={(event) =>
+                  setFilters({ ...filters, routeWindow: Number(event.target.value) })
+                }
+              />
+            </>
+          ) : null}
         </section>
 
         <section className="panelSection toggles">
+          <div className="sectionTitle">
+            <Landmark size={16} />
+            <span>Story Filters</span>
+            {filtersDirty ? (
+              <button className="resetBtn" style={{ marginLeft: "auto" }} onClick={resetFilters}>
+                <Trash2 size={12} /> Reset
+              </button>
+            ) : null}
+          </div>
+          <label>
+            <input
+              type="checkbox"
+              checked={filters.requireWater}
+              onChange={(event) => setFilters({ ...filters, requireWater: event.target.checked })}
+            />
+            By the water
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={filters.requireHeritage}
+              onChange={(event) =>
+                setFilters({ ...filters, requireHeritage: event.target.checked })
+              }
+            />
+            Heritage note
+          </label>
           <label>
             <input
               type="checkbox"
@@ -240,9 +481,7 @@ export default function PubMap() {
             <input
               type="checkbox"
               checked={filters.canonicalOnly}
-              onChange={(event) =>
-                setFilters({ ...filters, canonicalOnly: event.target.checked })
-              }
+              onChange={(event) => setFilters({ ...filters, canonicalOnly: event.target.checked })}
             />
             Clean borough rows
           </label>
@@ -257,44 +496,72 @@ export default function PubMap() {
             <span>≤ £5.50</span>
             <strong>{cheapCount}</strong>
           </div>
+          <div>
+            <span>Water</span>
+            <strong>{waterCount}</strong>
+          </div>
+          <div>
+            <span>Heritage</span>
+            <strong>{heritageCount}</strong>
+          </div>
+          <div>
+            <span>Writer</span>
+            <strong>{writerCount}</strong>
+          </div>
+        </section>
+
+        {filteredVenues.length === 0 ? (
+          <section className="emptyState">
+            <strong>No venues match</strong>
+            <p>Try widening the pint price or clearing story and amenity filters.</p>
+            <button onClick={() => setFilters(initialFilters)}>Reset filters</button>
+          </section>
+        ) : null}
+
+        <section className="writerCard">
+          <div className="writerHeader">
+            <Camera size={18} />
+            <div>
+              <p className="eyebrow">{writerProfile.handle}</p>
+              <h2>{writerProfile.name}</h2>
+            </div>
+          </div>
+          <p>{writerProfile.summary}</p>
+          <div className="writerFacts">
+            <span>
+              <BookOpen size={15} />
+              {writerProfile.bookTitle}
+            </span>
+            <span>
+              <Anchor size={15} />
+              Narrowboat London
+            </span>
+          </div>
+          <ul>
+            {writerProfile.proofPoints.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+          <div className="sourceLinks">
+            {pubSources.map((source) => (
+              <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
+                {source.title}
+                <ExternalLink size={13} />
+              </a>
+            ))}
+          </div>
         </section>
       </aside>
 
       <section className="mapStage">
-        <MapContainer
-          center={LONDON_CENTER}
-          zoom={12}
-          minZoom={10}
-          maxZoom={18}
-          scrollWheelZoom
-          className="leafletMap"
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          />
-          {visibleMarkers.map((venue) => (
-            <CircleMarker
-              key={venue.id}
-              center={[venue.latitude, venue.longitude]}
-              radius={route.some((stop) => stop.id === venue.id) ? 9 : 6}
-              pathOptions={{
-                color: "#ffffff",
-                weight: route.some((stop) => stop.id === venue.id) ? 3 : 1,
-                fillColor: priceColor(venue.cheapestPrice),
-                fillOpacity: 0.88,
-              }}
-              eventHandlers={{
-                click: () => setSelectedVenueId(venue.id),
-              }}
-            >
-              <Popup>
-                <VenuePopup venue={venue} />
-              </Popup>
-            </CircleMarker>
-          ))}
-        </MapContainer>
-
+        <PubMapCanvas
+          venues={filteredVenues}
+          route={route}
+          selectedVenueId={selectedVenueId}
+          onVenueClick={handleVenueClick}
+          onRouteStopClick={selectVenue}
+          venueSignals={venueSignals}
+        />
         <div className="mapLegend">
           <span>
             <i className="green" /> ≤ £5.50
@@ -305,14 +572,22 @@ export default function PubMap() {
           <span>
             <i className="red" /> £7+
           </span>
+          <span>
+            <i className="blue" /> heritage
+          </span>
+          <span>
+            <i className="gold" /> writer
+          </span>
         </div>
       </section>
 
       <aside className="routePanel">
         <div className="routeHeader">
           <div>
-            <p className="eyebrow">Suggested Crawl</p>
-            <h2>{styleLabels[filters.crawlStyle]} route</h2>
+            <p className="eyebrow">{mode === "build" ? "Your Crawl" : "Suggested Crawl"}</p>
+            <h2>
+              {mode === "build" ? "Hand-built route" : `${styleLabels[filters.crawlStyle]} route`}
+            </h2>
           </div>
           <Route size={24} />
         </div>
@@ -333,22 +608,51 @@ export default function PubMap() {
             <span>{route.length}</span>
             <small>stops</small>
           </div>
+          <div>
+            <Landmark size={17} />
+            <span>{routeHeritageCount}</span>
+            <small>story pubs</small>
+          </div>
+          <div>
+            <Anchor size={17} />
+            <span>{routeWaterCount}</span>
+            <small>by water</small>
+          </div>
+          <div>
+            <BookOpen size={17} />
+            <span>{routeWriterCount}</span>
+            <small>writer picks</small>
+          </div>
         </div>
+
+        {route.length === 0 ? (
+          <p className="emptyRoute">
+            {mode === "build"
+              ? "No stops yet. Tap pubs on the map to start your crawl."
+              : "No suggested route matches these filters. Reset filters or widen the route window."}
+          </p>
+        ) : null}
 
         <ol className="routeList">
           {route.map((venue, index) => (
             <li
               key={venue.id}
               className={selectedVenue?.id === venue.id ? "active" : ""}
-              onClick={() => setSelectedVenueId(venue.id)}
+              onClick={() => selectVenue(venue.id)}
             >
               <span className="stopNumber">{index + 1}</span>
               <div>
                 <strong>{venue.name}</strong>
                 <p>
-                  {formatPrice(venue.cheapestPrice)} · {venue.cheapestPint}
+                  {formatPrice(venueSignals.get(venue.id)?.latestContributorPrice ?? venue.cheapestPrice)} ·{" "}
+                  {venue.cheapestPint}
                 </p>
-                <small>{venue.primaryBorough || venue.visibleBoroughs[0] || "London"}</small>
+                <small>
+                  {venue.curation.storyTag ||
+                    venue.primaryBorough ||
+                    venue.visibleBoroughs[0] ||
+                    "London"}
+                </small>
               </div>
             </li>
           ))}
@@ -363,12 +667,32 @@ export default function PubMap() {
             <h3>{selectedVenue.name}</h3>
             <p>{selectedVenue.address}</p>
             <div className="amenityRow">
+              <Amenity active={Boolean(selectedVenue.curation.nearWater)} label="water" />
+              <Amenity active={Boolean(selectedVenue.curation.heritageNote)} label="heritage" />
+              <Amenity active={Boolean(selectedVenue.curation.writerPick)} label="writer" />
               <Amenity active={selectedVenue.amenities.beerGarden} label="garden" />
               <Amenity active={selectedVenue.amenities.liveSports} label="sports" />
               <Amenity active={selectedVenue.amenities.food} label="food" />
               <Amenity active={selectedVenue.amenities.cocktails} label="cocktails" />
               <Amenity active={selectedVenue.amenities.pubQuiz} label="quiz" />
             </div>
+            {venueSignals.get(selectedVenue.id)?.latestContributorPrice !== null &&
+            venueSignals.get(selectedVenue.id)?.latestContributorPrice !== undefined ? (
+              <div className="contributorPrice">
+                <span>Latest Pint Drop price</span>
+                <strong>
+                  {formatPrice(venueSignals.get(selectedVenue.id)?.latestContributorPrice ?? null)}
+                </strong>
+              </div>
+            ) : null}
+            {mode === "build" ? (
+              <button
+                className="addStopBtn"
+                onClick={() => toggleBuiltStop(selectedVenue.id)}
+              >
+                {builtIds.includes(selectedVenue.id) ? "Remove from crawl" : "Add to crawl"}
+              </button>
+            ) : null}
             {selectedVenue.description ? (
               <p className="description">{selectedVenue.description}</p>
             ) : (
@@ -377,6 +701,25 @@ export default function PubMap() {
                 character.
               </p>
             )}
+            {selectedVenue.curation.heritageNote ? (
+              <div className="heritageNote">
+                <div className="heritageHead">
+                  <span className="heritageEra">
+                    {selectedVenue.curation.heritageEra ?? "Venue Heritage"}
+                  </span>
+                  {selectedVenue.curation.provenance ? (
+                    <ProvenanceChip provenance={selectedVenue.curation.provenance} />
+                  ) : null}
+                </div>
+                <p>{selectedVenue.curation.heritageNote}</p>
+                {selectedVenue.curation.sourceUrl ? (
+                  <a href={selectedVenue.curation.sourceUrl} target="_blank" rel="noreferrer">
+                    {selectedVenue.curation.sourceLabel ?? "Source"}
+                    <ExternalLink size={13} />
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
             <div className="priceList">
               {selectedVenue.prices.slice(0, 6).map((price) => (
                 <div key={price.app_price_id}>
@@ -385,6 +728,112 @@ export default function PubMap() {
                 </div>
               ))}
             </div>
+
+            <section className="pintDrops">
+              <div className="inspectorTitle">
+                <Quote size={16} />
+                <span>Pint Drops</span>
+              </div>
+              {drops.length === 0 ? (
+                <p className="description muted">
+                  No Pint Drops yet — be the first to log a price or pass down a story.
+                </p>
+              ) : (
+                <div className="dropList">
+                  {drops.map((drop) => (
+                    <article key={drop.id} className="dropCard">
+                      <div className="dropHead">
+                        <span className="dropHandle">{drop.handle}</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                          {drop.priceGbp !== null ? (
+                            <span className="dropPrice">{formatPrice(drop.priceGbp)}</span>
+                          ) : null}
+                          <ProvenanceChip provenance={drop.provenance} />
+                        </span>
+                      </div>
+                      {drop.passedDownNote ? <p>{drop.passedDownNote}</p> : null}
+                      <small>
+                        {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
+                      </small>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {composerOpen ? (
+                <form className="dropComposer" onSubmit={submitDrop}>
+                  <input
+                    value={handle}
+                    onChange={(event) => setHandle(event.target.value)}
+                    placeholder="Your handle (e.g. @thirsty_ted)"
+                    aria-label="Contributor handle"
+                    required
+                  />
+                  <div className="composerRow">
+                    <input
+                      value={dropForm.price}
+                      onChange={(event) => setDropForm({ ...dropForm, price: event.target.value })}
+                      placeholder="Price £"
+                      inputMode="decimal"
+                      aria-label="Pint price in pounds"
+                    />
+                    <input
+                      value={dropForm.drink}
+                      onChange={(event) => setDropForm({ ...dropForm, drink: event.target.value })}
+                      placeholder="Drink"
+                      aria-label="Drink name"
+                    />
+                  </div>
+                  <textarea
+                    value={dropForm.note}
+                    onChange={(event) => setDropForm({ ...dropForm, note: event.target.value })}
+                    placeholder="Passed-down note — a memory, a story, why this pub matters…"
+                    aria-label="Passed-down note"
+                  />
+                  <input
+                    value={dropForm.era}
+                    onChange={(event) => setDropForm({ ...dropForm, era: event.target.value })}
+                    placeholder="Era (e.g. 1970s, my childhood)"
+                    aria-label="Era this memory belongs to"
+                  />
+                  <div className="composerActions">
+                    <button type="submit" disabled={submitting}>
+                      <Send size={14} /> {submitting ? "Posting…" : "Post Pint Drop"}
+                    </button>
+                    {dropMsg ? (
+                      <span className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}>
+                        {dropMsg.text}
+                      </span>
+                    ) : null}
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <button className="composerToggle" onClick={() => setComposerOpen(true)}>
+                    <PlusCircle size={16} /> Log a Pint Drop
+                  </button>
+                  {dropMsg ? (
+                    <span
+                      className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
+                      style={{ display: "block", marginTop: "8px" }}
+                    >
+                      {dropMsg.text}
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </section>
+
+            <LandlordPanel
+              venueId={selectedVenue.id}
+              venueName={selectedVenue.name}
+              context={{
+                era: selectedVenue.curation.heritageEra,
+                heritageNote: selectedVenue.curation.heritageNote,
+                address: selectedVenue.address,
+                borough: selectedVenue.primaryBorough,
+              }}
+            />
           </section>
         ) : null}
       </aside>

@@ -1,5 +1,5 @@
-import PubMaxingShell from "@/components/PubMaxingShell";
+import LandingPage from "@/components/landing/LandingPage";
 
 export default function Home() {
-  return <PubMaxingShell />;
+  return <LandingPage />;
 }

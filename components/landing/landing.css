@@ -1,0 +1,761 @@
+/* PubMaxing landing page — editorial field-guide styling.
+   All colour comes from tokens in globals.css so this flips light/dark for free.
+   Scoped under .lp so nothing leaks into the /map app shell. */
+
+.lp {
+  --lp-measure: 1180px;
+  --lp-gap: clamp(72px, 11vw, 148px);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-geist, Inter), ui-sans-serif, system-ui, sans-serif;
+  /* faint dotted guidebook texture */
+  background-image: radial-gradient(rgba(176, 129, 58, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+  overflow-x: hidden;
+}
+
+.lp *,
+.lp *::before,
+.lp *::after {
+  box-sizing: border-box;
+}
+
+.lp .lpSerif {
+  font-family: var(--font-garamond, var(--serif));
+}
+
+.lp .container {
+  width: 100%;
+  max-width: var(--lp-measure);
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────── */
+.lp .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.lp .topbarInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 68px;
+}
+
+.lp .wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.lp .brandGlyph {
+  width: 38px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: var(--ink-deep);
+  color: var(--brass-bright);
+  border-radius: var(--radius-sm);
+}
+
+.lp .wordmark .wordmarkText {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.34rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lp .navLinks {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lp .navLinks a {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.lp .navLinks a:hover {
+  color: var(--ink);
+  background: rgba(176, 129, 58, 0.08);
+}
+
+/* buttons ------------------------------------------------------------- */
+.lp .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.94rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.12s ease, filter 0.15s ease, border-color 0.15s ease,
+    background 0.15s ease, color 0.15s ease;
+}
+
+.lp .btnPrimary {
+  background: var(--ink-deep);
+  color: #fdfaf2;
+  box-shadow: var(--shadow);
+}
+
+.lp .btnPrimary:hover {
+  filter: brightness(1.18);
+  transform: translateY(-1px);
+}
+
+.lp .btnPrimary:active {
+  transform: translateY(0);
+}
+
+.lp .btnGhost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.lp .btnGhost:hover {
+  border-color: var(--brass);
+  background: rgba(176, 129, 58, 0.06);
+}
+
+.lp .topbar .btn {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+/* ── Section scaffolding ─────────────────────────────────────────────── */
+.lp main > section {
+  padding-block: var(--lp-gap);
+}
+
+.lp .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  color: var(--brass);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lp .eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--brass);
+  opacity: 0.6;
+}
+
+.lp .sectionHead {
+  max-width: 640px;
+  margin-bottom: 48px;
+}
+
+.lp .sectionHead h2 {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: clamp(1.9rem, 3.6vw, 2.7rem);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  margin: 0 0 14px;
+}
+
+.lp .sectionHead p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 1.06rem;
+  line-height: 1.6;
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────── */
+.lp .hero {
+  padding-top: clamp(48px, 7vw, 84px);
+}
+
+.lp .heroGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
+}
+
+.lp .heroCopy h1 {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: clamp(2.6rem, 6vw, 4.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0 0 22px;
+}
+
+.lp .heroCopy h1 em {
+  font-style: italic;
+  color: var(--brass);
+}
+
+.lp .heroLede {
+  max-width: 40ch;
+  margin: 0 0 30px;
+  color: var(--ink-soft);
+  font-size: 1.18rem;
+  line-height: 1.55;
+}
+
+.lp .heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.lp .statChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lp .statChip {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.lp .statChip strong {
+  display: block;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.24rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.lp .statChip span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+.lp .heroFigure {
+  position: relative;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+}
+
+.lp .thamesHero {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lp .figCaption {
+  margin: 12px 4px 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.lp .illustrative {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: italic;
+  margin: 14px 0 0;
+}
+
+/* ── The wedge: three value cards ────────────────────────────────────── */
+.lp .cardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.lp .wedgeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.lp .wedgeCard:hover {
+  border-color: var(--brass);
+  transform: translateY(-3px);
+}
+
+.lp .wedgeIcon {
+  width: 44px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+  color: var(--brass);
+}
+
+.lp .wedgeCard h3 {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.lp .wedgeCard p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.lp .wedgeNumber {
+  margin-top: auto;
+  padding-top: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── The Landlord ────────────────────────────────────────────────────── */
+.lp .landlordSection {
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.lp .splitGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
+}
+
+.lp .chatMock {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.lp .chatBar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 16px;
+  background: var(--ink-deep);
+  color: var(--brass-bright);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.lp .chatBody {
+  padding: 18px 18px 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.lp .chatQuestion {
+  justify-self: end;
+  max-width: 82%;
+  padding: 10px 13px;
+  border-radius: var(--radius-sm) var(--radius-sm) 2px var(--radius-sm);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.lp .chatAnswer {
+  max-width: 92%;
+  padding: 13px 15px;
+  border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 2px;
+  border: 1px solid rgba(176, 129, 58, 0.3);
+  background: rgba(176, 129, 58, 0.05);
+}
+
+.lp .chatAnswer p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.94rem;
+  line-height: 1.58;
+}
+
+.lp .chatAnswer .clarify {
+  margin-top: 8px;
+  color: var(--brass);
+  font-style: italic;
+}
+
+.lp .sourceChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.lp .sourceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.lp .sourceChip::before {
+  content: "";
+  width: 6px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--river);
+}
+
+/* ── Pint Drops ──────────────────────────────────────────────────────── */
+.lp .dropsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
+}
+
+.lp .dropStack {
+  display: grid;
+  gap: 14px;
+}
+
+.lp .dropSample {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.lp .dropSample .dropTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.lp .dropSample .dropWho {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.lp .dropSample .dropPrice {
+  font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-size: 1.14rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--pint);
+}
+
+.lp .dropSample p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.lp .dropSample small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+/* ── Generational unity ──────────────────────────────────────────────── */
+.lp .unitySection {
+  background: var(--panel);
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.lp .unityInner {
+  max-width: 760px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.lp .unityInner blockquote {
+  margin: 0 0 22px;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+}
+
+.lp .unityInner blockquote em {
+  font-style: italic;
+  color: var(--brass);
+}
+
+.lp .unityInner p {
+  margin: 0 auto;
+  max-width: 56ch;
+  color: var(--ink-soft);
+  font-size: 1.08rem;
+  line-height: 1.62;
+}
+
+.lp .genRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.lp .genRow span {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+/* ── Final CTA band ──────────────────────────────────────────────────── */
+.lp .ctaBand {
+  text-align: center;
+}
+
+.lp .ctaInner {
+  max-width: 720px;
+  margin-inline: auto;
+  padding: clamp(40px, 6vw, 64px) clamp(28px, 5vw, 56px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ink-deep);
+  color: #fdfaf2;
+  box-shadow: var(--shadow);
+}
+
+.lp .ctaInner h2 {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: clamp(2rem, 4.4vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+  color: #fdfaf2;
+}
+
+.lp .ctaInner p {
+  margin: 0 auto 28px;
+  max-width: 46ch;
+  color: rgba(253, 250, 242, 0.78);
+  font-size: 1.08rem;
+  line-height: 1.55;
+}
+
+.lp .ctaInner .btnPrimary {
+  background: var(--brass);
+  color: var(--ink-deep);
+}
+
+.lp .ctaInner .btnPrimary:hover {
+  filter: brightness(1.06);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.lp .footer {
+  border-top: 1px solid var(--line-soft);
+  padding-block: 48px;
+}
+
+.lp .footerGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.lp .footer .wordmark .wordmarkText {
+  font-size: 1.18rem;
+}
+
+.lp .footerMeta {
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.lp .footerMeta a {
+  color: var(--brass);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.lp .footerMeta a:hover {
+  text-decoration: underline;
+}
+
+.lp .footerCols {
+  display: flex;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+
+.lp .footerCol h4 {
+  margin: 0 0 10px;
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lp .footerCol a,
+.lp .footerCol span {
+  display: block;
+  padding: 3px 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.lp .footerCol a:hover {
+  color: var(--ink);
+}
+
+/* ── Reveal-on-scroll (progressive; no JS = fully visible) ───────────── */
+.lp .reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.lp .reveal.isVisible {
+  opacity: 1;
+  transform: none;
+}
+
+/* SVG motif entrance */
+.lp .thamesLine {
+  animation: lpDraw 2.4s ease forwards 0.3s;
+}
+
+.lp .crawlRoute {
+  opacity: 0;
+  animation: lpFade 0.8s ease forwards 1.6s;
+}
+
+.lp .mapPin {
+  opacity: 0;
+  animation: lpPinIn 0.5s ease forwards;
+  animation-delay: calc(1.9s + var(--pin-i, 0) * 0.18s);
+}
+
+@keyframes lpDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes lpFade {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lpPinIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 920px) {
+  .lp .heroGrid,
+  .lp .splitGrid,
+  .lp .dropsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .lp .heroFigure {
+    order: -1;
+  }
+
+  .lp .dropsGrid .dropsCopy {
+    order: -1;
+  }
+
+  .lp .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .lp .navLinks a:not(.topbarCta) {
+    display: none;
+  }
+
+  .lp .footerCols {
+    gap: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp *,
+  .lp *::before,
+  .lp *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .lp .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  .lp .thamesLine {
+    stroke-dashoffset: 0;
+  }
+
+  .lp .crawlRoute,
+  .lp .mapPin {
+    opacity: 1;
+  }
+}
