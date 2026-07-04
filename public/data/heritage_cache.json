@@ -1,0 +1,96 @@
+{
+  "prospect of whitby": [
+    {
+      "source": "seed",
+      "fact": "Riverside Wapping pub usually dated to 1520; a strong fit for the heritage-by-water demo.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby"
+    },
+    {
+      "source": "wikipedia",
+      "fact": "The Prospect of Whitby is a Grade II* listed pub on Wapping Wall in the East End, reputed to be one of the oldest riverside taverns in London, dating from around 1520.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Prospect_of_Whitby"
+    }
+  ],
+  "the grapes": [
+    {
+      "source": "seed",
+      "fact": "Limehouse pub on Narrow Street with a long river-facing history and a visible place in Hilton's pub print shop.",
+      "sourceRef": "https://www.alastairhiltonphotographer.com/product-page/the-grapes"
+    },
+    {
+      "source": "wikipedia",
+      "fact": "The Grapes is a Grade II listed public house at 76 Narrow Street, Limehouse, on the north bank of the Thames; a pub has stood on the site since 1583.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Grapes,_Limehouse"
+    }
+  ],
+  "the dove": [
+    {
+      "source": "seed",
+      "fact": "Upper Mall riverside pub in Hammersmith; useful as a west London water-side heritage stop.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Dove,_Hammersmith"
+    },
+    {
+      "source": "wikipedia",
+      "fact": "The Dove is a Grade II* listed pub on Upper Mall, Hammersmith, overlooking the Thames; it holds a Guinness World Record for the smallest bar room in a public house.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Dove,_Hammersmith"
+    }
+  ],
+  "the old pack horse": [
+    {
+      "source": "seed",
+      "fact": "Chiswick High Road pub noted for its Edwardian exterior and strong local character.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Old_Pack_Horse,_Chiswick"
+    },
+    {
+      "source": "wikipedia",
+      "fact": "The Old Pack Horse is a Grade II listed pub on Chiswick High Road, rebuilt in 1910 in an Edwardian style for the Isleworth Brewery.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Old_Pack_Horse,_Chiswick"
+    }
+  ],
+  "the lamb": [
+    {
+      "source": "seed",
+      "fact": "Victorian Bloomsbury pub with the kind of preserved interior detail that suits a heritage crawl.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury"
+    },
+    {
+      "source": "wikipedia",
+      "fact": "The Lamb is a Grade II listed public house on Lamb's Conduit Street, Bloomsbury, noted for its surviving Victorian snob screens above the bar.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Lamb,_Bloomsbury"
+    }
+  ],
+  "the sun tavern": [
+    {
+      "source": "seed",
+      "fact": "Bethnal Green pub included in Hilton's visible pub print shop, useful for a writer-inspired crawl seed.",
+      "sourceRef": "https://www.alastairhiltonphotographer.com/category/all-products"
+    },
+    {
+      "source": "seed",
+      "fact": "On the writer's print trail as one of Alastair Hilton's photographed London pubs.",
+      "sourceRef": "https://www.alastairhiltonphotographer.com/category/all-products"
+    }
+  ],
+  "the queens head": [
+    {
+      "source": "seed",
+      "fact": "One of the app's closest matches for Hilton's visible The Queens print; kept as a soft match until the exact pub is verified.",
+      "sourceRef": "https://www.alastairhiltonphotographer.com/product-page/the-queens"
+    },
+    {
+      "source": "seed",
+      "fact": "A candidate stop on the writer's Queens print trail, pending confirmation of the exact venue.",
+      "sourceRef": "https://www.alastairhiltonphotographer.com/product-page/the-queens"
+    }
+  ],
+  "the queens arms": [
+    {
+      "source": "seed",
+      "fact": "Pimlico pub from 1846; a useful Victorian reference stop for the seeded heritage route."
+    },
+    {
+      "source": "seed",
+      "fact": "A Victorian-era Pimlico pub kept as a reference stop for the heritage crawl."
+    }
+  ]
+}

@@ -67,3 +67,19 @@ _Avoid_: Facility, feature
 **Trusted Recommendation**:
 A venue or crawl stop suggested through a friend, prior user preference, or app recommendation logic.
 _Avoid_: Suggestion, tip
+
+**Pint Drop**:
+A single community contribution attached to a venue: an optional pint photo, an optional venue photo, an observed pint price, and an optional Passed-Down Note. The concrete form a Visit Report takes in the community layer.
+_Avoid_: Post, check-in, upload
+
+**Passed-Down Note**:
+A short piece of personal or inherited knowledge about a venue — a memory from childhood, a story handed down from family, or local lore — tagged with the era it belongs to. The generational-bridge content, distinct from a rating.
+_Avoid_: Review, comment, caption
+
+**Provenance**:
+Where a piece of venue knowledge came from, and how much it can be trusted. Every heritage or price claim is one of: Sourced (editorial, with a source link), Contributor (a user's Pint Drop), or Anecdote (an unverifiable Passed-Down Note). Provenance is always shown; it is never flattened away.
+_Avoid_: Source (bare), reliability, trust score
+
+**Contributor Handle**:
+The lightweight identity a Pint Drop is attributed to, without requiring a full account in v1. A person, not a profile.
+_Avoid_: User, account, username
