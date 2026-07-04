@@ -10,8 +10,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "export:data": "python3 scripts/export_app_dataset_json.py"
+    "export:data": "python3 scripts/export_app_dataset_json.py",
+    "ci": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
