@@ -3,7 +3,14 @@ import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
   {
-    ignores: [".context/**", ".next/**", "node_modules/**", "public/data/**", "data/**"],
+    ignores: [
+      ".context/**",
+      ".next/**",
+      ".vercel/**",
+      "node_modules/**",
+      "public/data/**",
+      "data/**",
+    ],
   },
   ...nextVitals,
   ...nextTypescript,
