@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Hand,
   Landmark,
+  LocateFixed,
   MapPinned,
   Search,
   SlidersHorizontal,
@@ -56,6 +57,9 @@ type ControlRailProps = {
   builtCount: number;
   onClearBuilt: () => void;
   onLoadCrawl: (crawl: CuratedCrawl) => void;
+  onNearbyCrawl: () => void;
+  nearbyLoading: boolean;
+  nearbyError: string | null;
 };
 
 export default function ControlRail({
@@ -67,6 +71,9 @@ export default function ControlRail({
   builtCount,
   onClearBuilt,
   onLoadCrawl,
+  onNearbyCrawl,
+  nearbyLoading,
+  nearbyError,
 }: ControlRailProps) {
   const cheapCount = filteredVenues.filter(
     (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
@@ -111,6 +118,22 @@ export default function ControlRail({
           <Hand size={15} /> Build your own
         </button>
       </div>
+
+      <button
+        type="button"
+        className="nearbyBtn"
+        aria-label="Build a crawl from the pubs nearest to me"
+        onClick={onNearbyCrawl}
+        disabled={nearbyLoading}
+      >
+        <LocateFixed size={15} />
+        {nearbyLoading ? "Finding your location…" : "Pubs near me"}
+      </button>
+      {nearbyError ? (
+        <p className="nearbyError" role="alert">
+          {nearbyError}
+        </p>
+      ) : null}
 
       {mode === "build" ? (
         <p className="buildHint">

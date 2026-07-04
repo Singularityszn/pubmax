@@ -732,6 +732,45 @@ input[type="range"] {
   box-shadow: var(--shadow);
 }
 
+.nearbyBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  margin-bottom: 14px;
+  padding: 0 12px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: rgba(176, 129, 58, 0.09);
+  color: var(--brass);
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.nearbyBtn:hover:not(:disabled) {
+  background: rgba(176, 129, 58, 0.16);
+}
+
+.nearbyBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.nearbyBtn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.nearbyError {
+  margin: -6px 0 14px;
+  color: var(--brick);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .buildHint {
   display: flex;
   flex-wrap: wrap;

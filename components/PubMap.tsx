@@ -12,6 +12,7 @@ import {
   type Venue,
   type VenuePrice,
 } from "@/lib/venues";
+import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
@@ -35,6 +36,8 @@ export default function PubMap() {
   const [filters, setFilters] = useState<Filters>(seed.filters);
   const [mode, setMode] = useState<CrawlMode>(seed.mode);
   const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyError, setNearbyError] = useState<string | null>(null);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   const pintDrops = usePintDrops();
@@ -119,6 +122,40 @@ export default function PubMap() {
     [selectVenue],
   );
 
+  // "Pubs near me": ask for location, build a crawl from the nearest matching
+  // venues. Event handler (not an effect) so setState here is fine. Degrades
+  // gracefully — feature-detect geolocation, catch denial, never throws.
+  const startNearbyCrawl = useCallback(() => {
+    setNearbyError(null);
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setNearbyError("Location isn't available in this browser.");
+      return;
+    }
+    setNearbyLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setNearbyLoading(false);
+        const ids = nearestVenueIds(
+          position.coords.latitude,
+          position.coords.longitude,
+          filteredVenues,
+          filters.stopCount,
+        );
+        if (ids.length === 0) {
+          setNearbyError("No pubs match your filters near you — try widening them.");
+          return;
+        }
+        setMode("build");
+        setBuiltIds(ids);
+        selectVenue(ids[0]);
+      },
+      () => {
+        setNearbyLoading(false);
+        setNearbyError("Couldn't get your location. Grant access and try again.");
+      },
+    );
+  }, [filteredVenues, filters.stopCount, selectVenue]);
+
   return (
     <main className="appShell dark">
       <nav className="siteNav appNav" aria-label="Site navigation">
@@ -138,6 +175,9 @@ export default function PubMap() {
         builtCount={builtIds.length}
         onClearBuilt={() => setBuiltIds([])}
         onLoadCrawl={loadCuratedCrawl}
+        onNearbyCrawl={startNearbyCrawl}
+        nearbyLoading={nearbyLoading}
+        nearbyError={nearbyError}
       />
 
       <section className="mapStage">
