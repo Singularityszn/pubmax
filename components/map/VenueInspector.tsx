@@ -57,6 +57,7 @@ export default function VenueInspector({
 }: VenueInspectorProps) {
   const { dropsByVenueId, composerOpen, setComposerOpen, dropMsg, reportDrop } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
+  const hasDemoDrops = drops.some((drop) => drop.provenance === "demo");
   // The distinct, provenance-stamped claim list for the inspected venue.
   // Editorial Sourced claims and contributor/anecdote drops stay separate.
   const claims = useMemo(() => buildVenueClaims(venue.curation, drops), [venue.curation, drops]);
@@ -134,6 +135,12 @@ export default function VenueInspector({
           <Quote size={16} />
           <span>Pint Drops</span>
         </div>
+        {hasDemoDrops ? (
+          <div className="demoDataNote">
+            <span>Demo data</span>
+            Example Pint Drops are seeded for the walkthrough. Live contributions use the same flow.
+          </div>
+        ) : null}
         {drops.length === 0 ? (
           <p className="description muted">
             No Pint Drops yet — be the first to log a price or pass down a story.

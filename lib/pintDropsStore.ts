@@ -151,20 +151,19 @@ function publicUrl(key: string | undefined, visible: boolean): string | null {
  *  URLs. The only shape the public API returns. */
 export function toDTO(drop: PersistableDrop): PintDropDTO {
   const visible = drop.status === "visible";
-  const {
-    pintPhotoKey,
-    venuePhotoKey,
-    reportedAt: _reportedAt,
-    reportReason: _reportReason,
-    reportCount: _reportCount,
-    moderatedAt: _moderatedAt,
-    moderatorNote: _moderatorNote,
-    ...rest
-  } = drop;
   return {
-    ...rest,
-    pintPhotoUrl: publicUrl(pintPhotoKey, visible),
-    venuePhotoUrl: publicUrl(venuePhotoKey, visible),
+    id: drop.id,
+    venueId: drop.venueId,
+    handle: drop.handle,
+    drink: drop.drink,
+    priceGbp: drop.priceGbp,
+    passedDownNote: drop.passedDownNote,
+    era: drop.era,
+    provenance: drop.provenance,
+    status: drop.status,
+    createdAt: drop.createdAt,
+    pintPhotoUrl: publicUrl(drop.pintPhotoKey, visible),
+    venuePhotoUrl: publicUrl(drop.venuePhotoKey, visible),
   };
 }
 

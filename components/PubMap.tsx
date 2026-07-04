@@ -24,7 +24,11 @@ import { usePintDrops } from "@/components/map/usePintDrops";
 export default function PubMap() {
   const [rows, setRows] = useState<VenuePrice[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>("");
-  const [filters, setFilters] = useState<Filters>(initialFilters);
+  const [filters, setFilters] = useState<Filters>(() => {
+    if (typeof window === "undefined") return initialFilters;
+    const style = new URLSearchParams(window.location.search).get("style");
+    return style === "heritage" ? { ...initialFilters, crawlStyle: "heritage" } : initialFilters;
+  });
   const [mode, setMode] = useState<CrawlMode>("suggest");
   const [builtIds, setBuiltIds] = useState<string[]>([]);
 

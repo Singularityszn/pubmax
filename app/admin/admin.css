@@ -22,6 +22,19 @@
   margin: 0 0 1.5rem;
 }
 
+.adminMapCallout {
+  display: inline-flex;
+  margin: 0 0 1.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .admin-bar {
   display: flex;
   gap: 0.5rem;
@@ -60,6 +73,11 @@
   filter: brightness(1.05);
 }
 
+.admin-btn:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .admin-msg {
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--brick);
@@ -69,8 +87,23 @@
 }
 
 .admin-empty {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
   color: var(--muted);
-  padding: 1rem 0;
+}
+
+.admin-empty strong {
+  color: var(--ink);
+}
+
+.admin-empty a {
+  color: var(--brass);
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .admin-list {

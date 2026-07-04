@@ -127,6 +127,9 @@ export default function LandingPage() {
                   Open the map
                   <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
                 </Link>
+                <Link href="/map?style=heritage" className="btn btnGhost">
+                  Start with heritage
+                </Link>
                 <a href="#wedge" className="btn btnGhost">
                   How it works
                 </a>
@@ -313,6 +316,9 @@ export default function LandingPage() {
             <Link href="/map" className="btn btnPrimary">
               Open the map
               <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
+            </Link>
+            <Link href="/map?style=heritage" className="btn btnGhost">
+              Start with heritage
             </Link>
           </div>
         </section>
