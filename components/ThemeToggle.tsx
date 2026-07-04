@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
 type Theme = "light" | "dark";
 
+function storedTheme(): Theme | null {
+  if (typeof localStorage === "undefined") return null;
+  const t = localStorage.getItem("pubmax-theme");
+  return t === "light" || t === "dark" ? t : null;
+}
+
 function currentTheme(): Theme {
   if (typeof document === "undefined") return "light";
-  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  // Prefer the attribute the no-flash script set; fall back to the stored
+  // choice so the icon stays correct even if hydration dropped the attribute.
+  const attr = document.documentElement.dataset.theme;
+  if (attr === "light" || attr === "dark") return attr;
+  return storedTheme() ?? "light";
 }
 
 export default function ThemeToggle({ floating = false }: { floating?: boolean }) {
@@ -18,6 +28,17 @@ export default function ThemeToggle({ floating = false }: { floating?: boolean }
   const [, bump] = useState(0);
   const theme = currentTheme();
   const goingDark = theme === "light";
+
+  // React 19 hydration can strip the attribute the no-flash script set on
+  // <html>, so a reload lands with no data-theme even though the choice is
+  // still in localStorage. Re-assert it on mount (DOM write only — not
+  // setState — so it doesn't trip react-hooks/set-state-in-effect).
+  useEffect(() => {
+    const t =
+      storedTheme() ??
+      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.dataset.theme = t;
+  }, []);
 
   function toggle() {
     const next: Theme = currentTheme() === "dark" ? "light" : "dark";
