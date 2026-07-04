@@ -26,6 +26,105 @@ export const landmarks: Landmark[] = [
     },
   },
   {
+    id: "westminster-abbey",
+    name: "Westminster Abbey",
+    coordinates: [-0.1281, 51.4994],
+    history:
+      "Westminster Abbey was consecrated in 1065 under Edward the Confessor and rebuilt in the Gothic style begun by Henry III in 1245. Since the coronation of William the Conqueror in 1066 it has been the coronation church of England's, then Britain's, monarchs.",
+    source: {
+      label: "Westminster Abbey",
+      url: "https://www.westminster-abbey.org/history/history-of-westminster-abbey",
+    },
+  },
+  {
+    id: "nelsons-column",
+    name: "Nelson's Column",
+    coordinates: [-0.1281, 51.5079],
+    history:
+      "Nelson's Column has stood at the centre of Trafalgar Square since 1843, commemorating Admiral Horatio Nelson, who was killed at the Battle of Trafalgar in 1805. Designed by William Railton, the granite Corinthian column rises about 52 metres and is topped by Edward Hodges Baily's statue of Nelson.",
+    source: {
+      label: "Britannica",
+      url: "https://www.britannica.com/place/Nelsons-Column",
+    },
+  },
+  {
+    id: "british-museum",
+    name: "British Museum",
+    coordinates: [-0.127, 51.5194],
+    history:
+      "The British Museum was established by Act of Parliament in 1753 as the first national public museum in the world. Its landmark Greek Revival building on Great Russell Street, designed by Sir Robert Smirke, was built between 1823 and 1852.",
+    source: {
+      label: "British Museum",
+      url: "https://www.britishmuseum.org/about-us/british-museum-story/history",
+    },
+  },
+  {
+    id: "shakespeares-globe",
+    name: "Shakespeare's Globe",
+    coordinates: [-0.0972, 51.5081],
+    history:
+      "This Bankside theatre is a reconstruction of the Elizabethan Globe, first built in 1599 for the company that staged Shakespeare's plays. Championed by the actor Sam Wanamaker, the modern Globe opened close to the original site in 1997.",
+    source: {
+      label: "Shakespeare's Globe",
+      url: "https://www.shakespearesglobe.com/discover/about-us/globe-theatre/",
+    },
+  },
+  {
+    id: "barbican",
+    name: "Barbican Centre",
+    coordinates: [-0.0937, 51.52],
+    history:
+      "The Barbican is a landmark of post-war Brutalist architecture, designed by Chamberlin, Powell and Bon on land in the City of London flattened by wartime bombing. Its arts centre opened in 1982, and the surrounding estate was Grade II listed in 2001.",
+    source: {
+      label: "City of London",
+      url: "https://www.cityoflondon.gov.uk/services/barbican-estate/barbican-estate-history",
+    },
+  },
+  {
+    id: "camden-lock",
+    name: "Camden Lock",
+    coordinates: [-0.1466, 51.5416],
+    history:
+      "Camden Lock sits beside the Hampstead Road Locks on the Regent's Canal, opened in 1820 to link London's docks to the national canal network. As canal trade faded, a crafts market started here in 1974 and grew into one of London's best-known markets.",
+    source: {
+      label: "Wikipedia",
+      url: "https://en.wikipedia.org/wiki/Camden_Lock",
+    },
+  },
+  {
+    id: "royal-albert-hall",
+    name: "Royal Albert Hall",
+    coordinates: [-0.1774, 51.501],
+    history:
+      "The Royal Albert Hall was opened by Queen Victoria in 1871 as part of a memorial to her husband Prince Albert, whose vision it fulfilled in South Kensington. The Grade I listed concert hall has hosted the BBC Proms every summer since 1941.",
+    source: {
+      label: "Royal Albert Hall",
+      url: "https://www.royalalberthall.com/about-the-hall/our-history/",
+    },
+  },
+  {
+    id: "natural-history-museum",
+    name: "Natural History Museum",
+    coordinates: [-0.1763, 51.4967],
+    history:
+      "The Natural History Museum on Cromwell Road opened in 1881 to house the national natural history collections. Alfred Waterhouse's cathedral-like building is clad in terracotta moulded with animals and plants, a Romanesque landmark of South Kensington.",
+    source: {
+      label: "Natural History Museum",
+      url: "https://www.nhm.ac.uk/about-us/history-and-architecture.html",
+    },
+  },
+  {
+    id: "battersea-power-station",
+    name: "Battersea Power Station",
+    coordinates: [-0.1447, 51.4816],
+    history:
+      "Battersea Power Station's four white chimneys, on a building by Sir Giles Gilbert Scott, rose beside the Thames between 1929 and 1955. It generated electricity until 1983, was later listed Grade II*, and reopened as a mixed-use development in 2022.",
+    source: {
+      label: "Wikipedia",
+      url: "https://en.wikipedia.org/wiki/Battersea_Power_Station",
+    },
+  },
+  {
     id: "tower-bridge",
     name: "Tower Bridge",
     coordinates: [-0.0754, 51.5055],

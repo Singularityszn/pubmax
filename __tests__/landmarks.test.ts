@@ -11,6 +11,16 @@ function makeVenue(id: string, lat: number, lng: number, hasStory: boolean): Ven
 
 const towerBridge = landmarks.find((l) => l.id === "tower-bridge") as Landmark;
 
+describe("landmarks data", () => {
+  it("every landmark carries a non-empty source URL", () => {
+    // Sourcing is the product's core promise: no unsourced claim ships.
+    expect(landmarks.length).toBeGreaterThan(0);
+    for (const landmark of landmarks) {
+      expect(landmark.source.url, `${landmark.id} source.url`).toMatch(/^https?:\/\//);
+    }
+  });
+});
+
 describe("nearestStoryPubs", () => {
   it("returns only story pubs, nearest first, capped at the limit", () => {
     const venues = [
