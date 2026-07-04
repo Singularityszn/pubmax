@@ -497,6 +497,37 @@
   font-size: 0.76rem;
 }
 
+.lp .dropSample .dropMeta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lp .dropSample .dropMeta small {
+  margin-top: 0;
+}
+
+/* Honest labelling: sample content is marked, never passed off as live. */
+.lp .exampleTag {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid rgba(176, 129, 58, 0.45);
+  border-radius: 999px;
+  color: var(--brass);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.lp .chatBar .exampleTag {
+  margin: 0 0 0 auto;
+  color: var(--brass-bright);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
 /* ── Generational unity ──────────────────────────────────────────────── */
 .lp .unitySection {
   background: var(--panel);

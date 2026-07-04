@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 
 import type { Provenance } from "@/lib/curation";
+import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
 
 // A Pint Drop is one object with optional parts: a price log, a passed-down
 // memory, or both. Photos are deferred to the Storage-backed adapter (see
@@ -135,15 +136,20 @@ export function addPintDrop(drop: PintDrop): void {
   drops.set(drop.venueId, [drop, ...(drops.get(drop.venueId) ?? [])]);
 }
 
-/** Public read: newest-first, visible-only. */
+/** Public read: newest-first, visible-only. Demo seeds merge in here — the one
+ *  read path — so seeded liveliness rides the same pipe as organic drops. */
 export function listVisiblePintDrops(venueId: string): PintDrop[] {
-  return (drops.get(venueId) ?? []).filter((d) => d.status === "visible");
+  return [
+    ...(drops.get(venueId) ?? []).filter((d) => d.status === "visible"),
+    ...demoDropsFor(venueId),
+  ];
 }
 
 export function listAllVisiblePintDrops(): PintDrop[] {
   return Array.from(drops.values())
     .flat()
     .filter((d) => d.status === "visible")
+    .concat(demoPintDrops)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -169,7 +175,7 @@ export function reportPintDrop(id: string, reason?: string): boolean {
 export function listByStatus(status: PintDropStatus): PintDrop[] {
   return Array.from(drops.values())
     .flat()
-    .filter((d) => d.status === status)
+    .filter((d) => d.status === status && !d.moderatedAt)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 

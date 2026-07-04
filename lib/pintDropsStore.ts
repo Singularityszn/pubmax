@@ -5,6 +5,7 @@
 // no-op, so the route can catch and fall back deliberately.
 
 import type { Provenance } from "@/lib/curation";
+import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
 import type { PintDrop, PintDropStatus } from "@/lib/pintDrops";
 import { getSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
@@ -110,7 +111,6 @@ function publicUrl(key: string | undefined, visible: boolean): string | null {
 /** Strip Storage keys, emit public photo URLs. The only shape the API returns. */
 export function toDTO(drop: PersistableDrop): PintDropDTO {
   const visible = drop.status === "visible";
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
   return {
     ...rest,
@@ -135,7 +135,9 @@ export async function persistDrop(drop: PersistableDrop): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/** Public read: newest-first, visible-only. Rows carry keys; map via toDTO. */
+/** Public read: newest-first, visible-only. Rows carry keys; map via toDTO.
+ *  Demo seeds (in-repo, never written to Supabase) are appended after the
+ *  organic rows so both backends serve the same single read-merge path. */
 export async function listVisibleDropsRemote(venueId: string): Promise<PersistableDrop[]> {
   const { data, error } = await admin()
     .from(TABLE)
@@ -144,7 +146,7 @@ export async function listVisibleDropsRemote(venueId: string): Promise<Persistab
     .eq("status", "visible")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(fromRow);
+  return (data ?? []).map(fromRow).concat(demoDropsFor(venueId));
 }
 
 export async function listAllVisibleDropsRemote(): Promise<PersistableDrop[]> {
@@ -154,7 +156,7 @@ export async function listAllVisibleDropsRemote(): Promise<PersistableDrop[]> {
     .eq("status", "visible")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(fromRow);
+  return (data ?? []).map(fromRow).concat(demoPintDrops);
 }
 
 export async function setDropStatusRemote(id: string, status: PintDropStatus): Promise<boolean> {
@@ -189,11 +191,15 @@ export async function moderateDropRemote(
 
 /** Moderator read: all drops in a status, newest-first, WITH report metadata. */
 export async function listByStatusRemote(status: PintDropStatus): Promise<ModeratorDrop[]> {
-  const { data, error } = await admin()
+  let query = admin()
     .from(TABLE)
     .select("*")
     .eq("status", status)
     .order("created_at", { ascending: false });
+  if (status === "hidden" || status === "pending") {
+    query = query.is("moderated_at", null);
+  }
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []).map(fromRow).map(toModeratorDTO);
 }

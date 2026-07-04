@@ -133,14 +133,14 @@ export default function LandingPage() {
               <ul className="statChips" aria-label="At a glance">
                 <li className="statChip">
                   <strong>3,000+</strong>
-                  <span>pint prices logged</span>
+                  <span>pint prices mapped</span>
                 </li>
                 <li className="statChip">
                   <strong>Every borough</strong>
                   <span>across London</span>
                 </li>
                 <li className="statChip">
-                  <strong>from £3.80</strong>
+                  <strong>from £1.99</strong>
                   <span>cheapest observed</span>
                 </li>
               </ul>
@@ -210,6 +210,7 @@ export default function LandingPage() {
               <div className="chatBar">
                 <MessageSquareText size={17} strokeWidth={1.5} aria-hidden="true" />
                 The Landlord — Ye Olde Cheshire Cheese
+                <span className="exampleTag">Example</span>
               </div>
               <div className="chatBody">
                 <p className="chatQuestion">Who used to drink here?</p>
@@ -245,7 +246,10 @@ export default function LandingPage() {
                     <span className="dropPrice">{d.price}</span>
                   </div>
                   <p>{d.note}</p>
-                  <small>{d.when}</small>
+                  <div className="dropMeta">
+                    <small>{d.when}</small>
+                    <span className="exampleTag">Example</span>
+                  </div>
                 </article>
               ))}
             </div>

@@ -1,8 +1,10 @@
 import type { VenuePrice } from "@/lib/venues";
 
 // Every heritage/story claim carries where it came from, so the UI can always
-// show a Sourced / Contributor / Anecdote badge and the two never blur.
-export type Provenance = "sourced" | "contributor" | "anecdote";
+// show a Sourced / Contributor / Anecdote / Demo badge and they never blur.
+// "demo" marks seeded example content: rendered for day-one liveliness but
+// never allowed to masquerade as organic community data.
+export type Provenance = "sourced" | "contributor" | "anecdote" | "demo";
 
 // A claim is one labelled, provenance-stamped statement about a venue. The
 // venue detail renders the whole list — a Sourced editorial claim and an
@@ -257,7 +259,9 @@ export function buildVenueClaims(curation: VenueCuration, drops: ClaimDrop[] = [
       (priced ? `Logged ${drop.drink || "a pint"} at £${drop.priceGbp!.toFixed(2)}.` : "");
     if (!content) continue;
     claims.push({
-      kind: priced ? "contributor" : "anecdote",
+      // A seeded demo drop is a "baseline" claim — never Contributor/Anecdote,
+      // so seeded liveliness stays visibly distinct from organic drops.
+      kind: drop.provenance === "demo" ? "baseline" : priced ? "contributor" : "anecdote",
       label: drop.handle || (priced ? "Contributor" : "Anecdote"),
       content,
       era: drop.era || undefined,

@@ -32,6 +32,7 @@ import {
   filterVenues,
   formatPrice,
   groupVenuePrices,
+  mergeVenueDrops,
   type CrawlStyle,
   type Filters,
   type Venue,
@@ -66,6 +67,7 @@ const PROVENANCE_LABEL: Record<Provenance, string> = {
   sourced: "Sourced",
   contributor: "Contributor",
   anecdote: "Anecdote",
+  demo: "Demo",
 };
 
 function ProvenanceChip({ provenance }: { provenance: Provenance }) {
@@ -122,36 +124,8 @@ function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhoto
   return grouped;
 }
 
-// Fold Pint Drops into the venue's DERIVED SUMMARY SIGNALS only — never into the
-// editorial curation note. A contributor price can update cheapestPrice/Pint and
-// a passed-down note lights hasStory, but the claims themselves stay distinct and
-// are rendered separately via buildVenueClaims. This is what keeps a Sourced
-// editorial claim from being buried under an Anecdote drop.
-function mergeVenueDrops(
-  venues: Venue[],
-  dropsByVenueId: Map<string, DropWithPhotos[]>,
-): Venue[] {
-  if (dropsByVenueId.size === 0) return venues;
-  return venues.map((venue) => {
-    const venueDrops = dropsByVenueId.get(venue.id) ?? [];
-    if (venueDrops.length === 0) return venue;
-
-    const latestPriceDrop = venueDrops.find((drop) => typeof drop.priceGbp === "number");
-    const contributorPrice = latestPriceDrop?.priceGbp ?? null;
-    const cheapestPrice =
-      contributorPrice === null
-        ? venue.cheapestPrice
-        : Math.min(venue.cheapestPrice ?? Number.POSITIVE_INFINITY, contributorPrice);
-
-    return {
-      ...venue,
-      cheapestPrice,
-      cheapestPint: latestPriceDrop?.drink || venue.cheapestPint,
-      // Any Pint Drop is a story signal — no drop text overwrites curation.
-      hasStory: venue.hasStory || venueDrops.length > 0,
-    };
-  });
-}
+// mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
+// a bare price is never a story, and demo seeds never move prices or hasStory.
 
 export default function PubMap() {
   const [rows, setRows] = useState<VenuePrice[]>([]);
@@ -236,8 +210,12 @@ export default function PubMap() {
   const venueSignals = useMemo(() => {
     const signals = new Map<string, { hasPintDrops: boolean; latestContributorPrice: number | null }>();
     for (const [venueId, venueDrops] of dropsByVenueId) {
+      // Demo seeds never feed the "latest contributor price" signal — a seeded
+      // price must not read as a community log.
       const latestContributorPrice =
-        venueDrops.find((drop) => typeof drop.priceGbp === "number")?.priceGbp ?? null;
+        venueDrops.find(
+          (drop) => drop.provenance !== "demo" && typeof drop.priceGbp === "number",
+        )?.priceGbp ?? null;
       signals.set(venueId, {
         hasPintDrops: venueDrops.length > 0,
         latestContributorPrice,
@@ -697,7 +675,7 @@ export default function PubMap() {
             <i className="red" /> £7+
           </span>
           <span>
-            <i className="blue" /> heritage
+            <i className="brassRing" /> heritage
           </span>
           <span>
             <i className="gold" /> writer
@@ -902,14 +880,16 @@ export default function PubMap() {
                         <small>
                           {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
                         </small>
-                        <button
-                          type="button"
-                          className="reportBtn"
-                          onClick={() => reportDrop(drop.id)}
-                          aria-label={`Report Pint Drop by ${drop.handle}`}
-                        >
-                          <Flag size={12} /> Report
-                        </button>
+                        {drop.provenance !== "demo" ? (
+                          <button
+                            type="button"
+                            className="reportBtn"
+                            onClick={() => reportDrop(drop.id)}
+                            aria-label={`Report Pint Drop by ${drop.handle}`}
+                          >
+                            <Flag size={12} /> Report
+                          </button>
+                        ) : null}
                       </div>
                     </article>
                   ))}

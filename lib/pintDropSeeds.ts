@@ -1,0 +1,157 @@
+import type { PintDrop } from "@/lib/pintDrops";
+
+// Seeded demo Pint Drops for the curated heritage pubs (lib/curation.ts,
+// seeds/heritage.md). They exist so the community layer reads as alive on
+// day one — and they are provenance-tagged "demo" so that liveliness never
+// masquerades as organic (PRD "Implementation decisions"):
+// - the UI renders a distinct Demo badge (never Contributor/Anecdote);
+// - mergeVenueDrops ignores them for derived signals (prices, hasStory);
+// - they are merged into BOTH store read paths (in-memory and Supabase), so
+//   there is exactly one Pint-Drop render path and no writes to live storage.
+//
+// venueId values are the content-hashed stable ids for the dataset rows
+// (stableVenueIdFromKey(venueGroupingKey(row))). __tests__/pintDropSeeds.test.ts
+// pins each id against public/data/pint_prices_app_dataset.json.
+
+type SeedSpec = {
+  id: string;
+  venueId: string;
+  handle: string;
+  drink: string;
+  priceGbp: number;
+  passedDownNote: string;
+  era: string;
+  createdAt: string;
+};
+
+const seeds: SeedSpec[] = [
+  // Prospect of Whitby — 57 Wapping Wall (Tudor riverside)
+  {
+    id: "seed-prospect-1",
+    venueId: "venue-16pnwmm",
+    handle: "@wapping_wall_ted",
+    drink: "London Pride",
+    priceGbp: 6.4,
+    passedDownNote:
+      "My old man swore the flagstone floor by the bar was laid when the watermen still drank here. Take your pint out to the terrace at low tide and listen — the river knocks on the wall like it wants letting in.",
+    era: "Told since the 1960s",
+    createdAt: "2026-06-21T18:42:00.000Z",
+  },
+  {
+    id: "seed-prospect-2",
+    venueId: "venue-16pnwmm",
+    handle: "@tessa_of_shadwell",
+    drink: "Guinness",
+    priceGbp: 6.1,
+    passedDownNote:
+      "Nan cleaned here in the fifties and said the pewter bar top was older than anyone who ever leaned on it. She tapped it twice for luck before closing, so I do too.",
+    era: "Nan's shift, 1950s",
+    createdAt: "2026-06-09T20:15:00.000Z",
+  },
+  // The Grapes — 76 Narrow St, Limehouse
+  {
+    id: "seed-grapes-1",
+    venueId: "venue-ekvkuv",
+    handle: "@limehouse_reach",
+    drink: "Cask bitter",
+    priceGbp: 5.8,
+    passedDownNote:
+      "Dad always took the window seat over the water and said Dickens put this room in a book before any of us were born. Order the bitter, watch the tide turn, say nothing.",
+    era: "Dad's rule, 1980s",
+    createdAt: "2026-06-17T19:05:00.000Z",
+  },
+  {
+    id: "seed-grapes-2",
+    venueId: "venue-ekvkuv",
+    handle: "@narrowstreet_nell",
+    drink: "Carlsberg",
+    priceGbp: 5.6,
+    passedDownNote:
+      "Grandma said at a proper high tide the balcony feels like the deck of a barge. She was right — hold your glass with both hands the first time.",
+    era: "High-tide advice",
+    createdAt: "2026-05-30T17:30:00.000Z",
+  },
+  // The Dove — 19 Upper Mall, Hammersmith
+  {
+    id: "seed-dove-1",
+    venueId: "venue-1p5ftm3",
+    handle: "@hammersmith_oar",
+    drink: "Asahi",
+    priceGbp: 7.2,
+    passedDownNote:
+      "Grandad rowed off the Mall and called the front snug the smallest bar in England long before the record people agreed. Two of you fit. Three is a friendship test.",
+    era: "Rowing club lore",
+    createdAt: "2026-06-14T16:20:00.000Z",
+  },
+  // The Lamb — 94 Lamb's Conduit St, Bloomsbury
+  {
+    id: "seed-lamb-1",
+    venueId: "venue-1yd70c7",
+    handle: "@conduit_st_kit",
+    drink: "Cask ale",
+    priceGbp: 6.5,
+    passedDownNote:
+      "Mum said her grandmother could order a port here without the saloon ever seeing her face — you swivel the etched snob screen and a whole century turns with it.",
+    era: "Great-grandmother's trick",
+    createdAt: "2026-06-05T18:55:00.000Z",
+  },
+  // The Old Pack Horse — 434 Chiswick High Rd
+  {
+    id: "seed-packhorse-1",
+    venueId: "venue-1yylwyg",
+    handle: "@chiswick_wheeler",
+    drink: "Amstel",
+    priceGbp: 5.9,
+    passedDownNote:
+      "My grandfather drank here when the trams still ran up the High Road. Same green tiles outside, same corner seat inside — he said the brewery built it to outlast the lot of us, and so far it has.",
+    era: "Since the trams",
+    createdAt: "2026-06-19T17:48:00.000Z",
+  },
+  // The Sun Tavern — 441 Bethnal Green Rd
+  {
+    id: "seed-suntavern-1",
+    venueId: "venue-ndc1rt",
+    handle: "@bethnal_iris",
+    drink: "House lager",
+    priceGbp: 5.2,
+    passedDownNote:
+      "Grandad came in after his market shifts and always said the same thing: a small room keeps the talk honest. Ask about the Irish whiskey shelf and settle in.",
+    era: "Market-day habit",
+    createdAt: "2026-05-24T21:10:00.000Z",
+  },
+  // The Queens Arms — 11 Warwick Way, Pimlico
+  {
+    id: "seed-queensarms-1",
+    venueId: "venue-19211ib",
+    handle: "@pimlico_arch",
+    drink: "Cask ale",
+    priceGbp: 5.4,
+    passedDownNote:
+      "It says 1846 above the door, but for our family the date that matters is 1971 — my aunt's wedding party filled the back room and nobody went home before the bell.",
+    era: "The wedding, 1971",
+    createdAt: "2026-06-11T19:33:00.000Z",
+  },
+  // The Queens Head — 66 Acton St, WC1X
+  {
+    id: "seed-queenshead-1",
+    venueId: "venue-1u82rds",
+    handle: "@actonst_bell",
+    drink: "Pilsner",
+    priceGbp: 6.0,
+    passedDownNote:
+      "My father-in-law calls this his thinking pub — piano in the corner, a proper cellar, and the same quiet at five o'clock he remembers from forty years back.",
+    era: "Forty years of five o'clocks",
+    createdAt: "2026-05-28T17:02:00.000Z",
+  },
+];
+
+export const demoPintDrops: PintDrop[] = seeds.map((seed) => ({
+  ...seed,
+  provenance: "demo",
+  status: "visible",
+}));
+
+/** Seeds for one venue — appended after organic drops in the read paths. */
+export function demoDropsFor(venueId: string): PintDrop[] {
+  return demoPintDrops.filter((drop) => drop.venueId === venueId);
+}
