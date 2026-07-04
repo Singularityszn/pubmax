@@ -326,10 +326,83 @@ input[type="range"] {
   min-width: 0;
 }
 
+.mapCanvasWrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .maplibreMap {
   width: 100%;
   height: 100%;
   background: var(--ink-deep);
+}
+
+/* Landmark history card — a sourced note pinned over the map. */
+.landmarkCard {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 460;
+  max-width: 310px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.landmarkCardHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.landmarkCardHead svg {
+  color: var(--brass);
+  flex-shrink: 0;
+}
+
+.landmarkCardHead strong {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.landmarkCardHead button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.landmarkCardHead button:hover {
+  color: var(--ink);
+  border-color: var(--brass);
+}
+
+.landmarkCard p {
+  margin: 0 0 9px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.landmarkCard a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--brass);
 }
 
 .modeToggle {
@@ -501,8 +574,9 @@ input[type="range"] {
   background: var(--brick);
 }
 
-.mapLegend .blue {
-  background: var(--river-bright);
+.mapLegend .brassRing {
+  background: transparent;
+  border: 2px solid var(--brass-bright);
 }
 
 .mapLegend .gold {
@@ -620,6 +694,12 @@ input[type="range"] {
   color: var(--amber);
   border-color: rgba(194, 136, 42, 0.35);
   background: rgba(194, 136, 42, 0.1);
+}
+
+.provChip.demo {
+  color: var(--brass);
+  border-color: rgba(176, 129, 58, 0.4);
+  background: rgba(176, 129, 58, 0.12);
 }
 
 /* Needs Source: unverified editorial — visibly distinct from Sourced. */

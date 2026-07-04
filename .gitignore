@@ -7,3 +7,5 @@ dist/
 *.log
 tsconfig.tsbuildinfo
 scripts/__pycache__/
+.vercel
+.context/
