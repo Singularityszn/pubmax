@@ -42,7 +42,7 @@ export default function AdminPage() {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/pint-drops?status=hidden&admin=${encodeURIComponent(t)}`, {
+      const res = await fetch("/api/pint-drops?status=hidden", {
         headers: { "x-admin-token": t },
       });
       if (res.status === 403) {

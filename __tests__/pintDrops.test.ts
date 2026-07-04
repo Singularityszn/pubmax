@@ -16,6 +16,17 @@ vi.mock("@/lib/pintDropsStore", async () => {
   return { ...actual, uploadPhoto, persistDrop, deletePhotos };
 });
 
+// Mock only the durable limiter; everything else in lib/supabase stays real.
+// Default (null) = "durable limiter unavailable", so every existing test keeps
+// exercising the in-memory fallback exactly as before.
+const { checkRateLimitDurable } = vi.hoisted(() => ({
+  checkRateLimitDurable: vi.fn<(key: string) => Promise<boolean | null>>(),
+}));
+vi.mock("@/lib/supabase", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/supabase")>("@/lib/supabase");
+  return { ...actual, checkRateLimitDurable };
+});
+
 import { GET, POST } from "@/app/api/pint-drops/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
@@ -64,6 +75,8 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.ADMIN_TOKEN;
+  checkRateLimitDurable.mockReset();
+  checkRateLimitDurable.mockResolvedValue(null);
 });
 
 afterAll(() => {
@@ -128,13 +141,16 @@ describe("GET + moderation", () => {
     expect((await afterReport.json()).drops).toHaveLength(0);
   });
 
-  it("lists all visible drops when venueId is omitted", async () => {
+  it("lists all visible drops when venueId is omitted (organic + demo seeds)", async () => {
     await post({ venueId: "first", handle: "ale", priceGbp: 4.2 });
     await post({ venueId: "second", handle: "mild", passedDownNote: "my dad's old local" });
 
     const res = await get();
     expect(res.status).toBe(200);
-    expect((await res.json()).drops).toHaveLength(2);
+    const { drops } = (await res.json()) as { drops: Array<{ provenance: string }> };
+    // The two organic drops plus the seeded demo drops, all through one read path.
+    expect(drops.filter((d) => d.provenance !== "demo")).toHaveLength(2);
+    expect(drops.filter((d) => d.provenance === "demo").length).toBeGreaterThanOrEqual(8);
   });
 
   it("refuses the in-memory store in production when Supabase is absent", async () => {
@@ -196,6 +212,8 @@ describe("moderation loop", () => {
 
     // Still hidden from the public list.
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+    // But reviewed, so it is no longer in the moderation queue.
+    expect((await (await modGet("hidden")).json()).drops).toHaveLength(0);
   });
 
   it("403s moderator endpoints in production without a valid token", async () => {
@@ -212,6 +230,49 @@ describe("moderation loop", () => {
     // in production — but the point is the 403 gate is cleared).
     const withToken = await modGet("hidden", "s3cret");
     expect(withToken.status).not.toBe(403);
+  });
+});
+
+describe("durable rate limiting (Supabase configured)", () => {
+  beforeEach(() => {
+    process.env.SUPABASE_URL = "https://stub.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
+    persistDrop.mockReset();
+    persistDrop.mockResolvedValue(undefined);
+  });
+
+  it("keys the durable limiter on handle + hashed IP, never the raw IP", async () => {
+    checkRateLimitDurable.mockResolvedValue(false);
+    const res = await POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        headers: { "x-forwarded-for": "203.0.113.7, 10.0.0.1" },
+        body: JSON.stringify({ venueId: VENUE, handle: "Ale", priceGbp: 4 }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(checkRateLimitDurable).toHaveBeenCalledTimes(1);
+    const key = checkRateLimitDurable.mock.calls[0][0];
+    expect(key).toContain("ale"); // handle (lowercased) is in the key
+    expect(key).toMatch(/[0-9a-f]{64}$/); // ...plus the sha256 IP hash
+    expect(key).not.toContain("203.0.113.7"); // raw IP never appears
+  });
+
+  it("429s a submission when the durable limiter says limited", async () => {
+    checkRateLimitDurable.mockResolvedValue(true);
+    const res = await post({ venueId: VENUE, handle: "flooder", priceGbp: 4 });
+    expect(res.status).toBe(429);
+    expect(persistDrop).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the in-memory limiter when the durable one is unavailable", async () => {
+    checkRateLimitDurable.mockResolvedValue(null); // outage / RPC error
+    let last: Response | undefined;
+    for (let i = 0; i < 9; i++) {
+      last = await post({ venueId: VENUE, handle: "outage", priceGbp: 4 });
+    }
+    // Writes keep working (fail open to the backstop), which still limits the 9th.
+    expect(last!.status).toBe(429);
   });
 });
 

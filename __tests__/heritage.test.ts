@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/heritage/route";
 import { answerHeritage, retrieveHeritage } from "@/lib/heritage";
@@ -113,6 +113,97 @@ describe("POST /api/heritage", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.answer).toContain("1520");
+  });
+});
+
+// P3.10 — The Landlord LLM bounds. OpenRouter is mocked via global.fetch:
+// no network, no real key. Pins: temperature 0 + max-token cap + abort signal
+// on the request; timeout → honest fallback; phantom fact-id citation →
+// rejected (fallback); valid fact-id markers → stripped from the answer.
+describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
+  const realFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+  });
+
+  afterEach(() => {
+    global.fetch = realFetch;
+    vi.unstubAllEnvs();
+    vi.useRealTimers();
+  });
+
+  function okResponse(content: string): Response {
+    return {
+      ok: true,
+      json: async () => ({ choices: [{ message: { content } }] }),
+    } as unknown as Response;
+  }
+
+  it("sends temperature 0, a max-token cap, and an abort signal", async () => {
+    const fetchMock = vi.fn(async () => okResponse("Built in 1520 [F1]."));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await answerHeritage({ venueName: "Prospect of Whitby", question: "How old?" });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.temperature).toBe(0);
+    expect(body.max_tokens).toBeGreaterThan(0);
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    // Facts are numbered so citations can be validated server-side.
+    expect(body.messages[1].content).toContain("[F1]");
+  });
+
+  it("falls back to the honest answer on timeout", async () => {
+    vi.useFakeTimers();
+    let fetchStarted!: () => void;
+    const started = new Promise<void>((resolve) => (fetchStarted = resolve));
+    // A fetch that never resolves — it only rejects when the abort fires.
+    global.fetch = vi.fn((_url: unknown, init?: RequestInit) => {
+      fetchStarted();
+      return new Promise((_, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(new DOMException("Aborted", "AbortError")),
+        );
+      });
+    }) as unknown as typeof fetch;
+
+    const pending = answerHeritage({
+      venueName: "Nowhere Tavern",
+      question: "What's the story here?",
+    });
+    await started; // retrieval (real I/O) done, the timeout timer is armed
+    await vi.advanceTimersByTimeAsync(11_000); // past the 10s LLM timeout
+
+    const res = await pending;
+    expect(res.answer).toContain("no fuller story on record");
+  });
+
+  it("rejects an answer citing a phantom fact id and falls back", async () => {
+    global.fetch = vi.fn(async () =>
+      okResponse("Founded by Dick Turpin in 1520 [F42]."),
+    ) as unknown as typeof fetch;
+
+    const res = await answerHeritage({
+      venueName: "Prospect of Whitby",
+      question: "How old is this pub?",
+    });
+    // The fabricated line never reaches the client; the grounded read-back does.
+    expect(res.answer).not.toContain("Dick Turpin");
+    expect(res.answer).toContain("Here's what's on record");
+  });
+
+  it("strips valid fact-id markers from the answer", async () => {
+    global.fetch = vi.fn(async () =>
+      okResponse("Dating to 1520 [F1], it is a famous riverside pub."),
+    ) as unknown as typeof fetch;
+
+    const res = await answerHeritage({
+      venueName: "Prospect of Whitby",
+      question: "How old is this pub?",
+    });
+    expect(res.answer).toBe("Dating to 1520, it is a famous riverside pub.");
   });
 });
 

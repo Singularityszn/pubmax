@@ -33,7 +33,12 @@ import {
   toModeratorDTO,
   type PersistableDrop,
 } from "@/lib/pintDropsStore";
-import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import {
+  checkRateLimitDurable,
+  hashIp,
+  isSupabaseConfigured,
+  requiresSupabaseStore,
+} from "@/lib/supabase";
 
 const STORAGE_UNCONFIGURED_ERROR =
   "Pint Drop production storage is not configured.";
@@ -64,6 +69,27 @@ function forbidden(): Response {
 
 function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+// Client IP for rate-limit keying only. It is sha256-hashed (hashIp) before it
+// goes anywhere — raw IPs are never stored.
+function clientIp(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+// Durable (Supabase RPC) limiter when configured; in-memory otherwise. A null
+// verdict (client missing / RPC error) also falls back to the in-memory
+// backstop, so dev/demo keeps working and a limiter outage can't 500 writes.
+async function isLimited(localKey: string, durableKey: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    const verdict = await checkRateLimitDurable(durableKey);
+    if (typeof verdict === "boolean") return verdict;
+  }
+  return isRateLimited(localKey);
 }
 
 type Photos = { pint: File | null; venue: File | null };
@@ -111,7 +137,7 @@ export async function POST(request: Request): Promise<Response> {
     }
     const reason = readString(fields.reason);
     // Rate-limit reports per drop so one actor can't spam the report counter.
-    if (isRateLimited(`report:${id}`)) {
+    if (await isLimited(`report:${id}`, `report:${id}`)) {
       return Response.json({ error: "Too many reports, slow down." }, { status: 429 });
     }
     const unavailable = productionStorageUnavailable();
@@ -165,7 +191,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: result.error }, { status: 400 });
   }
 
-  if (isRateLimited(result.value.handle)) {
+  // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
+  // keyed on handle alone, exactly as before.
+  const submitKey = `drop:${result.value.handle.toLowerCase()}:${hashIp(clientIp(request))}`;
+  if (await isLimited(result.value.handle, submitKey)) {
     return Response.json({ error: "Too many submissions, slow down." }, { status: 429 });
   }
 
