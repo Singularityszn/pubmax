@@ -24,7 +24,16 @@ import {
   uploadPintPhoto,
   type PersistableDrop,
 } from "@/lib/pintDropsStore";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+
+const STORAGE_UNCONFIGURED_ERROR =
+  "Pint Drop production storage is not configured.";
+
+function productionStorageUnavailable(): Response | null {
+  return requiresSupabaseStore() && !isSupabaseConfigured()
+    ? Response.json({ error: STORAGE_UNCONFIGURED_ERROR }, { status: 503 })
+    : null;
+}
 
 // Parse either a JSON body or a multipart form. For multipart we pull the text
 // fields into a plain object (validatePintDrop cleans them) and keep the photo
@@ -63,6 +72,8 @@ export async function POST(request: Request): Promise<Response> {
     if (typeof id !== "string") {
       return Response.json({ error: "Pint Drop not found." }, { status: 404 });
     }
+    const unavailable = productionStorageUnavailable();
+    if (unavailable) return unavailable;
     if (isSupabaseConfigured()) {
       try {
         const ok = await setDropStatusRemote(id, "hidden");
@@ -87,6 +98,9 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Too many submissions, slow down." }, { status: 429 });
   }
 
+  const unavailable = productionStorageUnavailable();
+  if (unavailable) return unavailable;
+
   if (isSupabaseConfigured()) {
     try {
       const drop: PersistableDrop = { ...result.value };
@@ -110,6 +124,8 @@ export async function POST(request: Request): Promise<Response> {
 
 export async function GET(request: Request): Promise<Response> {
   const venueId = new URL(request.url).searchParams.get("venueId");
+  const unavailable = productionStorageUnavailable();
+  if (unavailable) return unavailable;
   if (isSupabaseConfigured()) {
     try {
       const drops = venueId

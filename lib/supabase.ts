@@ -17,4 +17,8 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+export function requiresSupabaseStore(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 export const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET ?? "pint-drops";

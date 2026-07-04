@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "@/app/api/pint-drops/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -16,7 +16,16 @@ function get(venueId?: string): Promise<Response> {
 
 const VENUE = "the-crown";
 
-beforeEach(() => __resetPintDrops());
+beforeEach(() => {
+  __resetPintDrops();
+  vi.stubEnv("NODE_ENV", "test");
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("POST /api/pint-drops (create)", () => {
   it("accepts a priced drop as a contributor", async () => {
@@ -83,5 +92,18 @@ describe("GET + moderation", () => {
     const res = await get();
     expect(res.status).toBe(200);
     expect((await res.json()).drops).toHaveLength(2);
+  });
+
+  it("refuses the in-memory store in production when Supabase is absent", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    expect(created.status).toBe(503);
+    expect(await created.json()).toEqual({
+      error: "Pint Drop production storage is not configured.",
+    });
+
+    const listed = await get(VENUE);
+    expect(listed.status).toBe(503);
   });
 });

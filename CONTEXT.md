@@ -83,3 +83,15 @@ _Avoid_: Source (bare), reliability, trust score
 **Contributor Handle**:
 The lightweight identity a Pint Drop is attributed to, without requiring a full account in v1. A person, not a profile.
 _Avoid_: User, account, username
+
+**Production Store**:
+The durable Supabase database and Storage bucket used for production Pint Drops, photos, and heritage cache data. Distinct from the in-memory demo store used when local credentials are absent.
+_Avoid_: Backend (bare), database (when photos are included)
+
+**Storage Object**:
+A photo file saved in Supabase Storage and referenced from a Pint Drop by object key. The database stores the key, not an inline image or committed file.
+_Avoid_: Image URL (when referring to the persisted record), blob
+
+**Hidden Pint Drop**:
+A Pint Drop removed from public reads after a report or moderation decision, while still retained for review.
+_Avoid_: Deleted post, banned review
