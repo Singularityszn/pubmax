@@ -1,6 +1,8 @@
 // London landmarks for the map's history layer. Static, curated, sourced —
 // rendered as a brass symbol layer in PubMapCanvas, tapped for a history card.
 
+import type { Venue } from "@/lib/venues";
+
 export type Landmark = {
   id: string;
   name: string;
@@ -90,3 +92,33 @@ export const landmarks: Landmark[] = [
     },
   },
 ];
+
+// Wires the landmark layer into the heritage layer (PRD target #6): tapping a
+// landmark surfaces the nearest story pubs, not just a standalone history card.
+// Distances are straight-line (haversine) per the PRD's out-of-scope rules —
+// no routing — and the UI labels them as such.
+export type NearbyStoryPub = { venue: Venue; km: number };
+
+function straightLineKm([lng, lat]: [number, number], venue: Venue): number {
+  const earthRadiusKm = 6371;
+  const dLat = ((venue.latitude - lat) * Math.PI) / 180;
+  const dLng = ((venue.longitude - lng) * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lat2 = (venue.latitude * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+export function nearestStoryPubs(
+  landmark: Landmark,
+  venues: Venue[],
+  limit = 3,
+): NearbyStoryPub[] {
+  return venues
+    .filter((venue) => venue.hasStory)
+    .map((venue) => ({ venue, km: straightLineKm(landmark.coordinates, venue) }))
+    .sort((a, b) => a.km - b.km)
+    .slice(0, limit);
+}

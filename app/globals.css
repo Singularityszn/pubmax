@@ -405,6 +405,175 @@ input[type="range"] {
   color: var(--brass);
 }
 
+/* Landmark → heritage wiring: nearest story pubs, tappable. */
+.landmarkNearby {
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.landmarkNearby h4 {
+  margin: 0 0 6px;
+  font-family: var(--serif);
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.landmarkNearby button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.landmarkNearby button span:first-child {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.landmarkNearby button span:last-child {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.landmarkNearby button:hover span:first-child {
+  color: var(--brass);
+}
+
+/* WebGL-failure fallback — a calm notice where the canvas would be. */
+.mapFallback {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 32px;
+  text-align: center;
+  background: var(--ink-deep);
+  color: var(--paper);
+}
+
+.mapFallback strong {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+}
+
+.mapFallback p {
+  margin: 0 auto;
+  max-width: 340px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Hero story teaser on first paint — a guidebook margin note, bottom-left. */
+.mapHeroCard {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  z-index: 450;
+  max-width: 300px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mapHeroCard {
+    animation: heroCardIn 0.45s ease-out;
+  }
+
+  @keyframes heroCardIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+.mapHeroCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mapHeroCardHead span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.mapHeroCardHead button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mapHeroCardHead button:hover {
+  color: var(--ink);
+  border-color: var(--brass);
+}
+
+.mapHeroCard strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.mapHeroCard p {
+  margin: 6px 0 9px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mapHeroVisit {
+  padding: 6px 14px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brass);
+  cursor: pointer;
+}
+
+.mapHeroVisit:hover {
+  background: var(--brass);
+  color: var(--paper);
+}
+
 .modeToggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1010,15 +1179,24 @@ input[type="range"] {
 }
 
 .routeList li {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+/* Route rows are real buttons now (keyboard operable); li keeps the chrome. */
+.routeList li > button {
   display: grid;
   grid-template-columns: 30px 1fr;
   gap: 11px;
   padding: 11px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-  cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  border-radius: inherit;
 }
 
 .routeList li:hover {
@@ -1062,6 +1240,67 @@ input[type="range"] {
 .routeList small {
   color: var(--brass);
   font-weight: 600;
+}
+
+/* Keyboard route-building path: filtered venue list with Add/Remove controls. */
+.venuePicker {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+  display: grid;
+  gap: 8px;
+}
+
+.venuePickerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.venuePickerList button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  text-align: left;
+  color: inherit;
+}
+
+.venuePickerList button:hover {
+  border-color: var(--brass);
+}
+
+.venuePickerList button[aria-pressed="true"] {
+  border-color: var(--ink-deep);
+  box-shadow: inset 3px 0 0 var(--brass);
+}
+
+.venuePickerList strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.venuePickerList small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.venuePickerList .pickAction {
+  color: var(--brass);
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.pickerNote {
+  color: var(--muted);
 }
 
 .venueInspector {

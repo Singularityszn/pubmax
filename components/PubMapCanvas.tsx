@@ -4,9 +4,9 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import maplibregl from "maplibre-gl";
 import { ExternalLink, Landmark as LandmarkIcon, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { landmarks, type Landmark } from "@/lib/landmarks";
+import { landmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
 import type { Venue } from "@/lib/venues";
 
 type VenueSignal = { hasPintDrops: boolean; latestContributorPrice: number | null };
@@ -211,7 +211,9 @@ export default function PubMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(null);
+  const [heroDismissed, setHeroDismissed] = useState(false);
 
   const onVenueClickRef = useRef(onVenueClick);
   const onRouteStopClickRef = useRef(onRouteStopClick);
@@ -277,15 +279,28 @@ export default function PubMapCanvas({
     };
     reducedQuery.addEventListener("change", onReducedChange);
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLES[themeRef.current],
-      ...LONDON_VIEW,
-      maxBounds: [
-        [-0.55, 51.28],
-        [0.35, 51.72],
-      ],
-    });
+    // No-WebGL environments (locked-down browsers, headless boxes) throw
+    // synchronously from the constructor; fall back to a styled notice.
+    let map: maplibregl.Map;
+    try {
+      map = new maplibregl.Map({
+        container: containerRef.current,
+        style: MAP_STYLES[themeRef.current],
+        ...LONDON_VIEW,
+        maxBounds: [
+          [-0.55, 51.28],
+          [0.35, 51.72],
+        ],
+      });
+    } catch (error) {
+      reducedQuery.removeEventListener("change", onReducedChange);
+      queueMicrotask(() =>
+        setMapError(
+          error instanceof Error ? error.message : "Map could not start in this browser.",
+        ),
+      );
+      return;
+    }
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     mapRef.current = map;
 
@@ -294,6 +309,16 @@ export default function PubMapCanvas({
     const buildScene = () => {
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
+
+      // buildScene re-runs on every style.load. After a genuine setStyle swap
+      // the old style's layers are gone (getLayer → undefined) so everything
+      // re-adds with fresh tokens; on a duplicate pass the layer survives and
+      // a bare addLayer would throw "Layer with id X already exists" inside
+      // MapLibre's event dispatch, aborting the rest of the scene. getLayer
+      // checks the CURRENT style state, so both paths are safe.
+      const addLayerOnce = (...args: Parameters<typeof map.addLayer>) => {
+        if (!map.getLayer(args[0].id)) map.addLayer(...args);
+      };
 
       // --- Sky + fog: horizon depth in both moods.
       map.setSky({
@@ -316,8 +341,8 @@ export default function PubMapCanvas({
           "source-layer" in layer &&
           layer["source-layer"] === "building",
       );
-      if (buildingLayer && "source" in buildingLayer && !map.getLayer("buildings-3d")) {
-        map.addLayer(
+      if (buildingLayer && "source" in buildingLayer) {
+        addLayerOnce(
           {
             id: "buildings-3d",
             type: "fill-extrusion",
@@ -353,7 +378,7 @@ export default function PubMapCanvas({
       if (!map.getSource("landmarks")) {
         map.addSource("landmarks", { type: "geojson", data: LANDMARKS_GEOJSON });
       }
-      map.addLayer({
+      addLayerOnce({
         id: "landmarks-icon",
         type: "symbol",
         source: "landmarks",
@@ -381,7 +406,7 @@ export default function PubMapCanvas({
       if (!map.getSource("route-line")) {
         map.addSource("route-line", { type: "geojson", data: routeLineRef.current });
       }
-      map.addLayer({
+      addLayerOnce({
         id: "route-line",
         type: "line",
         source: "route-line",
@@ -392,7 +417,7 @@ export default function PubMapCanvas({
           "line-opacity": 0.3,
         },
       });
-      map.addLayer({
+      addLayerOnce({
         id: "route-line-dash",
         type: "line",
         source: "route-line",
@@ -416,7 +441,7 @@ export default function PubMapCanvas({
         });
       }
       // Distinct soft halo where the community has left Pint Drops.
-      map.addLayer({
+      addLayerOnce({
         id: "pubs-drops-halo",
         type: "circle",
         source: "pubs",
@@ -428,7 +453,7 @@ export default function PubMapCanvas({
           "circle-blur": 0.55,
         },
       });
-      map.addLayer({
+      addLayerOnce({
         id: "pubs-point",
         type: "circle",
         source: "pubs",
@@ -454,7 +479,7 @@ export default function PubMapCanvas({
         },
       });
       // Brass ring on the selected pin.
-      map.addLayer({
+      addLayerOnce({
         id: "pubs-selected",
         type: "circle",
         source: "pubs",
@@ -467,7 +492,7 @@ export default function PubMapCanvas({
           "circle-stroke-opacity": 0.95,
         },
       });
-      map.addLayer({
+      addLayerOnce({
         id: "clusters",
         type: "circle",
         source: "pubs",
@@ -479,7 +504,7 @@ export default function PubMapCanvas({
           "circle-radius": ["step", ["get", "point_count"], 16, 25, 22, 100, 30],
         },
       });
-      map.addLayer({
+      addLayerOnce({
         id: "cluster-count",
         type: "symbol",
         source: "pubs",
@@ -496,7 +521,7 @@ export default function PubMapCanvas({
       if (!map.getSource("route-stops")) {
         map.addSource("route-stops", { type: "geojson", data: routeStopsRef.current });
       }
-      map.addLayer({
+      addLayerOnce({
         id: "route-stops",
         type: "circle",
         source: "route-stops",
@@ -507,7 +532,7 @@ export default function PubMapCanvas({
           "circle-stroke-width": 2.5,
         },
       });
-      map.addLayer({
+      addLayerOnce({
         id: "route-stops-label",
         type: "symbol",
         source: "route-stops",
@@ -528,11 +553,15 @@ export default function PubMapCanvas({
     // --- Click + cursor wiring (delegated by layer id; survives setStyle).
     map.on("click", "pubs-point", (event) => {
       const id = event.features?.[0]?.properties?.id;
-      if (typeof id === "string") onVenueClickRef.current(id);
+      if (typeof id !== "string") return;
+      selectLandmark(null); // the camera leaves the landmark; its card goes too
+      onVenueClickRef.current(id);
     });
     map.on("click", "route-stops", (event) => {
       const id = event.features?.[0]?.properties?.id;
-      if (typeof id === "string") onRouteStopClickRef.current(id);
+      if (typeof id !== "string") return;
+      selectLandmark(null);
+      onRouteStopClickRef.current(id);
     });
     map.on("click", "landmarks-icon", (event) => {
       const id = event.features?.[0]?.properties?.id;
@@ -608,7 +637,11 @@ export default function PubMapCanvas({
       const next = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
       if (next === themeRef.current) return;
       themeRef.current = next;
-      map.setStyle(MAP_STYLES[next]);
+      // diff: false forces a full style swap: old layers are always dropped
+      // and style.load always fires, so buildScene deterministically rebuilds
+      // every layer with the new theme's tokens (a successful diff would keep
+      // stale-themed layers and skip style.load entirely).
+      map.setStyle(MAP_STYLES[next], { diff: false });
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
@@ -674,8 +707,15 @@ export default function PubMapCanvas({
 
   // Cinematic fly-to on venue selection (after the route framing above).
   useEffect(() => {
+    if (!selectedVenueId) return;
+    // Any venue selection — map pin, route stop, or the sidebar list — retires
+    // both overlay cards: the landmark story (H2) and the intro teaser (M5).
+    queueMicrotask(() => {
+      selectLandmark(null);
+      setHeroDismissed(true);
+    });
     const map = mapRef.current;
-    if (!map || !mapReady || !selectedVenueId) return;
+    if (!map || !mapReady) return;
     const venue = venuesRef.current.find((item) => item.id === selectedVenueId);
     if (!venue) return;
     cinematic({
@@ -684,7 +724,43 @@ export default function PubMapCanvas({
       pitch: 50,
       duration: 1100,
     });
-  }, [selectedVenueId, mapReady, cinematic]);
+  }, [selectedVenueId, mapReady, cinematic, selectLandmark]);
+
+  // H5: a tapped landmark surfaces its nearest story pubs (straight-line
+  // distance — no routing, per PRD scope), wiring the history layer into the
+  // heritage layer instead of leaving a dead-end Wikipedia card.
+  const storyPubsNearby = useMemo(
+    () => (activeLandmark ? nearestStoryPubs(activeLandmark, venues) : []),
+    [activeLandmark, venues],
+  );
+
+  // M5 / PRD P1.5: one curated story venue greets the first paint. Prefer a
+  // heritage pub the community has actually logged (Pint Drops), with the
+  // Prospect of Whitby as the flagship tie-break.
+  const heroVenue = useMemo(() => {
+    const candidates = venues.filter(
+      (venue) => venue.hasStory && venue.curation.heritageNote,
+    );
+    if (candidates.length === 0) return null;
+    const score = (venue: Venue) =>
+      (venueSignals.get(venue.id)?.hasPintDrops ? 2 : 0) +
+      (venue.name.toLowerCase().includes("prospect of whitby") ? 1 : 0);
+    return candidates.reduce((best, venue) => (score(venue) > score(best) ? venue : best));
+  }, [venues, venueSignals]);
+
+  if (mapError) {
+    return (
+      <div className="mapCanvasWrap">
+        <div className="mapFallback" role="alert">
+          <strong>Map renderer unavailable</strong>
+          <p>
+            This browser could not start the three-dimensional map — it needs WebGL.
+            The pub list and crawl planner beside it still work as ever.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mapCanvasWrap">
@@ -707,6 +783,49 @@ export default function PubMapCanvas({
             Source: {activeLandmark.source.label}
             <ExternalLink size={12} />
           </a>
+          {storyPubsNearby.length > 0 ? (
+            <div className="landmarkNearby">
+              <h4>Story pubs nearby</h4>
+              {storyPubsNearby.map(({ venue, km }) => (
+                <button
+                  key={venue.id}
+                  type="button"
+                  onClick={() => {
+                    selectLandmark(null);
+                    onVenueClick(venue.id);
+                  }}
+                >
+                  <span>{venue.name}</span>
+                  <span>
+                    {km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`} straight-line
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </aside>
+      ) : null}
+      {heroVenue && !heroDismissed ? (
+        <aside className="mapHeroCard" aria-label="Featured story pub">
+          <div className="mapHeroCardHead">
+            <span>{heroVenue.curation.heritageEra ?? "Story pub"}</span>
+            <button
+              type="button"
+              onClick={() => setHeroDismissed(true)}
+              aria-label="Dismiss featured story pub"
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <strong>{heroVenue.name}</strong>
+          <p>{heroVenue.curation.heritageNote}</p>
+          <button
+            type="button"
+            className="mapHeroVisit"
+            onClick={() => onVenueClick(heroVenue.id)}
+          >
+            Visit
+          </button>
         </aside>
       ) : null}
     </div>

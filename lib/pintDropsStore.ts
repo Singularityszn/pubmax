@@ -1,35 +1,74 @@
-// Supabase-backed persistence for Pint Drops. The in-memory store in
-// lib/pintDrops.ts stays the fallback; this file is only reached when
-// isSupabaseConfigured() (the route decides). Every function assumes admin
-// access exists — if getSupabaseAdmin() is null we throw, we don't silently
-// no-op, so the route can catch and fall back deliberately.
+// Pint Drop storage layer. ONE interface (PintDropStore), TWO implementations:
+// process-memory (wrapping lib/pintDrops.ts, dev/demo only) and Supabase
+// (visit_reports table + Storage). The API route picks an implementation at a
+// single point and talks to the interface only (M4 / PRD P2.7). Every Supabase
+// function assumes admin access exists — if getSupabaseAdmin() is null we
+// throw, we don't silently no-op, so the route can 503 deliberately.
 
 import type { Provenance } from "@/lib/curation";
 import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
-import type { PintDrop, PintDropStatus } from "@/lib/pintDrops";
+import {
+  addPintDrop,
+  keepHiddenPintDrop,
+  listAllVisiblePintDrops,
+  listByStatus,
+  listVisiblePintDrops,
+  REPORT_HIDE_THRESHOLD,
+  reportPintDrop,
+  restorePintDrop,
+  type PintDrop,
+  type PintDropStatus,
+} from "@/lib/pintDrops";
 import { getSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
 const TABLE = "visit_reports";
 
-// The route attaches uploaded Storage keys here before persisting. Kept off the
-// core PintDrop type in lib/pintDrops.ts (photos are a Supabase-only concern);
-// the fallback store ignores them entirely.
+/** Bounded public reads: the visible listing never returns more than this. */
+export const MAX_PUBLIC_DROPS = 500;
+
+// The create path attaches uploaded Storage keys here before persisting. Kept
+// off the core PintDrop type in lib/pintDrops.ts (photos are a Supabase-only
+// concern); the in-memory store ignores them entirely.
 export type PersistableDrop = PintDrop & {
   pintPhotoKey?: string;
   venuePhotoKey?: string;
 };
 
 // Public read shape. Storage keys never leave the server — they map to public
-// URLs (or null for hidden/pending rows). This is what GET/POST return.
-export type PintDropDTO = PintDrop & {
+// URLs (or null for hidden/pending rows) — and report/moderation metadata is
+// stripped: with the report threshold a once-reported drop stays publicly
+// visible, and its reporter trail must not ride along.
+export type PintDropDTO = Omit<
+  PintDrop,
+  "reportedAt" | "reportReason" | "reportCount" | "moderatedAt" | "moderatorNote"
+> & {
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
 };
 
 // Moderator read shape. Same photo-URL swap, but a moderator must see the
-// evidence they are judging, so photos resolve even on hidden rows. Report
-// metadata (reportedAt/reportReason/reportCount) already lives on PintDrop.
-export type ModeratorDrop = PintDropDTO;
+// evidence they are judging, so photos resolve even on hidden rows and the
+// report metadata (reportedAt/reportReason/reportCount) is kept.
+export type ModeratorDrop = PintDrop & {
+  pintPhotoUrl: string | null;
+  venuePhotoUrl: string | null;
+};
+
+export type PintDropPhotos = { pint: File | null; venue: File | null };
+
+/** The one seam the API route talks to. Both implementations below. */
+export type PintDropStore = {
+  /** Persist a validated drop (photos where supported); returns the public DTO. Throws on storage failure. */
+  create(drop: PintDrop, photos: PintDropPhotos): Promise<PintDropDTO>;
+  /** Public read: visible drops + demo seeds, newest-first, capped at MAX_PUBLIC_DROPS. */
+  listVisible(venueId?: string): Promise<PintDropDTO[]>;
+  /** Moderator review queue: unreviewed drops in a status, with report metadata. */
+  listForReview(status: "hidden" | "pending"): Promise<ModeratorDrop[]>;
+  /** Public report: record metadata; hides at REPORT_HIDE_THRESHOLD. False = unknown id. */
+  report(id: string, reason?: string): Promise<boolean>;
+  /** Moderator decision: set the final status and stamp the review. False = unknown id. */
+  moderate(id: string, status: PintDropStatus, note?: string): Promise<boolean>;
+};
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB
@@ -108,10 +147,20 @@ function publicUrl(key: string | undefined, visible: boolean): string | null {
   return admin().storage.from(STORAGE_BUCKET).getPublicUrl(key).data.publicUrl;
 }
 
-/** Strip Storage keys, emit public photo URLs. The only shape the API returns. */
+/** Public DTO: strip Storage keys AND report/moderation metadata, emit photo
+ *  URLs. The only shape the public API returns. */
 export function toDTO(drop: PersistableDrop): PintDropDTO {
   const visible = drop.status === "visible";
-  const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
+  const {
+    pintPhotoKey,
+    venuePhotoKey,
+    reportedAt: _reportedAt,
+    reportReason: _reportReason,
+    reportCount: _reportCount,
+    moderatedAt: _moderatedAt,
+    moderatorNote: _moderatorNote,
+    ...rest
+  } = drop;
   return {
     ...rest,
     pintPhotoUrl: publicUrl(pintPhotoKey, visible),
@@ -120,7 +169,7 @@ export function toDTO(drop: PersistableDrop): PintDropDTO {
 }
 
 /** Moderator DTO: strip Storage keys but resolve photos even on hidden rows —
- *  the reviewer must see the evidence. Report metadata rides on PersistableDrop. */
+ *  the reviewer must see the evidence. Report metadata rides along. */
 export function toModeratorDTO(drop: PersistableDrop): ModeratorDrop {
   const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
   return {
@@ -130,104 +179,116 @@ export function toModeratorDTO(drop: PersistableDrop): ModeratorDrop {
   };
 }
 
-export async function persistDrop(drop: PersistableDrop): Promise<void> {
-  const { error } = await admin().from(TABLE).insert(toRow(drop));
-  if (error) throw new Error(error.message);
+/** L4: the ONE merge point for organic drops + demo seeds — newest-first,
+ *  hard-capped. Both implementations route their public read through this. */
+function newestFirstCapped<T extends { createdAt: string }>(drops: T[]): T[] {
+  return [...drops]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, MAX_PUBLIC_DROPS);
 }
 
-/** Public read: newest-first, visible-only. Rows carry keys; map via toDTO.
- *  Demo seeds (in-repo, never written to Supabase) are appended after the
- *  organic rows so both backends serve the same single read-merge path. */
-export async function listVisibleDropsRemote(venueId: string): Promise<PersistableDrop[]> {
-  const { data, error } = await admin()
-    .from(TABLE)
-    .select("*")
-    .eq("venue_id", venueId)
-    .eq("status", "visible")
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(fromRow).concat(demoDropsFor(venueId));
-}
+// ── In-memory implementation ─────────────────────────────────────────────────
+// ponytail: wraps the process-memory primitives in lib/pintDrops.ts. Resets on
+// restart — right for dev/demo; production refuses it at the route.
+export const memoryPintDropStore: PintDropStore = {
+  async create(drop) {
+    addPintDrop(drop); // photos ignored: there is no Storage without Supabase
+    return toDTO(drop);
+  },
+  async listVisible(venueId) {
+    const rows = venueId ? listVisiblePintDrops(venueId) : listAllVisiblePintDrops();
+    return newestFirstCapped(rows).map(toDTO);
+  },
+  async listForReview(status) {
+    return listByStatus(status).map(toModeratorDTO);
+  },
+  async report(id, reason) {
+    return reportPintDrop(id, reason);
+  },
+  async moderate(id, status, note) {
+    return status === "visible" ? restorePintDrop(id, note) : keepHiddenPintDrop(id, note);
+  },
+};
 
-export async function listAllVisibleDropsRemote(): Promise<PersistableDrop[]> {
-  const { data, error } = await admin()
-    .from(TABLE)
-    .select("*")
-    .eq("status", "visible")
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(fromRow).concat(demoPintDrops);
-}
+// ── Supabase implementation ──────────────────────────────────────────────────
+export const supabasePintDropStore: PintDropStore = {
+  async create(drop, photos) {
+    const persistable: PersistableDrop = { ...drop };
+    const uploaded: string[] = [];
+    try {
+      // Photos upload BEFORE the insert — a bad file throws before anything
+      // persists; a failed insert leaves exact keys to clean up.
+      if (photos.pint) {
+        persistable.pintPhotoKey = await uploadPhoto("pint", drop.venueId, drop.id, photos.pint);
+        uploaded.push(persistable.pintPhotoKey);
+      }
+      if (photos.venue) {
+        persistable.venuePhotoKey = await uploadPhoto("venue", drop.venueId, drop.id, photos.venue);
+        uploaded.push(persistable.venuePhotoKey);
+      }
+      const { error } = await admin().from(TABLE).insert(toRow(persistable));
+      if (error) throw new Error(error.message);
+    } catch (err) {
+      await deletePhotos(uploaded); // no orphans on any failure after an upload
+      throw err;
+    }
+    return toDTO(persistable);
+  },
 
-export async function setDropStatusRemote(id: string, status: PintDropStatus): Promise<boolean> {
-  const { data, error } = await admin()
-    .from(TABLE)
-    .update({ status })
-    .eq("id", id)
-    .select("id");
-  if (error) throw new Error(error.message);
-  return (data ?? []).length > 0;
-}
+  /** Demo seeds (in-repo, never written to Supabase) merge with the organic
+   *  rows in newestFirstCapped so both backends serve one read-merge path. */
+  async listVisible(venueId) {
+    let query = admin()
+      .from(TABLE)
+      .select("*")
+      .eq("status", "visible")
+      .order("created_at", { ascending: false })
+      .limit(MAX_PUBLIC_DROPS);
+    if (venueId) query = query.eq("venue_id", venueId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    const seeds = venueId ? demoDropsFor(venueId) : demoPintDrops;
+    return newestFirstCapped((data ?? []).map(fromRow).concat(seeds)).map(toDTO);
+  },
 
-/** Moderator decision: set the final status and stamp the review. Used by both
- *  restore ("visible") and keep_hidden ("hidden"). */
-export async function moderateDropRemote(
-  id: string,
-  status: PintDropStatus,
-  note?: string,
-): Promise<boolean> {
-  const { data, error } = await admin()
-    .from(TABLE)
-    .update({
-      status,
-      moderated_at: new Date().toISOString(),
-      ...(note ? { moderator_note: note } : {}),
-    })
-    .eq("id", id)
-    .select("id");
-  if (error) throw new Error(error.message);
-  return (data ?? []).length > 0;
-}
+  async listForReview(status) {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("*")
+      .eq("status", status)
+      .is("moderated_at", null)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(fromRow).map(toModeratorDTO);
+  },
 
-/** Moderator read: all drops in a status, newest-first, WITH report metadata. */
-export async function listByStatusRemote(status: PintDropStatus): Promise<ModeratorDrop[]> {
-  let query = admin()
-    .from(TABLE)
-    .select("*")
-    .eq("status", status)
-    .order("created_at", { ascending: false });
-  if (status === "hidden" || status === "pending") {
-    query = query.is("moderated_at", null);
-  }
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(fromRow).map(toModeratorDTO);
-}
+  /** H4: ONE atomic RPC (migration 0004) increments the count, stamps the
+   *  report, and hides at REPORT_HIDE_THRESHOLD in a single UPDATE — two
+   *  concurrent reports can't lose an increment. Null data = unknown id. */
+  async report(id, reason) {
+    const { data, error } = await admin().rpc("report_pint_drop", {
+      p_id: id,
+      p_reason: reason ?? null,
+      p_hide_threshold: REPORT_HIDE_THRESHOLD,
+    });
+    if (error) throw new Error(error.message);
+    return data !== null && data !== undefined;
+  },
 
-/** Public report: hide the drop and stamp/increment report metadata.
- *  report_count is bumped from the current row (read-then-write — fine at
- *  prototype volume; move to an atomic rpc/`increment` if reports get hot). */
-export async function reportDropRemote(id: string, reason?: string): Promise<boolean> {
-  const { data: rows, error: readErr } = await admin()
-    .from(TABLE)
-    .select("report_count")
-    .eq("id", id);
-  if (readErr) throw new Error(readErr.message);
-  if (!rows || rows.length === 0) return false;
-
-  const nextCount = Number((rows[0] as { report_count?: number }).report_count ?? 0) + 1;
-  const { error } = await admin()
-    .from(TABLE)
-    .update({
-      status: "hidden",
-      reported_at: new Date().toISOString(),
-      report_count: nextCount,
-      ...(reason ? { report_reason: reason } : {}),
-    })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
-  return true;
-}
+  async moderate(id, status, note) {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .update({
+        status,
+        moderated_at: new Date().toISOString(),
+        ...(note ? { moderator_note: note } : {}),
+      })
+      .eq("id", id)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
+  },
+};
 
 function ext(type: string): string {
   return type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";

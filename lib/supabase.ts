@@ -46,6 +46,11 @@ export function hashIp(ip: string): string {
  * RPC answered, or null when it could not (no client, RPC error, network) —
  * callers fall back to the in-memory limiter on null so a limiter outage can
  * never take down the write path.
+ *
+ * H3: that downgrade is FAIL-OPEN by design — writes must not 503 on a
+ * limiter outage — but never silent: on Vercel each cold-start instance gets
+ * a fresh in-memory budget, so the durable limiter is near-useless exactly
+ * when it errors. The console.error below is the observable signal.
  */
 export async function checkRateLimitDurable(
   key: string,
@@ -60,9 +65,38 @@ export async function checkRateLimitDurable(
       p_limit: limit,
       p_window_ms: windowMs,
     });
-    if (error) return null;
+    if (error) {
+      console.error(
+        "[rate-limit] durable limiter unavailable — failing open to in-memory:",
+        error.message,
+      );
+      return null;
+    }
     return data === true;
-  } catch {
+  } catch (err) {
+    console.error(
+      "[rate-limit] durable limiter unavailable — failing open to in-memory:",
+      err instanceof Error ? err.message : err,
+    );
     return null;
   }
+}
+
+/**
+ * Client IP for rate-limit keying only — always sha256-hashed (hashIp) before
+ * it is stored or logged; raw IPs never leave the request handler.
+ *
+ * M1 trust boundary: `x-forwarded-for` is client-suppliable. On Vercel the
+ * edge normalises it (left-most entry = real client), which this deployment
+ * relies on; a self-hosted deployment must front this with a trusted proxy
+ * that overwrites the header. The IP is a SECONDARY limiter signal — write
+ * keys lead with the contributor handle — so a spoofed header only widens one
+ * actor's own budget.
+ */
+export function clientIp(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
 }

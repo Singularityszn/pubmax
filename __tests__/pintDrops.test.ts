@@ -1,19 +1,20 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Keep the real store (toDTO, validation, etc.) but let the orphan-cleanup test
-// swap upload/persist/delete. vi.hoisted so the spies exist before the hoisted
-// mock factory runs. Default behaviour is untouched, so the no-Supabase tests
-// below run the real in-memory path.
-const { uploadPhoto, persistDrop, deletePhotos } = vi.hoisted(() => ({
-  uploadPhoto: vi.fn(),
-  persistDrop: vi.fn(),
-  deletePhotos: vi.fn(async () => {}),
+// The route talks to the PintDropStore interface only. Keep the real module
+// (memory store, toDTO, validation) but swap the Supabase store's `create` so
+// Supabase-configured tests never open a network connection. Orphan-cleanup
+// behaviour is pinned where it now lives: pintDropsStore.test.ts.
+const { storeCreate } = vi.hoisted(() => ({
+  storeCreate: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 }));
 vi.mock("@/lib/pintDropsStore", async () => {
   const actual = await vi.importActual<typeof import("@/lib/pintDropsStore")>(
     "@/lib/pintDropsStore",
   );
-  return { ...actual, uploadPhoto, persistDrop, deletePhotos };
+  return {
+    ...actual,
+    supabasePintDropStore: { ...actual.supabasePintDropStore, create: storeCreate },
+  };
 });
 
 // Mock only the durable limiter; everything else in lib/supabase stays real.
@@ -124,7 +125,7 @@ describe("POST /api/pint-drops (create)", () => {
 });
 
 describe("GET + moderation", () => {
-  it("lists a created drop, then hides it after a report", async () => {
+  it("lists a created drop, then hides it after report threshold", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
 
@@ -137,8 +138,14 @@ describe("GET + moderation", () => {
     );
     expect(reported.status).toBe(200);
 
-    const afterReport = await get(VENUE);
-    expect((await afterReport.json()).drops).toHaveLength(0);
+    const afterFirstReport = await get(VENUE);
+    expect((await afterFirstReport.json()).drops).toHaveLength(1);
+
+    const secondReport = await report(drop.id);
+    expect(secondReport.status).toBe(200);
+
+    const afterThreshold = await get(VENUE);
+    expect((await afterThreshold.json()).drops).toHaveLength(0);
   });
 
   it("lists all visible drops when venueId is omitted (organic + demo seeds)", async () => {
@@ -173,26 +180,33 @@ describe("moderation loop", () => {
     return (await res.json()).drop.id as string;
   }
 
-  it("records reportedAt + reportCount and hides on report", async () => {
+  it("records reportedAt + reportCount and hides at report threshold", async () => {
     const id = await createDrop();
 
     const res = await report(id, "wrong price");
     expect(res.status).toBe(200);
 
-    // Gone from the public list.
+    // First report records metadata but does not let one actor take down content.
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
+
+    const hidden = await report(id);
+    expect(hidden.status).toBe(200);
+
+    // Gone from the public list after the threshold.
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
 
     // Visible to the moderator queue with metadata.
     const queue = (await (await modGet("hidden")).json()).drops;
     expect(queue).toHaveLength(1);
     expect(queue[0].id).toBe(id);
-    expect(queue[0].reportCount).toBe(1);
+    expect(queue[0].reportCount).toBe(2);
     expect(queue[0].reportReason).toBe("wrong price");
     expect(typeof queue[0].reportedAt).toBe("string");
   });
 
   it("restores a reported drop back to the public list", async () => {
     const id = await createDrop();
+    await report(id);
     await report(id);
 
     const restored = await modAction("restore", id);
@@ -206,6 +220,7 @@ describe("moderation loop", () => {
   it("keeps a drop hidden after keep_hidden", async () => {
     const id = await createDrop();
     await report(id);
+    await report(id);
 
     const kept = await modAction("keep_hidden", id);
     expect(kept.status).toBe(200);
@@ -214,6 +229,19 @@ describe("moderation loop", () => {
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
     // But reviewed, so it is no longer in the moderation queue.
     expect((await (await modGet("hidden")).json()).drops).toHaveLength(0);
+  });
+
+  it("403s moderator endpoints when ADMIN_TOKEN is unset outside dev/test (M3)", async () => {
+    const id = await createDrop();
+    await report(id);
+    // Simulate a deployed env (e.g. a preview) with no ADMIN_TOKEN configured:
+    // the gate must DENY, not fall open.
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.ADMIN_TOKEN;
+
+    expect((await modGet("hidden")).status).toBe(403);
+    expect((await modAction("restore", id)).status).toBe(403);
+    expect((await modAction("keep_hidden", id)).status).toBe(403);
   });
 
   it("403s moderator endpoints in production without a valid token", async () => {
@@ -237,8 +265,12 @@ describe("durable rate limiting (Supabase configured)", () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://stub.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
-    persistDrop.mockReset();
-    persistDrop.mockResolvedValue(undefined);
+    storeCreate.mockReset();
+    storeCreate.mockImplementation(async (drop) => ({
+      ...(drop as Record<string, unknown>),
+      pintPhotoUrl: null,
+      venuePhotoUrl: null,
+    }));
   });
 
   it("keys the durable limiter on handle + hashed IP, never the raw IP", async () => {
@@ -262,7 +294,7 @@ describe("durable rate limiting (Supabase configured)", () => {
     checkRateLimitDurable.mockResolvedValue(true);
     const res = await post({ venueId: VENUE, handle: "flooder", priceGbp: 4 });
     expect(res.status).toBe(429);
-    expect(persistDrop).not.toHaveBeenCalled();
+    expect(storeCreate).not.toHaveBeenCalled();
   });
 
   it("falls back to the in-memory limiter when the durable one is unavailable", async () => {
@@ -273,53 +305,5 @@ describe("durable rate limiting (Supabase configured)", () => {
     }
     // Writes keep working (fail open to the backstop), which still limits the 9th.
     expect(last!.status).toBe(429);
-  });
-});
-
-describe("orphan cleanup (Supabase configured)", () => {
-  function multipart(fields: Record<string, string>, photos: Record<string, Blob>): Promise<Response> {
-    const form = new FormData();
-    for (const [k, v] of Object.entries(fields)) form.append(k, v);
-    for (const [k, blob] of Object.entries(photos)) form.append(k, blob, `${k}.jpg`);
-    return POST(new Request(URL_BASE, { method: "POST", body: form }));
-  }
-
-  beforeEach(() => {
-    // Pretend Supabase is configured; the store fns are mocked, so no real client.
-    process.env.SUPABASE_URL = "https://stub.supabase.co";
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
-    uploadPhoto.mockReset();
-    persistDrop.mockReset();
-    deletePhotos.mockReset();
-    deletePhotos.mockResolvedValue(undefined);
-  });
-
-  it("deletes uploaded objects when the DB insert fails after upload", async () => {
-    uploadPhoto
-      .mockResolvedValueOnce("the-crown/x/pint.jpg")
-      .mockResolvedValueOnce("the-crown/x/venue.jpg");
-    persistDrop.mockRejectedValue(new Error("insert failed"));
-
-    const res = await multipart(
-      { venueId: VENUE, handle: "ale", priceGbp: "4.2" },
-      { pint_photo: new Blob(["p"], { type: "image/jpeg" }), venue_photo: new Blob(["v"], { type: "image/jpeg" }) },
-    );
-
-    expect(res.status).toBe(503);
-    // Both uploaded keys are removed — no orphaned files.
-    expect(deletePhotos).toHaveBeenCalledWith(["the-crown/x/pint.jpg", "the-crown/x/venue.jpg"]);
-  });
-
-  it("does not delete anything on a successful insert", async () => {
-    uploadPhoto.mockResolvedValue("the-crown/x/pint.jpg");
-    persistDrop.mockResolvedValue(undefined);
-
-    const res = await multipart(
-      { venueId: VENUE, handle: "ale", priceGbp: "4.2" },
-      { pint_photo: new Blob(["p"], { type: "image/jpeg" }) },
-    );
-
-    expect(res.status).toBe(201);
-    expect(deletePhotos).not.toHaveBeenCalled();
   });
 });

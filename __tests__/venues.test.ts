@@ -284,6 +284,32 @@ describe("mergeVenueDrops", () => {
     expect(merged).toEqual(venue);
   });
 
+  it("a demo drop ahead of an organic one never wins the latest-price or story slot", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [
+          venue.id,
+          [
+            // Newest-first list: the demo seed sits ahead of the organic drop.
+            makeSummaryDrop({
+              provenance: "demo",
+              drink: "Seeded Stout",
+              priceGbp: 1.0,
+              passedDownNote: "A seeded story that must not count.",
+            }),
+            makeSummaryDrop({ drink: "Organic Ale", priceGbp: 4.5 }),
+          ],
+        ],
+      ]),
+    );
+    // The organic drop's signals win; the demo drop is invisible to them.
+    expect(merged.cheapestPrice).toBe(4.5);
+    expect(merged.cheapestPint).toBe("Organic Ale");
+    expect(merged.hasStory).toBe(false);
+  });
+
   it("an editorial heritage note keeps hasStory true regardless of drops", () => {
     const venue = groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0];
     const [merged] = mergeVenueDrops(
