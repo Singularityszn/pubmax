@@ -4,6 +4,35 @@ import type { VenuePrice } from "@/lib/venues";
 // show a Sourced / Contributor / Anecdote badge and the two never blur.
 export type Provenance = "sourced" | "contributor" | "anecdote";
 
+// A claim is one labelled, provenance-stamped statement about a venue. The
+// venue detail renders the whole list — a Sourced editorial claim and an
+// Anecdote Pint Drop are separate entries and never merge into one note.
+export type ClaimKind =
+  | "baseline"
+  | "sourced"
+  | "contributor"
+  | "anecdote"
+  | "needs-source";
+
+export type VenueClaim = {
+  kind: ClaimKind;
+  label: string;
+  content: string;
+  sourceRef?: string;
+  era?: string;
+};
+
+// Structural shape of a Pint Drop as buildVenueClaims needs it. Kept local so
+// curation.ts stays free of lib/pintDrops (which imports node `crypto`).
+export type ClaimDrop = {
+  handle: string;
+  drink: string;
+  priceGbp: number | null;
+  passedDownNote: string;
+  era: string;
+  provenance: Provenance;
+};
+
 export type VenueCuration = {
   nearWater?: boolean;
   heritageEra?: string;
@@ -201,4 +230,39 @@ export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
         ? "The venue's own description hints at period features. Unverified — a sourced note or a visitor Pint Drop can confirm it."
         : undefined),
   };
+}
+
+// Build the distinct, provenance-stamped claim list for a venue. Nothing here
+// collapses: an editorial Sourced heritage claim and a note-only Anecdote drop
+// BOTH appear as separate entries. A heritage note without a source ref is
+// downgraded to "needs-source" so it is never mistaken for verified editorial.
+export function buildVenueClaims(curation: VenueCuration, drops: ClaimDrop[] = []): VenueClaim[] {
+  const claims: VenueClaim[] = [];
+
+  if (curation.heritageNote) {
+    const hasSource = Boolean(curation.sourceUrl) || curation.writerPick;
+    claims.push({
+      kind: hasSource ? "sourced" : "needs-source",
+      label: hasSource ? curation.sourceLabel ?? "Editorial" : "Needs source",
+      content: curation.heritageNote,
+      sourceRef: curation.sourceUrl,
+      era: curation.heritageEra,
+    });
+  }
+
+  for (const drop of drops) {
+    const priced = typeof drop.priceGbp === "number";
+    const content =
+      drop.passedDownNote ||
+      (priced ? `Logged ${drop.drink || "a pint"} at £${drop.priceGbp!.toFixed(2)}.` : "");
+    if (!content) continue;
+    claims.push({
+      kind: priced ? "contributor" : "anecdote",
+      label: drop.handle || (priced ? "Contributor" : "Anecdote"),
+      content,
+      era: drop.era || undefined,
+    });
+  }
+
+  return claims;
 }

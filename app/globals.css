@@ -622,6 +622,19 @@ input[type="range"] {
   background: rgba(194, 136, 42, 0.1);
 }
 
+/* Needs Source: unverified editorial — visibly distinct from Sourced. */
+.provChip.needs-source {
+  color: var(--brass);
+  border-color: rgba(176, 129, 58, 0.4);
+  background: rgba(176, 129, 58, 0.1);
+}
+
+.provChip.baseline {
+  color: var(--muted);
+  border-color: var(--line);
+  background: transparent;
+}
+
 .amenityRow {
   display: flex;
   flex-wrap: wrap;
@@ -670,15 +683,23 @@ input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 
-.heritageNote {
+/* Claim list — every provenance-stamped claim renders as its own card so a
+   Sourced editorial claim and an Anecdote drop are always both visible. */
+.claimList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 12px;
+}
+
+.claimCard {
   padding: 12px;
   border: 1px solid rgba(47, 111, 143, 0.28);
   border-radius: var(--radius-sm);
   background: rgba(47, 111, 143, 0.07);
 }
 
-.heritageNote .heritageHead {
+.claimCard .claimHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -686,7 +707,7 @@ input[type="range"] {
   margin-bottom: 6px;
 }
 
-.heritageNote .heritageEra {
+.claimCard .claimEra {
   color: var(--river);
   font-size: 0.72rem;
   font-weight: 800;
@@ -694,14 +715,18 @@ input[type="range"] {
   text-transform: uppercase;
 }
 
-.heritageNote p {
+.claimCard p {
   margin-bottom: 8px;
   color: var(--ink);
   font-size: 0.87rem;
   line-height: 1.5;
 }
 
-.heritageNote a {
+.claimCard p:last-child {
+  margin-bottom: 0;
+}
+
+.claimCard a {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -711,7 +736,7 @@ input[type="range"] {
   text-decoration: none;
 }
 
-.heritageNote a:hover {
+.claimCard a:hover {
   text-decoration: underline;
 }
 
