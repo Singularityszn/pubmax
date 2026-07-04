@@ -27,6 +27,13 @@ export type PintDrop = {
   provenance: Provenance;
   status: PintDropStatus;
   createdAt: string;
+  // Moderation metadata — set once a drop is reported/reviewed. Optional so old
+  // rows and fresh drops read fine without them.
+  reportedAt?: string;
+  reportReason?: string;
+  reportCount?: number;
+  moderatedAt?: string;
+  moderatorNote?: string;
 };
 
 export type ValidationResult =
@@ -140,15 +147,50 @@ export function listAllVisiblePintDrops(): PintDrop[] {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export function reportPintDrop(id: string): boolean {
+function findDrop(id: string): PintDrop | undefined {
   for (const list of drops.values()) {
     const hit = list.find((d) => d.id === id);
-    if (hit) {
-      hit.status = "hidden"; // hidden immediately, pending review
-      return true;
-    }
+    if (hit) return hit;
   }
-  return false;
+  return undefined;
+}
+
+export function reportPintDrop(id: string, reason?: string): boolean {
+  const hit = findDrop(id);
+  if (!hit) return false;
+  hit.status = "hidden"; // hidden immediately, pending review
+  hit.reportedAt = new Date().toISOString();
+  hit.reportCount = (hit.reportCount ?? 0) + 1;
+  if (reason) hit.reportReason = reason;
+  return true;
+}
+
+/** Moderator read: every drop in a status, across venues, newest-first. */
+export function listByStatus(status: PintDropStatus): PintDrop[] {
+  return Array.from(drops.values())
+    .flat()
+    .filter((d) => d.status === status)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Moderator action: return a drop to visible and stamp the review time. */
+export function restorePintDrop(id: string, note?: string): boolean {
+  const hit = findDrop(id);
+  if (!hit) return false;
+  hit.status = "visible";
+  hit.moderatedAt = new Date().toISOString();
+  if (note) hit.moderatorNote = note;
+  return true;
+}
+
+/** Moderator action: leave hidden, record the review so it drops off the queue. */
+export function keepHiddenPintDrop(id: string, note?: string): boolean {
+  const hit = findDrop(id);
+  if (!hit) return false;
+  hit.status = "hidden";
+  hit.moderatedAt = new Date().toISOString();
+  if (note) hit.moderatorNote = note;
+  return true;
 }
 
 // Test-only: reset process state between cases.

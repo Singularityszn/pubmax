@@ -1,0 +1,148 @@
+/* Moderator console. Uses the app's theme tokens (globals.css :root, swapped
+   per light/dark) so it inherits both palettes for free. */
+
+.admin {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  color: var(--ink);
+}
+
+.admin h1 {
+  font-size: 1.35rem;
+  margin: 0 0 0.25rem;
+}
+
+.admin p.admin-sub {
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+}
+
+.admin-bar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.admin-bar input {
+  flex: 1 1 220px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.admin-bar input:focus {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
+}
+
+.admin-btn {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--brass);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-btn:hover {
+  filter: brightness(1.05);
+}
+
+.admin-msg {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--brick);
+  border-radius: var(--radius-sm);
+  color: var(--brick);
+  margin-bottom: 1.25rem;
+}
+
+.admin-empty {
+  color: var(--muted);
+  padding: 1rem 0;
+}
+
+.admin-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  padding: 1rem 1.1rem;
+}
+
+.admin-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-handle {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.admin-price {
+  color: var(--pint);
+  font-weight: 600;
+}
+
+.admin-note {
+  color: var(--ink-soft);
+  margin: 0.25rem 0 0.5rem;
+}
+
+.admin-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.admin-report {
+  color: var(--brick);
+  font-weight: 600;
+}
+
+.admin-photos {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-photos img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-restore {
+  border-color: var(--pint);
+  background: var(--pint);
+}
+
+.admin-keep {
+  border-color: var(--brick);
+  background: var(--brick);
+}
