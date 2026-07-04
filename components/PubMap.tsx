@@ -37,7 +37,13 @@ import {
   type Venue,
   type VenuePrice,
 } from "@/lib/venues";
-import { pubSources, writerProfile, type Provenance } from "@/lib/curation";
+import {
+  buildVenueClaims,
+  pubSources,
+  writerProfile,
+  type ClaimKind,
+  type Provenance,
+} from "@/lib/curation";
 import type { PintDrop } from "@/lib/pintDrops";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import LandlordPanel from "@/components/LandlordPanel";
@@ -64,6 +70,19 @@ const PROVENANCE_LABEL: Record<Provenance, string> = {
 
 function ProvenanceChip({ provenance }: { provenance: Provenance }) {
   return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
+}
+
+const CLAIM_KIND_LABEL: Record<ClaimKind, string> = {
+  baseline: "Baseline",
+  sourced: "Sourced",
+  contributor: "Contributor",
+  anecdote: "Anecdote",
+  "needs-source": "Needs Source",
+};
+
+// Reuses .provChip; needs-source/baseline get their own colour classes in CSS.
+function ClaimBadge({ kind }: { kind: ClaimKind }) {
+  return <span className={`provChip ${kind}`}>{CLAIM_KIND_LABEL[kind]}</span>;
 }
 
 const styleLabels: Record<CrawlStyle, string> = {
@@ -103,6 +122,11 @@ function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhoto
   return grouped;
 }
 
+// Fold Pint Drops into the venue's DERIVED SUMMARY SIGNALS only — never into the
+// editorial curation note. A contributor price can update cheapestPrice/Pint and
+// a passed-down note lights hasStory, but the claims themselves stay distinct and
+// are rendered separately via buildVenueClaims. This is what keeps a Sourced
+// editorial claim from being buried under an Anecdote drop.
 function mergeVenueDrops(
   venues: Venue[],
   dropsByVenueId: Map<string, DropWithPhotos[]>,
@@ -113,9 +137,7 @@ function mergeVenueDrops(
     if (venueDrops.length === 0) return venue;
 
     const latestPriceDrop = venueDrops.find((drop) => typeof drop.priceGbp === "number");
-    const latestNoteDrop = venueDrops.find((drop) => drop.passedDownNote);
     const contributorPrice = latestPriceDrop?.priceGbp ?? null;
-    const contributorEra = latestNoteDrop?.era || "Contributor note";
     const cheapestPrice =
       contributorPrice === null
         ? venue.cheapestPrice
@@ -125,15 +147,8 @@ function mergeVenueDrops(
       ...venue,
       cheapestPrice,
       cheapestPint: latestPriceDrop?.drink || venue.cheapestPint,
-      curation: latestNoteDrop
-        ? {
-            ...venue.curation,
-            heritageEra: venue.curation.heritageEra ?? contributorEra,
-            heritageNote: venue.curation.heritageNote ?? latestNoteDrop.passedDownNote,
-            storyTag: venue.curation.storyTag ?? "Pint Drop",
-            provenance: venue.curation.provenance ?? latestNoteDrop.provenance,
-          }
-        : venue.curation,
+      // Any Pint Drop is a story signal — no drop text overwrites curation.
+      hasStory: venue.hasStory || venueDrops.length > 0,
     };
   });
 }
@@ -203,12 +218,21 @@ export default function PubMap() {
     (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
   ).length;
   const waterCount = filteredVenues.filter((venue) => venue.curation.nearWater).length;
-  const heritageCount = filteredVenues.filter((venue) => venue.curation.heritageNote).length;
+  const heritageCount = filteredVenues.filter((venue) => venue.hasStory).length;
   const writerCount = filteredVenues.filter((venue) => venue.curation.writerPick).length;
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
-  const routeHeritageCount = route.filter((venue) => venue.curation.heritageNote).length;
+  const routeHeritageCount = route.filter((venue) => venue.hasStory).length;
   const routeWriterCount = route.filter((venue) => venue.curation.writerPick).length;
-  const drops = selectedVenue ? (dropsByVenueId.get(selectedVenue.id) ?? []) : [];
+  const drops = useMemo(
+    () => (selectedVenue ? (dropsByVenueId.get(selectedVenue.id) ?? []) : []),
+    [selectedVenue, dropsByVenueId],
+  );
+  // The distinct, provenance-stamped claim list for the inspected venue.
+  // Editorial Sourced claims and contributor/anecdote drops stay separate.
+  const claims = useMemo(
+    () => (selectedVenue ? buildVenueClaims(selectedVenue.curation, drops) : []),
+    [selectedVenue, drops],
+  );
   const venueSignals = useMemo(() => {
     const signals = new Map<string, { hasPintDrops: boolean; latestContributorPrice: number | null }>();
     for (const [venueId, venueDrops] of dropsByVenueId) {
@@ -768,7 +792,7 @@ export default function PubMap() {
             <p>{selectedVenue.address}</p>
             <div className="amenityRow">
               <Amenity active={Boolean(selectedVenue.curation.nearWater)} label="water" />
-              <Amenity active={Boolean(selectedVenue.curation.heritageNote)} label="heritage" />
+              <Amenity active={selectedVenue.hasStory} label="heritage" />
               <Amenity active={Boolean(selectedVenue.curation.writerPick)} label="writer" />
               <Amenity active={selectedVenue.amenities.beerGarden} label="garden" />
               <Amenity active={selectedVenue.amenities.liveSports} label="sports" />
@@ -801,23 +825,23 @@ export default function PubMap() {
                 character.
               </p>
             )}
-            {selectedVenue.curation.heritageNote ? (
-              <div className="heritageNote">
-                <div className="heritageHead">
-                  <span className="heritageEra">
-                    {selectedVenue.curation.heritageEra ?? "Venue Heritage"}
-                  </span>
-                  {selectedVenue.curation.provenance ? (
-                    <ProvenanceChip provenance={selectedVenue.curation.provenance} />
-                  ) : null}
-                </div>
-                <p>{selectedVenue.curation.heritageNote}</p>
-                {selectedVenue.curation.sourceUrl ? (
-                  <a href={selectedVenue.curation.sourceUrl} target="_blank" rel="noreferrer">
-                    {selectedVenue.curation.sourceLabel ?? "Source"}
-                    <ExternalLink size={13} />
-                  </a>
-                ) : null}
+            {claims.length > 0 ? (
+              <div className="claimList">
+                {claims.map((claim, index) => (
+                  <div key={`${claim.kind}-${index}`} className="claimCard">
+                    <div className="claimHead">
+                      <span className="claimEra">{claim.era ?? claim.label}</span>
+                      <ClaimBadge kind={claim.kind} />
+                    </div>
+                    <p>{claim.content}</p>
+                    {claim.sourceRef ? (
+                      <a href={claim.sourceRef} target="_blank" rel="noreferrer">
+                        {claim.label}
+                        <ExternalLink size={13} />
+                      </a>
+                    ) : null}
+                  </div>
+                ))}
               </div>
             ) : null}
             <div className="priceList">

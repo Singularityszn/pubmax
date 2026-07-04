@@ -66,6 +66,10 @@ export type Venue = {
   cheapestPrice: number | null;
   cheapestPint: string;
   averagePrice: number | null;
+  // Derived summary signal for map markers, filters and scoring. Lights from an
+  // editorial heritage note OR a contributor Pint Drop, so mergeVenueDrops never
+  // has to overwrite curation.heritageNote to make a venue read as a story pub.
+  hasStory: boolean;
   amenities: {
     food: boolean;
     cocktails: boolean;
@@ -178,6 +182,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
         : null,
+      hasStory: Boolean(curation.heritageNote),
       amenities: {
         food: prices.some((price) => truthyFlag(price.food)),
         cocktails: prices.some((price) => truthyFlag(price.cocktails)),
@@ -221,7 +226,7 @@ export function filterVenues(venues: Venue[], filters: Filters): Venue[] {
 
     const matchesCuration =
       (!filters.requireWater || Boolean(venue.curation.nearWater)) &&
-      (!filters.requireHeritage || Boolean(venue.curation.heritageNote));
+      (!filters.requireHeritage || venue.hasStory);
 
     const matchesCanonical =
       !filters.canonicalOnly ||
@@ -261,7 +266,7 @@ export function scoreVenue(venue: Venue, style: CrawlStyle): number {
     Number(venue.amenities.liveMusic) +
     Number(venue.amenities.pubQuiz);
   const hasVenueContext = venue.description.length > 80 ? 1 : 0;
-  const hasHeritage = venue.curation.heritageNote ? 2.5 : 0;
+  const hasHeritage = venue.hasStory ? 2.5 : 0;
   const nearWater = venue.curation.nearWater ? 1.5 : 0;
   const writerPick = venue.curation.writerPick ? 5 : 0;
   const sourceTrust = venue.prices.some((priceItem) => priceItem.is_clean_canonical_app_row)

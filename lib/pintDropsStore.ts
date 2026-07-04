@@ -25,6 +25,11 @@ export type PintDropDTO = PintDrop & {
   venuePhotoUrl: string | null;
 };
 
+// Moderator read shape. Same photo-URL swap, but a moderator must see the
+// evidence they are judging, so photos resolve even on hidden rows. Report
+// metadata (reportedAt/reportReason/reportCount) already lives on PintDrop.
+export type ModeratorDrop = PintDropDTO;
+
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -64,6 +69,11 @@ function toRow(drop: PersistableDrop) {
     provenance: drop.provenance,
     status: drop.status,
     created_at: drop.createdAt,
+    reported_at: drop.reportedAt ?? null,
+    report_reason: drop.reportReason ?? null,
+    report_count: drop.reportCount ?? 0,
+    moderated_at: drop.moderatedAt ?? null,
+    moderator_note: drop.moderatorNote ?? null,
   };
 }
 
@@ -81,6 +91,11 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     createdAt: String(row.created_at),
     pintPhotoKey: row.pint_photo_key ? String(row.pint_photo_key) : undefined,
     venuePhotoKey: row.venue_photo_key ? String(row.venue_photo_key) : undefined,
+    reportedAt: row.reported_at ? String(row.reported_at) : undefined,
+    reportReason: row.report_reason ? String(row.report_reason) : undefined,
+    reportCount: row.report_count === null || row.report_count === undefined ? undefined : Number(row.report_count),
+    moderatedAt: row.moderated_at ? String(row.moderated_at) : undefined,
+    moderatorNote: row.moderator_note ? String(row.moderator_note) : undefined,
   };
 }
 
@@ -101,6 +116,17 @@ export function toDTO(drop: PersistableDrop): PintDropDTO {
     ...rest,
     pintPhotoUrl: publicUrl(pintPhotoKey, visible),
     venuePhotoUrl: publicUrl(venuePhotoKey, visible),
+  };
+}
+
+/** Moderator DTO: strip Storage keys but resolve photos even on hidden rows —
+ *  the reviewer must see the evidence. Report metadata rides on PersistableDrop. */
+export function toModeratorDTO(drop: PersistableDrop): ModeratorDrop {
+  const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
+  return {
+    ...rest,
+    pintPhotoUrl: publicUrl(pintPhotoKey, true),
+    venuePhotoUrl: publicUrl(venuePhotoKey, true),
   };
 }
 
@@ -139,6 +165,62 @@ export async function setDropStatusRemote(id: string, status: PintDropStatus): P
     .select("id");
   if (error) throw new Error(error.message);
   return (data ?? []).length > 0;
+}
+
+/** Moderator decision: set the final status and stamp the review. Used by both
+ *  restore ("visible") and keep_hidden ("hidden"). */
+export async function moderateDropRemote(
+  id: string,
+  status: PintDropStatus,
+  note?: string,
+): Promise<boolean> {
+  const { data, error } = await admin()
+    .from(TABLE)
+    .update({
+      status,
+      moderated_at: new Date().toISOString(),
+      ...(note ? { moderator_note: note } : {}),
+    })
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
+/** Moderator read: all drops in a status, newest-first, WITH report metadata. */
+export async function listByStatusRemote(status: PintDropStatus): Promise<ModeratorDrop[]> {
+  const { data, error } = await admin()
+    .from(TABLE)
+    .select("*")
+    .eq("status", status)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(fromRow).map(toModeratorDTO);
+}
+
+/** Public report: hide the drop and stamp/increment report metadata.
+ *  report_count is bumped from the current row (read-then-write — fine at
+ *  prototype volume; move to an atomic rpc/`increment` if reports get hot). */
+export async function reportDropRemote(id: string, reason?: string): Promise<boolean> {
+  const { data: rows, error: readErr } = await admin()
+    .from(TABLE)
+    .select("report_count")
+    .eq("id", id);
+  if (readErr) throw new Error(readErr.message);
+  if (!rows || rows.length === 0) return false;
+
+  const nextCount = Number((rows[0] as { report_count?: number }).report_count ?? 0) + 1;
+  const { error } = await admin()
+    .from(TABLE)
+    .update({
+      status: "hidden",
+      reported_at: new Date().toISOString(),
+      report_count: nextCount,
+      ...(reason ? { report_reason: reason } : {}),
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  return true;
 }
 
 function ext(type: string): string {

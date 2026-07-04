@@ -30,6 +30,32 @@ function get(venueId?: string): Promise<Response> {
   return GET(new Request(url));
 }
 
+function report(id: string, reason?: string): Promise<Response> {
+  return POST(
+    new Request(URL_BASE, {
+      method: "POST",
+      body: JSON.stringify({ action: "report", id, ...(reason ? { reason } : {}) }),
+    }),
+  );
+}
+
+// Moderator GET/POST. In test env (NODE_ENV !== production, ADMIN_TOKEN unset)
+// the gate opens by default; pass a token only where a test sets one.
+function modGet(status: string, token?: string): Promise<Response> {
+  const qs = token ? `?status=${status}&admin=${encodeURIComponent(token)}` : `?status=${status}`;
+  return GET(new Request(`${URL_BASE}${qs}`));
+}
+
+function modAction(action: string, id: string, token?: string): Promise<Response> {
+  return POST(
+    new Request(URL_BASE, {
+      method: "POST",
+      headers: token ? { "x-admin-token": token } : undefined,
+      body: JSON.stringify({ action, id }),
+    }),
+  );
+}
+
 const VENUE = "the-crown";
 
 beforeEach(() => {
@@ -37,6 +63,7 @@ beforeEach(() => {
   vi.stubEnv("NODE_ENV", "test");
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.ADMIN_TOKEN;
 });
 
 afterAll(() => {
@@ -121,6 +148,70 @@ describe("GET + moderation", () => {
 
     const listed = await get(VENUE);
     expect(listed.status).toBe(503);
+  });
+});
+
+describe("moderation loop", () => {
+  async function createDrop(): Promise<string> {
+    const res = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    return (await res.json()).drop.id as string;
+  }
+
+  it("records reportedAt + reportCount and hides on report", async () => {
+    const id = await createDrop();
+
+    const res = await report(id, "wrong price");
+    expect(res.status).toBe(200);
+
+    // Gone from the public list.
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+
+    // Visible to the moderator queue with metadata.
+    const queue = (await (await modGet("hidden")).json()).drops;
+    expect(queue).toHaveLength(1);
+    expect(queue[0].id).toBe(id);
+    expect(queue[0].reportCount).toBe(1);
+    expect(queue[0].reportReason).toBe("wrong price");
+    expect(typeof queue[0].reportedAt).toBe("string");
+  });
+
+  it("restores a reported drop back to the public list", async () => {
+    const id = await createDrop();
+    await report(id);
+
+    const restored = await modAction("restore", id);
+    expect(restored.status).toBe(200);
+
+    // Back in the public list, gone from the queue.
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
+    expect((await (await modGet("hidden")).json()).drops).toHaveLength(0);
+  });
+
+  it("keeps a drop hidden after keep_hidden", async () => {
+    const id = await createDrop();
+    await report(id);
+
+    const kept = await modAction("keep_hidden", id);
+    expect(kept.status).toBe(200);
+
+    // Still hidden from the public list.
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+  });
+
+  it("403s moderator endpoints in production without a valid token", async () => {
+    const id = await createDrop();
+    await report(id);
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.ADMIN_TOKEN = "s3cret";
+
+    expect((await modGet("hidden")).status).toBe(403);
+    expect((await modAction("restore", id)).status).toBe(403);
+    expect((await modAction("keep_hidden", id)).status).toBe(403);
+
+    // A valid token gets through the gate (the store then 503s — Supabase absent
+    // in production — but the point is the 403 gate is cleared).
+    const withToken = await modGet("hidden", "s3cret");
+    expect(withToken.status).not.toBe(403);
   });
 });
 

@@ -14,16 +14,23 @@ import {
   addPintDrop,
   listAllVisiblePintDrops,
   listVisiblePintDrops,
+  listByStatus,
   reportPintDrop,
+  restorePintDrop,
+  keepHiddenPintDrop,
+  type PintDropStatus,
 } from "@/lib/pintDrops";
 import {
   persistDrop,
   listAllVisibleDropsRemote,
   listVisibleDropsRemote,
-  setDropStatusRemote,
+  listByStatusRemote,
+  reportDropRemote,
+  moderateDropRemote,
   uploadPhoto,
   deletePhotos,
   toDTO,
+  toModeratorDTO,
   type PersistableDrop,
 } from "@/lib/pintDropsStore";
 import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
@@ -35,6 +42,28 @@ function productionStorageUnavailable(): Response | null {
   return requiresSupabaseStore() && !isSupabaseConfigured()
     ? Response.json({ error: STORAGE_UNCONFIGURED_ERROR }, { status: 503 })
     : null;
+}
+
+// Moderator gate. The console passes the token as `x-admin-token` (fetch) or
+// `?admin=` (link). When ADMIN_TOKEN is set, the token must match it. When it is
+// unset we allow only outside production, as a dev convenience — never in prod.
+// The token is compared here and never echoed back to the client.
+function isModerator(request: Request): boolean {
+  const expected = process.env.ADMIN_TOKEN;
+  const provided =
+    request.headers.get("x-admin-token") ??
+    new URL(request.url).searchParams.get("admin") ??
+    undefined;
+  if (!expected) return process.env.NODE_ENV !== "production";
+  return Boolean(provided) && provided === expected;
+}
+
+function forbidden(): Response {
+  return Response.json({ error: "Not authorised." }, { status: 403 });
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 type Photos = { pint: File | null; venue: File | null };
@@ -74,17 +103,22 @@ export async function POST(request: Request): Promise<Response> {
   }
   const { fields, photos } = parsed;
 
-  // Moderation: a report hides the drop pending review.
+  // Public moderation: a report records metadata and hides the drop pending review.
   if (fields.action === "report") {
-    const id = fields.id;
-    if (typeof id !== "string") {
+    const id = readString(fields.id);
+    if (!id) {
       return Response.json({ error: "Pint Drop not found." }, { status: 404 });
+    }
+    const reason = readString(fields.reason);
+    // Rate-limit reports per drop so one actor can't spam the report counter.
+    if (isRateLimited(`report:${id}`)) {
+      return Response.json({ error: "Too many reports, slow down." }, { status: 429 });
     }
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     if (isSupabaseConfigured()) {
       try {
-        const ok = await setDropStatusRemote(id, "hidden");
+        const ok = await reportDropRemote(id, reason);
         return ok
           ? Response.json({ ok: true }, { status: 200 })
           : Response.json({ error: "Pint Drop not found." }, { status: 404 });
@@ -92,7 +126,36 @@ export async function POST(request: Request): Promise<Response> {
         return Response.json({ error: "Pint Drop storage is unavailable." }, { status: 503 });
       }
     }
-    return reportPintDrop(id)
+    return reportPintDrop(id, reason)
+      ? Response.json({ ok: true }, { status: 200 })
+      : Response.json({ error: "Pint Drop not found." }, { status: 404 });
+  }
+
+  // Moderator decisions: restore (→ visible) or keep_hidden (stay hidden). Both
+  // stamp moderated_at so the drop leaves the review queue. 403 without a token.
+  if (fields.action === "restore" || fields.action === "keep_hidden") {
+    if (!isModerator(request)) return forbidden();
+    const id = readString(fields.id);
+    if (!id) {
+      return Response.json({ error: "Pint Drop not found." }, { status: 404 });
+    }
+    const note = readString(fields.note);
+    const restore = fields.action === "restore";
+    const status: PintDropStatus = restore ? "visible" : "hidden";
+    const unavailable = productionStorageUnavailable();
+    if (unavailable) return unavailable;
+    if (isSupabaseConfigured()) {
+      try {
+        const ok = await moderateDropRemote(id, status, note);
+        return ok
+          ? Response.json({ ok: true }, { status: 200 })
+          : Response.json({ error: "Pint Drop not found." }, { status: 404 });
+      } catch {
+        return Response.json({ error: "Pint Drop storage is unavailable." }, { status: 503 });
+      }
+    }
+    const ok = restore ? restorePintDrop(id, note) : keepHiddenPintDrop(id, note);
+    return ok
       ? Response.json({ ok: true }, { status: 200 })
       : Response.json({ error: "Pint Drop not found." }, { status: 404 });
   }
@@ -149,7 +212,25 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const venueId = new URL(request.url).searchParams.get("venueId");
+  const params = new URL(request.url).searchParams;
+
+  // Moderator read: ?status=hidden|pending → the review queue, WITH metadata.
+  const status = params.get("status");
+  if (status === "hidden" || status === "pending") {
+    if (!isModerator(request)) return forbidden();
+    const unavailable = productionStorageUnavailable();
+    if (unavailable) return unavailable;
+    if (isSupabaseConfigured()) {
+      try {
+        return Response.json({ drops: await listByStatusRemote(status) }, { status: 200 });
+      } catch {
+        return Response.json({ error: "Pint Drop storage is unavailable." }, { status: 503 });
+      }
+    }
+    return Response.json({ drops: listByStatus(status).map(toModeratorDTO) }, { status: 200 });
+  }
+
+  const venueId = params.get("venueId");
   const unavailable = productionStorageUnavailable();
   if (unavailable) return unavailable;
   if (isSupabaseConfigured()) {
