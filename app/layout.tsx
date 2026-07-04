@@ -19,19 +19,19 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/favicon.svg",
-        width: 512,
-        height: 512,
-        alt: "PubMaxing",
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "PubMaxing London pub crawl planner",
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "PubMaxing",
     description:
       "Plan London pub crawls by price, story, setting, and community Pint Drops.",
-    images: ["/favicon.svg"],
+    images: ["/og.png"],
   },
   icons: {
     icon: "/favicon.svg",
