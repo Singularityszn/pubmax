@@ -271,7 +271,31 @@ export const supabasePintDropStore: PintDropStore = {
       p_reason: reason ?? null,
       p_hide_threshold: REPORT_HIDE_THRESHOLD,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.warn(
+        "[pint-drops] report_pint_drop RPC unavailable — falling back to non-atomic report update (apply migration 0004):",
+        error.message,
+      );
+      const { data: rows, error: readError } = await admin()
+        .from(TABLE)
+        .select("report_count")
+        .eq("id", id);
+      if (readError) throw new Error(readError.message);
+      if (!rows || rows.length === 0) return false;
+
+      const nextCount = Number((rows[0] as { report_count?: number }).report_count ?? 0) + 1;
+      const { error: updateError } = await admin()
+        .from(TABLE)
+        .update({
+          report_count: nextCount,
+          reported_at: new Date().toISOString(),
+          ...(reason ? { report_reason: reason } : {}),
+          ...(nextCount >= REPORT_HIDE_THRESHOLD ? { status: "hidden" } : {}),
+        })
+        .eq("id", id);
+      if (updateError) throw new Error(updateError.message);
+      return true;
+    }
     return data !== null && data !== undefined;
   },
 
