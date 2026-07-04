@@ -72,13 +72,13 @@ const drops = [
     who: "@meridian_w4",
     price: "£4.10",
     note: "Cask Landlord, poured properly. My grandad drank here after his shifts at the brewery — same corner table, still the cheapest in Chiswick.",
-    when: "Logged 2 days ago · Chiswick",
+    when: "Added 2 days ago · Chiswick",
   },
   {
     who: "@olly.se16",
     price: "£5.40",
     note: "Pricey, but you drink it on the jetty watching the tide turn. Worth it once. Bring someone you like.",
-    when: "Logged last week · Rotherhithe",
+    when: "Added last week · Rotherhithe",
   },
 ];
 
@@ -197,7 +197,7 @@ export default function LandingPage() {
               <p className="heroLede">
                 The Landlord is a grounded guide, not a fabulist. It only tells
                 you what is on the record — the listing, the archive, the price
-                someone logged last week — and it says so plainly when the record
+                someone added last week — and it says so plainly when the record
                 runs out.
               </p>
               <p style={{ color: "var(--ink-soft)", lineHeight: 1.6, margin: 0 }}>

@@ -31,7 +31,7 @@ Running on `main`, verified end-to-end against a live Supabase project this sess
 - **Moderation** — report → hide → `/admin` review console (token-gated) → restore / keep-hidden, with report metadata and a moderator-only DTO (reviewers see hidden photos; the public never does).
 - **The Landlord** (`/api/heritage`) — grounded on a heritage cache + curation, unified on `venue_key`, client context labelled `contributor` (never Sourced), honest "I won't make one up" fallback. **OpenRouter key is live**, so it narrates.
 - **Provenance claim-list** — Sourced / Needs-Source / Contributor / Anecdote render as distinct claims; map signals derived without flattening.
-- **Quality** — 63 vitest tests, CI (Node 22: lint · typecheck · test · build). tsc + lint + build green.
+- **Quality** — 87 vitest tests, CI (Node 22: lint · typecheck · test · build). tsc + lint + build green.
 
 **Backend is live**: Supabase tables (`visit_reports`, `pub_heritage`), `pint-drops` public bucket, service-role writes, RLS public-read — all verified working.
 
