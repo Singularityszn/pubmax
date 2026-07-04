@@ -13,6 +13,7 @@ import {
   MapPin,
 } from "lucide-react";
 import ThamesHero from "./ThamesHero";
+import ThemeToggle from "@/components/ThemeToggle";
 import "./landing.css";
 
 // One IntersectionObserver reveals sections as they enter view. If JS never
@@ -101,6 +102,7 @@ export default function LandingPage() {
             <a href="#landlord">The Landlord</a>
             <a href="#drops">Pint Drops</a>
             <Link href="/admin">Admin</Link>
+            <ThemeToggle />
             <Link href="/map" className="btn btnPrimary topbarCta">
               Open the map
             </Link>
