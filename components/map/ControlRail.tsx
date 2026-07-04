@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Hand,
   Landmark,
+  MapPinned,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -16,6 +17,7 @@ import {
 import { useMemo } from "react";
 
 import { pubSources, writerProfile } from "@/lib/curation";
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CrawlStyle, Filters, Venue } from "@/lib/venues";
 
 export type CrawlMode = "suggest" | "build";
@@ -53,6 +55,7 @@ type ControlRailProps = {
   filteredVenues: Venue[];
   builtCount: number;
   onClearBuilt: () => void;
+  onLoadCrawl: (crawl: CuratedCrawl) => void;
 };
 
 export default function ControlRail({
@@ -63,6 +66,7 @@ export default function ControlRail({
   filteredVenues,
   builtCount,
   onClearBuilt,
+  onLoadCrawl,
 }: ControlRailProps) {
   const cheapCount = filteredVenues.filter(
     (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
@@ -128,6 +132,32 @@ export default function ControlRail({
           placeholder="Search Shoreditch, Hackney, pub name..."
         />
       </label>
+
+      <section className="panelSection featuredRoutes">
+        <div className="sectionTitle">
+          <MapPinned size={16} />
+          <span>Featured routes</span>
+        </div>
+        <p className="featuredHint">Curated crawls — one generation&rsquo;s pubs, handed to the next.</p>
+        <div className="featuredList">
+          {curatedCrawls.map((crawl) => (
+            <button
+              key={crawl.id}
+              className="featuredCrawl"
+              aria-label={`Load the ${crawl.name} crawl — ${crawl.venueIds.length} stops`}
+              onClick={() => onLoadCrawl(crawl)}
+            >
+              <span className="featuredCrawlHead">
+                <strong>{crawl.name}</strong>
+                <span className="featuredCount">
+                  {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+                </span>
+              </span>
+              <span className="featuredBlurb">{crawl.blurb}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {mode === "suggest" ? (
         <section className="panelSection">

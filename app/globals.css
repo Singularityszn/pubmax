@@ -310,6 +310,68 @@ h3 {
   color: #fdfaf2;
 }
 
+.featuredHint {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.featuredList {
+  display: grid;
+  gap: 8px;
+}
+
+.featuredCrawl {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.featuredCrawl:hover {
+  border-color: var(--brass);
+  box-shadow: var(--shadow);
+}
+
+.featuredCrawl:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.featuredCrawlHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.featuredCrawlHead strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.featuredCount {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.featuredBlurb {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
 .rangeLine {
   display: flex;
   align-items: baseline;

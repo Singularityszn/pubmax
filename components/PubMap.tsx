@@ -14,6 +14,7 @@ import {
 } from "@/lib/venues";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector from "@/components/map/VenueInspector";
 import { usePintDrops } from "@/components/map/usePintDrops";
@@ -107,6 +108,17 @@ export default function PubMap() {
     [mode, selectVenue, toggleBuiltStop],
   );
 
+  // Load a named curated crawl into Build mode. URL-sync makes it shareable.
+  const loadCuratedCrawl = useCallback(
+    (crawl: CuratedCrawl) => {
+      setMode("build");
+      setBuiltIds(crawl.venueIds);
+      setFilters((current) => ({ ...current, crawlStyle: crawl.crawlStyle }));
+      selectVenue(crawl.venueIds[0] ?? "");
+    },
+    [selectVenue],
+  );
+
   return (
     <main className="appShell dark">
       <nav className="siteNav appNav" aria-label="Site navigation">
@@ -125,6 +137,7 @@ export default function PubMap() {
         filteredVenues={filteredVenues}
         builtCount={builtIds.length}
         onClearBuilt={() => setBuiltIds([])}
+        onLoadCrawl={loadCuratedCrawl}
       />
 
       <section className="mapStage">
