@@ -71,7 +71,7 @@ The unglamorous layer that makes public contributions safe:
 
 - **Moderation console shipped**: report → hide → token-gated `/admin` review → restore or keep-hidden. Reviewers see hidden photos; the public never does.
 - **Durable rate limiting** in Postgres — atomic, keyed on handle + salted-hashed IP, survives redeploys.
-- **Quality gates**: 87 passing tests; lint, typecheck, and build green in CI.
+- **Quality gates**: 91 passing unit tests + a Playwright E2E smoke suite; lint, typecheck, and build green in CI.
 
 *One line: community features are only as good as the abuse handling behind them.*
 
