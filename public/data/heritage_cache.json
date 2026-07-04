@@ -92,5 +92,117 @@
       "source": "seed",
       "fact": "A Victorian-era Pimlico pub kept as a reference stop for the heritage crawl."
     }
+  ],
+  "the nellie dean": [
+    {
+      "source": "seed",
+      "fact": "The Nellie Dean of Soho is a Grade II listed pub at 89 Dean Street, Soho; the present building dates from 1900 and there has been a pub on the site since the 18th century.",
+      "sourceRef": "https://camra.org.uk/pubs/nellie-dean-of-soho-london-128680"
+    }
+  ],
+  "the dog & duck": [
+    {
+      "source": "wikipedia",
+      "fact": "The Dog and Duck at 18 Bateman Street, Soho, is a Grade II listed pub; the current building dates from 1897 and its upstairs dining room is named after the writer George Orwell, who was a regular.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Dog_and_Duck,_Soho"
+    }
+  ],
+  "the coach & horses": [
+    {
+      "source": "wikipedia",
+      "fact": "The Coach and Horses at 29 Greek Street, Soho, is a Grade II listed pub long associated with Private Eye magazine and with journalist Jeffrey Bernard, whose 'Low Life' column and the play 'Jeffrey Bernard Is Unwell' immortalised it.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Coach_and_Horses,_Soho"
+    }
+  ],
+  "the crown & two chairmen": [
+    {
+      "source": "seed",
+      "fact": "The Crown & Two Chairmen at 31-32 Dean Street, Soho, has had a pub on the site since 1736; the present building was rebuilt in 1929 and the name is said to recall two sedan-chair men who drank here while Queen Anne sat for a portrait opposite.",
+      "sourceRef": "https://camra.org.uk/pubs/crown-two-chairmen-london-128930"
+    }
+  ],
+  "the coal hole": [
+    {
+      "source": "wikipedia",
+      "fact": "The Coal Hole is a Grade II listed pub at 91 Strand, part of the Savoy Court development, built in 1903-04 to the design of architect T. E. Collcutt.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Coal_Hole,_Strand"
+    }
+  ],
+  "the lyceum tavern": [
+    {
+      "source": "seed",
+      "fact": "The Lyceum Tavern at 354 Strand takes its name from the neighbouring Lyceum Theatre; a tavern has stood on the site since the 1840s and the present building dates from 1906. It is a Grade II listed pub.",
+      "sourceRef": "https://camra.org.uk/pubs/lyceum-tavern-london-128972"
+    }
+  ],
+  "the seven stars": [
+    {
+      "source": "wikipedia",
+      "fact": "The Seven Stars is a Grade II listed pub at 53 Carey Street behind the Royal Courts of Justice; with 17th-century origins (its frontage bears the date 1602), it is one of the few City-fringe pubs to have survived the Great Fire of London.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Seven_Stars,_Holborn"
+    }
+  ],
+  "ye olde cock tavern": [
+    {
+      "source": "wikipedia",
+      "fact": "Ye Olde Cock Tavern is a Grade II listed pub at 22 Fleet Street, listed in 1977; the tavern was moved across the street and rebuilt in the 1880s, and is traditionally said to have been frequented by Samuel Pepys, Charles Dickens and Alfred Tennyson.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Ye_Olde_Cock_Tavern"
+    }
+  ],
+  "the old bank of england": [
+    {
+      "source": "wikipedia",
+      "fact": "The Old Bank of England is a Grade II listed pub at 194 Fleet Street, built in 1886 by Sir Arthur Blomfield; it housed the Law Courts branch of the Bank of England from 1888 to 1975 before becoming a pub in 1994.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Old_Bank_of_England"
+    }
+  ],
+  "the tipperary": [
+    {
+      "source": "wikipedia",
+      "fact": "The Tipperary is a Grade II listed pub at 66 Fleet Street; the building was built in about 1667, and the wood-panelled pub is widely reputed to be one of London's oldest Irish pubs.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Tipperary"
+    }
+  ],
+  "museum tavern": [
+    {
+      "source": "wikipedia",
+      "fact": "The Museum Tavern is a Grade II listed pub at 49 Great Russell Street, opposite the British Museum; the present building was rebuilt around 1855-64 by William Finch Hill, and Karl Marx is traditionally said to have drunk here while working in the nearby Reading Room.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Museum_Tavern"
+    }
+  ],
+  "the perseverance": [
+    {
+      "source": "wikipedia",
+      "fact": "The Perseverance at 63 Lamb's Conduit Street, Bloomsbury, is a Grade II listed building of early-18th-century origin, refronted in the early 19th century; it traded for years as The Sun before taking its current name.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Perseverance"
+    }
+  ],
+  "the rugby tavern": [
+    {
+      "source": "seed",
+      "fact": "The Rugby Tavern on the corner of Great James Street and Rugby Street, Bloomsbury, is a Grade II listed pub dating from about 1850, built on land that forms part of the Rugby (School) Estate.",
+      "sourceRef": "https://whatpub.com/pubs/NLD/6307/rugby-tavern-london"
+    }
+  ],
+  "the dolphin tavern": [
+    {
+      "source": "seed",
+      "fact": "The Dolphin Tavern at 44 Red Lion Street, Holborn, was badly damaged by a Zeppelin raid on 8 September 1915; the pub's clock, recovered from the rubble, is preserved stopped at 10.40pm, the moment of the blast.",
+      "sourceRef": "https://camra.org.uk/pubs/dolphin-tavern-london-125491"
+    }
+  ],
+  "the dickens inn": [
+    {
+      "source": "seed",
+      "fact": "The Dickens Inn at St Katharine Docks occupies an 18th-century timber-framed former warehouse; when the docks were redeveloped in the 1970s the structure was moved bodily to its present site and reopened as a three-storey balconied inn.",
+      "sourceRef": "https://www.dickensinn.co.uk/history"
+    }
+  ],
+  "the captain kidd": [
+    {
+      "source": "wikipedia",
+      "fact": "The Captain Kidd at 108 Wapping High Street is a Grade II listed riverside pub in a converted former warehouse, named after the pirate William Kidd, who was hanged at the nearby Execution Dock in 1701.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Captain_Kidd,_Wapping"
+    }
   ]
 }
