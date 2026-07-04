@@ -1,5 +1,21 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+// Keep the real store (toDTO, validation, etc.) but let the orphan-cleanup test
+// swap upload/persist/delete. vi.hoisted so the spies exist before the hoisted
+// mock factory runs. Default behaviour is untouched, so the no-Supabase tests
+// below run the real in-memory path.
+const { uploadPhoto, persistDrop, deletePhotos } = vi.hoisted(() => ({
+  uploadPhoto: vi.fn(),
+  persistDrop: vi.fn(),
+  deletePhotos: vi.fn(async () => {}),
+}));
+vi.mock("@/lib/pintDropsStore", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/pintDropsStore")>(
+    "@/lib/pintDropsStore",
+  );
+  return { ...actual, uploadPhoto, persistDrop, deletePhotos };
+});
+
 import { GET, POST } from "@/app/api/pint-drops/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
@@ -105,5 +121,53 @@ describe("GET + moderation", () => {
 
     const listed = await get(VENUE);
     expect(listed.status).toBe(503);
+  });
+});
+
+describe("orphan cleanup (Supabase configured)", () => {
+  function multipart(fields: Record<string, string>, photos: Record<string, Blob>): Promise<Response> {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    for (const [k, blob] of Object.entries(photos)) form.append(k, blob, `${k}.jpg`);
+    return POST(new Request(URL_BASE, { method: "POST", body: form }));
+  }
+
+  beforeEach(() => {
+    // Pretend Supabase is configured; the store fns are mocked, so no real client.
+    process.env.SUPABASE_URL = "https://stub.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
+    uploadPhoto.mockReset();
+    persistDrop.mockReset();
+    deletePhotos.mockReset();
+    deletePhotos.mockResolvedValue(undefined);
+  });
+
+  it("deletes uploaded objects when the DB insert fails after upload", async () => {
+    uploadPhoto
+      .mockResolvedValueOnce("the-crown/x/pint.jpg")
+      .mockResolvedValueOnce("the-crown/x/venue.jpg");
+    persistDrop.mockRejectedValue(new Error("insert failed"));
+
+    const res = await multipart(
+      { venueId: VENUE, handle: "ale", priceGbp: "4.2" },
+      { pint_photo: new Blob(["p"], { type: "image/jpeg" }), venue_photo: new Blob(["v"], { type: "image/jpeg" }) },
+    );
+
+    expect(res.status).toBe(503);
+    // Both uploaded keys are removed — no orphaned files.
+    expect(deletePhotos).toHaveBeenCalledWith(["the-crown/x/pint.jpg", "the-crown/x/venue.jpg"]);
+  });
+
+  it("does not delete anything on a successful insert", async () => {
+    uploadPhoto.mockResolvedValue("the-crown/x/pint.jpg");
+    persistDrop.mockResolvedValue(undefined);
+
+    const res = await multipart(
+      { venueId: VENUE, handle: "ale", priceGbp: "4.2" },
+      { pint_photo: new Blob(["p"], { type: "image/jpeg" }) },
+    );
+
+    expect(res.status).toBe(201);
+    expect(deletePhotos).not.toHaveBeenCalled();
   });
 });

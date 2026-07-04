@@ -20,8 +20,11 @@ import {
   PlusCircle,
   Send,
   Quote,
+  ImagePlus,
+  X,
+  Flag,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import {
   buildCrawlRoute,
@@ -40,6 +43,18 @@ import PubMapCanvas from "@/components/PubMapCanvas";
 import LandlordPanel from "@/components/LandlordPanel";
 
 type CrawlMode = "suggest" | "build";
+
+// The API DTO now carries photo URLs on every drop; lib/pintDrops owns the base
+// shape, so we augment it here at the client boundary rather than editing lib/*.
+type DropWithPhotos = PintDrop & {
+  pintPhotoUrl: string | null;
+  venuePhotoUrl: string | null;
+};
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB — server re-validates.
+const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+type PhotoSlot = { file: File; previewUrl: string };
 
 const PROVENANCE_LABEL: Record<Provenance, string> = {
   sourced: "Sourced",
@@ -80,15 +95,18 @@ function Amenity({ active, label }: { active: boolean; label: string }) {
   return <span className={active ? "amenity active" : "amenity"}>{label}</span>;
 }
 
-function groupDropsByVenueId(drops: PintDrop[]): Map<string, PintDrop[]> {
-  const grouped = new Map<string, PintDrop[]>();
+function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
+  const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
     grouped.set(drop.venueId, [...(grouped.get(drop.venueId) ?? []), drop]);
   }
   return grouped;
 }
 
-function mergeVenueDrops(venues: Venue[], dropsByVenueId: Map<string, PintDrop[]>): Venue[] {
+function mergeVenueDrops(
+  venues: Venue[],
+  dropsByVenueId: Map<string, DropWithPhotos[]>,
+): Venue[] {
   if (dropsByVenueId.size === 0) return venues;
   return venues.map((venue) => {
     const venueDrops = dropsByVenueId.get(venue.id) ?? [];
@@ -131,11 +149,17 @@ export default function PubMap() {
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
-  const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, PintDrop[]>>(() => new Map());
+  const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
+    () => new Map(),
+  );
   const [composerOpen, setComposerOpen] = useState(false);
   const [dropForm, setDropForm] = useState({ price: "", drink: "", note: "", era: "" });
+  const [pintPhoto, setPintPhoto] = useState<PhotoSlot | null>(null);
+  const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dropMsg, setDropMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const pintInputRef = useRef<HTMLInputElement>(null);
+  const venueInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/data/pint_prices_app_dataset.json")
@@ -146,7 +170,9 @@ export default function PubMap() {
   useEffect(() => {
     fetch("/api/pint-drops")
       .then((response) => (response.ok ? response.json() : { drops: [] }))
-      .then((data: { drops?: PintDrop[] }) => setDropsByVenueId(groupDropsByVenueId(data.drops ?? [])))
+      .then((data: { drops?: DropWithPhotos[] }) =>
+        setDropsByVenueId(groupDropsByVenueId(data.drops ?? [])),
+      )
       .catch(() => setDropsByVenueId(new Map()));
   }, []);
 
@@ -213,7 +239,7 @@ export default function PubMap() {
     let active = true;
     fetch(`/api/pint-drops?venueId=${encodeURIComponent(selectedId)}`)
       .then((response) => (response.ok ? response.json() : { drops: [] }))
-      .then((data: { drops?: PintDrop[] }) => {
+      .then((data: { drops?: DropWithPhotos[] }) => {
         if (active) {
           setDropsByVenueId((current) => {
             const next = new Map(current);
@@ -236,24 +262,77 @@ export default function PubMap() {
     };
   }, [selectedId]);
 
+  // Pick a photo for one slot: pre-validate (type + size) before we ever build a
+  // preview or submit, so bad files are caught client-side. Object URLs are
+  // revoked when the slot is replaced/removed and on unmount (effect below).
+  function pickPhoto(
+    file: File | undefined,
+    setSlot: (slot: PhotoSlot | null) => void,
+    current: PhotoSlot | null,
+    inputEl: HTMLInputElement | null,
+  ) {
+    if (!file) return;
+    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
+      setDropMsg({ ok: false, text: "Photos must be JPEG, PNG, or WebP." });
+      if (inputEl) inputEl.value = "";
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setDropMsg({ ok: false, text: "Each photo must be under 5MB." });
+      if (inputEl) inputEl.value = "";
+      return;
+    }
+    if (current) URL.revokeObjectURL(current.previewUrl);
+    setDropMsg(null);
+    setSlot({ file, previewUrl: URL.createObjectURL(file) });
+  }
+
+  function removePhoto(
+    setSlot: (slot: PhotoSlot | null) => void,
+    current: PhotoSlot | null,
+    inputEl: HTMLInputElement | null,
+  ) {
+    if (current) URL.revokeObjectURL(current.previewUrl);
+    setSlot(null);
+    if (inputEl) inputEl.value = "";
+  }
+
+  function resetComposer() {
+    if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
+    if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
+    setPintPhoto(null);
+    setVenuePhoto(null);
+    setDropForm({ price: "", drink: "", note: "", era: "" });
+    if (pintInputRef.current) pintInputRef.current.value = "";
+    if (venueInputRef.current) venueInputRef.current.value = "";
+  }
+
+  // Revoke any live preview URLs when the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
+      if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
+    };
+  }, [pintPhoto, venuePhoto]);
+
   async function submitDrop(event: FormEvent) {
     event.preventDefault();
     if (!selectedVenue) return;
     setSubmitting(true);
     setDropMsg(null);
     try {
-      const response = await fetch("/api/pint-drops", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          venueId: selectedVenue.id,
-          handle,
-          priceGbp: dropForm.price ? Number(dropForm.price) : undefined,
-          drink: dropForm.drink || undefined,
-          passedDownNote: dropForm.note || undefined,
-          era: dropForm.era || undefined,
-        }),
-      });
+      // multipart/form-data — do NOT set Content-Type, the browser adds the boundary.
+      const body = new FormData();
+      body.set("venueId", selectedVenue.id);
+      body.set("handle", handle);
+      body.set("drink", dropForm.drink);
+      body.set("priceGbp", dropForm.price);
+      body.set("passedDownNote", dropForm.note);
+      body.set("era", dropForm.era);
+      if (pintPhoto) body.set("pint_photo", pintPhoto.file);
+      if (venuePhoto) body.set("venue_photo", venuePhoto.file);
+
+      const response = await fetch("/api/pint-drops", { method: "POST", body });
       const data = await response.json();
       if (!response.ok) {
         setDropMsg({ ok: false, text: data.error ?? "Could not save that drop." });
@@ -264,14 +343,35 @@ export default function PubMap() {
           next.set(selectedVenue.id, [data.drop, ...(next.get(selectedVenue.id) ?? [])]);
           return next;
         });
-        setDropForm({ price: "", drink: "", note: "", era: "" });
+        resetComposer();
         setComposerOpen(false);
         setDropMsg({ ok: true, text: "Cheers — your Pint Drop is live." });
       }
     } catch {
-      setDropMsg({ ok: false, text: "Network error — try again." });
+      setDropMsg({ ok: false, text: "Network or storage error — try again." });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function reportDrop(id: string) {
+    if (!selectedVenue) return;
+    const venueId = selectedVenue.id;
+    // Optimistic remove — moderation is minimal, no reason UI.
+    setDropsByVenueId((current) => {
+      const next = new Map(current);
+      next.set(venueId, (next.get(venueId) ?? []).filter((drop) => drop.id !== id));
+      return next;
+    });
+    try {
+      await fetch("/api/pint-drops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "report", id }),
+      });
+    } catch {
+      // ponytail: swallow — the drop is already hidden locally; a failed report
+      // just means it reappears on next load, which is acceptable for demo moderation.
     }
   }
 
@@ -751,10 +851,42 @@ export default function PubMap() {
                           <ProvenanceChip provenance={drop.provenance} />
                         </span>
                       </div>
+                      {drop.pintPhotoUrl || drop.venuePhotoUrl ? (
+                        <div className="dropPhotos">
+                          {drop.pintPhotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              className="dropPhoto"
+                              src={drop.pintPhotoUrl}
+                              alt={`Pint at ${selectedVenue.name} shared by ${drop.handle}`}
+                              loading="lazy"
+                            />
+                          ) : null}
+                          {drop.venuePhotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              className="dropPhoto"
+                              src={drop.venuePhotoUrl}
+                              alt={`View of ${selectedVenue.name} shared by ${drop.handle}`}
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </div>
+                      ) : null}
                       {drop.passedDownNote ? <p>{drop.passedDownNote}</p> : null}
-                      <small>
-                        {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
-                      </small>
+                      <div className="dropFoot">
+                        <small>
+                          {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
+                        </small>
+                        <button
+                          type="button"
+                          className="reportBtn"
+                          onClick={() => reportDrop(drop.id)}
+                          aria-label={`Report Pint Drop by ${drop.handle}`}
+                        >
+                          <Flag size={12} /> Report
+                        </button>
+                      </div>
                     </article>
                   ))}
                 </div>
@@ -796,6 +928,87 @@ export default function PubMap() {
                     placeholder="Era (e.g. 1970s, my childhood)"
                     aria-label="Era this memory belongs to"
                   />
+
+                  <div className="photoRow">
+                    <div className="photoField">
+                      {pintPhoto ? (
+                        <div className="photoPreview">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={pintPhoto.previewUrl} alt="Preview of your pint photo" />
+                          <button
+                            type="button"
+                            className="photoRemove"
+                            onClick={() => removePhoto(setPintPhoto, pintPhoto, pintInputRef.current)}
+                            aria-label="Remove pint photo"
+                          >
+                            <X size={13} /> Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="photoPick">
+                          <ImagePlus size={16} />
+                          <span>Your pint</span>
+                          <input
+                            ref={pintInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            capture="environment"
+                            onChange={(event) =>
+                              pickPhoto(
+                                event.target.files?.[0],
+                                setPintPhoto,
+                                pintPhoto,
+                                event.target,
+                              )
+                            }
+                          />
+                        </label>
+                      )}
+                    </div>
+                    <div className="photoField">
+                      {venuePhoto ? (
+                        <div className="photoPreview">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={venuePhoto.previewUrl} alt="Preview of your pub photo" />
+                          <button
+                            type="button"
+                            className="photoRemove"
+                            onClick={() =>
+                              removePhoto(setVenuePhoto, venuePhoto, venueInputRef.current)
+                            }
+                            aria-label="Remove pub photo"
+                          >
+                            <X size={13} /> Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="photoPick">
+                          <ImagePlus size={16} />
+                          <span>The pub</span>
+                          <input
+                            ref={venueInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            capture="environment"
+                            onChange={(event) =>
+                              pickPhoto(
+                                event.target.files?.[0],
+                                setVenuePhoto,
+                                venuePhoto,
+                                event.target,
+                              )
+                            }
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="consentNote">
+                    Photos and notes are public and may show people. Only upload what you&rsquo;re
+                    happy to share.
+                  </p>
+
                   <div className="composerActions">
                     <button type="submit" disabled={submitting}>
                       <Send size={14} /> {submitting ? "Posting…" : "Post Pint Drop"}

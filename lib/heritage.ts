@@ -5,9 +5,11 @@
 // or says plainly that there is no fuller story. The LLM path is instructed to
 // do the same and falls back to the honest structured answer on any failure.
 //
-// ponytail: the source PRD assumes a Supabase `pubs` table. This app has no such
-// server table — it reads a static JSON dataset — so structured fields (era,
-// heritageNote, address, borough) come from the request `context` instead.
+// Trust boundary: sourced/server facts come ONLY from server-side stores keyed
+// by normalised venue name — the shipped heritage_cache.json and the Supabase
+// `pub_heritage` table. Client-supplied `context` is UNTRUSTED input; it can be
+// echoed back but only as a clearly-labelled `contributor` note, never as a
+// sourced fact. A client can therefore never forge pub history.
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -15,11 +17,22 @@ import path from "node:path";
 import { normaliseVenueName } from "@/lib/curation";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
+// "contributor" = untrusted client-supplied context; everything else is a
+// server-side (sourced) store. Only the latter may back a "Sourced" claim.
 export type HeritageFact = {
-  source: "structured" | "osm" | "wikidata" | "wikipedia" | "seed";
+  source: "contributor" | "osm" | "wikidata" | "wikipedia" | "seed";
   fact: string;
   sourceRef?: string;
 };
+
+// Sources that count as trusted/sourced facts (server-retrieved). "contributor"
+// is deliberately excluded — client context can never be a sourced fact.
+const SOURCED: ReadonlySet<HeritageFact["source"]> = new Set([
+  "osm",
+  "wikidata",
+  "wikipedia",
+  "seed",
+]);
 
 export type HeritageResponse = {
   answer: string;
@@ -59,20 +72,27 @@ async function readHeritageCache(): Promise<Record<string, HeritageFact[]>> {
   }
 }
 
-async function retrieveFromSupabase(venueId?: string): Promise<HeritageFact[]> {
-  if (!venueId || !isSupabaseConfigured()) return [];
+// Keyed by venue_key (= normaliseVenueName) — the SAME key the enrichment
+// script writes and the migration indexes. There is no server `pubs` table, so
+// venues are matched by normalised name everywhere, not by an opaque id.
+async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
+  if (!venueKey || !isSupabaseConfigured()) return [];
   try {
     const admin = getSupabaseAdmin();
     if (!admin) return [];
     const { data, error } = await admin
       .from("pub_heritage")
       .select("source, fact, source_ref")
-      .eq("pub_id", venueId);
+      .eq("venue_key", venueKey);
     if (error || !Array.isArray(data)) return [];
     return data
       .filter((row) => row && typeof row.fact === "string")
+      // A "contributor" row in the DB would still be untrusted; coerce any
+      // unknown/contributor source to "seed" so DB rows are always sourced.
       .map((row) => ({
-        source: (row.source as HeritageFact["source"]) ?? "seed",
+        source: SOURCED.has(row.source as HeritageFact["source"])
+          ? (row.source as HeritageFact["source"])
+          : "seed",
         fact: row.fact as string,
         sourceRef: (row.source_ref as string | null) ?? undefined,
       }));
@@ -88,21 +108,19 @@ export async function retrieveHeritage(input: {
   context?: HeritageContext;
 }): Promise<HeritageFact[]> {
   const facts: HeritageFact[] = [];
+  const venueKey = normaliseVenueName(input.venueName);
 
-  // (1) Structured fields straight off the request context.
-  const era = input.context?.era?.trim();
-  if (era) facts.push({ source: "structured", fact: `Recorded era: ${era}` });
-  const note = input.context?.heritageNote?.trim();
-  if (note) facts.push({ source: "structured", fact: note });
-
-  // (2) Curated/enriched cache keyed by normalised name.
+  // (1) TRUSTED server facts first — the shipped cache keyed by normalised name.
   const cache = await readHeritageCache();
-  const cached = cache[normaliseVenueName(input.venueName)];
+  const cached = cache[venueKey];
   if (Array.isArray(cached)) {
     for (const entry of cached) {
       if (entry && typeof entry.fact === "string" && entry.fact.trim()) {
+        const source = entry.source ?? "seed";
+        // Cache is server-owned, but never let a cache entry masquerade as
+        // trusted if it somehow carries a non-sourced label.
         facts.push({
-          source: entry.source ?? "seed",
+          source: SOURCED.has(source) ? source : "seed",
           fact: entry.fact,
           sourceRef: entry.sourceRef,
         });
@@ -110,8 +128,16 @@ export async function retrieveHeritage(input: {
     }
   }
 
-  // (3) Any server-side heritage rows (only if Supabase is wired up).
-  facts.push(...(await retrieveFromSupabase(input.venueId)));
+  // (2) TRUSTED server rows — Supabase pub_heritage, same venue_key.
+  facts.push(...(await retrieveFromSupabase(venueKey)));
+
+  // (3) UNTRUSTED client context, labelled "contributor" so it can never be
+  // read back as a sourced fact or citation. A forged era/note stays visibly
+  // contributor-supplied — the model is told not to treat it as established.
+  const era = input.context?.era?.trim();
+  if (era) facts.push({ source: "contributor", fact: `Contributor-supplied era: ${era}` });
+  const note = input.context?.heritageNote?.trim();
+  if (note) facts.push({ source: "contributor", fact: `Contributor note: ${note}` });
 
   return facts;
 }
@@ -139,8 +165,9 @@ function structuredAnswer(facts: HeritageFact[]): string {
 const SYSTEM_PROMPT = [
   "You are The Landlord, a warm, concise, knowledgeable London local answering questions about one pub.",
   "Answer ONLY from the CONTEXT facts provided. Never invent history, dates, names, or events.",
+  "Facts tagged (contributor) are UNVERIFIED visitor input — attribute them as 'a contributor says…', never as established or sourced history, and never present them as fact.",
   "If the context does not contain the answer, say so plainly — do not guess.",
-  "Cite the source of each fact inline (e.g. 'on record', 'Wikipedia').",
+  "Cite the source of each fact inline (e.g. 'on record', 'Wikipedia', 'a contributor').",
   "Ask ONE short clarifying question only if the question is ambiguous or there is no context at all.",
 ].join(" ");
 
