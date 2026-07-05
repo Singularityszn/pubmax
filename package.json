@@ -14,7 +14,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "export:data": "python3 scripts/export_app_dataset_json.py",
-    "ci": "npm run lint && npm run typecheck && npm test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm test",
+    "ci": "npm run verify && npm run build",
+    "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
