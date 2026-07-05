@@ -151,7 +151,7 @@ This is the pure, framework-free core of PubMaxing: it turns a flat ~3,097-row p
 
 **Strengths.** The read pipeline is pure/deterministic → cheaply and heavily tested (dedicated suites for venues, curation, claims, curated crawls, seeds, nearby, crawl-url, rate-limit, pint-drops). Seed/curated ids are **pinned to the dataset by tests that recompute the FNV hash**, so a moved venue fails CI instead of 404-ing. `decodeCrawl` **never throws on bad input**. The Pint Drop trust boundary is thorough.
 
-**Risks / ceilings (`ponytail:` comments in-code).** The Pint Drop store and per-handle rate limiter are **in-memory** (reset on restart, don't span instances) — the upgrade is the Supabase adapter + durable counters. `buildCrawlRoute` is a greedy heuristic, not shortest-path. Grouping trusts lat/lng to 5dp; two distinct pubs sharing name+address+rounded-coords would merge (not observed in current data).
+**Risks / ceilings (flagged by in-code risk comments).** The Pint Drop store and per-handle rate limiter are **in-memory** (reset on restart, don't span instances) — the upgrade is the Supabase adapter + durable counters. `buildCrawlRoute` is a greedy heuristic, not shortest-path. Grouping trusts lat/lng to 5dp; two distinct pubs sharing name+address+rounded-coords would merge (not observed in current data).
 
 ---
 
@@ -392,5 +392,3 @@ If you want a green/red check *on the PR itself* (what Actions gave you), these 
 - **The honesty contract in code:** `lib/curation.ts` (`buildVenueClaims`) and `lib/heritage.ts` (`sanitiseModelAnswer`, `NO_STORY_LINE`)
 - **The one write path:** `app/api/pint-drops/route.ts`
 - **The map lifecycle:** `components/PubMapCanvas.tsx` (read the guards before you touch it)
-</content>
-</invoke>

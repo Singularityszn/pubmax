@@ -1,6 +1,6 @@
 # PubMaxing — Build Review & Defect Triage (Addendum for Fable)
 
-> ⚠️ Superseded — historical context. Current state lives in teach.md; active polish work in docs/PRD_OPUS_FINAL_POLISH_2026_07_05.md.
+> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md. Historical context; current state also lives in teach.md.
 
 > Companion to `PRD_FINAL_FOR_FABLE.md`. That doc is the *vision + roadmap*. This doc is the *verified state of the build* and the *ranked pain-point list* as of the handoff. Where the two disagree, this one is newer.
 >

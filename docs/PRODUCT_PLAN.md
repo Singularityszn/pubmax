@@ -1,5 +1,7 @@
 # PubMaxing Product Plan
 
+> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
+
 PubMaxing is a London pub discovery and crawl-design app. It helps people understand what London has to offer by combining pint prices, venue character, map exploration, travel constraints, and user visit reports.
 
 ## Product Wedge
