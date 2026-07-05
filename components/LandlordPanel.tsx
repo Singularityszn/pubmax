@@ -111,45 +111,49 @@ export default function LandlordPanel(props: {
         ))}
       </div>
 
-      {loading && <div className="landlordThinking">Pulling up the records…</div>}
+      {/* Live region stays mounted so screen readers announce the async answer
+          (or error) as it arrives. aria-busy reflects the in-flight fetch. */}
+      <div role="status" aria-live="polite" aria-busy={loading}>
+        {loading && <div className="landlordThinking">Pulling up the records…</div>}
 
-      {error && !loading && (
-        <p className="landlordMsg">Couldn&apos;t reach The Landlord — try again.</p>
-      )}
+        {error && !loading && (
+          <p className="landlordMsg">Couldn&apos;t reach The Landlord — try again.</p>
+        )}
 
-      {answer && !loading && (
-        <>
-          <div className="landlordAnswer">
-            <p>{answer.answer}</p>
-            {answer.clarifyingQuestion && (
-              <p className="landlordClarify">{answer.clarifyingQuestion}</p>
-            )}
-          </div>
-          {answer.citations.length > 0 && (
-            <div className="landlordCitations">
-              {answer.citations.map((c, i) =>
-                c.ref ? (
-                  <a
-                    key={`${c.source}-${i}`}
-                    className="citationChip"
-                    href={c.ref}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <BookOpen size={11} />
-                    {c.source}
-                  </a>
-                ) : (
-                  <span key={`${c.source}-${i}`} className="citationChip">
-                    <BookOpen size={11} />
-                    {c.source}
-                  </span>
-                ),
+        {answer && !loading && (
+          <>
+            <div className="landlordAnswer">
+              <p>{answer.answer}</p>
+              {answer.clarifyingQuestion && (
+                <p className="landlordClarify">{answer.clarifyingQuestion}</p>
               )}
             </div>
-          )}
-        </>
-      )}
+            {answer.citations.length > 0 && (
+              <div className="landlordCitations">
+                {answer.citations.map((c, i) =>
+                  c.ref ? (
+                    <a
+                      key={`${c.source}-${i}`}
+                      className="citationChip"
+                      href={c.ref}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <BookOpen size={11} />
+                      {c.source}
+                    </a>
+                  ) : (
+                    <span key={`${c.source}-${i}`} className="citationChip">
+                      <BookOpen size={11} />
+                      {c.source}
+                    </span>
+                  ),
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </section>
   );
 }

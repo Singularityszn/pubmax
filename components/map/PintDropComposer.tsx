@@ -68,7 +68,13 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
           {pintPhoto ? (
             <div className="photoPreview">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={pintPhoto.previewUrl} alt="Preview of your pint photo" />
+              <img
+                src={pintPhoto.previewUrl}
+                alt="Preview of your pint photo"
+                width={120}
+                height={120}
+                decoding="async"
+              />
               <button
                 type="button"
                 className="photoRemove"
@@ -98,7 +104,13 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
           {venuePhoto ? (
             <div className="photoPreview">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={venuePhoto.previewUrl} alt="Preview of your pub photo" />
+              <img
+                src={venuePhoto.previewUrl}
+                alt="Preview of your pub photo"
+                width={120}
+                height={120}
+                decoding="async"
+              />
               <button
                 type="button"
                 className="photoRemove"

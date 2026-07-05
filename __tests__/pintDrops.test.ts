@@ -52,10 +52,15 @@ function report(id: string, reason?: string): Promise<Response> {
 }
 
 // Moderator GET/POST. In test env (NODE_ENV !== production, ADMIN_TOKEN unset)
-// the gate opens by default; pass a token only where a test sets one.
+// the gate opens by default; pass a token only where a test sets one. The token
+// travels in the `x-admin-token` header ONLY — query-string tokens are no
+// longer accepted (they leak through logs/history/referrers).
 function modGet(status: string, token?: string): Promise<Response> {
-  const qs = token ? `?status=${status}&admin=${encodeURIComponent(token)}` : `?status=${status}`;
-  return GET(new Request(`${URL_BASE}${qs}`));
+  return GET(
+    new Request(`${URL_BASE}?status=${status}`, {
+      headers: token ? { "x-admin-token": token } : undefined,
+    }),
+  );
 }
 
 function modAction(action: string, id: string, token?: string): Promise<Response> {
@@ -242,6 +247,22 @@ describe("moderation loop", () => {
     expect((await modGet("hidden")).status).toBe(403);
     expect((await modAction("restore", id)).status).toBe(403);
     expect((await modAction("keep_hidden", id)).status).toBe(403);
+  });
+
+  it("rejects a query-string admin token — header-only auth (M2/P0)", async () => {
+    const id = await createDrop();
+    await report(id);
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.ADMIN_TOKEN = "s3cret";
+
+    // The valid token passed as a query param must NOT open the gate.
+    const viaQuery = await GET(new Request(`${URL_BASE}?status=hidden&admin=s3cret`));
+    expect(viaQuery.status).toBe(403);
+
+    // The same token in the header clears the gate (store then 503s — Supabase
+    // absent in production — but the 403 gate is passed).
+    const viaHeader = await modGet("hidden", "s3cret");
+    expect(viaHeader.status).not.toBe(403);
   });
 
   it("403s moderator endpoints in production without a valid token", async () => {

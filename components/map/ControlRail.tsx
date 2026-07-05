@@ -45,6 +45,7 @@ export const initialFilters: Filters = {
   requireCocktails: false,
   requireWater: false,
   requireHeritage: false,
+  requirePintDrops: false,
   canonicalOnly: true,
 };
 
@@ -150,9 +151,10 @@ export default function ControlRail({
       <label className="searchBox">
         <Search size={18} />
         <input
+          id="mapSearchInput"
           value={filters.query}
           onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
-          placeholder="Search Shoreditch, Hackney, pub name..."
+          placeholder="Search Shoreditch, Hackney, pub name... ( / to focus)"
         />
       </label>
 
@@ -280,6 +282,16 @@ export default function ControlRail({
             }
           />
           Heritage note
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requirePintDrops}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requirePintDrops: event.target.checked })
+            }
+          />
+          Has Pint Drops
         </label>
         <label>
           <input

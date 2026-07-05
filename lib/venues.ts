@@ -102,6 +102,7 @@ export type Filters = {
   requireCocktails: boolean;
   requireWater: boolean;
   requireHeritage: boolean;
+  requirePintDrops: boolean;
   canonicalOnly: boolean;
 };
 
@@ -248,7 +249,14 @@ export function mergeVenueDrops<D extends SummaryDrop>(
   });
 }
 
-export function filterVenues(venues: Venue[], filters: Filters): Venue[] {
+// `hasPintDrops` is a signal derived client-side from live Pint Drops (see
+// usePintDrops.venueSignals), so it isn't on the pure Venue. Callers that want
+// the requirePintDrops filter pass a lookup; without one it's a no-op predicate.
+export function filterVenues(
+  venues: Venue[],
+  filters: Filters,
+  hasPintDrops: (venueId: string) => boolean = () => false,
+): Venue[] {
   const query = filters.query.trim().toLowerCase();
   return venues.filter((venue) => {
     const matchesQuery =
@@ -275,7 +283,16 @@ export function filterVenues(venues: Venue[], filters: Filters): Venue[] {
       !filters.canonicalOnly ||
       venue.prices.some((price) => price.is_clean_canonical_app_row);
 
-    return matchesQuery && matchesPrice && matchesAmenities && matchesCuration && matchesCanonical;
+    const matchesPintDrops = !filters.requirePintDrops || hasPintDrops(venue.id);
+
+    return (
+      matchesQuery &&
+      matchesPrice &&
+      matchesAmenities &&
+      matchesCuration &&
+      matchesCanonical &&
+      matchesPintDrops
+    );
   });
 }
 

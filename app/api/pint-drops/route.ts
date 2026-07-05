@@ -54,17 +54,16 @@ function safeTokenEqual(provided: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-// Moderator gate. The console passes the token as `x-admin-token` (fetch) or
-// `?admin=` (link). When ADMIN_TOKEN is set, the token must match it. When it
-// is unset we DENY everywhere except local dev (and the test runner) — keying
-// on "not production" would leave e.g. a Vercel preview wide open.
-// The token is compared here and never echoed back to the client.
+// Moderator gate. The console passes the token as the `x-admin-token` header
+// ONLY — query-string tokens are not accepted because they leak through
+// browser history, server logs, analytics, and Referer headers. When
+// ADMIN_TOKEN is set, the token must match it. When it is unset we DENY
+// everywhere except local dev (and the test runner) — keying on "not
+// production" would leave e.g. a Vercel preview wide open. The token is
+// compared here and never echoed back to the client.
 function isModerator(request: Request): boolean {
   const expected = process.env.ADMIN_TOKEN;
-  const provided =
-    request.headers.get("x-admin-token") ??
-    new URL(request.url).searchParams.get("admin") ??
-    undefined;
+  const provided = request.headers.get("x-admin-token") ?? undefined;
   if (!expected) {
     return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   }

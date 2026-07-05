@@ -11,6 +11,7 @@ const sample: CrawlUrlState = {
     maxPrice: 6.5,
     stopCount: 5,
     routeWindow: 25,
+    requirePintDrops: true,
   },
   builtIds: ["venue-abc", "venue-def"],
   selectedVenueId: "venue-abc",
@@ -25,9 +26,33 @@ describe("crawlUrl", () => {
       maxPrice: 6.5,
       stopCount: 5,
       routeWindow: 25,
+      requirePintDrops: true,
     });
     expect(decoded.builtIds).toEqual(["venue-abc", "venue-def"]);
     expect(decoded.selectedVenueId).toBe("venue-abc");
+  });
+
+  it("encodes requirePintDrops as drops=1 and omits it when off", () => {
+    expect(encodeCrawl(sample)).toContain("drops=1");
+    const off = encodeCrawl({ ...sample, filters: { ...sample.filters, requirePintDrops: false } });
+    expect(off).not.toContain("drops");
+  });
+
+  it("only drops=1 turns the Pint Drops filter on; other values leave it off", () => {
+    expect(decodeCrawl(new URLSearchParams("drops=1")).filters?.requirePintDrops).toBe(true);
+    // absent, empty, or any non-"1" value must not enable it (default off)
+    expect(decodeCrawl(new URLSearchParams("")).filters?.requirePintDrops).toBeUndefined();
+    expect(decodeCrawl(new URLSearchParams("drops=0")).filters?.requirePintDrops).toBeUndefined();
+    expect(decodeCrawl(new URLSearchParams("drops=yes")).filters?.requirePintDrops).toBeUndefined();
+  });
+
+  it("preserves hand-built stop order (a reversed route stays reversed)", () => {
+    const reversed: CrawlUrlState = { ...sample, builtIds: ["venue-def", "venue-abc"] };
+    const decoded = decodeCrawl(new URLSearchParams(encodeCrawl(reversed)));
+    expect(decoded.builtIds).toEqual(["venue-def", "venue-abc"]);
+    // and the reverse of that round-trips back to the original order
+    const back = decodeCrawl(new URLSearchParams(encodeCrawl(sample)));
+    expect(back.builtIds).toEqual(["venue-abc", "venue-def"]);
   });
 
   it("seedCrawlState reproduces the captured state atop defaults", () => {

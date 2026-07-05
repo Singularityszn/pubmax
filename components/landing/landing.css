@@ -745,12 +745,45 @@
 }
 
 .lp .footerColophon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
   margin-top: 28px;
   padding-top: 18px;
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.82rem;
   letter-spacing: 0.02em;
+}
+
+.lp .footerSocials {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.lp .footerSocials a {
+  display: inline-flex;
+  color: var(--ink-soft);
+  transition: color 0.18s ease;
+}
+
+.lp .footerSocials a:hover {
+  color: var(--brass);
+}
+
+.lp .footerSocials a:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.lp .footerSocials svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 /* ── Reveal-on-scroll (progressive; no JS = fully visible) ─────────────

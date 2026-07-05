@@ -15,7 +15,7 @@ vi.mock("@/lib/supabase", () => ({
   STORAGE_BUCKET: "pint-drops",
 }));
 
-import { validatePhoto, toDTO, deletePhotos, supabasePintDropStore } from "@/lib/pintDropsStore";
+import { validatePhoto, magicBytesOk, toDTO, deletePhotos, supabasePintDropStore } from "@/lib/pintDropsStore";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
 import { REPORT_HIDE_THRESHOLD } from "@/lib/pintDrops";
 
@@ -37,6 +37,38 @@ describe("validatePhoto", () => {
 
   it("rejects a file over 5MB", () => {
     expect(validatePhoto("image/jpeg", 5 * 1024 * 1024 + 1)).toMatch(/5MB/);
+  });
+});
+
+// Content-sniff the real signature so a mislabelled/crafted file can't pass the
+// MIME check. Pure over Uint8Array — no File needed.
+describe("magicBytesOk", () => {
+  const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00]);
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+  const webp = new Uint8Array([
+    0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+  ]);
+
+  it("accepts real JPEG/PNG/WebP signatures", () => {
+    expect(magicBytesOk(jpeg, "image/jpeg")).toBe(true);
+    expect(magicBytesOk(png, "image/png")).toBe(true);
+    expect(magicBytesOk(webp, "image/webp")).toBe(true);
+  });
+
+  it("rejects a signature that does not match the declared MIME", () => {
+    // A PNG-signatured buffer claiming to be a JPEG.
+    expect(magicBytesOk(png, "image/jpeg")).toBe(false);
+    // RIFF header but not a WEBP container (audio/other RIFF).
+    const riffNotWebp = new Uint8Array([
+      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45,
+    ]);
+    expect(magicBytesOk(riffNotWebp, "image/webp")).toBe(false);
+  });
+
+  it("rejects a spoofed/garbage buffer and an unknown MIME", () => {
+    const junk = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
+    expect(magicBytesOk(junk, "image/jpeg")).toBe(false);
+    expect(magicBytesOk(jpeg, "application/pdf")).toBe(false);
   });
 });
 
@@ -79,6 +111,37 @@ describe("toDTO", () => {
     );
     expect(dto.pintPhotoUrl).toBeNull();
     expect(dto.venuePhotoUrl).toBeNull();
+  });
+
+  // Report-count transparency (safe): a visible drop with reports exposes ONLY
+  // the bare count — never reasons, reporter metadata, or moderator notes.
+  it("exposes reportCount on a visible reported drop, but no reasons/metadata", () => {
+    const dto = toDTO(
+      drop({
+        reportCount: 1,
+        reportReason: "wrong price",
+        reportedAt: "2026-01-02T00:00:00.000Z",
+        moderatorNote: "reviewed, kept",
+        moderatedAt: "2026-01-02T00:00:00.000Z",
+      }),
+    );
+    expect(dto.reportCount).toBe(1);
+    // The reporter trail and moderator metadata never leave the server.
+    expect(dto).not.toHaveProperty("reportReason");
+    expect(dto).not.toHaveProperty("reportedAt");
+    expect(dto).not.toHaveProperty("moderatorNote");
+    expect(dto).not.toHaveProperty("moderatedAt");
+  });
+
+  it("omits reportCount when a visible drop has zero reports", () => {
+    expect(toDTO(drop())).not.toHaveProperty("reportCount");
+    expect(toDTO(drop({ reportCount: 0 }))).not.toHaveProperty("reportCount");
+  });
+
+  it("never exposes reportCount on a hidden drop", () => {
+    // A hidden drop is not publicly visible; leaking its count would confirm a
+    // takedown. (Public reads never return hidden drops anyway.)
+    expect(toDTO(drop({ status: "hidden", reportCount: 5 }))).not.toHaveProperty("reportCount");
   });
 });
 

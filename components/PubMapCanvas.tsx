@@ -3,7 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import maplibregl from "maplibre-gl";
-import { ExternalLink, Landmark as LandmarkIcon, X } from "lucide-react";
+import { Crosshair, ExternalLink, Landmark as LandmarkIcon, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { landmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
@@ -249,6 +249,7 @@ export default function PubMapCanvas({
   // the orbit never fights an easeTo.
   const holdUntilRef = useRef(0);
   const reducedRef = useRef(false);
+  const blurredRef = useRef(false);
   const themeRef = useRef<"dark" | "light">("dark");
 
   // Cinematic camera move that suspends the orbit for its duration + resume gap.
@@ -279,6 +280,17 @@ export default function PubMapCanvas({
     };
     reducedQuery.addEventListener("change", onReducedChange);
 
+    // Window blur pauses the orbit (mirrors document.hidden); focus resumes
+    // normal idle behaviour. Some browsers blur without hiding the tab.
+    const onBlur = () => {
+      blurredRef.current = true;
+    };
+    const onFocus = () => {
+      blurredRef.current = false;
+    };
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+
     // No-WebGL environments (locked-down browsers, headless boxes) throw
     // synchronously from the constructor; fall back to a styled notice.
     let map: maplibregl.Map;
@@ -294,6 +306,8 @@ export default function PubMapCanvas({
       });
     } catch (error) {
       reducedQuery.removeEventListener("change", onReducedChange);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
       queueMicrotask(() =>
         setMapError(
           error instanceof Error ? error.message : "Map could not start in this browser.",
@@ -676,6 +690,7 @@ export default function PubMapCanvas({
       if (
         reducedRef.current ||
         document.hidden ||
+        blurredRef.current ||
         !map.isStyleLoaded() ||
         !map.getLayer("pubs-point")
       )
@@ -712,6 +727,8 @@ export default function PubMapCanvas({
       cancelAnimationFrame(rafId);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
       for (const eventName of interactionEvents) {
         interactionTarget.removeEventListener(eventName, onInteract);
       }
@@ -756,12 +773,19 @@ export default function PubMapCanvas({
     }
   }, [route, selectedVenueId, mapReady]);
 
-  // Frame the crawl when the route changes.
+  // Shared fit logic: the route effect and the Recenter control both call this
+  // so the framing behaviour stays identical. Reads the live route from a ref
+  // so the button never needs a fresh closure.
+  const routeRef = useRef(route);
   useEffect(() => {
+    routeRef.current = route;
+  }, [route]);
+  const fitRoute = useCallback(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || route.length < 2) return;
+    const current = routeRef.current;
+    if (!map || current.length < 2) return;
     const bounds = new maplibregl.LngLatBounds();
-    route.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
     holdUntilRef.current = Math.max(
       holdUntilRef.current,
       performance.now() + 900 + ORBIT_RESUME_MS,
@@ -771,7 +795,20 @@ export default function PubMapCanvas({
       maxZoom: 15,
       duration: reducedRef.current ? 0 : 800,
     });
-  }, [route, mapReady]);
+  }, []);
+
+  // Frame the crawl only when the route identity changes *materially* — the
+  // ordered list of stop ids. Filters that churn the route array or a mere
+  // selection change produce the same key, so the camera stays put while a user
+  // tunes filters and pans. A curated-crawl load, near-me, or add/remove/reverse
+  // all change the key and refit.
+  // routeKey is the material identity; fitRoute is stable and reads the live
+  // route via ref, so the effect only refits when the ordered stop ids change.
+  const routeKey = route.map((venue) => venue.id).join(">");
+  useEffect(() => {
+    if (!mapReady) return;
+    fitRoute();
+  }, [routeKey, mapReady, fitRoute]);
 
   // Cinematic fly-to on venue selection (after the route framing above).
   useEffect(() => {
@@ -830,9 +867,61 @@ export default function PubMapCanvas({
     );
   }
 
+  const canRecenter = route.length >= 2;
+
   return (
     <div className="mapCanvasWrap">
       <div ref={containerRef} className="maplibreMap" />
+      {/* Recenter route: re-runs the same fit logic as the route effect.
+          Self-contained (no parent prop); the nav control sits top-right so
+          this tucks just under it. Disabled below two stops. */}
+      <button
+        type="button"
+        className="mapRecenterBtn"
+        onClick={fitRoute}
+        disabled={!canRecenter}
+        aria-label="Recenter route"
+        title="Recenter route"
+        style={{
+          position: "absolute",
+          top: 108,
+          right: 10,
+          zIndex: 455,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "6px 9px",
+          border: "1px solid var(--brass)",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--panel-raised)",
+          color: "var(--brass)",
+          font: "inherit",
+          fontSize: "0.72rem",
+          fontWeight: 600,
+          lineHeight: 1,
+          boxShadow: "var(--shadow)",
+          cursor: canRecenter ? "pointer" : "not-allowed",
+          opacity: canRecenter ? 1 : 0.5,
+          outline: "none",
+        }}
+        onMouseEnter={(event) => {
+          if (canRecenter) event.currentTarget.style.background = "var(--brass)";
+          if (canRecenter) event.currentTarget.style.color = "var(--paper)";
+        }}
+        onMouseLeave={(event) => {
+          event.currentTarget.style.background = "var(--panel-raised)";
+          event.currentTarget.style.color = "var(--brass)";
+        }}
+        onFocus={(event) => {
+          event.currentTarget.style.boxShadow = "0 0 0 2px var(--brass-bright)";
+        }}
+        onBlur={(event) => {
+          event.currentTarget.style.boxShadow = "var(--shadow)";
+        }}
+      >
+        <Crosshair size={14} aria-hidden />
+        Recenter
+      </button>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>
           <div className="landmarkCardHead">

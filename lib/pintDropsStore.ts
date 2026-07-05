@@ -37,13 +37,17 @@ export type PersistableDrop = PintDrop & {
 // Public read shape. Storage keys never leave the server — they map to public
 // URLs (or null for hidden/pending rows) — and report/moderation metadata is
 // stripped: with the report threshold a once-reported drop stays publicly
-// visible, and its reporter trail must not ride along.
+// visible, and its reporter trail must not ride along. The ONLY transparency
+// exception is `reportCount`: a bare count on a still-visible drop (see toDTO)
+// so a reporter can see their report registered. Reasons, reporter metadata,
+// moderator notes, and hidden photos never leave the server.
 export type PintDropDTO = Omit<
   PintDrop,
   "reportedAt" | "reportReason" | "reportCount" | "moderatedAt" | "moderatorNote"
 > & {
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  reportCount?: number;
 };
 
 // Moderator read shape. Same photo-URL swap, but a moderator must see the
@@ -85,6 +89,32 @@ export function validatePhoto(type: string, size: number): string | null {
     return "Photo must be 5MB or smaller.";
   }
   return null;
+}
+
+/**
+ * Content-sniff the leading bytes against the declared MIME so a client can't
+ * pass the type/size check with a mislabelled or crafted file (e.g. a script
+ * renamed .jpg). Pure so it is testable without a real File. JPEG = FF D8 FF,
+ * PNG = 89 50 4E 47, WebP = "RIFF"....\"WEBP" (bytes 8..11). Unknown MIME is
+ * rejected — validatePhoto has already gated the allow-list, this is defence
+ * in depth on the same allow-list.
+ */
+export function magicBytesOk(bytes: Uint8Array, mime: string): boolean {
+  const at = (i: number) => bytes[i];
+  switch (mime) {
+    case "image/jpeg":
+      return at(0) === 0xff && at(1) === 0xd8 && at(2) === 0xff;
+    case "image/png":
+      return at(0) === 0x89 && at(1) === 0x50 && at(2) === 0x4e && at(3) === 0x47;
+    case "image/webp":
+      // "RIFF" at 0..3 and "WEBP" at 8..11.
+      return (
+        at(0) === 0x52 && at(1) === 0x49 && at(2) === 0x46 && at(3) === 0x46 &&
+        at(8) === 0x57 && at(9) === 0x45 && at(10) === 0x42 && at(11) === 0x50
+      );
+    default:
+      return false;
+  }
 }
 
 function admin() {
@@ -148,10 +178,14 @@ function publicUrl(key: string | undefined, visible: boolean): string | null {
 }
 
 /** Public DTO: strip Storage keys AND report/moderation metadata, emit photo
- *  URLs. The only shape the public API returns. */
+ *  URLs. The only shape the public API returns. `reportCount` is the single
+ *  transparency exception — surfaced ONLY as a bare count, ONLY on a visible
+ *  drop that has actually been reported (> 0), so a reporter sees their report
+ *  land. Reasons, reporter metadata, moderator notes, and hidden photos are
+ *  never exposed. */
 export function toDTO(drop: PersistableDrop): PintDropDTO {
   const visible = drop.status === "visible";
-  return {
+  const dto: PintDropDTO = {
     id: drop.id,
     venueId: drop.venueId,
     handle: drop.handle,
@@ -165,6 +199,8 @@ export function toDTO(drop: PersistableDrop): PintDropDTO {
     pintPhotoUrl: publicUrl(drop.pintPhotoKey, visible),
     venuePhotoUrl: publicUrl(drop.venuePhotoKey, visible),
   };
+  if (visible && (drop.reportCount ?? 0) > 0) dto.reportCount = drop.reportCount;
+  return dto;
 }
 
 /** Moderator DTO: strip Storage keys but resolve photos even on hidden rows —
@@ -333,11 +369,19 @@ export async function uploadPhoto(
   const invalid = validatePhoto(file.type, file.size);
   if (invalid) throw new Error(invalid);
 
+  // Read the bytes once, sniff the signature, then upload the same buffer. A
+  // mislabelled/crafted file that passed the MIME check is rejected here with
+  // the same user-safe "Photo must…" error path (route → 400).
+  const buffer = new Uint8Array(await file.arrayBuffer());
+  if (!magicBytesOk(buffer, file.type)) {
+    throw new Error("Photo must be a JPEG, PNG, or WebP image.");
+  }
+
   const key = `${venueId}/${dropId}/${slot}.${ext(file.type)}`;
 
   const { error } = await admin()
     .storage.from(STORAGE_BUCKET)
-    .upload(key, file, { contentType: file.type, upsert: false });
+    .upload(key, buffer, { contentType: file.type, upsert: false });
   if (error) throw new Error(error.message);
   return key;
 }

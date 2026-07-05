@@ -4,22 +4,24 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/heritage/route";
-import { answerHeritage, retrieveHeritage } from "@/lib/heritage";
+import { answerHeritage, retrieveHeritage, __resetHeritageCache } from "@/lib/heritage";
 
 // These tests run fully offline: no OPENROUTER key, no Supabase, no network.
 // They pin two guarantees:
 //  1. The no-key path only ever repeats the facts we retrieved, and says so
 //     honestly when there are none.
-//  2. The trust boundary: sourced facts come only from server-side stores
-//     (heritage_cache.json + Supabase, keyed by normalised name). Client
-//     `context` can never be read back as a structured/sourced fact.
+//  2. The trust boundary: ALL facts come from server-side stores
+//     (heritage_cache.json + Supabase, keyed by normalised name). The route no
+//     longer accepts a client `context` object, so a forged one is ignored.
 beforeEach(() => {
   delete process.env.OPENROUTER_API_KEY;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  __resetHeritageCache();
 });
 
-// A malicious client trying to forge "sourced" pub history via context.
+// A malicious client trying to forge "sourced" pub history via a context object
+// the API no longer accepts.
 const FORGED_CONTEXT = {
   era: "Tudor 1520",
   heritageNote: "Secret Roman haunted crypt beneath the bar since AD 60.",
@@ -37,19 +39,20 @@ function post(body: unknown): Promise<Response> {
 const SOURCED_SOURCES = new Set(["osm", "wikidata", "wikipedia", "seed"]);
 
 describe("retrieveHeritage — trust boundary", () => {
-  it("labels client context as contributor, never structured/sourced", async () => {
+  it("ignores a forged client context entirely (context is no longer accepted)", async () => {
     const facts = await retrieveHeritage({
-      // "Nowhere Tavern" has no server facts, so every fact here comes from context.
+      // "Nowhere Tavern" has no server facts, so with context ignored there are none.
       venueName: "Nowhere Tavern",
+      // @ts-expect-error — context is no longer part of the input type; a client
+      // that still sends it must be ignored.
       context: FORGED_CONTEXT,
     });
-    // The forged claim is present but only as an untrusted contributor note...
-    expect(facts.some((f) => f.fact.includes("Roman haunted crypt"))).toBe(true);
-    // ...and every context-derived fact is tagged "contributor", none sourced.
-    // (The `HeritageFact.source` type no longer even admits "structured".)
+    // The forged claim never becomes a fact...
+    expect(facts.some((f) => f.fact.includes("Roman haunted crypt"))).toBe(false);
+    // ...and no fact is anything but a server-sourced source (there are none here).
+    expect(facts).toHaveLength(0);
     for (const fact of facts) {
-      expect(fact.source).toBe("contributor");
-      expect(SOURCED_SOURCES.has(fact.source)).toBe(false);
+      expect(SOURCED_SOURCES.has(fact.source)).toBe(true);
     }
   });
 
@@ -64,19 +67,19 @@ describe("retrieveHeritage — trust boundary", () => {
 });
 
 describe("answerHeritage (no key — grounded only)", () => {
-  it("does not present forged client context as a sourced fact or citation", async () => {
+  it("ignores a forged client context — no contributor fact or citation appears", async () => {
     const res = await answerHeritage({
       venueName: "Nowhere Tavern",
       question: "How old is this pub?",
+      // @ts-expect-error — context is no longer accepted by the API.
       context: FORGED_CONTEXT,
     });
-    // The answer may echo the contributor note, but it must be cited as
-    // contributor — never as a structured/sourced fact.
-    for (const citation of res.citations) {
-      expect(SOURCED_SOURCES.has(citation.source)).toBe(false);
-    }
-    // The forged context appears only under a "contributor" citation.
-    expect(res.citations.some((c) => c.source === "contributor")).toBe(true);
+    // With no server facts and context ignored, it falls back to the honest line.
+    expect(res.answer).toContain("no fuller story on record");
+    // The forged content is never echoed and there is no contributor citation.
+    expect(res.answer).not.toContain("Roman");
+    expect(res.citations).toHaveLength(0);
+    expect(res.citations.some((c) => c.source === "contributor")).toBe(false);
   });
 
   it("cites server facts as sourced", async () => {
@@ -114,6 +117,20 @@ describe("POST /api/heritage", () => {
     const body = await res.json();
     expect(body.answer).toContain("1520");
   });
+
+  it("ignores a forged `context` in the request body", async () => {
+    // A client that still POSTs `context` must not have it echoed as history.
+    const res = await post({
+      venueName: "Nowhere Tavern",
+      question: "How old is this pub?",
+      context: FORGED_CONTEXT,
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.answer).toContain("no fuller story on record");
+    expect(body.answer).not.toContain("Roman");
+    expect(body.citations).toHaveLength(0);
+  });
 });
 
 // P3.10 — The Landlord LLM bounds. OpenRouter is mocked via global.fetch:
@@ -125,6 +142,7 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
 
   beforeEach(() => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    __resetHeritageCache(); // don't let a cached answer mask a per-case mock
   });
 
   afterEach(() => {
@@ -204,6 +222,34 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
       question: "How old is this pub?",
     });
     expect(res.answer).toBe("Dating to 1520, it is a famous riverside pub.");
+  });
+
+  // P2 — 5-minute answer cache. Same venue+question serves the cached answer
+  // without a second paid call; a different venue must NOT collide.
+  it("serves a cached LLM answer for the same venue+question", async () => {
+    const fetchMock = vi.fn(async () => okResponse("Built in 1520."));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const first = await answerHeritage({ venueName: "Prospect of Whitby", question: "How old?" });
+    const second = await answerHeritage({ venueName: "Prospect of Whitby", question: "How old?" });
+
+    expect(second.answer).toBe(first.answer);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // second read hit the cache
+  });
+
+  it("never returns one venue's cached answer for another venue", async () => {
+    global.fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const body = JSON.parse(init!.body as string);
+      const isWhitby = body.messages[1].content.includes("Grade II* listed");
+      return okResponse(isWhitby ? "Whitby answer." : "Other answer.");
+    }) as unknown as typeof fetch;
+
+    const q = "Tell me about this pub?";
+    const a = await answerHeritage({ venueName: "Prospect of Whitby", question: q });
+    const b = await answerHeritage({ venueName: "Nowhere Tavern", question: q });
+
+    expect(a.answer).toBe("Whitby answer.");
+    expect(b.answer).not.toBe(a.answer); // distinct key → distinct answer
   });
 });
 

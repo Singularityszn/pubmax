@@ -201,7 +201,7 @@ export function usePintDrops() {
   const venueSignals = useMemo(() => {
     const signals = new Map<
       string,
-      { hasPintDrops: boolean; latestContributorPrice: number | null }
+      { hasPintDrops: boolean; dropCount: number; latestContributorPrice: number | null }
     >();
     for (const [venueId, venueDrops] of dropsByVenueId) {
       // Demo seeds never feed the "latest contributor price" signal — a seeded
@@ -210,8 +210,11 @@ export function usePintDrops() {
         venueDrops.find(
           (drop) => drop.provenance !== "demo" && typeof drop.priceGbp === "number",
         )?.priceGbp ?? null;
+      // dropCount/hasPintDrops match the map halo: any visible drop counts
+      // (seeds included) so the "has drops" signal is consistent everywhere.
       signals.set(venueId, {
         hasPintDrops: venueDrops.length > 0,
+        dropCount: venueDrops.length,
         latestContributorPrice,
       });
     }

@@ -1,39 +1,53 @@
 # PubMaxing
 
-PubMaxing is a London pub discovery and crawl-design app. It uses pint prices, venue location, amenities, and route preferences to help people choose a pub crawl.
+A **price-aware, story-led London pub-crawl planner**. Three layers on one living 3-D map: the **price** of every observed pint (colour-coded cheap → expensive), the **setting** (by the water, gardens, walkable route shape), and the **story** (pub heritage, sourced editorial picks, and community **Pint Drops** — each carrying visible provenance so history and legend never blur).
 
-## Dataset
+Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs — or load a curated **Featured route** or **Pubs near me**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**, a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
 
-The app uses the extracted dataset.
+## Features
 
-- Source CSV for app use: `data/pint_prices_app_dataset.csv`
-- Public JSON loaded by the website: `public/data/pint_prices_app_dataset.json`
-- Builder script: `scripts/build_app_dataset.py`
-- JSON export script: `scripts/export_app_dataset_json.py`
+- **Landing** — themed intro that links straight into the planner (`/map?style=heritage`).
+- **3-D map** — pitched, slowly-orbiting MapLibre view of London; every pub a price-coloured dot, story pubs ringed in brass, the crawl drawn with animated "marching ants."
+- **Crawl planner** — Suggest mode (greedy nearest-good-neighbour route) or Build mode (tap to add stops); story filters by price, amenities, water, heritage.
+- **Curated routes** — named "generational" Featured crawls loaded as ordered stops.
+- **Pubs near me** — a crawl built from your geolocation (degrades gracefully if denied).
+- **Shareable URLs** — the whole crawl state round-trips through the URL; "Copy link" shares it.
+- **Pint Drops** — community photos + the price you paid + a passed-down note, moderated.
+- **The Landlord** — grounded pub-heritage Q&A that reads back only server-known facts and refuses to invent.
+- **Moderation** — reports hide a drop at a threshold; a token-gated `/admin` console reviews hidden drops.
 
-The current website does not insert the dataset into a database yet. It loads the exported JSON file in the browser and renders map markers, filters, venue detail, and crawl suggestions from that data.
+## Stack
 
-## Run Locally
+Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL + CARTO basemaps · Supabase (Postgres + Storage + RLS) · OpenRouter (Claude) for The Landlord · Vitest + Playwright · deployed on Vercel.
 
-```bash
+## Quick start
+
+```sh
 npm install
-npm run export:data
-npm run dev
+npm run dev            # http://localhost:3000 — works with NO secrets
 ```
 
-Then open `http://127.0.0.1:3000`.
+The app runs **keyless** for local dev: Pint Drops use an in-memory store and The Landlord answers in grounded/structured mode (reads the facts on record; no narration). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `OPENROUTER_API_KEY`.
 
-## Verification
+Useful scripts:
 
-```bash
-npm run build
-python3 scripts/build_app_dataset.py
-python3 scripts/export_app_dataset_json.py
-```
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run verify` | lint · typecheck · test — the fast local gate |
+| `npm run ci` | `verify` + build — the full gate (what Vercel runs) |
+| `npm test` | Vitest unit suite |
+| `npm run test:e2e` | Playwright smoke (builds, starts, drives Chromium) |
+| `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
 
-## Product Notes
+## Demo data
 
-- `docs/PRODUCT_PLAN.md` contains the current MVP plan.
-- `CONTEXT.md` contains the domain language.
-- `docs/adr/0001-multi-factor-crawl-routes.md` records the decision to rank routes with multiple signals, not only cheapest pint price.
-- `docs/screenshots/README.md` contains reference screenshots of the current prototype.
+The community layer ships alive: hand-written Pint Drops and Featured crawls are seeded so the map has content on day one. Seeded content is tagged `demo` and stays **visibly distinct** — it never masquerades as organic contributor signal and is filtered out before it can move any price or story metric. Provenance chips (`Sourced` / `Contributor` / `Anecdote` / `Demo`) are the product's trust signal.
+
+## Deeper docs
+
+- **`teach.md`** — full repo tour: architecture, data model, map lifecycle, backend, trust boundaries, with `file:line` anchors.
+- **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
+- **`docs/DEMO_DECK.md`** — demo script.
+</content>
+</invoke>
