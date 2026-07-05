@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ExternalLink, Flag, PlusCircle, Quote, Waves } from "lucide-react";
 import { useMemo } from "react";
 
@@ -163,21 +164,25 @@ export default function VenueInspector({
                 {drop.pintPhotoUrl || drop.venuePhotoUrl ? (
                   <div className="dropPhotos">
                     {drop.pintPhotoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         className="dropPhoto"
                         src={drop.pintPhotoUrl}
                         alt={`Pint at ${venue.name} shared by ${drop.handle}`}
+                        width={300}
+                        height={150}
                         loading="lazy"
+                        unoptimized
                       />
                     ) : null}
                     {drop.venuePhotoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         className="dropPhoto"
                         src={drop.venuePhotoUrl}
                         alt={`View of ${venue.name} shared by ${drop.handle}`}
+                        width={300}
+                        height={150}
                         loading="lazy"
+                        unoptimized
                       />
                     ) : null}
                   </div>

@@ -4,12 +4,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
+import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+
 import "./admin.css";
 
 // Moderator DTO as returned by GET ?status=hidden. Photos resolve even on hidden
 // rows; report metadata rides along. Kept loose (optional) — old rows may lack it.
 type ModeratorDrop = {
   id: string;
+  venueId: string;
   handle: string;
   drink: string;
   priceGbp: number | null;
@@ -30,11 +33,21 @@ function readStoredToken(): string {
   return window.localStorage.getItem(TOKEN_KEY) ?? "";
 }
 
+// venueId → name, resolved from the same app dataset the map groups. Fetched
+// once (in the load handler) rather than adding a DB dependency just for names.
+async function fetchVenueNames(): Promise<Map<string, string>> {
+  const res = await fetch("/data/pint_prices_app_dataset.json");
+  if (!res.ok) return new Map();
+  const rows = (await res.json()) as VenuePrice[];
+  return new Map(groupVenuePrices(rows).map((venue) => [venue.id, venue.name]));
+}
+
 export default function AdminPage() {
   // Lazy initialiser reads localStorage on first client render — no effect, so we
   // don't trip react-hooks/set-state-in-effect.
   const [token, setToken] = useState(readStoredToken);
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
+  const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -60,6 +73,15 @@ export default function AdminPage() {
       }
       const body = (await res.json()) as { drops: ModeratorDrop[] };
       setDrops(body.drops ?? []);
+      // Resolve venue names lazily alongside the queue — best-effort, so a
+      // dataset fetch failure never blocks moderation.
+      if ((body.drops ?? []).length > 0 && venueNames.size === 0) {
+        try {
+          setVenueNames(await fetchVenueNames());
+        } catch {
+          /* names stay unresolved; rows fall back to the venueId */
+        }
+      }
       if ((body.drops ?? []).length === 0) setMessage("No reported drops in the queue.");
     } catch {
       setDrops([]);
@@ -67,7 +89,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, venueNames.size]);
 
   const decide = useCallback(
     async (id: string, action: "restore" | "keep_hidden") => {
@@ -152,6 +174,13 @@ export default function AdminPage() {
               <div className="admin-card-head">
                 <span className="admin-handle">{d.handle}</span>
                 {d.priceGbp != null ? <span className="admin-price">£{d.priceGbp.toFixed(2)}</span> : null}
+              </div>
+
+              <div className="admin-venue">
+                <span className="admin-venue-name">{venueNames.get(d.venueId) ?? d.venueId}</span>
+                <Link className="admin-venue-link" href={`/map?sel=${encodeURIComponent(d.venueId)}`}>
+                  View on map
+                </Link>
               </div>
 
               {d.passedDownNote ? <p className="admin-note">{d.passedDownNote}</p> : null}
