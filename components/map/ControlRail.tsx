@@ -151,10 +151,10 @@ export default function ControlRail({
       <label className="searchBox">
         <Search size={18} />
         <input
-          id="mapSearchInput"
+          id="railSearchInput"
           value={filters.query}
           onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
-          placeholder="Search Shoreditch, Hackney, pub name... ( / to focus)"
+          placeholder="Search Shoreditch, Hackney, pub name..."
         />
       </label>
 

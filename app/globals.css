@@ -84,12 +84,13 @@ button {
   }
 }
 
+/* Map-first shell: the map fills the viewport; planner + detail are overlay
+   drawers that slide in over it (see .mapDrawer). No grid — the map is never
+   boxed into a column. */
 .appShell {
   height: 100vh;
-  display: grid;
-  grid-template-columns: 356px minmax(0, 1fr) 372px;
-  overflow: hidden;
   position: relative;
+  overflow: hidden;
 }
 
 .siteNav {
@@ -449,15 +450,279 @@ input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 
+/* The map is the full-bleed base layer; drawers and toolbar sit above it. */
 .mapStage {
-  position: relative;
-  min-width: 0;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
 .mapCanvasWrap {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+/* ── Map-first overlays: floating toolbar + sliding drawers ─────────────────*/
+.mapToolbar {
+  position: absolute;
+  top: 62px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 520;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.mapToolbarSearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  color: var(--muted);
+}
+
+.mapToolbarSearch input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  color: var(--ink);
+  font-size: 0.85rem;
+  min-width: 168px;
+}
+
+.mapToolbarClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mapToolbarClear:hover {
+  color: var(--ink);
+}
+
+.planBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 15px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: var(--ink-deep);
+  color: var(--paper);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.planBtn.active {
+  background: var(--brass);
+  color: var(--ink-deep);
+}
+
+.mapDrawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 500;
+  width: 376px;
+  max-width: 92vw;
+  background: var(--panel);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.mapDrawer.left {
+  left: 0;
+  border-right: 1px solid var(--line);
+  box-shadow: 6px 0 26px rgba(15, 28, 22, 0.18);
+  transform: translateX(-100%);
+}
+
+.mapDrawer.right {
+  right: 0;
+  border-left: 1px solid var(--line);
+  box-shadow: -6px 0 26px rgba(15, 28, 22, 0.18);
+  transform: translateX(100%);
+}
+
+.mapDrawer.left.open,
+.mapDrawer.right.open {
+  transform: translateX(0);
+}
+
+.mapDrawer[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+/* Panels lose their own chrome inside a drawer — the drawer carries it. */
+.mapDrawer .controlRail,
+.mapDrawer .routePanel {
+  border: 0;
+  box-shadow: none;
+  max-height: none;
+  overflow: visible;
+}
+
+.mapDrawerHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 12px 0;
+  background: linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 60%, transparent));
+}
+
+.drawerClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.drawerClose:hover {
+  color: var(--ink);
+  border-color: var(--brass);
+}
+
+.mapLoading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+
+.mapLoadingDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--brass);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* POI category toggles — a small pill stack, bottom-right of the map. */
+.poiToggle {
+  position: absolute;
+  right: 10px;
+  bottom: 14px;
+  z-index: 455;
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+}
+
+.poiToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.poiToggleBtn.on {
+  background: var(--ink-deep);
+  color: var(--paper);
+}
+
+.poiSwatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.poiToggleBtn:not(.on) .poiSwatch {
+  opacity: 0.4;
+}
+
+/* Tapped-POI name — a light label, not the sourced landmark card. */
+.poiLabelCard {
+  position: absolute;
+  top: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 460;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.82rem;
+  box-shadow: var(--shadow);
+}
+
+.poiLabelCard .poiKind {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.poiLabelCard button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.poiLabelCard button:hover {
+  color: var(--ink);
 }
 
 .maplibreMap {
@@ -2172,24 +2437,6 @@ button:disabled {
 }
 
 @media (max-width: 1050px) {
-  .appShell {
-    height: auto;
-    min-height: 100vh;
-    grid-template-columns: 1fr;
-  }
-
-  .controlRail,
-  .routePanel {
-    border: 0;
-    box-shadow: none;
-    max-height: none;
-  }
-
-  .mapStage {
-    height: 62vh;
-    order: -1;
-  }
-
   .mapLegend {
     left: 10px;
     right: 10px;
@@ -2224,51 +2471,46 @@ button:disabled {
    own scroll. Pure CSS — no JS to drag/collapse, so the sheets simply live in
    the page scroll with a grab-handle affordance. */
 @media (max-width: 768px) {
-  .mapStage {
-    /* Hero map: fill most of the first screen; svh dodges mobile URL-bar jump. */
-    height: 60vh;
-    height: 60svh;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
-
-  /* Panels ride up over the map edge and scroll with the page. The controlRail
-     carries the filters/featured routes; routePanel carries route + inspector. */
-  .controlRail,
-  .routePanel {
-    position: relative;
-    z-index: 2;
-    margin-top: -18px;
-    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  /* Map stays full-bleed; drawers slide UP as bottom sheets instead of in from
+     the sides, so they're thumb-reachable and never crowd a narrow screen. */
+  .mapDrawer {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 82vh;
+    border: 0;
     border-radius: 18px 18px 0 0;
-    background: var(--panel);
-    box-shadow: 0 -10px 24px rgba(24, 34, 26, 0.14);
-    max-height: none;
-    overflow: visible;
+    box-shadow: 0 -10px 30px rgba(15, 28, 22, 0.28);
+    transform: translateY(100%);
   }
 
-  /* Grab-handle pill so each sheet reads as draggable even though it scrolls. */
-  .controlRail::before,
-  .routePanel::before {
-    content: "";
-    display: block;
-    width: 40px;
-    height: 4px;
-    margin: -6px auto 14px;
-    border-radius: 999px;
-    background: var(--line);
+  .mapDrawer.left,
+  .mapDrawer.right {
+    transform: translateY(100%);
   }
 
-  /* The map should own the top; only the route sheet needs the overlap seam. */
-  .controlRail {
-    margin-top: 0;
-    border-radius: 0;
-    box-shadow: none;
+  .mapDrawer.left.open,
+  .mapDrawer.right.open {
+    transform: translateY(0);
   }
 
-  .controlRail::before {
-    display: none;
+  /* Toolbar hugs the top under the nav; wrap + full width on a phone. */
+  .mapToolbar {
+    top: 54px;
+    left: 10px;
+    right: 10px;
+    max-width: none;
+    transform: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 16px;
+  }
+
+  .mapToolbarSearch input {
+    min-width: 120px;
   }
 
   /* Keep the floating theme toggle clear of the map legend and reachable. */

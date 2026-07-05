@@ -7,6 +7,8 @@ import { Crosshair, ExternalLink, Landmark as LandmarkIcon, X } from "lucide-rea
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { landmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
+import { priceForBeer } from "@/lib/beers";
+import { loadPois, POI_CATEGORY_META, type Poi, type PoiCategory } from "@/lib/pois";
 import type { Venue } from "@/lib/venues";
 
 type VenueSignal = { hasPintDrops: boolean; latestContributorPrice: number | null };
@@ -18,6 +20,8 @@ type PubMapCanvasProps = {
   onVenueClick: (id: string) => void;
   onRouteStopClick: (id: string) => void;
   venueSignals?: Map<string, VenueSignal>;
+  /** Canonical beer id (lib/beers). When set, pins re-price to it; non-serving pubs dim. */
+  favoritePint?: string | null;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
 };
@@ -114,24 +118,53 @@ function priceBucket(price: number | null): number {
 function pubsToGeoJSON(
   venues: Venue[],
   venueSignals: Map<string, VenueSignal>,
+  favoritePint: string | null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: venues.map((venue) => {
       const signals = venueSignals.get(venue.id);
+      // With a favorite pint chosen, price the pin by THAT beer; pubs that
+      // don't serve it get serves=false → the paint dims them out.
+      const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
+      const serves = !favoritePint || beerPrice !== null;
+      const price = favoritePint
+        ? beerPrice
+        : signals?.latestContributorPrice ?? venue.cheapestPrice;
       return {
         type: "Feature" as const,
         properties: {
           id: venue.id,
           name: venue.name,
-          bucket: priceBucket(signals?.latestContributorPrice ?? venue.cheapestPrice),
+          bucket: priceBucket(price),
           story: venue.hasStory,
           drops: Boolean(signals?.hasPintDrops),
+          serves,
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
       };
     }),
   };
+}
+
+// POIs → GeoJSON, one feature per point, category carried for per-layer filter.
+function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: pois.map((poi) => ({
+      type: "Feature" as const,
+      properties: { id: poi.id, name: poi.name, category: poi.category },
+      geometry: { type: "Point" as const, coordinates: poi.coordinates },
+    })),
+  };
+}
+
+const POI_CATEGORIES: PoiCategory[] = ["tube", "park", "sight"];
+
+// A MapLibre filter that keeps only the categories the user hasn't hidden.
+function poiFilter(hidden: Record<PoiCategory, boolean>): maplibregl.FilterSpecification {
+  const visible = POI_CATEGORIES.filter((category) => !hidden[category]);
+  return ["in", ["get", "category"], ["literal", visible]];
 }
 
 function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
@@ -206,6 +239,7 @@ export default function PubMapCanvas({
   onVenueClick,
   onRouteStopClick,
   venueSignals = new Map(),
+  favoritePint = null,
   onLandmarkSelect,
 }: PubMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -214,6 +248,14 @@ export default function PubMapCanvas({
   const [mapError, setMapError] = useState<string | null>(null);
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(null);
   const [heroDismissed, setHeroDismissed] = useState(false);
+  // POI layer visibility — default all-on so "everything is there" on load,
+  // but each category is togglable and zoom-gated so it never clutters.
+  const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>({
+    tube: false,
+    park: false,
+    sight: false,
+  });
+  const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
 
   const onVenueClickRef = useRef(onVenueClick);
   const onRouteStopClickRef = useRef(onRouteStopClick);
@@ -230,6 +272,10 @@ export default function PubMapCanvas({
     type: "FeatureCollection",
     features: [],
   });
+  const poisDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
   const routeLineRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
@@ -243,6 +289,8 @@ export default function PubMapCanvas({
     venuesRef.current = venues;
   }, [venues]);
   const selectedIdRef = useRef(selectedVenueId);
+  // buildScene reads this on every (re)build so a theme swap keeps the toggles.
+  const poiHiddenRef = useRef(poiHidden);
 
   // Orbit state: the loop only drifts the bearing when now > holdUntil, so any
   // interaction or programmatic camera move simply pushes the hold forward —
@@ -416,6 +464,57 @@ export default function PubMapCanvas({
         minzoom: 9.5,
       });
 
+      // --- Points of interest (tube / parks / sights): an ambient context
+      // layer under the pubs. Zoom-gated so the wide view stays clean, and
+      // filtered by the user's category toggles (kept across theme rebuilds).
+      if (!map.getSource("pois")) {
+        map.addSource("pois", { type: "geojson", data: poisDataRef.current });
+      }
+      addLayerOnce({
+        id: "pois-dot",
+        type: "circle",
+        source: "pois",
+        minzoom: 11,
+        filter: poiFilter(poiHiddenRef.current),
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "category"],
+            "tube",
+            POI_CATEGORY_META.tube.color,
+            "park",
+            POI_CATEGORY_META.park.color,
+            "sight",
+            POI_CATEGORY_META.sight.color,
+            tokens.muted,
+          ],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 3, 15, 6],
+          "circle-opacity": 0.85,
+          "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
+          "circle-stroke-width": 1.2,
+        },
+      });
+      addLayerOnce({
+        id: "pois-label",
+        type: "symbol",
+        source: "pois",
+        minzoom: 12.5,
+        filter: poiFilter(poiHiddenRef.current),
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-size": 10,
+          "text-offset": [0, 0.9],
+          "text-anchor": "top",
+          "text-optional": true,
+        },
+        paint: {
+          "text-color": tokens.ink,
+          "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+          "text-halo-width": 1.2,
+        },
+      });
+
       // --- Crawl route: solid brass underlay + animated brass dash on top.
       if (!map.getSource("route-line")) {
         map.addSource("route-line", { type: "geojson", data: routeLineRef.current });
@@ -508,8 +607,10 @@ export default function PubMapCanvas({
             dark ? tokens.inkDeep : tokens.paper,
           ],
           "circle-stroke-width": ["case", ["get", "story"], 2, 1.1],
-          "circle-stroke-opacity": 0.95,
-          "circle-opacity": 0.95,
+          // serves=false only when a favorite pint is chosen and this pub
+          // doesn't pour it — dim it right down so the beer's map reads clearly.
+          "circle-stroke-opacity": ["case", ["get", "serves"], 0.95, 0.22],
+          "circle-opacity": ["case", ["get", "serves"], 0.95, 0.16],
         },
       });
       // Selected pin: a confident double brass ring — a soft outer wash plus a
@@ -650,7 +751,16 @@ export default function PubMapCanvas({
         cinematic({ center: [lng, lat], zoom, duration: 700 });
       });
     });
-    for (const layer of ["pubs-point", "clusters", "route-stops", "landmarks-icon"]) {
+    // POI tap: a light name/category label (not the sourced-history card that
+    // landmarks get) and a gentle nudge in — POIs orient, pubs are the subject.
+    map.on("click", "pois-dot", (event) => {
+      const props = event.features?.[0]?.properties;
+      const name = props?.name;
+      const category = props?.category;
+      if (typeof name !== "string" || typeof category !== "string") return;
+      setActivePoi({ name, category: category as PoiCategory });
+    });
+    for (const layer of ["pubs-point", "clusters", "route-stops", "landmarks-icon", "pois-dot"]) {
       map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
     }
@@ -738,14 +848,46 @@ export default function PubMapCanvas({
     };
   }, [cinematic, selectLandmark]);
 
-  // Pubs data → source.
+  // Pubs data → source. Rebuilds when the favorite pint changes so the price
+  // buckets + serves flags re-derive against that beer.
   useEffect(() => {
-    pubsDataRef.current = pubsToGeoJSON(venues, venueSignals);
+    pubsDataRef.current = pubsToGeoJSON(venues, venueSignals, favoritePint);
     if (!mapReady) return;
     (mapRef.current?.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
       pubsDataRef.current,
     );
-  }, [venues, venueSignals, mapReady]);
+  }, [venues, venueSignals, favoritePint, mapReady]);
+
+  // POIs load once (client fetch) and feed the "pois" source.
+  useEffect(() => {
+    let cancelled = false;
+    loadPois()
+      .then((pois) => {
+        if (cancelled) return;
+        poisDataRef.current = poisToGeoJSON(pois);
+        (mapRef.current?.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
+          poisDataRef.current,
+        );
+      })
+      .catch(() => {
+        // ponytail: POIs are ambient garnish — a fetch failure just leaves the
+        // pub map intact, no error surfaced.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mapReady]);
+
+  // POI category toggles → layer filters (kept in a ref for theme rebuilds).
+  useEffect(() => {
+    poiHiddenRef.current = poiHidden;
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const filter = poiFilter(poiHidden);
+    for (const layer of ["pois-dot", "pois-label"]) {
+      if (map.getLayer(layer)) map.setFilter(layer, filter);
+    }
+  }, [poiHidden, mapReady]);
 
   // Route + selection ring → sources/filter.
   useEffect(() => {
@@ -984,6 +1126,39 @@ export default function PubMapCanvas({
             Visit
           </button>
         </aside>
+      ) : null}
+      {/* POI category toggles — everything's on by default; tap to hide a kind. */}
+      <div className="poiToggle" role="group" aria-label="Points of interest">
+        {POI_CATEGORIES.map((category) => (
+          <button
+            key={category}
+            type="button"
+            className={poiHidden[category] ? "poiToggleBtn" : "poiToggleBtn on"}
+            aria-pressed={!poiHidden[category]}
+            onClick={() =>
+              setPoiHidden((hidden) => ({ ...hidden, [category]: !hidden[category] }))
+            }
+          >
+            <span
+              className="poiSwatch"
+              style={{ background: POI_CATEGORY_META[category].color }}
+            />
+            {POI_CATEGORY_META[category].label}
+          </button>
+        ))}
+      </div>
+      {activePoi ? (
+        <div className="poiLabelCard" role="status">
+          <span
+            className="poiSwatch"
+            style={{ background: POI_CATEGORY_META[activePoi.category].color }}
+          />
+          <strong>{activePoi.name}</strong>
+          <span className="poiKind">{POI_CATEGORY_META[activePoi.category].label}</span>
+          <button type="button" onClick={() => setActivePoi(null)} aria-label="Dismiss">
+            <X size={12} />
+          </button>
+        </div>
       ) : null}
     </div>
   );
