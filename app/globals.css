@@ -308,6 +308,7 @@ h3 {
   border-color: var(--ink-deep);
   background: var(--ink-deep);
   color: #fdfaf2;
+  box-shadow: inset 0 0 0 1px var(--brass);
 }
 
 .featuredHint {
@@ -337,6 +338,7 @@ h3 {
 
 .featuredCrawl:hover {
   border-color: var(--brass);
+  border-left-color: var(--brass-bright);
   box-shadow: var(--shadow);
 }
 
@@ -724,6 +726,11 @@ input[type="range"] {
   font-weight: 600;
   font-size: 0.85rem;
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modeToggle button:hover:not(.selected) {
+  color: var(--ink);
+  background: rgba(176, 129, 58, 0.08);
 }
 
 .modeToggle button.selected {
@@ -1832,6 +1839,115 @@ input[type="range"] {
 
 .composerMsg.ok {
   color: var(--pint);
+}
+
+/* ── Chrome micro-interactions: hover warm-up, focus rings, disabled ──────
+   Color/focus/disabled states are unconditional (a11y). Transform-based
+   press/lift feedback lives in the no-preference block below so reduced-motion
+   users get instant, static states. Tokens only, both themes. */
+
+/* Consistent brass focus ring on interactive chrome that lacked one. */
+.modeToggle button:focus-visible,
+.mapHeroVisit:focus-visible,
+.clearBtn:focus-visible,
+.resetBtn:focus-visible,
+.reportBtn:focus-visible,
+.composerToggle:focus-visible,
+.landlordBtn:focus-visible,
+.landlordSuggest button:focus-visible,
+.landmarkNearby button:focus-visible,
+.landmarkCardHead button:focus-visible,
+.mapHeroCardHead button:focus-visible,
+.photoPick:focus-within,
+.photoRemove:focus-visible,
+.citationChip:focus-visible,
+.sourceLinks a:focus-visible,
+.claimCard a:focus-visible,
+.landmarkCard a:focus-visible,
+.venuePickerList button:focus-visible,
+.routeList li > button:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Consistent disabled dimming where missing. */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Hover warm-up (color/border only) for list-style controls. */
+.landmarkNearby button:hover,
+.landlordSuggest button:hover,
+.citationChip:hover {
+  background: rgba(176, 129, 58, 0.06);
+}
+
+.dropCard,
+.claimCard {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dropCard:hover,
+.claimCard:hover {
+  border-color: var(--brass);
+}
+
+.venuePickerList button {
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.venuePickerList button:hover {
+  background: rgba(176, 129, 58, 0.05);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Short, scoped transitions so hover/focus states ease rather than snap. */
+  .modeToggle button,
+  .mapHeroVisit,
+  .clearBtn,
+  .resetBtn,
+  .reportBtn,
+  .composerToggle,
+  .landlordBtn,
+  .landlordSuggest button,
+  .landmarkNearby button,
+  .citationChip,
+  .landmarkCardHead button,
+  .mapHeroCardHead button,
+  .photoPick,
+  .photoRemove {
+    transition:
+      background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+      transform 0.12s ease, box-shadow 0.15s ease;
+  }
+
+  /* Press feedback — buttons dip on tap so interactions feel responsive. */
+  .segmented button:active,
+  .modeToggle button:active,
+  .nearbyBtn:active,
+  .clearBtn:active,
+  .resetBtn:active,
+  .shareBtn:active,
+  .reportBtn:active,
+  .composerToggle:active,
+  .landlordBtn:active,
+  .landlordForm button:active,
+  .landlordSuggest button:active,
+  .dropComposer button[type="submit"]:active,
+  .mapHeroVisit:active,
+  .photoPick:active,
+  .venuePickerList button:active,
+  .featuredCrawl:active {
+    transform: translateY(1px);
+  }
+
+  /* Featured cards and drop/claim cards lift a hair on hover. */
+  .featuredCrawl:hover,
+  .dropCard:hover,
+  .claimCard:hover {
+    transform: translateY(-1px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
