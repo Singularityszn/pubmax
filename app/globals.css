@@ -1841,6 +1841,140 @@ input[type="range"] {
   color: var(--pint);
 }
 
+/* ── Vibe tags ────────────────────────────────────────────────────────────
+   Tappable multi-select chips in the composer, plus read-only chips on drop
+   cards. Mirrors the .amenity pill shape; selected state reuses the brass
+   accent so it reads as "chosen" without a new colour token. */
+.vibeTagField {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.vibeTagField legend {
+  padding: 0;
+  margin-bottom: 6px;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.vibeTagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vibeChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  cursor: pointer;
+}
+
+.vibeChip:hover:not(:disabled) {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.vibeChip.selected {
+  border-color: var(--brass);
+  background: rgba(176, 129, 58, 0.14);
+  color: var(--brass);
+}
+
+.vibeChip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.vibeChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+/* Read-only chips shown on a drop card — smaller, non-interactive. */
+.dropVibeTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0 0;
+}
+
+.vibeChip.small {
+  min-height: 0;
+  padding: 2px 8px;
+  border-color: rgba(176, 129, 58, 0.35);
+  background: rgba(176, 129, 58, 0.1);
+  color: var(--brass);
+  font-size: 0.7rem;
+  cursor: default;
+}
+
+/* ── Sticky "Log a Pint Drop" primary action ──────────────────────────────
+   Prominent, thumb-reachable primary button. Sticks to the bottom of the
+   scroll area on narrow (mobile) widths so it stays in reach; static on wide. */
+.logDropBar {
+  margin-top: 12px;
+}
+
+.logDropBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--brass);
+  color: #fdfaf2;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.12s ease;
+}
+
+.logDropBtn:hover {
+  filter: brightness(1.08);
+}
+
+.logDropBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .logDropBtn:active {
+    transform: translateY(1px);
+  }
+}
+
+@media (max-width: 1050px) {
+  .logDropBar {
+    position: sticky;
+    bottom: 8px;
+    z-index: 2;
+    padding-top: 8px;
+    /* Fade the panel behind the sticky button so drop cards don't crowd it. */
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 0%, transparent) 0%,
+      var(--panel) 45%
+    );
+  }
+}
+
 /* ── Chrome micro-interactions: hover warm-up, focus rings, disabled ──────
    Color/focus/disabled states are unconditional (a11y). Transform-based
    press/lift feedback lives in the no-preference block below so reduced-motion

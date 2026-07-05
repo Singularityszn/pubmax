@@ -2,6 +2,7 @@
 
 import { ImagePlus, Send, X } from "lucide-react";
 
+import { VIBE_TAGS } from "@/lib/pintDrops";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
 type PintDropComposerProps = {
@@ -15,6 +16,8 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
     setHandle,
     dropForm,
     setDropForm,
+    vibeTags,
+    toggleVibeTag,
     pintPhoto,
     venuePhoto,
     pintInputRef,
@@ -25,6 +28,8 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
     dropMsg,
     submitDrop,
   } = state;
+
+  const maxTagsReached = vibeTags.length >= 4;
 
   return (
     <form className="dropComposer" onSubmit={(event) => submitDrop(event, venueId)}>
@@ -39,9 +44,9 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
         <input
           value={dropForm.price}
           onChange={(event) => setDropForm({ ...dropForm, price: event.target.value })}
-          placeholder="Price £"
+          placeholder="What did it cost? £"
           inputMode="decimal"
-          aria-label="Pint price in pounds"
+          aria-label="What did the pint cost, in pounds"
         />
         <input
           value={dropForm.drink}
@@ -53,15 +58,36 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
       <textarea
         value={dropForm.note}
         onChange={(event) => setDropForm({ ...dropForm, note: event.target.value })}
-        placeholder="Passed-down note — a memory, a story, why this pub matters…"
-        aria-label="Passed-down note"
+        placeholder="What happened? Who were you with?"
+        aria-label="What happened, and who were you with"
       />
       <input
         value={dropForm.era}
         onChange={(event) => setDropForm({ ...dropForm, era: event.target.value })}
-        placeholder="Era (e.g. 1970s, my childhood)"
-        aria-label="Era this memory belongs to"
+        placeholder="An old memory, or tonight?"
+        aria-label="An old memory, or tonight"
       />
+
+      <fieldset className="vibeTagField">
+        <legend>The vibe</legend>
+        <div className="vibeTagRow" role="group" aria-label="Vibe tags — choose up to 4">
+          {VIBE_TAGS.map((tag) => {
+            const selected = vibeTags.includes(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                className={selected ? "vibeChip selected" : "vibeChip"}
+                aria-pressed={selected}
+                disabled={!selected && maxTagsReached}
+                onClick={() => toggleVibeTag(tag)}
+              >
+                {tag}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
 
       <div className="photoRow">
         <div className="photoField">

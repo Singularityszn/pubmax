@@ -29,7 +29,7 @@ vi.mock("@/lib/supabase", async () => {
 });
 
 import { GET, POST } from "@/app/api/pint-drops/route";
-import { __resetPintDrops } from "@/lib/pintDrops";
+import { __resetPintDrops, validatePintDrop } from "@/lib/pintDrops";
 
 const URL_BASE = "http://localhost/api/pint-drops";
 
@@ -126,6 +126,73 @@ describe("POST /api/pint-drops (create)", () => {
       last = await post({ venueId: VENUE, handle: "flooder", priceGbp: 4 });
     }
     expect(last!.status).toBe(429);
+  });
+});
+
+describe("validatePintDrop — vibe tags (server-authoritative allowlist)", () => {
+  const base = { venueId: VENUE, handle: "ale", priceGbp: 4.2 };
+
+  it("keeps allow-listed tags (case-insensitively)", () => {
+    const result = validatePintDrop({ ...base, vibeTags: ["cheap", "Riverside", "LAST TRAIN"] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.vibeTags).toEqual(["cheap", "riverside", "last train"]);
+  });
+
+  it("drops unknown/garbage tags — never trusts the client", () => {
+    const result = validatePintDrop({
+      ...base,
+      vibeTags: ["cheap", "definitely-not-a-tag", "<script>", 42, null, "old local"],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.vibeTags).toEqual(["cheap", "old local"]);
+  });
+
+  it("caps at 4 tags", () => {
+    const result = validatePintDrop({
+      ...base,
+      vibeTags: ["cheap", "chaotic", "quiet pint", "old local", "date night", "riverside"],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.vibeTags).toHaveLength(4);
+  });
+
+  it("dedupes repeated tags", () => {
+    const result = validatePintDrop({ ...base, vibeTags: ["cheap", "cheap", "Cheap", "riverside"] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.vibeTags).toEqual(["cheap", "riverside"]);
+  });
+
+  it("validates a drop with only vibe tags + a price (tags are not a standalone signal)", () => {
+    const result = validatePintDrop({ venueId: VENUE, handle: "ale", priceGbp: 4.2, vibeTags: ["cheap"] });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.priceGbp).toBe(4.2);
+      expect(result.value.vibeTags).toEqual(["cheap"]);
+    }
+  });
+
+  it("still rejects a drop that has vibe tags but no price and no note", () => {
+    // Vibe tags alone never satisfy the price-or-note requirement.
+    const result = validatePintDrop({ venueId: VENUE, handle: "ale", vibeTags: ["cheap"] });
+    expect(result.ok).toBe(false);
+  });
+
+  it("omits the vibeTags field entirely when none are valid (backward-compatible)", () => {
+    const result = validatePintDrop({ ...base, vibeTags: ["nope"] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).not.toHaveProperty("vibeTags");
+  });
+
+  it("threads valid tags through the route into the returned DTO", async () => {
+    const res = await POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({ ...base, vibeTags: ["cheap", "nope", "hidden gem"] }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const { drop } = await res.json();
+    expect(drop.vibeTags).toEqual(["cheap", "hidden gem"]);
   });
 });
 

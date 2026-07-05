@@ -9,6 +9,7 @@ import type { Provenance } from "@/lib/curation";
 import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
 import {
   addPintDrop,
+  cleanVibeTags,
   keepHiddenPintDrop,
   listAllVisiblePintDrops,
   listByStatus,
@@ -18,7 +19,15 @@ import {
   restorePintDrop,
   type PintDrop,
   type PintDropStatus,
+  type VibeTag,
 } from "@/lib/pintDrops";
+
+/** Like cleanVibeTags but collapses an empty result to undefined, so the
+ *  optional `vibeTags` field stays absent (not `[]`) on drops with no tags. */
+function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
+  const tags = cleanVibeTags(value);
+  return tags.length ? tags : undefined;
+}
 import { getSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
 const TABLE = "visit_reports";
@@ -134,6 +143,11 @@ function toRow(drop: PersistableDrop) {
     price_gbp: drop.priceGbp,
     passed_down_note: drop.passedDownNote,
     era: drop.era,
+    // Persisted as a dedicated text[]/jsonb column (`vibe_tags`) — the values
+    // are already a server-filtered subset of VIBE_TAGS, so this is a plain
+    // one-line map on each side (like every other field here). Defaults to an
+    // empty array so an old row / notes-only drop round-trips cleanly.
+    vibe_tags: drop.vibeTags ?? [],
     pint_photo_key: drop.pintPhotoKey ?? null,
     venue_photo_key: drop.venuePhotoKey ?? null,
     provenance: drop.provenance,
@@ -156,6 +170,10 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     priceGbp: row.price_gbp === null || row.price_gbp === undefined ? null : Number(row.price_gbp),
     passedDownNote: String(row.passed_down_note ?? ""),
     era: String(row.era ?? ""),
+    // Re-filter on the way out too (defence in depth): a hand-edited or legacy
+    // row can't smuggle an off-allowlist tag into a public read. Undefined when
+    // empty so the field stays cleanly optional on old rows.
+    vibeTags: cleanVibeTagsOrUndefined(row.vibe_tags),
     provenance: row.provenance as Provenance,
     status: row.status as PintDropStatus,
     createdAt: String(row.created_at),
@@ -199,6 +217,9 @@ export function toDTO(drop: PersistableDrop): PintDropDTO {
     pintPhotoUrl: publicUrl(drop.pintPhotoKey, visible),
     venuePhotoUrl: publicUrl(drop.venuePhotoKey, visible),
   };
+  // Vibe tags are public, safe content — always exposed when present. Kept
+  // additive (absent, not []) so the public JSON shape stays backward-compatible.
+  if (drop.vibeTags && drop.vibeTags.length) dto.vibeTags = drop.vibeTags;
   if (visible && (drop.reportCount ?? 0) > 0) dto.reportCount = drop.reportCount;
   return dto;
 }
