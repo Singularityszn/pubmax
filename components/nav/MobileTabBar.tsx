@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Map, Newspaper, CirclePlus, Route, User } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -24,13 +25,18 @@ type Tab = {
   primary?: boolean;
 };
 
-const TABS: Tab[] = [
-  { href: "/map", label: "Map", Icon: Map, match: ["/map"] },
-  { href: "/feed", label: "Feed", Icon: Newspaper, match: ["/feed"] },
-  { href: "/map?log=1", label: "Log", Icon: CirclePlus, primary: true },
-  { href: "/crawls", label: "Crawls", Icon: Route, match: ["/crawls"] },
-  { href: "/u/you", label: "Profile", Icon: User, match: ["/u"] },
-];
+// The Profile tab's destination is the only auth-aware bit: signed-in users go
+// to /u/<their handle>, everyone else keeps the demo /u/you. `match: ["/u"]`
+// marks the tab active for any profile route in either case.
+function buildTabs(profileHref: string): Tab[] {
+  return [
+    { href: "/map", label: "Map", Icon: Map, match: ["/map"] },
+    { href: "/feed", label: "Feed", Icon: Newspaper, match: ["/feed"] },
+    { href: "/map?log=1", label: "Log", Icon: CirclePlus, primary: true },
+    { href: "/crawls", label: "Crawls", Icon: Route, match: ["/crawls"] },
+    { href: profileHref, label: "Profile", Icon: User, match: ["/u"] },
+  ];
+}
 
 function isActive(pathname: string, tab: Tab): boolean {
   // The Log tab points at /map?log=1 — a mode of the map, not its own page — so
@@ -44,11 +50,14 @@ function isActive(pathname: string, tab: Tab): boolean {
 
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
+  // Signed-in → their derived handle; signed-out (or still loading) → demo /you.
+  const { handle } = useAuth();
+  const tabs = buildTabs(handle ? `/u/${handle}` : "/u/you");
 
   return (
     <nav className="mobileTabBar" role="navigation" aria-label="Primary">
       <ul className="mobileTabList">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = isActive(pathname, tab);
           const { Icon } = tab;
           return (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxx.vercel.app"),
@@ -55,10 +56,15 @@ export default function RootLayout({
         />
       </head>
       <body>
-        {children}
-        {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
-            display:none on desktop so the existing navs are untouched. */}
-        <MobileTabBar />
+        {/* AuthProvider is additive: it establishes identity for signed-in users
+            but never gates a route — anonymous browsing stays fully public. The
+            session loads async client-side, so children render immediately. */}
+        <AuthProvider>
+          {children}
+          {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
+              display:none on desktop so the existing navs are untouched. */}
+          <MobileTabBar />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import ThamesHero from "./ThamesHero";
 import ThemeToggle from "@/components/ThemeToggle";
+import SignInButton from "@/components/auth/SignInButton";
 import PintDropStrip from "./PintDropStrip";
 import "./landing.css";
 
@@ -142,6 +143,7 @@ export default function LandingPage() {
             <Link href="/crawls">Crawls</Link>
             <Link href="/admin">Admin</Link>
             <ThemeToggle />
+            <SignInButton />
             <Link href="/map" className="btn btnPrimary topbarCta">
               Open the map
             </Link>

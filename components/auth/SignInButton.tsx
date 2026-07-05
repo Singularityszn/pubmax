@@ -1,0 +1,135 @@
+"use client";
+
+// "Continue with Google" — and, once signed in, the user's avatar/name + a
+// sign-out control.
+//
+// ──────────────────────────────────────────────────────────────────────────
+// OWNER MANUAL STEP (required for this to actually log anyone in):
+// Enable the Google provider in Supabase Auth —
+//   Dashboard → Authentication → Providers → Google —
+// with a Google Cloud OAuth client ID + secret. Then, in the Google Cloud
+// OAuth client, add BOTH of these to "Authorized redirect URIs":
+//   1. <site>/auth/callback           (e.g. https://pubmaxx.vercel.app/auth/callback)
+//   2. https://<project-ref>.supabase.co/auth/v1/callback   (the Supabase URL)
+// Until that is done the button will open Google and then FAIL the redirect —
+// that failure is EXPECTED and is not a bug in this code.
+// ──────────────────────────────────────────────────────────────────────────
+
+import { useCallback, useState } from "react";
+
+import { useAuth } from "@/components/auth/AuthProvider";
+import "@/app/auth/auth.css";
+
+// The official multi-colour Google "G" mark. Kept inline so it renders in both
+// themes without an asset request; brand colours are fixed (never tokenized).
+function GoogleMark(): React.JSX.Element {
+  return (
+    <svg className="authGoogleMark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path
+        fill="#4285F4"
+        d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M11.69 28.18c-.44-1.32-.69-2.73-.69-4.18s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"
+      />
+      <path
+        fill="#EA4335"
+        d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"
+      />
+    </svg>
+  );
+}
+
+/** Best-effort initials for the avatar fallback when Google gives us no photo. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const first = parts[0][0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? "" : "";
+  return (first + last).toUpperCase() || "?";
+}
+
+export default function SignInButton(): React.JSX.Element | null {
+  const { user, loading, configured, signInWithGoogle, signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onSignIn = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    const { error: signInError } = await signInWithGoogle();
+    // On success the browser redirects to Google, so we usually never get here;
+    // if signInWithOAuth returned an error instead, surface it and re-enable.
+    if (signInError) {
+      setError(signInError);
+      setBusy(false);
+    }
+  }, [signInWithGoogle]);
+
+  const onSignOut = useCallback(async () => {
+    setBusy(true);
+    await signOut();
+    setBusy(false);
+  }, [signOut]);
+
+  // Hide entirely when the public env is missing — no dead button.
+  if (!configured) return null;
+
+  // Avoid a flash of the wrong state while the first getSession() resolves.
+  if (loading) return null;
+
+  if (user) {
+    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const name =
+      (typeof meta.full_name === "string" && meta.full_name) ||
+      (typeof meta.name === "string" && meta.name) ||
+      user.email ||
+      "Signed in";
+    const avatar =
+      (typeof meta.avatar_url === "string" && meta.avatar_url) ||
+      (typeof meta.picture === "string" && meta.picture) ||
+      "";
+
+    return (
+      <div className="authUser">
+        {avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element -- remote Google avatar; no next/image loader configured for it
+          <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
+        ) : (
+          <span className="authAvatarFallback" aria-hidden="true">
+            {initials(name)}
+          </span>
+        )}
+        <span className="authName">{name}</span>
+        <button type="button" className="authSignOut" onClick={onSignOut} disabled={busy}>
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="authUser">
+      <button
+        type="button"
+        className="authSignIn"
+        onClick={onSignIn}
+        disabled={busy}
+        aria-label="Continue with Google"
+      >
+        <GoogleMark />
+        <span>Continue with Google</span>
+      </button>
+      {error ? (
+        <span className="authError" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}
