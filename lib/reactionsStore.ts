@@ -1,0 +1,182 @@
+// Durable pub-native reactions on a pint drop. ONE interface, TWO implementations
+// (process-memory + Supabase public.pint_drop_reactions), same seam pattern as
+// the other stores.
+//
+// A reaction is attributed to an `actor_hash` — the salted hash of the viewer's
+// anonymous device id (lib/anonId.ts + lib/supabase.ts hashActor), never a raw
+// id and never a raw IP. `unique(pint_drop_id, actor_hash, reaction)` makes each
+// (device, drop, reaction) at most one row, so a toggle is a pure insert-or-delete
+// and counts can't be double-inflated by one device.
+//
+// The reactions table FK-references visit_reports(id); demo seed drops are not
+// in that table, so a reaction on a seed raises a foreign-key violation. That is
+// surfaced as UnknownDropError → the route answers 404 and the client keeps its
+// local-only toggle for sample cards.
+
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+// The canonical reaction allowlist — imported by the feed card so the UI chips
+// and the server validation can never drift. Values are stored verbatim in the
+// `reaction` text column.
+export const REACTION_KEYS = ["cheers", "bargain", "chaos", "proper", "legendary"] as const;
+export type ReactionKey = (typeof REACTION_KEYS)[number];
+
+const REACTION_SET = new Set<string>(REACTION_KEYS);
+export function isReactionKey(value: unknown): value is ReactionKey {
+  return typeof value === "string" && REACTION_SET.has(value);
+}
+
+// Per-drop summary: a count for each reaction that has any, plus the subset the
+// asking actor has themselves selected (drives the "on" state of each chip).
+export type ReactionSummary = { counts: Partial<Record<ReactionKey, number>>; mine: ReactionKey[] };
+
+export type ReactionsStore = {
+  /** Toggle one reaction for an actor on a drop; returns the drop's fresh summary. */
+  toggle(dropId: string, actorHash: string, reaction: ReactionKey): Promise<ReactionSummary>;
+  /** Summaries for many drops at once (feed render), keyed by drop id. */
+  summarize(dropIds: string[], actorHash: string): Promise<Record<string, ReactionSummary>>;
+};
+
+/** The drop id is not a real, persisted drop (e.g. a demo seed) — the caller
+ *  should treat reactions on it as local-only. */
+export class UnknownDropError extends Error {
+  constructor(dropId: string) {
+    super(`Unknown pint drop: ${dropId}`);
+    this.name = "UnknownDropError";
+  }
+}
+
+const TABLE = "pint_drop_reactions";
+
+function admin() {
+  const client = getSupabaseAdmin();
+  if (!client) throw new Error("Supabase not configured.");
+  return client;
+}
+
+function isForeignKeyViolation(error: { code?: string } | null): boolean {
+  return error?.code === "23503";
+}
+
+// Fold raw (reaction, actor_hash) rows for a single drop into a summary.
+function summarizeRows(
+  rows: { reaction: string; actor_hash: string }[],
+  actorHash: string,
+): ReactionSummary {
+  const counts: Partial<Record<ReactionKey, number>> = {};
+  const mine = new Set<ReactionKey>();
+  for (const row of rows) {
+    if (!isReactionKey(row.reaction)) continue; // ignore any legacy/off-allowlist value
+    counts[row.reaction] = (counts[row.reaction] ?? 0) + 1;
+    if (row.actor_hash === actorHash) mine.add(row.reaction);
+  }
+  return { counts, mine: [...mine] };
+}
+
+// ── Supabase implementation ──────────────────────────────────────────────────
+export const supabaseReactionsStore: ReactionsStore = {
+  async toggle(dropId, actorHash, reaction) {
+    // Is this actor's reaction already present? Select decides insert vs delete.
+    const { data: existing, error: readError } = await admin()
+      .from(TABLE)
+      .select("id")
+      .eq("pint_drop_id", dropId)
+      .eq("actor_hash", actorHash)
+      .eq("reaction", reaction)
+      .limit(1);
+    if (readError) throw new Error(readError.message);
+
+    if ((existing ?? []).length > 0) {
+      const { error } = await admin()
+        .from(TABLE)
+        .delete()
+        .eq("pint_drop_id", dropId)
+        .eq("actor_hash", actorHash)
+        .eq("reaction", reaction);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await admin()
+        .from(TABLE)
+        .insert({ pint_drop_id: dropId, actor_hash: actorHash, reaction });
+      if (error) {
+        // A reaction on a drop that isn't in visit_reports (demo seed) — tell the
+        // caller so it can 404 rather than 500.
+        if (isForeignKeyViolation(error)) throw new UnknownDropError(dropId);
+        throw new Error(error.message);
+      }
+    }
+
+    // Recompute this drop's summary from the source of truth.
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("reaction, actor_hash")
+      .eq("pint_drop_id", dropId);
+    if (error) throw new Error(error.message);
+    return summarizeRows((data ?? []) as { reaction: string; actor_hash: string }[], actorHash);
+  },
+
+  async summarize(dropIds, actorHash) {
+    const ids = dropIds.filter(Boolean);
+    if (ids.length === 0) return {};
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("pint_drop_id, reaction, actor_hash")
+      .in("pint_drop_id", ids);
+    if (error) throw new Error(error.message);
+
+    // Bucket rows by drop, then fold each bucket into a summary.
+    const byDrop = new Map<string, { reaction: string; actor_hash: string }[]>();
+    for (const row of (data ?? []) as {
+      pint_drop_id: string;
+      reaction: string;
+      actor_hash: string;
+    }[]) {
+      const bucket = byDrop.get(row.pint_drop_id) ?? [];
+      bucket.push({ reaction: row.reaction, actor_hash: row.actor_hash });
+      byDrop.set(row.pint_drop_id, bucket);
+    }
+    const out: Record<string, ReactionSummary> = {};
+    for (const id of ids) out[id] = summarizeRows(byDrop.get(id) ?? [], actorHash);
+    return out;
+  },
+};
+
+// ── In-memory implementation ─────────────────────────────────────────────────
+// Rows as a Set of "dropId|actorHash|reaction" keys. Resets on restart. No FK,
+// so the memory store never raises UnknownDropError — dev/demo can react to any
+// id, which is the right dev ergonomics.
+const memoryRows = new Set<string>();
+
+function rowKey(dropId: string, actorHash: string, reaction: string): string {
+  return `${dropId}|${actorHash}|${reaction}`;
+}
+
+function memorySummarize(dropId: string, actorHash: string): ReactionSummary {
+  const rows: { reaction: string; actor_hash: string }[] = [];
+  const prefix = `${dropId}|`;
+  for (const key of memoryRows) {
+    if (!key.startsWith(prefix)) continue;
+    const [, actor, reaction] = key.split("|");
+    rows.push({ reaction, actor_hash: actor });
+  }
+  return summarizeRows(rows, actorHash);
+}
+
+export const memoryReactionsStore: ReactionsStore = {
+  async toggle(dropId, actorHash, reaction) {
+    const key = rowKey(dropId, actorHash, reaction);
+    if (memoryRows.has(key)) memoryRows.delete(key);
+    else memoryRows.add(key);
+    return memorySummarize(dropId, actorHash);
+  },
+  async summarize(dropIds, actorHash) {
+    const out: Record<string, ReactionSummary> = {};
+    for (const id of dropIds.filter(Boolean)) out[id] = memorySummarize(id, actorHash);
+    return out;
+  },
+};
+
+/** Test-only: clear the in-memory reaction set between cases. */
+export function __resetMemoryReactions(): void {
+  memoryRows.clear();
+}

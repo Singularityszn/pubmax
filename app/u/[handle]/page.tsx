@@ -4,14 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 
+import FollowButton from "@/components/profile/FollowButton";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SavedPubList from "@/components/profile/SavedPubList";
+import type { FollowCounts } from "@/lib/followStore";
 import {
   deriveProfileFromDrops,
   normalizeHandle,
   profileStats,
+  type Profile,
   type ProfileDrop,
 } from "@/lib/profiles";
+import type { ProfileRecord } from "@/lib/profileStore";
 import { savedByList, type ListType, type SavedPub } from "@/lib/savedPubs";
 
 import "./profile.css";
@@ -52,6 +56,16 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   // after mount. savedByList() guards `window`, so this only reads in the
   // browser.
   const [saved, setSaved] = useState<Partial<Record<ListType, SavedPub[]>>>({});
+
+  // The viewer's own handle (localStorage `pubmax_handle`), read after mount so
+  // the server render and hydration agree. Drives the follow button + whether
+  // this is the viewer's own profile.
+  const [myHandle, setMyHandle] = useState("");
+  // Durable profile row + follow graph, fetched from /api/profiles/[handle].
+  // Null profile → fall back to the synthesized-from-drops identity.
+  const [stored, setStored] = useState<ProfileRecord | null>(null);
+  const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
+  const [following, setFollowing] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -97,8 +111,79 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
     };
   }, []);
 
-  const profile = deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]);
+  // Read the viewer's own handle after mount (avoids a hydration mismatch — the
+  // server can't know localStorage). Done in an async step, not the synchronous
+  // effect body, so it satisfies react-hooks/set-state-in-effect (mirrors the
+  // loadSaved effect above).
+  useEffect(() => {
+    let active = true;
+    async function loadHandle() {
+      try {
+        const handle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
+        if (active) setMyHandle(handle);
+      } catch {
+        // storage disabled → stays anonymous, follow button hidden
+      }
+    }
+    void loadHandle();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch the durable profile row + follow counts + whether the viewer follows
+  // this handle. Best-effort: a failure just leaves the synthesized identity and
+  // zeroed counts, so the page still renders.
+  useEffect(() => {
+    if (!routeHandle) return;
+    const controller = new AbortController();
+    async function loadProfile() {
+      try {
+        const qs = myHandle ? `?viewer=${encodeURIComponent(myHandle)}` : "";
+        const res = await fetch(`/api/profiles/${encodeURIComponent(routeHandle)}${qs}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const body = (await res.json()) as {
+          profile?: ProfileRecord | null;
+          counts?: FollowCounts;
+          viewerFollowing?: boolean;
+        };
+        setStored(body.profile ?? null);
+        if (body.counts) setCounts(body.counts);
+        setFollowing(Boolean(body.viewerFollowing));
+      } catch {
+        // aborted / offline — keep the synthesized fallback
+      }
+    }
+    void loadProfile();
+    return () => controller.abort();
+  }, [routeHandle, myHandle]);
+
+  const synthesized = deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]);
+  // Overlay any durable, user-owned fields on top of the synthesized identity.
+  const profile: Profile = {
+    ...synthesized,
+    displayName: stored?.displayName ?? synthesized.displayName,
+    bio: stored?.bio ?? synthesized.bio,
+    homeCity: stored?.homeCity ?? synthesized.homeCity,
+    avatarUrl: stored?.avatarUrl ?? synthesized.avatarUrl,
+  };
   const stats = profileStats(drops as ProfileDrop[]);
+  const isOwnProfile = myHandle !== "" && myHandle === routeHandle;
+
+  // Follow control: shown only to a signed-in-by-handle viewer looking at
+  // someone else. A viewer with no handle sees nothing (following needs an
+  // identity — they get one by dropping a pint).
+  const followActions =
+    myHandle && !isOwnProfile ? (
+      <FollowButton
+        targetHandle={routeHandle}
+        followerHandle={myHandle}
+        initialFollowing={following}
+        onCountsChange={setCounts}
+      />
+    ) : null;
 
   return (
     <div className="lp profilePage">
@@ -119,14 +204,26 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
           <p className="profileEmpty">That profile link is missing a handle.</p>
         ) : state === "error" ? (
           <div className="profileErrorState">
-            <ProfileHeader profile={profile} stats={stats} />
+            <ProfileHeader
+              profile={profile}
+              stats={stats}
+              followers={counts.followers}
+              following={counts.following}
+              actions={followActions}
+            />
             <p className="profileEmpty">
               Couldn&apos;t load pints right now. Please try again in a moment.
             </p>
           </div>
         ) : (
           <>
-            <ProfileHeader profile={profile} stats={stats} />
+            <ProfileHeader
+              profile={profile}
+              stats={stats}
+              followers={counts.followers}
+              following={counts.following}
+              actions={followActions}
+            />
 
             <section className="profileDropsSection" aria-labelledby="dropsHeading">
               <h2 id="dropsHeading" className="profileSectionHeading">
