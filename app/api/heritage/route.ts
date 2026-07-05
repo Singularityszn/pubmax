@@ -1,7 +1,7 @@
 // POST /api/heritage — "The Landlord" heritage Q&A for one pub.
 // Grounded in retrieved facts only; never exposes API keys; never 500s the demo.
 
-import { answerHeritage, NO_STORY_LINE, type HeritageContext } from "@/lib/heritage";
+import { answerHeritage, NO_STORY_LINE } from "@/lib/heritage";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -41,13 +41,12 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: "Too many questions, slow down." }, { status: 429 });
     }
 
+    // Any client-supplied `context` is deliberately ignored — venue context is
+    // reconstructed server-side (heritage cache + pub_heritage) so a client
+    // cannot forge pub history.
     const venueId = typeof record.venueId === "string" ? record.venueId : undefined;
-    const context =
-      record.context && typeof record.context === "object"
-        ? (record.context as HeritageContext)
-        : undefined;
 
-    const response = await answerHeritage({ venueId, venueName, question, context });
+    const response = await answerHeritage({ venueId, venueName, question });
     return Response.json(response, { status: 200 });
   } catch {
     // Never 500 the demo — degrade to the honest empty-line answer.

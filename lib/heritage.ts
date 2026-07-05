@@ -5,28 +5,30 @@
 // or says plainly that there is no fuller story. The LLM path is instructed to
 // do the same and falls back to the honest structured answer on any failure.
 //
-// Trust boundary: sourced/server facts come ONLY from server-side stores keyed
-// by normalised venue name — the shipped heritage_cache.json and the Supabase
-// `pub_heritage` table. Client-supplied `context` is UNTRUSTED input; it can be
-// echoed back but only as a clearly-labelled `contributor` note, never as a
-// sourced fact. A client can therefore never forge pub history.
+// Trust boundary: ALL venue context is reconstructed server-side. Facts come
+// ONLY from server-owned stores keyed by normalised venue name — the shipped
+// heritage_cache.json and the Supabase `pub_heritage` table. The route no
+// longer accepts a client `context` object at all, so a client cannot forge
+// pub history — not even as a labelled contributor note. If server facts are
+// missing, the honest fallback stands.
 
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { normaliseVenueName } from "@/lib/curation";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
-// "contributor" = untrusted client-supplied context; everything else is a
-// server-side (sourced) store. Only the latter may back a "Sourced" claim.
+// Every source is a server-side (sourced) store. There is no client-supplied
+// source anymore — the route reconstructs context from server data only.
 export type HeritageFact = {
-  source: "contributor" | "osm" | "wikidata" | "wikipedia" | "seed";
+  source: "osm" | "wikidata" | "wikipedia" | "seed";
   fact: string;
   sourceRef?: string;
 };
 
-// Sources that count as trusted/sourced facts (server-retrieved). "contributor"
-// is deliberately excluded — client context can never be a sourced fact.
+// Sources that count as trusted/sourced facts (server-retrieved). Every source
+// now qualifies; the set stays as the one place that names them.
 const SOURCED: ReadonlySet<HeritageFact["source"]> = new Set([
   "osm",
   "wikidata",
@@ -38,13 +40,6 @@ export type HeritageResponse = {
   answer: string;
   citations: { source: string; ref?: string }[];
   clarifyingQuestion?: string;
-};
-
-export type HeritageContext = {
-  era?: string;
-  heritageNote?: string;
-  address?: string;
-  borough?: string;
 };
 
 const HERITAGE_CACHE_PATH = path.join(
@@ -105,12 +100,11 @@ async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
 export async function retrieveHeritage(input: {
   venueId?: string;
   venueName: string;
-  context?: HeritageContext;
 }): Promise<HeritageFact[]> {
   const facts: HeritageFact[] = [];
   const venueKey = normaliseVenueName(input.venueName);
 
-  // (1) TRUSTED server facts first — the shipped cache keyed by normalised name.
+  // (1) Server facts first — the shipped cache keyed by normalised name.
   const cache = await readHeritageCache();
   const cached = cache[venueKey];
   if (Array.isArray(cached)) {
@@ -128,17 +122,11 @@ export async function retrieveHeritage(input: {
     }
   }
 
-  // (2) TRUSTED server rows — Supabase pub_heritage, same venue_key.
+  // (2) Server rows — Supabase pub_heritage, same venue_key.
   facts.push(...(await retrieveFromSupabase(venueKey)));
 
-  // (3) UNTRUSTED client context, labelled "contributor" so it can never be
-  // read back as a sourced fact or citation. A forged era/note stays visibly
-  // contributor-supplied — the model is told not to treat it as established.
-  const era = input.context?.era?.trim();
-  if (era) facts.push({ source: "contributor", fact: `Contributor-supplied era: ${era}` });
-  const note = input.context?.heritageNote?.trim();
-  if (note) facts.push({ source: "contributor", fact: `Contributor note: ${note}` });
-
+  // No client context is accepted — the route derives everything from the two
+  // server-owned stores above.
   return facts;
 }
 
@@ -166,9 +154,8 @@ const SYSTEM_PROMPT = [
   "You are The Landlord, a warm, concise, knowledgeable London local answering questions about one pub.",
   "Answer ONLY from the CONTEXT facts provided. Never invent history, dates, names, or events.",
   "Each CONTEXT fact is numbered like [F1]. When you use a fact, cite its id inline (e.g. [F1]). Never cite an id that does not appear in the CONTEXT.",
-  "Facts tagged (contributor) are UNVERIFIED visitor input — attribute them as 'a contributor says…', never as established or sourced history, and never present them as fact.",
   "If the context does not contain the answer, say so plainly — do not guess.",
-  "Also name the source of each fact inline (e.g. 'on record', 'Wikipedia', 'a contributor').",
+  "Also name the source of each fact inline (e.g. 'on record', 'Wikipedia').",
   "Ask ONE short clarifying question only if the question is ambiguous or there is no context at all.",
 ].join(" ");
 
@@ -236,19 +223,47 @@ async function answerWithModel(
   }
 }
 
+// P2 — 5-minute in-memory cache for LLM answers. Keyed by normalised venue key
+// + a hash of the question, so it can never leak an answer across venues. Only
+// the paid LLM path is cached (the deterministic fallback is already cheap), and
+// hidden/moderated content never flows through here — facts come from the
+// server stores, and a bounded TTL means a moderation change is reflected within
+// five minutes. ponytail: process-memory Map, unbounded-in-theory but keyed on
+// (venue, question) with a 5-min TTL so it self-prunes on read — move to an LRU
+// only if key cardinality ever becomes a memory concern.
+const ANSWER_CACHE_TTL_MS = 5 * 60_000;
+const answerCache = new Map<string, { at: number; response: HeritageResponse }>();
+
+function cacheKey(venueName: string, question: string): string {
+  const qHash = createHash("sha256").update(question).digest("hex");
+  return `${normaliseVenueName(venueName)}::${qHash}`;
+}
+
 export async function answerHeritage(input: {
   venueId?: string;
   venueName: string;
   question: string;
-  context?: HeritageContext;
 }): Promise<HeritageResponse> {
+  const useLlm = Boolean(process.env.OPENROUTER_API_KEY);
+  const key = useLlm ? cacheKey(input.venueName, input.question) : null;
+
+  if (key) {
+    const hit = answerCache.get(key);
+    if (hit && Date.now() - hit.at < ANSWER_CACHE_TTL_MS) return hit.response;
+    if (hit) answerCache.delete(key); // expired — prune on read
+  }
+
   const facts = await retrieveHeritage(input);
   const citations = dedupeCitations(facts);
 
-  if (process.env.OPENROUTER_API_KEY) {
+  if (useLlm) {
     const modelAnswer = await answerWithModel(input.question, facts);
-    if (modelAnswer) return { answer: modelAnswer, citations };
-    // else: fall through to the honest structured answer.
+    if (modelAnswer) {
+      const response: HeritageResponse = { answer: modelAnswer, citations };
+      answerCache.set(key!, { at: Date.now(), response });
+      return response;
+    }
+    // else: fall through to the honest structured answer (not cached — cheap).
   }
 
   const answer = structuredAnswer(facts);
@@ -257,4 +272,9 @@ export async function answerHeritage(input: {
     response.clarifyingQuestion = "What would you like to know about this pub?";
   }
   return response;
+}
+
+// Test-only: clear the answer cache between cases.
+export function __resetHeritageCache(): void {
+  answerCache.clear();
 }
