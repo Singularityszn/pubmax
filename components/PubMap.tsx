@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -18,8 +19,14 @@ import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector from "@/components/map/VenueInspector";
+import MapToolbar from "@/components/map/MapToolbar";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import {
+  clearFavoritePint,
+  getFavoritePint,
+  setFavoritePint as persistFavoritePint,
+} from "@/lib/favoritePint";
 
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
 // a bare price is never a story, and demo seeds never move prices or hasStory.
@@ -63,6 +70,20 @@ export default function PubMap() {
   const [filters, setFilters] = useState<Filters>(seed.filters);
   const [mode, setMode] = useState<CrawlMode>(seed.mode);
   const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
+  // Map-first layout: the planner (left drawer) is hidden until the user asks
+  // for it — but a shared/restored crawl link opens straight into planning so
+  // the route isn't invisible on arrival.
+  const [planningOpen, setPlanningOpen] = useState<boolean>(
+    () =>
+      seed.builtIds.length > 0 ||
+      seed.mode === "build" ||
+      (typeof window !== "undefined" && /[?&](style|sel|mode|q)=/.test(window.location.search)),
+  );
+  // Favorite pint: re-prices the map to one beer. Persisted per-device; the
+  // guard mirrors readStoredBuiltIds so SSR and hydration read the same source.
+  const [favoritePint, setFavoritePintState] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : getFavoritePint(),
+  );
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   // The curated crawl whose blurb is shown under the route title. Cleared the
@@ -145,6 +166,13 @@ export default function PubMap() {
     [closeComposer],
   );
 
+  // Persist the favorite-pint choice as the user picks it (null = clear).
+  const changeFavoritePint = useCallback((beerId: string | null) => {
+    setFavoritePintState(beerId);
+    if (beerId) persistFavoritePint(beerId);
+    else clearFavoritePint();
+  }, []);
+
   // Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
   // the selected venue. The effect only adds/removes a DOM listener — the handler
   // calls setState, which is allowed (react-hooks/set-state-in-effect forbids
@@ -164,8 +192,15 @@ export default function PubMap() {
           search.focus();
         }
       } else if (event.key === "Escape") {
-        setSelectedVenueId("");
-        closeComposer();
+        // Close the venue detail first; a second Escape closes the planner.
+        setSelectedVenueId((current) => {
+          if (current) {
+            closeComposer();
+            return "";
+          }
+          setPlanningOpen(false);
+          return current;
+        });
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -208,6 +243,7 @@ export default function PubMap() {
       setBuiltIds(crawl.venueIds);
       setFilters((current) => ({ ...current, crawlStyle: crawl.crawlStyle }));
       setActiveCrawl(crawl); // its blurb shows under the route title until mutated
+      setPlanningOpen(true); // a loaded crawl needs the planner visible
       selectVenue(crawl.venueIds[0] ?? "");
     },
     [selectVenue],
@@ -239,6 +275,7 @@ export default function PubMap() {
         setMode("build");
         setBuiltIds(ids);
         setActiveCrawl(null); // a near-me crawl isn't a curated one
+        setPlanningOpen(true);
         selectVenue(ids[0]);
       },
       () => {
@@ -247,6 +284,8 @@ export default function PubMap() {
       },
     );
   }, [filteredVenues, filters.stopCount, selectVenue]);
+
+  const detailOpen = Boolean(selectedVenueId) && loaded;
 
   return (
     <main className="appShell dark">
@@ -261,62 +300,32 @@ export default function PubMap() {
         <Link href="/admin">Admin</Link>
       </nav>
 
-      <ControlRail
-        mode={mode}
-        onModeChange={setMode}
-        filters={filters}
-        onFiltersChange={setFilters}
-        filteredVenues={filteredVenues}
-        builtCount={builtIds.length}
-        onClearBuilt={clearBuilt}
-        onLoadCrawl={loadCuratedCrawl}
-        onNearbyCrawl={startNearbyCrawl}
-        nearbyLoading={nearbyLoading}
-        nearbyError={nearbyError}
-      />
-
+      {/* Full-bleed map is the base layer; every panel slides in over it. */}
       <section className="mapStage">
         {!loaded ? (
-          <div
-            aria-live="polite"
-            style={{
-              position: "absolute",
-              top: "18px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 5,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "10px",
-              padding: "8px 16px",
-              borderRadius: "999px",
-              background: "var(--panel-raised)",
-              border: "1px solid var(--line)",
-              color: "var(--ink-soft)",
-              fontSize: "13px",
-              boxShadow: "0 6px 20px rgba(0,0,0,0.28)",
-            }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                width: "9px",
-                height: "9px",
-                borderRadius: "50%",
-                background: "var(--brass)",
-                animation: "pulse 1.4s ease-in-out infinite",
-              }}
-            />
+          <div className="mapLoading" aria-live="polite">
+            <span aria-hidden="true" className="mapLoadingDot" />
             Loading London&rsquo;s pubs…
           </div>
         ) : null}
         <PubMapCanvas
           venues={filteredVenues}
-          route={route}
+          // The crawl only draws on the map while the planner is open — the
+          // clean first view is pubs + POIs, never a route the user didn't ask for.
+          route={planningOpen ? route : []}
           selectedVenueId={selectedVenueId}
           onVenueClick={handleVenueClick}
           onRouteStopClick={selectVenue}
           venueSignals={venueSignals}
+          favoritePint={favoritePint}
+        />
+        <MapToolbar
+          query={filters.query}
+          onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
+          favoritePint={favoritePint}
+          onFavoritePintChange={changeFavoritePint}
+          planningOpen={planningOpen}
+          onTogglePlanning={() => setPlanningOpen((open) => !open)}
         />
         <div className="mapLegend">
           <span>
@@ -337,58 +346,74 @@ export default function PubMap() {
         </div>
       </section>
 
-      <RoutePanel
-        mode={mode}
-        crawlStyle={filters.crawlStyle}
-        route={route}
-        filteredVenues={filteredVenues}
-        builtIds={builtIds}
-        activeVenueId={selectedVenue?.id}
-        venueSignals={venueSignals}
-        crawlBlurb={activeCrawl?.blurb}
-        crawlName={activeCrawl?.name}
-        onSelectVenue={selectVenue}
-        onToggleStop={toggleBuiltStop}
-        onReverseRoute={reverseRoute}
+      {/* Left drawer: the whole crawl planner, on demand. */}
+      <div
+        className={planningOpen ? "mapDrawer left open" : "mapDrawer left"}
+        aria-hidden={!planningOpen}
       >
-        {!loaded ? (
-          <section className="venueInspector" aria-live="polite" aria-busy="true">
-            <p className="description muted" style={{ marginTop: 0 }}>
-              Loading London&rsquo;s pubs…
-            </p>
-            <div style={{ display: "grid", gap: "10px", marginTop: "6px" }}>
-              {[0.85, 0.6, 0.75, 0.5].map((w, i) => (
-                <span
-                  key={i}
-                  aria-hidden="true"
-                  style={{
-                    display: "block",
-                    height: "12px",
-                    width: `${w * 100}%`,
-                    borderRadius: "6px",
-                    background: "var(--line)",
-                    opacity: 0.6,
-                    animation: "pulse 1.4s ease-in-out infinite",
-                    animationDelay: `${i * 0.12}s`,
-                  }}
-                />
-              ))}
-            </div>
-          </section>
-        ) : filteredVenues.length === 0 ? (
-          <section className="venueInspector" style={{ textAlign: "center" }}>
-            <p className="description" style={{ marginTop: 0 }}>
-              No pubs match these filters — try widening your price or clearing your story filters.
-            </p>
-            <button
-              type="button"
-              className="addStopBtn"
-              onClick={() => setFilters(seedCrawlState("").filters)}
-            >
-              Clear filters
-            </button>
-          </section>
-        ) : selectedVenue ? (
+        <ControlRail
+          mode={mode}
+          onModeChange={setMode}
+          filters={filters}
+          onFiltersChange={setFilters}
+          filteredVenues={filteredVenues}
+          builtCount={builtIds.length}
+          onClearBuilt={clearBuilt}
+          onLoadCrawl={loadCuratedCrawl}
+          onNearbyCrawl={startNearbyCrawl}
+          nearbyLoading={nearbyLoading}
+          nearbyError={nearbyError}
+        />
+        <RoutePanel
+          mode={mode}
+          crawlStyle={filters.crawlStyle}
+          route={route}
+          filteredVenues={filteredVenues}
+          builtIds={builtIds}
+          activeVenueId={selectedVenue?.id}
+          venueSignals={venueSignals}
+          crawlBlurb={activeCrawl?.blurb}
+          crawlName={activeCrawl?.name}
+          onSelectVenue={selectVenue}
+          onToggleStop={toggleBuiltStop}
+          onReverseRoute={reverseRoute}
+        >
+          {loaded && filteredVenues.length === 0 ? (
+            <section className="venueInspector" style={{ textAlign: "center" }}>
+              <p className="description" style={{ marginTop: 0 }}>
+                No pubs match these filters — try widening your price or clearing your story filters.
+              </p>
+              <button
+                type="button"
+                className="addStopBtn"
+                onClick={() => setFilters(seedCrawlState("").filters)}
+              >
+                Clear filters
+              </button>
+            </section>
+          ) : null}
+        </RoutePanel>
+      </div>
+
+      {/* Right drawer: the selected pub's detail — opens only on an explicit pick. */}
+      <div
+        className={detailOpen ? "mapDrawer right open" : "mapDrawer right"}
+        aria-hidden={!detailOpen}
+      >
+        <div className="mapDrawerHead">
+          <button
+            type="button"
+            className="drawerClose"
+            onClick={() => {
+              setSelectedVenueId("");
+              closeComposer();
+            }}
+            aria-label="Close pub detail"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        {detailOpen && selectedVenue ? (
           <VenueInspector
             venue={selectedVenue}
             mode={mode}
@@ -398,7 +423,7 @@ export default function PubMap() {
             pintDrops={pintDrops}
           />
         ) : null}
-      </RoutePanel>
+      </div>
     </main>
   );
 }
