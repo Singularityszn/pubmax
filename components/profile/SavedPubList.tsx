@@ -1,14 +1,17 @@
 "use client";
 
-import { LIST_TYPES, type ListType, type SavedPub } from "@/lib/savedPubs";
+import Link from "next/link";
+
+import { LIST_TYPES, type ListType, type SavedPubDTO } from "@/lib/savedPubs";
 
 // Presentational saved-pub lists, grouped by list type. Prop-driven: the page
-// reads localStorage and passes the grouped map. Renders nothing heavy — just
-// the venue id (the demo has no venue-name lookup here) + optional note, filed
-// under each list heading. Lists with no pubs are skipped; a fully-empty state
-// shows a friendly hint.
+// resolves saves (durable API when a handle exists, else localStorage) into
+// SavedPubDTO groups and passes the grouped map. Each item renders the resolved
+// pub NAME (never a raw "venue-…" id) linking to the pub on the map, filed under
+// each list heading. Lists with no pubs are skipped; a fully-empty state shows a
+// friendly hint.
 type SavedPubListProps = {
-  groups: Partial<Record<ListType, SavedPub[]>>;
+  groups: Partial<Record<ListType, SavedPubDTO[]>>;
 };
 
 export default function SavedPubList({ groups }: SavedPubListProps) {
@@ -46,7 +49,9 @@ export default function SavedPubList({ groups }: SavedPubListProps) {
               <ul className="savedListItems">
                 {pubs.map((pub) => (
                   <li className="savedItem" key={`${pub.venueId}:${listType}`}>
-                    <span className="savedItemVenue">{pub.venueId}</span>
+                    <Link className="savedItemVenue" href={pub.venueMapUrl}>
+                      {pub.venueName}
+                    </Link>
                     {pub.note ? <span className="savedItemNote">{pub.note}</span> : null}
                   </li>
                 ))}
