@@ -1,0 +1,175 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  applyFeedFilter,
+  cursorOf,
+  normalizePintDrop,
+  paginate,
+  type FeedItem,
+  type PintDropDTO,
+} from "@/lib/feed";
+
+// A minimal valid public DTO; overrides let each test vary one field.
+function dto(overrides: Partial<PintDropDTO> = {}): PintDropDTO {
+  return {
+    id: "d1",
+    handle: "old_ken",
+    priceGbp: 4.5,
+    drink: "Guinness",
+    passedDownNote: "My grandad drank here in the 70s.",
+    era: "1970s",
+    provenance: "contributor",
+    venueId: "venue-abc",
+    createdAt: "2026-07-05T20:00:00.000Z",
+    vibeTags: ["cheap", "old local"],
+    pintPhotoUrl: "https://cdn.example/pint.jpg",
+    venuePhotoUrl: "https://cdn.example/venue.jpg",
+    ...overrides,
+  };
+}
+
+// Build a normalized FeedItem directly for filter/paginate tests.
+function item(overrides: Partial<FeedItem> = {}): FeedItem {
+  return {
+    type: "pint_drop",
+    id: "x",
+    createdAt: "2026-07-05T20:00:00.000Z",
+    handle: "h",
+    venueId: "v",
+    photoUrls: [],
+    caption: "",
+    priceGbp: null,
+    vibeTags: [],
+    provenance: "contributor",
+    drink: "",
+    era: "",
+    ...overrides,
+  };
+}
+
+describe("normalizePintDrop", () => {
+  it("maps every documented field onto the normalized shape", () => {
+    const feedItem = normalizePintDrop(dto());
+    expect(feedItem.type).toBe("pint_drop");
+    expect(feedItem.id).toBe("d1");
+    expect(feedItem.handle).toBe("old_ken");
+    expect(feedItem.venueId).toBe("venue-abc");
+    expect(feedItem.priceGbp).toBe(4.5);
+    expect(feedItem.caption).toBe("My grandad drank here in the 70s.");
+    expect(feedItem.vibeTags).toEqual(["cheap", "old local"]);
+    expect(feedItem.provenance).toBe("contributor");
+    expect(feedItem.era).toBe("1970s");
+    expect(feedItem.createdAt).toBe("2026-07-05T20:00:00.000Z");
+  });
+
+  it("collects non-null photo URLs, pint before venue", () => {
+    expect(normalizePintDrop(dto()).photoUrls).toEqual([
+      "https://cdn.example/pint.jpg",
+      "https://cdn.example/venue.jpg",
+    ]);
+  });
+
+  it("drops null/empty photo URLs and yields an empty array when text-only", () => {
+    expect(
+      normalizePintDrop(dto({ pintPhotoUrl: null, venuePhotoUrl: "" })).photoUrls,
+    ).toEqual([]);
+    expect(
+      normalizePintDrop(dto({ pintPhotoUrl: null, venuePhotoUrl: "https://x/v.jpg" }))
+        .photoUrls,
+    ).toEqual(["https://x/v.jpg"]);
+  });
+
+  it("coerces a missing vibeTags/priceGbp to safe defaults", () => {
+    const feedItem = normalizePintDrop(
+      dto({ vibeTags: undefined, priceGbp: null }),
+    );
+    expect(feedItem.vibeTags).toEqual([]);
+    expect(feedItem.priceGbp).toBeNull();
+  });
+});
+
+describe("paginate", () => {
+  const items: FeedItem[] = Array.from({ length: 25 }, (_, i) =>
+    item({ id: `i${i}`, createdAt: `2026-07-05T20:00:${String(i).padStart(2, "0")}.000Z` }),
+  );
+
+  it("returns the first `limit` and a nextCursor of the last item", () => {
+    const page = paginate(items, undefined, 10);
+    expect(page.items).toHaveLength(10);
+    expect(page.nextCursor).toBe(cursorOf(items[9]));
+  });
+
+  it("continues from a cursor with no overlap across pages", () => {
+    const first = paginate(items, undefined, 10);
+    const second = paginate(items, first.nextCursor, 10);
+    const firstIds = new Set(first.items.map((i) => i.id));
+    for (const it of second.items) {
+      expect(firstIds.has(it.id)).toBe(false);
+    }
+    expect(second.items[0].id).toBe(items[10].id);
+  });
+
+  it("returns a null nextCursor on the final page", () => {
+    const last = paginate(items, cursorOf(items[19]), 10);
+    expect(last.items).toHaveLength(5);
+    expect(last.nextCursor).toBeNull();
+  });
+
+  it("empty input → empty page and null cursor", () => {
+    expect(paginate([], undefined, 12)).toEqual({ items: [], nextCursor: null });
+  });
+
+  it("falls back to the first page for an unknown cursor", () => {
+    const page = paginate(items, "bogus|cursor", 5);
+    expect(page.items[0].id).toBe(items[0].id);
+  });
+});
+
+describe("applyFeedFilter", () => {
+  it("cheap keeps only priced <= £5.50, sorted ascending", () => {
+    const items = [
+      item({ id: "a", priceGbp: 5.5 }),
+      item({ id: "b", priceGbp: 8 }),
+      item({ id: "c", priceGbp: 3.2 }),
+      item({ id: "d", priceGbp: null }),
+      item({ id: "e", priceGbp: 4.9 }),
+    ];
+    const cheap = applyFeedFilter(items, "cheap");
+    expect(cheap.map((i) => i.id)).toEqual(["c", "e", "a"]);
+    expect(cheap.every((i) => (i.priceGbp as number) <= 5.5)).toBe(true);
+  });
+
+  it("tonight keeps only drops from the last 24h", () => {
+    const now = Date.now();
+    const items = [
+      item({ id: "fresh", createdAt: new Date(now - 60_000).toISOString() }),
+      item({ id: "stale", createdAt: new Date(now - 48 * 3600_000).toISOString() }),
+    ];
+    expect(applyFeedFilter(items, "tonight").map((i) => i.id)).toEqual(["fresh"]);
+  });
+
+  it("golden-days keeps drops with an era or anecdote provenance", () => {
+    const items = [
+      item({ id: "memory", era: "1980s", provenance: "contributor" }),
+      item({ id: "tale", era: "", provenance: "anecdote" }),
+      item({ id: "plain", era: "", provenance: "contributor" }),
+    ];
+    expect(applyFeedFilter(items, "golden-days").map((i) => i.id).sort()).toEqual([
+      "memory",
+      "tale",
+    ]);
+  });
+
+  it("demo lanes (friends/nearby/crawls) pass the set through unchanged", () => {
+    const items = [item({ id: "a" }), item({ id: "b" })];
+    for (const f of ["friends", "nearby", "crawls"] as const) {
+      expect(applyFeedFilter(items, f).map((i) => i.id)).toEqual(["a", "b"]);
+    }
+  });
+
+  it("empty input stays empty for every filter", () => {
+    for (const f of ["tonight", "cheap", "golden-days", "friends"] as const) {
+      expect(applyFeedFilter([], f)).toEqual([]);
+    }
+  });
+});
