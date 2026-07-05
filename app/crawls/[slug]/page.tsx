@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import ShareBar from "@/components/share/ShareBar";
 import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
 
 import "./story.css";
@@ -87,6 +88,11 @@ export default async function CrawlStoryPage({ params }: PageProps) {
   const pricedStops = story.stops.filter((stop) => typeof stop.priceGbp === "number").length;
   const stopCount = story.stops.length;
 
+  // Share lockup — a nostalgic one-liner so the crawl travels into a group chat.
+  const shareText = `${story.title} — ${stopCount} stop${stopCount === 1 ? "" : "s"}${
+    total > 0 ? `, ${formatGbp(total)} a round` : ""
+  }. Every pint has a story.`;
+
   return (
     <main className="storyShell">
       <nav className="storyNav" aria-label="Site navigation">
@@ -155,6 +161,11 @@ export default async function CrawlStoryPage({ params }: PageProps) {
           >
             Copy link
           </button>
+        </div>
+
+        {/* Share strip — the crawl spreads across X, WhatsApp, and group chats. */}
+        <div className="storyShare">
+          <ShareBar url={`/crawls/${slug}`} title={story.title} text={shareText} />
         </div>
 
         <p className="storyFootnote">Every pint has a story.</p>

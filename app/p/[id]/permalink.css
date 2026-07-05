@@ -246,6 +246,13 @@
   color: var(--brass);
 }
 
+/* Share strip — a quiet stamp row under the actions, pinned to the mat. */
+.permalink__share {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+}
+
 /* Comments below the card. */
 .permalink__comments {
   width: 100%;

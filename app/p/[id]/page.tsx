@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import CommentThread from "@/components/pintdrop/CommentThread";
+import ShareBar from "@/components/share/ShareBar";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 
 import "./permalink.css";
@@ -108,6 +109,12 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
   const headline = drop.drink || "A pint worth remembering";
   const hasPhoto = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
 
+  // Share lockup: a nostalgic one-liner that carries the pint into a group chat.
+  const shareTitle = `@${drop.handle}'s pint at ${drop.venueName}${price ? ` — ${price}` : ""}`;
+  const shareText = price
+    ? `Found a proper pint at ${drop.venueName} — ${price}. Every pint has a story.`
+    : `Found a proper pint at ${drop.venueName}. Every pint has a story.`;
+
   return (
     <main className="permalink">
       <div className="permalink__mat">
@@ -173,6 +180,11 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
           <Link className="permalink__ghost" href={drop.venueMapUrl}>
             Open the pub on the map
           </Link>
+        </div>
+
+        {/* Share strip — the pint spreads across X, WhatsApp, and group chats. */}
+        <div className="permalink__share">
+          <ShareBar url={`/p/${id}`} title={shareTitle} text={shareText} />
         </div>
       </div>
 
