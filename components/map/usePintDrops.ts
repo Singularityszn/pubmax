@@ -46,8 +46,8 @@ export function usePintDrops() {
   const [dropMsg, setDropMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
-  // ponytail: ref guard + optimistic removal is the whole "pending state" for
-  // reports — the button unmounts on click, so double-submit can't happen.
+  // Ref guard + optimistic removal is the whole "pending state" for reports —
+  // the button unmounts on click, so double-submit can't happen.
   const reportsInFlight = useRef(new Set<string>());
 
   useEffect(() => {
@@ -207,8 +207,8 @@ export function usePintDrops() {
         body: JSON.stringify({ action: "report", id }),
       });
     } catch {
-      // ponytail: swallow — the drop is already hidden locally; a failed report
-      // just means it reappears on next load, which is acceptable for demo moderation.
+      // Swallow — the drop is already hidden locally; a failed report just
+      // means it reappears on next load, which is acceptable for demo moderation.
     }
   }
 

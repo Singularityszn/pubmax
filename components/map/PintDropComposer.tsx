@@ -1,6 +1,6 @@
 "use client";
 
-import { ImagePlus, Send, X } from "lucide-react";
+import { Camera, Send, SmilePlus, X } from "lucide-react";
 
 import { VIBE_TAGS } from "@/lib/pintDrops";
 import type { PintDropsState } from "@/components/map/usePintDrops";
@@ -89,7 +89,7 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
         </div>
       </fieldset>
 
-      <div className="photoRow">
+      <div className="photoRow instaPintRow">
         <div className="photoField">
           {pintPhoto ? (
             <div className="photoPreview">
@@ -112,12 +112,15 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
             </div>
           ) : (
             <label className="photoPick">
-              <ImagePlus size={16} />
+              <Camera size={18} />
               <span>Your pint</span>
+              <small>Snap the pour</small>
+              {/* `capture="environment"` opens the rear camera on mobile so the
+                  pint slot is camera-first; desktop falls back to a file pick. */}
               <input
                 ref={pintInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 capture="environment"
                 onChange={(event) =>
                   pickPhoto("pint", event.target.files?.[0], event.target)
@@ -132,7 +135,7 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={venuePhoto.previewUrl}
-                alt="Preview of your pub photo"
+                alt="Preview of your cheeky selfie at the bar"
                 width={120}
                 height={120}
                 decoding="async"
@@ -141,20 +144,23 @@ export default function PintDropComposer({ venueId, state }: PintDropComposerPro
                 type="button"
                 className="photoRemove"
                 onClick={() => removePhoto("venue")}
-                aria-label="Remove pub photo"
+                aria-label="Remove selfie"
               >
                 <X size={13} /> Remove
               </button>
             </div>
           ) : (
             <label className="photoPick">
-              <ImagePlus size={16} />
-              <span>The pub</span>
+              <SmilePlus size={18} />
+              <span>You at the bar</span>
+              <small>Cheeky selfie</small>
+              {/* `capture="user"` opens the front (selfie) camera on mobile for
+                  the "you at the bar" slot; desktop falls back to a file pick. */}
               <input
                 ref={venueInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
-                capture="environment"
+                accept="image/*"
+                capture="user"
                 onChange={(event) =>
                   pickPhoto("venue", event.target.files?.[0], event.target)
                 }

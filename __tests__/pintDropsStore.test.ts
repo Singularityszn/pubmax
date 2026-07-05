@@ -7,8 +7,13 @@ const getPublicUrl = vi.fn((key: string) => ({
   data: { publicUrl: `https://cdn.test/pint-drops/${key}` },
 }));
 const rpcMock = vi.fn();
+// Table insert mock (create() → admin().from(TABLE).insert(row)). Each test sets
+// its own resolved value(s); a from() call returns a fresh object every time so
+// the two inserts of a resilience retry each hit the queued mock in order.
+const insertMock = vi.fn();
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
+    from: () => ({ insert: insertMock }),
     storage: { from: () => ({ getPublicUrl, remove: removeMock }) },
     rpc: rpcMock,
   }),
@@ -208,5 +213,87 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
     rpcMock.mockClear();
     rpcMock.mockResolvedValueOnce({ data: null, error: null });
     expect(await supabasePintDropStore.report("nope")).toBe(false);
+  });
+});
+
+// Additive-column rollout safety (migration 0005): create() must survive a live
+// DB where the `vibe_tags` column isn't applied yet. Normal path includes the
+// column; a missing-column error triggers ONE retry without it and still succeeds.
+describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
+  const noPhotos = { pint: null, venue: null };
+  const dropWithTags = () =>
+    drop({ id: "r1", vibeTags: ["cheap", "riverside"] }) as unknown as Parameters<
+      typeof supabasePintDropStore.create
+    >[0];
+
+  it("normal path: first insert includes vibe_tags and does not retry", async () => {
+    insertMock.mockReset();
+    insertMock.mockResolvedValueOnce({ error: null });
+
+    const dto = await supabasePintDropStore.create(dropWithTags(), noPhotos);
+
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    // The single insert carries the vibe_tags column.
+    const row = insertMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(row.vibe_tags).toEqual(["cheap", "riverside"]);
+    // The returned DTO still surfaces the tags (public content).
+    expect(dto.vibeTags).toEqual(["cheap", "riverside"]);
+  });
+
+  it("missing-column (42703): retries WITHOUT vibe_tags and still succeeds", async () => {
+    insertMock.mockReset();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // First attempt fails with the Postgres undefined_column error naming the
+    // column; the retry (row minus vibe_tags) succeeds.
+    insertMock
+      .mockResolvedValueOnce({
+        error: { code: "42703", message: 'column "vibe_tags" of relation "visit_reports" does not exist' },
+      })
+      .mockResolvedValueOnce({ error: null });
+
+    const dto = await supabasePintDropStore.create(dropWithTags(), noPhotos);
+
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    // First insert had vibe_tags; the retry omitted the key entirely.
+    expect((insertMock.mock.calls[0][0] as Record<string, unknown>).vibe_tags).toEqual([
+      "cheap",
+      "riverside",
+    ]);
+    expect(insertMock.mock.calls[1][0] as Record<string, unknown>).not.toHaveProperty("vibe_tags");
+    // A one-line warning names the pending migration (not silent).
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("migration 0005"), expect.any(String));
+    // The drop still persists; the DTO is returned normally.
+    expect(dto.id).toBe("r1");
+    warn.mockRestore();
+  });
+
+  it("missing-column (PostgREST PGRST204): also retries without vibe_tags", async () => {
+    insertMock.mockReset();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    insertMock
+      .mockResolvedValueOnce({
+        error: { code: "PGRST204", message: "Could not find the 'vibe_tags' column of 'visit_reports' in the schema cache" },
+      })
+      .mockResolvedValueOnce({ error: null });
+
+    await supabasePintDropStore.create(dropWithTags(), noPhotos);
+
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(insertMock.mock.calls[1][0] as Record<string, unknown>).not.toHaveProperty("vibe_tags");
+    warn.mockRestore();
+  });
+
+  it("an unrelated insert error still throws (not swallowed as a missing column)", async () => {
+    insertMock.mockReset();
+    // A different missing column (not vibe_tags) must NOT be silently retried —
+    // that would drop real data. The condition requires the vibe_tags name.
+    insertMock.mockResolvedValueOnce({
+      error: { code: "42703", message: 'column "handle" of relation "visit_reports" does not exist' },
+    });
+
+    await expect(supabasePintDropStore.create(dropWithTags(), noPhotos)).rejects.toThrow(
+      /handle/,
+    );
+    expect(insertMock).toHaveBeenCalledTimes(1); // no retry
   });
 });
