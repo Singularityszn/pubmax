@@ -1,6 +1,6 @@
 "use client";
 
-import { BookMarked, Check, Copy } from "lucide-react";
+import { BookMarked, Check, Copy, Link2 } from "lucide-react";
 import { useState } from "react";
 
 import { encodeCrawlStory, VIBE_TAGS, type VibeTag } from "@/lib/crawlStory";
@@ -27,9 +27,16 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
   const [caption, setCaption] = useState("");
   const [tags, setTags] = useState<VibeTag[]>([]);
   const [copied, setCopied] = useState(false);
+  // The durable permalink: the /crawls/[slug] URL returned by POST /api/crawls,
+  // or "" until one is saved. "saving" gates a double-submit; "error" surfaces a
+  // friendly failure without blowing away the anonymous copy path.
+  const [permaLink, setPermaLink] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   function toggleTag(tag: VibeTag) {
     setCopied(false);
+    setSaveError("");
     setTags((current) =>
       current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag],
     );
@@ -59,6 +66,58 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard denied (permissions / insecure origin) — no-op, no crash.
+    }
+  }
+
+  // Persist the crawl to Supabase (via /api/crawls) so it earns a stable,
+  // slug-addressed permalink (/crawls/[slug]) — the durable upgrade over the
+  // anonymous ?s= link above. Best-effort: a failure surfaces a friendly message
+  // and leaves the anonymous copy path fully working.
+  async function savePermanentLink() {
+    if (saving) return;
+    setSaving(true);
+    setSaveError("");
+    setPermaLink("");
+    try {
+      const res = await fetch("/api/crawls", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim() || defaultTitle || "My London crawl",
+          summary: caption.trim(),
+          visibility: "public",
+          vibeTags: tags,
+          stops: stops.map((stop) => ({
+            venueId: stop.venueId,
+            priceGbp: stop.priceGbp ?? null,
+          })),
+        }),
+      });
+      if (!res.ok) {
+        setSaveError(
+          res.status === 429
+            ? "You're saving crawls too fast — try again in a minute."
+            : "Couldn't save a permanent link right now.",
+        );
+        return;
+      }
+      const body = (await res.json()) as { slug?: string };
+      if (!body.slug) {
+        setSaveError("Couldn't save a permanent link right now.");
+        return;
+      }
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const link = `${origin}/crawls/${body.slug}`;
+      setPermaLink(link);
+      try {
+        await navigator.clipboard.writeText(link);
+      } catch {
+        // Clipboard denied — the link is still shown below to copy manually.
+      }
+    } catch {
+      setSaveError("Couldn't save a permanent link right now.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -98,6 +157,8 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
           placeholder={defaultTitle || "Name this crawl"}
           onChange={(event) => {
             setCopied(false);
+            setPermaLink("");
+            setSaveError("");
             setTitle(event.target.value);
           }}
           style={{
@@ -120,6 +181,8 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
           placeholder="What made this crawl worth walking?"
           onChange={(event) => {
             setCopied(false);
+            setPermaLink("");
+            setSaveError("");
             setCaption(event.target.value);
           }}
           style={{
@@ -160,7 +223,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
         })}
       </div>
 
-      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
         <button type="button" className="addStopBtn" style={{ marginTop: 0 }} onClick={copyStoryLink}>
           {copied ? (
             <Check size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
@@ -168,6 +231,19 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
             <Copy size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
           )}
           {copied ? "Copied!" : "Copy share link"}
+        </button>
+        {/* The durable upgrade: POST to /api/crawls for a permanent /crawls/[slug]
+            link. The anonymous copy button above still works either way. */}
+        <button
+          type="button"
+          className="addStopBtn"
+          style={{ marginTop: 0 }}
+          onClick={savePermanentLink}
+          disabled={saving}
+          aria-busy={saving}
+        >
+          <Link2 size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+          {saving ? "Saving…" : "Save a permanent link"}
         </button>
         <button
           type="button"
@@ -184,6 +260,21 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
           Close
         </button>
       </div>
+
+      {saveError ? (
+        <p role="alert" style={{ margin: 0, fontSize: "13px", color: "var(--brass)" }}>
+          {saveError}
+        </p>
+      ) : null}
+
+      {permaLink ? (
+        <p style={{ margin: 0, fontSize: "13px", color: "var(--ink-soft)" }}>
+          Permanent link (copied):{" "}
+          <a href={permaLink} style={{ color: "var(--brass)", wordBreak: "break-all" }}>
+            {permaLink}
+          </a>
+        </p>
+      ) : null}
     </section>
   );
 }
