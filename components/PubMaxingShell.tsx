@@ -7,7 +7,7 @@ const PubMap = dynamic(() => import("./PubMap"), {
   loading: () => (
     <main className="loadingShell">
       <div>
-        <p className="eyebrow">PubMaxing</p>
+        <p className="eyebrow">PUBMAXXING</p>
         <h1>Loading London pub map...</h1>
       </div>
     </main>

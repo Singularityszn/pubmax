@@ -5,32 +5,32 @@ import "./theme.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxx.vercel.app"),
   title: {
-    default: "PubMaxing",
-    template: "%s | PubMaxing",
+    default: "PUBMAXXING — Every pint has a story",
+    template: "%s | PUBMAXXING",
   },
   description:
-    "A price-aware, story-led London pub crawl planner with real pint prices, heritage pubs, and community Pint Drops.",
+    "Every pint has a story. PUBMAXXING is a price-aware, story-led London pub-crawl planner — real pint prices, heritage pubs, and community Pint Drops.",
   openGraph: {
-    title: "PubMaxing",
+    title: "PUBMAXXING — Every pint has a story",
     description:
-      "Plan London pub crawls by price, story, setting, and community Pint Drops.",
+      "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
     url: "https://pubmaxx.vercel.app",
-    siteName: "PubMaxing",
+    siteName: "PUBMAXXING",
     type: "website",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "PubMaxing London pub crawl planner",
+        alt: "PUBMAXXING — London pub crawl planner",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "PubMaxing",
+    title: "PUBMAXXING — Every pint has a story",
     description:
-      "Plan London pub crawls by price, story, setting, and community Pint Drops.",
+      "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
     images: ["/og.png"],
   },
   icons: {

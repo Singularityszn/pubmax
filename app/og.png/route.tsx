@@ -129,7 +129,7 @@ export async function GET() {
                 letterSpacing: 0.5,
               }}
             >
-              PubMaxing
+              PUBMAXXING
             </div>
           </div>
           <div
@@ -203,7 +203,7 @@ export async function GET() {
               fontSize: 30,
             }}
           >
-            Bring back pub crawling.
+            Every pint has a story.
           </div>
           <div
             style={{
