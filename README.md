@@ -1,6 +1,6 @@
-# PubMaxing
+# PUBMAXXING
 
-A **price-aware, story-led London pub-crawl planner**. Three layers on one living 3-D map: the **price** of every observed pint (colour-coded cheap → expensive), the **setting** (by the water, gardens, walkable route shape), and the **story** (pub heritage, sourced editorial picks, and community **Pint Drops** — each carrying visible provenance so history and legend never blur).
+**Every pint has a story.** A **price-aware, story-led London pub-crawl planner**. Three layers on one living 3-D map: the **price** of every observed pint (colour-coded cheap → expensive), the **setting** (by the water, gardens, walkable route shape), and the **story** (pub heritage, sourced editorial picks, and community **Pint Drops** — each carrying visible provenance so history and legend never blur).
 
 Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs — or load a curated **Featured route** or **Pubs near me**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**, a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
 

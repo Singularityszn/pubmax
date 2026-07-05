@@ -14,7 +14,49 @@ export type PintDropInput = {
   priceGbp?: number | null;
   passedDownNote?: string;
   era?: string;
+  vibeTags?: string[];
 };
+
+// Server-authoritative vibe-tag allowlist (PRD §8 "quick tags"). The client
+// mirrors this list for UX, but the server is the trust boundary: anything not
+// on this exact list is dropped on the way in (see validatePintDrop). Kept as a
+// frozen array so the order is stable and it can't be mutated at runtime.
+export const VIBE_TAGS = [
+  "cheap",
+  "chaotic",
+  "quiet pint",
+  "old local",
+  "date night",
+  "coding pint",
+  "last train",
+  "riverside",
+  "hidden gem",
+  "first legal pint",
+] as const;
+
+export type VibeTag = (typeof VIBE_TAGS)[number];
+
+const VIBE_TAG_SET: ReadonlySet<string> = new Set(VIBE_TAGS);
+const MAX_VIBE_TAGS = 4;
+
+/**
+ * Normalise an untrusted vibe-tag list: accept only allow-listed tags
+ * (case-insensitively), dedupe, and cap at MAX_VIBE_TAGS. Never trusts the
+ * client — an unknown or malformed tag is silently dropped, not stored.
+ */
+export function cleanVibeTags(value: unknown): VibeTag[] {
+  if (!Array.isArray(value)) return [];
+  const out: VibeTag[] = [];
+  for (const raw of value) {
+    if (typeof raw !== "string") continue;
+    const tag = raw.trim().toLowerCase();
+    if (VIBE_TAG_SET.has(tag) && !out.includes(tag as VibeTag)) {
+      out.push(tag as VibeTag);
+      if (out.length >= MAX_VIBE_TAGS) break;
+    }
+  }
+  return out;
+}
 
 export type PintDropStatus = "visible" | "hidden" | "pending";
 
@@ -26,6 +68,9 @@ export type PintDrop = {
   priceGbp: number | null;
   passedDownNote: string;
   era: string;
+  // Optional so old rows / notes-only drops read fine without them. Always a
+  // server-filtered subset of VIBE_TAGS (never client-trusted) — public content.
+  vibeTags?: VibeTag[];
   provenance: Provenance;
   status: PintDropStatus;
   createdAt: string;
@@ -96,6 +141,10 @@ export function validatePintDrop(input: unknown): ValidationResult {
 
   const provenance: Provenance = priceGbp !== null ? "contributor" : "anecdote";
 
+  // Vibe tags are supporting metadata, not a standalone signal: they never
+  // satisfy the price-or-note requirement above. Filtered to the allowlist here.
+  const vibeTags = cleanVibeTags(raw.vibeTags);
+
   return {
     ok: true,
     value: {
@@ -106,6 +155,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
       priceGbp,
       passedDownNote: note,
       era: clean(raw.era, MAX_ERA),
+      ...(vibeTags.length ? { vibeTags } : {}),
       provenance,
       status: "visible",
       createdAt: new Date().toISOString(),

@@ -1,0 +1,255 @@
+/* Crawl Story poster. All selectors here are new + scoped to this page; the
+   values lean on the existing design-system CSS vars so the poster inherits the
+   "printed guidebook" theme (brass accent, cream paper, serif headings). */
+
+.crawlsShell {
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 24px 16px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.crawlsShell .siteNav {
+  width: 100%;
+  max-width: 640px;
+}
+
+/* --- shared bits ---------------------------------------------------------- */
+
+.crawlEyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--brass);
+  font-weight: 700;
+}
+
+/* --- empty state ---------------------------------------------------------- */
+
+.crawlEmpty {
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+  padding: 40px 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.crawlEmpty h1 {
+  margin: 0 0 14px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  line-height: 1.15;
+}
+
+.crawlEmptyBody {
+  margin: 0 auto 24px;
+  max-width: 440px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+/* --- poster --------------------------------------------------------------- */
+
+.crawlPoster {
+  width: 100%;
+  max-width: 640px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 32px 28px;
+  box-shadow: 0 18px 48px rgba(15, 28, 22, 0.1);
+}
+
+.crawlPosterHead {
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 20px;
+}
+
+.crawlPosterHead h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  line-height: 1.12;
+}
+
+.crawlCaption {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.crawlTags {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.crawlTag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--brass);
+  color: var(--brass);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* --- stops ---------------------------------------------------------------- */
+
+.crawlStops {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 0;
+}
+
+.crawlStop {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.crawlStopNumber {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brass);
+  color: var(--panel-raised);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.crawlStopBody {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.crawlStopBody strong {
+  display: block;
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.crawlStopNote {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.crawlStopPrice {
+  flex: 0 0 auto;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  padding-top: 2px;
+}
+
+/* --- receipt-style total -------------------------------------------------- */
+
+.crawlReceipt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--brass);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+}
+
+.crawlReceipt > span {
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.crawlReceipt small {
+  margin-top: 2px;
+  font-weight: 400;
+  color: var(--ink-soft);
+  letter-spacing: 0;
+}
+
+.crawlReceipt strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  color: var(--brass);
+}
+
+/* --- actions -------------------------------------------------------------- */
+
+.crawlActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.crawlPrimaryBtn,
+.crawlSecondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.crawlPrimaryBtn {
+  background: var(--brass);
+  color: var(--panel-raised);
+  border: 1px solid var(--brass);
+}
+
+.crawlPrimaryBtn:hover {
+  filter: brightness(1.05);
+}
+
+.crawlSecondaryBtn {
+  background: var(--panel-raised);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.crawlSecondaryBtn:hover {
+  border-color: var(--brass);
+}
+
+.crawlFootnote {
+  margin: 22px 0 0;
+  text-align: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 520px) {
+  .crawlPoster {
+    padding: 24px 18px;
+  }
+  .crawlPosterHead h1 {
+    font-size: 27px;
+  }
+}

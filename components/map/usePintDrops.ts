@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
-import type { PintDrop } from "@/lib/pintDrops";
+import type { PintDrop, VibeTag } from "@/lib/pintDrops";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -16,6 +16,7 @@ export type PhotoSlotName = "pint" | "venue";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB — server re-validates.
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
 
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
@@ -36,6 +37,9 @@ export function usePintDrops() {
   );
   const [composerOpen, setComposerOpen] = useState(false);
   const [dropForm, setDropForm] = useState({ price: "", drink: "", note: "", era: "" });
+  // Selected vibe tags (client-side UX only — the server re-filters against its
+  // own allowlist). Multi-select, capped at MAX_VIBE_TAGS by toggleVibeTag.
+  const [vibeTags, setVibeTags] = useState<VibeTag[]>([]);
   const [pintPhoto, setPintPhoto] = useState<PhotoSlot | null>(null);
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -105,6 +109,18 @@ export function usePintDrops() {
     setSlot({ file, previewUrl: URL.createObjectURL(file) });
   }
 
+  // Toggle a vibe tag on/off. Multi-select, but silently ignores a new
+  // selection once MAX_VIBE_TAGS is reached (the server caps identically).
+  function toggleVibeTag(tag: VibeTag) {
+    setVibeTags((current) =>
+      current.includes(tag)
+        ? current.filter((t) => t !== tag)
+        : current.length >= MAX_VIBE_TAGS
+          ? current
+          : [...current, tag],
+    );
+  }
+
   function removePhoto(slot: PhotoSlotName) {
     const current = slot === "pint" ? pintPhoto : venuePhoto;
     const setSlot = slot === "pint" ? setPintPhoto : setVenuePhoto;
@@ -120,6 +136,7 @@ export function usePintDrops() {
     setPintPhoto(null);
     setVenuePhoto(null);
     setDropForm({ price: "", drink: "", note: "", era: "" });
+    setVibeTags([]);
     if (pintInputRef.current) pintInputRef.current.value = "";
     if (venueInputRef.current) venueInputRef.current.value = "";
   }
@@ -145,6 +162,9 @@ export function usePintDrops() {
       body.set("priceGbp", dropForm.price);
       body.set("passedDownNote", dropForm.note);
       body.set("era", dropForm.era);
+      // Repeated field entries — the route also accepts one comma-separated
+      // value; the server re-filters against its allowlist either way.
+      for (const tag of vibeTags) body.append("vibe_tags", tag);
       if (pintPhoto) body.set("pint_photo", pintPhoto.file);
       if (venuePhoto) body.set("venue_photo", venuePhoto.file);
 
@@ -232,6 +252,8 @@ export function usePintDrops() {
     closeComposer,
     dropForm,
     setDropForm,
+    vibeTags,
+    toggleVibeTag,
     pintPhoto,
     venuePhoto,
     pintInputRef,

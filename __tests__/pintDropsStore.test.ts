@@ -143,6 +143,36 @@ describe("toDTO", () => {
     // takedown. (Public reads never return hidden drops anyway.)
     expect(toDTO(drop({ status: "hidden", reportCount: 5 }))).not.toHaveProperty("reportCount");
   });
+
+  // Vibe tags are public, safe content — the DTO surfaces them. Exposing them
+  // must not open any moderation leak.
+  it("exposes vibeTags on a drop that has them", () => {
+    const dto = toDTO(drop({ vibeTags: ["cheap", "riverside"] }));
+    expect(dto.vibeTags).toEqual(["cheap", "riverside"]);
+  });
+
+  it("omits vibeTags entirely on a drop without them (backward-compatible)", () => {
+    expect(toDTO(drop())).not.toHaveProperty("vibeTags");
+  });
+
+  it("exposes vibeTags but still leaks no report/moderation metadata", () => {
+    const dto = toDTO(
+      drop({
+        vibeTags: ["cheap"],
+        reportCount: 1,
+        reportReason: "wrong price",
+        reportedAt: "2026-01-02T00:00:00.000Z",
+        moderatorNote: "reviewed, kept",
+        moderatedAt: "2026-01-02T00:00:00.000Z",
+      }),
+    );
+    expect(dto.vibeTags).toEqual(["cheap"]);
+    expect(dto.reportCount).toBe(1); // the one sanctioned transparency field
+    expect(dto).not.toHaveProperty("reportReason");
+    expect(dto).not.toHaveProperty("reportedAt");
+    expect(dto).not.toHaveProperty("moderatorNote");
+    expect(dto).not.toHaveProperty("moderatedAt");
+  });
 });
 
 describe("deletePhotos", () => {

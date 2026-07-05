@@ -7,17 +7,34 @@ const size = {
   height: 630,
 };
 
-// Brand palette (matches the app's "printed guidebook" aesthetic)
+// Brand palette (mirrors app/og.png/route.tsx — the "printed guidebook" look).
 const PAPER = "#12100c"; // deep charcoal-green paper
 const CREAM = "#ece3d2"; // warm cream ink
-const CREAM_DIM = "#a99f8b"; // faded ink for supporting text
 const BRASS = "#d3a44a"; // single accent
 const RIVER = "#3f5566"; // muted Thames blue
 
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
-// A small pint-glass glyph built from inline SVG (no external asset, no font emoji).
+// Clamp/sanitise a query value: strip control chars, cap length. Share-card text
+// is untrusted (it comes from a URL), so we never render it unbounded.
+function clampParam(raw: string | null, max: number, fallback = ""): string {
+  if (!raw) return fallback;
+  const cleaned = Array.from(raw)
+    .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
+    .join("")
+    .trim();
+  if (!cleaned) return fallback;
+  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
+}
+
+function clampInt(raw: string | null, min: number, max: number, fallback: number): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+// A small pint-glass glyph (inline SVG — no external asset, no emoji font).
 function PintGlyph() {
   return (
     <svg width="52" height="60" viewBox="0 0 52 60" fill="none">
@@ -27,15 +44,24 @@ function PintGlyph() {
         strokeWidth="3"
         fill="none"
       />
-      {/* the pour line */}
       <path d="M13 22 H39" stroke={PAPER} strokeWidth="3" />
-      {/* foam head */}
       <path d="M11 5 H41 L40 13 H12 Z" fill={PAPER} />
     </svg>
   );
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const title = clampParam(searchParams.get("title"), 64, "A London crawl");
+  const tag = clampParam(searchParams.get("tag"), 28);
+  const stops = clampInt(searchParams.get("stops"), 0, 12, 0);
+  const totalRaw = clampParam(searchParams.get("total"), 12);
+  // `total` may arrive as a formatted string or a number — normalise to £x.xx.
+  const totalNum = Number(totalRaw.replace(/[^0-9.]/g, ""));
+  const total = Number.isFinite(totalNum) && totalNum > 0 ? `£${totalNum.toFixed(2)}` : null;
+
+  const stopLabel = stops > 0 ? `${stops} stop${stops === 1 ? "" : "s"}` : null;
+
   return new ImageResponse(
     (
       <div
@@ -66,7 +92,7 @@ export async function GET() {
           }}
         />
 
-        {/* A single Thames-ish river bend + brass dashed route across the lower third */}
+        {/* Thames-ish river bend + brass dashed route with price pins */}
         <svg
           width="1200"
           height="630"
@@ -90,7 +116,6 @@ export async function GET() {
             fill="none"
             opacity="0.9"
           />
-          {/* three price pins along the brass route */}
           <circle cx="230" cy="521" r="7" fill={BRASS} />
           <circle cx="700" cy="540" r="7" fill={BRASS} />
           <circle cx="1088" cy="509" r="7" fill={BRASS} />
@@ -124,7 +149,7 @@ export async function GET() {
             <div
               style={{
                 fontFamily: serif,
-                fontSize: 46,
+                fontSize: 42,
                 fontWeight: 700,
                 letterSpacing: 0.5,
               }}
@@ -141,11 +166,11 @@ export async function GET() {
               letterSpacing: 2,
             }}
           >
-            A London Field Guide
+            A Crawl Story
           </div>
         </div>
 
-        {/* Center: headline + tagline */}
+        {/* Center: eyebrow + crawl title */}
         <div style={{ display: "flex", flexDirection: "column", zIndex: 1 }}>
           <div
             style={{
@@ -155,38 +180,26 @@ export async function GET() {
               letterSpacing: 6,
               textTransform: "uppercase",
               marginBottom: 22,
+              display: "flex",
             }}
           >
-            Price-aware · Story-led · London
+            {tag ? tag : "A London pub crawl"}
           </div>
           <div
             style={{
               display: "flex",
               fontFamily: serif,
-              maxWidth: 960,
-              fontSize: 88,
+              maxWidth: 980,
+              fontSize: title.length > 34 ? 76 : 92,
               lineHeight: 1.02,
               fontWeight: 700,
             }}
           >
-            Every real pint price in London, on a living map.
-          </div>
-          <div
-            style={{
-              display: "flex",
-              maxWidth: 780,
-              color: CREAM_DIM,
-              fontSize: 30,
-              lineHeight: 1.4,
-              marginTop: 26,
-            }}
-          >
-            Plan a crawl by price and story — heritage stops, live Pint Drops,
-            and a route worth walking.
+            {title}
           </div>
         </div>
 
-        {/* Footer: URL + brass rule */}
+        {/* Footer: stops + receipt total on the left, URL on the right */}
         <div
           style={{
             display: "flex",
@@ -195,15 +208,34 @@ export async function GET() {
             zIndex: 1,
           }}
         >
-          <div
-            style={{
-              fontFamily: serif,
-              fontStyle: "italic",
-              color: CREAM,
-              fontSize: 30,
-            }}
-          >
-            Every pint has a story.
+          <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+            {stopLabel ? (
+              <div
+                style={{
+                  display: "flex",
+                  fontFamily: serif,
+                  fontStyle: "italic",
+                  color: CREAM,
+                  fontSize: 30,
+                }}
+              >
+                {stopLabel}
+              </div>
+            ) : null}
+            {total ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  color: BRASS,
+                  fontFamily: serif,
+                  fontSize: 34,
+                  fontWeight: 700,
+                }}
+              >
+                {total} round
+              </div>
+            ) : null}
           </div>
           <div
             style={{

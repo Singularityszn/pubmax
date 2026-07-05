@@ -1,4 +1,4 @@
-/* PubMaxing landing page — editorial field-guide styling.
+/* PUBMAXXING landing page — editorial field-guide styling.
    All colour comes from tokens in globals.css so this flips light/dark for free.
    Scoped under .lp so nothing leaks into the /map app shell. */
 
@@ -242,6 +242,17 @@
 .lp .heroCopy h1 em {
   font-style: italic;
   color: var(--brass);
+}
+
+/* Nostalgic subhead directly under the H1 — italic serif, warm, not SaaS. */
+.lp .heroTagline {
+  max-width: 34ch;
+  margin: -8px 0 20px;
+  color: var(--brass);
+  font-size: clamp(1.24rem, 2.4vw, 1.6rem);
+  font-style: italic;
+  line-height: 1.28;
+  letter-spacing: -0.005em;
 }
 
 .lp .heroLede {
@@ -581,6 +592,250 @@
   border-color: rgba(255, 255, 255, 0.25);
 }
 
+/* ── Live Pint Drops strip ───────────────────────────────────────────────
+   Horizontal scrollable rail of the newest community drops. Sober surface —
+   the vibrancy lives in the golden-days editorial, not here. */
+.lp .dropStrip {
+  margin-top: 44px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.lp .dropStripHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.lp .dropStripHead .eyebrow {
+  margin: 0;
+}
+
+.lp .dropStripHint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.lp .dropStripRail {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 4px 4px 14px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.lp .dropStripRail::-webkit-scrollbar {
+  height: 8px;
+}
+
+.lp .dropStripRail::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.lp .dropStripCard {
+  scroll-snap-align: start;
+  flex: 0 0 clamp(240px, 66vw, 288px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.lp .dropStripCard:hover {
+  border-color: var(--brass);
+  box-shadow: 0 10px 24px rgba(154, 106, 36, 0.12);
+}
+
+.lp .dropStripTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lp .dropStripWho {
+  font-weight: 700;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp .dropStripPrice {
+  font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-size: 1.14rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--pint);
+  white-space: nowrap;
+}
+
+.lp .dropStripNote {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.lp .dropStripMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.lp .dropStripEra {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp .dropStripEraMuted {
+  font-style: italic;
+}
+
+/* Provenance chip — sober, monochrome-leaning; contributor gets a quiet brass
+   accent so priced drops read as the trustworthy default. */
+.lp .provChip {
+  display: inline-block;
+  flex: 0 0 auto;
+  padding: 2px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lp .provChip-contributor {
+  border-color: rgba(176, 129, 58, 0.45);
+  color: var(--brass);
+}
+
+.lp .provChip-sourced {
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+/* Loading skeleton — quiet shimmer; static under reduced motion (gated below). */
+.lp .dropStripCardSkeleton {
+  gap: 12px;
+  border-style: dashed;
+  border-color: var(--line-soft);
+}
+
+.lp .dropStripCardSkeleton .skelLine {
+  display: block;
+  height: 11px;
+  border-radius: 6px;
+  background: var(--line-soft);
+}
+
+.lp .dropStripCardSkeleton .skelLineTop {
+  width: 55%;
+  height: 14px;
+}
+
+.lp .dropStripCardSkeleton .skelLineShort {
+  width: 40%;
+}
+
+.lp .dropStripEmpty {
+  padding: 22px 20px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+/* ── Golden days: editorial nostalgia ────────────────────────────────────
+   The one loud, warm section — cheap pints, chaotic nights, colliding lives.
+   Provenance/moderation surfaces stay sober; the energy is here. */
+.lp .goldenSection {
+  border-top: 1px solid var(--line-soft);
+}
+
+.lp .goldenGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.lp .goldenCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--brass) 9%, var(--panel)) 0%,
+    var(--panel) 62%
+  );
+  transition: border-color 0.18s ease, box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.lp .goldenCard:hover {
+  border-color: var(--brass);
+  box-shadow: 0 14px 30px rgba(154, 106, 36, 0.16);
+}
+
+.lp .goldenKicker {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border: 1px solid rgba(176, 129, 58, 0.45);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  color: var(--brass);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp .goldenCard h3 {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.42rem;
+  line-height: 1.12;
+  margin: 0;
+}
+
+.lp .goldenCard p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.98rem;
+  line-height: 1.58;
+}
+
 /* ── Generational unity ──────────────────────────────────────────────── */
 .lp .unitySection {
   background: var(--panel);
@@ -787,10 +1042,15 @@
 }
 
 /* ── Reveal-on-scroll (progressive; no JS = fully visible) ─────────────
-   The reveal only hides content inside the no-preference block below, so
-   without JS *and* without motion preference the content is always visible;
-   JS adds .isVisible when the section scrolls in. */
-.lp .reveal.isVisible {
+   Content is VISIBLE BY DEFAULT. The hidden-then-animate initial state only
+   applies once the useReveal effect has both wired up the IntersectionObserver
+   AND added .jsEnhanced to the root (.lp). So before JS runs, with JS disabled,
+   in crawlers, and in full-page screenshots that never trip the observer for
+   off-screen sections, every .reveal band is fully painted — never a blank
+   band. Once enhanced, JS adds .isVisible as each section scrolls in. The
+   .jsEnhanced prefix keeps this at higher specificity than the hidden rule
+   below so a revealed section always wins. */
+.lp.jsEnhanced .reveal.isVisible {
   opacity: 1;
   transform: none;
 }
@@ -850,7 +1110,8 @@
     order: -1;
   }
 
-  .lp .cardGrid {
+  .lp .cardGrid,
+  .lp .goldenGrid {
     grid-template-columns: 1fr;
   }
 }
@@ -941,24 +1202,25 @@
    Every transform/lift lives here so reduced-motion users get static,
    fully-visible content with colour/shadow feedback only. */
 @media (prefers-reduced-motion: no-preference) {
-  /* Reveal-on-scroll: hidden initial state only applies with motion AND
-     scripting, so no-JS visitors are never left with hidden content. */
-  @media (scripting: enabled) {
-    .lp .reveal {
-      opacity: 0;
-      transform: translateY(18px);
-      transition: opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1),
-        transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
-    }
+  /* Reveal-on-scroll: the hidden initial state only applies once JS has added
+     .jsEnhanced to the root AND the visitor allows motion — so no-JS visitors,
+     crawlers, and pre-hydration paint are never left with hidden content. The
+     effect wires the observer up before adding .jsEnhanced, so nothing is
+     hidden that JS can't reveal. */
+  .lp.jsEnhanced .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
 
-    /* Gentle stagger for grouped reveals (cards, drop stack). */
-    .lp .cardGrid .reveal:nth-child(2) {
-      transition-delay: 0.08s;
-    }
+  /* Gentle stagger for grouped reveals (cards, drop stack). */
+  .lp.jsEnhanced .cardGrid .reveal:nth-child(2) {
+    transition-delay: 0.08s;
+  }
 
-    .lp .cardGrid .reveal:nth-child(3) {
-      transition-delay: 0.16s;
-    }
+  .lp.jsEnhanced .cardGrid .reveal:nth-child(3) {
+    transition-delay: 0.16s;
   }
 
   /* CTA + card + chip lifts and presses. */
@@ -981,14 +1243,37 @@
   }
 
   .lp .statChip:hover,
-  .lp .dropSample:hover {
+  .lp .dropSample:hover,
+  .lp .dropStripCard:hover,
+  .lp .goldenCard:hover {
     transform: translateY(-2px);
+  }
+
+  /* Skeleton shimmer — only under allowed motion; static otherwise. */
+  .lp .dropStripCardSkeleton .skelLine {
+    background: linear-gradient(
+      90deg,
+      var(--line-soft) 25%,
+      var(--line) 50%,
+      var(--line-soft) 75%
+    );
+    background-size: 200% 100%;
+    animation: lpShimmer 1.4s ease-in-out infinite;
   }
 
   /* In-nav theme toggle: subtle press to match the buttons (hover/focus
      handled in theme.css; this only adds the active feedback). */
   .lp .navLinks .themeToggle:active {
     transform: translateY(1px);
+  }
+}
+
+@keyframes lpShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
   }
 }
 

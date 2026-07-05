@@ -188,6 +188,15 @@ export default function VenueInspector({
                   </div>
                 ) : null}
                 {drop.passedDownNote ? <p>{drop.passedDownNote}</p> : null}
+                {drop.vibeTags && drop.vibeTags.length > 0 ? (
+                  <div className="dropVibeTags">
+                    {drop.vibeTags.map((tag) => (
+                      <span key={tag} className="vibeChip small">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="dropFoot">
                   <small>
                     {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
@@ -211,9 +220,13 @@ export default function VenueInspector({
         {composerOpen ? (
           <PintDropComposer venueId={venue.id} state={pintDrops} />
         ) : (
-          <>
-            <button className="composerToggle" onClick={() => setComposerOpen(true)}>
-              <PlusCircle size={16} /> Log a Pint Drop
+          <div className="logDropBar">
+            <button
+              className="logDropBtn"
+              onClick={() => setComposerOpen(true)}
+              aria-label={`Log a Pint Drop at ${venue.name}`}
+            >
+              <PlusCircle size={17} /> Log a Pint Drop
             </button>
             {dropMsg ? (
               <span
@@ -224,7 +237,7 @@ export default function VenueInspector({
                 {dropMsg.text}
               </span>
             ) : null}
-          </>
+          </div>
         )}
       </section>
 
