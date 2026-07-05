@@ -41,9 +41,9 @@
   max-width: 640px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius, 16px);
   padding: 32px 28px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.22));
 }
 
 .storyHead {
@@ -62,7 +62,7 @@
 
 .storyTitle {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-garamond, var(--serif));
   font-size: 34px;
   line-height: 1.12;
 }
@@ -140,7 +140,7 @@
   border-radius: 50%;
   background: var(--brass);
   color: var(--panel-raised);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-garamond, var(--serif));
   font-weight: 700;
   font-size: 14px;
   box-shadow: 0 0 0 4px var(--panel); /* punch the stamp out of the spine */
@@ -175,7 +175,7 @@
 
 .storyStopPrice {
   flex: 0 0 auto;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-garamond, var(--serif));
   font-size: 17px;
   font-weight: 700;
   color: var(--ink);
@@ -210,7 +210,7 @@
 }
 
 .storyReceipt strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-garamond, var(--serif));
   font-size: 28px;
   color: var(--brass);
 }
@@ -228,14 +228,17 @@
 .storySecondaryBtn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  min-height: 44px;
   padding: 11px 18px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm, 10px);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
   font-family: inherit;
+  transition: border-color 0.15s ease, filter 0.15s ease, background 0.15s ease;
 }
 
 .storyPrimaryBtn {
@@ -276,7 +279,7 @@
 .storyFootnote {
   margin: 22px 0 0;
   text-align: center;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-garamond, var(--serif));
   font-style: italic;
   color: var(--ink-soft);
 }
@@ -284,14 +287,23 @@
 /* --- responsive to 375px -------------------------------------------------- */
 
 @media (max-width: 520px) {
+  .storyShell {
+    padding: 18px 12px 40px;
+  }
   .storyPoster {
     padding: 24px 18px;
   }
   .storyTitle {
-    font-size: 27px;
+    font-size: clamp(24px, 8vw, 27px);
   }
   .storyStops::before {
     left: 14px;
+  }
+  /* Full-width stacked actions so both are comfortable thumb targets and the
+     "start this crawl" primary never wraps awkwardly beside the secondary. */
+  .storyPrimaryBtn,
+  .storySecondaryBtn {
+    flex: 1 1 100%;
   }
 }
 
