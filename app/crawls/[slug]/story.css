@@ -266,6 +266,13 @@
   outline-offset: 2px;
 }
 
+/* Share strip — a quiet stamp row under the actions, above the footnote. */
+.storyShare {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}
+
 .storyFootnote {
   margin: 22px 0 0;
   text-align: center;

@@ -1,0 +1,115 @@
+/* Auth UI — token-driven, matches the pub-guidebook surfaces. Scoped to the
+   sign-in button + signed-in menu so it can't leak into the rest of the app. */
+
+.authSignIn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.authSignIn:hover {
+  border-color: var(--brass);
+}
+
+.authSignIn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.authSignIn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Google "G" keeps its own brand colours (never token-tinted). */
+.authGoogleMark {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+/* Signed-in cluster: avatar + name, with a quiet sign-out control. */
+.authUser {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.authAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.authAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  color: var(--brass);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.authName {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.authSignOut {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.authSignOut:hover {
+  border-color: var(--brick);
+  color: var(--brick);
+}
+
+.authSignOut:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.authError {
+  font-size: 0.8rem;
+  color: var(--brick);
+}

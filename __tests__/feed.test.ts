@@ -36,6 +36,8 @@ function item(overrides: Partial<FeedItem> = {}): FeedItem {
     createdAt: "2026-07-05T20:00:00.000Z",
     handle: "h",
     venueId: "v",
+    venueName: "The Test Tavern",
+    venueMapUrl: "/map?sel=v",
     photoUrls: [],
     caption: "",
     priceGbp: null,
@@ -85,6 +87,30 @@ describe("normalizePintDrop", () => {
     );
     expect(feedItem.vibeTags).toEqual([]);
     expect(feedItem.priceGbp).toBeNull();
+  });
+
+  it("uses the server-resolved venueName + venueMapUrl when present", () => {
+    const feedItem = normalizePintDrop(
+      dto({ venueName: "The Blind Beggar", venueMapUrl: "/map?sel=venue-abc" }),
+    );
+    expect(feedItem.venueName).toBe("The Blind Beggar");
+    expect(feedItem.venueMapUrl).toBe("/map?sel=venue-abc");
+  });
+
+  it("never surfaces a raw venue id: falls back to a friendly label + map link", () => {
+    const feedItem = normalizePintDrop(
+      dto({ venueId: "venue-1ufn31x", venueName: undefined, venueMapUrl: undefined }),
+    );
+    // The friendly fallback, never the raw id.
+    expect(feedItem.venueName).toBe("A London pub");
+    expect(feedItem.venueName).not.toContain("venue-");
+    // A usable map link is still reconstructed from the id.
+    expect(feedItem.venueMapUrl).toBe("/map?sel=venue-1ufn31x");
+  });
+
+  it("treats a blank venueName as unresolved and uses the fallback", () => {
+    const feedItem = normalizePintDrop(dto({ venueName: "   " }));
+    expect(feedItem.venueName).toBe("A London pub");
   });
 });
 

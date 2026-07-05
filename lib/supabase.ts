@@ -42,6 +42,22 @@ export function hashIp(ip: string): string {
 }
 
 /**
+ * sha256(salt:actorId) — the stable, unauthenticated actor identity stored as
+ * `actor_hash` on reactions/comments/reports. The client sends an opaque random
+ * id it minted once (lib/anonId.ts); we hash it here so the raw id never lands
+ * in a table an attacker could scrape to correlate a device across drops. Uses
+ * the SAME salt family as hashIp so a single ACTOR_HASH_SALT / RATE_LIMIT_SALT
+ * rotation invalidates both. A blank/absent id hashes a stable "anon" sentinel
+ * so a missing client id can never collapse every actor onto one empty hash by
+ * accident — callers that need per-actor uniqueness should reject empties first.
+ */
+export function hashActor(actorId: string | null | undefined): string {
+  const salt = process.env.ACTOR_HASH_SALT ?? process.env.RATE_LIMIT_SALT ?? "pubmax-actor";
+  const id = typeof actorId === "string" && actorId.trim() ? actorId.trim() : "anon";
+  return createHash("sha256").update(`${salt}:${id}`).digest("hex");
+}
+
+/**
  * Atomic check-and-increment against Supabase. Returns true/false when the
  * RPC answered, or null when it could not (no client, RPC error, network) —
  * callers fall back to the in-memory limiter on null so a limiter outage can

@@ -1,18 +1,24 @@
 "use client";
 
 import Image from "next/image";
+import type { ReactNode } from "react";
 
 import type { Profile, ProfileStats } from "@/lib/profiles";
 
 // Presentational header for a public profile. Prop-driven and stateless — the
 // page owns all data. Renders an avatar (image or a fallback initial), the
-// display name + @handle, optional home city and bio, and a stats row.
+// display name + @handle, optional home city and bio, a stats row (including
+// durable follower/following counts), and an optional actions slot (the page
+// drops the follow button here so the header stays purely presentational).
 type ProfileHeaderProps = {
   profile: Profile;
   stats: ProfileStats;
   // Crawls are demo/0 for now — the page passes it explicitly so the header
   // stays purely presentational.
   crawls?: number;
+  followers?: number;
+  following?: number;
+  actions?: ReactNode;
 };
 
 function initialOf(name: string, handle: string): string {
@@ -24,7 +30,14 @@ function formatGbp(value: number | null): string {
   return value == null ? "—" : `£${value.toFixed(2)}`;
 }
 
-export default function ProfileHeader({ profile, stats, crawls = 0 }: ProfileHeaderProps) {
+export default function ProfileHeader({
+  profile,
+  stats,
+  crawls = 0,
+  followers,
+  following,
+  actions,
+}: ProfileHeaderProps) {
   const { handle, displayName, homeCity, bio, avatarUrl } = profile;
 
   return (
@@ -55,6 +68,8 @@ export default function ProfileHeader({ profile, stats, crawls = 0 }: ProfileHea
             </p>
           ) : null}
         </div>
+
+        {actions ? <div className="profileActions">{actions}</div> : null}
       </div>
 
       {bio ? <p className="profileBio">{bio}</p> : null}
@@ -68,6 +83,18 @@ export default function ProfileHeader({ profile, stats, crawls = 0 }: ProfileHea
           <dt>Cheapest pint</dt>
           <dd>{formatGbp(stats.cheapestPintGbp)}</dd>
         </div>
+        {typeof followers === "number" ? (
+          <div className="profileStat">
+            <dt>Followers</dt>
+            <dd>{followers}</dd>
+          </div>
+        ) : null}
+        {typeof following === "number" ? (
+          <div className="profileStat">
+            <dt>Following</dt>
+            <dd>{following}</dd>
+          </div>
+        ) : null}
         <div className="profileStat">
           <dt>Crawls</dt>
           <dd>{crawls}</dd>

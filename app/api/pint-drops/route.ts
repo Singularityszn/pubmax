@@ -17,12 +17,51 @@ import {
   type PintDropPhotos,
   type PintDropStore,
 } from "@/lib/pintDropsStore";
+import { memoryProfileStore, supabaseProfileStore } from "@/lib/profileStore";
 import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
 // The single backend selection point. Read per request — env is stubbed per
 // test and the check is a cheap env lookup.
 function store(): PintDropStore {
   return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
+}
+
+// A pint drop is also the moment a handle first "exists" socially, so we lazily
+// create its profile row (foundation for follows / saved lists / a public
+// /u/[handle]). Best-effort and non-blocking: a profile hiccup must never fail
+// an otherwise-good drop, so failures are logged, not thrown.
+async function ensureProfileForHandle(handle: string): Promise<void> {
+  try {
+    const profiles = isSupabaseConfigured() ? supabaseProfileStore : memoryProfileStore;
+    await profiles.ensure(handle);
+  } catch (err) {
+    console.warn(
+      "[pint-drops] could not ensure profile for handle (drop still saved):",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
+// The friendly label a card shows when an id has no resolvable pub name — kept
+// in step with lib/feed.ts VENUE_FALLBACK_LABEL so server and client agree.
+const VENUE_FALLBACK_LABEL = "A London pub";
+
+// PRD §9: enrich each public drop with a human `venueName` + a "/map?sel=…"
+// `venueMapUrl`, resolved server-side from the bundled venue index, so no public
+// feed/profile/permalink card ever surfaces the raw content-hashed `venue-…` id.
+// Batched over the whole page against the one memoized index (a single Map read
+// per drop). Never throws: an unreadable index yields the friendly fallback for
+// every id, and the drops still render.
+async function withVenueNames<T extends { venueId: string }>(
+  drops: T[],
+): Promise<(T & { venueName: string; venueMapUrl: string })[]> {
+  const index = await getVenueIndex();
+  return drops.map((drop) => ({
+    ...drop,
+    venueName: index.get(drop.venueId)?.name ?? VENUE_FALLBACK_LABEL,
+    venueMapUrl: venueMapUrl(drop.venueId),
+  }));
 }
 
 const STORAGE_UNCONFIGURED_ERROR =
@@ -173,6 +212,10 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const drop = await store().create(result.value, photos);
+    // Fire-and-forget: the profile bootstrap must never delay or fail the drop
+    // response (an awaited Supabase upsert here blocks every submission and hangs
+    // unmocked tests). It never rejects — the inner try/catch swallows failures.
+    void ensureProfileForHandle(result.value.handle);
     return Response.json({ drop }, { status: 201 });
   } catch (err) {
     // An invalid photo is the user's fault — surface as 400. The store has
@@ -205,7 +248,7 @@ export async function GET(request: Request): Promise<Response> {
   if (unavailable) return unavailable;
   try {
     const drops = await store().listVisible(params.get("venueId") ?? undefined);
-    return Response.json({ drops }, { status: 200 });
+    return Response.json({ drops: await withVenueNames(drops) }, { status: 200 });
   } catch {
     return storageUnavailable();
   }
