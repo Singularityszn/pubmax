@@ -3,6 +3,7 @@
 import {
   Anchor,
   BadgePoundSterling,
+  Beer,
   BookOpen,
   Check,
   Landmark,
@@ -11,6 +12,7 @@ import {
   PlusCircle,
   Route,
   Trophy,
+  ArrowUpDown,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -20,7 +22,10 @@ import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
 // ponytail: cap the keyboard picker render; search narrows the rest.
 const PICKER_LIMIT = 40;
 
-type VenueSignals = Map<string, { hasPintDrops: boolean; latestContributorPrice: number | null }>;
+type VenueSignals = Map<
+  string,
+  { hasPintDrops: boolean; dropCount?: number; latestContributorPrice: number | null }
+>;
 
 type RoutePanelProps = {
   mode: CrawlMode;
@@ -30,8 +35,11 @@ type RoutePanelProps = {
   builtIds: string[];
   activeVenueId: string | undefined;
   venueSignals: VenueSignals;
+  crawlBlurb?: string;
+  crawlName?: string;
   onSelectVenue: (id: string) => void;
   onToggleStop: (id: string) => void;
+  onReverseRoute?: () => void;
   children?: React.ReactNode;
 };
 
@@ -43,8 +51,11 @@ export default function RoutePanel({
   builtIds,
   activeVenueId,
   venueSignals,
+  crawlBlurb,
+  crawlName,
   onSelectVenue,
   onToggleStop,
+  onReverseRoute,
   children,
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
@@ -68,7 +79,16 @@ export default function RoutePanel({
       <div className="routeHeader">
         <div>
           <p className="eyebrow">{mode === "build" ? "Your Crawl" : "Suggested Crawl"}</p>
-          <h2>{mode === "build" ? "Hand-built route" : `${styleLabels[crawlStyle]} route`}</h2>
+          <h2>
+            {mode === "build"
+              ? crawlName || "Hand-built route"
+              : `${styleLabels[crawlStyle]} route`}
+          </h2>
+          {crawlBlurb ? (
+            <p className="description muted" style={{ margin: "4px 0 0" }}>
+              {crawlBlurb}
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
@@ -88,10 +108,12 @@ export default function RoutePanel({
           <span>{formatPrice(summary.total)}</span>
           <small>estimated round</small>
         </div>
-        <div>
+        <div
+          title="Haversine (straight-line) distance between stops. Walking distance will be longer."
+        >
           <MapPin size={17} />
           <span>{summary.distance.toFixed(1)} km</span>
-          <small>between stops</small>
+          <small>straight-line, between stops</small>
         </div>
         <div>
           <Trophy size={17} />
@@ -123,8 +145,23 @@ export default function RoutePanel({
         </p>
       ) : null}
 
+      {mode === "build" && route.length >= 2 && onReverseRoute ? (
+        <button
+          type="button"
+          className="addStopBtn"
+          style={{ marginTop: 0, marginBottom: "12px" }}
+          onClick={onReverseRoute}
+        >
+          <ArrowUpDown size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} /> Reverse
+          route
+        </button>
+      ) : null}
+
       <ol className="routeList">
-        {route.map((venue, index) => (
+        {route.map((venue, index) => {
+          const signal = venueSignals.get(venue.id);
+          const dropCount = signal?.dropCount ?? 0;
+          return (
           <li key={venue.id} className={activeVenueId === venue.id ? "active" : ""}>
             <button
               type="button"
@@ -133,11 +170,21 @@ export default function RoutePanel({
             >
               <span className="stopNumber">{index + 1}</span>
               <div>
-                <strong>{venue.name}</strong>
+                <strong>
+                  {venue.name}
+                  {dropCount > 0 ? (
+                    <span
+                      className="provChip contributor"
+                      style={{ marginLeft: "6px", verticalAlign: "middle" }}
+                      title={`${dropCount} Pint Drop${dropCount === 1 ? "" : "s"} logged here`}
+                    >
+                      <Beer size={11} aria-hidden="true" />
+                      {dropCount}
+                    </span>
+                  ) : null}
+                </strong>
                 <p>
-                  {formatPrice(
-                    venueSignals.get(venue.id)?.latestContributorPrice ?? venue.cheapestPrice,
-                  )}{" "}
+                  {formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}
                   · {venue.cheapestPint}
                 </p>
                 <small>
@@ -149,7 +196,8 @@ export default function RoutePanel({
               </div>
             </button>
           </li>
-        ))}
+          );
+        })}
       </ol>
 
       {mode === "build" ? (

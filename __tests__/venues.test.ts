@@ -73,6 +73,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireFood: false,
     requireCocktails: false,
     requireWater: false,
+    requirePintDrops: false,
     requireHeritage: false,
     canonicalOnly: false,
     ...overrides,

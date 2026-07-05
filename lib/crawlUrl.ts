@@ -46,6 +46,8 @@ export function encodeCrawl(state: CrawlUrlState): string {
   params.set("max", String(filters.maxPrice));
   params.set("stops", String(filters.stopCount));
   params.set("win", String(filters.routeWindow));
+  // Only the "on" case is encoded — off is the default, so a bare link stays short.
+  if (filters.requirePintDrops) params.set("drops", "1");
   if (builtIds.length) params.set("pubs", builtIds.join(","));
   if (selectedVenueId) params.set("sel", selectedVenueId);
   return params.toString();
@@ -70,6 +72,8 @@ export function decodeCrawl(
   if (stops !== undefined) filters.stopCount = Math.round(stops);
   const win = parseNum(params.get("win"), WINDOW.min, WINDOW.max);
   if (win !== undefined) filters.routeWindow = win;
+  // Only "1" turns it on; any other/absent value leaves it at the default (off).
+  if (params.get("drops") === "1") filters.requirePintDrops = true;
   if (Object.keys(filters).length) out.filters = filters;
 
   const pubs = params.get("pubs");
