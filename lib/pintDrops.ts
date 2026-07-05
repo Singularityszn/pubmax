@@ -164,13 +164,13 @@ export function validatePintDrop(input: unknown): ValidationResult {
 }
 
 // ── In-memory store ──────────────────────────────────────────────────────────
-// ponytail: process-memory store, resets on restart — right for the prototype
-// demo. Swap for the Supabase adapter (lib/pintDropsStore) when keys exist; the
+// Process-memory store, resets on restart — right for the prototype demo. Swap
+// for the Supabase adapter (lib/pintDropsStore) when keys exist; the
 // validation/provenance/moderation logic above is storage-agnostic and unchanged.
 const drops = new Map<string, PintDrop[]>();
 
-// ponytail: naive per-handle rate limit (in-memory), enough to stop one actor
-// flooding a demo. Move to Redis/Supabase counters if this ever ships.
+// Naive per-handle rate limit (in-memory), enough to stop one actor flooding a
+// demo. Move to Redis/Supabase counters if this ever ships.
 const rateWindow = new Map<string, number[]>();
 const RATE_LIMIT = 8;
 const RATE_WINDOW_MS = 60_000;

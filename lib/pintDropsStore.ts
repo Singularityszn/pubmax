@@ -244,8 +244,8 @@ function newestFirstCapped<T extends { createdAt: string }>(drops: T[]): T[] {
 }
 
 // ── In-memory implementation ─────────────────────────────────────────────────
-// ponytail: wraps the process-memory primitives in lib/pintDrops.ts. Resets on
-// restart — right for dev/demo; production refuses it at the route.
+// Wraps the process-memory primitives in lib/pintDrops.ts. Resets on restart —
+// right for dev/demo; production refuses it at the route.
 export const memoryPintDropStore: PintDropStore = {
   async create(drop) {
     addPintDrop(drop); // photos ignored: there is no Storage without Supabase
@@ -266,6 +266,26 @@ export const memoryPintDropStore: PintDropStore = {
   },
 };
 
+// Additive-column rollout safety: recognise the specific "the `vibe_tags`
+// column does not exist yet" error so create() can retry without that key while
+// migration 0005 is still pending on the live DB. This is NOT general error
+// swallowing — it matches ONLY a missing-`vibe_tags` column error; every other
+// insert error still throws.
+//
+// Two provider shapes:
+//   • Postgres error code 42703 (undefined_column) — the raw Postgres code.
+//   • PostgREST PGRST204 — PostgREST's schema cache doesn't know the column
+//     (its message reads e.g. "Could not find the 'vibe_tags' column …").
+// We require the vibe_tags name to appear so a coincidental 42703 on some other
+// column can't silently drop data — it will (correctly) throw.
+function isMissingVibeTagsColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  const mentionsVibeTags = message.includes("vibe_tags");
+  return (code === "42703" || code === "PGRST204") && mentionsVibeTags;
+}
+
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
   async create(drop, photos) {
@@ -282,8 +302,26 @@ export const supabasePintDropStore: PintDropStore = {
         persistable.venuePhotoKey = await uploadPhoto("venue", drop.venueId, drop.id, photos.venue);
         uploaded.push(persistable.venuePhotoKey);
       }
-      const { error } = await admin().from(TABLE).insert(toRow(persistable));
-      if (error) throw new Error(error.message);
+      const row = toRow(persistable);
+      // First attempt includes vibe_tags. Once migration 0005 is applied this is
+      // the only path that ever runs; the fallback below never fires.
+      const { error } = await admin().from(TABLE).insert(row);
+      if (error) {
+        if (!isMissingVibeTagsColumnError(error)) throw new Error(error.message);
+        // Migration 0005 (vibe_tags column) is not applied to this DB yet.
+        // Retry the insert WITHOUT vibe_tags so the drop still persists — the
+        // rest of the drop is fully valid; only the tags are lost until the
+        // migration lands. One-line warning so the pending migration is visible
+        // in logs (not silent), then re-throw only if the retry genuinely fails.
+        console.warn(
+          "[pint-drops] vibe_tags column missing — inserting without it (apply migration 0005):",
+          error.message,
+        );
+        const { vibe_tags: _omit, ...rowWithoutVibeTags } = row;
+        void _omit;
+        const { error: retryError } = await admin().from(TABLE).insert(rowWithoutVibeTags);
+        if (retryError) throw new Error(retryError.message);
+      }
     } catch (err) {
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
@@ -416,7 +454,7 @@ export async function deletePhotos(keys: string[]): Promise<void> {
   try {
     await admin().storage.from(STORAGE_BUCKET).remove(present);
   } catch {
-    // ponytail: swallow — a stray object is a cleanup-job problem, not a
-    // request-path one. Upgrade to a logged retry if orphans pile up.
+    // Swallow — a stray object is a cleanup-job problem, not a request-path one.
+    // Upgrade to a logged retry if orphans pile up.
   }
 }

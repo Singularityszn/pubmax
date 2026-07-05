@@ -150,70 +150,86 @@ export default function VenueInspector({
           </p>
         ) : (
           <div className="dropList">
-            {drops.map((drop) => (
-              <article key={drop.id} className="dropCard">
-                <div className="dropHead">
-                  <span className="dropHandle">{drop.handle}</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                    {drop.priceGbp !== null ? (
-                      <span className="dropPrice">{formatPrice(drop.priceGbp)}</span>
-                    ) : null}
-                    <ProvenanceChip provenance={drop.provenance} />
-                  </span>
-                </div>
-                {drop.pintPhotoUrl || drop.venuePhotoUrl ? (
-                  <div className="dropPhotos">
-                    {drop.pintPhotoUrl ? (
-                      <Image
-                        className="dropPhoto"
-                        src={drop.pintPhotoUrl}
-                        alt={`Pint at ${venue.name} shared by ${drop.handle}`}
-                        width={300}
-                        height={150}
-                        loading="lazy"
-                        unoptimized
-                      />
-                    ) : null}
-                    {drop.venuePhotoUrl ? (
-                      <Image
-                        className="dropPhoto"
-                        src={drop.venuePhotoUrl}
-                        alt={`View of ${venue.name} shared by ${drop.handle}`}
-                        width={300}
-                        height={150}
-                        loading="lazy"
-                        unoptimized
-                      />
-                    ) : null}
+            {drops.map((drop) => {
+              const hasPhotos = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
+              return (
+                <article
+                  key={drop.id}
+                  className={hasPhotos ? "dropCard instaPint" : "dropCard"}
+                >
+                  <div className="dropHead">
+                    <span className="dropHandle">{drop.handle}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                      {drop.priceGbp !== null ? (
+                        <span className="dropPrice">{formatPrice(drop.priceGbp)}</span>
+                      ) : null}
+                      <ProvenanceChip provenance={drop.provenance} />
+                    </span>
                   </div>
-                ) : null}
-                {drop.passedDownNote ? <p>{drop.passedDownNote}</p> : null}
-                {drop.vibeTags && drop.vibeTags.length > 0 ? (
-                  <div className="dropVibeTags">
-                    {drop.vibeTags.map((tag) => (
-                      <span key={tag} className="vibeChip small">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="dropFoot">
-                  <small>
-                    {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
-                  </small>
-                  {drop.provenance !== "demo" ? (
-                    <button
-                      type="button"
-                      className="reportBtn"
-                      onClick={() => reportDrop(venue.id, drop.id)}
-                      aria-label={`Report Pint Drop by ${drop.handle}`}
-                    >
-                      <Flag size={12} /> Report
-                    </button>
+                  {/* InstaPint: the pint + the cheeky bar selfie shown as a
+                      framed image pair (Instagram-ish), the note/tags below as a
+                      caption. A single photo fills the frame; a drop with no
+                      photo still reads fine as a text card (the block is skipped). */}
+                  {hasPhotos ? (
+                    <div className="instaFrame">
+                      {drop.pintPhotoUrl ? (
+                        <figure className="instaShot">
+                          <Image
+                            className="dropPhoto"
+                            src={drop.pintPhotoUrl}
+                            alt={`Pint at ${venue.name} shared by ${drop.handle}`}
+                            width={480}
+                            height={480}
+                            loading="lazy"
+                            unoptimized
+                          />
+                          <figcaption>the pint</figcaption>
+                        </figure>
+                      ) : null}
+                      {drop.venuePhotoUrl ? (
+                        <figure className="instaShot">
+                          <Image
+                            className="dropPhoto"
+                            src={drop.venuePhotoUrl}
+                            alt={`${drop.handle} at the bar at ${venue.name}`}
+                            width={480}
+                            height={480}
+                            loading="lazy"
+                            unoptimized
+                          />
+                          <figcaption>at the bar</figcaption>
+                        </figure>
+                      ) : null}
+                    </div>
                   ) : null}
-                </div>
-              </article>
-            ))}
+                  {drop.passedDownNote ? <p className="dropCaption">{drop.passedDownNote}</p> : null}
+                  {drop.vibeTags && drop.vibeTags.length > 0 ? (
+                    <div className="dropVibeTags">
+                      {drop.vibeTags.map((tag) => (
+                        <span key={tag} className="vibeChip small">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="dropFoot">
+                    <small>
+                      {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
+                    </small>
+                    {drop.provenance !== "demo" ? (
+                      <button
+                        type="button"
+                        className="reportBtn"
+                        onClick={() => reportDrop(venue.id, drop.id)}
+                        aria-label={`Report Pint Drop by ${drop.handle}`}
+                      >
+                        <Flag size={12} /> Report
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
 

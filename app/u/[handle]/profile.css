@@ -1,0 +1,352 @@
+/* Public profile page /u/[handle] — editorial field-guide styling that matches
+   the landing. All colour comes from the shared tokens (--brass, --ink,
+   --ink-soft, --panel, --panel-raised, --line, --paper) so it flips light/dark
+   for free. Scoped under .profilePage (which also carries .lp for the base
+   surface + serif). Nothing here leaks outside this route. */
+
+.profilePage {
+  min-height: 100dvh;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────── */
+.profilePage .profileTopbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.profilePage .profileTopbarInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 64px;
+}
+
+.profilePage .profileWordmark {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.28rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.profilePage .profileNav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profilePage .profileNav a {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.profilePage .profileNav a:hover {
+  color: var(--ink);
+  background: rgba(176, 129, 58, 0.08);
+}
+
+.profilePage .profileNav a:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* ── Main scaffolding ────────────────────────────────────────────────── */
+.profilePage .profileMain {
+  padding-block: clamp(32px, 6vw, 64px);
+  display: grid;
+  gap: clamp(32px, 5vw, 52px);
+}
+
+.profilePage .profileSectionHeading,
+.profilePage .savedHeading {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  letter-spacing: -0.015em;
+  margin: 0 0 20px;
+}
+
+.profilePage .profileEmpty {
+  margin: 0;
+  padding: 20px 22px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+.profilePage .profileHeader {
+  display: grid;
+  gap: 20px;
+  padding: clamp(22px, 4vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+}
+
+.profilePage .profileIdentity {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.profilePage .profileAvatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.profilePage .profileAvatarFallback {
+  display: grid;
+  place-items: center;
+  background: var(--ink-deep);
+  color: var(--brass-bright);
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 2.2rem;
+  font-weight: 600;
+}
+
+.profilePage .profileNames {
+  min-width: 0;
+}
+
+.profilePage .profileDisplayName {
+  font-family: var(--font-garamond, var(--serif));
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.profilePage .profileHandle {
+  margin: 4px 0 0;
+  color: var(--brass);
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.profilePage .profileHomeCity {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.profilePage .profileBio {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+/* Stats row */
+.profilePage .profileStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+
+.profilePage .profileStat {
+  flex: 1 1 120px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.profilePage .profileStat dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.profilePage .profileStat dd {
+  margin: 4px 0 0;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* ── Pint Drops grid ─────────────────────────────────────────────────── */
+.profilePage .profileDropsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profilePage .profileDropCard {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.profilePage .profileDropCard:hover {
+  border-color: var(--brass);
+  box-shadow: 0 10px 24px rgba(154, 106, 36, 0.12);
+}
+
+.profilePage .profileDropPhoto {
+  aspect-ratio: 16 / 11;
+  background: var(--panel-raised);
+  overflow: hidden;
+}
+
+.profilePage .profileDropPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profilePage .profileDropPhotoEmpty {
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  color: var(--muted);
+}
+
+.profilePage .profileDropBody {
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.profilePage .profileDropTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profilePage .profileDropVenue {
+  font-weight: 700;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profilePage .profileDropPrice {
+  font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--pint, var(--brass));
+  white-space: nowrap;
+}
+
+.profilePage .profileDropNote {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ── Saved pubs ──────────────────────────────────────────────────────── */
+.profilePage .savedLists {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.profilePage .savedList {
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.profilePage .savedListName {
+  margin: 0 0 12px;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.2rem;
+}
+
+.profilePage .savedListCount {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.profilePage .savedListItems {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.profilePage .savedItem {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+}
+
+.profilePage .savedItemVenue {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.profilePage .savedItemNote {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.profilePage .savedEmpty {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .profilePage .profileIdentity {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .profilePage .profileStat {
+    flex-basis: 100%;
+  }
+}
+
+/* ── Motion (gated) ──────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .profilePage .profileDropCard:hover {
+    transform: translateY(-2px);
+  }
+}

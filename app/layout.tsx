@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./theme.css";
+import MobileTabBar from "@/components/nav/MobileTabBar";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxx.vercel.app"),
@@ -53,7 +54,12 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
+            display:none on desktop so the existing navs are untouched. */}
+        <MobileTabBar />
+      </body>
     </html>
   );
 }

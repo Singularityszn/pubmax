@@ -1634,6 +1634,80 @@ input[type="range"] {
   background: var(--panel);
 }
 
+/* ── InstaPint: bigger, Instagram-ish photo pair on a drop card ─────────────
+   A photo-backed drop gets a taller, framed image pair — the pint and the
+   cheeky bar selfie side by side — with the note reading as the caption below.
+   One photo fills the frame (single column). Text-only drops never get here. */
+.dropCard.instaPint {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dropCard.instaPint .dropHead {
+  padding: 11px 12px 8px;
+  margin-bottom: 0;
+}
+
+.instaFrame {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  background: var(--line);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+/* A drop with a single photo fills the frame edge to edge. */
+.instaFrame:has(figure:only-child) {
+  grid-template-columns: 1fr;
+}
+
+.instaShot {
+  position: relative;
+  margin: 0;
+  background: var(--panel);
+}
+
+.instaShot .dropPhoto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: none;
+  object-fit: cover;
+  border: 0;
+  border-radius: 0;
+}
+
+.instaShot figcaption {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(20, 16, 12, 0.68);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+/* Note + tags + footer sit inside the padded caption zone of a framed card. */
+.dropCard.instaPint .dropCaption,
+.dropCard.instaPint .dropVibeTags,
+.dropCard.instaPint .dropFoot {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.dropCard.instaPint .dropCaption {
+  padding-top: 10px;
+}
+
+.dropCard.instaPint .dropFoot {
+  padding-bottom: 11px;
+}
+
 .reportBtn {
   display: inline-flex;
   align-items: center;
@@ -1670,18 +1744,24 @@ input[type="range"] {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 74px;
-  padding: 10px;
+  gap: 3px;
+  min-height: 84px;
+  padding: 12px 10px;
   border: 1px dashed var(--brass);
   border-radius: var(--radius-sm);
   background: rgba(176, 129, 58, 0.06);
   color: var(--brass);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 800;
   text-align: center;
   cursor: pointer;
   transition: background 0.15s ease;
+}
+
+.photoPick small {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .photoPick:hover {
@@ -2257,6 +2337,12 @@ button:disabled {
   .dropComposer .composerRow,
   .dropPhotos {
     grid-template-columns: 1fr;
+  }
+
+  /* The InstaPint pair stays two-up on a phone (square thumbs read fine) so the
+     pint and the bar selfie sit side by side, not stacked full-bleed. */
+  .instaFrame {
+    grid-template-columns: 1fr 1fr;
   }
 
   /* Segmented + mode toggles stay two-up (short labels), just taller. */

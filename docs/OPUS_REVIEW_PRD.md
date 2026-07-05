@@ -1,5 +1,7 @@
 # PubMaxing PRD for Opus Review
 
+> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
+
 ## Problem Statement
 
 London pub discovery is currently split across price lists, generic map directories, social posts, and personal memory. A person planning a pub night can find cheap pints, or nearby venues, or a few famous historic pubs, but the experience rarely combines price, walkability, setting, venue heritage, and trusted local recommendations in one place.

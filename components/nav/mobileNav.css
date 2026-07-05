@@ -1,0 +1,126 @@
+/* PUBMAXXING mobile tab bar.
+   Colour comes from the shared tokens (globals.css / theme.css) so it flips
+   light/dark for free and reads correctly over both the paper landing and the
+   dark map shell. Fixed to the bottom on phones only; display:none above 640px
+   so the desktop navs are entirely unaffected. */
+
+.mobileTabBar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* Keep the fixed bar from covering page content / footers. The bar is
+     ~62px tall plus the safe-area inset; this padding lives on the body so it
+     applies to every route the bar renders over. */
+  body {
+    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobileTabBar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Above map panels/legend, below modals & the sticky landing topbar CTA. */
+    z-index: 90;
+    background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .mobileTabList {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 2px;
+    margin: 0;
+    padding: 4px 6px;
+    list-style: none;
+  }
+
+  .mobileTabItem {
+    flex: 1 1 0;
+    display: flex;
+  }
+
+  .mobileTab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    /* 44px+ touch target. */
+    min-height: 52px;
+    padding: 4px 2px;
+    border-radius: var(--radius-sm, 7px);
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    transition: color 0.16s ease, background 0.16s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobileTabIcon {
+    display: grid;
+    place-items: center;
+  }
+
+  .mobileTabLabel {
+    white-space: nowrap;
+  }
+
+  .mobileTab:hover,
+  .mobileTab:focus-visible {
+    color: var(--ink);
+    background: rgba(176, 129, 58, 0.12);
+  }
+
+  .mobileTab:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: -2px;
+  }
+
+  .mobileTab.isActive {
+    color: var(--brass);
+  }
+
+  /* ── Log: the emphasized centre action ────────────────────────────────── */
+  .mobileTabPrimary {
+    color: var(--paper, #f4efe4);
+    gap: 2px;
+  }
+
+  .mobileTabPrimary .mobileTabIcon {
+    width: 46px;
+    height: 46px;
+    /* Lift the button above the bar so it reads as the hero action. */
+    margin-top: -18px;
+    border-radius: 50%;
+    background: var(--brass);
+    color: var(--ink-deep, #0f1c16);
+    box-shadow: 0 6px 16px rgba(154, 106, 36, 0.4);
+    border: 2px solid var(--panel-raised);
+  }
+
+  .mobileTabPrimary .mobileTabLabel {
+    color: var(--brass);
+  }
+
+  .mobileTabPrimary:hover,
+  .mobileTabPrimary:focus-visible {
+    background: transparent;
+  }
+
+  .mobileTabPrimary:hover .mobileTabIcon,
+  .mobileTabPrimary:focus-visible .mobileTabIcon {
+    background: var(--brass-bright, #d3a44a);
+  }
+}

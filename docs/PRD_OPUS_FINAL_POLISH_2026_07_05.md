@@ -1,5 +1,7 @@
 # PubMaxing Final Polish PRD for Opus
 
+> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
+
 Status: ready for agent
 Target branch: `prd-implementation-review`
 Reviewed base: `effc970` after `git fetch --all --prune` and `git pull --ff-only`

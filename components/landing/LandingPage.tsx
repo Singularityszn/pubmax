@@ -138,6 +138,8 @@ export default function LandingPage() {
             <a href="#wedge">How it works</a>
             <a href="#landlord">The Landlord</a>
             <a href="#drops">Pint Drops</a>
+            <Link href="/feed">Feed</Link>
+            <Link href="/crawls">Crawls</Link>
             <Link href="/admin">Admin</Link>
             <ThemeToggle />
             <Link href="/map" className="btn btnPrimary topbarCta">
