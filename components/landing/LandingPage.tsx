@@ -14,18 +14,22 @@ import {
 } from "lucide-react";
 import ThamesHero from "./ThamesHero";
 import ThemeToggle from "@/components/ThemeToggle";
+import PintDropStrip from "./PintDropStrip";
 import "./landing.css";
 
-// One IntersectionObserver reveals sections as they enter view. If JS never
-// runs (SSR / no-JS), the .reveal elements are made visible by the reduced-
-// motion CSS branch and by this effect adding .isVisible — content is never
-// hidden behind JS. ponytail: plain observer, no animation lib needed.
+// One IntersectionObserver reveals sections as they enter view. The hidden
+// initial state is CSS-gated behind the .jsEnhanced class this effect adds to
+// the root — so with JS disabled, before this effect runs, or in a full-page
+// screenshot where off-screen sections never trip the observer, every .reveal
+// section is fully visible. The reveal is a pure progressive enhancement.
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = ref.current;
     if (!root) return;
     const targets = root.querySelectorAll<HTMLElement>(".reveal");
+    // Wire the observer up FIRST, then flip the root into the enhanced state,
+    // so the hidden→animate CSS never applies to a section we can't reveal.
     if (!("IntersectionObserver" in window)) {
       targets.forEach((el) => el.classList.add("isVisible"));
       return;
@@ -42,7 +46,22 @@ function useReveal() {
       { rootMargin: "0px 0px -10% 0px", threshold: 0.1 }
     );
     targets.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    root.classList.add("jsEnhanced");
+    // Safety net: anything already in view (or that never trips the observer,
+    // e.g. during a full-page screenshot) is revealed on the next frame so it
+    // can never be captured as a blank band.
+    const raf = requestAnimationFrame(() => {
+      targets.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          el.classList.add("isVisible");
+        }
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+    };
   }, []);
   return ref;
 }
@@ -83,6 +102,24 @@ const drops = [
   },
 ];
 
+const goldenDays = [
+  {
+    kicker: "£1.80 a pint",
+    title: "Cheap pints, long tabs",
+    body: "When the round came to less than the bus fare home and you stayed until they turned the lights up. The pub was the cheapest good night in the city — and half of us were only there because we couldn't afford anywhere else.",
+  },
+  {
+    kicker: "Last orders, never",
+    title: "Chaotic nights, worth it",
+    body: "The wrong turn that found the right pub. The lock-in you shouldn't have stayed for. The crawl that started as three of you and finished as fifteen, none of you sure whose idea the last one was.",
+  },
+  {
+    kicker: "The back-room table",
+    title: "Where everything collided",
+    body: "Art students arguing with historians, someone sketching a startup on a beer mat, old regulars who'd fixed the world a thousand times over. Friendship, history, coding and drinking, all at one sticky table. Those pubs made people.",
+  },
+];
+
 export default function LandingPage() {
   const ref = useReveal();
 
@@ -91,11 +128,11 @@ export default function LandingPage() {
       {/* ── Top bar ─────────────────────────────────────────────── */}
       <header className="topbar">
         <div className="container topbarInner">
-          <Link href="/" className="wordmark" aria-label="PubMaxing home">
+          <Link href="/" className="wordmark" aria-label="PUBMAXXING home">
             <span className="brandGlyph" aria-hidden="true">
               <Beer size={20} strokeWidth={1.5} />
             </span>
-            <span className="wordmarkText">PubMaxing</span>
+            <span className="wordmarkText">PUBMAXXING</span>
           </Link>
           <nav className="navLinks" aria-label="Primary">
             <a href="#wedge">How it works</a>
@@ -115,12 +152,16 @@ export default function LandingPage() {
         <section className="hero container" aria-labelledby="hero-title">
           <div className="heroGrid">
             <div className="heroCopy">
-              <p className="eyebrow">A London field guide</p>
+              <p className="eyebrow">Every pint has a story.</p>
               <h1 id="hero-title" className="lpSerif">
                 Bring back <em>pub crawling.</em>
               </h1>
+              <p className="heroTagline lpSerif">
+                Cheap pints, chaotic nights, and the crawl stories worth passing
+                down.
+              </p>
               <p className="heroLede">
-                PubMaxing maps every real pint price and every pub worth the
+                PUBMAXXING maps every real pint price and every pub worth the
                 walk across London — so the night plans itself and the wandering
                 is the point.
               </p>
@@ -169,8 +210,8 @@ export default function LandingPage() {
               Three questions every good pub answers.
             </h2>
             <p>
-              A listings site tells you a pub exists. PubMaxing tells you what it
-              costs, what it feels like, and why it has stood there for two
+              A listings site tells you a pub exists. PUBMAXXING tells you what
+              it costs, what it feels like, and why it has stood there for two
               hundred years.
             </p>
           </div>
@@ -278,6 +319,39 @@ export default function LandingPage() {
               </p>
             </div>
           </div>
+
+          {/* Live community feed: newest visible Pint Drops. Fails silently to
+              nothing — never a blank/broken band. */}
+          <div className="reveal">
+            <PintDropStrip />
+          </div>
+        </section>
+
+        {/* ── Golden days: editorial nostalgia ──────────────────── */}
+        <section
+          className="goldenSection container"
+          aria-labelledby="golden-title"
+        >
+          <div className="sectionHead reveal">
+            <p className="eyebrow">The golden days</p>
+            <h2 id="golden-title" className="lpSerif">
+              For the nights you half-remember, and the pubs you never forgot.
+            </h2>
+            <p>
+              Before the apps and the algorithms, a good pub was a whole
+              education — the one room where art, history, coding, friendship and
+              drinking collided and nobody wanted to leave.
+            </p>
+          </div>
+          <div className="goldenGrid">
+            {goldenDays.map((g) => (
+              <article className="goldenCard reveal" key={g.title}>
+                <span className="goldenKicker">{g.kicker}</span>
+                <h3 className="lpSerif">{g.title}</h3>
+                <p>{g.body}</p>
+              </article>
+            ))}
+          </div>
         </section>
 
         {/* ── Generational unity ────────────────────────────────── */}
@@ -293,7 +367,7 @@ export default function LandingPage() {
             <p>
               The good pub was always the one room where the eighteen-year-old on
               their first legal pint and the regular on their forty-thousandth
-              ended up at the same bar. PubMaxing is built to bring them back to
+              ended up at the same bar. PUBMAXXING is built to bring them back to
               it — Gen Z, Gen X, and everyone between — to the same tables, the
               same stories, the same round.
             </p>
@@ -330,11 +404,11 @@ export default function LandingPage() {
       <footer className="footer">
         <div className="container footerGrid">
           <div>
-            <Link href="/" className="wordmark" aria-label="PubMaxing home">
+            <Link href="/" className="wordmark" aria-label="PUBMAXXING home">
               <span className="brandGlyph" aria-hidden="true">
                 <Beer size={18} strokeWidth={1.5} />
               </span>
-              <span className="wordmarkText lpSerif">PubMaxing</span>
+              <span className="wordmarkText lpSerif">PUBMAXXING</span>
             </Link>
             <p className="footerMeta">
               A price-aware, story-led London pub-crawl planner. Pint prices are
