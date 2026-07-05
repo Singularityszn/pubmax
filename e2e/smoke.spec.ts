@@ -52,6 +52,35 @@ test("/map mounts the map region (canvas OR fallback)", async ({ page }) => {
   // no-uncaught-errors guarantee on a deterministic surface.
 });
 
+test("/feed mounts the social feed scaffold without uncaught errors", async ({ page }) => {
+  const errors = watchPageErrors(page);
+  const response = await page.goto("/feed");
+  expect(response?.status()).toBe(200);
+  // The feed fetches /api/pint-drops and degrades to a social empty state on
+  // failure, so we assert the always-present scaffold (site nav), not content.
+  await expect(page.getByRole("link", { name: "Map", exact: true }).first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("/discover renders the cheap-pint leaderboard section", async ({ page }) => {
+  const errors = watchPageErrors(page);
+  const response = await page.goto("/discover");
+  expect(response?.status()).toBe(200);
+  // Stable, app-owned heading (id in app/discover/page.tsx).
+  await expect(page.locator("#cheap-title")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("/u/[handle] renders a public profile for any handle without crashing", async ({ page }) => {
+  const errors = watchPageErrors(page);
+  const response = await page.goto("/u/testdrinker");
+  expect(response?.status()).toBe(200);
+  // Dynamic route: the scaffold always mounts even for an unknown handle
+  // (friendly empty state), so assert the site nav is present.
+  await expect(page.getByRole("link", { name: "Home", exact: true }).first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("theme toggle flips html[data-theme], persists to localStorage, survives reload", async ({
   page,
 }) => {
