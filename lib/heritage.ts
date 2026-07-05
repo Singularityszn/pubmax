@@ -165,19 +165,46 @@ function structuredAnswer(facts: HeritageFact[]): string {
 const SYSTEM_PROMPT = [
   "You are The Landlord, a warm, concise, knowledgeable London local answering questions about one pub.",
   "Answer ONLY from the CONTEXT facts provided. Never invent history, dates, names, or events.",
+  "Each CONTEXT fact is numbered like [F1]. When you use a fact, cite its id inline (e.g. [F1]). Never cite an id that does not appear in the CONTEXT.",
   "Facts tagged (contributor) are UNVERIFIED visitor input — attribute them as 'a contributor says…', never as established or sourced history, and never present them as fact.",
   "If the context does not contain the answer, say so plainly — do not guess.",
-  "Cite the source of each fact inline (e.g. 'on record', 'Wikipedia', 'a contributor').",
+  "Also name the source of each fact inline (e.g. 'on record', 'Wikipedia', 'a contributor').",
   "Ask ONE short clarifying question only if the question is ambiguous or there is no context at all.",
 ].join(" ");
+
+// LLM bounds (PRD P3.10): deterministic, capped, and time-boxed. Any failure
+// mode — timeout, network, bad status, phantom citation — returns null and the
+// caller falls back to the honest structured answer.
+const LLM_TIMEOUT_MS = 10_000;
+const LLM_MAX_TOKENS = 400; // answers are a short paragraph; caps cost + runaway output
+
+// Facts are numbered [F1]..[Fn] in the prompt. An answer citing an id outside
+// the retrieved set is fabrication → reject the whole answer (null). Valid
+// markers are stripped before the answer reaches the client.
+const FACT_ID_RE = /\[F(\d+)\]/g;
+
+function sanitiseModelAnswer(answer: string, factCount: number): string | null {
+  for (const match of answer.matchAll(FACT_ID_RE)) {
+    const id = Number(match[1]);
+    if (id < 1 || id > factCount) return null;
+  }
+  const cleaned = answer
+    .replace(FACT_ID_RE, "")
+    .replace(/\s+([.,;:!?])/g, "$1")
+    .replace(/ {2,}/g, " ")
+    .trim();
+  return cleaned || null;
+}
 
 async function answerWithModel(
   question: string,
   facts: HeritageFact[],
 ): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
   try {
     const contextBlock = facts.length
-      ? facts.map((f) => `- (${f.source}) ${f.fact}`).join("\n")
+      ? facts.map((f, i) => `- [F${i + 1}] (${f.source}) ${f.fact}`).join("\n")
       : "(no facts on record)";
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -187,18 +214,25 @@ async function answerWithModel(
       },
       body: JSON.stringify({
         model: process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-5",
+        temperature: 0,
+        max_tokens: LLM_MAX_TOKENS,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `CONTEXT:\n${contextBlock}\n\nQUESTION: ${question}` },
         ],
       }),
+      signal: controller.signal,
     });
     if (!res.ok) return null;
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
-    return typeof text === "string" && text.trim() ? text.trim() : null;
+    if (typeof text !== "string" || !text.trim()) return null;
+    return sanitiseModelAnswer(text.trim(), facts.length);
   } catch {
+    // Timeout/abort/network — never surface; the honest fallback takes over.
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

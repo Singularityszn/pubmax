@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import "./admin.css";
@@ -35,6 +37,7 @@ export default function AdminPage() {
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const t = token.trim();
@@ -42,7 +45,7 @@ export default function AdminPage() {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/pint-drops?status=hidden&admin=${encodeURIComponent(t)}`, {
+      const res = await fetch("/api/pint-drops?status=hidden", {
         headers: { "x-admin-token": t },
       });
       if (res.status === 403) {
@@ -69,6 +72,8 @@ export default function AdminPage() {
   const decide = useCallback(
     async (id: string, action: "restore" | "keep_hidden") => {
       const t = token.trim();
+      setPendingId(id);
+      setMessage(null);
       try {
         const res = await fetch("/api/pint-drops", {
           method: "POST",
@@ -86,8 +91,11 @@ export default function AdminPage() {
         // Decided drops leave the queue either way (restore → visible,
         // keep_hidden → reviewed), so drop them from the list.
         setDrops((current) => current.filter((d) => d.id !== id));
+        setMessage(action === "restore" ? "Pint Drop restored." : "Pint Drop kept hidden.");
       } catch {
         setMessage("Could not reach the server.");
+      } finally {
+        setPendingId(null);
       }
     },
     [token],
@@ -95,8 +103,19 @@ export default function AdminPage() {
 
   return (
     <main className="admin">
+      <nav className="siteNav adminNav" aria-label="Site navigation">
+        <Link href="/">Home</Link>
+        <Link href="/map">Map</Link>
+        <Link href="/admin" aria-current="page">
+          Admin
+        </Link>
+      </nav>
+
       <h1>Pint Drop moderation</h1>
       <p className="admin-sub">Review reported community drops. Restore the good, keep the rest hidden.</p>
+      <Link className="adminMapCallout" href="/map">
+        Back to the live map
+      </Link>
 
       <div className="admin-bar">
         <input
@@ -111,10 +130,21 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {message ? <div className="admin-msg">{message}</div> : null}
+      {message ? (
+        <div
+          className="admin-msg"
+          role={message.startsWith("Not authorised") || message.startsWith("Could not") ? "alert" : "status"}
+        >
+          {message}
+        </div>
+      ) : null}
 
       {drops.length === 0 ? (
-        <p className="admin-empty">Nothing to review yet.</p>
+        <div className="admin-empty">
+          <strong>Queue clear</strong>
+          <span>Reported Pint Drops will appear here after they reach the review threshold.</span>
+          <Link href="/map">Open the map</Link>
+        </div>
       ) : (
         <div className="admin-list">
           {drops.map((d) => (
@@ -135,17 +165,41 @@ export default function AdminPage() {
 
               {d.pintPhotoUrl || d.venuePhotoUrl ? (
                 <div className="admin-photos">
-                  {d.pintPhotoUrl ? <img src={d.pintPhotoUrl} alt="Pint" /> : null}
-                  {d.venuePhotoUrl ? <img src={d.venuePhotoUrl} alt="Venue" /> : null}
+                  {d.pintPhotoUrl ? (
+                    <Image
+                      src={d.pintPhotoUrl}
+                      alt={`Pint photo reported from ${d.handle}`}
+                      width={96}
+                      height={96}
+                      unoptimized
+                    />
+                  ) : null}
+                  {d.venuePhotoUrl ? (
+                    <Image
+                      src={d.venuePhotoUrl}
+                      alt={`Venue photo reported from ${d.handle}`}
+                      width={96}
+                      height={96}
+                      unoptimized
+                    />
+                  ) : null}
                 </div>
               ) : null}
 
               <div className="admin-actions">
-                <button className="admin-btn admin-restore" onClick={() => decide(d.id, "restore")}>
-                  Restore
+                <button
+                  className="admin-btn admin-restore"
+                  onClick={() => decide(d.id, "restore")}
+                  disabled={pendingId === d.id}
+                >
+                  {pendingId === d.id ? "Working…" : "Restore"}
                 </button>
-                <button className="admin-btn admin-keep" onClick={() => decide(d.id, "keep_hidden")}>
-                  Keep hidden
+                <button
+                  className="admin-btn admin-keep"
+                  onClick={() => decide(d.id, "keep_hidden")}
+                  disabled={pendingId === d.id}
+                >
+                  {pendingId === d.id ? "Working…" : "Keep hidden"}
                 </button>
               </div>
             </article>

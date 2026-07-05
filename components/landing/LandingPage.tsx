@@ -13,6 +13,7 @@ import {
   MapPin,
 } from "lucide-react";
 import ThamesHero from "./ThamesHero";
+import ThemeToggle from "@/components/ThemeToggle";
 import "./landing.css";
 
 // One IntersectionObserver reveals sections as they enter view. If JS never
@@ -72,13 +73,13 @@ const drops = [
     who: "@meridian_w4",
     price: "£4.10",
     note: "Cask Landlord, poured properly. My grandad drank here after his shifts at the brewery — same corner table, still the cheapest in Chiswick.",
-    when: "Logged 2 days ago · Chiswick",
+    when: "Added 2 days ago · Chiswick",
   },
   {
     who: "@olly.se16",
     price: "£5.40",
     note: "Pricey, but you drink it on the jetty watching the tide turn. Worth it once. Bring someone you like.",
-    when: "Logged last week · Rotherhithe",
+    when: "Added last week · Rotherhithe",
   },
 ];
 
@@ -100,6 +101,8 @@ export default function LandingPage() {
             <a href="#wedge">How it works</a>
             <a href="#landlord">The Landlord</a>
             <a href="#drops">Pint Drops</a>
+            <Link href="/admin">Admin</Link>
+            <ThemeToggle />
             <Link href="/map" className="btn btnPrimary topbarCta">
               Open the map
             </Link>
@@ -126,6 +129,9 @@ export default function LandingPage() {
                   Open the map
                   <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
                 </Link>
+                <Link href="/map?style=heritage" className="btn btnGhost">
+                  Start with heritage
+                </Link>
                 <a href="#wedge" className="btn btnGhost">
                   How it works
                 </a>
@@ -133,14 +139,14 @@ export default function LandingPage() {
               <ul className="statChips" aria-label="At a glance">
                 <li className="statChip">
                   <strong>3,000+</strong>
-                  <span>pint prices logged</span>
+                  <span>pint prices mapped</span>
                 </li>
                 <li className="statChip">
                   <strong>Every borough</strong>
                   <span>across London</span>
                 </li>
                 <li className="statChip">
-                  <strong>from £3.80</strong>
+                  <strong>from £1.99</strong>
                   <span>cheapest observed</span>
                 </li>
               </ul>
@@ -197,7 +203,7 @@ export default function LandingPage() {
               <p className="heroLede">
                 The Landlord is a grounded guide, not a fabulist. It only tells
                 you what is on the record — the listing, the archive, the price
-                someone logged last week — and it says so plainly when the record
+                someone added last week — and it says so plainly when the record
                 runs out.
               </p>
               <p style={{ color: "var(--ink-soft)", lineHeight: 1.6, margin: 0 }}>
@@ -210,6 +216,7 @@ export default function LandingPage() {
               <div className="chatBar">
                 <MessageSquareText size={17} strokeWidth={1.5} aria-hidden="true" />
                 The Landlord — Ye Olde Cheshire Cheese
+                <span className="exampleTag">Example</span>
               </div>
               <div className="chatBody">
                 <p className="chatQuestion">Who used to drink here?</p>
@@ -245,7 +252,10 @@ export default function LandingPage() {
                     <span className="dropPrice">{d.price}</span>
                   </div>
                   <p>{d.note}</p>
-                  <small>{d.when}</small>
+                  <div className="dropMeta">
+                    <small>{d.when}</small>
+                    <span className="exampleTag">Example</span>
+                  </div>
                 </article>
               ))}
             </div>
@@ -309,6 +319,9 @@ export default function LandingPage() {
               Open the map
               <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
             </Link>
+            <Link href="/map?style=heritage" className="btn btnGhost">
+              Start with heritage
+            </Link>
           </div>
         </section>
       </main>
@@ -330,7 +343,7 @@ export default function LandingPage() {
               <a
                 href="https://twitter.com/London_W4"
                 target="_blank"
-                rel="noreferrer noopener"
+                rel="noreferrer"
               >
                 Alastair Hilton (@London_W4)
               </a>
@@ -349,6 +362,7 @@ export default function LandingPage() {
                 />
                 The map
               </Link>
+              <Link href="/admin">Moderation</Link>
               <a href="#wedge">How it works</a>
               <a href="#drops">Pint Drops</a>
             </div>
@@ -360,6 +374,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+        <p className="container footerColophon">Built by Karan Manoharan</p>
       </footer>
     </div>
   );

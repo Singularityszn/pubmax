@@ -13,7 +13,7 @@
   --pint: #2f8f5b; /* cheap pint / positive */
   --amber: #c2882a; /* mid price / caution */
   --brick: #b5493a; /* expensive / destructive */
-  --brass: #b0813a; /* route + writer + guidebook accent */
+  --brass: #9a6a24; /* route + writer + guidebook accent (AA on paper) */
   --brass-bright: #d3a44a; /* map marker on dark basemap */
   --river: #2f6f8f; /* by-water + heritage */
   --river-bright: #4f9ec4;
@@ -89,6 +89,70 @@ button {
   display: grid;
   grid-template-columns: 356px minmax(0, 1fr) 372px;
   overflow: hidden;
+  position: relative;
+}
+
+.siteNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.siteNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.siteNav a:hover {
+  background: rgba(176, 129, 58, 0.12);
+  color: var(--ink);
+}
+
+.siteNav a[aria-current="page"] {
+  background: var(--ink-deep);
+  color: var(--paper);
+}
+
+.appNav {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 1200;
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
+}
+
+.demoDataNote {
+  display: grid;
+  gap: 3px;
+  margin: 8px 0 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(176, 129, 58, 0.32);
+  border-radius: var(--radius-sm);
+  background: rgba(176, 129, 58, 0.09);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.demoDataNote span {
+  color: var(--brass);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .controlRail,
@@ -244,6 +308,70 @@ h3 {
   border-color: var(--ink-deep);
   background: var(--ink-deep);
   color: #fdfaf2;
+  box-shadow: inset 0 0 0 1px var(--brass);
+}
+
+.featuredHint {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.featuredList {
+  display: grid;
+  gap: 8px;
+}
+
+.featuredCrawl {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.featuredCrawl:hover {
+  border-color: var(--brass);
+  border-left-color: var(--brass-bright);
+  box-shadow: var(--shadow);
+}
+
+.featuredCrawl:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.featuredCrawlHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.featuredCrawlHead strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.featuredCount {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.featuredBlurb {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .rangeLine {
@@ -326,10 +454,253 @@ input[type="range"] {
   min-width: 0;
 }
 
+.mapCanvasWrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .maplibreMap {
   width: 100%;
   height: 100%;
   background: var(--ink-deep);
+}
+
+/* Landmark history card — a sourced note pinned over the map. */
+.landmarkCard {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 460;
+  max-width: 310px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.landmarkCardHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.landmarkCardHead svg {
+  color: var(--brass);
+  flex-shrink: 0;
+}
+
+.landmarkCardHead strong {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.landmarkCardHead button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.landmarkCardHead button:hover {
+  color: var(--ink);
+  border-color: var(--brass);
+}
+
+.landmarkCard p {
+  margin: 0 0 9px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.landmarkCard a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--brass);
+}
+
+/* Landmark → heritage wiring: nearest story pubs, tappable. */
+.landmarkNearby {
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.landmarkNearby h4 {
+  margin: 0 0 6px;
+  font-family: var(--serif);
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.landmarkNearby button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.landmarkNearby button span:first-child {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.landmarkNearby button span:last-child {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.landmarkNearby button:hover span:first-child {
+  color: var(--brass);
+}
+
+/* WebGL-failure fallback — a calm notice where the canvas would be. */
+.mapFallback {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 32px;
+  text-align: center;
+  background: var(--ink-deep);
+  color: var(--paper);
+}
+
+.mapFallback strong {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+}
+
+.mapFallback p {
+  margin: 0 auto;
+  max-width: 340px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Hero story teaser on first paint — a guidebook margin note, bottom-left. */
+.mapHeroCard {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  z-index: 450;
+  max-width: 300px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mapHeroCard {
+    animation: heroCardIn 0.45s ease-out;
+  }
+
+  @keyframes heroCardIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+.mapHeroCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mapHeroCardHead span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.mapHeroCardHead button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mapHeroCardHead button:hover {
+  color: var(--ink);
+  border-color: var(--brass);
+}
+
+.mapHeroCard strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.mapHeroCard p {
+  margin: 6px 0 9px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mapHeroVisit {
+  padding: 6px 14px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brass);
+  cursor: pointer;
+}
+
+.mapHeroVisit:hover {
+  background: var(--brass);
+  color: var(--paper);
 }
 
 .modeToggle {
@@ -357,10 +728,54 @@ input[type="range"] {
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.modeToggle button:hover:not(.selected) {
+  color: var(--ink);
+  background: rgba(176, 129, 58, 0.08);
+}
+
 .modeToggle button.selected {
   background: var(--panel-raised);
   color: var(--ink);
   box-shadow: var(--shadow);
+}
+
+.nearbyBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  margin-bottom: 14px;
+  padding: 0 12px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: rgba(176, 129, 58, 0.09);
+  color: var(--brass);
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.nearbyBtn:hover:not(:disabled) {
+  background: rgba(176, 129, 58, 0.16);
+}
+
+.nearbyBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.nearbyBtn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.nearbyError {
+  margin: -6px 0 14px;
+  color: var(--brick);
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .buildHint {
@@ -401,6 +816,28 @@ input[type="range"] {
 .resetBtn:hover {
   border-color: var(--brick);
   background: rgba(181, 73, 58, 0.06);
+}
+
+.shareBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--brass);
+  font-size: 0.76rem;
+  font-weight: 700;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.shareBtn:hover,
+.shareBtn:focus-visible {
+  border-color: var(--brass-bright);
+  background: var(--brass);
+  color: #12100c;
 }
 
 .addStopBtn {
@@ -480,7 +917,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ink-soft);
+  color: #3d4842; /* light-theme ink-soft; legend chip bg is always light */
 }
 
 .mapLegend i {
@@ -501,8 +938,9 @@ input[type="range"] {
   background: var(--brick);
 }
 
-.mapLegend .blue {
-  background: var(--river-bright);
+.mapLegend .brassRing {
+  background: transparent;
+  border: 2px solid var(--brass-bright);
 }
 
 .mapLegend .gold {
@@ -622,11 +1060,17 @@ input[type="range"] {
   background: rgba(194, 136, 42, 0.1);
 }
 
-/* Needs Source: unverified editorial — visibly distinct from Sourced. */
-.provChip.needs-source {
+.provChip.demo {
   color: var(--brass);
   border-color: rgba(176, 129, 58, 0.4);
-  background: rgba(176, 129, 58, 0.1);
+  background: rgba(176, 129, 58, 0.12);
+}
+
+/* Needs Source: unverified editorial — visibly distinct from Sourced. */
+.provChip.needs-source {
+  color: var(--amber);
+  border-color: rgba(194, 136, 42, 0.4);
+  background: rgba(194, 136, 42, 0.1);
 }
 
 .provChip.baseline {
@@ -785,7 +1229,12 @@ input[type="range"] {
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   color: var(--ink);
-  outline: 0;
+}
+
+.landlordForm input:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
 }
 
 .landlordForm button {
@@ -796,7 +1245,12 @@ input[type="range"] {
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
-  color: #fffdf6;
+  color: #fdfaf2;
+}
+
+.landlordForm button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .landlordSuggest {
@@ -930,15 +1384,24 @@ input[type="range"] {
 }
 
 .routeList li {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+/* Route rows are real buttons now (keyboard operable); li keeps the chrome. */
+.routeList li > button {
   display: grid;
   grid-template-columns: 30px 1fr;
   gap: 11px;
   padding: 11px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-  cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  border-radius: inherit;
 }
 
 .routeList li:hover {
@@ -982,6 +1445,70 @@ input[type="range"] {
 .routeList small {
   color: var(--brass);
   font-weight: 600;
+}
+
+/* Keyboard route-building path: filtered venue list with Add/Remove controls. */
+.venuePicker {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+  display: grid;
+  gap: 8px;
+}
+
+.venuePickerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.venuePickerList button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  text-align: left;
+  color: inherit;
+}
+
+.venuePickerList button:hover {
+  border-color: var(--brass);
+}
+
+.venuePickerList button[aria-pressed="true"] {
+  border-color: var(--ink-deep);
+  box-shadow: inset 3px 0 0 var(--brass);
+}
+
+.venuePickerList strong {
+  display: block;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.venuePickerList small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.venuePickerList .pickAction {
+  color: var(--brass);
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.pickerNote {
+  color: var(--muted);
 }
 
 .venueInspector {
@@ -1055,6 +1582,10 @@ input[type="range"] {
 .dropCard .dropHandle {
   font-weight: 800;
   font-size: 0.84rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dropCard .dropPrice {
@@ -1234,7 +1765,13 @@ input[type="range"] {
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   color: var(--ink);
-  outline: 0;
+}
+
+.dropComposer input:focus-visible,
+.dropComposer textarea:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
 }
 
 .dropComposer textarea {
@@ -1257,7 +1794,7 @@ input[type="range"] {
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
-  color: #fffdf6;
+  color: #fdfaf2;
   font-weight: 700;
   transition: filter 0.15s ease;
 }
@@ -1304,6 +1841,115 @@ input[type="range"] {
   color: var(--pint);
 }
 
+/* ── Chrome micro-interactions: hover warm-up, focus rings, disabled ──────
+   Color/focus/disabled states are unconditional (a11y). Transform-based
+   press/lift feedback lives in the no-preference block below so reduced-motion
+   users get instant, static states. Tokens only, both themes. */
+
+/* Consistent brass focus ring on interactive chrome that lacked one. */
+.modeToggle button:focus-visible,
+.mapHeroVisit:focus-visible,
+.clearBtn:focus-visible,
+.resetBtn:focus-visible,
+.reportBtn:focus-visible,
+.composerToggle:focus-visible,
+.landlordBtn:focus-visible,
+.landlordSuggest button:focus-visible,
+.landmarkNearby button:focus-visible,
+.landmarkCardHead button:focus-visible,
+.mapHeroCardHead button:focus-visible,
+.photoPick:focus-within,
+.photoRemove:focus-visible,
+.citationChip:focus-visible,
+.sourceLinks a:focus-visible,
+.claimCard a:focus-visible,
+.landmarkCard a:focus-visible,
+.venuePickerList button:focus-visible,
+.routeList li > button:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Consistent disabled dimming where missing. */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Hover warm-up (color/border only) for list-style controls. */
+.landmarkNearby button:hover,
+.landlordSuggest button:hover,
+.citationChip:hover {
+  background: rgba(176, 129, 58, 0.06);
+}
+
+.dropCard,
+.claimCard {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dropCard:hover,
+.claimCard:hover {
+  border-color: var(--brass);
+}
+
+.venuePickerList button {
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.venuePickerList button:hover {
+  background: rgba(176, 129, 58, 0.05);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Short, scoped transitions so hover/focus states ease rather than snap. */
+  .modeToggle button,
+  .mapHeroVisit,
+  .clearBtn,
+  .resetBtn,
+  .reportBtn,
+  .composerToggle,
+  .landlordBtn,
+  .landlordSuggest button,
+  .landmarkNearby button,
+  .citationChip,
+  .landmarkCardHead button,
+  .mapHeroCardHead button,
+  .photoPick,
+  .photoRemove {
+    transition:
+      background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+      transform 0.12s ease, box-shadow 0.15s ease;
+  }
+
+  /* Press feedback — buttons dip on tap so interactions feel responsive. */
+  .segmented button:active,
+  .modeToggle button:active,
+  .nearbyBtn:active,
+  .clearBtn:active,
+  .resetBtn:active,
+  .shareBtn:active,
+  .reportBtn:active,
+  .composerToggle:active,
+  .landlordBtn:active,
+  .landlordForm button:active,
+  .landlordSuggest button:active,
+  .dropComposer button[type="submit"]:active,
+  .mapHeroVisit:active,
+  .photoPick:active,
+  .venuePickerList button:active,
+  .featuredCrawl:active {
+    transform: translateY(1px);
+  }
+
+  /* Featured cards and drop/claim cards lift a hair on hover. */
+  .featuredCrawl:hover,
+  .dropCard:hover,
+  .claimCard:hover {
+    transform: translateY(-1px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
@@ -1335,5 +1981,184 @@ input[type="range"] {
     right: 10px;
     bottom: 10px;
     justify-content: center;
+  }
+
+  .appNav {
+    top: 8px;
+    max-width: calc(100vw - 20px);
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .siteNav {
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .siteNav a {
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 0.74rem;
+  }
+}
+
+/* ── Phone: map stays the hero, rails read as scrollable bottom sheets ──────
+   The ≤1050px rule already stacks to one column (map first, order:-1). Here we
+   make it feel like a phone app: a taller map hero, comfortable padding, and
+   the two panels as rounded "sheets" that overlap up under the map with their
+   own scroll. Pure CSS — no JS to drag/collapse, so the sheets simply live in
+   the page scroll with a grab-handle affordance. */
+@media (max-width: 768px) {
+  .mapStage {
+    /* Hero map: fill most of the first screen; svh dodges mobile URL-bar jump. */
+    height: 60vh;
+    height: 60svh;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  /* Panels ride up over the map edge and scroll with the page. The controlRail
+     carries the filters/featured routes; routePanel carries route + inspector. */
+  .controlRail,
+  .routePanel {
+    position: relative;
+    z-index: 2;
+    margin-top: -18px;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0;
+    background: var(--panel);
+    box-shadow: 0 -10px 24px rgba(24, 34, 26, 0.14);
+    max-height: none;
+    overflow: visible;
+  }
+
+  /* Grab-handle pill so each sheet reads as draggable even though it scrolls. */
+  .controlRail::before,
+  .routePanel::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: -6px auto 14px;
+    border-radius: 999px;
+    background: var(--line);
+  }
+
+  /* The map should own the top; only the route sheet needs the overlap seam. */
+  .controlRail {
+    margin-top: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .controlRail::before {
+    display: none;
+  }
+
+  /* Keep the floating theme toggle clear of the map legend and reachable. */
+  .themeToggle.floating {
+    top: 12px;
+    right: 12px;
+  }
+
+  /* Comfortable touch targets on the primary controls. */
+  .segmented button,
+  .modeToggle button,
+  .nearbyBtn,
+  .addStopBtn,
+  .landlordBtn,
+  .composerToggle {
+    min-height: 44px;
+  }
+
+  .featuredCrawl {
+    padding: 13px 14px;
+  }
+
+  /* Full-width, tappable share/clear/reset instead of tiny pills. */
+  .clearBtn,
+  .resetBtn {
+    min-height: 34px;
+    padding: 6px 12px;
+  }
+
+  /* Cards pinned over the map must not swallow it on a narrow screen. */
+  .landmarkCard,
+  .mapHeroCard {
+    max-width: min(78vw, 300px);
+  }
+
+  .landmarkCard {
+    top: 12px;
+    left: 12px;
+  }
+
+  .mapHeroCard {
+    bottom: 64px; /* clear the recentred legend */
+    left: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .controlRail,
+  .routePanel {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  h1 {
+    font-size: 1.34rem;
+  }
+
+  .brandBlock {
+    margin-bottom: 16px;
+  }
+
+  /* Grids that were two/three columns get cramped on a phone — go single. */
+  .statsGrid,
+  .routeMetrics,
+  .photoRow,
+  .dropComposer .composerRow,
+  .dropPhotos {
+    grid-template-columns: 1fr;
+  }
+
+  /* Segmented + mode toggles stay two-up (short labels), just taller. */
+  .segmented button,
+  .modeToggle button {
+    font-size: 0.82rem;
+  }
+
+  .statsGrid strong {
+    font-size: 1.24rem;
+  }
+
+  /* Landlord ask row: stack input above the send button so both stay ≥44px. */
+  .landlordForm {
+    flex-wrap: wrap;
+  }
+
+  .landlordForm input {
+    min-height: 44px;
+  }
+
+  .landlordForm button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Legend wraps to two rows on the narrowest phones without clipping. */
+  .mapLegend {
+    gap: 8px 12px;
+    padding: 8px 10px;
+    font-size: 0.74rem;
+  }
+
+  /* Route rows: keep the number + text comfortable, no overflow. */
+  .routeList li > button {
+    grid-template-columns: 28px 1fr;
+    gap: 9px;
   }
 }

@@ -1,4 +1,4 @@
-import { getVenueCuration, type VenueCuration } from "@/lib/curation";
+import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
 
 export type CrawlStyle =
   | "balanced"
@@ -201,6 +201,49 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       dataQualityNotes: Array.from(dataQualityNotes),
       sourceDatasets: Array.from(sourceDatasets),
       curation,
+    };
+  });
+}
+
+// The minimal drop shape mergeVenueDrops needs — the client DTO satisfies it.
+export type SummaryDrop = {
+  drink: string;
+  priceGbp: number | null;
+  passedDownNote: string;
+  provenance: Provenance;
+};
+
+// Fold Pint Drops into the venue's DERIVED SUMMARY SIGNALS only — never into
+// the editorial curation note. Rules:
+// - an organic contributor price can update cheapestPrice/cheapestPint;
+// - hasStory lights ONLY from a drop carrying a passed-down note — a bare
+//   price log is not a story and must not boost heritage scoring;
+// - "demo" seeds are display-only: they never move prices or story signals,
+//   so seeded liveliness never masquerades as organic.
+export function mergeVenueDrops<D extends SummaryDrop>(
+  venues: Venue[],
+  dropsByVenueId: Map<string, D[]>,
+): Venue[] {
+  if (dropsByVenueId.size === 0) return venues;
+  return venues.map((venue) => {
+    const organic = (dropsByVenueId.get(venue.id) ?? []).filter(
+      (drop) => drop.provenance !== "demo",
+    );
+    if (organic.length === 0) return venue;
+
+    const latestPriceDrop = organic.find((drop) => typeof drop.priceGbp === "number");
+    const contributorPrice = latestPriceDrop?.priceGbp ?? null;
+    const cheapestPrice =
+      contributorPrice === null
+        ? venue.cheapestPrice
+        : Math.min(venue.cheapestPrice ?? Number.POSITIVE_INFINITY, contributorPrice);
+
+    return {
+      ...venue,
+      cheapestPrice,
+      cheapestPint: latestPriceDrop?.drink || venue.cheapestPint,
+      hasStory:
+        venue.hasStory || organic.some((drop) => drop.passedDownNote.trim().length > 0),
     };
   });
 }

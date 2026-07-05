@@ -2,8 +2,17 @@
 // Grounded in retrieved facts only; never exposes API keys; never 500s the demo.
 
 import { answerHeritage, NO_STORY_LINE, type HeritageContext } from "@/lib/heritage";
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
 
 const MAX_QUESTION_LEN = 300;
+
+// Cost protection: The Landlord fronts a paid OpenRouter call, so this route
+// is rate-limited like Pint Drop writes — durable (Supabase RPC) when
+// configured, in-memory fallback otherwise. Keyed on the hashed IP (there is
+// no contributor handle here), so spend can't be scripted from one machine.
+const HERITAGE_RATE_LIMIT = 10;
+const HERITAGE_RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -26,6 +35,11 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: "question is required." }, { status: 400 });
     }
     const question = rawQuestion.slice(0, MAX_QUESTION_LEN);
+
+    const limiterKey = `heritage:${hashIp(clientIp(request))}`;
+    if (await isLimited(limiterKey, limiterKey, HERITAGE_RATE_LIMIT, HERITAGE_RATE_WINDOW_MS)) {
+      return Response.json({ error: "Too many questions, slow down." }, { status: 429 });
+    }
 
     const venueId = typeof record.venueId === "string" ? record.venueId : undefined;
     const context =

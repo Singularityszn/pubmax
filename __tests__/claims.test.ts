@@ -100,6 +100,15 @@ describe("buildVenueClaims", () => {
     expect(claims[0].content).toContain("4.50");
   });
 
+  it("a demo seed drop becomes a Baseline claim, never Contributor/Anecdote", () => {
+    const venue = groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0];
+    const claims = buildVenueClaims(venue.curation, [
+      makeDrop({ priceGbp: 5.8, passedDownNote: "A seeded passed-down note.", provenance: "demo" }),
+    ]);
+    expect(claims).toHaveLength(1);
+    expect(claims[0].kind).toBe("baseline");
+  });
+
   it("a Sourced claim is never relabeled by a later contributor/anecdote drop", () => {
     const venue = groupVenuePrices([makeRow({ pub_name: "The Grapes" })])[0];
     const claims = buildVenueClaims(venue.curation, [

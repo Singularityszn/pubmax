@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 
 import type { Provenance } from "@/lib/curation";
+import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
+import { checkRateLimitDurable, isSupabaseConfigured } from "@/lib/supabase";
 
 // A Pint Drop is one object with optional parts: a price log, a passed-down
 // memory, or both. Photos are deferred to the Storage-backed adapter (see
@@ -123,27 +125,57 @@ const rateWindow = new Map<string, number[]>();
 const RATE_LIMIT = 8;
 const RATE_WINDOW_MS = 60_000;
 
-export function isRateLimited(handle: string, now = Date.now()): boolean {
+export function isRateLimited(
+  handle: string,
+  now = Date.now(),
+  limit = RATE_LIMIT,
+  windowMs = RATE_WINDOW_MS,
+): boolean {
   const key = handle.toLowerCase();
-  const hits = (rateWindow.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  const hits = (rateWindow.get(key) ?? []).filter((t) => now - t < windowMs);
   hits.push(now);
   rateWindow.set(key, hits);
-  return hits.length > RATE_LIMIT;
+  return hits.length > limit;
+}
+
+/**
+ * Combined limiter used by every rate-limited route: durable (Supabase RPC)
+ * when configured, in-memory otherwise. A null durable verdict (client missing
+ * / RPC error) falls back to the in-memory backstop — fail-open by design, so
+ * a limiter outage can never 503 writes (checkRateLimitDurable logs the
+ * downgrade loudly).
+ */
+export async function isLimited(
+  localKey: string,
+  durableKey: string,
+  limit = RATE_LIMIT,
+  windowMs = RATE_WINDOW_MS,
+): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    const verdict = await checkRateLimitDurable(durableKey, limit, windowMs);
+    if (typeof verdict === "boolean") return verdict;
+  }
+  return isRateLimited(localKey, Date.now(), limit, windowMs);
 }
 
 export function addPintDrop(drop: PintDrop): void {
   drops.set(drop.venueId, [drop, ...(drops.get(drop.venueId) ?? [])]);
 }
 
-/** Public read: newest-first, visible-only. */
+/** Public read: newest-first, visible-only. Demo seeds merge in here — the one
+ *  read path — so seeded liveliness rides the same pipe as organic drops. */
 export function listVisiblePintDrops(venueId: string): PintDrop[] {
-  return (drops.get(venueId) ?? []).filter((d) => d.status === "visible");
+  return [
+    ...(drops.get(venueId) ?? []).filter((d) => d.status === "visible"),
+    ...demoDropsFor(venueId),
+  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function listAllVisiblePintDrops(): PintDrop[] {
   return Array.from(drops.values())
     .flat()
     .filter((d) => d.status === "visible")
+    .concat(demoPintDrops)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -155,13 +187,18 @@ function findDrop(id: string): PintDrop | undefined {
   return undefined;
 }
 
+// Report-abuse policy (launch PRD): one unauthenticated report must not hide
+// content. Every report records metadata (and is rate-limited per drop at the
+// route); the drop leaves public reads only once this many reports accumulate.
+export const REPORT_HIDE_THRESHOLD = 2;
+
 export function reportPintDrop(id: string, reason?: string): boolean {
   const hit = findDrop(id);
   if (!hit) return false;
-  hit.status = "hidden"; // hidden immediately, pending review
   hit.reportedAt = new Date().toISOString();
   hit.reportCount = (hit.reportCount ?? 0) + 1;
   if (reason) hit.reportReason = reason;
+  if (hit.reportCount >= REPORT_HIDE_THRESHOLD) hit.status = "hidden";
   return true;
 }
 
@@ -169,7 +206,7 @@ export function reportPintDrop(id: string, reason?: string): boolean {
 export function listByStatus(status: PintDropStatus): PintDrop[] {
   return Array.from(drops.values())
     .flat()
-    .filter((d) => d.status === status)
+    .filter((d) => d.status === status && !d.moderatedAt)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 

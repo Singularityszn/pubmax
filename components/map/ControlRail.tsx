@@ -1,0 +1,400 @@
+"use client";
+
+import {
+  Anchor,
+  Beer,
+  BookOpen,
+  Camera,
+  ExternalLink,
+  Hand,
+  Landmark,
+  LocateFixed,
+  MapPinned,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import { useMemo } from "react";
+
+import { pubSources, writerProfile } from "@/lib/curation";
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import type { CrawlStyle, Filters, Venue } from "@/lib/venues";
+
+export type CrawlMode = "suggest" | "build";
+
+export const styleLabels: Record<CrawlStyle, string> = {
+  balanced: "Balanced",
+  cheapest: "Cheapest",
+  heritage: "Historic",
+  writerTrail: "Writer Trail",
+  beerGarden: "Beer Garden",
+  sports: "Live Sports",
+  dateNight: "Date Night",
+};
+
+export const initialFilters: Filters = {
+  query: "",
+  maxPrice: 7,
+  crawlStyle: "balanced",
+  stopCount: 6,
+  routeWindow: 20,
+  requireBeerGarden: false,
+  requireLiveSports: false,
+  requireFood: false,
+  requireCocktails: false,
+  requireWater: false,
+  requireHeritage: false,
+  canonicalOnly: true,
+};
+
+type ControlRailProps = {
+  mode: CrawlMode;
+  onModeChange: (mode: CrawlMode) => void;
+  filters: Filters;
+  onFiltersChange: (filters: Filters) => void;
+  filteredVenues: Venue[];
+  builtCount: number;
+  onClearBuilt: () => void;
+  onLoadCrawl: (crawl: CuratedCrawl) => void;
+  onNearbyCrawl: () => void;
+  nearbyLoading: boolean;
+  nearbyError: string | null;
+};
+
+export default function ControlRail({
+  mode,
+  onModeChange,
+  filters,
+  onFiltersChange,
+  filteredVenues,
+  builtCount,
+  onClearBuilt,
+  onLoadCrawl,
+  onNearbyCrawl,
+  nearbyLoading,
+  nearbyError,
+}: ControlRailProps) {
+  const cheapCount = filteredVenues.filter(
+    (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
+  ).length;
+  const waterCount = filteredVenues.filter((venue) => venue.curation.nearWater).length;
+  const heritageCount = filteredVenues.filter((venue) => venue.hasStory).length;
+  const writerCount = filteredVenues.filter((venue) => venue.curation.writerPick).length;
+
+  const filtersDirty = useMemo(
+    () => JSON.stringify(filters) !== JSON.stringify(initialFilters),
+    [filters],
+  );
+  function resetFilters() {
+    onFiltersChange({ ...initialFilters, crawlStyle: filters.crawlStyle });
+  }
+
+  return (
+    <aside className="controlRail">
+      <div className="brandBlock">
+        <div className="brandMark">
+          <Beer size={22} />
+        </div>
+        <div>
+          <p className="eyebrow">PubMaxing</p>
+          <h1>Design the right London pub crawl.</h1>
+        </div>
+      </div>
+
+      <div className="modeToggle" role="group" aria-label="Crawl mode">
+        <button
+          className={mode === "suggest" ? "selected" : ""}
+          aria-pressed={mode === "suggest"}
+          onClick={() => onModeChange("suggest")}
+        >
+          <Sparkles size={15} /> Suggest a crawl
+        </button>
+        <button
+          className={mode === "build" ? "selected" : ""}
+          aria-pressed={mode === "build"}
+          onClick={() => onModeChange("build")}
+        >
+          <Hand size={15} /> Build your own
+        </button>
+      </div>
+
+      <button
+        type="button"
+        className="nearbyBtn"
+        aria-label="Build a crawl from the pubs nearest to me"
+        onClick={onNearbyCrawl}
+        disabled={nearbyLoading}
+      >
+        <LocateFixed size={15} />
+        {nearbyLoading ? "Finding your location…" : "Pubs near me"}
+      </button>
+      {nearbyError ? (
+        <p className="nearbyError" role="alert">
+          {nearbyError}
+        </p>
+      ) : null}
+
+      {mode === "build" ? (
+        <p className="buildHint">
+          Tap pubs on the map or use the Add stops list in the route panel.{" "}
+          {builtCount} stop{builtCount === 1 ? "" : "s"} picked.
+          {builtCount > 0 ? (
+            <button className="clearBtn" onClick={onClearBuilt}>
+              <Trash2 size={13} /> Clear
+            </button>
+          ) : null}
+        </p>
+      ) : null}
+
+      <label className="searchBox">
+        <Search size={18} />
+        <input
+          value={filters.query}
+          onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
+          placeholder="Search Shoreditch, Hackney, pub name..."
+        />
+      </label>
+
+      <section className="panelSection featuredRoutes">
+        <div className="sectionTitle">
+          <MapPinned size={16} />
+          <span>Featured routes</span>
+        </div>
+        <p className="featuredHint">Curated crawls — one generation&rsquo;s pubs, handed to the next.</p>
+        <div className="featuredList">
+          {curatedCrawls.map((crawl) => (
+            <button
+              key={crawl.id}
+              className="featuredCrawl"
+              aria-label={`Load the ${crawl.name} crawl — ${crawl.venueIds.length} stops`}
+              onClick={() => onLoadCrawl(crawl)}
+            >
+              <span className="featuredCrawlHead">
+                <strong>{crawl.name}</strong>
+                <span className="featuredCount">
+                  {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+                </span>
+              </span>
+              <span className="featuredBlurb">{crawl.blurb}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {mode === "suggest" ? (
+        <section className="panelSection">
+          <div className="sectionTitle">
+            <SlidersHorizontal size={16} />
+            <span>Crawl Style</span>
+          </div>
+          <div className="segmented" role="group" aria-label="Crawl style">
+            {(Object.keys(styleLabels) as CrawlStyle[]).map((style) => (
+              <button
+                key={style}
+                className={filters.crawlStyle === style ? "selected" : ""}
+                aria-pressed={filters.crawlStyle === style}
+                onClick={() => onFiltersChange({ ...filters, crawlStyle: style })}
+              >
+                {styleLabels[style]}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="panelSection">
+        <div className="rangeLine">
+          <span>Max Pint</span>
+          <strong>£{filters.maxPrice.toFixed(2)}</strong>
+        </div>
+        <input
+          type="range"
+          min="4"
+          max="9"
+          step="0.25"
+          value={filters.maxPrice}
+          aria-label="Maximum pint price"
+          onChange={(event) => onFiltersChange({ ...filters, maxPrice: Number(event.target.value) })}
+        />
+        {mode === "suggest" ? (
+          <>
+            <div className="rangeLine">
+              <span>Stops</span>
+              <strong>{filters.stopCount}</strong>
+            </div>
+            <input
+              type="range"
+              min="4"
+              max="7"
+              step="1"
+              value={filters.stopCount}
+              aria-label="Number of stops"
+              onChange={(event) =>
+                onFiltersChange({ ...filters, stopCount: Number(event.target.value) })
+              }
+            />
+            <div className="rangeLine">
+              <span>Route Window</span>
+              <strong>{filters.routeWindow} min</strong>
+            </div>
+            <input
+              type="range"
+              min="15"
+              max="30"
+              step="5"
+              value={filters.routeWindow}
+              aria-label="Route window in minutes"
+              onChange={(event) =>
+                onFiltersChange({ ...filters, routeWindow: Number(event.target.value) })
+              }
+            />
+          </>
+        ) : null}
+      </section>
+
+      <section className="panelSection toggles">
+        <div className="sectionTitle">
+          <Landmark size={16} />
+          <span>Story Filters</span>
+          {filtersDirty ? (
+            <button className="resetBtn" style={{ marginLeft: "auto" }} onClick={resetFilters}>
+              <Trash2 size={12} /> Reset
+            </button>
+          ) : null}
+        </div>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireWater}
+            onChange={(event) => onFiltersChange({ ...filters, requireWater: event.target.checked })}
+          />
+          By the water
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireHeritage}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requireHeritage: event.target.checked })
+            }
+          />
+          Heritage note
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireBeerGarden}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requireBeerGarden: event.target.checked })
+            }
+          />
+          Beer garden
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireLiveSports}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requireLiveSports: event.target.checked })
+            }
+          />
+          Live sports
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireFood}
+            onChange={(event) => onFiltersChange({ ...filters, requireFood: event.target.checked })}
+          />
+          Food
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireCocktails}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requireCocktails: event.target.checked })
+            }
+          />
+          Cocktails
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.canonicalOnly}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, canonicalOnly: event.target.checked })
+            }
+          />
+          Clean borough rows
+        </label>
+      </section>
+
+      <section className="statsGrid">
+        <div>
+          <span>Matched</span>
+          <strong>{filteredVenues.length}</strong>
+        </div>
+        <div>
+          <span>≤ £5.50</span>
+          <strong>{cheapCount}</strong>
+        </div>
+        <div>
+          <span>Water</span>
+          <strong>{waterCount}</strong>
+        </div>
+        <div>
+          <span>Heritage</span>
+          <strong>{heritageCount}</strong>
+        </div>
+        <div>
+          <span>Writer</span>
+          <strong>{writerCount}</strong>
+        </div>
+      </section>
+
+      {filteredVenues.length === 0 ? (
+        <section className="emptyState">
+          <strong>No venues match</strong>
+          <p>Try widening the pint price or clearing story and amenity filters.</p>
+          <button onClick={() => onFiltersChange(initialFilters)}>Reset filters</button>
+        </section>
+      ) : null}
+
+      <section className="writerCard">
+        <div className="writerHeader">
+          <Camera size={18} />
+          <div>
+            <p className="eyebrow">{writerProfile.handle}</p>
+            <h2>{writerProfile.name}</h2>
+          </div>
+        </div>
+        <p>{writerProfile.summary}</p>
+        <div className="writerFacts">
+          <span>
+            <BookOpen size={15} />
+            {writerProfile.bookTitle}
+          </span>
+          <span>
+            <Anchor size={15} />
+            Narrowboat London
+          </span>
+        </div>
+        <ul>
+          {writerProfile.proofPoints.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <div className="sourceLinks">
+          {pubSources.map((source) => (
+            <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
+              {source.title}
+              <ExternalLink size={13} />
+            </a>
+          ))}
+        </div>
+      </section>
+    </aside>
+  );
+}

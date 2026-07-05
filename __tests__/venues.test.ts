@@ -5,8 +5,10 @@ import {
   scoreVenue,
   buildCrawlRoute,
   crawlSummary,
+  mergeVenueDrops,
   stableVenueIdFromKey,
   venueGroupingKey,
+  type SummaryDrop,
   type VenuePrice,
   type Filters,
 } from "@/lib/venues";
@@ -207,6 +209,114 @@ describe("buildCrawlRoute", () => {
     expect(route.length).toBeLessThanOrEqual(3);
     const ids = route.map((v) => v.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("mergeVenueDrops", () => {
+  function makeSummaryDrop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
+    return {
+      drink: "Lager",
+      priceGbp: null,
+      passedDownNote: "",
+      provenance: "contributor",
+      ...overrides,
+    };
+  }
+
+  // A venue with no editorial heritage note → hasStory starts false.
+  function plainVenue() {
+    return groupVenuePrices([makeRow({ pub_name: "The Nothing", price_gbp: 6 })])[0];
+  }
+
+  it("a price-only drop does NOT flip hasStory (a bare price is not a story)", () => {
+    const venue = plainVenue();
+    expect(venue.hasStory).toBe(false);
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([[venue.id, [makeSummaryDrop({ priceGbp: 4.5 })]]]),
+    );
+    expect(merged.hasStory).toBe(false);
+    // ...and therefore no heritage-score boost either.
+    expect(scoreVenue(merged, "heritage")).toBe(scoreVenue(venue, "heritage"));
+    // The price signal itself still merges.
+    expect(merged.cheapestPrice).toBe(4.5);
+  });
+
+  it("a drop WITH a passed-down note lights hasStory", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [venue.id, [makeSummaryDrop({ passedDownNote: "My grandad's corner table.", provenance: "anecdote" })]],
+      ]),
+    );
+    expect(merged.hasStory).toBe(true);
+  });
+
+  it("a whitespace-only note is not a story", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([[venue.id, [makeSummaryDrop({ passedDownNote: "   ", priceGbp: 5 })]]]),
+    );
+    expect(merged.hasStory).toBe(false);
+  });
+
+  it("demo seeds are display-only: they never move prices or hasStory", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [
+          venue.id,
+          [
+            makeSummaryDrop({
+              provenance: "demo",
+              priceGbp: 1.0,
+              passedDownNote: "A seeded story that must not count.",
+            }),
+          ],
+        ],
+      ]),
+    );
+    expect(merged.hasStory).toBe(false);
+    expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
+    expect(merged).toEqual(venue);
+  });
+
+  it("a demo drop ahead of an organic one never wins the latest-price or story slot", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [
+          venue.id,
+          [
+            // Newest-first list: the demo seed sits ahead of the organic drop.
+            makeSummaryDrop({
+              provenance: "demo",
+              drink: "Seeded Stout",
+              priceGbp: 1.0,
+              passedDownNote: "A seeded story that must not count.",
+            }),
+            makeSummaryDrop({ drink: "Organic Ale", priceGbp: 4.5 }),
+          ],
+        ],
+      ]),
+    );
+    // The organic drop's signals win; the demo drop is invisible to them.
+    expect(merged.cheapestPrice).toBe(4.5);
+    expect(merged.cheapestPint).toBe("Organic Ale");
+    expect(merged.hasStory).toBe(false);
+  });
+
+  it("an editorial heritage note keeps hasStory true regardless of drops", () => {
+    const venue = groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0];
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([[venue.id, [makeSummaryDrop({ priceGbp: 5 })]]]),
+    );
+    expect(merged.hasStory).toBe(true);
   });
 });
 
