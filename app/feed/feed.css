@@ -355,8 +355,27 @@
   font-weight: 600;
 }
 
-.feedVenueId {
-  font-variant-numeric: tabular-nums;
+.feedVenueAt {
+  color: var(--muted, #8a8577);
+}
+
+/* The pub name — a link to the map (?sel). Never the raw venue id. */
+.feedVenueLink {
+  color: var(--brass);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.18s ease;
+}
+
+.feedVenueLink:hover {
+  border-bottom-color: var(--brass);
+}
+
+.feedVenueLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* Reactions */
@@ -401,6 +420,24 @@
 
 .feedReactLabel {
   white-space: nowrap;
+}
+
+/* Durable reaction count — a small tabular pill after the label. */
+.feedReactCount {
+  min-width: 1.1em;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.feedReactBtn.isOn .feedReactCount {
+  background: rgba(176, 129, 58, 0.18);
+  color: var(--brass);
 }
 
 /* ── Load more / end ──────────────────────────────────────────────────── */
@@ -581,4 +618,172 @@
   to {
     background-position: -200% 0;
   }
+}
+
+/* ── Comments (CommentThread mounts per card) ──────────────────────────────
+   The same component the permalink uses (components/pintdrop/CommentThread),
+   but its class styles live in permalink.css which the feed doesn't load — so
+   the feed carries its own copy here, tuned to sit quietly under a feed card in
+   the printed-guidebook palette. Collapsed by default; the thread lazily mounts
+   + fetches only when the toggle is pressed. */
+.commentThread {
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft, var(--line));
+}
+
+.commentToggle {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease;
+}
+
+.commentToggle:hover {
+  border-color: var(--brass);
+  color: var(--ink);
+}
+
+.commentToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.commentPanel {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.commentList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.commentItem {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-soft, var(--line));
+}
+
+.commentItem:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.commentHandle {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.commentTime {
+  margin-left: 8px;
+  font-size: 0.72rem;
+  color: var(--muted, #8a8577);
+}
+
+.commentBody {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.commentEmpty,
+.commentStatus,
+.commentError {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+}
+
+.commentError {
+  color: #b4472e;
+}
+
+.commentForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.commentHandleInput,
+.commentBodyInput {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.commentBodyInput {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.commentHandleInput:focus-visible,
+.commentBodyInput:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.commentSubmit {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brass);
+  color: #1a160e;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.commentSubmit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.commentSubmit:focus-visible {
+  outline: 2px solid var(--ink-deep, #1c231d);
+  outline-offset: 2px;
+}
+
+/* Per-card footer: open the standalone permalink + the share row. */
+.feedCardFooter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.feedPermalink {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brass);
+  text-decoration: none;
+}
+.feedPermalink:hover {
+  text-decoration: underline;
 }

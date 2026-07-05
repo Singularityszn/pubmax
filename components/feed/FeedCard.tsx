@@ -1,49 +1,25 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import Link from "next/link";
 
+import CommentThread from "@/components/pintdrop/CommentThread";
+import ShareBar from "@/components/share/ShareBar";
 import type { FeedItem } from "@/lib/feed";
+import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactionsStore";
 
-// Pub-native reactions — no likes/hearts. These are demo-only: counts live in
-// localStorage per item id, shaped so a future POST /api/reactions can drop in
-// without touching the card (an id + delta is all a backend would need).
-const REACTIONS = [
-  { key: "cheers", label: "Cheers", emoji: "🍺" },
-  { key: "bargain", label: "Bargain", emoji: "💷" },
-  { key: "chaos", label: "Chaos", emoji: "🔥" },
-  { key: "proper", label: "Proper", emoji: "👌" },
-  { key: "legendary", label: "Legendary", emoji: "🏆" },
-] as const;
-
-type ReactionKey = (typeof REACTIONS)[number]["key"];
-type ReactionState = Partial<Record<ReactionKey, boolean>>;
-
-const STORAGE_PREFIX = "pubmax:feed:reactions:";
-
-// Lazy, guarded localStorage read — runs once in useState init, never in an
-// effect (react-hooks/set-state-in-effect). Any parse/access error → no
-// reactions, never a crash (private mode / disabled storage / corrupt value).
-function readReactions(id: string): ReactionState {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(STORAGE_PREFIX + id);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === "object" ? (parsed as ReactionState) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeReactions(id: string, state: ReactionState): void {
-  try {
-    window.localStorage.setItem(STORAGE_PREFIX + id, JSON.stringify(state));
-  } catch {
-    // Storage full / denied — the in-memory toggle still updated, so the UI is
-    // consistent for this session; persistence is best-effort by design.
-  }
-}
+// Pub-native reactions — no likes/hearts. The chip set is derived from the
+// canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
+// can never drift; each key gets a label + emoji here. Counts + which the viewer
+// has used come from the durable backend (the page batch-loads them and owns the
+// toggle); this card just renders the summary it is handed.
+const REACTION_META: Record<ReactionKey, { label: string; emoji: string }> = {
+  cheers: { label: "Cheers", emoji: "🍺" },
+  bargain: { label: "Bargain", emoji: "💷" },
+  chaos: { label: "Chaos", emoji: "🔥" },
+  proper: { label: "Proper", emoji: "👌" },
+  legendary: { label: "Legendary", emoji: "🏆" },
+};
 
 function formatGbp(price: number): string {
   return `£${price.toFixed(2)}`;
@@ -75,24 +51,19 @@ const PROVENANCE_LABEL: Record<string, string> = {
   demo: "Sample",
 };
 
-export default function FeedCard({ item }: { item: FeedItem }) {
-  // Reactions persist per item id. Lazy init reads storage exactly once; toggles
-  // happen only in the click handler below (never in an effect).
-  const [reactions, setReactions] = useState<ReactionState>(() =>
-    readReactions(item.id),
-  );
-
-  function toggleReaction(key: ReactionKey) {
-    setReactions((prev) => {
-      const next: ReactionState = { ...prev, [key]: !prev[key] };
-      writeReactions(item.id, next);
-      return next;
-    });
-  }
-
+export default function FeedCard({
+  item,
+  summary,
+  onToggleReaction,
+}: {
+  item: FeedItem;
+  summary: ReactionSummary;
+  onToggleReaction: (dropId: string, reaction: ReactionKey) => void;
+}) {
   const hero = item.photoUrls[0];
   const initial = item.handle.trim().charAt(0).toUpperCase() || "?";
   const ago = relativeTime(item.createdAt);
+  const mine = new Set(summary.mine);
 
   return (
     <article className="feedCard" aria-label={`Pint drop from ${item.handle}`}>
@@ -118,7 +89,7 @@ export default function FeedCard({ item }: { item: FeedItem }) {
           <Image
             className="feedPhoto"
             src={hero}
-            alt={`Pint at a pub, shared by ${item.handle}`}
+            alt={`Pint at ${item.venueName}, shared by ${item.handle}`}
             width={640}
             height={640}
             loading="lazy"
@@ -156,29 +127,57 @@ export default function FeedCard({ item }: { item: FeedItem }) {
 
         {item.caption ? <p className="feedCaption">{item.caption}</p> : null}
 
+        {/* The pub name (never the raw venue id) links to the map with this
+            venue selected. */}
         <p className="feedVenue">
           {item.drink ? <span className="feedDrink">{item.drink}</span> : null}
-          <span className="feedVenueId">at {item.venueId}</span>
+          <span className="feedVenueAt">at</span>
+          <Link className="feedVenueLink" href={item.venueMapUrl}>
+            {item.venueName}
+          </Link>
         </p>
 
         <div className="feedReactions" role="group" aria-label="React to this pint">
-          {REACTIONS.map((r) => {
-            const on = Boolean(reactions[r.key]);
+          {REACTION_KEYS.map((key) => {
+            const meta = REACTION_META[key];
+            const on = mine.has(key);
+            const count = summary.counts[key] ?? 0;
             return (
               <button
-                key={r.key}
+                key={key}
                 type="button"
                 className={`feedReactBtn${on ? " isOn" : ""}`}
                 aria-pressed={on}
-                aria-label={r.label}
-                onClick={() => toggleReaction(r.key)}
+                aria-label={count ? `${meta.label}, ${count}` : meta.label}
+                onClick={() => onToggleReaction(item.id, key)}
               >
-                <span aria-hidden="true">{r.emoji}</span>
-                <span className="feedReactLabel">{r.label}</span>
+                <span aria-hidden="true">{meta.emoji}</span>
+                <span className="feedReactLabel">{meta.label}</span>
+                {count > 0 ? <span className="feedReactCount">{count}</span> : null}
               </button>
             );
           })}
         </div>
+
+        {/* Every pint is its own shareable post: open the standalone permalink
+            or fire it into X / WhatsApp / a group chat. */}
+        <div className="feedCardFooter">
+          <Link className="feedPermalink" href={`/p/${item.id}`}>
+            Open pint
+          </Link>
+          <ShareBar
+            url={`/p/${item.id}`}
+            title={`@${item.handle}'s pint at ${item.venueName}`}
+            text={`${item.handle} found a pint at ${item.venueName}${
+              typeof item.priceGbp === "number" ? ` — ${formatGbp(item.priceGbp)}` : ""
+            }. Every pint has a story.`}
+          />
+        </div>
+
+        {/* Comments continue the drop's story. Collapsed by default; the thread
+            lazily mounts + fetches only when expanded. A comment API error stays
+            inside CommentThread and never breaks feed rendering. */}
+        <CommentThread dropId={item.id} />
       </div>
     </article>
   );

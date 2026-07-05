@@ -23,6 +23,12 @@ export type PintDropDTO = {
   vibeTags?: string[];
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  // Server-resolved pub name + "open on the map" link (PRD §9). The GET route
+  // enriches every drop from the venue index so a card never has to surface the
+  // raw content-hashed `venue-…` id. Optional so an unenriched/legacy payload
+  // (or a demo seed for an id the dataset no longer carries) still normalises.
+  venueName?: string;
+  venueMapUrl?: string;
 };
 
 // A normalized feed item. `type` is a lane discriminant so the surface can grow
@@ -36,6 +42,12 @@ export type FeedItem = {
   createdAt: string;
   handle: string;
   venueId: string;
+  // The human pub name, server-resolved from venueId (PRD §9). A friendly
+  // fallback ("A London pub") when the id is unresolved — the card NEVER renders
+  // the raw `venue-…` id.
+  venueName: string;
+  // "/map?sel=…" — tapping the venue opens the map with this pub selected.
+  venueMapUrl: string;
   // Non-null photo URLs only, pint photo first (the hero of an InstaPint card),
   // then the venue selfie. Empty when a drop is text-only → card renders a
   // typographic "receipt" instead.
@@ -48,6 +60,17 @@ export type FeedItem = {
   era: string;
 };
 
+// The friendly label shown when an id has no resolvable pub name — kept here so
+// the server route, the normalizer, and any test agree on one string.
+export const VENUE_FALLBACK_LABEL = "A London pub";
+
+// Build the canonical "open this pub on the map" link. Mirrors venueMapUrl in
+// lib/venueIndex.ts, but this module is client-safe (no `fs`), so the normalizer
+// can derive a link even for a payload that predates server enrichment.
+function mapUrlFor(venueId: string): string {
+  return `/map?sel=${encodeURIComponent(venueId)}`;
+}
+
 /**
  * Normalise one public Pint Drop DTO into a FeedItem. Collects the non-null
  * photo URLs (pint first, then venue) into `photoUrls`, coerces the optional
@@ -58,12 +81,25 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
   const photoUrls = [dto.pintPhotoUrl, dto.venuePhotoUrl].filter(
     (url): url is string => typeof url === "string" && url.length > 0,
   );
+  // Prefer the server-resolved name; fall back to the friendly label so the raw
+  // venue id is never surfaced. The link prefers the server's venueMapUrl but is
+  // reconstructable from the id for older payloads.
+  const venueName =
+    typeof dto.venueName === "string" && dto.venueName.trim().length > 0
+      ? dto.venueName
+      : VENUE_FALLBACK_LABEL;
+  const venueMapUrl =
+    typeof dto.venueMapUrl === "string" && dto.venueMapUrl.length > 0
+      ? dto.venueMapUrl
+      : mapUrlFor(dto.venueId);
   return {
     type: "pint_drop",
     id: dto.id,
     createdAt: dto.createdAt,
     handle: dto.handle,
     venueId: dto.venueId,
+    venueName,
+    venueMapUrl,
     photoUrls,
     caption: dto.passedDownNote ?? "",
     priceGbp: dto.priceGbp ?? null,
