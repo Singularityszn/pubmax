@@ -440,17 +440,20 @@ export default function PubMapCanvas({
           clusterMaxZoom: 13,
         });
       }
-      // Distinct soft halo where the community has left Pint Drops.
+      // Pint-Drops ring: a river-toned glow + a crisp outline so community
+      // activity reads at a glance without muddying the price fill under it.
       addLayerOnce({
         id: "pubs-drops-halo",
         type: "circle",
         source: "pubs",
         filter: ["all", ["!", ["has", "point_count"]], ["get", "drops"]],
         paint: {
-          "circle-color": tokens.riverBright,
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 14],
-          "circle-opacity": 0.3,
-          "circle-blur": 0.55,
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 15],
+          "circle-stroke-color": tokens.riverBright,
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2],
+          "circle-stroke-opacity": 0.7,
+          "circle-blur": 0.2,
         },
       });
       addLayerOnce({
@@ -471,14 +474,46 @@ export default function PubMapCanvas({
             tokens.brick,
             tokens.muted,
           ],
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 4.5, 15, 8],
-          // Brass stroke marks a story pub.
-          "circle-stroke-color": ["case", ["get", "story"], tokens.brass, tokens.inkDeep],
-          "circle-stroke-width": ["case", ["get", "story"], 2, 1],
-          "circle-opacity": 0.94,
+          // Radius eases up with zoom; story pubs sit a touch larger so
+          // heritage carries physical weight, not just a stroke.
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            11,
+            ["case", ["get", "story"], 5.5, 4.5],
+            15,
+            ["case", ["get", "story"], 9.5, 8],
+          ],
+          // Brass stroke marks a story pub; others get a thin theme-aware edge
+          // so the fill stays crisp on both positron and dark-matter.
+          "circle-stroke-color": [
+            "case",
+            ["get", "story"],
+            tokens.brass,
+            dark ? tokens.inkDeep : tokens.paper,
+          ],
+          "circle-stroke-width": ["case", ["get", "story"], 2, 1.1],
+          "circle-stroke-opacity": 0.95,
+          "circle-opacity": 0.95,
         },
       });
-      // Brass ring on the selected pin.
+      // Selected pin: a confident double brass ring — a soft outer wash plus a
+      // bright inner edge — that lifts the choice above every other pin.
+      addLayerOnce({
+        id: "pubs-selected-glow",
+        type: "circle",
+        source: "pubs",
+        filter: ["==", ["get", "id"], selectedIdRef.current],
+        paint: {
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 14, 15, 19],
+          "circle-stroke-color": tokens.brass,
+          "circle-stroke-width": 4,
+          "circle-stroke-opacity": 0.35,
+          "circle-blur": 0.3,
+        },
+      });
       addLayerOnce({
         id: "pubs-selected",
         type: "circle",
@@ -489,7 +524,7 @@ export default function PubMapCanvas({
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 10, 15, 14],
           "circle-stroke-color": tokens.brassBright,
           "circle-stroke-width": 2.5,
-          "circle-stroke-opacity": 0.95,
+          "circle-stroke-opacity": 0.98,
         },
       });
       addLayerOnce({
@@ -498,9 +533,20 @@ export default function PubMapCanvas({
         source: "pubs",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": withAlpha(dark ? tokens.inkDeep : tokens.panelRaised, 0.88),
+          // Brass-tinted well that deepens as more pubs pack in, with a
+          // slightly heavier ring on the big clusters.
+          "circle-color": [
+            "step",
+            ["get", "point_count"],
+            withAlpha(dark ? tokens.inkDeep : tokens.panelRaised, 0.9),
+            25,
+            withAlpha(dark ? tokens.ink : tokens.paper, 0.92),
+            100,
+            withAlpha(tokens.brass, dark ? 0.32 : 0.28),
+          ],
           "circle-stroke-color": tokens.brass,
-          "circle-stroke-width": 1.5,
+          "circle-stroke-width": ["step", ["get", "point_count"], 1.5, 100, 2.5],
+          "circle-stroke-opacity": 0.85,
           "circle-radius": ["step", ["get", "point_count"], 16, 25, 22, 100, 30],
         },
       });
@@ -512,9 +558,14 @@ export default function PubMapCanvas({
         layout: {
           "text-field": ["get", "point_count_abbreviated"],
           "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
-          "text-size": 13,
+          "text-size": ["step", ["get", "point_count"], 12, 25, 13, 100, 15],
+          "text-letter-spacing": 0.02,
         },
-        paint: { "text-color": tokens.ink },
+        paint: {
+          "text-color": tokens.ink,
+          "text-halo-color": withAlpha(tokens.paper, 0.6),
+          "text-halo-width": 0.8,
+        },
       });
 
       // --- Route stops (numbered) above everything.
@@ -692,8 +743,16 @@ export default function PubMapCanvas({
     (map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
       routeStopsRef.current,
     );
+    const selectedFilter: maplibregl.FilterSpecification = [
+      "==",
+      ["get", "id"],
+      selectedVenueId,
+    ];
+    if (map.getLayer("pubs-selected-glow")) {
+      map.setFilter("pubs-selected-glow", selectedFilter);
+    }
     if (map.getLayer("pubs-selected")) {
-      map.setFilter("pubs-selected", ["==", ["get", "id"], selectedVenueId]);
+      map.setFilter("pubs-selected", selectedFilter);
     }
   }, [route, selectedVenueId, mapReady]);
 
