@@ -2002,3 +2002,163 @@ button:disabled {
     font-size: 0.74rem;
   }
 }
+
+/* ── Phone: map stays the hero, rails read as scrollable bottom sheets ──────
+   The ≤1050px rule already stacks to one column (map first, order:-1). Here we
+   make it feel like a phone app: a taller map hero, comfortable padding, and
+   the two panels as rounded "sheets" that overlap up under the map with their
+   own scroll. Pure CSS — no JS to drag/collapse, so the sheets simply live in
+   the page scroll with a grab-handle affordance. */
+@media (max-width: 768px) {
+  .mapStage {
+    /* Hero map: fill most of the first screen; svh dodges mobile URL-bar jump. */
+    height: 60vh;
+    height: 60svh;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  /* Panels ride up over the map edge and scroll with the page. The controlRail
+     carries the filters/featured routes; routePanel carries route + inspector. */
+  .controlRail,
+  .routePanel {
+    position: relative;
+    z-index: 2;
+    margin-top: -18px;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0;
+    background: var(--panel);
+    box-shadow: 0 -10px 24px rgba(24, 34, 26, 0.14);
+    max-height: none;
+    overflow: visible;
+  }
+
+  /* Grab-handle pill so each sheet reads as draggable even though it scrolls. */
+  .controlRail::before,
+  .routePanel::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: -6px auto 14px;
+    border-radius: 999px;
+    background: var(--line);
+  }
+
+  /* The map should own the top; only the route sheet needs the overlap seam. */
+  .controlRail {
+    margin-top: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .controlRail::before {
+    display: none;
+  }
+
+  /* Keep the floating theme toggle clear of the map legend and reachable. */
+  .themeToggle.floating {
+    top: 12px;
+    right: 12px;
+  }
+
+  /* Comfortable touch targets on the primary controls. */
+  .segmented button,
+  .modeToggle button,
+  .nearbyBtn,
+  .addStopBtn,
+  .landlordBtn,
+  .composerToggle {
+    min-height: 44px;
+  }
+
+  .featuredCrawl {
+    padding: 13px 14px;
+  }
+
+  /* Full-width, tappable share/clear/reset instead of tiny pills. */
+  .clearBtn,
+  .resetBtn {
+    min-height: 34px;
+    padding: 6px 12px;
+  }
+
+  /* Cards pinned over the map must not swallow it on a narrow screen. */
+  .landmarkCard,
+  .mapHeroCard {
+    max-width: min(78vw, 300px);
+  }
+
+  .landmarkCard {
+    top: 12px;
+    left: 12px;
+  }
+
+  .mapHeroCard {
+    bottom: 64px; /* clear the recentred legend */
+    left: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .controlRail,
+  .routePanel {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  h1 {
+    font-size: 1.34rem;
+  }
+
+  .brandBlock {
+    margin-bottom: 16px;
+  }
+
+  /* Grids that were two/three columns get cramped on a phone — go single. */
+  .statsGrid,
+  .routeMetrics,
+  .photoRow,
+  .dropComposer .composerRow,
+  .dropPhotos {
+    grid-template-columns: 1fr;
+  }
+
+  /* Segmented + mode toggles stay two-up (short labels), just taller. */
+  .segmented button,
+  .modeToggle button {
+    font-size: 0.82rem;
+  }
+
+  .statsGrid strong {
+    font-size: 1.24rem;
+  }
+
+  /* Landlord ask row: stack input above the send button so both stay ≥44px. */
+  .landlordForm {
+    flex-wrap: wrap;
+  }
+
+  .landlordForm input {
+    min-height: 44px;
+  }
+
+  .landlordForm button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Legend wraps to two rows on the narrowest phones without clipping. */
+  .mapLegend {
+    gap: 8px 12px;
+    padding: 8px 10px;
+    font-size: 0.74rem;
+  }
+
+  /* Route rows: keep the number + text comfortable, no overflow. */
+  .routeList li > button {
+    grid-template-columns: 28px 1fr;
+    gap: 9px;
+  }
+}

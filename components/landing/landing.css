@@ -832,6 +832,78 @@
   }
 }
 
+/* ── Phone ─────────────────────────────────────────────────────────────────
+   At phone widths the copy should lead (the ≤920px rule floats the figure up
+   for tablets; here we put copy first as asked), grids are already single-col,
+   and the top bar + footer condense without losing the CTA or theme toggle. */
+@media (max-width: 560px) {
+  /* Copy above the illustration — override the tablet figure-first order. */
+  .lp .heroFigure {
+    order: 0;
+  }
+
+  .lp .hero {
+    padding-top: clamp(28px, 8vw, 48px);
+  }
+
+  .lp .heroActions .btn {
+    flex: 1 1 auto; /* full-width, thumb-friendly primary + ghost */
+  }
+
+  .lp .statChips {
+    gap: 8px;
+  }
+
+  .lp .statChip {
+    flex: 1 1 40%;
+  }
+
+  /* Nav condenses to wordmark + CTA + theme toggle; keep the CTA reachable. */
+  .lp .topbarInner {
+    gap: 12px;
+    min-height: 60px;
+  }
+
+  .lp .navLinks {
+    gap: 4px;
+  }
+
+  .lp .wordmark .wordmarkText {
+    font-size: 1.18rem;
+  }
+
+  /* Section rhythm tightens so the page isn't endless scroll on a phone. */
+  .lp .sectionHead {
+    margin-bottom: 32px;
+  }
+
+  /* Footer columns stack under the brand block. */
+  .lp .footerGrid {
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .lp .footerCols {
+    width: 100%;
+    gap: 28px 32px;
+  }
+}
+
+@media (max-width: 380px) {
+  /* Smallest phones: let the two hero CTAs stack rather than squash. */
+  .lp .heroActions {
+    flex-direction: column;
+  }
+
+  .lp .heroActions .btn {
+    width: 100%;
+  }
+
+  .lp .statChip {
+    flex-basis: 100%;
+  }
+}
+
 /* ── Motion (gated) ───────────────────────────────────────────────────
    Every transform/lift lives here so reduced-motion users get static,
    fully-visible content with colour/shadow feedback only. */
