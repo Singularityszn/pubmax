@@ -255,6 +255,9 @@ export default function PubMap() {
         <Link href="/map" aria-current="page">
           Map
         </Link>
+        <Link href="/feed">Feed</Link>
+        <Link href="/crawls">Crawls</Link>
+        <Link href="/u/you">Profile</Link>
         <Link href="/admin">Admin</Link>
       </nav>
 
