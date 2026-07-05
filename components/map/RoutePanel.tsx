@@ -18,6 +18,7 @@ import { useMemo, useState } from "react";
 
 import { crawlSummary, formatPrice, type Filters, type Venue } from "@/lib/venues";
 import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
+import SaveCrawlStory from "@/components/crawl/SaveCrawlStory";
 
 // ponytail: cap the keyboard picker render; search narrows the rest.
 const PICKER_LIMIT = 40;
@@ -155,6 +156,23 @@ export default function RoutePanel({
           <ArrowUpDown size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} /> Reverse
           route
         </button>
+      ) : null}
+
+      {route.length >= 2 ? (
+        <SaveCrawlStory
+          stops={route.map((venue) => ({
+            venueId: venue.id,
+            name: venue.name,
+            // The route's representative per-stop price (same signal the metrics
+            // total uses) — the cheapest listed pint at that venue.
+            priceGbp: venue.cheapestPrice,
+          }))}
+          defaultTitle={
+            mode === "build"
+              ? crawlName || "My hand-built crawl"
+              : `${styleLabels[crawlStyle]} crawl`
+          }
+        />
       ) : null}
 
       <ol className="routeList">
