@@ -32,6 +32,10 @@ export default function PubMap() {
     [],
   );
   const [rows, setRows] = useState<VenuePrice[]>([]);
+  // `loaded` flips true only when the fetch resolves — lets the UI tell a
+  // still-loading empty from a genuine zero-result. Set in the fetch handler
+  // below (never in a bare effect: react-hooks/set-state-in-effect is an error).
+  const [loaded, setLoaded] = useState(false);
   const [selectedVenueId, setSelectedVenueId] = useState<string>(seed.selectedVenueId);
   const [filters, setFilters] = useState<Filters>(seed.filters);
   const [mode, setMode] = useState<CrawlMode>(seed.mode);
@@ -46,7 +50,10 @@ export default function PubMap() {
   useEffect(() => {
     fetch("/data/pint_prices_app_dataset.json")
       .then((response) => response.json())
-      .then((data: VenuePrice[]) => setRows(data));
+      .then((data: VenuePrice[]) => setRows(data))
+      // Flip `loaded` in the fetch handler (settled path), not a bare effect,
+      // so an empty result reads as "no matches" and never a permanent skeleton.
+      .finally(() => setLoaded(true));
   }, []);
 
   const baseVenues = useMemo(() => groupVenuePrices(rows), [rows]);
@@ -181,6 +188,40 @@ export default function PubMap() {
       />
 
       <section className="mapStage">
+        {!loaded ? (
+          <div
+            aria-live="polite"
+            style={{
+              position: "absolute",
+              top: "18px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 5,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "8px 16px",
+              borderRadius: "999px",
+              background: "var(--panel-raised)",
+              border: "1px solid var(--line)",
+              color: "var(--ink-soft)",
+              fontSize: "13px",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.28)",
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: "9px",
+                height: "9px",
+                borderRadius: "50%",
+                background: "var(--brass)",
+                animation: "pulse 1.4s ease-in-out infinite",
+              }}
+            />
+            Loading London&rsquo;s pubs…
+          </div>
+        ) : null}
         <PubMapCanvas
           venues={filteredVenues}
           route={route}
@@ -219,7 +260,44 @@ export default function PubMap() {
         onSelectVenue={selectVenue}
         onToggleStop={toggleBuiltStop}
       >
-        {selectedVenue ? (
+        {!loaded ? (
+          <section className="venueInspector" aria-live="polite" aria-busy="true">
+            <p className="description muted" style={{ marginTop: 0 }}>
+              Loading London&rsquo;s pubs…
+            </p>
+            <div style={{ display: "grid", gap: "10px", marginTop: "6px" }}>
+              {[0.85, 0.6, 0.75, 0.5].map((w, i) => (
+                <span
+                  key={i}
+                  aria-hidden="true"
+                  style={{
+                    display: "block",
+                    height: "12px",
+                    width: `${w * 100}%`,
+                    borderRadius: "6px",
+                    background: "var(--line)",
+                    opacity: 0.6,
+                    animation: "pulse 1.4s ease-in-out infinite",
+                    animationDelay: `${i * 0.12}s`,
+                  }}
+                />
+              ))}
+            </div>
+          </section>
+        ) : filteredVenues.length === 0 ? (
+          <section className="venueInspector" style={{ textAlign: "center" }}>
+            <p className="description" style={{ marginTop: 0 }}>
+              No pubs match these filters — try widening your price or clearing your story filters.
+            </p>
+            <button
+              type="button"
+              className="addStopBtn"
+              onClick={() => setFilters(seedCrawlState("").filters)}
+            >
+              Clear filters
+            </button>
+          </section>
+        ) : selectedVenue ? (
           <VenueInspector
             venue={selectedVenue}
             mode={mode}

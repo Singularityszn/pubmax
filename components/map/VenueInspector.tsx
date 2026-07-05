@@ -99,7 +99,8 @@ export default function VenueInspector({
         <p className="description">{venue.description}</p>
       ) : (
         <p className="description muted">
-          No heritage note yet. This is where visit reports and venue research will add character.
+          No heritage note for {venue.name} yet — log a Pint Drop below with a passed-down story to
+          be the first to give this pub some character.
         </p>
       )}
       {claims.length > 0 ? (
@@ -143,7 +144,8 @@ export default function VenueInspector({
         ) : null}
         {drops.length === 0 ? (
           <p className="description muted">
-            No Pint Drops yet — be the first to log a price or pass down a story.
+            No Pint Drops yet at {venue.name}. Be the first — log tonight&rsquo;s price or pass down
+            a story using the button below.
           </p>
         ) : (
           <div className="dropList">
