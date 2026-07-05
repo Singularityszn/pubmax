@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { decodeCrawlStory, encodeCrawlStory, type CrawlStory } from "@/lib/crawlStory";
 import {
@@ -9,9 +9,17 @@ import {
   slugify,
 } from "@/lib/crawlStoryStore";
 
-// These tests run with Supabase NOT configured (no env keys in CI), so
-// createCrawlStory / getCrawlStoryBySlug exercise the in-memory backend — the
-// same enrichment + draft rules the Supabase path uses, minus the network.
+// These tests exercise the in-memory backend: createCrawlStory /
+// getCrawlStoryBySlug check isSupabaseConfigured() per call, so we clear the
+// Supabase env before each test. Without this, a build env that has these set
+// (e.g. Vercel, whose `npm run ci` runs vitest with project env in process.env)
+// pushes these calls down the Supabase branch and they fail. Same in-memory
+// backend, same enrichment + draft rules the Supabase path uses, minus network.
+
+beforeEach(() => {
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+});
 
 afterEach(() => {
   __resetCrawlStories();
