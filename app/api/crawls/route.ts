@@ -1,0 +1,114 @@
+// Durable Crawl Story write/read endpoint. POST persists a story and returns a
+// stable slug (/crawls/[slug]); GET ?slug= reads one back for a client that
+// wants JSON. The anonymous `?s=` encoded path (lib/crawlStory.ts) is untouched
+// and remains the no-DB fallback — this route is purely the "give me a permanent
+// link" upgrade. Every field is a trust boundary: the store re-clamps too, but
+// we cap lengths / clamp counts / allowlist here so junk never reaches it.
+
+import {
+  createCrawlStory,
+  getCrawlStoryBySlug,
+  cleanVisibility,
+  type CreateCrawlStoryInput,
+} from "@/lib/crawlStoryStore";
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
+
+const MAX_TITLE = 120;
+const MAX_SUMMARY = 280;
+const MAX_NOTE = 160;
+const MAX_VENUE_ID = 80;
+const MAX_STOPS = 12;
+
+function readString(value: unknown, cap: number): string {
+  return typeof value === "string" ? value.slice(0, cap).trim() : "";
+}
+
+// Coerce an untrusted stops array into the store's stop shape, clamped + capped.
+// A stop with no venue id is dropped (nothing to resolve or plan back).
+function readStops(value: unknown): CreateCrawlStoryInput["stops"] {
+  if (!Array.isArray(value)) return [];
+  const stops: CreateCrawlStoryInput["stops"] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as Record<string, unknown>;
+    // Accept a few key spellings so a caller can pass either the crawl-story
+    // stop shape or a leaner { venueId, note } object.
+    const venueId = readString(record.venueId ?? record.id ?? record.venue_id, MAX_VENUE_ID);
+    if (!venueId) continue;
+    const note = readString(record.note ?? record.m, MAX_NOTE);
+    const priceRaw = record.priceGbp ?? record.price ?? record.p;
+    stops.push({
+      venueId,
+      ...(note ? { note } : {}),
+      priceGbp:
+        priceRaw === undefined || priceRaw === null || priceRaw === ""
+          ? null
+          : Number(priceRaw),
+    });
+    if (stops.length >= MAX_STOPS) break;
+  }
+  return stops;
+}
+
+function readVibeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  // The store re-filters to the VIBE_TAGS allowlist; here we just bound the raw
+  // count and coerce to strings so a hostile array can't be huge.
+  return value.slice(0, 32).filter((v): v is string => typeof v === "string");
+}
+
+export async function POST(request: Request): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return Response.json({ error: "Malformed request body." }, { status: 400 });
+  }
+  if (!body || typeof body !== "object") {
+    return Response.json({ error: "Missing submission body." }, { status: 400 });
+  }
+
+  const title = readString(body.title, MAX_TITLE);
+  if (!title) {
+    return Response.json({ error: "A crawl title is required." }, { status: 400 });
+  }
+
+  const stops = readStops(body.stops);
+  if (stops.length === 0) {
+    return Response.json({ error: "A crawl needs at least one stop." }, { status: 400 });
+  }
+
+  // Rate-limit by hashed IP (no handle on a crawl story). Durable when Supabase
+  // is configured, in-memory fallback otherwise — fail-open, mirroring pint-drops.
+  const ipKey = hashIp(clientIp(request));
+  if (await isLimited(`crawl:${ipKey}`, `crawl:${ipKey}`)) {
+    return Response.json({ error: "Too many crawls saved, slow down." }, { status: 429 });
+  }
+
+  const input: CreateCrawlStoryInput = {
+    title,
+    summary: readString(body.summary ?? body.caption, MAX_SUMMARY),
+    visibility: cleanVisibility(body.visibility),
+    vibeTags: readVibeTags(body.vibeTags),
+    stops,
+  };
+
+  const result = await createCrawlStory(input);
+  if (!result) {
+    return Response.json({ error: "Could not save this crawl right now." }, { status: 503 });
+  }
+  return Response.json({ slug: result.slug }, { status: 201 });
+}
+
+export async function GET(request: Request): Promise<Response> {
+  const slug = new URL(request.url).searchParams.get("slug");
+  if (!slug) {
+    return Response.json({ error: "A slug is required." }, { status: 400 });
+  }
+  const story = await getCrawlStoryBySlug(slug);
+  if (!story) {
+    return Response.json({ error: "Crawl story not found." }, { status: 404 });
+  }
+  return Response.json({ story }, { status: 200 });
+}

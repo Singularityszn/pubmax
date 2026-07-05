@@ -1,0 +1,176 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
+
+import "./story.css";
+
+// Durable Crawl Story permalink: /crawls/[slug]. A SERVER component — it reads
+// the story straight from the store (pub names resolved server-side, PRD §9),
+// renders a collectible "crawl poster", and never ships venueIndex to the
+// client. An unknown OR draft slug resolves to null (a draft is private — there
+// is no auth yet, so nobody can view it) → a friendly empty state, not a 500.
+//
+// Next 16 dynamic route params are async — `params` is a Promise we await.
+
+type PageProps = { params: Promise<{ slug: string }> };
+
+function formatGbp(value: number): string {
+  return `£${value.toFixed(2)}`;
+}
+
+// Plan the crawl back onto the map from its stop venue ids — same share-URL
+// format seedCrawlState reads (mode=build&pubs=id1,id2). Stops missing a venue
+// id just aren't planned back.
+function planCrawlHref(story: DurableStory): string {
+  const ids = story.stops.map((stop) => stop.venueId).filter(Boolean);
+  if (ids.length === 0) return "/map";
+  const params = new URLSearchParams();
+  params.set("mode", "build");
+  params.set("pubs", ids.join(","));
+  return `/map?${params.toString()}`;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const story = await getCrawlStoryBySlug(slug);
+  // A missing OR draft story (getCrawlStoryBySlug already withholds drafts) gets
+  // generic, non-indexed metadata — an unpublished crawl must never leak a title
+  // or a share card.
+  if (!story) {
+    return {
+      title: "Crawl Story",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = story.title;
+  const topTag = story.vibeTags[0];
+  const cardParams = new URLSearchParams();
+  cardParams.set("title", title);
+  cardParams.set("stops", String(story.stops.length));
+  if (story.totalGbp > 0) cardParams.set("total", story.totalGbp.toFixed(2));
+  if (topTag) cardParams.set("tag", topTag);
+  const cardUrl = `/api/crawl-card?${cardParams.toString()}`;
+
+  const description =
+    story.summary ||
+    `A London pub crawl — ${story.stops.length} stop${story.stops.length === 1 ? "" : "s"}${
+      story.totalGbp > 0 ? `, ${formatGbp(story.totalGbp)} a round` : ""
+    }.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      images: [{ url: cardUrl, width: 1200, height: 630, alt: `${title} — a London crawl` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [cardUrl],
+    },
+  };
+}
+
+export default async function CrawlStoryPage({ params }: PageProps) {
+  const { slug } = await params;
+  const story = await getCrawlStoryBySlug(slug);
+  if (!story) notFound();
+
+  const total = story.totalGbp;
+  const pricedStops = story.stops.filter((stop) => typeof stop.priceGbp === "number").length;
+  const stopCount = story.stops.length;
+
+  return (
+    <main className="storyShell">
+      <nav className="storyNav" aria-label="Site navigation">
+        <Link href="/">Home</Link>
+        <Link href="/map">Map</Link>
+        <Link href="/discover">Discover</Link>
+      </nav>
+
+      <article className="storyPoster">
+        <header className="storyHead">
+          <p className="storyEyebrow">A London crawl</p>
+          <h1 className="storyTitle">{story.title}</h1>
+          {story.summary ? <p className="storyCaption">{story.summary}</p> : null}
+          {story.vibeTags.length ? (
+            <ul className="storyTags" aria-label="Crawl vibe tags">
+              {story.vibeTags.map((tag) => (
+                <li key={tag} className="storyTag">
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </header>
+
+        <ol className="storyStops">
+          {story.stops.map((stop, index) => (
+            <li key={`${stop.venueId}-${index}`} className="storyStop">
+              <span className="storyStopNumber" aria-hidden="true">
+                {index + 1}
+              </span>
+              <div className="storyStopBody">
+                <a className="storyStopName" href={stop.venueMapUrl}>
+                  {stop.venueName}
+                </a>
+                {stop.note ? <p className="storyStopNote">{stop.note}</p> : null}
+              </div>
+              <span className="storyStopPrice">
+                {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "—"}
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        <div className="storyReceipt" role="group" aria-label="Crawl total">
+          <span>
+            Round total
+            <small>
+              {pricedStops} of {stopCount} stop{stopCount === 1 ? "" : "s"} priced
+            </small>
+          </span>
+          <strong>{formatGbp(total)}</strong>
+        </div>
+
+        <div className="storyActions">
+          <Link href={planCrawlHref(story)} className="storyPrimaryBtn">
+            Plan this crawl
+          </Link>
+          {/* Copy-link stays a server-rendered button: it degrades to nothing
+              without JS (progressive enhancement), and a tiny inline script wires
+              up the clipboard on load so we don't need a client component file. */}
+          <button
+            type="button"
+            id="storyCopyBtn"
+            className="storySecondaryBtn"
+            data-label="Copy link"
+          >
+            Copy link
+          </button>
+        </div>
+
+        <p className="storyFootnote">Every pint has a story.</p>
+      </article>
+
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "(function(){var b=document.getElementById('storyCopyBtn');if(!b)return;" +
+            "b.addEventListener('click',function(){if(!navigator.clipboard)return;" +
+            "navigator.clipboard.writeText(location.href).then(function(){" +
+            "var o=b.textContent;b.textContent='Copied!';" +
+            "setTimeout(function(){b.textContent=b.getAttribute('data-label')||o;},2000);" +
+            "}).catch(function(){});});})();",
+        }}
+      />
+    </main>
+  );
+}
