@@ -7,9 +7,20 @@
 // sourced heritage landmarks, not duplicates of them.
 
 // Transport categories carry their own real-world TfL / National Rail symbol on
-// the map (roundel, double-arrow, bus roundel, river-bus pier); park/sight stay
-// as ambient dots. Kept in one union so the toggle + filters iterate them all.
-export type PoiCategory = "tube" | "rail" | "bus" | "river" | "park" | "sight";
+// the map (roundel, double-arrow, bus roundel, river-bus pier). The rest —
+// parks, gardens, markets, historic sites, viewpoints, sights — are ambient
+// coloured dots. Kept in one union so the toggle + filters iterate them all.
+export type PoiCategory =
+  | "tube"
+  | "rail"
+  | "bus"
+  | "river"
+  | "park"
+  | "garden"
+  | "market"
+  | "historic"
+  | "viewpoint"
+  | "sight";
 
 export type Poi = {
   id: string;
@@ -31,6 +42,10 @@ const POI_CATEGORIES: readonly PoiCategory[] = [
   "bus",
   "river",
   "park",
+  "garden",
+  "market",
+  "historic",
+  "viewpoint",
   "sight",
 ];
 
@@ -49,6 +64,14 @@ export const POI_CATEGORY_META: Record<
   river: { label: "River", color: "#009FDF", glyph: "⛴" },
   // Green space → the "cheap pint / positive" pint token.
   park: { label: "Parks", color: "#2f8f5b", glyph: "🌳" },
+  // Formal / botanic gardens — a lighter, cultivated green.
+  garden: { label: "Gardens", color: "#4ca96a", glyph: "🌿" },
+  // Street & food markets — a warm market-stall orange.
+  market: { label: "Markets", color: "#d2691e", glyph: "🛒" },
+  // Historic sites / monuments / houses — an old-stone taupe.
+  historic: { label: "Historic", color: "#8b7355", glyph: "🏛" },
+  // Viewpoints / rooftops / hills — a clear-sky blue.
+  viewpoint: { label: "Views", color: "#2e86ab", glyph: "🔭" },
   // Tourist sight → the guidebook brass accent.
   sight: { label: "Sights", color: "#9a6a24", glyph: "★" },
 };

@@ -14,7 +14,18 @@ const LNG_MAX = 0.3;
 const LAT_MIN = 51.28;
 const LAT_MAX = 51.72;
 
-const CATEGORIES: PoiCategory[] = ["tube", "rail", "bus", "river", "park", "sight"];
+const CATEGORIES: PoiCategory[] = [
+  "tube",
+  "rail",
+  "bus",
+  "river",
+  "park",
+  "garden",
+  "market",
+  "historic",
+  "viewpoint",
+  "sight",
+];
 
 describe("london_pois dataset", () => {
   it("parses to a non-empty Poi[]", () => {

@@ -170,16 +170,37 @@ function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
         name: poi.name,
         category: poi.category,
         rank: poi.rank ?? 2,
+        // Ambient dot colour baked per-feature from the category palette so the
+        // dot layer stays data-driven as new categories are added.
+        color: POI_CATEGORY_META[poi.category].color,
       },
       geometry: { type: "Point" as const, coordinates: poi.coordinates },
     })),
   };
 }
 
-const POI_CATEGORIES: PoiCategory[] = ["tube", "rail", "bus", "river", "park", "sight"];
-// Ambient categories render as soft dots; transport (TRANSPORT_CATEGORIES) render
-// as their real TfL / National Rail symbol on separate layers.
-const AMBIENT_CATEGORIES: readonly PoiCategory[] = ["park", "sight"];
+const POI_CATEGORIES: PoiCategory[] = [
+  "tube",
+  "rail",
+  "bus",
+  "river",
+  "park",
+  "garden",
+  "market",
+  "historic",
+  "viewpoint",
+  "sight",
+];
+// Ambient categories render as soft coloured dots; transport (TRANSPORT_CATEGORIES)
+// render as their real TfL / National Rail symbol on separate layers.
+const AMBIENT_CATEGORIES: readonly PoiCategory[] = [
+  "park",
+  "garden",
+  "market",
+  "historic",
+  "viewpoint",
+  "sight",
+];
 
 // A MapLibre filter keeping only the not-hidden categories within a given group
 // (the transport symbols and the ambient dots live on different layers).
@@ -305,6 +326,10 @@ export default function PubMapCanvas({
     bus: false,
     river: false,
     park: false,
+    garden: false,
+    market: false,
+    historic: false,
+    viewpoint: false,
     sight: false,
   });
   const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
@@ -657,15 +682,7 @@ export default function PubMapCanvas({
         minzoom: 11,
         filter: poiFilter(poiHiddenRef.current, AMBIENT_CATEGORIES),
         paint: {
-          "circle-color": [
-            "match",
-            ["get", "category"],
-            "park",
-            POI_CATEGORY_META.park.color,
-            "sight",
-            POI_CATEGORY_META.sight.color,
-            tokens.muted,
-          ],
+          "circle-color": ["coalesce", ["get", "color"], tokens.muted],
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 3, 15, 6],
           "circle-opacity": 0.85,
           "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
