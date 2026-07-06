@@ -4,8 +4,11 @@ import Link from "next/link";
 
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
+import { memoryFollowStore, supabaseFollowStore } from "@/lib/followStore";
 import { displayHandle } from "@/lib/handleDisplay";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
+import { normalizeViewerHandle, type ViewerContext } from "@/lib/pintDrops";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 import "./permalink.css";
 
@@ -18,7 +21,39 @@ import "./permalink.css";
 // status = "visible") and renders a friendly "not on the wall" state, never a
 // crash and never a leak of moderation state.
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  // A `?viewer=<handle>` search param carries the requester's self-asserted
+  // handle for a friends-gated permalink (issue #29). The server can't read the
+  // client's localStorage handle, so a friends/legacy link is shared WITH this
+  // param (or the viewer arrives with it). No param ⇒ anonymous viewer ⇒ a
+  // friends/legacy drop resolves to null and renders "not on the wall" — an
+  // honest block that never confirms the drop exists. Self-asserted, no auth yet:
+  // a courtesy curtain, not cryptographic privacy (same posture as notifications).
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+// Resolve the self-asserted viewer + their follow graph for friends-gating.
+// Fail-soft: any follow-lookup hiccup degrades to an author-only viewer (they
+// still see their own drops), never a 500. Returns undefined for no handle.
+async function resolveViewer(
+  searchParams?: PageProps["searchParams"],
+): Promise<ViewerContext | undefined> {
+  const params = searchParams ? await searchParams : undefined;
+  const raw = params?.viewer;
+  const handle = normalizeViewerHandle(Array.isArray(raw) ? raw[0] : raw);
+  if (!handle) return undefined;
+  const follows = isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
+  try {
+    const following = await follows.listFollowing(handle);
+    return {
+      handle,
+      followingHandles: new Set(following.map(normalizeViewerHandle).filter(Boolean)),
+    };
+  } catch {
+    return { handle };
+  }
+}
 
 function formatGbp(value: number | null): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
@@ -36,9 +71,9 @@ function formatDate(iso: string): string | null {
   });
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const drop = await getPintDropById(id);
+  const drop = await getPintDropById(id, await resolveViewer(searchParams));
 
   if (!drop) {
     return {
@@ -94,9 +129,9 @@ function NotOnTheWall() {
   );
 }
 
-export default async function PintDropPermalink({ params }: PageProps) {
+export default async function PintDropPermalink({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const drop = await getPintDropById(id);
+  const drop = await getPintDropById(id, await resolveViewer(searchParams));
 
   if (!drop) return <NotOnTheWall />;
 

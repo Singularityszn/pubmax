@@ -10,8 +10,15 @@ import { createHash, timingSafeEqual } from "node:crypto";
 // truth: backend failures return a 503 instead of acknowledging data that
 // would only live in process memory.
 
+import { memoryFollowStore, supabaseFollowStore } from "@/lib/followStore";
 import { log } from "@/lib/log";
-import { isLimited, validatePintDrop, type PintDropStatus } from "@/lib/pintDrops";
+import {
+  isLimited,
+  normalizeViewerHandle,
+  validatePintDrop,
+  type PintDropStatus,
+  type ViewerContext,
+} from "@/lib/pintDrops";
 import {
   memoryPintDropStore,
   supabasePintDropStore,
@@ -72,6 +79,30 @@ async function withVenueNames<T extends { venueId: string }>(
     venueName: index.get(drop.venueId)?.name ?? VENUE_FALLBACK_LABEL,
     venueMapUrl: venueMapUrl(drop.venueId),
   }));
+}
+
+// Resolve the requester's self-asserted viewer identity for a friends-gated read
+// (issue #29). Returns undefined for an anonymous/blank viewer (⇒ they see public
+// + anonymous only). Otherwise resolves the handles they follow via the same
+// FollowStore seam the Friends feed lane uses — fail-soft: any follow-graph
+// hiccup degrades to an empty follow set (the viewer still sees public/anonymous
+// + their own drops), never a 500 on the public feed.
+async function resolveViewer(rawHandle: string | null): Promise<ViewerContext | undefined> {
+  const handle = normalizeViewerHandle(rawHandle);
+  if (!handle) return undefined;
+  const follows = isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
+  try {
+    const following = await follows.listFollowing(handle);
+    return { handle, followingHandles: new Set(following.map(normalizeViewerHandle).filter(Boolean)) };
+  } catch (err) {
+    log("warn", "pint_drops.viewer_follow_lookup_failed", {
+      route: "GET /api/pint-drops",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Author-only fallback: the viewer still sees their own drops (canView checks
+    // isAuthor from the handle alone), just none of their friends' friends-drops.
+    return { handle };
+  }
 }
 
 const STORAGE_UNCONFIGURED_ERROR =
@@ -291,11 +322,19 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
-  // Public read: visible drops only, newest-first, hard-capped (MAX_PUBLIC_DROPS).
+  // Public read: visible drops only, newest-first, hard-capped (MAX_PUBLIC_DROPS),
+  // with per-drop VISIBILITY applied server-side (issue #29). The viewer is
+  // whoever the client claims to be — a `viewer`/`handle` query param carrying
+  // their self-asserted handle — plus the handles they follow (their follow
+  // graph), which gates the `friends` lane. Honest-best-effort courtesy curtain,
+  // NOT cryptographic privacy: with self-asserted handles a determined viewer can
+  // claim any handle. Documented here and in lib/pintDrops.ts, same trust posture
+  // as lib/notifications.ts, until auth (#21) hardens the identity.
   const unavailable = productionStorageUnavailable();
   if (unavailable) return unavailable;
   try {
-    const drops = await store().listVisible(params.get("venueId") ?? undefined);
+    const viewer = await resolveViewer(params.get("viewer") ?? params.get("handle"));
+    const drops = await store().listVisible(params.get("venueId") ?? undefined, viewer);
     return Response.json({ drops: await withVenueNames(drops) }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {

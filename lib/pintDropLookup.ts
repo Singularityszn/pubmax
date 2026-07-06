@@ -1,4 +1,13 @@
-import { listAllVisiblePintDrops } from "@/lib/pintDrops";
+import {
+  ANON_HANDLE_LABEL,
+  canViewOnPublicSurface,
+  cleanVisibility,
+  listAllVisiblePintDrops,
+  visibilityOf,
+  type PintDrop,
+  type ViewerContext,
+  type Visibility,
+} from "@/lib/pintDrops";
 import { getSupabaseAdmin, isSupabaseConfigured, STORAGE_BUCKET } from "@/lib/supabase";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
@@ -15,7 +24,7 @@ import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 // The exact, public-only column list. NEVER add report_*/moderator_*/moderated_*
 // here — a hidden drop's photo keys and moderation trail must not leave the DB.
 const PUBLIC_COLUMNS =
-  "id,venue_id,handle,drink,price_gbp,passed_down_note,era,provenance,created_at,vibe_tags,pint_photo_key,venue_photo_key";
+  "id,venue_id,handle,drink,price_gbp,passed_down_note,era,provenance,created_at,vibe_tags,visibility,pint_photo_key,venue_photo_key";
 
 // The one shape the permalink page + OG card consume. Photo keys are already
 // resolved to public URLs; the raw venue id is enriched to a real pub name and a
@@ -33,6 +42,9 @@ export type PublicDrop = {
   provenance: string;
   createdAt: string;
   vibeTags: string[];
+  // Per-drop visibility (issue #29). Exposed so a surface can label the lane; the
+  // handle is ALREADY the withheld label for an anonymous drop (see below).
+  visibility: Visibility;
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
 };
@@ -50,6 +62,7 @@ type VisibleRow = {
   provenance: string | null;
   created_at: string;
   vibe_tags: unknown;
+  visibility: unknown;
   pint_photo_key: string | null;
   venue_photo_key: string | null;
 };
@@ -74,9 +87,7 @@ function publicUrl(key: string | null | undefined): string | null {
   return admin.storage.from(STORAGE_BUCKET).getPublicUrl(key).data.publicUrl;
 }
 
-// Enrich a bare (venueId, keys) drop into the shared DTO: resolve the venue name
-// + map link, coerce photo URLs. Split out so both backends share one exit path.
-async function enrich(fields: {
+type EnrichFields = {
   id: string;
   venueId: string;
   handle: string;
@@ -87,12 +98,44 @@ async function enrich(fields: {
   provenance: string;
   createdAt: string;
   vibeTags: string[];
+  visibility: Visibility;
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
-}): Promise<PublicDrop> {
+};
+
+/**
+ * Visibility gate for the permalink (issue #29). Applied to a resolved,
+ * moderation-visible drop against the requester's self-asserted viewer:
+ *   • public / anonymous → always readable (anonymous handle withheld below);
+ *   • friends            → author + the author's followers only; otherwise null
+ *                          (the page renders "not on the wall" — an honest block
+ *                          that never reveals the drop exists to a non-qualified
+ *                          viewer, matching the hidden-id 404 posture);
+ *   • legacy             → author only; otherwise null (legacy lives on the
+ *                          ledger, never a public permalink).
+ * Returns the drop's raw handle→display substitution done at the caller.
+ */
+function permittedOnPermalink(
+  drop: Pick<PintDrop, "handle" | "visibility">,
+  viewer?: ViewerContext,
+): boolean {
+  return canViewOnPublicSurface(drop as PintDrop, viewer);
+}
+
+// Enrich a gated drop into the shared DTO: withhold the handle for an anonymous
+// drop, resolve the venue name + map link. Split out so both backends share one
+// exit path. Returns null when the viewer isn't permitted to see the drop.
+async function enrich(fields: EnrichFields, viewer?: ViewerContext): Promise<PublicDrop | null> {
+  if (!permittedOnPermalink(fields, viewer)) return null;
   const venue = await resolveVenue(fields.venueId);
+  // ANONYMITY GUARANTEE (issue #29): an anonymous drop's real handle never leaves
+  // the server — swap it for the withheld label before it can reach the page/OG
+  // card. The author still reads their own anonymous drop with the label (their
+  // choice); moderation reads a different, server-only path.
+  const handle = fields.visibility === "anonymous" ? ANON_HANDLE_LABEL : fields.handle;
   return {
     ...fields,
+    handle,
     venueName: venue?.name ?? "A London pub",
     venueMapUrl: venueMapUrl(fields.venueId),
   };
@@ -103,10 +146,18 @@ async function enrich(fields: {
  *
  * NEVER throws: any Supabase/venue-index failure resolves to null so the
  * permalink degrades to its friendly empty state rather than 500-ing. A hidden,
- * reported, or unknown id resolves to null too — the Supabase read is gated on
- * `status = "visible"` and the memory fallback filters visible-only.
+ * reported, unknown, OR visibility-gated id resolves to null too — the Supabase
+ * read is gated on `status = "visible"`, the memory fallback filters
+ * visible-only, and per-drop visibility (issue #29) is applied against the
+ * self-asserted `viewer`. Anonymous drops resolve with the handle WITHHELD.
+ *
+ * `viewer` is optional + self-asserted (no auth yet) — friends visibility is a
+ * courtesy curtain, not cryptographic privacy, matching lib/notifications.ts.
  */
-export async function getPintDropById(id: string): Promise<PublicDrop | null> {
+export async function getPintDropById(
+  id: string,
+  viewer?: ViewerContext,
+): Promise<PublicDrop | null> {
   const dropId = typeof id === "string" ? id.trim() : "";
   if (!dropId) return null;
 
@@ -134,9 +185,10 @@ export async function getPintDropById(id: string): Promise<PublicDrop | null> {
             provenance: String(row.provenance ?? "anecdote"),
             createdAt: String(row.created_at ?? ""),
             vibeTags: toTags(row.vibe_tags),
+            visibility: cleanVisibility(row.visibility),
             pintPhotoUrl: publicUrl(row.pint_photo_key),
             venuePhotoUrl: publicUrl(row.venue_photo_key),
-          });
+          }, viewer);
         }
         // No row (unknown/hidden) or a query error → fall through to memory so a
         // demo-seeded drop id still resolves; if it isn't there either, null.
@@ -161,10 +213,11 @@ export async function getPintDropById(id: string): Promise<PublicDrop | null> {
       provenance: hit.provenance,
       createdAt: hit.createdAt,
       vibeTags: hit.vibeTags ? [...hit.vibeTags] : [],
+      visibility: visibilityOf(hit),
       // The in-memory store has no Storage, so no photos.
       pintPhotoUrl: null,
       venuePhotoUrl: null,
-    });
+    }, viewer);
   } catch {
     return null;
   }

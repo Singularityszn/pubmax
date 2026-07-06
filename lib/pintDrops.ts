@@ -60,6 +60,42 @@ export function cleanVibeTags(value: unknown): VibeTag[] {
 
 export type PintDropStatus = "visible" | "hidden" | "pending";
 
+// Per-drop visibility (issue #29, PRD § "The Spill"). Orthogonal to `status`
+// (moderation): a drop can be `visible`+`friends` (moderation-clean, follower-
+// gated) or `hidden`+`public` (reported). Default is `public` so every existing
+// row and any write that omits it keeps today's behaviour.
+//
+//   • public     — feed, map, leaderboards, ledger, permalink (today's default).
+//   • friends    — author + the author's FOLLOWERS only (see qualifiesForFriends).
+//   • legacy      — the family/heirloom lane: ledger + author ONLY; kept out of the
+//                  feed/map/leaderboard signals (see listLegacyForVenue).
+//   • anonymous  — shown publicly, handle WITHHELD in every DTO (ANON_HANDLE_LABEL);
+//                  the real handle is stored server-side for moderation/limits and
+//                  must never leak through a public read.
+export const VISIBILITIES = ["public", "friends", "legacy", "anonymous"] as const;
+export type Visibility = (typeof VISIBILITIES)[number];
+const VISIBILITY_SET: ReadonlySet<string> = new Set(VISIBILITIES);
+
+/** The default visibility for any drop that doesn't specify one — today's
+ *  behaviour, and the DB column default, kept in lockstep here. */
+export const DEFAULT_VISIBILITY: Visibility = "public";
+
+/**
+ * The withheld-handle label a public surface renders for an `anonymous` drop.
+ * The store swaps the real handle for this in EVERY DTO — the real handle never
+ * leaves the server for an anonymous drop. Kept as one constant so the feed,
+ * permalink, ledger, and any future surface agree on the exact string.
+ */
+export const ANON_HANDLE_LABEL = "a PUBMAXXER";
+
+/** Coerce an untrusted value to a Visibility, defaulting to `public`. Anything
+ *  off the allowlist collapses to the safe default (never throws) — the write
+ *  path is additive and forgiving, exactly like cleanVibeTags. */
+export function cleanVisibility(value: unknown): Visibility {
+  if (typeof value === "string" && VISIBILITY_SET.has(value)) return value as Visibility;
+  return DEFAULT_VISIBILITY;
+}
+
 export type PintDrop = {
   id: string;
   venueId: string;
@@ -73,6 +109,10 @@ export type PintDrop = {
   vibeTags?: VibeTag[];
   provenance: Provenance;
   status: PintDropStatus;
+  // Per-drop visibility (issue #29). Optional on the type so old rows / demo
+  // seeds without the field read as the default `public` — normalise reads with
+  // visibilityOf() rather than touching this directly.
+  visibility?: Visibility;
   createdAt: string;
   // Moderation metadata — set once a drop is reported/reviewed. Optional so old
   // rows and fresh drops read fine without them.
@@ -145,6 +185,12 @@ export function validatePintDrop(input: unknown): ValidationResult {
   // satisfy the price-or-note requirement above. Filtered to the allowlist here.
   const vibeTags = cleanVibeTags(raw.vibeTags);
 
+  // Visibility is additive + forgiving: any off-allowlist value (or an omitted
+  // field) collapses to the default `public`, so an old client that never sends
+  // it behaves exactly as before. Always stamped explicitly so a persisted drop
+  // carries its lane.
+  const visibility = cleanVisibility(raw.visibility);
+
   return {
     ok: true,
     value: {
@@ -158,6 +204,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
       ...(vibeTags.length ? { vibeTags } : {}),
       provenance,
       status: "visible",
+      visibility,
       createdAt: new Date().toISOString(),
     },
   };
@@ -226,6 +273,111 @@ export function listAllVisiblePintDrops(): PintDrop[] {
     .flat()
     .filter((d) => d.status === "visible")
     .concat(demoPintDrops)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+// ── Visibility gating (issue #29) ────────────────────────────────────────────
+// Pure predicates over the (drop, viewer) pair. The STORE applies these after a
+// moderation-status filter, so a hidden drop never reaches them. Kept pure +
+// exported so they can be unit-tested directly and reused by every read seam.
+
+/** The effective visibility of a drop (old rows / demo seeds → `public`). */
+export function visibilityOf(drop: Pick<PintDrop, "visibility">): Visibility {
+  return drop.visibility ?? DEFAULT_VISIBILITY;
+}
+
+/**
+ * The requester's identity for a friends-gated read. Self-asserted (no auth yet
+ * — same courtesy-curtain trust boundary as lib/notifications.ts). `handle` is
+ * the viewer's own handle; `followingHandles` is the set of NORMALISED handles
+ * the viewer follows (its followees). A follower of an author is a viewer whose
+ * `followingHandles` CONTAINS the author — i.e. the friends lane shows a drop to
+ * the author's followers (see qualifiesForFriends).
+ *
+ * Both fields optional: an anonymous viewer (no handle / no follow set) sees only
+ * public + anonymous drops.
+ */
+export type ViewerContext = {
+  /** The viewer's own self-asserted handle (raw or normalised — normalised on use). */
+  handle?: string | null;
+  /** Normalised handles the viewer follows (its followees). */
+  followingHandles?: ReadonlySet<string>;
+};
+
+/**
+ * Normalise a handle for viewer-identity + author matching, without importing the
+ * profiles module here (lib/pintDrops.ts is the storage-agnostic core and stays
+ * dependency-light). Mirrors normalizeHandle: lowercase, strip leading @s, keep
+ * [a-z0-9_], cap length. Kept in step with lib/profiles.normalizeHandle. Exported
+ * as `normalizeViewerHandle` for the route that builds a ViewerContext.
+ */
+export function normalizeViewerHandle(raw: string | null | undefined): string {
+  if (typeof raw !== "string") return "";
+  return raw.toLowerCase().replace(/^@+/, "").replace(/[^a-z0-9_]/g, "").slice(0, MAX_HANDLE);
+}
+
+/** Is the viewer the author of this drop? (Self always sees own drops, in every
+ *  lane.) Compares normalised handles — a self-asserted, honest-best-effort
+ *  match, not a cryptographic one. */
+export function isAuthor(drop: Pick<PintDrop, "handle">, viewer?: ViewerContext): boolean {
+  const me = normalizeViewerHandle(viewer?.handle);
+  return me !== "" && me === normalizeViewerHandle(drop.handle);
+}
+
+/**
+ * Friends direction (JUSTIFICATION): a `friends` drop is visible to the author
+ * and to the AUTHOR'S FOLLOWERS. A viewer qualifies as a follower of the author
+ * when the author's handle is in the viewer's `followingHandles` (the viewer
+ * follows the author). This is the simplest honest reading of the directed
+ * follow graph in migration 0006 (follows.follower_id → followee_id): "people
+ * who follow me see my friends-only drops". It is NOT mutual-only (that would
+ * hide a drop from a brand-new follower the author hasn't followed back) and NOT
+ * "people the author follows" (that would show it to strangers the author
+ * follows). Followers-of-the-author matches the social intent of "my crew sees
+ * this" and reuses the exact follow-set the Friends feed lane already computes
+ * (lib/feed.ts followingHandles), so gating and the lane stay consistent.
+ */
+export function qualifiesForFriends(
+  drop: Pick<PintDrop, "handle">,
+  viewer?: ViewerContext,
+): boolean {
+  const author = normalizeViewerHandle(drop.handle);
+  if (!author) return false;
+  return Boolean(viewer?.followingHandles?.has(author));
+}
+
+/**
+ * Can this viewer see this drop on a PUBLIC surface (feed, map, leaderboard,
+ * venue list, permalink)? Applied AFTER the moderation-status filter.
+ *
+ *   • public     → everyone.
+ *   • anonymous  → everyone (the handle is withheld at DTO time, not here).
+ *   • friends    → author + the author's followers (qualifiesForFriends).
+ *   • legacy     → author ONLY on public surfaces; otherwise the ledger-only
+ *                  capability (listLegacyForVenue) surfaces it. Kept out of every
+ *                  public signal here.
+ */
+export function canViewOnPublicSurface(drop: PintDrop, viewer?: ViewerContext): boolean {
+  switch (visibilityOf(drop)) {
+    case "public":
+    case "anonymous":
+      return true;
+    case "friends":
+      return isAuthor(drop, viewer) || qualifiesForFriends(drop, viewer);
+    case "legacy":
+      return isAuthor(drop, viewer);
+    default:
+      return true;
+  }
+}
+
+/** The in-memory legacy lane for one venue: legacy drops only, visible-only,
+ *  newest-first (the ledger-only capability's memory backing). Author-gating on
+ *  the ledger is a surface decision; this returns the venue's legacy drops so the
+ *  ledger read can adopt it. Demo seeds are all `public`, so none leak in. */
+export function listLegacyPintDropsForVenue(venueId: string): PintDrop[] {
+  return (drops.get(venueId) ?? [])
+    .filter((d) => d.status === "visible" && visibilityOf(d) === "legacy")
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 

@@ -13,16 +13,22 @@ import { log } from "@/lib/log";
 import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
 import {
   addPintDrop,
+  ANON_HANDLE_LABEL,
+  canViewOnPublicSurface,
   cleanVibeTags,
+  cleanVisibility,
   keepHiddenPintDrop,
   listAllVisiblePintDrops,
   listByStatus,
+  listLegacyPintDropsForVenue,
   listVisiblePintDrops,
   REPORT_HIDE_THRESHOLD,
   reportPintDrop,
   restorePintDrop,
+  visibilityOf,
   type PintDrop,
   type PintDropStatus,
+  type ViewerContext,
   type VibeTag,
 } from "@/lib/pintDrops";
 
@@ -63,6 +69,11 @@ export type PintDropDTO = Omit<
   reportCount?: number;
 };
 
+// The label a public DTO carries for an `anonymous` drop. A safe, public string
+// (issue #29): the real handle is swapped for this in EVERY DTO — it never
+// leaves the server for an anonymous drop.
+export { ANON_HANDLE_LABEL };
+
 // Moderator read shape. Same photo-URL swap, but a moderator must see the
 // evidence they are judging, so photos resolve even on hidden rows and the
 // report metadata (reportedAt/reportReason/reportCount) is kept.
@@ -77,8 +88,30 @@ export type PintDropPhotos = { pint: File | null; venue: File | null };
 export type PintDropStore = {
   /** Persist a validated drop (photos where supported); returns the public DTO. Throws on storage failure. */
   create(drop: PintDrop, photos: PintDropPhotos): Promise<PintDropDTO>;
-  /** Public read: visible drops + demo seeds, newest-first, capped at MAX_PUBLIC_DROPS. */
-  listVisible(venueId?: string): Promise<PintDropDTO[]>;
+  /**
+   * Public read: visible drops + demo seeds, newest-first, capped at
+   * MAX_PUBLIC_DROPS, with per-drop VISIBILITY applied server-side (issue #29).
+   *
+   * The returned set is what `viewer` is allowed to see on a PUBLIC surface:
+   *   • public + anonymous → always (anonymous handle already withheld in the DTO);
+   *   • friends → only if the viewer is the author or one of the author's followers;
+   *   • legacy → excluded (ledger-only, via listLegacyForVenue) — except the author.
+   *
+   * `viewer` is the requester's self-asserted identity (handle + the handles they
+   * follow). Omitted/anonymous viewer ⇒ public + anonymous only. This is an
+   * honest-best-effort courtesy curtain (self-asserted handles, no auth yet), the
+   * same trust posture as lib/notifications.ts.
+   */
+  listVisible(venueId?: string, viewer?: ViewerContext): Promise<PintDropDTO[]>;
+  /**
+   * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
+   * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
+   * UI). Returns visible `legacy` drops for the venue, newest-first, as public
+   * DTOs. Legacy drops are deliberately kept OUT of listVisible's public surface,
+   * so the ledger is the one place they read. Author-gating (a family group) is a
+   * surface decision left for #27; this returns the venue's legacy drops.
+   */
+  listLegacyForVenue(venueId: string): Promise<PintDropDTO[]>;
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
   listForReview(status: "hidden" | "pending"): Promise<ModeratorDrop[]>;
   /** Public report: record metadata; hides at REPORT_HIDE_THRESHOLD. False = unknown id. */
@@ -140,6 +173,9 @@ function toRow(drop: PersistableDrop) {
     // one-line map on each side (like every other field here). Defaults to an
     // empty array so an old row / notes-only drop round-trips cleanly.
     vibe_tags: drop.vibeTags ?? [],
+    // Per-drop visibility (issue #29). Defaults to 'public' so an old row / a
+    // write that omits it stays public — matches the DB column default.
+    visibility: visibilityOf(drop),
     pint_photo_key: drop.pintPhotoKey ?? null,
     venue_photo_key: drop.venuePhotoKey ?? null,
     provenance: drop.provenance,
@@ -168,6 +204,9 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     vibeTags: cleanVibeTagsOrUndefined(row.vibe_tags),
     provenance: row.provenance as Provenance,
     status: row.status as PintDropStatus,
+    // Coerce on the way out too (defence in depth): an old row (pre-0012, column
+    // absent → undefined) or a hand-edited value collapses to the safe `public`.
+    visibility: cleanVisibility(row.visibility),
     createdAt: String(row.created_at),
     pintPhotoKey: row.pint_photo_key ? String(row.pint_photo_key) : undefined,
     venuePhotoKey: row.venue_photo_key ? String(row.venue_photo_key) : undefined,
@@ -195,16 +234,25 @@ function publicUrl(key: string | undefined, visible: boolean): string | null {
  *  never exposed. */
 export function toDTO(drop: PersistableDrop): PintDropDTO {
   const visible = drop.status === "visible";
+  const visibility = visibilityOf(drop);
+  // ANONYMITY GUARANTEE (issue #29): an `anonymous` drop's real handle NEVER
+  // rides a public DTO — it is swapped for ANON_HANDLE_LABEL here, the ONE public
+  // choke point every backend routes through. The real handle stays server-side
+  // (row/moderation/rate-limits) and only leaves via toModeratorDTO. The price,
+  // note, tags, and photos are still public content on an anonymous drop — only
+  // the identity is withheld.
+  const handle = visibility === "anonymous" ? ANON_HANDLE_LABEL : drop.handle;
   const dto: PintDropDTO = {
     id: drop.id,
     venueId: drop.venueId,
-    handle: drop.handle,
+    handle,
     drink: drop.drink,
     priceGbp: drop.priceGbp,
     passedDownNote: drop.passedDownNote,
     era: drop.era,
     provenance: drop.provenance,
     status: drop.status,
+    visibility,
     createdAt: drop.createdAt,
     pintPhotoUrl: publicUrl(drop.pintPhotoKey, visible),
     venuePhotoUrl: publicUrl(drop.venuePhotoKey, visible),
@@ -243,9 +291,20 @@ export const memoryPintDropStore: PintDropStore = {
     addPintDrop(drop); // photos ignored: there is no Storage without Supabase
     return toDTO(drop);
   },
-  async listVisible(venueId) {
+  async listVisible(venueId, viewer) {
     const rows = venueId ? listVisiblePintDrops(venueId) : listAllVisiblePintDrops();
-    return newestFirstCapped(rows).map(toDTO);
+    // Visibility applied server-side (issue #29). Legacy is EXCLUDED from the
+    // public surface for EVERYONE (including the author — they read it via the
+    // ledger's listLegacyForVenue, not the feed), matching the Supabase backend's
+    // `.neq("visibility","legacy")`. Friends is then gated on the viewer's follow
+    // graph; public + anonymous always pass (anonymous handle withheld at toDTO).
+    const permitted = rows.filter(
+      (d) => visibilityOf(d) !== "legacy" && canViewOnPublicSurface(d, viewer),
+    );
+    return newestFirstCapped(permitted).map(toDTO);
+  },
+  async listLegacyForVenue(venueId) {
+    return newestFirstCapped(listLegacyPintDropsForVenue(venueId)).map(toDTO);
   },
   async listForReview(status) {
     return listByStatus(status).map(toModeratorDTO);
@@ -277,6 +336,18 @@ function isMissingVibeTagsColumnError(error: { code?: string; message?: string }
   const mentionsVibeTags = message.includes("vibe_tags");
   return (code === "42703" || code === "PGRST204") && mentionsVibeTags;
 }
+
+// Same additive-rollout guard as isMissingVibeTagsColumnError, for the
+// `visibility` column (migration 0012). Matches ONLY a missing-`visibility`
+// column error (42703 undefined_column / PGRST204 schema-cache miss that names
+// the column), so a coincidental 42703 on some other column still throws.
+function isMissingVisibilityColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (code === "42703" || code === "PGRST204") && message.includes("visibility");
+}
+
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
@@ -332,18 +403,58 @@ export const supabasePintDropStore: PintDropStore = {
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
-  async listVisible(venueId) {
-    let query = admin()
+  async listVisible(venueId, viewer) {
+    // Base visible read, newest-first, capped. Split from the visibility filter
+    // so we can retry WITHOUT it if migration 0012 isn't applied to this DB yet
+    // (pre-0012 every row is effectively `public`, so an unfiltered read is safe).
+    const base = () => {
+      let q = admin()
+        .from(TABLE)
+        .select("*")
+        .eq("status", "visible")
+        .order("created_at", { ascending: false })
+        .limit(MAX_PUBLIC_DROPS);
+      if (venueId) q = q.eq("venue_id", venueId);
+      return q;
+    };
+    // Legacy (family/heirloom) drops NEVER ride the public surface — they read
+    // only via listLegacyForVenue (the ledger). Excluding them at the DB keeps
+    // their price/note/handle out of every public signal (issue #29). `friends`
+    // gating is per-viewer, applied in memory below.
+    let { data, error } = await base().neq("visibility", "legacy");
+    if (error && isMissingVisibilityColumnError(error)) {
+      console.warn(
+        "[pint-drops] visibility column missing — reading without the visibility filter (apply migration 0012):",
+        error.message,
+      );
+      ({ data, error } = await base());
+    }
+    if (error) throw new Error(error.message);
+    const seeds = venueId ? demoDropsFor(venueId) : demoPintDrops;
+    // Apply the same pure predicate the memory store uses over the fetched page.
+    // Legacy is already excluded above; public + anonymous always pass, friends
+    // gate on the viewer's follow graph.
+    const permitted = (data ?? [])
+      .map(fromRow)
+      .concat(seeds)
+      .filter((d) => canViewOnPublicSurface(d, viewer));
+    return newestFirstCapped(permitted).map(toDTO);
+  },
+
+  /** The LEGACY lane for one venue (ledger-only capability for issue #27).
+   *  Visible `legacy` rows for the venue, newest-first, as public DTOs. */
+  async listLegacyForVenue(venueId) {
+    const query = admin()
       .from(TABLE)
       .select("*")
       .eq("status", "visible")
+      .eq("visibility", "legacy")
+      .eq("venue_id", venueId)
       .order("created_at", { ascending: false })
       .limit(MAX_PUBLIC_DROPS);
-    if (venueId) query = query.eq("venue_id", venueId);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    const seeds = venueId ? demoDropsFor(venueId) : demoPintDrops;
-    return newestFirstCapped((data ?? []).map(fromRow).concat(seeds)).map(toDTO);
+    return newestFirstCapped((data ?? []).map(fromRow)).map(toDTO);
   },
 
   async listForReview(status) {

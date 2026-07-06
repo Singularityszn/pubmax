@@ -109,6 +109,7 @@ describe("PublicDrop DTO — leak-proof by column selection", () => {
         "venueName",
         "venuePhotoUrl",
         "vibeTags",
+        "visibility",
       ].sort(),
     );
 
