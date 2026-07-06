@@ -222,3 +222,394 @@
     box-shadow: 0 0 0 5px rgba(160, 60, 45, 0);
   }
 }
+
+/* ── Camera-first step (PRD priority 2) ───────────────────────────────────────
+   On a mobile-class viewport the composer opens straight onto the shot: a big
+   rear-camera capture, a flip to the front camera, and an explicit skip. Same
+   tokens as the rest of the composer; the buttons are generous thumb targets. */
+.spillCameraStep {
+  display: grid;
+  gap: 10px;
+}
+
+.spillStepEyebrow,
+.spillPreviewEyebrow {
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.spillCameraActions {
+  display: grid;
+  gap: 8px;
+}
+
+.spillCameraBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.spillCameraBtn input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.spillCameraBtn.primary {
+  min-height: 88px;
+  flex-direction: column;
+  gap: 6px;
+  border-color: var(--brass);
+  background: rgba(176, 129, 58, 0.12);
+  color: var(--brass);
+}
+
+.spillCameraBtn:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.spillCameraBtn:focus-within {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.spillCameraShot {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #0c0b08;
+}
+
+.spillCameraShot img {
+  display: block;
+  width: 100%;
+  max-height: 46vh;
+  object-fit: cover;
+}
+
+.spillCameraShot .photoRemove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.spillSkipPhoto {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.spillSkipPhoto:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.spillSkipPhoto:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.spillRetakeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.spillRetakeBtn:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+/* ── One-tap destination chips (PRD priority 2) ───────────────────────────────
+   Tonight / My Round / Family Table / Ledger — shortcuts onto the existing
+   visibility semantics. Same brass-accent chip idiom as the price/vibe chips. */
+.destinationField {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.destinationField legend {
+  padding: 0;
+  margin-bottom: 6px;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.destinationRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.destinationChip {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.destinationChip:hover:not(:disabled) {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.destinationChip.selected {
+  border-color: var(--brass);
+  background: rgba(176, 129, 58, 0.14);
+  color: var(--brass);
+}
+
+.destinationChip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.destinationChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.destinationHelper {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+/* The "last logged price" tag on its quick-add chip. */
+.priceChipTag {
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(176, 129, 58, 0.16);
+  color: var(--brass);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Instant preview card (PRD priority 2) ────────────────────────────────────
+   A live client-only render that mirrors the final 9:16 feedSpill treatment
+   (components/feed/FeedCard.tsx + app/feed/feed.css). The scrim + text colours
+   are FIXED (never theme-mixed) exactly like feedSpill, so the preview reads
+   over any photo in both themes; per-provenance colour comes from the shared
+   .feedProv-* classes so the badge is never flattened. */
+.spillPreviewWrap {
+  display: grid;
+  gap: 6px;
+}
+
+.spillPreviewCard {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+  aspect-ratio: 9 / 16;
+  max-height: 62vh;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #0c0b08;
+  box-shadow: var(--shadow, 0 14px 30px rgba(24, 34, 26, 0.12));
+}
+
+.spillPreviewPhoto {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.spillPreviewPlaceholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: #8f8875;
+  background:
+    radial-gradient(120% 90% at 50% 12%, rgba(176, 129, 58, 0.14), transparent 60%),
+    #12100c;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0 16px;
+}
+
+.spillPreviewProv {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(12, 11, 8, 0.72);
+  color: var(--brass-bright, #d8ab55);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+}
+
+.spillPreviewProv.feedProv-anecdote {
+  color: #e7d8b4;
+}
+
+.spillPreviewProv.feedProv-demo {
+  color: #cfc6b3;
+}
+
+.spillPreviewPrice {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  padding: 5px 11px;
+  border-radius: 9px;
+  background: var(--ink-deep, #1c231d);
+  color: var(--brass-bright, #d8ab55);
+  font-family: var(--font-garamond, var(--serif, Georgia), serif);
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+}
+
+.spillPreviewScrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 48px 12px 12px;
+  color: #f3ecdc;
+  background: linear-gradient(
+    to top,
+    rgba(8, 7, 5, 0.92) 0%,
+    rgba(8, 7, 5, 0.7) 42%,
+    rgba(8, 7, 5, 0) 100%
+  );
+}
+
+.spillPreviewWho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.spillPreviewAvatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--ink-deep, #1c231d);
+  color: var(--brass-bright, #d8ab55);
+  font-family: var(--font-garamond, var(--serif, Georgia), serif);
+  font-size: 0.92rem;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 30%, transparent);
+}
+
+.spillPreviewWhoText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.spillPreviewHandle {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: #fbf6ea;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spillPreviewMeta {
+  font-size: 0.72rem;
+  color: #d9cfba;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spillPreviewNote {
+  margin: 2px 0 0;
+  font-family: var(--font-garamond, var(--serif, Georgia), "Times New Roman", serif);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #f3ecdc;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Large-text / Legacy Mode: the preview is a supporting flourish, not core
+   content — let it grow but never let the aspect-ratio squeeze the note. In
+   Legacy Mode the field-guide favours legibility over the 9:16 flex, so relax
+   the fixed ratio and let the card size to its content. */
+html[data-legacy="1"] .spillPreviewCard {
+  aspect-ratio: auto;
+  min-height: 320px;
+  max-height: none;
+}
+
+html[data-legacy="1"] .spillPreviewNote {
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+}
