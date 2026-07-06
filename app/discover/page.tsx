@@ -4,9 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
-import { cheapestPints, type LeaderboardEntry } from "@/lib/leaderboard";
-import { computeThenVsNow, type ThenVsNowDrop, type ThenVsNowItem } from "@/lib/thenVsNow";
+import {
+  cheapestPints,
+  cheapestTonight,
+  type LeaderboardEntry,
+  type TonightDrop,
+  type TonightEntry,
+} from "@/lib/leaderboard";
+import { computeThenVsNow, type ThenVsNowItem } from "@/lib/thenVsNow";
 import LeaderboardTable from "@/components/discovery/LeaderboardTable";
+import TonightBoard from "@/components/discovery/TonightBoard";
 import EditorialCard, { type EditorialCardData } from "@/components/discovery/EditorialCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import "./discover.css";
@@ -48,14 +55,17 @@ const EDITORIAL: EditorialCardData[] = [
   },
 ];
 
-// Narrow the public /api/pint-drops payload to the {venueId, priceGbp,
-// createdAt} shape computeThenVsNow reads. Defensive: any malformed body yields
-// an empty list so the section simply doesn't render (never crashes the page).
-function pickDrops(raw: unknown): ThenVsNowDrop[] {
+// Narrow the public /api/pint-drops payload to the drop shape our compute
+// helpers read. The returned TonightDrop carries {venueId, priceGbp, createdAt}
+// (all computeThenVsNow needs) PLUS the optional {handle, venueName} the tonight
+// board shows — the same list feeds both sections (one fetch, two computes).
+// Defensive: any malformed body yields an empty list so the sections simply
+// don't render (never crashes the page).
+function pickDrops(raw: unknown): TonightDrop[] {
   if (!raw || typeof raw !== "object") return [];
   const list = (raw as { drops?: unknown }).drops;
   if (!Array.isArray(list)) return [];
-  const out: ThenVsNowDrop[] = [];
+  const out: TonightDrop[] = [];
   for (const item of list) {
     if (!item || typeof item !== "object") continue;
     const d = item as Record<string, unknown>;
@@ -65,6 +75,9 @@ function pickDrops(raw: unknown): ThenVsNowDrop[] {
       priceGbp:
         typeof d.priceGbp === "number" && Number.isFinite(d.priceGbp) ? d.priceGbp : null,
       createdAt: typeof d.createdAt === "string" ? d.createdAt : "",
+      handle: typeof d.handle === "string" && d.handle.trim() ? d.handle : undefined,
+      venueName:
+        typeof d.venueName === "string" && d.venueName.trim() ? d.venueName : undefined,
     });
   }
   return out;
@@ -78,6 +91,11 @@ export default function DiscoverPage() {
   // either fetch fails we just leave this empty and show a friendly note — the
   // rest of the page is unaffected.
   const [thenVsNow, setThenVsNow] = useState<ThenVsNowItem[]>([]);
+  // "Cheapest pints logged tonight" (PRD §5.1): the live hook. Computed from the
+  // SAME community drops as Then vs Now (one fetch, two computes) — the cheapest
+  // priced drops in the trailing 24h. Empty until the drops land; if the drops
+  // fetch fails it simply stays empty and the board shows its friendly note.
+  const [tonight, setTonight] = useState<TonightEntry[]>([]);
 
   // Fetch the public dataset and rank it. setState only fires in the async
   // handlers (never the effect body) — React 19 set-state-in-effect is an error.
@@ -100,7 +118,11 @@ export default function DiscoverPage() {
           const res = await fetch("/api/pint-drops", { signal: controller.signal });
           if (!res.ok) return;
           const body = await res.json();
-          setThenVsNow(computeThenVsNow(venues, pickDrops(body), 8));
+          const drops = pickDrops(body);
+          // Same drops, two computes: the live "tonight" board (last 24h,
+          // cheapest-first) and the "then vs now" baseline comparison.
+          setTonight(cheapestTonight(drops, { limit: 10 }));
+          setThenVsNow(computeThenVsNow(venues, drops, 8));
         } catch (err) {
           if ((err as Error).name === "AbortError") return;
           // Swallow: no community "now" prices → empty section, friendly note.
@@ -135,6 +157,17 @@ export default function DiscoverPage() {
           London pub culture.
         </p>
       </header>
+
+      <section className="discoverSection" aria-labelledby="tonight-title">
+        <h2 id="tonight-title" className="discoverSectionTitle">
+          Cheapest Pints Tonight
+        </h2>
+        <p className="discoverSectionDek">
+          Live from the community — the cheapest pints logged in the last 24
+          hours, cheapest first. Community-reported, not gospel.
+        </p>
+        <TonightBoard entries={tonight} />
+      </section>
 
       <section className="discoverSection" aria-labelledby="cheap-title">
         <h2 id="cheap-title" className="discoverSectionTitle">
