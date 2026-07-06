@@ -294,6 +294,26 @@
   width: 100%;
 }
 
+/* ── Phone (≤440px) ──────────────────────────────────────────────────────
+   Let the two actions grow to full-width thumb targets rather than squashing
+   into a cramped side-by-side row, and give the wax-seal stamp a touch more
+   clearance from the mat edge so it never clips the page gutter. */
+@media (max-width: 440px) {
+  .permalink__actions {
+    gap: 10px;
+  }
+
+  .permalink__primary,
+  .permalink__ghost {
+    flex: 1 1 100%;
+  }
+
+  .permalink__frame .permalink__stamp {
+    right: 0;
+    bottom: -8px;
+  }
+}
+
 /* Respect reduced motion: no stamp tilt animation, and it's already static, but
    drop any transition for users who ask. */
 @media (prefers-reduced-motion: reduce) {
@@ -411,12 +431,22 @@
   padding: 10px 18px;
   min-height: 44px;
   background: var(--brass);
-  color: #1a160e;
+  color: var(--ink-deep, #1a160e);
   border: 0;
   border-radius: var(--radius);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+.commentSubmit:focus-visible {
+  outline: 2px solid var(--ink-deep, var(--ink));
+  outline-offset: 2px;
+}
+
+.commentToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 .commentSubmit:disabled {
   opacity: 0.55;

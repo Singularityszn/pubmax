@@ -53,7 +53,7 @@
 
 .profilePage .profileNav a:hover {
   color: var(--ink);
-  background: rgba(176, 129, 58, 0.08);
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
 }
 
 .profilePage .profileNav a:focus-visible {
@@ -74,6 +74,20 @@
   font-size: clamp(1.4rem, 3vw, 1.9rem);
   letter-spacing: -0.015em;
   margin: 0 0 20px;
+}
+
+/* Error state reuses the header, then a quiet inline notice below it. Keep the
+   two stacked with the same rhythm as the grid so it never looks broken. */
+.profilePage .profileErrorState {
+  display: grid;
+  gap: clamp(24px, 4vw, 40px);
+}
+
+/* Follow/edit action slot rides at the far end of the identity row. */
+.profilePage .profileActions {
+  margin-left: auto;
+  align-self: flex-start;
+  flex: 0 0 auto;
 }
 
 .profilePage .profileEmpty {
@@ -337,6 +351,25 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 14px;
+  }
+
+  /* In a stacked column, margin-left:auto would shove the actions to the far
+     edge on their own line — reset it so they sit naturally under the name. */
+  .profilePage .profileActions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  /* Two-up stat cards read better than one long column on a phone. */
+  .profilePage .profileStat {
+    flex: 1 1 44%;
+  }
+}
+
+@media (max-width: 380px) {
+  .profilePage .profileAvatar {
+    width: 72px;
+    height: 72px;
   }
 
   .profilePage .profileStat {

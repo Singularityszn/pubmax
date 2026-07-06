@@ -113,6 +113,7 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
 // ── Filters ──────────────────────────────────────────────────────────────────
 
 export type FeedFilter =
+  | "latest"
   | "tonight"
   | "friends"
   | "nearby"
@@ -130,6 +131,7 @@ export type FeedFilterDef = {
 
 // Order matters — this is the on-screen chip order.
 export const FEED_FILTERS: FeedFilterDef[] = [
+  { id: "latest", label: "Latest", demo: false },
   { id: "tonight", label: "Tonight", demo: false },
   { id: "friends", label: "Friends", demo: true },
   { id: "nearby", label: "Near Me", demo: true },
@@ -163,6 +165,11 @@ function createdMs(item: FeedItem): number {
  */
 export function applyFeedFilter(items: FeedItem[], filter: FeedFilter): FeedItem[] {
   switch (filter) {
+    case "latest":
+      // The default lane: every visible drop, newest first. Always has content
+      // (unlike `tonight`, which is empty when nothing was logged in 24h), so a
+      // first-time visitor never lands on an empty feed.
+      return [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     case "cheap":
       return items
         .filter((i) => typeof i.priceGbp === "number" && i.priceGbp <= CHEAP_MAX_GBP)

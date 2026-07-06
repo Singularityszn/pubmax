@@ -16,7 +16,14 @@ import {
   type ProfileDrop,
 } from "@/lib/profiles";
 import type { ProfileRecord } from "@/lib/profileStore";
-import { savedByList, type ListType, type SavedPub } from "@/lib/savedPubs";
+import {
+  fetchSavedForHandle,
+  groupDTOsByList,
+  savedByList,
+  type ListType,
+  type SavedPub,
+  type SavedPubDTO,
+} from "@/lib/savedPubs";
 
 import "./profile.css";
 
@@ -45,17 +52,37 @@ function formatGbp(value: number | null | undefined): string | null {
   return typeof value === "number" && Number.isFinite(value) ? `£${value.toFixed(2)}` : null;
 }
 
+// localStorage fallback → DTO groups. The client has no server venue index, so a
+// local-only save renders its id as the name (the demo degrade for a signed-out /
+// offline viewer); the durable path is the one that carries real names. The map
+// url is still correct (?sel=<id>), so the link works either way.
+function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
+  const local: Partial<Record<ListType, SavedPub[]>> = savedByList();
+  const groups: Partial<Record<ListType, SavedPubDTO[]>> = {};
+  for (const key of Object.keys(local) as ListType[]) {
+    groups[key] = (local[key] ?? []).map((pub) => ({
+      venueId: pub.venueId,
+      venueName: pub.venueId,
+      venueMapUrl: `/map?sel=${encodeURIComponent(pub.venueId)}`,
+      listType: pub.listType,
+      note: pub.note,
+      savedAt: pub.savedAt,
+    }));
+  }
+  return groups;
+}
+
 export default function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   // Route params are a promise in the App Router; unwrap with `use`.
   const routeHandle = normalizeHandle(use(params)?.handle);
 
   const [drops, setDrops] = useState<PublicDrop[]>([]);
   const [state, setState] = useState<LoadState>("loading");
-  // Saved pubs live in localStorage (demo). Start empty so the server render
-  // and the client's first (hydration) paint match, then fill in from storage
-  // after mount. savedByList() guards `window`, so this only reads in the
-  // browser.
-  const [saved, setSaved] = useState<Partial<Record<ListType, SavedPub[]>>>({});
+  // Saved pubs render as DTOs (venue NAME + map url). Durable when this handle has
+  // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
+  // (savedByList) mapped into DTOs. Start empty so the server render and the
+  // client's first (hydration) paint match, then fill in after mount.
+  const [saved, setSaved] = useState<Partial<Record<ListType, SavedPubDTO[]>>>({});
 
   // The viewer's own handle (localStorage `pubmax_handle`), read after mount so
   // the server render and hydration agree. Drives the follow button + whether
@@ -96,20 +123,25 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
     return () => controller.abort();
   }, [routeHandle]);
 
-  // Read saved pubs from localStorage once, client-side only. Done in an async
-  // step (not the synchronous effect body) so hydration paints the empty server
-  // state first, then swaps in the stored saves.
+  // Load this handle's saved pubs: durable first (the API resolves real venue
+  // names for the profile's handle), falling back to the viewer's localStorage
+  // view mapped into DTOs. Done in an async callback (not the synchronous effect
+  // body) so hydration paints the empty server state first, then swaps in the
+  // saves — and so setState only runs in async work (react-hooks rule).
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     async function loadSaved() {
-      const groups = savedByList();
-      if (active) setSaved(groups);
+      const durable = routeHandle
+        ? await fetchSavedForHandle(routeHandle, controller.signal)
+        : null;
+      if (controller.signal.aborted) return;
+      // Durable hit (even an empty list) is authoritative for this handle; only a
+      // null (no handle / request failed) falls back to the local view.
+      setSaved(durable ? groupDTOsByList(durable) : localSavedDTOs());
     }
     void loadSaved();
-    return () => {
-      active = false;
-    };
-  }, []);
+    return () => controller.abort();
+  }, [routeHandle]);
 
   // Read the viewer's own handle after mount (avoids a hydration mismatch — the
   // server can't know localStorage). Done in an async step, not the synchronous

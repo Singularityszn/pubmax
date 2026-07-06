@@ -80,7 +80,7 @@
   .mobileTab:hover,
   .mobileTab:focus-visible {
     color: var(--ink);
-    background: rgba(176, 129, 58, 0.12);
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
   }
 
   .mobileTab:focus-visible {
@@ -122,5 +122,32 @@
   .mobileTabPrimary:hover .mobileTabIcon,
   .mobileTabPrimary:focus-visible .mobileTabIcon {
     background: var(--brass-bright, #d3a44a);
+  }
+}
+
+/* Narrowest phones (≤360px): five labels + a raised centre button get tight.
+   Shrink the label a hair and trim the list padding so nothing clips or wraps,
+   while the 52px tap target is preserved. */
+@media (max-width: 360px) {
+  .mobileTabList {
+    padding: 4px 3px;
+  }
+
+  .mobileTab {
+    font-size: 0.62rem;
+    padding: 4px 1px;
+  }
+
+  .mobileTabPrimary .mobileTabIcon {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+/* Motion respect: the tab colour/background transitions are already gentle, but
+   drop them entirely for visitors who ask for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .mobileTab {
+    transition: none;
   }
 }

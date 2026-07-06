@@ -42,7 +42,7 @@
 
 .feedNav a:hover {
   color: var(--ink);
-  background: rgba(176, 129, 58, 0.08);
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
 }
 
 .feedNav a[aria-current="page"] {
@@ -53,6 +53,14 @@
 .feedNav a:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+/* Sign-in slot sits at the end of the nav, pushed to the right so the tabs
+   read as one group and the account action as another. */
+.feedNavAuth {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* ── Header ───────────────────────────────────────────────────────────── */
@@ -120,6 +128,9 @@
 .feedFilterChip.isActive {
   background: var(--ink-deep, #1c231d);
   border-color: var(--ink-deep, #1c231d);
+  /* Always-cream text: --ink-deep is a theme-stable dark surface in both
+     themes, so the label must stay light (a light token would flip to dark and
+     vanish here). This warm cream matches the button glyphs across the app. */
   color: #fdfaf2;
 }
 
@@ -131,7 +142,7 @@
 .feedFilterDemo {
   padding: 1px 6px;
   border-radius: 999px;
-  background: rgba(176, 129, 58, 0.16);
+  background: color-mix(in srgb, var(--brass) 16%, transparent);
   color: var(--brass);
   font-size: 0.6rem;
   font-weight: 700;
@@ -156,17 +167,17 @@
 /* ── Card ─────────────────────────────────────────────────────────────── */
 .feedCard {
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius, 16px);
   background: var(--panel);
   overflow: hidden;
-  box-shadow: 0 8px 22px rgba(24, 34, 26, 0.06);
+  box-shadow: var(--shadow, 0 8px 22px rgba(24, 34, 26, 0.06));
 }
 
 .feedCardHead {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 14px 16px 12px;
 }
 
 .feedAvatar {
@@ -217,7 +228,7 @@
 }
 
 .feedProv-contributor {
-  border-color: rgba(176, 129, 58, 0.45);
+  border-color: color-mix(in srgb, var(--brass) 45%, transparent);
   color: var(--brass);
 }
 
@@ -245,15 +256,19 @@
   position: absolute;
   right: 12px;
   bottom: 12px;
-  padding: 6px 12px;
+  padding: 6px 13px;
   border-radius: 10px;
   background: var(--ink-deep, #1c231d);
   color: var(--brass-bright, #d8ab55);
   font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: 1.15rem;
+  font-size: 1.16rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.01em;
+  /* A hairline brass ring pressed inside the ink badge — the "stamp" edge. */
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
 }
 
 /* Receipt fallback — a typographic card when there is no photo. */
@@ -391,10 +406,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 11px;
+  min-height: 36px;
+  padding: 7px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--panel);
+  background: var(--panel-raised);
   color: var(--ink-soft);
   font-size: 0.78rem;
   font-weight: 600;
@@ -407,10 +423,13 @@
   color: var(--ink);
 }
 
+/* Pressed "on" token — a warm brass fill with a slightly firmer ring so the
+   state reads clearly at a glance, not just by colour. */
 .feedReactBtn.isOn {
   border-color: var(--brass);
-  background: rgba(176, 129, 58, 0.12);
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel));
   color: var(--brass);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 30%, transparent);
 }
 
 .feedReactBtn:focus-visible {
@@ -436,7 +455,7 @@
 }
 
 .feedReactBtn.isOn .feedReactCount {
-  background: rgba(176, 129, 58, 0.18);
+  background: color-mix(in srgb, var(--brass) 20%, transparent);
   color: var(--brass);
 }
 
@@ -515,8 +534,9 @@
   align-items: center;
   min-height: 44px;
   padding: 0 20px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm, 10px);
   background: var(--ink-deep, #1c231d);
+  /* Always-cream on the theme-stable dark ink surface (see filter chip note). */
   color: #fdfaf2;
   font-weight: 600;
   text-decoration: none;
@@ -575,14 +595,35 @@
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Tighten the outer gutters so the cards get the width, but keep the last
+     card clear of the fixed bottom tab bar (body already carries the inset;
+     this is breathing room above it). */
+  .feedShell {
+    padding: 18px 12px 40px;
+    gap: 18px;
+  }
+}
+
 @media (max-width: 540px) {
+  /* Emoji-only reaction tokens on phones — a comfortable square tap target
+     instead of a cramped pill, so thumbs land cleanly. */
   .feedReactLabel {
     display: none;
   }
 
   .feedReactBtn {
-    padding: 8px 12px;
-    font-size: 0.95rem;
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 1.02rem;
+  }
+
+  .feedReactCount {
+    font-size: 0.8rem;
+  }
+
+  .feedReactions {
+    gap: 10px;
   }
 }
 
@@ -747,12 +788,12 @@
 
 .commentSubmit {
   align-self: flex-start;
-  min-height: 40px;
-  padding: 9px 18px;
+  min-height: 44px;
+  padding: 10px 20px;
   border: 0;
   border-radius: 999px;
   background: var(--brass);
-  color: #1a160e;
+  color: var(--ink-deep, #1a160e);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -768,7 +809,9 @@
   outline-offset: 2px;
 }
 
-/* Per-card footer: open the standalone permalink + the share row. */
+/* Per-card footer: open the standalone permalink + the share row. The permalink
+   anchors the left, the share strip drifts to the right, so the card ends on a
+   tidy, balanced line. */
 .feedCardFooter {
   display: flex;
   align-items: center;
@@ -776,14 +819,27 @@
   flex-wrap: wrap;
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-soft, var(--line));
+}
+.feedCardFooter .shareBar {
+  margin-left: auto;
 }
 .feedPermalink {
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--brass);
   text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.18s ease;
 }
 .feedPermalink:hover {
-  text-decoration: underline;
+  border-bottom-color: var(--brass);
+}
+.feedPermalink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
 }

@@ -84,7 +84,7 @@ export default function FeedPage() {
   // effect body (react-hooks/set-state-in-effect).
   const [items, setItems] = useState<FeedItem[]>([]);
   const [status, setStatus] = useState<LoadState>("loading");
-  const [filter, setFilter] = useState<FeedFilter>("tonight");
+  const [filter, setFilter] = useState<FeedFilter>("latest");
   // How many pages the user has revealed. "Load more" bumps this; changing the
   // filter resets it to 1. Cursor pagination is still the engine (below) — this
   // counter just says how many cursor-steps to walk from the top.
