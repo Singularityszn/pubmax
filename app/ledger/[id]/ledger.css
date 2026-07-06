@@ -223,6 +223,112 @@
   color: var(--ink-soft);
 }
 
+/* ── Lane wayfinding — one quiet line explaining Public vs Legacy ─────────── */
+.ledgerLaneNote {
+  margin: 0 0 28px;
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+/* ── The Family Table (issue #27) ────────────────────────────────────────── */
+/* Deliberately warmer than the logbook above it: a cream/brass-tinted panel,
+   not just another ruled list — this is the "kept for the family" surface,
+   it should feel like a different, gentler room. */
+.ledgerFamilySection {
+  padding: clamp(20px, 4vw, 32px);
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  border: 1px solid var(--brass);
+  border-radius: var(--radius, 12px);
+}
+
+.ledgerFamilyHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ledgerFamilySection .ledgerSectionTitle {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+.ledgerFamilyIntro {
+  margin: -8px 0 20px;
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+}
+
+.ledgerFamilyEntries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ledgerFamilyEntry {
+  padding: 20px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+}
+
+.ledgerFamilyEntryMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.ledgerFamilyEntryDate {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+}
+
+.ledgerFamilyEntryHandle {
+  font-weight: 700;
+  color: var(--brass);
+}
+
+/* The note is the prominent line — heirloom notes read like a diary, not a
+   database row. Larger than the public logbook's note for emphasis. */
+.ledgerFamilyEntryNote {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.ledgerFamilyEntryPrice {
+  margin: 10px 0 0;
+  font-family: var(--font-data);
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+.ledgerFamilyEntryFoot {
+  margin-top: 14px;
+}
+
+.ledgerFamilyEmpty {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
 .ledgerFootnote {
   margin-top: 48px;
   padding-top: 24px;
@@ -277,7 +383,13 @@
   }
 
   .ledgerMapLink,
-  .ledgerReadButton {
+  .ledgerReadButton,
+  .familyShareButton {
     width: 100%;
+  }
+
+  .ledgerFamilyHead {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

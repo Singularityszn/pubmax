@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getVenueCuration } from "@/lib/curation";
-import { buildLedgerEntries, buildVenueClaims, ledgerClaimDrops } from "@/lib/ledger";
+import { buildFamilyTableEntries, buildLedgerEntries, buildVenueClaims, ledgerClaimDrops } from "@/lib/ledger";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
+import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 
 import "./ledger.css";
 
@@ -126,6 +127,30 @@ export default async function LedgerPage({ params }: PageProps) {
     })),
   );
 
+  // The Family Table (issue #27): LEGACY drops, read via the ledger-only
+  // listLegacyForVenue capability (issue #29) — deliberately a SEPARATE store
+  // call from listVisible above, never a filter over `drops`, so a legacy row
+  // can never accidentally end up rendered in the public logbook above.
+  const legacyDrops = await pintDropStoreFor().listLegacyForVenue(id);
+  const familyEntries = buildFamilyTableEntries(
+    legacyDrops.map((d) => ({
+      id: d.id,
+      handle: d.handle,
+      drink: d.drink,
+      priceGbp: d.priceGbp,
+      passedDownNote: d.passedDownNote,
+      era: d.era,
+      provenance: d.provenance,
+      createdAt: d.createdAt,
+    })),
+  );
+  // The Ledger's own canonical link, for the share actions below. Relative,
+  // like every other in-app link on this page (venueMapUrl) — the deployed
+  // origin is added by the browser/mail client itself. A future "email this
+  // digest" project (see ShareWithFamilyButton's ponytail-ceiling note) would
+  // want an absolute URL and should add a proper site-origin helper then.
+  const ledgerUrl = `/ledger/${encodeURIComponent(id)}`;
+
   // Text handed to the "Read this page" button: name, heritage note, then the
   // newest few entries — kept short and skimmable for a screen reader / TTS
   // pass rather than reading the entire ledger aloud.
@@ -156,8 +181,13 @@ export default async function LedgerPage({ params }: PageProps) {
             Open on the map
           </Link>
           <ReadLedgerButton text={speechParts.join(" ")} />
+          <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
         </div>
       </header>
+
+      <p className="ledgerLaneNote">
+        Public notes appear in the logbook; Legacy notes are kept for the Family Table below.
+      </p>
 
       {claims.length > 0 ? (
         <section className="ledgerSection" aria-labelledby="ledgerClaimsHeading">
@@ -214,6 +244,52 @@ export default async function LedgerPage({ params }: PageProps) {
                       <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
                     </p>
                   ) : null}
+                </article>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <section className="ledgerSection ledgerFamilySection" aria-labelledby="ledgerFamilyHeading">
+        <div className="ledgerFamilyHead">
+          <h2 id="ledgerFamilyHeading" className="ledgerSectionTitle">
+            The Family Table
+          </h2>
+          <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} />
+        </div>
+        <p className="ledgerFamilyIntro">
+          Some stories aren&rsquo;t for the feed — kept here for whoever in the family reads them next.
+        </p>
+        {familyEntries.length === 0 ? (
+          <p className="ledgerFamilyEmpty">
+            Some stories are kept for the family table. Log a pint and choose Legacy to leave one.
+          </p>
+        ) : (
+          <ol
+            className="ledgerFamilyEntries"
+            aria-label={`Family table entries for ${venue.name}`}
+          >
+            {familyEntries.map((entry) => (
+              <li className="ledgerFamilyEntry" key={entry.id}>
+                <article aria-label={`Family table entry, ${entry.dateLabel || "undated"}`}>
+                  <div className="ledgerFamilyEntryMeta">
+                    {entry.dateLabel ? (
+                      <time className="ledgerFamilyEntryDate" dateTime={entry.createdAt}>
+                        {entry.dateLabel}
+                      </time>
+                    ) : (
+                      <span className="ledgerFamilyEntryDate">Undated</span>
+                    )}
+                    <span className="ledgerFamilyEntryHandle">{entry.handle}</span>
+                  </div>
+                  <p className="ledgerFamilyEntryNote">{entry.note}</p>
+                  {entry.priceLabel ? (
+                    <p className="ledgerFamilyEntryPrice">Paid {entry.priceLabel}</p>
+                  ) : null}
+                  <div className="ledgerFamilyEntryFoot">
+                    <ShareWithFamilyButton venueName={venue.name} note={entry.note} url={ledgerUrl} />
+                  </div>
                 </article>
               </li>
             ))}

@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 
-import { buildLedgerEntries, formatLedgerDate, toLedgerEntry, type LedgerSourceDrop } from "@/lib/ledger";
+import {
+  buildFamilyShareText,
+  buildFamilyTableEntries,
+  buildLedgerEntries,
+  formatLedgerDate,
+  toLedgerEntry,
+  type LedgerSourceDrop,
+} from "@/lib/ledger";
 
 function makeDrop(overrides: Partial<LedgerSourceDrop> = {}): LedgerSourceDrop {
   return {
@@ -75,5 +82,101 @@ describe("buildLedgerEntries", () => {
 
   it("returns an empty array for no drops", () => {
     expect(buildLedgerEntries([])).toEqual([]);
+  });
+});
+
+describe("The Family Table (issue #27)", () => {
+  it("buildFamilyTableEntries composes legacy drops the same way as buildLedgerEntries", () => {
+    const legacyDrops = [
+      makeDrop({
+        id: "legacy-1",
+        handle: "@nan",
+        passedDownNote: "Grandad's local before the war.",
+        createdAt: "2020-01-01T00:00:00.000Z",
+      }),
+      makeDrop({
+        id: "legacy-2",
+        handle: "@dad",
+        passedDownNote: "First pint after the wedding.",
+        createdAt: "2022-05-05T00:00:00.000Z",
+      }),
+    ];
+    const entries = buildFamilyTableEntries(legacyDrops);
+    expect(entries.map((e) => e.id)).toEqual(["legacy-2", "legacy-1"]);
+    // Legacy is family-lane, not anonymous: the handle is attributed, not withheld.
+    expect(entries[0].handle).toBe("@dad");
+    expect(entries[1].handle).toBe("@nan");
+  });
+
+  it("drops legacy entries with neither a note nor a price, same rule as the public ledger", () => {
+    const entries = buildFamilyTableEntries([
+      makeDrop({ id: "empty", passedDownNote: "", priceGbp: null }),
+    ]);
+    expect(entries).toEqual([]);
+  });
+
+  // Privacy honesty (issue #27, item 4): legacy drops must NEVER be composable
+  // via buildLedgerEntries (the public logbook's builder) — the store's
+  // listVisible() already excludes visibility:"legacy" server-side (see
+  // lib/pintDropsStore.ts), and this test locks in the client-side half of
+  // that guarantee: even if a legacy drop somehow ended up in the array handed
+  // to buildLedgerEntries, the family table and the public logbook are, and
+  // must stay, two independently-sourced arrays — never one filtered from the
+  // other. This test exists to fail loudly if a future refactor merges them.
+  it("the public ledger builder and the family table builder are independent — never the same source array", () => {
+    const publicDrop = makeDrop({ id: "public-1", passedDownNote: "Great Tuesday session." });
+    const legacyDrop = makeDrop({ id: "legacy-1", passedDownNote: "Nan's favourite corner seat." });
+
+    // Simulates the page: two SEPARATE store reads (listVisible vs.
+    // listLegacyForVenue), never a single list split by a client-side filter.
+    const publicEntries = buildLedgerEntries([publicDrop]);
+    const familyEntries = buildFamilyTableEntries([legacyDrop]);
+
+    expect(publicEntries.map((e) => e.id)).toEqual(["public-1"]);
+    expect(familyEntries.map((e) => e.id)).toEqual(["legacy-1"]);
+    // The legacy drop must never appear in the public entries array.
+    expect(publicEntries.some((e) => e.id === "legacy-1")).toBe(false);
+  });
+});
+
+describe("buildFamilyShareText", () => {
+  it("builds a title/text/url share payload attributing the note to the pub", () => {
+    const share = buildFamilyShareText({
+      venueName: "The Ten Bells",
+      note: "Grandad's local before the war.",
+      url: "/ledger/ten-bells",
+    });
+    expect(share.title).toBe("The Ten Bells");
+    expect(share.text).toBe(
+      "Grandad's local before the war.\n— from the family table at The Ten Bells",
+    );
+    expect(share.url).toBe("/ledger/ten-bells");
+  });
+
+  it("falls back to a section-level text when there is no note", () => {
+    const share = buildFamilyShareText({ venueName: "The Ten Bells", note: "", url: "/ledger/x" });
+    expect(share.text).toBe("The family table at The Ten Bells");
+  });
+
+  it("builds a mailto: href with subject and body prefilled", () => {
+    const share = buildFamilyShareText({
+      venueName: "The Ten Bells",
+      note: "Grandad's local.",
+      url: "/ledger/ten-bells",
+    });
+    expect(share.mailtoHref.startsWith("mailto:?subject=")).toBe(true);
+    expect(share.mailtoHref).toContain(encodeURIComponent("The family table at The Ten Bells"));
+    expect(share.mailtoHref).toContain("body=");
+    // Decoded body contains the share text and the url.
+    const bodyMatch = share.mailtoHref.match(/body=([^&]*)/);
+    expect(bodyMatch).not.toBeNull();
+    const decodedBody = decodeURIComponent(bodyMatch![1]);
+    expect(decodedBody).toContain("Grandad's local.");
+    expect(decodedBody).toContain("/ledger/ten-bells");
+  });
+
+  it("trims whitespace-only notes to the section-level fallback", () => {
+    const share = buildFamilyShareText({ venueName: "The Ten Bells", note: "   ", url: "/x" });
+    expect(share.text).toBe("The family table at The Ten Bells");
   });
 });
