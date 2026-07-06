@@ -148,3 +148,228 @@ test("crawl surfaces render; unknown slug is a friendly 404/empty", async ({ pag
   // white screen — a cheap, WebGL-agnostic proof the 404 surface renders.
   await expect(page.locator("body")).not.toBeEmpty();
 });
+
+// ---------------------------------------------------------------------------
+// Discover · Tonight board (components/discovery/TonightBoard.tsx). The live
+// "cheapest pints logged tonight" board is community-driven and time-windowed
+// (trailing 24h), so on a quiet night it renders its friendly empty state
+// instead of rows — both are valid. We assert the section's stable heading
+// always renders, and that whichever state shows is well-formed: real rows link
+// the pub into /map?sel=… by NAME (never a raw venue id), or the empty note is
+// present. Read-only: it consumes the same /api/pint-drops the page fetches and
+// never POSTs.
+test("discover 'Cheapest Pints Tonight' board renders rows or its empty state (§5.1)", async ({
+  page,
+}) => {
+  const errors = watchPageErrors(page);
+
+  const response = await page.goto("/discover");
+  expect(response?.status()).toBe(200);
+
+  // The app-owned section heading (stable id in app/discover/page.tsx) always
+  // renders regardless of whether any pints landed in the last 24h.
+  await expect(page.locator("#tonight-title")).toHaveText("Cheapest Pints Tonight");
+
+  // The board mounts EITHER as an ordered list of rows OR as its empty note. It
+  // starts empty (drops arrive after the client fetch), so web-first wait until
+  // one of the two states is present rather than snapshotting mid-load.
+  const rows = page.locator(".tonightBoard .tonightRow");
+  const empty = page.locator(".discoverEmpty");
+  await expect
+    .poll(async () => (await rows.count()) + (await empty.count()))
+    .toBeGreaterThan(0);
+
+  const rowCount = await rows.count();
+  if (rowCount > 0) {
+    const link = rows.first().locator(".tonightPub").first();
+    await expect(link).toBeVisible();
+
+    // The pub is linked by its human name — never the raw internal venue id.
+    const name = (await link.innerText()).trim();
+    expect(name.length).toBeGreaterThan(0);
+    expect(name).not.toMatch(RAW_VENUE_ID);
+
+    // …and that name routes onto the map with this pub selected (/map?sel=…).
+    const href = await link.getAttribute("href");
+    expect(href ?? "").toMatch(/^\/map\?sel=/);
+  } else {
+    // Quiet night: the empty note ("be the first tonight") stands in for rows.
+    await expect(empty.first()).toBeVisible();
+  }
+
+  expect(errors).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------
+// Borough discovery pages (app/borough/page.tsx + app/borough/[slug]/page.tsx).
+// Server-rendered, shareable, dataset-backed (cc_plan2 §14/§25). The index lists
+// every borough; a real borough page ranks its pubs (each linking onto the map);
+// an unknown slug is a friendly 404. All read-only — pure GETs off the bundled
+// dataset, no mutation.
+test("borough index lists boroughs, each linking to its own page (§14/§25)", async ({ page }) => {
+  const errors = watchPageErrors(page);
+
+  const response = await page.goto("/borough");
+  expect(response?.status()).toBe(200);
+
+  // The page heading always renders. The dataset ships with the app, so the grid
+  // is populated in practice — but guard for [] so an empty dataset shows its
+  // friendly note rather than failing the run.
+  await expect(page.locator(".boroughTitle")).toBeVisible();
+  const cards = page.locator(".boroughGrid .boroughCard");
+  await expect
+    .poll(async () => (await cards.count()) + (await page.locator(".boroughEmpty").count()))
+    .toBeGreaterThan(0);
+
+  if ((await cards.count()) > 0) {
+    // Each borough card links to its own /borough/<slug> discovery page.
+    await expect(cards.first()).toHaveAttribute("href", /^\/borough\/[a-z0-9-]+$/);
+  } else {
+    await expect(page.locator(".boroughEmpty")).toBeVisible();
+  }
+
+  expect(errors).toEqual([]);
+});
+
+test("a real borough page ranks pubs that link onto the map (§14/§25)", async ({ page }) => {
+  const errors = watchPageErrors(page);
+
+  // "westminster" is a stable, populated slug: it resolves through the app's
+  // primaryBorough→visibleBorough grouping to dozens of pubs in the bundled
+  // dataset, so this page reliably renders the ranked table (not the empty note).
+  const response = await page.goto("/borough/westminster");
+  expect(response?.status()).toBe(200);
+
+  await expect(page.locator("h1.boroughTitle")).toContainText("Pubs in");
+
+  // The ranked table renders (guard for the empty state in case the dataset ever
+  // stops carrying this borough — the page must still not fail).
+  const pubs = page.locator(".boroughTable .boroughPub");
+  await expect
+    .poll(async () => (await pubs.count()) + (await page.locator(".boroughEmpty").count()))
+    .toBeGreaterThan(0);
+
+  if ((await pubs.count()) > 0) {
+    // Each pub name links onto the map with it selected (venueMapUrl → /map?sel=).
+    await expect(pubs.first()).toHaveAttribute("href", /^\/map\?sel=/);
+    // …and the visible label is the human pub name, not a raw internal venue id.
+    const name = (await pubs.first().innerText()).trim();
+    expect(name).not.toMatch(RAW_VENUE_ID);
+  } else {
+    await expect(page.locator(".boroughEmpty")).toBeVisible();
+  }
+
+  expect(errors).toEqual([]);
+});
+
+test("an unknown borough slug is a friendly 404, not a crash (§14/§25)", async ({ page }) => {
+  // boroughFromSlug returns null for a slug no borough produces → notFound() →
+  // Next's 404. The route must serve a real not-found page, never 500 or crash.
+  const missing = await page.goto("/borough/zzz-not-real");
+  expect(missing?.status()).toBe(404);
+  // A rendered 404 body (content present), not a blank white screen.
+  await expect(page.locator("body")).not.toBeEmpty();
+});
+
+// ---------------------------------------------------------------------------
+// Public profile (app/u/[handle]/page.tsx). Dynamic + client: any handle mounts
+// the header without crashing, even an unknown one (friendly empty state). The
+// §9 honesty fix is pinned here: when drop cards DO render, the venue label is
+// the human pub name — never a raw "venue-…" id leaked as visible text. Purely
+// read-only: it filters the public /api/pint-drops feed, never writes.
+test("profile mounts its header for any handle; drop labels are never a raw venue id (§9)", async ({
+  page,
+}) => {
+  const errors = watchPageErrors(page);
+
+  const response = await page.goto("/u/testdrinker");
+  expect(response?.status()).toBe(200);
+
+  // The profile header always mounts (synthesized identity for an unknown handle).
+  await expect(page.locator(".profileHeader")).toBeVisible();
+
+  // The drops section resolves to one of: loading→ready with cards, or a
+  // "no pints logged" empty note. Wait until it settles off the loading state so
+  // we branch on a stable snapshot, not a mid-fetch one.
+  const cards = page.locator(".profileDropCard");
+  const dropsEmpty = page.locator(".profileDropsSection .profileEmpty");
+  await expect
+    .poll(async () => (await cards.count()) + (await dropsEmpty.count()))
+    .toBeGreaterThan(0);
+
+  // §9 pin: every rendered drop card labels its venue by the human name — a raw
+  // internal "venue-…" id must NEVER appear as the visible venue link text.
+  const cardCount = await cards.count();
+  for (let i = 0; i < cardCount; i++) {
+    const label = cards.nth(i).locator(".profileDropVenue").first();
+    const name = (await label.innerText()).trim();
+    expect(name.length).toBeGreaterThan(0);
+    expect(name).not.toMatch(RAW_VENUE_ID);
+    // The venue link still routes onto the map (via enriched url or ?sel=<id>).
+    await expect(label).toHaveAttribute("href", /\/map/);
+  }
+
+  expect(errors).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------
+// Map onboarding surface (components/PubMap.tsx). WebGL-agnostic, like
+// smoke.spec: we only assert the map region MOUNTS (canvas when a GPU is
+// present, the "renderer unavailable" fallback otherwise). We deliberately do
+// NOT assert the onboarding overlay's exact copy — it's sessionStorage-gated and
+// only appears on a first visit, so pinning it would be flaky. Read-only: a bare
+// GET of /map, no interaction that could persist anything.
+test("/map mounts the map region without crashing (WebGL-agnostic overlay guard)", async ({
+  page,
+}) => {
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  // The wrapper always renders; inside is EITHER the maplibre container (GPU) OR
+  // the fallback (headless/no-WebGL). Pass on either so this stays green in CI.
+  await expect(page.locator(".mapCanvasWrap")).toBeVisible();
+  await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
+  // The onboarding overlay is sessionStorage-gated (may or may not be present);
+  // we only assert it never leaves the DOM in a broken half-state — if it exists,
+  // its dismiss control is reachable. Guard with count so a suppressed overlay
+  // (second visit) doesn't fail the test.
+  const onboarding = page.locator(".mapOnboarding");
+  if ((await onboarding.count()) > 0) {
+    await expect(onboarding.locator(".mapOnboardingDismiss").first()).toBeVisible();
+  }
+  // No pageerror assertion: MapLibre GL emits async teardown noise under headless
+  // timing that is not app logic under test (same rationale as smoke.spec).
+});
+
+// ---------------------------------------------------------------------------
+// Saved-only filter control (components/map/ControlRail.tsx). The rail is a
+// desktop surface (hidden on mobile), so we run this on a desktop viewport and
+// guard on the rail's presence. The "Saved only" checkbox must exist in the DOM
+// — it's the entry point to the saved-only map/list filter (§ friends feed work).
+test("desktop map control rail exposes the 'Saved only' filter checkbox", async ({ page }) => {
+  // Desktop viewport so the control rail (hidden on mobile) is in the DOM.
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  // PubMap is a client component: wait for the map region to mount (proof the
+  // component hydrated) before asserting on the rail, so we never race an
+  // un-hydrated DOM. WebGL-agnostic — canvas or fallback, either is fine.
+  await expect(page.locator(".mapCanvasWrap")).toBeVisible();
+
+  // The control rail renders unconditionally inside the (collapsed-by-default)
+  // planning drawer, so it's in the DOM on desktop even before the planner is
+  // opened. Web-first (auto-retrying) so hydration timing can't false-fail it.
+  const rail = page.locator(".controlRail");
+  await expect(rail).toHaveCount(1);
+
+  // The "Saved only" checkbox: its label carries a stable accessible name; the
+  // control is the checkbox inside it. Assert it exists and is unchecked by
+  // default — we never click it, so no per-device saved-only state is mutated.
+  const savedOnly = rail.locator(
+    'label[aria-label="Show only pubs you have saved"] input[type="checkbox"]',
+  );
+  await expect(savedOnly).toHaveCount(1);
+  await expect(savedOnly).not.toBeChecked();
+});

@@ -1,0 +1,224 @@
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Handler-level coverage for app/api/pint-drops/reactions/route.ts. The route
+// talks to the ReactionsStore seam only; with SUPABASE_URL/SERVICE_ROLE_KEY
+// cleared it selects the process-memory store, so every case here is
+// deterministic and hits no network. We mock nothing in lib/supabase — clearing
+// the env is enough to force isSupabaseConfigured() === false.
+//
+// Note on the memory store: memoryReactionsStore keeps a module-level Set that
+// has no FK, so it NEVER raises UnknownDropError (any id is reactable in dev).
+// To exercise the 404 UnknownDropError contract we drive the SUPABASE path with
+// a stubbed store whose toggle throws UnknownDropError — see that describe block.
+
+import { GET, POST } from "@/app/api/pint-drops/reactions/route";
+import { __resetMemoryReactions } from "@/lib/reactionsStore";
+
+const URL_BASE = "http://localhost/api/pint-drops/reactions";
+
+function getSummaries(query: string): Promise<Response> {
+  return GET(new Request(`${URL_BASE}?${query}`));
+}
+
+function toggle(body: unknown): Promise<Response> {
+  return POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify(body) }));
+}
+
+beforeEach(() => {
+  vi.stubEnv("NODE_ENV", "test");
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  __resetMemoryReactions();
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
+
+describe("GET /api/pint-drops/reactions (batched summaries)", () => {
+  it("returns an empty summaries map when no ids are given", async () => {
+    const res = await getSummaries("actor=dev-1");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ summaries: {} });
+  });
+
+  it("returns a per-id summary for every requested id (zero-state before any toggle)", async () => {
+    const res = await getSummaries("ids=a,b,c&actor=dev-1");
+    expect(res.status).toBe(200);
+    const { summaries } = await res.json();
+    expect(Object.keys(summaries).sort()).toEqual(["a", "b", "c"]);
+    // Zero-state: no counts, empty `mine`.
+    expect(summaries.a).toEqual({ counts: {}, mine: [] });
+  });
+
+  it("reflects a toggled reaction in the batched summary, incl. the actor's own `mine`", async () => {
+    await toggle({ id: "drop-x", actor: "dev-1", reaction: "cheers" });
+
+    const mine = await getSummaries("ids=drop-x&actor=dev-1");
+    const forActor = (await mine.json()).summaries["drop-x"];
+    expect(forActor.counts).toEqual({ cheers: 1 });
+    expect(forActor.mine).toEqual(["cheers"]);
+
+    // A different actor sees the count but not it in their `mine`.
+    const other = await getSummaries("ids=drop-x&actor=dev-2");
+    const forOther = (await other.json()).summaries["drop-x"];
+    expect(forOther.counts).toEqual({ cheers: 1 });
+    expect(forOther.mine).toEqual([]);
+  });
+
+  it("trims/dedupes/caps ids and ignores blank entries", async () => {
+    const res = await getSummaries("ids= a , ,b ,&actor=dev-1");
+    const { summaries } = await res.json();
+    // Blank fragments dropped; whitespace trimmed.
+    expect(Object.keys(summaries).sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("POST /api/pint-drops/reactions (toggle)", () => {
+  it("toggles a reaction ON then OFF for the same actor", async () => {
+    const on = await toggle({ id: "d1", actor: "dev-1", reaction: "bargain" });
+    expect(on.status).toBe(200);
+    expect((await on.json()).summary).toEqual({ counts: { bargain: 1 }, mine: ["bargain"] });
+
+    const off = await toggle({ id: "d1", actor: "dev-1", reaction: "bargain" });
+    expect(off.status).toBe(200);
+    // Toggling the same reaction again removes it.
+    expect((await off.json()).summary).toEqual({ counts: {}, mine: [] });
+  });
+
+  it("400s a reaction off the server allowlist (never stored)", async () => {
+    const res = await toggle({ id: "d1", actor: "dev-1", reaction: "spicy" });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Unknown reaction." });
+
+    // Confirm the bad reaction did not land: the drop's summary is still zero.
+    const check = await getSummaries("ids=d1&actor=dev-1");
+    expect((await check.json()).summaries.d1).toEqual({ counts: {}, mine: [] });
+  });
+
+  it("400s a missing pint drop id", async () => {
+    const res = await toggle({ actor: "dev-1", reaction: "cheers" });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Missing pint drop id." });
+  });
+
+  it("400s a blank/whitespace-only id", async () => {
+    const res = await toggle({ id: "   ", actor: "dev-1", reaction: "cheers" });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Missing pint drop id." });
+  });
+
+  it("400s a non-string reaction", async () => {
+    const res = await toggle({ id: "d1", actor: "dev-1", reaction: 42 });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Unknown reaction." });
+  });
+
+  it("400s a malformed JSON body", async () => {
+    const res = await POST(new Request(URL_BASE, { method: "POST", body: "{not json" }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Malformed request body." });
+  });
+
+  it("does NOT leak actor_hash/status/moderation fields in any response body", async () => {
+    const res = await toggle({ id: "d1", actor: "dev-secret", reaction: "cheers" });
+    const json = await res.json();
+    const blob = JSON.stringify(json);
+    // The public summary is { counts, mine } only.
+    expect(Object.keys(json.summary).sort()).toEqual(["counts", "mine"]);
+    expect(blob).not.toMatch(/actor_?hash/i);
+    expect(blob).not.toMatch(/"status"/);
+    expect(blob).not.toContain("dev-secret"); // the raw actor id never echoes back
+  });
+});
+
+// The 404 UnknownDropError contract only exists on the Supabase (FK-backed)
+// path — a reaction on a drop that isn't in visit_reports. We stub the store to
+// throw it and confirm the route maps it to 404 (not 500), and maps any other
+// store error to 503.
+describe("POST reaction — store error contracts (Supabase path)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    process.env.SUPABASE_URL = "https://stub.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
+  });
+
+  afterAll(() => {
+    vi.resetModules();
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  it("404s an unknown (non-persisted) drop id via UnknownDropError", async () => {
+    vi.doMock("@/lib/reactionsStore", async () => {
+      const actual =
+        await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
+      return {
+        ...actual,
+        supabaseReactionsStore: {
+          ...actual.supabaseReactionsStore,
+          toggle: vi.fn(async (dropId: string) => {
+            throw new actual.UnknownDropError(dropId);
+          }),
+        },
+      };
+    });
+    const { POST: PostFresh } = await import("@/app/api/pint-drops/reactions/route");
+    const res = await PostFresh(
+      new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({ id: "demo-seed", actor: "dev-1", reaction: "cheers" }),
+      }),
+    );
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Pint drop not found." });
+    vi.doUnmock("@/lib/reactionsStore");
+  });
+
+  it("503s any other store failure (reactions are non-critical)", async () => {
+    vi.doMock("@/lib/reactionsStore", async () => {
+      const actual =
+        await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
+      return {
+        ...actual,
+        supabaseReactionsStore: {
+          ...actual.supabaseReactionsStore,
+          toggle: vi.fn(async () => {
+            throw new Error("boom");
+          }),
+        },
+      };
+    });
+    const { POST: PostFresh } = await import("@/app/api/pint-drops/reactions/route");
+    const res = await PostFresh(
+      new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({ id: "d1", actor: "dev-1", reaction: "cheers" }),
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Reactions are unavailable." });
+    vi.doUnmock("@/lib/reactionsStore");
+  });
+
+  it("GET degrades to an empty summaries map on a store error (feed stays up)", async () => {
+    vi.doMock("@/lib/reactionsStore", async () => {
+      const actual =
+        await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
+      return {
+        ...actual,
+        supabaseReactionsStore: {
+          ...actual.supabaseReactionsStore,
+          summarize: vi.fn(async () => {
+            throw new Error("boom");
+          }),
+        },
+      };
+    });
+    const { GET: GetFresh } = await import("@/app/api/pint-drops/reactions/route");
+    const res = await GetFresh(new Request(`${URL_BASE}?ids=a,b&actor=dev-1`));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ summaries: {} });
+    vi.doUnmock("@/lib/reactionsStore");
+  });
+});
