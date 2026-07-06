@@ -7,6 +7,14 @@ import { Crosshair, ExternalLink, Landmark as LandmarkIcon, X } from "lucide-rea
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { landmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
+import {
+  STORY_BANDS,
+  bandById,
+  bandAnchors,
+  bandMemberPubs,
+  type StoryBand,
+} from "@/lib/storyBands";
+import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { priceForBeer } from "@/lib/beers";
 import {
   loadPois,
@@ -31,6 +39,14 @@ type PubMapCanvasProps = {
   favoritePint?: string | null;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
+  /** Issue #15 story bands — active band id ("" = none), synced to the URL by PubMap. */
+  activeBandId?: string;
+  /** Called when the band picker changes the active band. */
+  onBandChange?: (bandId: string) => void;
+  /** "Start a crawl here" from a landmark card — receives 2-3 nearest pub ids. */
+  onStartCrawl?: (pubIds: string[]) => void;
+  /** "Ask the PUBMAXXER" from a landmark card — receives the nearest story pub id. */
+  onAskPubmaxxer?: (venueId: string) => void;
 };
 
 // OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
@@ -254,6 +270,41 @@ const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
   iconId("tfl", "underground"),
 ];
 
+// Issue #16 — parallel coloured tube lines. The known sub-surface fan lines
+// (Metropolitan / Circle / H&C / District) run four-abreast through shared
+// central corridors; we fan them apart with a per-line `line-offset` so they
+// read side-by-side like the real tube map instead of one overlapping stroke.
+//
+// Offset math: offsetIndexForLine(line) gives a symmetric index (…-1.5, -0.5,
+// 0.5, 1.5) for the fan lines and 0 for everything else. We turn that index into
+// a MapLibre `match` expression, then multiply by a zoom-scaled pixel step so
+// the lines CONVERGE at low zoom (network reads as one line) and FAN OUT from
+// ~zoom 12 (the corridor separates). Documented ceiling: the source geometry is
+// per-line from independent OSM ways and rarely shares vertices, so we offset
+// the whole line by its fan index rather than per-shared-segment — the accepted
+// ceiling in issue #16.
+const FAN_LINES = ["Metropolitan", "Circle", "Hammersmith & City", "District"] as const;
+
+// A `["match", ["get","line"], name, index, …, 0]` expression: each fan line to
+// its offset index, all others to 0. Built once (module const) from the pure
+// offsetIndexForLine so the map and the unit-tested logic never drift.
+const TUBE_OFFSET_INDEX_EXPR: maplibregl.ExpressionSpecification = [
+  "match",
+  ["get", "line"],
+  ...FAN_LINES.flatMap((line) => [line, offsetIndexForLine(line)] as [string, number]).flat(),
+  0,
+] as unknown as maplibregl.ExpressionSpecification;
+
+// The signed pixel offset for a line at the current zoom: offsetIndex × a
+// zoom-interpolated per-index step. At/below zoom 11 the step is 0 (lines
+// converge); it grows to a full fan by zoom 14. `line-offset` is in pixels and
+// perpendicular to the line, so a symmetric index set fans the group evenly.
+const TUBE_LINE_OFFSET_EXPR: maplibregl.ExpressionSpecification = [
+  "*",
+  TUBE_OFFSET_INDEX_EXPR,
+  ["interpolate", ["linear"], ["zoom"], 11, 0, 12, 1.4, 14, 3.2, 16, 4.5],
+] as unknown as maplibregl.ExpressionSpecification;
+
 function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -281,6 +332,29 @@ function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
       properties: { id: venue.id, label: String(index + 1) },
       geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
     })),
+  };
+}
+
+// Issue #15 story bands — the tinted corridor through a band's anchor landmarks.
+// A simple polyline joining the anchors in order: the map draws it as a soft,
+// low-opacity token-tinted stroke UNDER the pins so it hints at the walk without
+// fighting the price-colour fill. Empty when the band resolves to <2 anchors.
+function bandCorridorGeoJSON(band: StoryBand | undefined): GeoJSON.FeatureCollection {
+  if (!band) return { type: "FeatureCollection", features: [] };
+  const anchors = bandAnchors(band);
+  if (anchors.length < 2) return { type: "FeatureCollection", features: [] };
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: anchors.map((lm) => lm.coordinates),
+        },
+      },
+    ],
   };
 }
 
@@ -320,6 +394,10 @@ export default function PubMapCanvas({
   venueSignals = new Map(),
   favoritePint = null,
   onLandmarkSelect,
+  activeBandId = "",
+  onBandChange,
+  onStartCrawl,
+  onAskPubmaxxer,
 }: PubMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -370,6 +448,19 @@ export default function PubMapCanvas({
     type: "FeatureCollection",
     features: [],
   });
+  // Story-band corridor (a tinted line through the anchors); reseeded after a
+  // theme setStyle wipes sources, same pattern as the other data refs.
+  const bandCorridorRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  // The active band's token colour, read into the corridor + member-halo paint
+  // on each build (a setStyle rebuild re-reads it from the live tokens).
+  const bandColorRef = useRef<string>("#b0813a");
+  // Member pub ids of the active band under the CURRENT filters — drives the
+  // halo layer's filter. Empty = no halo (and the picker shows the honest
+  // "no pubs visible" fallback).
+  const bandMemberIdsRef = useRef<string[]>([]);
   const venuesRef = useRef(venues);
   useEffect(() => {
     venuesRef.current = venues;
@@ -545,6 +636,8 @@ export default function PubMapCanvas({
           "line-color": dark ? "rgba(9,15,12,0.6)" : "rgba(255,255,255,0.8)",
           "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 2.4, 13, 5.5, 16, 9],
           "line-opacity": 0.75,
+          // Fan the sub-surface lines apart (issue #16); centred for all others.
+          "line-offset": TUBE_LINE_OFFSET_EXPR,
         },
       });
       addLayerOnce({
@@ -562,6 +655,8 @@ export default function PubMapCanvas({
           ],
           "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 1.1, 13, 3, 16, 5],
           "line-opacity": ["interpolate", ["linear"], ["zoom"], 9.5, 0.7, 13, 0.95],
+          // Same fan offset as the casing so colour + casing move together.
+          "line-offset": TUBE_LINE_OFFSET_EXPR,
         },
       });
       // Line names ride along the route once you zoom in — neutral, high-contrast
@@ -747,6 +842,27 @@ export default function PubMapCanvas({
         },
       });
 
+      // --- Story-band corridor (issue #15): a subtle token-tinted line threading
+      // the active band's anchor landmarks. Low opacity + a soft blur so it reads
+      // as a hint of the walk, never competing with the price-fill pins above it.
+      // Sits under the pubs. The colour is the band's token, resolved on the React
+      // side and stashed in a ref so a theme rebuild re-reads it.
+      if (!map.getSource("band-corridor")) {
+        map.addSource("band-corridor", { type: "geojson", data: bandCorridorRef.current });
+      }
+      addLayerOnce({
+        id: "band-corridor",
+        type: "line",
+        source: "band-corridor",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": bandColorRef.current,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 10, 6, 13, 16, 16, 30],
+          "line-opacity": dark ? 0.16 : 0.14,
+          "line-blur": 3,
+        },
+      });
+
       // --- Pubs: clustered GeoJSON source + designed data-driven layers.
       if (!map.getSource("pubs")) {
         map.addSource("pubs", {
@@ -771,6 +887,29 @@ export default function PubMapCanvas({
           "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2],
           "circle-stroke-opacity": 0.7,
           "circle-blur": 0.2,
+        },
+      });
+      // Story-band member halo (issue #15): while a band is active, its member
+      // pubs get a token-tinted ring so they read as "part of this walk" — an
+      // EMPHASIS only. The price fill under it (pubs-point) is untouched, so the
+      // band never fights the price-colour system. Filter is set from a ref so
+      // it survives theme rebuilds; empty id list = nothing drawn.
+      addLayerOnce({
+        id: "band-members-halo",
+        type: "circle",
+        source: "pubs",
+        filter: [
+          "all",
+          ["!", ["has", "point_count"]],
+          ["in", ["get", "id"], ["literal", bandMemberIdsRef.current]],
+        ],
+        paint: {
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 18],
+          "circle-stroke-color": bandColorRef.current,
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 2, 15, 3],
+          "circle-stroke-opacity": dark ? 0.85 : 0.8,
+          "circle-blur": 0.15,
         },
       });
       addLayerOnce({
@@ -1236,6 +1375,55 @@ export default function PubMapCanvas({
     });
   }, [selectedVenueId, mapReady, cinematic, selectLandmark]);
 
+  // --- Story bands (issue #15) -------------------------------------------
+  // Resolve the active band + its member pubs under the CURRENT (filtered)
+  // venue set. Member matching is a pure function (lib/storyBands); memoised so
+  // it only recomputes when the band or the venue list actually changes.
+  const activeBand = useMemo(() => bandById(activeBandId), [activeBandId]);
+  const bandMembers = useMemo(
+    () => (activeBand ? bandMemberPubs(activeBand, venues) : []),
+    [activeBand, venues],
+  );
+  // Resolve the band's token colour once per band (readTokens reads the live CSS
+  // custom properties, so this re-runs on theme flips too via the dep on band).
+  const bandColour = useMemo(() => {
+    if (!activeBand || typeof window === "undefined") return null;
+    const tokens = readTokens() as unknown as Record<string, string>;
+    return tokens[activeBand.colourToken] ?? tokens.brass;
+  }, [activeBand]);
+
+  // Push band state to the map: corridor source, member-halo filter, colour.
+  // Debounced via requestAnimationFrame so a rapid filter churn doesn't thrash
+  // setPaintProperty. Everything is guarded by getLayer so a mid-setStyle swap
+  // is a no-op (buildScene re-reads the refs on the next style.load).
+  useEffect(() => {
+    bandCorridorRef.current = bandCorridorGeoJSON(activeBand);
+    bandMemberIdsRef.current = bandMembers.map((m) => m.venue.id);
+    if (bandColour) bandColorRef.current = bandColour;
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const raf = requestAnimationFrame(() => {
+      if (!map.isStyleLoaded()) return;
+      (map.getSource("band-corridor") as maplibregl.GeoJSONSource | undefined)?.setData(
+        bandCorridorRef.current,
+      );
+      if (map.getLayer("band-members-halo")) {
+        map.setFilter("band-members-halo", [
+          "all",
+          ["!", ["has", "point_count"]],
+          ["in", ["get", "id"], ["literal", bandMemberIdsRef.current]],
+        ]);
+        if (bandColour) {
+          map.setPaintProperty("band-members-halo", "circle-stroke-color", bandColour);
+        }
+      }
+      if (map.getLayer("band-corridor") && bandColour) {
+        map.setPaintProperty("band-corridor", "line-color", bandColour);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeBand, bandMembers, bandColour, mapReady]);
+
   // H5: a tapped landmark surfaces its nearest story pubs (straight-line
   // distance — no routing, per PRD scope), wiring the history layer into the
   // heritage layer instead of leaving a dead-end Wikipedia card.
@@ -1360,6 +1548,36 @@ export default function PubMapCanvas({
             Source: {activeLandmark.source.label}
             <ExternalLink size={12} />
           </a>
+          {/* Issue #15: promote the card to a journey entry point — start a crawl
+              from the nearest pubs, or open the nearest story pub's PUBMAXXER. */}
+          {storyPubsNearby.length > 0 && (onStartCrawl || onAskPubmaxxer) ? (
+            <div className="landmarkActions">
+              {onStartCrawl ? (
+                <button
+                  type="button"
+                  className="landmarkAction primary"
+                  onClick={() => {
+                    onStartCrawl(storyPubsNearby.map((p) => p.venue.id).slice(0, 3));
+                    selectLandmark(null);
+                  }}
+                >
+                  Start a crawl here
+                </button>
+              ) : null}
+              {onAskPubmaxxer ? (
+                <button
+                  type="button"
+                  className="landmarkAction"
+                  onClick={() => {
+                    onAskPubmaxxer(storyPubsNearby[0].venue.id);
+                    selectLandmark(null);
+                  }}
+                >
+                  Ask the PUBMAXXER
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {storyPubsNearby.length > 0 ? (
             <div className="landmarkNearby">
               <h4>Story pubs nearby</h4>
@@ -1425,6 +1643,43 @@ export default function PubMapCanvas({
           </button>
         ))}
       </div>
+      {/* Issue #15 story bands — a small picker (map overlay, toolbar-consistent).
+          Tapping a band tints its corridor + haloes member pubs; tapping the
+          active band again clears it. Honest fallback when a band has no pubs
+          visible under the current filters. */}
+      {onBandChange ? (
+        <div className="bandPicker" role="group" aria-label="Story bands">
+          <span className="bandPickerLabel">Story bands</span>
+          <div className="bandPickerRow">
+            {STORY_BANDS.map((band) => (
+              <button
+                key={band.id}
+                type="button"
+                className={activeBandId === band.id ? "bandBtn on" : "bandBtn"}
+                aria-pressed={activeBandId === band.id}
+                title={band.copy}
+                onClick={() => onBandChange(activeBandId === band.id ? "" : band.id)}
+              >
+                {band.title}
+              </button>
+            ))}
+          </div>
+          {activeBand ? (
+            <div className="bandActiveCard">
+              <p className="bandActiveCopy">{activeBand.copy}</p>
+              <p className="bandActiveMeta">
+                {bandMembers.length > 0
+                  ? `${bandMembers.length} story pub${bandMembers.length === 1 ? "" : "s"} on this band`
+                  : "No pubs on this band under the current filters — widen them to see its stops."}
+              </p>
+              <a href={activeBand.sources[0].url} target="_blank" rel="noreferrer">
+                Source: {activeBand.sources[0].label}
+                <ExternalLink size={11} />
+              </a>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {activePoi ? (
         <div className="poiLabelCard" role="status">
           <span

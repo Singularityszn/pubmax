@@ -62,7 +62,18 @@ describe("crawlUrl", () => {
       filters: sample.filters,
       builtIds: sample.builtIds,
       selectedVenueId: sample.selectedVenueId,
+      bandId: "", // additive story-band field, "" when no ?band= in the URL
     });
+  });
+
+  it("round-trips an active story band via ?band=", () => {
+    const withBand = { ...sample, bandId: "river-history" };
+    const decoded = decodeCrawl(new URLSearchParams(encodeCrawl(withBand)));
+    expect(decoded.bandId).toBe("river-history");
+    // No band = no param (kept short); seed resolves it to "".
+    const bare = decodeCrawl(new URLSearchParams(encodeCrawl(sample)));
+    expect(bare.bandId).toBeUndefined();
+    expect(seedCrawlState(`?${encodeCrawl(withBand)}`).bandId).toBe("river-history");
   });
 
   it("decodes garbage without throwing and returns a safe partial", () => {

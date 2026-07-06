@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 
@@ -31,6 +31,24 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { getSaved } from "@/lib/savedPubs";
+import { resolveSheetSnap, type SheetSnap } from "@/lib/sheetSnap";
+
+// Mobile venue-detail bottom sheet: the drag gesture is only active ≤640px
+// (matches the mobile breakpoint used across venueSheet.css / globals.css) —
+// above that width the panel is the existing side drawer with no drag.
+const SHEET_GESTURE_MAX_WIDTH = 640;
+
+// The sheet's resting translateY as a fraction of the VIEWPORT height (not the
+// drawer's own 82vh-capped height — see venueSheet.css's `.sheet-*` rules,
+// which these mirror exactly so a live drag lines up with the CSS-driven
+// resting position it settles into on release). Kept local to PubMap (the
+// drawer/sheet owner) rather than in lib/sheetSnap.ts, which only resolves
+// WHICH snap a drag lands on and stays agnostic of this box's own CSS cap.
+const SHEET_SNAP_VH: Record<SheetSnap, number> = { full: 0, half: 0.27, peek: 0.68 };
+
+function sheetSnapTranslateYPx(snap: SheetSnap, viewportHeight: number): number {
+  return SHEET_SNAP_VH[snap] * viewportHeight;
+}
 
 // The set of venue ids this device has saved (any list). Read from the client
 // saved-pub store; SSR-safe (getSaved returns [] on the server). Used only to
@@ -45,6 +63,55 @@ function readSavedVenueIds(): Set<string> {
 // localStorage is a refresh-safety net for hand-built routes; the URL stays the
 // canonical share format. Only the built-mode stop ids are stored.
 const BUILT_STORAGE_KEY = "pubmax_built_ids";
+
+// Issue #15: normalise a landmark's nearest-pub ids into crawl stops — drop
+// blanks, cap at three. Module-level (pure) so the branch lives outside the
+// PubMap component body and off its complexity budget.
+function crawlStopsFromPubIds(ids: string[]): string[] {
+  return ids.filter(Boolean).slice(0, 3);
+}
+
+// Issue #15: the landmark card's two journey actions, hoisted into their own
+// hook so their branches live off PubMap's complexity budget.
+//   • startCrawlFromPubs — drop the nearest pubs into Build mode (shareable via
+//     ?mode=build&pubs=…, reusing the curated-crawl path).
+//   • askPubmaxxerAtPub — select the nearest story pub so its inspector opens
+//     with the grounded "Ask the PUBMAXXER" panel a tap away. Seeding a question
+//     straight into that panel is invasive (another agent owns VenueInspector),
+//     so selecting the pub is the documented ceiling.
+function useLandmarkJourney(deps: {
+  selectVenue: (id: string) => void;
+  dismissOnboarding: () => void;
+  setMode: (mode: CrawlMode) => void;
+  setBuiltIds: (ids: string[]) => void;
+  setActiveCrawl: (crawl: CuratedCrawl | null) => void;
+  setPlanningOpen: (open: boolean) => void;
+}) {
+  const { selectVenue, dismissOnboarding, setMode, setBuiltIds, setActiveCrawl, setPlanningOpen } =
+    deps;
+  const startCrawlFromPubs = useCallback(
+    (ids: string[]) => {
+      const stops = crawlStopsFromPubIds(ids);
+      if (stops.length) {
+        setMode("build");
+        setBuiltIds(stops);
+        setActiveCrawl(null); // a landmark-seeded crawl isn't a curated one
+        setPlanningOpen(true);
+        selectVenue(stops[0]);
+        dismissOnboarding();
+      }
+    },
+    [selectVenue, dismissOnboarding, setMode, setBuiltIds, setActiveCrawl, setPlanningOpen],
+  );
+  const askPubmaxxerAtPub = useCallback(
+    (venueId: string) => {
+      setPlanningOpen(true);
+      selectVenue(venueId);
+    },
+    [selectVenue, setPlanningOpen],
+  );
+  return { startCrawlFromPubs, askPubmaxxerAtPub };
+}
 
 function readStoredBuiltIds(): string[] {
   if (typeof window === "undefined") return [];
@@ -100,9 +167,31 @@ export default function PubMap() {
   // below (never in a bare effect: react-hooks/set-state-in-effect is an error).
   const [loaded, setLoaded] = useState(false);
   const [selectedVenueId, setSelectedVenueId] = useState<string>(seed.selectedVenueId);
+  // Mobile bottom-sheet drag state (GH #17). The sheet itself is the existing
+  // .mapDrawer.right seam — this only adds snap-point tracking + a live
+  // translateY while dragging. "half" is the default resting snap whenever a
+  // venue is freshly selected (peek would hide the primary CTA; full feels
+  // like a takeover on first tap). Desktop ignores all of this — the CSS drag
+  // transform only applies ≤640px (see venueSheet.css).
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("half");
+  // Live px offset while a drag is in progress; null when not dragging (CSS
+  // owns the resting transform via the snap class at that point).
+  const [sheetDragY, setSheetDragY] = useState<number | null>(null);
+  const sheetDragRef = useRef<{
+    startY: number;
+    startTime: number;
+    lastY: number;
+    lastTime: number;
+    velocity: number;
+    active: boolean;
+  } | null>(null);
   const [filters, setFilters] = useState<Filters>(seed.filters);
   const [mode, setMode] = useState<CrawlMode>(seed.mode);
   const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
+  // Issue #15 story bands: the active band id ("" = none), seeded from the URL
+  // and synced back so a band link reproduces. The band overlay + picker live
+  // inside PubMapCanvas; PubMap only owns the shareable state.
+  const [activeBandId, setActiveBandId] = useState<string>(seed.bandId);
   // Map-first layout: the planner (left drawer) is hidden until the user asks
   // for it — but a shared/restored crawl link opens straight into planning so
   // the route isn't invisible on arrival.
@@ -220,8 +309,8 @@ export default function PubMap() {
   // Keep the URL in sync so "Copy link" shares the current crawl.
   useCrawlUrlSync(
     useMemo(
-      () => ({ mode, filters, builtIds, selectedVenueId }),
-      [mode, filters, builtIds, selectedVenueId],
+      () => ({ mode, filters, builtIds, selectedVenueId, bandId: activeBandId }),
+      [mode, filters, builtIds, selectedVenueId, activeBandId],
     ),
   );
 
@@ -250,8 +339,82 @@ export default function PubMap() {
     (id: string) => {
       setSelectedVenueId(id);
       closeComposer();
+      setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
+      setSheetDragY(null);
     },
     [closeComposer],
+  );
+
+  // Pointer-drag handlers for the mobile bottom-sheet (GH #17). Active only
+  // ≤640px — above that the panel is the unchanged desktop side drawer, so we
+  // bail out immediately rather than attach any gesture. Pointer Events (not
+  // touch/mouse-specific) so mouse-drag on a narrow browser window works too,
+  // which keeps this testable without a real touch device.
+  const sheetGestureEnabled = useCallback(
+    () => typeof window !== "undefined" && window.innerWidth <= SHEET_GESTURE_MAX_WIDTH,
+    [],
+  );
+
+  const onSheetDragStart = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      if (!sheetGestureEnabled()) return;
+      // Ignore drags that start on an interactive control inside the header
+      // (e.g. the close button) — only the grab handle / header chrome itself
+      // initiates the gesture, so tab/button clicks are unaffected.
+      const target = event.target as HTMLElement;
+      if (target.closest("button, a, input, textarea, select")) return;
+      const now = performance.now();
+      sheetDragRef.current = {
+        startY: event.clientY,
+        startTime: now,
+        lastY: event.clientY,
+        lastTime: now,
+        velocity: 0,
+        active: true,
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [sheetGestureEnabled],
+  );
+
+  const onSheetDragMove = useCallback((event: React.PointerEvent<HTMLElement>) => {
+    const drag = sheetDragRef.current;
+    if (!drag || !drag.active) return;
+    // Dragging the sheet must never also pan/zoom the map underneath.
+    event.preventDefault();
+    event.stopPropagation();
+    const now = performance.now();
+    const dt = now - drag.lastTime;
+    if (dt > 0) {
+      drag.velocity = (event.clientY - drag.lastY) / dt;
+    }
+    drag.lastY = event.clientY;
+    drag.lastTime = now;
+    setSheetDragY(event.clientY - drag.startY);
+  }, []);
+
+  const onSheetDragEnd = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      const drag = sheetDragRef.current;
+      sheetDragRef.current = null;
+      if (!drag || !drag.active) return;
+      event.currentTarget.releasePointerCapture(event.pointerId);
+      const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight;
+      const result = resolveSheetSnap({
+        currentSnap: sheetSnap,
+        viewportHeight,
+        dragDeltaY: event.clientY - drag.startY,
+        velocity: drag.velocity,
+      });
+      setSheetDragY(null);
+      if (result.dismissed) {
+        setSelectedVenueId("");
+        closeComposer();
+        return;
+      }
+      setSheetSnap(result.snap);
+    },
+    [sheetSnap, closeComposer],
   );
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
@@ -363,6 +526,20 @@ export default function PubMap() {
     [selectVenue, dismissOnboarding],
   );
 
+  // Issue #15: "Start a crawl here" from a landmark card. The canvas hands us the
+  // nearest pub ids (2-3, already resolved via lib/haversine); we drop them into
+  // Build mode exactly like a curated crawl so the URL (?mode=build&pubs=…) makes
+  // it shareable. No new mechanism — this reuses the curated-crawl path.
+  // Issue #15 landmark → journey actions (see useLandmarkJourney above).
+  const { startCrawlFromPubs, askPubmaxxerAtPub } = useLandmarkJourney({
+    selectVenue,
+    dismissOnboarding,
+    setMode,
+    setBuiltIds,
+    setActiveCrawl,
+    setPlanningOpen,
+  });
+
   // "Pubs near me": ask for location, build a crawl from the nearest matching
   // venues. Event handler (not an effect) so setState here is fine. Degrades
   // gracefully — feature-detect geolocation, catch denial, never throws.
@@ -418,7 +595,16 @@ export default function PubMap() {
   const onboardingCrawls = curatedCrawls.slice(0, 4);
 
   return (
-    <main className="appShell dark">
+    <main
+      className={
+        // The `sheet-full` marker only ever matters ≤640px (mapToolbar.css
+        // gates every rule that reads it behind that same breakpoint) — it
+        // lets the map's floating controls (toolbar/legend) get out of the
+        // way while the mobile sheet is at its most-expanded snap, per the
+        // thumb-reach control pass (GH #17 user story 17).
+        "appShell dark" + (detailOpen && sheetSnap === "full" ? " sheet-full" : "")
+      }
+    >
       <SiteNav active="map" />
 
       {/* Full-bleed map is the base layer; every panel slides in over it. */}
@@ -439,6 +625,10 @@ export default function PubMap() {
           onRouteStopClick={selectVenue}
           venueSignals={venueSignals}
           favoritePint={favoritePint}
+          activeBandId={activeBandId}
+          onBandChange={setActiveBandId}
+          onStartCrawl={startCrawlFromPubs}
+          onAskPubmaxxer={askPubmaxxerAtPub}
         />
         <MapToolbar
           query={filters.query}
@@ -597,12 +787,44 @@ export default function PubMap() {
         </RoutePanel>
       </div>
 
-      {/* Right drawer: the selected pub's detail — opens only on an explicit pick. */}
+      {/* Right drawer: the selected pub's detail — opens only on an explicit pick.
+          On mobile (≤640px) this is a true drag bottom-sheet with snap points
+          (peek/half/full — lib/sheetSnap.ts). The snap class drives the resting
+          transform in CSS; sheetDragY (a live px offset) only exists mid-drag, so
+          a release always lands back on a snap-driven CSS transition, never a
+          hand-picked pixel position. Desktop ignores both — no drag handlers
+          fire above the gesture breakpoint, and the extra classes/attrs are
+          no-ops there (see venueSheet.css / globals.css .mapDrawer rules). */}
       <div
-        className={detailOpen ? "mapDrawer right open" : "mapDrawer right"}
+        className={
+          (detailOpen ? "mapDrawer right open" : "mapDrawer right") +
+          (detailOpen ? ` sheet-${sheetSnap}` : "") +
+          (sheetDragY !== null ? " sheet-dragging" : "")
+        }
         aria-hidden={!detailOpen}
+        // The sheet only claims modal semantics at its "full" snap, where it
+        // visually covers virtually the whole viewport (92vh) — at peek/half
+        // enough of the map stays visible/reachable that a true modal trap
+        // would be wrong (the user can still see and return to the map).
+        aria-modal={detailOpen && sheetSnap === "full" ? true : undefined}
+        role={detailOpen && sheetSnap === "full" ? "dialog" : undefined}
+        aria-label={detailOpen && sheetSnap === "full" ? "Pub detail" : undefined}
+        style={
+          sheetDragY !== null
+            ? {
+                transform: `translateY(${Math.max(0, sheetSnapTranslateYPx(sheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + sheetDragY)}px)`,
+                transition: "none",
+              }
+            : undefined
+        }
       >
-        <div className="mapDrawerHead">
+        <div
+          className="mapDrawerHead sheetDragHandle"
+          onPointerDown={onSheetDragStart}
+          onPointerMove={onSheetDragMove}
+          onPointerUp={onSheetDragEnd}
+          onPointerCancel={onSheetDragEnd}
+        >
           <button
             type="button"
             className="drawerClose"
@@ -623,6 +845,9 @@ export default function PubMap() {
             latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
             onToggleStop={toggleBuiltStop}
             pintDrops={pintDrops}
+            onGrabDragStart={onSheetDragStart}
+            onGrabDragMove={onSheetDragMove}
+            onGrabDragEnd={onSheetDragEnd}
           />
         ) : null}
       </div>

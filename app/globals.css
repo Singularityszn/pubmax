@@ -1202,6 +1202,120 @@ input[type="range"] {
   color: var(--brass);
 }
 
+/* Issue #15: landmark card → journey. Two actions under the sourced history —
+   start a crawl from the nearest pubs, or open the nearest story pub's guide. */
+.landmarkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.landmarkAction {
+  flex: 1 1 auto;
+  padding: 7px 10px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--brass);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.landmarkAction.primary {
+  background: var(--brass);
+  color: var(--paper);
+}
+
+.landmarkAction:hover {
+  background: var(--brass);
+  color: var(--paper);
+}
+
+/* Issue #15: story-band picker — a map overlay in the toolbar idiom (pill row,
+   frosted panel), sat above the POI toggles at bottom-right. */
+.bandPicker {
+  position: absolute;
+  right: 10px;
+  bottom: 58px;
+  z-index: 456;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 300px;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+}
+
+.bandPickerLabel {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.bandPickerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.bandBtn {
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bandBtn.on {
+  background: var(--ink-deep);
+  border-color: var(--ink-deep);
+  color: var(--paper);
+}
+
+.bandBtn:hover {
+  border-color: var(--brass);
+}
+
+.bandActiveCard {
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.bandActiveCopy {
+  margin: 0 0 5px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.bandActiveMeta {
+  margin: 0 0 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bandActiveCard a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--brass);
+}
+
 /* WebGL-failure fallback — a calm notice where the canvas would be. */
 .mapFallback {
   display: grid;
@@ -2704,6 +2818,9 @@ input[type="range"] {
 .sourceLinks a:focus-visible,
 .claimCard a:focus-visible,
 .landmarkCard a:focus-visible,
+.landmarkAction:focus-visible,
+.bandBtn:focus-visible,
+.bandActiveCard a:focus-visible,
 .venuePickerList button:focus-visible,
 .routeList li > button:focus-visible {
   outline: 2px solid var(--brass);

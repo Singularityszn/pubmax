@@ -12,6 +12,11 @@ export type CrawlUrlState = {
   filters: Filters;
   builtIds: string[];
   selectedVenueId: string;
+  // Additive (issue #15 story bands): the active story-band id, or "" for none.
+  // A bare id like `?band=river-history`; empty is the default so a plain link
+  // stays short. Never validated against the band list here (keeps this module
+  // decoupled from lib/storyBands) — an unknown id just resolves to no band.
+  bandId?: string;
 };
 
 // The bounds mirror the sliders in ControlRail.tsx — keep in sync.
@@ -50,6 +55,8 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (filters.requirePintDrops) params.set("drops", "1");
   if (builtIds.length) params.set("pubs", builtIds.join(","));
   if (selectedVenueId) params.set("sel", selectedVenueId);
+  // Only encode a band when one is active — off is the default.
+  if (state.bandId) params.set("band", state.bandId);
   return params.toString();
 }
 
@@ -85,6 +92,9 @@ export function decodeCrawl(
   const sel = params.get("sel");
   if (sel) out.selectedVenueId = sel;
 
+  const band = params.get("band");
+  if (band) out.bandId = band.trim();
+
   return out;
 }
 
@@ -94,6 +104,7 @@ export function seedCrawlState(search: string): {
   filters: Filters;
   builtIds: string[];
   selectedVenueId: string;
+  bandId: string;
 } {
   const decoded = decodeCrawl(new URLSearchParams(search));
   return {
@@ -101,5 +112,6 @@ export function seedCrawlState(search: string): {
     filters: { ...initialFilters, ...decoded.filters },
     builtIds: decoded.builtIds ?? [],
     selectedVenueId: decoded.selectedVenueId ?? "",
+    bandId: decoded.bandId ?? "",
   };
 }
