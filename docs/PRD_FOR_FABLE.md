@@ -246,5 +246,42 @@ is excellent.
   for Boomers; honest cheap-pint utility for everyone. Provenance-honesty is the trust moat.
 - Copy stays grounded: *"Every pint has a story. Bring back cheap pints, chaotic nights, and the
   pub stories worth remembering. Last Pint: know when to order one more, and when to settle up."*
-- **Publishing:** this PRD lives in-repo (`docs/PRD_FOR_FABLE.md`). If/when a GitHub/Linear issue
-  tracker + triage vocabulary is configured, mirror it there with the `ready-for-agent` label.
+- **Publishing:** this PRD lives in-repo (`docs/PRD_FOR_FABLE.md`) and is filed as GitHub issues
+  labelled `ready-for-agent` with `difficulty:*` + `model:*` triage.
+
+## The Spill — social layer & broad appeal (combined Grok briefs)
+
+Two strategy briefs (Grok, 2026-07-06) fold in here. Their **atomic idea**: reframe the Pint Drop
+as **"The Spill"** — the universal verb for capturing a moment at the bar (photo + observed price +
+one passed-down sentence) — and render that *one provenance-preserving data stream* as different
+generational surfaces rather than building separate products. The map stays the single source of
+truth; social activity makes it more alive, not a second feed app. **Never flatten provenance** —
+the trust moat across every generation.
+
+**Generational surfaces (same data, different renderings):**
+- **The Lock-In** (Gen Z): live "tonight" feed, pulsing map dots, Chaos Score, short clips, virality.
+- **The Golden Thread** (Gen X): Golden-Days / Then-vs-Now price charts, sourced heritage.
+- **The Ledger** (Boomers/Gen X): a large-text, high-contrast, voice-friendly venue *logbook*.
+- **The Family Table** (Boomers): Legacy-visibility Spills + one-tap "share with family".
+- **The Round** (all, group): a crawl that builds itself live as friends add their own Spills.
+
+**Already SHIPPED — do NOT rebuild** (much of Grok Doc 2's Phase 1–2): Pint Drops + Supabase photos,
+reactions / comments / reports (+ per-actor report constraint), durable Crawl Stories + OG cards,
+Pint Drop permalinks + OG, live presence + a "Tonight" feed lane, "Golden Days" + Then-vs-Now on
+Discover, non-alcoholic filter, venue-name resolution (no raw ids), shared `<SiteNav>`, mobile tabbed
+venue sheet, provenance model, the grounded PUBMAXXER, migration 0006/0008 applied, slim index +
+client-fetch resilience, CSP + the CI score gate.
+
+**NEW to build (filed as issues #24–#34):** The Spill composer (voice-to-text + Public/Friends/Legacy/
+Anonymous visibility + price stepper + "with"); The Ledger venue logbook; The Round group live crawl;
+The Family Table + email-to-family; Accessibility & Legacy Mode (global large-text/high-contrast/
+reduced-motion/voice toggle + accessible-venue filters: step-free, seating, quiet hours); drop
+visibility & privacy (schema + RLS); Chaos Score + meme export; alt crawl styles (food / coffee /
+mocktail) + calendar export (`.ics`); offline resilience (Service Worker + IndexedDB); media hardening
+(EXIF strip + magic-byte validation, groundwork for 15s clips); Then-vs-Now price charts + inflation
+on venue pages.
+
+**Principles carried from the briefs:** start with the composer (Spill from the map in < 3 taps);
+ship the emotional extremes first (The Lock-In + The Ledger); camera + voice + large-text remove the
+keyboard barrier without losing Gen-Z speed; viral mechanics are always *optional* (a Boomer never
+sees a Chaos Score); make the Spill/Round OG image beautiful enough that sharing feels like a postcard.
