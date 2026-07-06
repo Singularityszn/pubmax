@@ -530,6 +530,29 @@ export default function PubMapCanvas({
           "line-opacity": ["interpolate", ["linear"], ["zoom"], 9.5, 0.7, 13, 0.95],
         },
       });
+      // Line names ride along the route once you zoom in — neutral, high-contrast
+      // text (not the line colour, which is unreadable for yellow/pink lines) so
+      // the network stays legible over the busy base.
+      addLayerOnce({
+        id: "tube-lines-label",
+        type: "symbol",
+        source: "tube-lines",
+        minzoom: 13,
+        layout: {
+          "symbol-placement": "line",
+          "symbol-spacing": 420,
+          "text-field": ["get", "line"],
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-size": 9.5,
+          "text-letter-spacing": 0.02,
+          visibility: tubeVisibility,
+        },
+        paint: {
+          "text-color": dark ? tokens.paper : tokens.ink,
+          "text-halo-color": dark ? "rgba(9,15,12,0.92)" : "rgba(255,255,255,0.95)",
+          "text-halo-width": 1.7,
+        },
+      });
 
       // --- Designed marker images: landmark pictograms + TfL symbols, re-tinted
       // from the live theme tokens (a setStyle wipes them, so re-register here).
@@ -1063,7 +1086,7 @@ export default function PubMapCanvas({
     setFilter("pois-transport-label", transportAll);
     // The coloured tube-line network toggles with the Tube roundels.
     const tubeVisibility = poiHidden.tube ? "none" : "visible";
-    for (const layer of ["tube-lines-casing", "tube-lines-color"]) {
+    for (const layer of ["tube-lines-casing", "tube-lines-color", "tube-lines-label"]) {
       if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
     }
   }, [poiHidden, mapReady]);

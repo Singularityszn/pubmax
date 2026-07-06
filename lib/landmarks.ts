@@ -282,6 +282,205 @@ export const landmarks: Landmark[] = [
       url: "https://en.wikipedia.org/wiki/30_St_Mary_Axe",
     },
   },
+  // Second wave of iconic London landmarks — each mapped to one of the existing
+  // icon keys (clock-tower, dome, twin-towers, shard, wheel, gherkin, column,
+  // civic, keep, market, canal, ship, chimneys). No image field: verified photos
+  // are attached separately so a guessed Wikimedia filename can't 404.
+  {
+    id: "buckingham-palace",
+    image: commons("Buckingham_Palace_London_Morning_2020_01_%28cropped%29.jpg"),
+    name: "Buckingham Palace",
+    coordinates: [-0.1419, 51.5014],
+    icon: "civic",
+    history:
+      "Buckingham Palace grew from Buckingham House, a townhouse bought by George III in 1761, and was remodelled into a palace for Queen Victoria, who made it the official royal London residence in 1837. Its familiar east front, where crowds gather at the balcony, was refaced in Portland stone in 1913.",
+    source: {
+      label: "Royal Collection Trust",
+      url: "https://www.rct.uk/visit/buckingham-palace",
+    },
+  },
+  {
+    id: "trafalgar-square",
+    image: commons("Trafalgar_Square%2C_London_2_-_Jun_2009.jpg"),
+    name: "Trafalgar Square & The National Gallery",
+    coordinates: [-0.1283, 51.5086],
+    icon: "civic",
+    history:
+      "Trafalgar Square was laid out in the 1830s and 1840s to designs by Charles Barry, commemorating the 1805 naval victory at Trafalgar. Along its north side stands the National Gallery, opened in 1838, whose collection of Western European paintings dates from the 13th to the 20th centuries.",
+    source: {
+      label: "National Gallery",
+      url: "https://www.nationalgallery.org.uk/about-us/history",
+    },
+  },
+  {
+    id: "piccadilly-circus",
+    image: commons("Open_Happiness_Piccadilly_Circus_Blue-Pink_Hour_120917-1126-jikatu.jpg"),
+    name: "Piccadilly Circus",
+    coordinates: [-0.1348, 51.5099],
+    icon: "civic",
+    history:
+      "Piccadilly Circus was created in 1819 where Regent Street meets Piccadilly, and became a busy West End junction as London's road network grew. Its illuminated advertising signs first appeared in the early 1900s and, with the Shaftesbury Memorial Fountain topped by the winged 'Eros', make it one of London's best-known meeting points.",
+    source: {
+      label: "Wikipedia",
+      url: "https://en.wikipedia.org/wiki/Piccadilly_Circus",
+    },
+  },
+  {
+    id: "covent-garden",
+    image: commons("Covent_Garden_Interior_May_2006_crop.jpg"),
+    name: "Covent Garden",
+    coordinates: [-0.1226, 51.5119],
+    icon: "market",
+    history:
+      "Covent Garden began as a produce market on land laid out by Inigo Jones in the 1630s and grew into London's main fruit and vegetable market. The wholesale trade moved out in 1974, and the Grade II listed market halls reopened as a shopping and street-performance hub still busy today.",
+    source: {
+      label: "Wikipedia",
+      url: "https://en.wikipedia.org/wiki/Covent_Garden",
+    },
+  },
+  {
+    id: "leadenhall-market",
+    image: commons("Leadenhall_Market_In_London_-_Feb_2006_rotated.jpg"),
+    name: "Leadenhall Market",
+    coordinates: [-0.0836, 51.5128],
+    icon: "market",
+    history:
+      "Leadenhall Market occupies a site that has hosted trading since Roman times, on the spot of London's ancient basilica and forum. Its ornate wrought-iron and glass roof, designed by Sir Horace Jones, dates from 1881 and covers a covered arcade of shops in the heart of the City.",
+    source: {
+      label: "City of London",
+      url: "https://www.cityoflondon.gov.uk/things-to-do/leadenhall-market",
+    },
+  },
+  {
+    id: "somerset-house",
+    image: commons("The_courtyard_of_Somerset_House%2C_Strand%2C_London_-_geograph.org.uk_-_1601172.jpg"),
+    name: "Somerset House",
+    coordinates: [-0.1173, 51.5111],
+    icon: "civic",
+    history:
+      "Somerset House was built from 1776 by Sir William Chambers as a grand neoclassical block of government offices, replacing a Tudor royal palace on the Strand. Its riverside quadrangle now hosts arts and cultural events, with a fountain court that becomes an ice rink each winter.",
+    source: {
+      label: "Somerset House",
+      url: "https://www.somersethouse.org.uk/about/our-history",
+    },
+  },
+  {
+    id: "tate-modern",
+    image: commons("Tate_Modern_-_Bankside_Power_Station.jpg"),
+    name: "Tate Modern",
+    coordinates: [-0.0993, 51.5076],
+    icon: "chimneys",
+    history:
+      "Tate Modern occupies the former Bankside Power Station, a brick building with a single tall chimney designed by Sir Giles Gilbert Scott and built in stages from 1947. Converted by architects Herzog & de Meuron, it opened as Britain's national gallery of modern art in 2000, with its vast Turbine Hall as the entrance.",
+    source: {
+      label: "Tate",
+      url: "https://www.tate.org.uk/visit/tate-modern",
+    },
+  },
+  {
+    id: "the-o2",
+    image: commons("O2_Arena_%289499773307%29.jpg"),
+    name: "The O2 Arena",
+    coordinates: [0.0031, 51.5030],
+    icon: "dome",
+    history:
+      "The O2 is a large entertainment complex under a domed canopy on the Greenwich Peninsula, originally built as the Millennium Dome to mark the year 2000. Designed by Richard Rogers, its white tent-like roof is held up by twelve tall yellow masts and now shelters a major concert and events arena.",
+    source: {
+      label: "Wikipedia",
+      url: "https://en.wikipedia.org/wiki/The_O2",
+    },
+  },
+  {
+    id: "hms-belfast",
+    image: commons("London_November_2013-14a.jpg"),
+    name: "HMS Belfast",
+    coordinates: [-0.0817, 51.5065],
+    icon: "ship",
+    history:
+      "HMS Belfast is a Royal Navy light cruiser launched in 1938 that saw service in the Second World War, including the D-Day landings, and the Korean War. Saved from scrapping, she has been moored on the Thames near Tower Bridge as a museum ship of the Imperial War Museums since 1971.",
+    source: {
+      label: "Imperial War Museums",
+      url: "https://www.iwm.org.uk/visits/hms-belfast",
+    },
+  },
+  {
+    id: "old-royal-naval-college",
+    image: commons("Royal_Naval_College_Greenwich_view_from_the_Thames.jpg"),
+    name: "Old Royal Naval College, Greenwich",
+    coordinates: [-0.0053, 51.4834],
+    icon: "dome",
+    history:
+      "The Old Royal Naval College is Sir Christopher Wren's baroque riverside masterpiece at Greenwich, begun in 1696 as a hospital for retired sailors on the site of a former royal palace. Its twin domed halls frame a view to the Queen's House, and the Painted Hall is celebrated for James Thornhill's ceiling.",
+    source: {
+      label: "Old Royal Naval College",
+      url: "https://ornc.org/about-us/history/",
+    },
+  },
+  {
+    id: "kensington-palace",
+    image: commons("Kensington_Palace%2C_the_South_Front_-_geograph.org.uk_-_287402.jpg"),
+    name: "Kensington Palace",
+    coordinates: [-0.1877, 51.5050],
+    icon: "civic",
+    history:
+      "Kensington Palace became a royal residence in 1689 when William III and Mary II bought Nottingham House and had Sir Christopher Wren enlarge it. It was the birthplace and childhood home of Queen Victoria and remains a working royal palace set within Kensington Gardens.",
+    source: {
+      label: "Historic Royal Palaces",
+      url: "https://www.hrp.org.uk/kensington-palace/history-and-stories/",
+    },
+  },
+  {
+    id: "marble-arch",
+    image: commons("Marble_Arch_%2829797251968%29.jpg"),
+    name: "Marble Arch",
+    coordinates: [-0.1590, 51.5131],
+    icon: "civic",
+    history:
+      "Marble Arch is a white Carrara-marble triumphal arch designed by John Nash in 1827, first built as a gateway to Buckingham Palace. It was moved to its present site at the north-east corner of Hyde Park in 1851, near the historic site of the Tyburn gallows.",
+    source: {
+      label: "Wikipedia",
+      url: "https://en.wikipedia.org/wiki/Marble_Arch",
+    },
+  },
+  {
+    id: "hampton-court-palace",
+    image: commons("Hampton_Court_Palace%2C_West_Front_Richmond_upon_Thames_1193127_20230823_0050.jpg"),
+    name: "Hampton Court Palace",
+    coordinates: [-0.3376, 51.4036],
+    icon: "keep",
+    history:
+      "Hampton Court Palace was built by Cardinal Wolsey from 1515 and taken over by Henry VIII, who made it one of the most lavish Tudor palaces in England. A later baroque range added for William III and Mary II gives the palace its dual character of red-brick Tudor and English baroque, set in famous riverside gardens with a maze.",
+    source: {
+      label: "Historic Royal Palaces",
+      url: "https://www.hrp.org.uk/hampton-court-palace/history-and-stories/",
+    },
+  },
+  {
+    id: "little-venice",
+    image: commons("Little_Venice_in_March.jpg"),
+    name: "Little Venice",
+    coordinates: [-0.1830, 51.5220],
+    icon: "canal",
+    history:
+      "Little Venice is a tranquil basin in Maida Vale where the Regent's Canal meets the Grand Union Canal, lined with moored narrowboats and waterside cafes. The canals were dug in the early 19th century for freight, and the leafy pool is now a quiet corner of London named for its resemblance to the Italian city.",
+    source: {
+      label: "Wikipedia",
+      url: "https://en.wikipedia.org/wiki/Little_Venice,_London",
+    },
+  },
+  {
+    id: "alexandra-palace",
+    image: commons("APalace_1.jpg"),
+    name: "Alexandra Palace",
+    coordinates: [-0.1310, 51.5943],
+    icon: "civic",
+    history:
+      "Alexandra Palace opened in 1873 as a public entertainment hall on a hilltop in north London, and was quickly rebuilt after fire destroyed it within weeks. From its mast the BBC broadcast the world's first regular high-definition television service in 1936, earning it the nickname 'the birthplace of television'.",
+    source: {
+      label: "Alexandra Palace",
+      url: "https://www.alexandrapalace.com/our-story/",
+    },
+  },
 ];
 
 // Wires the landmark layer into the heritage layer (PRD target #6): tapping a
