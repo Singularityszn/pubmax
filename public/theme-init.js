@@ -24,4 +24,20 @@
       document.documentElement.dataset.legacy = "1";
     }
   } catch (e) {}
+
+  // View Mode (Lock-In / Ledger): a view layer over one data stream. Applied
+  // no-flash before paint like the flags above. Ledger IS the heritage view, so
+  // it also drives data-legacy (the same key/attribute as Legacy Mode) — never a
+  // second accessibility flag. Default is Lock-In. Keep in sync with
+  // lib/viewMode.ts (keys "pubmax-mode" / "pubmax-legacy").
+  try {
+    var mode = localStorage.getItem("pubmax-mode");
+    if (mode !== "lock-in" && mode !== "ledger") {
+      mode = localStorage.getItem("pubmax-legacy") === "1" ? "ledger" : "lock-in";
+    }
+    document.documentElement.dataset.mode = mode;
+    if (mode === "ledger") {
+      document.documentElement.dataset.legacy = "1";
+    }
+  } catch (e) {}
 })();

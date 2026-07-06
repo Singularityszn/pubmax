@@ -18,12 +18,13 @@ import {
   type PintDropDTO,
 } from "@/lib/feed";
 import { normalizeHandle } from "@/lib/profiles";
+import { currentMode, MODE_DEFAULT_LANE } from "@/lib/viewMode";
 import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
 import {
   REACTION_KEYS,
   type ReactionKey,
   type ReactionSummary,
-} from "@/lib/reactionsStore";
+} from "@/lib/reactions";
 import "./feed.css";
 
 const PAGE_SIZE = 12;
@@ -88,7 +89,14 @@ export default function FeedPage() {
   // effect body (react-hooks/set-state-in-effect).
   const [items, setItems] = useState<FeedItem[]>([]);
   const [status, setStatus] = useState<LoadState>("loading");
+  // The active lane. Server-renders the SSR-stable "latest" so hydration never
+  // mismatches; a mount effect then steers the *initial* lane by view mode
+  // (Lock-In opens on the energetic "for-you" lane, Ledger on the calm "latest"
+  // read) — but ONLY until the viewer picks a lane themselves (laneTouched),
+  // after which their choice is sticky. This keeps the mode a light view layer:
+  // it seeds a sensible default lane, it doesn't hijack the switcher.
   const [filter, setFilter] = useState<FeedFilter>("latest");
+  const laneTouched = useRef(false);
   // How many pages the user has revealed. "Load more" bumps this; changing the
   // filter resets it to 1. Cursor pagination is still the engine (below) — this
   // counter just says how many cursor-steps to walk from the top.
@@ -273,6 +281,21 @@ export default function FeedPage() {
     void loadFollowing();
     return () => controller.abort();
   }, [myHandle]);
+
+  // Seed the initial lane by view mode (Lock-In → for-you, Ledger → latest).
+  // Runs once on mount, after the pre-hydration script has set html[data-mode],
+  // and only while the viewer hasn't picked a lane themselves. setState fires
+  // from an async microtask (never the sync effect body) per
+  // react-hooks/set-state-in-effect — mirroring the isMobile effect below. If
+  // the mode is Lock-In the SSR-rendered "latest" is corrected to "for-you";
+  // Ledger already matches "latest" so this is a no-op there.
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      if (laneTouched.current) return;
+      const lane = MODE_DEFAULT_LANE[currentMode()];
+      setFilter((prev) => (laneTouched.current ? prev : lane));
+    });
+  }, []);
 
   // Track the "phone" breakpoint via matchMedia so infinite scroll is a mobile-only
   // affordance. setState fires from the change listener / an async microtask (never
@@ -476,6 +499,9 @@ export default function FeedPage() {
   );
 
   function onFilterChange(next: FeedFilter) {
+    // The viewer chose a lane — from here on their choice is sticky and the
+    // mode-default seeding above stands down.
+    laneTouched.current = true;
     setFilter(next);
     setPagesLoaded(1);
   }

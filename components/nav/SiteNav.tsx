@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import LegacyToggle from "@/components/LegacyToggle";
 import NotificationBell from "@/components/nav/NotificationBell";
+import ViewModeSwitch from "@/components/nav/ViewModeSwitch";
 import SignInButton from "@/components/auth/SignInButton";
 
 import "./siteNav.css";
@@ -115,6 +116,9 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
         {/* Notification bell (story 34) — unread-count badge + link to /activity.
             Shows on mobile too (the compact bar keeps the bell + toggle + sign-in). */}
         <NotificationBell />
+        {/* Lock-In / Ledger mode switch (dual-modes surface). A view layer that
+            composes Legacy Mode + the calm lane — see ViewModeSwitch / lib/viewMode. */}
+        <ViewModeSwitch />
         <ThemeToggle />
         <LegacyToggle />
         <SignInButton />
