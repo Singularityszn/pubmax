@@ -186,9 +186,9 @@ describe("applyFeedFilter", () => {
     ]);
   });
 
-  it("demo lanes (friends/nearby/crawls) pass the set through unchanged", () => {
+  it("demo lanes (nearby/crawls) pass the set through unchanged", () => {
     const items = [item({ id: "a" }), item({ id: "b" })];
-    for (const f of ["friends", "nearby", "crawls"] as const) {
+    for (const f of ["nearby", "crawls"] as const) {
       expect(applyFeedFilter(items, f).map((i) => i.id)).toEqual(["a", "b"]);
     }
   });
@@ -197,5 +197,61 @@ describe("applyFeedFilter", () => {
     for (const f of ["tonight", "cheap", "golden-days", "friends"] as const) {
       expect(applyFeedFilter([], f)).toEqual([]);
     }
+  });
+
+  describe("friends", () => {
+    it("keeps only drops from followed handles, newest-first", () => {
+      const items = [
+        item({ id: "old-friend", handle: "mabel", createdAt: "2026-07-05T18:00:00.000Z" }),
+        item({ id: "stranger", handle: "randolph", createdAt: "2026-07-05T22:00:00.000Z" }),
+        item({ id: "new-friend", handle: "gus", createdAt: "2026-07-05T21:00:00.000Z" }),
+      ];
+      const following = new Set(["mabel", "gus"]);
+      const result = applyFeedFilter(items, "friends", { followingHandles: following });
+      // Only followed handles survive, newest-first (gus 21:00 before mabel 18:00).
+      expect(result.map((i) => i.id)).toEqual(["new-friend", "old-friend"]);
+    });
+
+    it("normalizes item handles before matching the follow set", () => {
+      const items = [
+        item({ id: "mixed", handle: "@Mabel" }),
+        item({ id: "clean", handle: "gus" }),
+      ];
+      // The set holds normalized handles; a "@Mabel" drop still matches "mabel".
+      const result = applyFeedFilter(items, "friends", {
+        followingHandles: new Set(["mabel"]),
+      });
+      expect(result.map((i) => i.id)).toEqual(["mixed"]);
+    });
+
+    it("returns [] when the following set is empty (drives the follow prompt)", () => {
+      const items = [item({ id: "a", handle: "mabel" }), item({ id: "b", handle: "gus" })];
+      expect(applyFeedFilter(items, "friends", { followingHandles: new Set() })).toEqual([]);
+    });
+
+    it("returns [] with no ctx / no following set (viewer anonymous)", () => {
+      const items = [item({ id: "a", handle: "mabel" })];
+      expect(applyFeedFilter(items, "friends")).toEqual([]);
+      expect(applyFeedFilter(items, "friends", {})).toEqual([]);
+    });
+  });
+
+  it("the optional ctx never affects non-friends filters", () => {
+    const items = [
+      item({ id: "cheap-a", handle: "mabel", priceGbp: 4 }),
+      item({ id: "dear-b", handle: "gus", priceGbp: 9 }),
+    ];
+    const ctx = { followingHandles: new Set(["mabel"]) };
+    // A following set is ignored by cheap/tonight/golden-days/latest — the ctx is
+    // friends-only, so passing it must not change any other lane's output.
+    expect(applyFeedFilter(items, "cheap", ctx).map((i) => i.id)).toEqual(
+      applyFeedFilter(items, "cheap").map((i) => i.id),
+    );
+    expect(applyFeedFilter(items, "latest", ctx).map((i) => i.id)).toEqual(
+      applyFeedFilter(items, "latest").map((i) => i.id),
+    );
+    expect(applyFeedFilter(items, "tonight", ctx).map((i) => i.id)).toEqual(
+      applyFeedFilter(items, "tonight").map((i) => i.id),
+    );
   });
 });

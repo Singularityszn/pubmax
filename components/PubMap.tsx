@@ -27,6 +27,14 @@ import {
   getFavoritePint,
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
+import { getSaved } from "@/lib/savedPubs";
+
+// The set of venue ids this device has saved (any list). Read from the client
+// saved-pub store; SSR-safe (getSaved returns [] on the server). Used only to
+// narrow the map/list when the viewer flips "Saved only" on.
+function readSavedVenueIds(): Set<string> {
+  return new Set(getSaved().map((entry) => entry.venueId));
+}
 
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
 // a bare price is never a story, and demo seeds never move prices or hasStory.
@@ -84,6 +92,15 @@ export default function PubMap() {
   const [favoritePint, setFavoritePintState] = useState<string | null>(() =>
     typeof window === "undefined" ? null : getFavoritePint(),
   );
+  // "Show saved only": a viewer convenience that narrows the map + list to pubs
+  // this device has saved. The toggle lives here (ControlRail renders it); the
+  // saved-id set is read lazily and re-read on each toggle so a just-saved pub
+  // appears without a reload. localStorage-only for the signed-out demo — that's
+  // fine, this is a per-viewer view, not shared state.
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [savedIds, setSavedIds] = useState<Set<string>>(() =>
+    typeof window === "undefined" ? new Set<string>() : readSavedVenueIds(),
+  );
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   // The curated crawl whose blurb is shown under the route title. Cleared the
@@ -109,9 +126,18 @@ export default function PubMap() {
     [baseVenues, dropsByVenueId],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
-  const filteredVenues = useMemo(
+  // Base narrowing: the existing filter pipeline (story filters, price, query,
+  // pint-drops). Favorite-pint re-prices inside PubMapCanvas and never changes
+  // membership, so it isn't part of this set.
+  const pipelineVenues = useMemo(
     () => filterVenues(venues, filters, (id) => Boolean(venueSignals.get(id)?.hasPintDrops)),
     [venues, filters, venueSignals],
+  );
+  // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
+  // the saved set. When off it's a no-op, so all existing behavior is preserved.
+  const filteredVenues = useMemo(
+    () => (savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues),
+    [pipelineVenues, savedOnly, savedIds],
   );
 
   const suggestedRoute = useMemo(
@@ -171,6 +197,14 @@ export default function PubMap() {
     setFavoritePintState(beerId);
     if (beerId) persistFavoritePint(beerId);
     else clearFavoritePint();
+  }, []);
+
+  // Flip "Saved only". Re-read the saved set from localStorage on every toggle
+  // (event handler, not an effect) so a pub saved elsewhere this session is
+  // reflected the moment the filter is turned on — no stale set, no reload.
+  const changeSavedOnly = useCallback((next: boolean) => {
+    if (next) setSavedIds(readSavedVenueIds());
+    setSavedOnly(next);
   }, []);
 
   // Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
@@ -363,6 +397,8 @@ export default function PubMap() {
           onNearbyCrawl={startNearbyCrawl}
           nearbyLoading={nearbyLoading}
           nearbyError={nearbyError}
+          savedOnly={savedOnly}
+          onSavedOnlyChange={changeSavedOnly}
         />
         <RoutePanel
           mode={mode}
@@ -379,18 +415,35 @@ export default function PubMap() {
           onReverseRoute={reverseRoute}
         >
           {loaded && filteredVenues.length === 0 ? (
-            <section className="venueInspector" style={{ textAlign: "center" }}>
-              <p className="description" style={{ marginTop: 0 }}>
-                No pubs match these filters — try widening your price or clearing your story filters.
-              </p>
-              <button
-                type="button"
-                className="addStopBtn"
-                onClick={() => setFilters(seedCrawlState("").filters)}
-              >
-                Clear filters
-              </button>
-            </section>
+            savedOnly && savedIds.size === 0 ? (
+              <section className="venueInspector" style={{ textAlign: "center" }}>
+                <p className="description" style={{ marginTop: 0 }}>
+                  No saved pubs yet — tap a pub and Save it, then flip &ldquo;Saved only&rdquo; back
+                  on to see just your list.
+                </p>
+                <button
+                  type="button"
+                  className="addStopBtn"
+                  onClick={() => changeSavedOnly(false)}
+                >
+                  Show all pubs
+                </button>
+              </section>
+            ) : (
+              <section className="venueInspector" style={{ textAlign: "center" }}>
+                <p className="description" style={{ marginTop: 0 }}>
+                  No pubs match these filters — try widening your price or clearing your story
+                  filters.
+                </p>
+                <button
+                  type="button"
+                  className="addStopBtn"
+                  onClick={() => setFilters(seedCrawlState("").filters)}
+                >
+                  Clear filters
+                </button>
+              </section>
+            )
           ) : null}
         </RoutePanel>
       </div>

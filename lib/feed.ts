@@ -5,6 +5,7 @@
 // whole feed is covered by __tests__/feed.test.ts.
 
 import type { Provenance } from "@/lib/curation";
+import { normalizeHandle } from "@/lib/profiles";
 
 // The public read shape as it arrives over the wire from GET /api/pint-drops
 // ({ drops: [...] }). Kept structural (not imported from the store's DTO type)
@@ -133,7 +134,7 @@ export type FeedFilterDef = {
 export const FEED_FILTERS: FeedFilterDef[] = [
   { id: "latest", label: "Latest", demo: false },
   { id: "tonight", label: "Tonight", demo: false },
-  { id: "friends", label: "Friends", demo: true },
+  { id: "friends", label: "Friends", demo: false },
   { id: "nearby", label: "Near Me", demo: true },
   { id: "cheap", label: "Cheap Legends", demo: false },
   { id: "crawls", label: "Crawls", demo: true },
@@ -148,6 +149,16 @@ function createdMs(item: FeedItem): number {
   return Number.isFinite(t) ? t : 0;
 }
 
+// Optional context for filters that need a signal beyond the per-drop payload.
+// Today only `friends` reads it (the viewer's following set); kept as an object
+// so more lanes can add their own signal without changing the call signature.
+export type FeedFilterContext = {
+  // Normalized handles the viewer follows. Drives the `friends` lane: only drops
+  // authored by a handle in this set survive. Undefined/empty ⇒ friends is empty
+  // (the page shows a "follow people" state) rather than leaking the whole feed.
+  followingHandles?: Set<string>;
+};
+
 /**
  * Apply a feed filter as a pure transform over already-normalised items.
  *
@@ -156,14 +167,21 @@ function createdMs(item: FeedItem): number {
  *  - `cheap`       — priced <= £5.50, sorted by price ascending (cheapest first).
  *  - `golden-days` — anecdote/heritage drops carrying an `era` (passed-down
  *                    memories), newest-first — the nostalgia lane.
+ *  - `friends`     — drops authored by a handle in `ctx.followingHandles`
+ *                    (the viewer's follow graph), newest-first. With no set (or
+ *                    an empty one) the lane is empty by design, so the page can
+ *                    prompt the viewer to follow people rather than show all.
  *
  * Demo-only filters (no per-drop signal in the public payload; best-effort so
  * the lane isn't empty in the prototype — documented as demo in FEED_FILTERS):
- *  - `friends`     — no social graph exists; returns the full set unchanged.
  *  - `nearby`      — no geolocation on the client feed; returns the full set.
  *  - `crawls`      — no per-drop crawl linkage yet; returns the full set.
  */
-export function applyFeedFilter(items: FeedItem[], filter: FeedFilter): FeedItem[] {
+export function applyFeedFilter(
+  items: FeedItem[],
+  filter: FeedFilter,
+  ctx?: FeedFilterContext,
+): FeedItem[] {
   switch (filter) {
     case "latest":
       // The default lane: every visible drop, newest first. Always has content
@@ -182,7 +200,15 @@ export function applyFeedFilter(items: FeedItem[], filter: FeedFilter): FeedItem
       return items
         .filter((i) => i.era.trim().length > 0 || i.provenance === "anecdote")
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    case "friends":
+    case "friends": {
+      // No follow set (viewer anonymous / follows nobody) ⇒ an empty lane, on
+      // purpose: the page renders a "follow people" prompt instead of the feed.
+      const following = ctx?.followingHandles;
+      if (!following || following.size === 0) return [];
+      return items
+        .filter((i) => following.has(normalizeHandle(i.handle)))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
     case "nearby":
     case "crawls":
     default:

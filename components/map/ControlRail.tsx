@@ -61,6 +61,10 @@ type ControlRailProps = {
   onNearbyCrawl: () => void;
   nearbyLoading: boolean;
   nearbyError: string | null;
+  // "Saved only": narrows the map + list to pubs this device has saved. Owned by
+  // PubMap; rendered here alongside the other story filters.
+  savedOnly: boolean;
+  onSavedOnlyChange: (savedOnly: boolean) => void;
 };
 
 export default function ControlRail({
@@ -75,6 +79,8 @@ export default function ControlRail({
   onNearbyCrawl,
   nearbyLoading,
   nearbyError,
+  savedOnly,
+  onSavedOnlyChange,
 }: ControlRailProps) {
   const cheapCount = filteredVenues.filter(
     (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
@@ -265,6 +271,17 @@ export default function ControlRail({
             </button>
           ) : null}
         </div>
+        <label
+          aria-label="Show only pubs you have saved"
+          style={{ minHeight: 44 }}
+        >
+          <input
+            type="checkbox"
+            checked={savedOnly}
+            onChange={(event) => onSavedOnlyChange(event.target.checked)}
+          />
+          Saved only
+        </label>
         <label>
           <input
             type="checkbox"

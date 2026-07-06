@@ -204,5 +204,80 @@
       "fact": "The Captain Kidd at 108 Wapping High Street is a Grade II listed riverside pub in a converted former warehouse, named after the pirate William Kidd, who was hanged at the nearby Execution Dock in 1701.",
       "sourceRef": "https://en.wikipedia.org/wiki/Captain_Kidd,_Wapping"
     }
+  ],
+  "the blackfriar": [
+    {
+      "source": "wikipedia",
+      "fact": "The Black Friar is a Grade II* listed pub at 174 Queen Victoria Street, Blackfriars, built about 1875 on the site of a medieval Dominican (Black Friars) friary and remodelled around 1905 by the architect Herbert Fuller-Clark; it is famous for its Arts and Crafts and Art Nouveau interior of marble, mosaic and bronze reliefs of jovial friars.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Black_Friar,_Blackfriars"
+    },
+    {
+      "source": "seed",
+      "fact": "The Black Friar was nearly lost to redevelopment in the 1960s and was saved by a preservation campaign associated with the poet Sir John Betjeman; its interior is on CAMRA's National Inventory of historic pub interiors.",
+      "sourceRef": "https://pubheritage.camra.org.uk/pubs/41"
+    }
+  ],
+  "the hoop and grapes": [
+    {
+      "source": "wikipedia",
+      "fact": "The Hoop and Grapes at 47 Aldgate High Street is a Grade II* listed pub, probably built in the late 17th century; it is one of the very few timber-framed buildings in the City of London to survive from that period, standing just beyond where the Great Fire of London was halted in 1666.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Hoop_and_Grapes,_Aldgate_High_Street"
+    }
+  ],
+  "ye olde watling": [
+    {
+      "source": "seed",
+      "fact": "Ye Olde Watling stands at 29 Watling Street, on the line of the old Roman road of the same name, close to St Paul's Cathedral; the timber-framed pub is traditionally said to have been rebuilt for Sir Christopher Wren's workmen after the Great Fire of London, and its present old-world interior largely dates from a sympathetic refit of about 1901.",
+      "sourceRef": "https://camra.org.uk/pubs/olde-watling-london-156664"
+    }
+  ],
+  "salisbury": [
+    {
+      "source": "wikipedia",
+      "fact": "The Salisbury at 90 St Martin's Lane, Covent Garden, is a Grade II listed pub built about 1899; its lavish late-Victorian interior of etched and polished glass, mahogany and Art Nouveau candelabra is listed on CAMRA's National Inventory as a historic pub interior of national importance.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Salisbury,_Covent_Garden"
+    }
+  ],
+  "the grenadier": [
+    {
+      "source": "wikipedia",
+      "fact": "The Grenadier is a Grade II listed pub tucked down Wilton Row in Belgravia, taking its name from the Grenadier Guards; it is traditionally said to have served as an officers' mess and to have been frequented by the Duke of Wellington, and is well known as one of London's most famously haunted pubs.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Grenadier"
+    }
+  ],
+  "the star tavern": [
+    {
+      "source": "wikipedia",
+      "fact": "The Star Tavern is a Grade II listed pub at 6 Belgrave Mews West, Belgravia, of early-to-mid-19th-century origin; in the 1950s and 1960s it drew both high society and the London underworld, and it is reputed to be where the 1963 Great Train Robbery was planned.",
+      "sourceRef": "https://en.wikipedia.org/wiki/Star_Tavern,_Belgravia"
+    }
+  ],
+  "the audley": [
+    {
+      "source": "seed",
+      "fact": "The Audley at 41-43 Mount Street, Mayfair, is a Grade II listed pub built about 1888 to designs by the architect Thomas Verity; a grand late-Victorian building of red brick and pink terracotta, it was rebuilt on the Grosvenor (Duke of Westminster) estate and retains fine mahogany panelling and a carved bar-back.",
+      "sourceRef": "https://camra.org.uk/pubs/audley-london-128809"
+    }
+  ],
+  "the pride of spitalfields": [
+    {
+      "source": "wikipedia",
+      "fact": "The Pride of Spitalfields at 3 Heneage Street, just off Brick Lane in the East End, is a mid-19th-century pub formerly known as the Romford Arms; it sits in the old Huguenot heartland of Spitalfields and was named CAMRA's East London Pub of the Year in 2013.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Pride_of_Spitalfields"
+    }
+  ],
+  "the cheshire cheese": [
+    {
+      "source": "seed",
+      "fact": "The Cheshire Cheese at 48 Crutched Friars sits beneath the viaduct of Fenchurch Street station in the City of London; a pub of this name traded on the site before the railway arrived in the 1850s, with records of the Cheshire Cheese, Crutched Friars going back to the early 19th century. (It is a separate pub from the famous Ye Olde Cheshire Cheese on Fleet Street.)",
+      "sourceRef": "https://whatpub.com/pubs/ELC/14880/cheshire-cheese-london"
+    }
+  ],
+  "the bulls head": [
+    {
+      "source": "wikipedia",
+      "fact": "The Bull's Head at 373 Lonsdale Road, Barnes, is a riverside Young's pub whose present building dates from 1846; it opened as a jazz venue in 1959 and, hosting leading British and international musicians, became known as the 'suburban Ronnie Scott's'.",
+      "sourceRef": "https://en.wikipedia.org/wiki/The_Bull's_Head,_Barnes"
+    }
   ]
 }
