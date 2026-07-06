@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, formatPrice, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough } from "@/lib/boroughs";
+import SiteNav from "@/components/nav/SiteNav";
 
 import "./borough.css";
 
@@ -85,15 +86,7 @@ export default async function BoroughPage({ params }: PageProps) {
 
   return (
     <main className="boroughPage">
-      <nav className="siteNav" aria-label="Site navigation">
-        <Link href="/">Home</Link>
-        <Link href="/map">Map</Link>
-        <Link href="/discover">Discover</Link>
-        <Link href="/borough" aria-current="page">
-          Boroughs
-        </Link>
-        <Link href="/crawls">Crawls</Link>
-      </nav>
+      <SiteNav active="borough" />
 
       <header className="boroughHead">
         <p className="boroughEyebrow">

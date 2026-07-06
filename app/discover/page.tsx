@@ -16,6 +16,7 @@ import LeaderboardTable from "@/components/discovery/LeaderboardTable";
 import TonightBoard from "@/components/discovery/TonightBoard";
 import EditorialCard, { type EditorialCardData } from "@/components/discovery/EditorialCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
+import SiteNav from "@/components/nav/SiteNav";
 import "./discover.css";
 
 // Static editorial lanes. Real content, real links into the planner — the copy
@@ -137,16 +138,7 @@ export default function DiscoverPage() {
 
   return (
     <main className="discoverPage">
-      <nav className="siteNav" aria-label="Site navigation">
-        <Link href="/">Home</Link>
-        <Link href="/map">Map</Link>
-        <Link href="/feed">Feed</Link>
-        <Link href="/discover" aria-current="page">
-          Discover
-        </Link>
-        <Link href="/borough">Boroughs</Link>
-        <Link href="/crawls">Crawls</Link>
-      </nav>
+      <SiteNav active="discover" />
 
       <header className="discoverHead">
         <p className="discoverEyebrow">Discover</p>

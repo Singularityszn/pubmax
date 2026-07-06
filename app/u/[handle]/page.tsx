@@ -8,6 +8,7 @@ import FollowButton from "@/components/profile/FollowButton";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SavedPubList from "@/components/profile/SavedPubList";
+import SiteNav from "@/components/nav/SiteNav";
 import { VENUE_FALLBACK_LABEL } from "@/lib/feed";
 import type { FollowCounts } from "@/lib/followStore";
 import {
@@ -264,17 +265,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
 
   return (
     <div className="lp profilePage">
-      <header className="profileTopbar">
-        <div className="container profileTopbarInner">
-          <Link className="profileWordmark lpSerif" href="/">
-            PUBMAXXING
-          </Link>
-          <nav className="profileNav" aria-label="Primary">
-            <Link href="/">Home</Link>
-            <Link href="/map">Map</Link>
-          </nav>
-        </div>
-      </header>
+      <SiteNav active="profile" />
 
       <main className="container profileMain">
         {!routeHandle ? (

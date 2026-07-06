@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+import SiteNav from "@/components/nav/SiteNav";
 
 import {
   buildCrawlRoute,
@@ -382,16 +383,7 @@ export default function PubMap() {
 
   return (
     <main className="appShell dark">
-      <nav className="siteNav appNav" aria-label="Site navigation">
-        <Link href="/">Home</Link>
-        <Link href="/map" aria-current="page">
-          Map
-        </Link>
-        <Link href="/feed">Feed</Link>
-        <Link href="/crawls">Crawls</Link>
-        <Link href="/u/you">Profile</Link>
-        <Link href="/admin">Admin</Link>
-      </nav>
+      <SiteNav active="map" />
 
       {/* Full-bleed map is the base layer; every panel slides in over it. */}
       <section className="mapStage">

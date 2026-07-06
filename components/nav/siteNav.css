@@ -1,0 +1,167 @@
+/* Shared app-wide top navigation (SiteNav).
+   Token-driven so it flips light/dark for free and reads over both the paper
+   pages and the dark map shell. Two variants live here:
+     · Desktop (>640px): a full nav bar — wordmark, the link row with an active
+       state, then the theme toggle + sign-in on the right.
+     · Mobile (≤640px): a COMPACT bar — wordmark + theme toggle + sign-in only.
+       The full link row is display:none because the app renders a fixed bottom
+       tab bar (MobileTabBar) at this width. Nothing may horizontally overflow at
+       390px, so the compact bar is the entire mobile story.
+   These use their OWN classes (siteNavBar / siteNavLinks / …) — independent of
+   the old .siteNav / .appNav globals, which may be cleaned up separately. */
+
+.siteNavBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* min-width:0 lets the bar shrink inside any flex/grid host without forcing a
+     horizontal scrollbar; box-sizing keeps padding inside the 100% width. */
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Map variant: the shell is overflow-hidden + full-bleed, so the bar floats
+   across the top. Centred pill on desktop; full-width compact bar on mobile. */
+.siteNavBarFloating {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 1200;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  transform: translateX(-50%);
+}
+
+/* ── Wordmark ──────────────────────────────────────────────────────────── */
+.siteNavBrand {
+  flex: 0 0 auto;
+  font-family: var(--font-garamond, var(--serif, Georgia, "Times New Roman", serif));
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  /* 44px keyboard/touch target without inflating the bar's height. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 2px;
+  border-radius: 6px;
+}
+
+.siteNavBrand:hover {
+  color: var(--brass);
+}
+
+.siteNavBrand:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* ── Full link row (desktop) ───────────────────────────────────────────── */
+.siteNavLinks {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Wrap rather than overflow if a very narrow desktop window can't fit the
+     whole row — the bar grows in height, it never scrolls sideways. */
+  flex-wrap: wrap;
+}
+
+.siteNavItem {
+  display: flex;
+}
+
+.siteNavLink {
+  display: inline-flex;
+  align-items: center;
+  /* 44px target height. */
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 7px;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+
+.siteNavLink:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.siteNavLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.siteNavLink.isActive {
+  color: var(--ink-deep);
+  background: var(--brass);
+}
+
+/* ── Right-side actions (theme toggle + sign-in) ───────────────────────── */
+.siteNavActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ── Mobile: the COMPACT bar (the overflow fix) ────────────────────────── */
+/* At ≤640px the bottom tab bar owns primary navigation, so the full link row is
+   removed entirely and only the wordmark + actions remain. With the links gone
+   the bar is trivially narrow and cannot overflow at 390px. */
+@media (max-width: 640px) {
+  .siteNavBar {
+    gap: 10px;
+    padding: 8px 12px;
+  }
+
+  .siteNavLinks {
+    display: none;
+  }
+
+  /* On the map the floating bar spans the width so the wordmark sits left and
+     the actions sit right — a clean compact header, never a centred pill that
+     could clip. */
+  .siteNavBarFloating {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+
+  .siteNavBrand {
+    font-size: 0.98rem;
+    /* Never let a long wordmark push the actions off-screen. */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Motion respect: drop the link hover/active transitions for reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  .siteNavLink {
+    transition: none;
+  }
+}

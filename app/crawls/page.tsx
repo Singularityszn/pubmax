@@ -5,6 +5,7 @@ import { Check, Copy, MapPin } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
+import SiteNav from "@/components/nav/SiteNav";
 import "./crawls.css";
 
 function formatGbp(value: number): string {
@@ -45,11 +46,7 @@ export default function CrawlsPage() {
 
   return (
     <main className="crawlsShell">
-      <nav className="siteNav appNav" aria-label="Site navigation">
-        <Link href="/">Home</Link>
-        <Link href="/map">Map</Link>
-        <Link href="/admin">Admin</Link>
-      </nav>
+      <SiteNav active="crawls" />
 
       {story ? (
         <CrawlPoster story={story} copied={copied} onCopy={copyShareLink} />

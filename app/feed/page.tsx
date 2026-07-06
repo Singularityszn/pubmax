@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FeedCard from "@/components/feed/FeedCard";
 import FeedFilters from "@/components/feed/FeedFilters";
 import PresenceStrip from "@/components/feed/PresenceStrip";
-import SignInButton from "@/components/auth/SignInButton";
+import SiteNav from "@/components/nav/SiteNav";
 import { getAnonId } from "@/lib/anonId";
 import {
   applyFeedFilter,
@@ -405,17 +405,7 @@ export default function FeedPage() {
 
   return (
     <main className="feedShell">
-      <nav className="feedNav" aria-label="Site navigation">
-        <Link href="/">Home</Link>
-        <Link href="/map">Map</Link>
-        <Link href="/feed" aria-current="page">
-          Feed
-        </Link>
-        <Link href="/crawls">Crawls</Link>
-        <span className="feedNavAuth">
-          <SignInButton />
-        </span>
-      </nav>
+      <SiteNav active="feed" />
 
       <header className="feedHeader">
         <p className="feedEyebrow">InstaPint</p>
