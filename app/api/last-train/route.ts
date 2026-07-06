@@ -1,41 +1,63 @@
 // GET /api/last-train?lat=..&lng=..  →  LastTrainResult
 //
-// "Last drink / last train home": given a point (a pub), find the nearest Tube/rail
-// station and, for each line serving it, when the last train of the night leaves.
-// A drinker near closing time can glance at this and know when to head off.
+// "Last Pint": given a point (a pub), find the nearest Tube/rail station, when the
+// last train of the night leaves each serving line, what's due next right now, a
+// pub-native decision ("order one more" ... "train risk"), and the 3 nearest pubs
+// to the station for a final pint by the platform. Covers user stories 19-24.
 //
 // Strategy
 // --------
 //  1. Nearest station: TfL Unified API `GET /StopPoint?lat&lon&stopTypes&radius&modes`
 //     returns stations nearest-first, each with the lines that serve it.
 //  2. Per line (capped at LINE_CAP to respect the ~50 req/min keyless rate limit):
-//     `GET /Line/{lineId}/Timetable/{stationId}` → today's day-type schedule's
-//     `lastJourney`. TfL's plain timetable call sometimes returns a *disambiguation*
-//     (Brixton→Walthamstow vs the reverse) instead of a timetable; when it does we
-//     follow the offered direction URIs and merge their schedules. Hours roll past
-//     24 for after-midnight / Night Tube services — formatLastJourney handles that.
+//     - Last train: `GET /Line/{lineId}/Timetable/{stationId}` → today's day-type
+//       schedule's `lastJourney`. TfL's plain timetable call sometimes returns a
+//       *disambiguation* (Brixton→Walthamstow vs the reverse) instead of a
+//       timetable; when it does we follow the offered direction URIs and merge
+//       their schedules. Hours roll past 24 for after-midnight / Night Tube
+//       services — formatLastJourney handles that.
+//     - Next departures: `GET /StopPoint/{id}/Arrivals` filtered to the line,
+//       which is genuinely live (vehicles in service right now). When Arrivals
+//       comes back empty for a line (last train of the night has gone, or the
+//       line just isn't running), we fall back to the same timetable's *next*
+//       scheduled entry after "now" so the card still shows something.
 //  3. Pick the LATEST lastJourney across all matching schedules/routes for the line
 //     (a station can host several branches; the drinker cares about the last one).
+//  4. Disruption: `GET /Line/{ids}/Status` for the served lines feeds both the
+//     card's disruption note and the decision's train_risk trigger.
+//  5. Decision: computeLastPintDecision (lib/tfl.ts, pure + unit tested) combines
+//     the last train, a haversine walk estimate, a fixed buffer and disruption
+//     state into one of the five pub-native states.
+//  6. Nearest pubs: haversine (lib/haversine.ts) against the bundled venue index,
+//     sorted by distance to the station, top 3 with id/name/price.
 //
-// Caching: timetables change rarely, so we let the CDN hold the answer for an hour
-// and serve stale for a day while revalidating. A future optimisation is a
-// precomputed weekly static table (station × day-type → last trains) that would
-// remove the live TfL round-trips entirely; this route is the honest live version.
+// Caching: timetables/last-train barely change, so that half of the answer can
+// sit at the CDN edge for an hour. Arrivals are genuinely live (vehicles change
+// minute to minute) and are never cached here — see `json()` below, which forces
+// `no-store` whenever the departures/decision use live data so a stale "next
+// train in 2 min" can never be served from a shared cache.
 //
 // Robustness: every TfL call is wrapped in try/catch with a short per-call
 // AbortController timeout. This route NEVER throws and NEVER 500s the user — if the
 // nearest-station lookup fails or finds nothing, it returns 200 with an `error`
-// string and an empty body the card can show gracefully.
+// string and an empty body the card can show gracefully (user story 24).
 
 import {
+  computeLastPintDecision,
   dayTypeForDate,
   formatLastJourney,
   lineColour,
   matchesDayType,
+  walkMinutesForKm,
   type DayType,
+  type LastPintDecision,
   type LastTrain,
   type LastTrainResult,
+  type NearestPub,
+  type NextDepartures,
 } from "@/lib/tfl";
+import { haversineKm } from "@/lib/haversine";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 
 export const runtime = "nodejs";
 // The nearest-station geo query plus the concurrent timetable fan-out can take
@@ -100,6 +122,8 @@ type StopPoint = {
   commonName?: string;
   distance?: number;
   lines?: StopPointLine[];
+  lat?: number;
+  lon?: number;
 };
 type StopPointResponse = { stopPoints?: StopPoint[] };
 
@@ -111,6 +135,22 @@ type DisambiguationOption = { uri?: string };
 type TimetableResponse = {
   timetable?: { routes?: Route[] };
   disambiguation?: { disambiguationOptions?: DisambiguationOption[] };
+};
+
+// TfL Arrivals: one entry per vehicle currently predicted for this stop.
+type ArrivalPrediction = {
+  lineId?: string;
+  lineName?: string;
+  timeToStation?: number; // seconds from now
+  expectedArrival?: string; // ISO
+};
+
+// TfL Line Status: `lineStatuses[].statusSeverityDescription` of "Good Service"
+// means nothing to report; anything else is a disruption worth surfacing.
+type LineStatusEntry = {
+  id?: string;
+  name?: string;
+  lineStatuses?: { statusSeverityDescription?: string; reason?: string }[];
 };
 
 function toInt(value: number | string | undefined): number | null {
@@ -191,6 +231,158 @@ async function lastTrainForLine(
   return { lineId, lineName, colour: lineColour(lineId), clock, pastMidnight };
 }
 
+// How many upcoming departures to show per line (user story 20: "next 2-3").
+const DEPARTURES_PER_LINE = 3;
+// How many nearest pubs to surface for "a final pint by the platform" (story 22).
+const NEAREST_PUB_COUNT = 3;
+
+// Format a Date to a "HH:MM" wall-clock string in London local time (arrivals
+// come back as absolute ISO instants; timetable fallback entries are already
+// day-relative minutes — both funnel through this so the card sees one shape).
+function toLondonClock(d: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(d);
+}
+
+// Live next departures for one line at one station, via TfL Arrivals — genuinely
+// real-time (vehicles currently in service), unlike the static timetable. Sorted
+// soonest-first and capped to DEPARTURES_PER_LINE. Returns [] (not null) when
+// Arrivals has nothing for this line right now (service ended, or a quiet gap);
+// the caller decides whether/how to fall back.
+async function nextDeparturesForLine(
+  lineId: string,
+  stationId: string,
+): Promise<{ clock: string }[]> {
+  const arrivals = await tflGet<ArrivalPrediction[]>(
+    `/StopPoint/${encodeURIComponent(stationId)}/Arrivals`,
+  );
+  if (!arrivals) return [];
+  return arrivals
+    .filter((a) => a.lineId === lineId)
+    .map((a) => {
+      if (a.expectedArrival) {
+        const d = new Date(a.expectedArrival);
+        if (!Number.isNaN(d.getTime())) return { clock: toLondonClock(d), sortKey: d.getTime() };
+      }
+      const seconds = a.timeToStation ?? 0;
+      const d = new Date(Date.now() + seconds * 1000);
+      return { clock: toLondonClock(d), sortKey: d.getTime() };
+    })
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .slice(0, DEPARTURES_PER_LINE)
+    .map(({ clock }) => ({ clock }));
+}
+
+// Timetable-based fallback for "next departures" when live Arrivals is empty for
+// a line (e.g. after the last live vehicle but before we've given up on the
+// night, or Arrivals is temporarily quiet). Reuses the same schedules the
+// last-train lookup already collected — no extra TfL calls — and picks the
+// smallest-rank journeys that are still >= "now" (in minutes-since-midnight),
+// falling back further to today's lastJourney alone if nothing else matches.
+function nextFromSchedulesAfter(
+  schedules: Schedule[],
+  dayType: DayType,
+  nowMinutes: number,
+): { clock: string }[] {
+  const ranked: number[] = [];
+  for (const schedule of schedules) {
+    if (!schedule.name || !matchesDayType(schedule.name, dayType)) continue;
+    if (!schedule.lastJourney) continue;
+    const rank = journeyRank(schedule.lastJourney);
+    if (rank !== null) ranked.push(rank);
+  }
+  const upcoming = ranked.filter((r) => r >= nowMinutes).sort((a, b) => a - b);
+  const chosen = (upcoming.length > 0 ? upcoming : ranked.sort((a, b) => a - b)).slice(
+    0,
+    DEPARTURES_PER_LINE,
+  );
+  return chosen.map((rank) => {
+    const { clock } = formatLastJourney({ hour: Math.floor(rank / 60), minute: rank % 60 });
+    return { clock };
+  });
+}
+
+// Combined "next departures" for one line: try live Arrivals first (real-time),
+// and only fall back to the timetable when Arrivals comes back empty for this
+// line. `live` on the returned shape tells the card (and the decision) which
+// source won, since a timetable fallback is not a disruption signal on its own.
+async function departuresForLine(
+  lineId: string,
+  lineName: string,
+  stationId: string,
+  dayType: DayType,
+  nowMinutes: number,
+): Promise<NextDepartures> {
+  const live = await nextDeparturesForLine(lineId, stationId);
+  if (live.length > 0) {
+    return {
+      lineId,
+      lineName,
+      colour: lineColour(lineId),
+      times: live.map((l) => l.clock),
+      live: true,
+    };
+  }
+  const schedules = await collectSchedules(lineId, stationId);
+  const fallback = nextFromSchedulesAfter(schedules, dayType, nowMinutes);
+  return {
+    lineId,
+    lineName,
+    colour: lineColour(lineId),
+    times: fallback.map((f) => f.clock),
+    live: false,
+  };
+}
+
+// Disruption summary for the served lines (user stories 21, 24): TfL Line
+// Status, one call for all lineIds at once. Returns null when every line is
+// "Good Service" (nothing to say) and a short human line when not. Also
+// returns whether ANY of `neededLineIds` is affected, for the decision's
+// train_risk trigger.
+async function lineDisruptions(
+  lineIds: string[],
+): Promise<{ summary: string | null; affectedLineIds: Set<string> }> {
+  if (lineIds.length === 0) return { summary: null, affectedLineIds: new Set() };
+  const statuses = await tflGet<LineStatusEntry[]>(
+    `/Line/${encodeURIComponent(lineIds.join(","))}/Status`,
+  );
+  if (!statuses) return { summary: null, affectedLineIds: new Set() };
+
+  const affectedLineIds = new Set<string>();
+  const notes: string[] = [];
+  for (const line of statuses) {
+    const worst = (line.lineStatuses ?? []).find(
+      (s) => s.statusSeverityDescription && s.statusSeverityDescription !== "Good Service",
+    );
+    if (worst && line.id) {
+      affectedLineIds.add(line.id);
+      notes.push(`${line.name ?? line.id}: ${worst.statusSeverityDescription}`);
+    }
+  }
+  return { summary: notes.length > 0 ? notes.join(" · ") : null, affectedLineIds };
+}
+
+// The 3 nearest pubs to the station (user story 22) — reuses the shared
+// haversine (lib/haversine.ts) against the bundled, price-carrying venue list
+// (lib/venuePriceIndex.ts, memoized from the same dataset venueIndex.ts reads).
+async function nearestPubsToStation(stationLat: number, stationLng: number): Promise<NearestPub[]> {
+  const venues = await getPricedVenues();
+  const withDistance = venues.map((v) => ({
+    v,
+    km: haversineKm([stationLng, stationLat], [v.longitude, v.latitude]),
+  }));
+  withDistance.sort((a, b) => a.km - b.km);
+  return withDistance.slice(0, NEAREST_PUB_COUNT).map(({ v }) => ({
+    id: v.id,
+    name: v.name,
+    price: v.cheapestPrice,
+  }));
+}
+
 // "Now" in London, so the weekday we pick the timetable for is the drinker's, not
 // the server's. Intl gives us the London-local Y/M/D; we rebuild a Date whose
 // getDay() is the London weekday (dayTypeForDate reads getDay()).
@@ -214,9 +406,11 @@ function londonNow(): Date {
   );
 }
 
-// Only a successful result (a real station + at least one train) is cacheable —
-// timetables barely move, so hold it at the edge for an hour. Errors and empty
-// results are `no-store` so a transient TfL hiccup never sticks for an hour.
+// Cache policy (see file header): only a fully-resolved, all-timetable answer
+// (no live arrivals/decision involved) is cacheable at the edge for an hour —
+// timetables barely move. Anything touching live Arrivals or the decision (which
+// is itself time-sensitive, "leave by" ticks every minute) is `no-store`, and any
+// error/empty result is `no-store` too so a transient TfL hiccup never sticks.
 function json(body: unknown, opts: { status?: number; cache?: boolean } = {}): Response {
   const { status = 200, cache = false } = opts;
   return new Response(JSON.stringify(body), {
@@ -237,24 +431,42 @@ export async function GET(request: Request): Promise<Response> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return json({ error: "lat and lng are required numbers." }, { status: 400 });
   }
+  // Destination stays session-only end-to-end (user story 23): this route never
+  // persists it anywhere (no DB write, no cookie, no log of the label) — it's an
+  // optional, purely-passthrough label for the decision's `destinationLabel`.
+  const destinationLabel = params.get("destination")?.trim() || null;
 
   // 1) Nearest station. Retried once for transient failures; any failure here is
-  // graceful (200 + error, NOT cached), never a 500.
+  // graceful (200 + error, NOT cached), never a 500 — degrade per user story 24.
   const stopUrl =
     `/StopPoint?lat=${lat}&lon=${lng}` +
     `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
   const stops = await tflGet<StopPointResponse>(stopUrl, 1);
   const nearest = stops?.stopPoints?.[0];
   if (!nearest?.id) {
+    const decision = computeLastPintDecision({
+      minutesUntilLastTrain: null,
+      walkMinutesEstimate: 0,
+      stationName: "Nearest station",
+      lineNames: [],
+      disruptionOnNeededLine: false,
+      destinationLabel,
+      live: false,
+    });
     return json({
       error: "Couldn't reach TfL just now — check before you head out.",
       station: null,
       trains: [],
+      departures: [],
+      decision,
+      nearestPubs: [],
       generatedAt: new Date().toISOString(),
     });
   }
 
-  const dayType = dayTypeForDate(londonNow());
+  const now = londonNow();
+  const dayType = dayTypeForDate(now);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   // 2) Unique serving lines, capped, resolved concurrently.
   const seen = new Set<string>();
@@ -265,18 +477,70 @@ export async function GET(request: Request): Promise<Response> {
     lines.push(line);
     if (lines.length >= LINE_CAP) break;
   }
+  const lineIds = lines.map((l) => l.id as string);
 
-  const results = await Promise.all(
-    lines.map((line) =>
-      lastTrainForLine(line.id as string, line.name ?? (line.id as string), nearest.id as string, dayType),
+  const [lastTrainResults, departureResults, disruption, nearestPubs] = await Promise.all([
+    Promise.all(
+      lines.map((line) =>
+        lastTrainForLine(line.id as string, line.name ?? (line.id as string), nearest.id as string, dayType),
+      ),
     ),
-  );
+    Promise.all(
+      lines.map((line) =>
+        departuresForLine(
+          line.id as string,
+          line.name ?? (line.id as string),
+          nearest.id as string,
+          dayType,
+          nowMinutes,
+        ),
+      ),
+    ),
+    lineDisruptions(lineIds),
+    typeof nearest.lat === "number" && typeof nearest.lon === "number"
+      ? nearestPubsToStation(nearest.lat, nearest.lon)
+      : Promise.resolve<NearestPub[]>([]),
+  ]);
 
   // Keep only lines we actually resolved; sort earliest-departing first so the
   // most urgent "leave now" line is at the top.
-  const trains: LastTrain[] = results
+  const trains: LastTrain[] = lastTrainResults
     .filter((t): t is LastTrain => t !== null)
     .sort((a, b) => a.clock.localeCompare(b.clock));
+
+  const departures: NextDepartures[] = departureResults.filter((d) => d.times.length > 0);
+  const anyLiveDepartures = departures.some((d) => d.live);
+
+  // Walk estimate: venue (the point the card was called with) → station,
+  // straight-line haversine at a brisk walking pace. Labeled as straight-line in
+  // the response shape so the card can be honest about it (no routed distance).
+  const walkKm =
+    typeof nearest.lat === "number" && typeof nearest.lon === "number"
+      ? haversineKm([lng, lat], [nearest.lon, nearest.lat])
+      : 0;
+  const walkMinutesEstimate = walkMinutesForKm(walkKm);
+
+  // Minutes until the last train that matters: the LATEST across all resolved
+  // lines (any one of them gets the drinker home), measured from "now".
+  let minutesUntilLastTrain: number | null = null;
+  for (const t of trains) {
+    const [h, m] = t.clock.split(":").map(Number);
+    let mins = h * 60 + m - nowMinutes;
+    if (t.pastMidnight || mins < -60) mins += 24 * 60; // past-midnight trains are "tomorrow"
+    if (minutesUntilLastTrain === null || mins > minutesUntilLastTrain) minutesUntilLastTrain = mins;
+  }
+
+  const decision = computeLastPintDecision({
+    minutesUntilLastTrain,
+    walkMinutesEstimate,
+    stationName: nearest.commonName ?? "Nearest station",
+    lineNames: lines.map((l) => l.name ?? (l.id as string)),
+    disruptionOnNeededLine: lineIds.some((id) => disruption.affectedLineIds.has(id)),
+    disruptionSummary: disruption.summary,
+    destinationLabel,
+    live: true,
+    now: new Date(),
+  });
 
   const result: LastTrainResult = {
     station: {
@@ -285,9 +549,13 @@ export async function GET(request: Request): Promise<Response> {
       distanceM: Math.round(nearest.distance ?? 0),
     },
     trains,
+    departures,
+    decision,
+    nearestPubs,
     generatedAt: new Date().toISOString(),
   };
-  // Cache only a complete answer; if we found the station but no timetables came
-  // back, don't pin an empty result at the edge — let the next request retry.
-  return json(result, { cache: trains.length > 0 });
+  // Cache only when nothing live was involved (no live Arrivals resolved) and we
+  // have at least one timetable train — a live-touched or empty answer must
+  // never be pinned at the shared edge cache (see file header + json() above).
+  return json(result, { cache: trains.length > 0 && !anyLiveDepartures });
 }

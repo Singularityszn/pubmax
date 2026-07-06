@@ -118,10 +118,151 @@ export type LastTrain = {
   pastMidnight: boolean;
 };
 
+// One line's upcoming departures (live "next departures", not just the last
+// train). `dueIn` values are minutes-from-now the way TfL's Arrivals API reports
+// them; the route sorts and slices to the soonest few per line before this
+// reaches the card, so `times` is already "next 2-3" by the time it's rendered.
+export type NextDepartures = {
+  lineId: string;
+  lineName: string;
+  colour: string;
+  times: string[]; // "HH:MM" wall-clock, soonest first
+  live: boolean; // true = from live Arrivals, false = timetable fallback
+};
+
 // The full answer for a point: which station, how far, and each serving line's
 // last train tonight. `generatedAt` is an ISO string for provenance/debugging.
 export type LastTrainResult = {
   station: { id: string; name: string; distanceM: number };
   trains: LastTrain[];
   generatedAt: string;
+  // Additive fields (user stories 20-24) — optional so any older consumer that
+  // only reads {station, trains, generatedAt} keeps working untouched.
+  departures?: NextDepartures[];
+  decision?: LastPintDecision;
+  nearestPubs?: NearestPub[];
+};
+
+// --- Last Pint decision (user stories 19, 21, 23, 24) ---------------------
+//
+// The pub-native "what do I do right now" answer. Computed server-side, pure
+// function of inputs below so it's trivially unit-testable without a clock or
+// network mock beyond passing `now` explicitly.
+
+export type LastPintDecisionKind =
+  | "order_one_more"
+  | "half_pint_only"
+  | "settle_up_now"
+  | "train_risk"
+  | "live_data_unavailable";
+
+export type LastPintDecision = {
+  decision: LastPintDecisionKind;
+  leaveByIso: string | null;
+  stationName: string;
+  lineNames: string[];
+  disruptionSummary: string | null;
+  walkMinutesEstimate: number;
+  bufferMinutes: number;
+  destinationLabel: string | null;
+  live: boolean;
+};
+
+// Constant safety margin baked into the leave-by time: TfL's published last
+// train can be a "doors closing" time, platforms aren't instant, and a drinker
+// needs a moment to settle up and get moving. Documented here (not a magic
+// number in the route) so the threshold story is legible in one place.
+export const BUFFER_MINUTES = 5;
+
+// Walking pace used to turn a straight-line venue→station distance into a time
+// estimate. ~4.8km/h is a brisk-but-realistic evening walking speed; we label
+// the result as straight-line (not routed), since MapLibre/OSRM routing is out
+// of scope here.
+const WALKING_KMH = 4.8;
+
+export function walkMinutesForKm(distanceKm: number): number {
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return 0;
+  return Math.round((distanceKm / WALKING_KMH) * 60);
+}
+
+export type LastPintDecisionInput = {
+  // Minutes from `now` until the last train departs this station (can be
+  // negative if it's already gone). Null when we have no last-train time at
+  // all for the relevant line(s) (e.g. no timetable resolved).
+  minutesUntilLastTrain: number | null;
+  walkMinutesEstimate: number;
+  bufferMinutes?: number;
+  stationName: string;
+  lineNames: string[];
+  // True if TfL Line Status reports a disruption affecting a line the drinker
+  // needs (any severity below "Good Service" for that line).
+  disruptionOnNeededLine: boolean;
+  disruptionSummary?: string | null;
+  destinationLabel?: string | null;
+  // False when TfL itself couldn't be reached at all (StopPoint/timetable both
+  // failed) — distinct from "reached TfL, no disruption, but no train times".
+  live?: boolean;
+  now?: Date;
+};
+
+// Pure decision function — user stories 19, 21, 24. Given how long until the
+// last train (after subtracting the walk and safety buffer), returns the
+// pub-native state plus everything the card needs to render it.
+//
+// Thresholds (minutes of margin = minutesUntilLastTrain - walk - buffer):
+//   TfL unreachable                       -> live_data_unavailable
+//   margin < 5  OR disruption on the line -> train_risk
+//   5  <= margin < 20                     -> settle_up_now
+//   20 <= margin < 45                     -> half_pint_only
+//   margin >= 45                          -> order_one_more
+export function computeLastPintDecision(input: LastPintDecisionInput): LastPintDecision {
+  const {
+    minutesUntilLastTrain,
+    walkMinutesEstimate,
+    bufferMinutes = BUFFER_MINUTES,
+    stationName,
+    lineNames,
+    disruptionOnNeededLine,
+    disruptionSummary = null,
+    destinationLabel = null,
+    live = true,
+    now = new Date(),
+  } = input;
+
+  const base: Omit<LastPintDecision, "decision" | "leaveByIso"> = {
+    stationName,
+    lineNames,
+    disruptionSummary,
+    walkMinutesEstimate,
+    bufferMinutes,
+    destinationLabel,
+    live,
+  };
+
+  if (!live || minutesUntilLastTrain === null) {
+    return { ...base, decision: "live_data_unavailable", leaveByIso: null };
+  }
+
+  const leaveBy = new Date(now.getTime() + (minutesUntilLastTrain - walkMinutesEstimate) * 60_000);
+  const leaveByIso = leaveBy.toISOString();
+  const margin = minutesUntilLastTrain - walkMinutesEstimate - bufferMinutes;
+
+  if (margin < 5 || disruptionOnNeededLine) {
+    return { ...base, decision: "train_risk", leaveByIso };
+  }
+  if (margin < 20) {
+    return { ...base, decision: "settle_up_now", leaveByIso };
+  }
+  if (margin < 45) {
+    return { ...base, decision: "half_pint_only", leaveByIso };
+  }
+  return { ...base, decision: "order_one_more", leaveByIso };
+}
+
+// --- Nearest pubs to the station (user story 22) ---------------------------
+
+export type NearestPub = {
+  id: string;
+  name: string;
+  price: number | null;
 };

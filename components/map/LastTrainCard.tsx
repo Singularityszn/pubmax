@@ -1,23 +1,33 @@
 "use client";
 
-// "Last drink / last train home" card. Given a venue's coordinates, it fetches the
-// nearest Tube/rail station and each serving line's last train tonight, so a
-// drinker knows when to head off. Wired into the venue panel by the orchestrator —
-// this file does NOT render itself anywhere.
+// "Last Pint" card — the signature utility (PRD user stories 19-24). Given a
+// venue's coordinates, it fetches the nearest Tube/rail station, a pub-native
+// decision ("Order one more" ... "Train risk tonight"), next departures + the
+// last train per line, any disruption, and the 3 nearest pubs to the station
+// for a final pint by the platform. Wired into the venue panel by the
+// orchestrator (VenueInspector) — this file does NOT render itself anywhere.
 //
-// React 19 rules: the fetch fires in an effect but setState only ever runs inside
-// the async resolution/catch (never the effect body). AbortController cancels the
-// request on unmount. Provenance-honest: a small "Live from TfL." note, and a warm
-// fallback when TfL can't be reached (we never show a broken card).
+// React 19 rules: the fetch fires in an effect but setState only ever runs
+// inside the async resolution/catch (never the effect body). AbortController
+// cancels the request on unmount. Provenance-honest: a small "Live from TfL."
+// note, and a warm fallback when TfL can't be reached (we never show a broken
+// or blank card — user story 24).
+//
+// Styling: inline style objects, matching the rest of components/map/** (no
+// CSS module/import convention exists in this codebase — see styles below).
 
 import { useEffect, useState } from "react";
 
-import type { LastTrainResult } from "@/lib/tfl";
+import type { LastPintDecisionKind, LastTrainResult } from "@/lib/tfl";
 
 type LastTrainCardProps = {
   lat: number;
   lng: number;
   venueName?: string;
+  // Optional: when provided, tapping one of the 3 station pubs calls this
+  // instead of just rendering a plain list. Backward-compatible — VenueInspector
+  // (owned by another wave) doesn't pass this today and doesn't need to.
+  onSelectVenue?: (venueId: string) => void;
 };
 
 type LoadState =
@@ -26,16 +36,48 @@ type LoadState =
   | { status: "empty" };
 
 // The API always 200s (even on TfL failure) with either a result or an { error }
-// shape; treat anything without a station-and-trains as "empty" so the card shows
-// the friendly note rather than a half-populated panel.
+// shape; treat anything without a station as "empty" so the card shows the
+// friendly note rather than a half-populated panel.
 function toState(data: Partial<LastTrainResult> & { error?: string }): LoadState {
-  if (data.station && Array.isArray(data.trains) && data.trains.length > 0) {
+  if (data.station && Array.isArray(data.trains)) {
     return { status: "ready", data: data as LastTrainResult };
   }
   return { status: "empty" };
 }
 
-export default function LastTrainCard({ lat, lng, venueName }: LastTrainCardProps) {
+// Pub-voice copy for each decision state (user story 21) — this is the whole
+// point: it should read like PUBMAXXING, not a transit dashboard.
+const DECISION_COPY: Record<LastPintDecisionKind, string> = {
+  order_one_more: "Order one more",
+  half_pint_only: "Half pint only",
+  settle_up_now: "Settle up now",
+  train_risk: "Train risk tonight",
+  live_data_unavailable: "Can't check TfL right now",
+};
+
+// A colour cue per state (brass/warm for relaxed, ink for urgent) using the
+// same CSS custom properties the rest of the map panel reads from.
+const DECISION_COLOUR: Record<LastPintDecisionKind, string> = {
+  order_one_more: "var(--accent-good, #2f7a3d)",
+  half_pint_only: "var(--accent-brass, #9b7a2a)",
+  settle_up_now: "var(--accent-warn, #b5651d)",
+  train_risk: "var(--accent-risk, #b3261e)",
+  live_data_unavailable: "var(--ink-soft, #6b726a)",
+};
+
+function formatLeaveBy(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(d);
+}
+
+export default function LastTrainCard({ lat, lng, venueName, onSelectVenue }: LastTrainCardProps) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
   useEffect(() => {
@@ -59,10 +101,13 @@ export default function LastTrainCard({ lat, lng, venueName }: LastTrainCardProp
     return () => controller.abort();
   }, [lat, lng]);
 
+  const decision = state.status === "ready" ? state.data.decision : undefined;
+  const leaveBy = decision ? formatLeaveBy(decision.leaveByIso) : null;
+
   return (
-    <section aria-label="Getting home" style={styles.card}>
+    <section aria-label="Last Pint" style={styles.card}>
       <div style={styles.header}>
-        <span style={styles.eyebrow}>Getting home</span>
+        <span style={styles.eyebrow}>Last Pint</span>
         {state.status === "ready" ? (
           <span style={styles.station}>
             {state.data.station.name}
@@ -74,14 +119,43 @@ export default function LastTrainCard({ lat, lng, venueName }: LastTrainCardProp
       </div>
 
       {state.status === "loading" ? (
-        <p style={styles.note}>Checking the last trains from near {venueName ?? "here"}…</p>
+        <p style={styles.note}>Checking trains from near {venueName ?? "here"}…</p>
       ) : null}
 
       {state.status === "empty" ? (
         <p style={styles.note}>Couldn&rsquo;t reach TfL just now — check before you head out.</p>
       ) : null}
 
-      {state.status === "ready" ? (
+      {decision ? (
+        <div style={styles.decision}>
+          <p style={{ ...styles.decisionLine, color: DECISION_COLOUR[decision.decision] }}>
+            {DECISION_COPY[decision.decision]}
+          </p>
+          {leaveBy && decision.decision !== "live_data_unavailable" ? (
+            <p style={styles.leaveBy}>Leave by {leaveBy} for the last train.</p>
+          ) : null}
+          {decision.disruptionSummary ? (
+            <p style={styles.disruption}>{decision.disruptionSummary}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {state.status === "ready" && state.data.departures && state.data.departures.length > 0 ? (
+        <ul style={styles.list}>
+          {state.data.departures.map((line) => (
+            <li key={line.lineId} style={styles.row}>
+              <span aria-hidden="true" style={{ ...styles.dot, background: line.colour }} />
+              <span style={styles.lineName}>{line.lineName}</span>
+              <span style={styles.times}>
+                {line.times.join(" · ")}
+                {!line.live ? <span style={styles.timetableTag}> (timetable)</span> : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {state.status === "ready" && state.data.trains.length > 0 ? (
         <ul style={styles.list}>
           {state.data.trains.map((train) => (
             <li key={train.lineId} style={styles.row}>
@@ -94,6 +168,37 @@ export default function LastTrainCard({ lat, lng, venueName }: LastTrainCardProp
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {state.status === "ready" && state.data.nearestPubs && state.data.nearestPubs.length > 0 ? (
+        <div style={styles.pubsBlock}>
+          <span style={styles.eyebrow}>One more by the platform</span>
+          <ul style={styles.pubList}>
+            {state.data.nearestPubs.map((pub) =>
+              onSelectVenue ? (
+                <li key={pub.id}>
+                  <button
+                    type="button"
+                    style={styles.pubButton}
+                    onClick={() => onSelectVenue(pub.id)}
+                  >
+                    <span style={styles.pubName}>{pub.name}</span>
+                    {typeof pub.price === "number" ? (
+                      <span style={styles.pubPrice}>£{pub.price.toFixed(2)}</span>
+                    ) : null}
+                  </button>
+                </li>
+              ) : (
+                <li key={pub.id} style={styles.pubPlain}>
+                  <span style={styles.pubName}>{pub.name}</span>
+                  {typeof pub.price === "number" ? (
+                    <span style={styles.pubPrice}>£{pub.price.toFixed(2)}</span>
+                  ) : null}
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
       ) : null}
 
       {state.status === "ready" ? <p style={styles.provenance}>Live from TfL.</p> : null}
@@ -136,9 +241,26 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     color: "var(--ink-soft, #6b726a)",
   },
+  decision: {
+    margin: "4px 0 10px",
+  },
+  decisionLine: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 700,
+  },
+  leaveBy: {
+    margin: "2px 0 0",
+    color: "var(--ink-soft, #6b726a)",
+  },
+  disruption: {
+    margin: "4px 0 0",
+    color: "var(--accent-risk, #b3261e)",
+    fontSize: 12,
+  },
   list: {
     listStyle: "none",
-    margin: 0,
+    margin: "0 0 10px",
     padding: 0,
     display: "flex",
     flexDirection: "column",
@@ -160,6 +282,15 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     minWidth: 0,
   },
+  times: {
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+  },
+  timetableTag: {
+    fontWeight: 400,
+    color: "var(--ink-soft, #6b726a)",
+  },
   clock: {
     fontVariantNumeric: "tabular-nums",
     fontWeight: 600,
@@ -167,6 +298,50 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tomorrow: {
     fontWeight: 400,
+    color: "var(--ink-soft, #6b726a)",
+  },
+  pubsBlock: {
+    marginTop: 4,
+    paddingTop: 8,
+    borderTop: "1px solid var(--line, #d9d4c7)",
+  },
+  pubList: {
+    listStyle: "none",
+    margin: "6px 0 0",
+    padding: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  },
+  pubPlain: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 8,
+    padding: "2px 0",
+  },
+  pubButton: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    padding: "4px 0",
+    background: "none",
+    border: "none",
+    borderBottom: "1px dashed var(--line, #d9d4c7)",
+    color: "var(--ink, #2a2a26)",
+    font: "inherit",
+    textAlign: "left",
+    cursor: "pointer",
+  },
+  pubName: {
+    flex: 1,
+    minWidth: 0,
+  },
+  pubPrice: {
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
     color: "var(--ink-soft, #6b726a)",
   },
   provenance: {
