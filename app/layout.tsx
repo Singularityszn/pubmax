@@ -48,12 +48,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Set theme before paint to avoid a flash of the wrong theme. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("pubmax-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.dataset.theme=t;}catch(e){}})();`,
-          }}
-        />
+        {/* Set theme before paint to avoid a flash of the wrong theme. Served
+            as a static file (public/theme-init.js) rather than inline so it is
+            covered by CSP `script-src 'self'` with no per-build hash. It is a
+            render-blocking classic script in <head> (NO async/defer on purpose)
+            so it runs before first paint, preserving the no-flash guarantee.
+            That synchronous load is the whole point here, so the no-sync-scripts
+            lint (which exists to prevent render-blocking body scripts) is opted
+            out for this one intentional case. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/theme-init.js" />
       </head>
       <body>
         {/* AuthProvider is additive: it establishes identity for signed-in users

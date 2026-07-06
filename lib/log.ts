@@ -21,6 +21,53 @@ export type LogLevel = "info" | "warn" | "error";
 const REDACT_KEY_PATTERN =
   /(pass(word|phrase)?|secret|token|api[-_]?key|service[-_]?role|authorization|cookie|\bkey\b|credential|\bip\b)/i;
 
+// Secret material that can leak inside an otherwise-safe *value* (e.g. an error
+// message that echoes a request header, a URL with `?app_key=…`, or a config
+// dump). Key-based redaction above can't catch these because the secret rides
+// in a benign field like `error`, so we also scrub the string *contents* of
+// every value we emit. Each pattern replaces the secret run with "[redacted]"
+// while leaving surrounding text intact, so the log stays useful.
+//
+// Covered:
+//  • the named env secrets, whether printed as `NAME=value` or `NAME: value`
+//  • any `Bearer <token>` authorization value
+//  • an `app_key=<value>` query param (TfL and similar signed URLs)
+const SECRET_VALUE_PATTERNS: RegExp[] = [
+  // NAME=... / NAME: ... for each known secret env key (value runs to the next
+  // whitespace, quote, comma, or ampersand — i.e. the end of the token).
+  /\b(SUPABASE_SERVICE_ROLE_KEY|OPENROUTER_API_KEY|TFL_APP_KEY)\s*[:=]\s*["']?[^\s"',&]+/gi,
+  // Bearer tokens in an Authorization header value.
+  /\bBearer\s+[^\s"',&]+/gi,
+  // app_key=<...> query param (case-insensitive param name).
+  /\bapp_key=[^\s"',&]+/gi,
+];
+
+/**
+ * Scrub secret material out of a single string value. Returns the string with
+ * every matched secret run replaced by a "[redacted]" marker that preserves the
+ * key/prefix so the line stays diagnosable (e.g. `Bearer [redacted]`,
+ * `app_key=[redacted]`, `OPENROUTER_API_KEY=[redacted]`). Non-strings are
+ * returned untouched (callers only pass strings here).
+ */
+export function scrubSecrets(value: string): string {
+  let out = value;
+  for (const pattern of SECRET_VALUE_PATTERNS) {
+    out = out.replace(pattern, (match) => {
+      const eq = match.indexOf("=");
+      const colon = match.indexOf(":");
+      const sep = eq === -1 ? colon : colon === -1 ? eq : Math.min(eq, colon);
+      if (sep !== -1) {
+        // NAME=value / NAME: value / app_key=value → keep the name + separator.
+        return `${match.slice(0, sep + 1)}[redacted]`;
+      }
+      // Bearer <token> → keep the scheme prefix.
+      const space = match.indexOf(" ");
+      return space !== -1 ? `${match.slice(0, space + 1)}[redacted]` : "[redacted]";
+    });
+  }
+  return out;
+}
+
 // A single log record. `ts` is injectable so tests are deterministic; it
 // defaults to Date.now() at call time.
 export type LogRecord = {
@@ -39,6 +86,9 @@ export type LogRecord = {
  *  - a key matching REDACT_KEY_PATTERN → "[redacted]"
  *  - a Buffer / ArrayBuffer / typed array (a raw photo, key bytes, …) →
  *    "[binary <n> bytes]" (length only, never the contents)
+ *  - a string value that *embeds* secret material (a Bearer token, an
+ *    `app_key=…`, or a named env secret) → the secret run is scrubbed to
+ *    "[redacted]" while the surrounding text is kept (see scrubSecrets)
  */
 export function redact(context: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -52,7 +102,9 @@ export function redact(context: Record<string, unknown>): Record<string, unknown
       out[key] = `[binary ${binaryLength} bytes]`;
       continue;
     }
-    out[key] = value;
+    // Even a "safe" field (an error message, a URL) can echo a secret — scrub
+    // the string contents so a leaked token never reaches the log sink.
+    out[key] = typeof value === "string" ? scrubSecrets(value) : value;
   }
   return out;
 }

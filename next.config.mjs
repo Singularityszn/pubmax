@@ -3,12 +3,49 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
-// Baseline security headers on every response. Deliberately conservative: a full
-// Content-Security-Policy is DEFERRED — it must be validated against MapLibre's
-// blob-URL workers + tile hosts, Supabase Storage/Auth, and the inline no-flash
-// theme script in app/layout.tsx (a wrong CSP silently breaks the map). See the
-// Opus handoff for the CSP recipe (hash the theme script, allow worker-src blob:).
+// Content-Security-Policy. Every directive below maps to a real app dependency
+// so everything else is locked down to 'self':
+//   - script-src: NO 'unsafe-eval', NO wildcard/CDN script origins. Our own
+//     no-flash theme script is an EXTERNAL file (public/theme-init.js), so it is
+//     covered by 'self' with no per-build hash — see app/layout.tsx.
+//     'unsafe-inline' here is required ONLY by Next.js 16's own App-Router RSC
+//     streaming scripts (the per-page `self.__next_f.push(...)` bootstrap +
+//     hydration payload). Those are inline, and their content — hence their
+//     sha256 — differs per page AND per build, so they can't be statically
+//     hashed; `'strict-dynamic'` doesn't cover them (it also breaks the async
+//     external chunks) and `experimental.sri` only adds integrity to external
+//     <script src>, leaving the inline payload unhashed. The ONLY way to drop
+//     'unsafe-inline' without breaking hydration is a per-request nonce applied
+//     via middleware — which forces dynamic rendering (killing this app's static
+//     generation) and lives outside next.config.mjs. When a nonce/middleware
+//     layer is added, replace 'unsafe-inline' with 'nonce-<value>' here.
+//     NB: browsers ignore 'unsafe-inline' whenever a nonce or hash is also
+//     present, so this is not a lever for silencing hash mismatches.
+//   - style-src: 'unsafe-inline' is required — MapLibre GL injects inline styles
+//     at runtime (canvas controls, marker positioning).
+//   - img-src: data:/blob: (canvas + og), Wikimedia (landmark photos), Supabase
+//     (Pint Drop pint photos in Storage).
+//   - font-src / connect-src: openfreemap tiles+glyphs+sprites, Supabase
+//     auth/rest/storage. TfL is server-only (/api/last-train) so it's NOT listed.
+//   - worker-src/child-src blob:: MapLibre spins up its tile workers from blobs.
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co",
+  "font-src 'self' data: https://tiles.openfreemap.org",
+  "connect-src 'self' https://tiles.openfreemap.org https://*.supabase.co",
+  "worker-src 'self' blob:",
+  "child-src blob:",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join("; ");
+
+// Baseline security headers on every response.
 const securityHeaders = [
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },

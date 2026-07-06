@@ -19,9 +19,17 @@ import {
   type PintDropStore,
 } from "@/lib/pintDropsStore";
 import { memoryProfileStore, supabaseProfileStore } from "@/lib/profileStore";
-import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { assertServerEnv } from "@/lib/serverEnv";
+import { clientIp, hashActor, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+
+// Fail fast at module load: a misconfigured production deploy (no Supabase)
+// would silently fall back to the process-memory store and lose every write on
+// the next cold start. In prod that is a FATAL condition — throw here, at import
+// time, so the route never comes up half-broken. No-op outside production, where
+// the in-memory store is the intended dev/demo backend.
+assertServerEnv();
 
 // The single backend selection point. Read per request — env is stubbed per
 // test and the check is a cheap env lookup.
@@ -171,8 +179,20 @@ export async function POST(request: Request): Promise<Response> {
   if (fields.action === "report") {
     const id = readString(fields.id);
     if (!id) return notFound();
-    // Rate-limit reports per drop so one actor can't spam the report counter.
-    if (await isLimited(`report:${id}`, `report:${id}`)) {
+    // Rate-limit reports on two axes so neither a single actor nor a crowd can
+    // spam a drop's report counter:
+    //   • per-drop  (`report:<id>`)                — caps total report volume;
+    //   • per-actor (`report:<id>:<actorHash>`)    — the SAME actor can't
+    //     report the SAME drop repeatedly (audit gap: was per-drop only).
+    // The actor is the same hashed anon id used by reactions/comments
+    // (hashActor over the client `actor` field; a blank id hashes a shared
+    // "anon" sentinel, matching the sitewide degradation). Falling back to the
+    // hashed IP keeps a per-actor cap even when no actor id is supplied.
+    const actorHash = hashActor(readString(fields.actor) || `ip:${hashIp(clientIp(request))}`);
+    if (
+      (await isLimited(`report:${id}`, `report:${id}`)) ||
+      (await isLimited(`report:${id}:${actorHash}`, `report:${id}:${actorHash}`))
+    ) {
       return Response.json({ error: "Too many reports, slow down." }, { status: 429 });
     }
     const unavailable = productionStorageUnavailable();
