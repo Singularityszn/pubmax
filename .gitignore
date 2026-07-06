@@ -12,6 +12,7 @@ scripts/__pycache__/
 test-results/
 playwright-report/
 coverage/
+e2e/screenshots/
 
 # Local agent / skill / MCP tooling — never part of the app, machine-specific
 .agents/
