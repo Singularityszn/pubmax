@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import type { PintDrop, VibeTag } from "@/lib/pintDrops";
+import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -36,7 +37,10 @@ export function usePintDrops() {
     () => new Map(),
   );
   const [composerOpen, setComposerOpen] = useState(false);
-  const [dropForm, setDropForm] = useState({ price: "", drink: "", note: "", era: "" });
+  const [dropForm, setDropForm] = useState({ price: "", drink: "", note: "", era: "", withWho: "" });
+  // Visibility (issue #29 backbone; this composer is the first writer of it).
+  // Additive field — defaults to `public`, matching the server default exactly.
+  const [visibility, setVisibility] = useState<Visibility>(DEFAULT_VISIBILITY);
   // Selected vibe tags (client-side UX only — the server re-filters against its
   // own allowlist). Multi-select, capped at MAX_VIBE_TAGS by toggleVibeTag.
   const [vibeTags, setVibeTags] = useState<VibeTag[]>([]);
@@ -135,8 +139,9 @@ export function usePintDrops() {
     if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
     setPintPhoto(null);
     setVenuePhoto(null);
-    setDropForm({ price: "", drink: "", note: "", era: "" });
+    setDropForm({ price: "", drink: "", note: "", era: "", withWho: "" });
     setVibeTags([]);
+    setVisibility(DEFAULT_VISIBILITY);
     if (pintInputRef.current) pintInputRef.current.value = "";
     if (venueInputRef.current) venueInputRef.current.value = "";
   }
@@ -160,8 +165,13 @@ export function usePintDrops() {
       body.set("handle", handle);
       body.set("drink", dropForm.drink);
       body.set("priceGbp", dropForm.price);
-      body.set("passedDownNote", dropForm.note);
+      // "With" has no server column (frozen API contract) — folded into the
+      // note as a structured suffix ("— with @sam, @priya") at submit time, so
+      // every surface that renders passedDownNote gets it for free. See
+      // lib/spill.ts for the exact format.
+      body.set("passedDownNote", appendWithSuffix(dropForm.note, dropForm.withWho));
       body.set("era", dropForm.era);
+      body.set("visibility", visibility);
       // Repeated field entries — the route also accepts one comma-separated
       // value; the server re-filters against its allowlist either way.
       for (const tag of vibeTags) body.append("vibe_tags", tag);
@@ -254,6 +264,8 @@ export function usePintDrops() {
     setDropForm,
     vibeTags,
     toggleVibeTag,
+    visibility,
+    setVisibility,
     pintPhoto,
     venuePhoto,
     pintInputRef,

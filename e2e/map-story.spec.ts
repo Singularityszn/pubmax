@@ -206,4 +206,34 @@ test.describe("map / venue sheet tabs", () => {
       await expect(overviewPanel.locator(".venueAddress")).toBeVisible();
     }
   });
+
+  // "The Spill" composer (issue #24): visibility segmented control. Deep-link
+  // to Pints (the composer's tab), open it via the sticky "Log a Pint Drop"
+  // button, and assert the four-option visibility radiogroup renders with
+  // Public selected by default — a cheap DOM check, no submit/network needed.
+  test("opening the composer renders the visibility control, defaulted to Public", async ({
+    page,
+  }) => {
+    const errors = watchPageErrors(page);
+
+    await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+    const pintsPanel = page.locator("#venuePanel-pints");
+    await expect(pintsPanel).toBeVisible();
+
+    await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
+
+    const visibilityGroup = pintsPanel.getByRole("radiogroup", { name: "Visibility" });
+    await expect(visibilityGroup).toBeVisible();
+
+    const options = visibilityGroup.getByRole("radio");
+    await expect(options).toHaveCount(4);
+    for (const label of ["Public", "Friends", "Legacy", "Anonymous"]) {
+      await expect(visibilityGroup.getByRole("radio", { name: label })).toBeVisible();
+    }
+
+    const publicOption = visibilityGroup.getByRole("radio", { name: "Public" });
+    await expect(publicOption).toHaveAttribute("aria-checked", "true");
+
+    expect(errors).toEqual([]);
+  });
 });
