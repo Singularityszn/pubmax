@@ -1,17 +1,10 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+  # GitHub-hosted Actions currently fail before job allocation on this private
+  # repo (`startup_failure` with zero jobs). Vercel is the automatic CI/CD gate;
+  # keep this workflow available for manual diagnosis after runner/account
+  # allocation is fixed.
   workflow_dispatch:
 
 permissions:
