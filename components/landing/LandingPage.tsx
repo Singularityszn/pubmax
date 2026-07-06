@@ -137,7 +137,7 @@ export default function LandingPage() {
           </Link>
           <nav className="navLinks" aria-label="Primary">
             <a href="#wedge">How it works</a>
-            <a href="#landlord">The Landlord</a>
+            <a href="#landlord">The PUBMAXXER</a>
             <a href="#drops">Pint Drops</a>
             <Link href="/feed">Feed</Link>
             <Link href="/crawls">Crawls</Link>
@@ -241,12 +241,12 @@ export default function LandingPage() {
         >
           <div className="container splitGrid">
             <div className="reveal">
-              <p className="eyebrow">The Landlord</p>
+              <p className="eyebrow">The PUBMAXXER</p>
               <h2 id="landlord-title" className="lpSerif sectionHeadTitle">
                 Tap a pub. Ask its story.
               </h2>
               <p className="heroLede">
-                The Landlord is a grounded guide, not a fabulist. It only tells
+                The PUBMAXXER is a grounded guide, not a fabulist. It only tells
                 you what is on the record — the listing, the archive, the price
                 someone added last week — and it says so plainly when the record
                 runs out.
@@ -260,7 +260,7 @@ export default function LandingPage() {
             <div className="chatMock reveal" aria-hidden="false">
               <div className="chatBar">
                 <MessageSquareText size={17} strokeWidth={1.5} aria-hidden="true" />
-                The Landlord — Ye Olde Cheshire Cheese
+                The PUBMAXXER — Ye Olde Cheshire Cheese
                 <span className="exampleTag">Example</span>
               </div>
               <div className="chatBody">

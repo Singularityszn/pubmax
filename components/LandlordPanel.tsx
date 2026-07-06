@@ -73,7 +73,7 @@ export default function LandlordPanel(props: {
   return (
     <section className="landlord">
       <div className="inspectorTitle">
-        <MessageCircle size={14} /> Ask The Landlord
+        <MessageCircle size={14} /> Ask the PUBMAXXER
       </div>
 
       <button
@@ -117,7 +117,7 @@ export default function LandlordPanel(props: {
         {loading && <div className="landlordThinking">Pulling up the records…</div>}
 
         {error && !loading && (
-          <p className="landlordMsg">Couldn&apos;t reach The Landlord — try again.</p>
+          <p className="landlordMsg">Couldn&apos;t reach the PUBMAXXER — try again.</p>
         )}
 
         {answer && !loading && (
