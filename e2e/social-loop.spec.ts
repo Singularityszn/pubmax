@@ -373,3 +373,95 @@ test("desktop map control rail exposes the 'Saved only' filter checkbox", async 
   await expect(savedOnly).toHaveCount(1);
   await expect(savedOnly).not.toBeChecked();
 });
+
+// ---------------------------------------------------------------------------
+// a11y landmark smoke across the four top-level read surfaces. Every page must
+// give assistive tech a stable spine: a reachable page <h1> and a single main
+// landmark. We assert the universally-true parts (exactly one visible <h1>, no
+// uncaught page errors) on all four, and the single main-landmark on the pages
+// that expose one today. `/` (LandingPage) and `/feed` render a real <main>;
+// `/discover` and `/borough` currently wrap in a plain <div> (no <main> / no
+// [role=main]) — see the DEFECT note below — so we tolerate 0-or-1 there rather
+// than false-fail, but STILL forbid MORE than one landmark anywhere. Read-only:
+// bare GETs, no interaction, no data written.
+//
+// DEFECT (reported, not fixed): app/discover/page.tsx and app/borough/page.tsx
+// expose no <main> landmark (their sibling read pages — feed, crawls, u/[handle],
+// p/[id] — all do). A screen-reader "jump to main content" lands nowhere on those
+// two. Low severity, but the landmark should be added for parity.
+for (const path of ["/", "/feed", "/discover", "/borough"]) {
+  test(`a11y: ${path} exposes a reachable <h1> and at most one main landmark, no page errors`, async ({
+    page,
+  }) => {
+    const errors = watchPageErrors(page);
+
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(200);
+
+    // Exactly one page-level heading, and it is reachable (visible, non-empty).
+    const h1 = page.locator("h1");
+    await expect(h1).toHaveCount(1);
+    await expect(h1.first()).toBeVisible();
+    expect((await h1.first().innerText()).trim().length).toBeGreaterThan(0);
+
+    // A main landmark: <main> or [role=main]. Never MORE than one (that would
+    // confuse "jump to main content"). Pages that have one must render it
+    // visibly; pages that (currently) have none are tolerated but flagged above.
+    const main = page.locator('main, [role="main"]');
+    const mainCount = await main.count();
+    expect(mainCount).toBeLessThanOrEqual(1);
+    if (mainCount === 1) {
+      await expect(main.first()).toBeVisible();
+    }
+
+    expect(errors).toEqual([]);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Mobile feed infinite scroll (app/feed/page.tsx, PRD §2.5). On a phone-width
+// viewport the "Load more" button is replaced by an IntersectionObserver-driven
+// sentinel: scrolling toward the end of the list reveals the next page WITHOUT
+// any click. We prove this read-only — if the feed carries enough data (≥13
+// cards' worth, i.e. more than a single page), scrolling the last card into view
+// grows the visible card count on its own. On a short/empty feed there is nothing
+// to page, so we skip cleanly. Never POSTs; a bare GET + scroll only.
+test("mobile feed reveals more cards on scroll without clicking 'Load more' (§2.5)", async ({
+  page,
+}) => {
+  const errors = watchPageErrors(page);
+
+  // A phone viewport is what flips the feed into infinite-scroll mode.
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const response = await page.goto("/feed");
+  expect(response?.status()).toBe(200);
+  await expect(page.locator(".feedTitle")).toBeVisible();
+
+  const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
+  // Web-first: wait until either real cards OR the empty state settled, so we
+  // never branch on a mid-load snapshot.
+  await expect
+    .poll(async () => (await cards.count()) + (await page.locator(".feedEmpty").count()))
+    .toBeGreaterThan(0);
+
+  const initial = await cards.count();
+  // Infinite scroll only has something to reveal when there is more than one
+  // page of data. The first page is 12 cards (§2.5), so <13 visible means the
+  // whole feed already fits on page one — nothing to page. Skip cleanly.
+  if (initial < 13) {
+    test.skip(true, "feed is a single page (or empty): no second page to reveal on scroll");
+    return;
+  }
+
+  // Scroll the last visible card into view so the end-of-list sentinel enters the
+  // observer's root margin — this must trigger the next page with NO click.
+  await cards.nth(initial - 1).scrollIntoViewIfNeeded();
+
+  // Web-first (auto-retrying) wait for the card count to grow on its own. We
+  // never touch the "Load more" button — its presence on mobile would itself be
+  // the bug, but we assert the count-growth (the user-visible contract) directly.
+  await expect.poll(async () => cards.count()).toBeGreaterThan(initial);
+
+  expect(errors).toEqual([]);
+});

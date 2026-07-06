@@ -84,7 +84,7 @@ export default async function BoroughPage({ params }: PageProps) {
   const pubs = pubsInBorough(venues, slug);
 
   return (
-    <div className="boroughPage">
+    <main className="boroughPage">
       <nav className="siteNav" aria-label="Site navigation">
         <Link href="/">Home</Link>
         <Link href="/map">Map</Link>
@@ -171,6 +171,6 @@ export default async function BoroughPage({ params }: PageProps) {
       <p className="boroughFootnote">
         Every pint has a story. <Link href="/borough">See every borough →</Link>
       </p>
-    </div>
+    </main>
   );
 }

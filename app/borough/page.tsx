@@ -51,7 +51,7 @@ export default async function BoroughIndexPage() {
   const boroughs = listBoroughs(venues);
 
   return (
-    <div className="boroughPage">
+    <main className="boroughPage">
       <nav className="siteNav" aria-label="Site navigation">
         <Link href="/">Home</Link>
         <Link href="/map">Map</Link>
@@ -100,6 +100,6 @@ export default async function BoroughIndexPage() {
           ))}
         </ul>
       )}
-    </div>
+    </main>
   );
 }

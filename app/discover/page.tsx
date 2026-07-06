@@ -136,7 +136,7 @@ export default function DiscoverPage() {
   }, []);
 
   return (
-    <div className="discoverPage">
+    <main className="discoverPage">
       <nav className="siteNav" aria-label="Site navigation">
         <Link href="/">Home</Link>
         <Link href="/map">Map</Link>
@@ -222,6 +222,6 @@ export default function DiscoverPage() {
           ))}
         </div>
       </section>
-    </div>
+    </main>
   );
 }
