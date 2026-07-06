@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Route-level ownership enforcement for PATCH /api/profiles/[handle] (story 31).
 //
@@ -12,6 +12,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 //   • an anonymous write to a handle already LINKED to a user is REJECTED (403)
 //     — the hijack the ownership gate exists to stop.
 // The owner-accepted path is covered by the pure decideProfileWrite tests.
+
+// requiresSupabaseStore() reads process.env.NODE_ENV, which Vite replaces at
+// transform time — so stubbing NODE_ENV at runtime silently does nothing under
+// a production build (Vercel CI presets NODE_ENV=production and the route 503s
+// before the ownership gate). Mock the seam itself instead: deterministic in
+// every environment, and the 503 guard case flips the same switch explicitly.
+const prodGuard = vi.hoisted(() => ({ requiresSupabase: false }));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, requiresSupabaseStore: () => prodGuard.requiresSupabase };
+});
 
 import { PATCH } from "@/app/api/profiles/[handle]/route";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
@@ -28,9 +39,17 @@ function patch(handle: string, body: unknown): Promise<Response> {
 }
 
 beforeEach(() => {
+  // Pin the backend to memory mode: clear Supabase env and hold the
+  // production-store guard open (see the vi.mock above for why NODE_ENV
+  // stubbing can't do this). The 503 guard case flips prodGuard itself.
+  prodGuard.requiresSupabase = false;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryProfiles();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("PATCH /api/profiles/[handle] — ownership gate", () => {
@@ -57,6 +76,15 @@ describe("PATCH /api/profiles/[handle] — ownership gate", () => {
     const res = await patch("sam", { bio: "hello" });
     const blob = JSON.stringify(await res.json());
     expect(blob).not.toMatch(/user_?id/i);
+  });
+
+  it("503s in production when the durable store is unconfigured (no fake persistence)", async () => {
+    // Locks in the guard the cases above deliberately bypass: in a production
+    // build with Supabase unconfigured, a write must fail loudly rather than
+    // silently edit an in-memory row that vanishes on the next cold start.
+    prodGuard.requiresSupabase = true;
+    const res = await patch("ken", { displayName: "Cheap Pint Ken" });
+    expect(res.status).toBe(503);
   });
 });
 
