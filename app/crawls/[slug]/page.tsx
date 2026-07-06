@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import CrawlStoryOwnerControls from "@/components/crawl/CrawlStoryOwnerControls";
 import ShareBar from "@/components/share/ShareBar";
+import { computeChaosScore } from "@/lib/chaosScore";
 import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
 
 import "./story.css";
@@ -32,6 +33,32 @@ function planCrawlHref(story: DurableStory): string {
   params.set("mode", "build");
   params.set("pubs", ids.join(","));
   return `/map?${params.toString()}`;
+}
+
+// Chaos Score (issue #30, PRD "The Spill" § The Lock-In) — optional, playful,
+// computed from signals this durable story already carries: stop count, price
+// spread across priced stops, and the story's own vibe tags. A durable story
+// has no per-stop timestamp or borough field yet, so lateness/borough-hops
+// stay at their "no signal" default (0) here rather than guessing.
+function chaosScoreFor(story: DurableStory) {
+  const prices = story.stops.map((stop) => stop.priceGbp ?? null);
+  return computeChaosScore({
+    stopCount: story.stops.length,
+    prices,
+    vibeTags: story.vibeTags,
+  });
+}
+
+// Build a /api/chaos-card URL carrying the already-computed score/grade/line so
+// the OG image never has to recompute (and can never drift from what's shown
+// on the page).
+function chaosCardHref(story: DurableStory, chaos: ReturnType<typeof computeChaosScore>): string {
+  const params = new URLSearchParams();
+  params.set("title", story.title);
+  params.set("score", String(chaos.score));
+  params.set("grade", chaos.grade);
+  params.set("line", chaos.oneLiner);
+  return `/api/chaos-card?${params.toString()}`;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -93,6 +120,11 @@ export default async function CrawlStoryPage({ params }: PageProps) {
   const shareText = `${story.title} — ${stopCount} stop${stopCount === 1 ? "" : "s"}${
     total > 0 ? `, ${formatGbp(total)} a round` : ""
   }. Every pint has a story.`;
+
+  // Chaos Score + meme export (issue #30) — optional, playful, computed once
+  // here so the on-page badge and the shared card always agree.
+  const chaos = chaosScoreFor(story);
+  const chaosCard = chaosCardHref(story, chaos);
 
   return (
     <main className="storyShell">
@@ -157,10 +189,33 @@ export default async function CrawlStoryPage({ params }: PageProps) {
           <strong>{formatGbp(total)}</strong>
         </div>
 
+        {/* Chaos Score (issue #30) — optional and playful; a crawl with zero
+            stops (shouldn't happen, but never trust it) just shows "Quiet". */}
+        <div className="storyChaos" role="group" aria-label="Chaos Score">
+          <span className="storyChaosScore">
+            {chaos.score}
+            <small>/100</small>
+          </span>
+          <span className="storyChaosBody">
+            <strong className="storyChaosGrade">{chaos.grade}</strong>
+            <span className="storyChaosLine">{chaos.oneLiner}</span>
+          </span>
+        </div>
+
         <div className="storyActions">
           <Link href={planCrawlHref(story)} className="storyPrimaryBtn">
             Plan this crawl
           </Link>
+          {/* Meme export (issue #30) — a branded OG-style card of the score,
+              opened in a new tab so it can be saved/shared directly. */}
+          <a
+            href={chaosCard}
+            className="storySecondaryBtn"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Share the chaos
+          </a>
           {/* Copy-link stays a server-rendered button: it degrades to nothing
               without JS (progressive enhancement), and a tiny inline script wires
               up the clipboard on load so we don't need a client component file. */}

@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
+import { computeChaosScore } from "@/lib/chaosScore";
 import type { FeedItem } from "@/lib/feed";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactionsStore";
@@ -69,6 +70,24 @@ export default function FeedCard({
   // seed handle that already carries a leading "@" can't render as "@@".
   const shownHandle = displayHandle(item.handle);
 
+  // Chaos Score (issue #30) — cheap, single-drop reading (one stop, this
+  // drop's own vibe tags + posted hour). A full crawl-level score needs a
+  // multi-stop night the feed doesn't model yet (every FeedItem here is one
+  // Pint Drop, not a Round — lib/feed.ts type FeedItemType); showing a badge
+  // only when it clears "Steady" keeps quiet single pints from getting a
+  // score nobody asked for.
+  const dropHour = (() => {
+    const t = Date.parse(item.createdAt);
+    return Number.isFinite(t) ? new Date(t).getHours() : null;
+  })();
+  const chaos = computeChaosScore({
+    stopCount: 1,
+    prices: typeof item.priceGbp === "number" ? [item.priceGbp] : [],
+    vibeTags: item.vibeTags,
+    lastDropHour: dropHour,
+  });
+  const showChaosBadge = chaos.score >= 30;
+
   return (
     <article className="feedCard" aria-label={`Pint drop from ${shownHandle}`}>
       <header className="feedCardHead">
@@ -119,13 +138,26 @@ export default function FeedCard({
       )}
 
       <div className="feedCardBody">
-        {item.vibeTags.length > 0 ? (
+        {item.vibeTags.length > 0 || showChaosBadge ? (
           <ul className="feedVibes" aria-label="Vibe tags">
             {item.vibeTags.map((tag) => (
               <li key={tag} className="feedVibe">
                 {tag}
               </li>
             ))}
+            {/* Chaos Score badge (issue #30) — reuses .feedVibe's pill styling
+                (no new CSS file needed) so it sits quietly alongside the vibe
+                tags rather than as a separate loud widget. Only shown once a
+                drop actually clears "Steady" — most single pints won't. */}
+            {showChaosBadge ? (
+              <li
+                className="feedVibe"
+                title={chaos.oneLiner}
+                aria-label={`Chaos Score ${chaos.score} out of 100, ${chaos.grade}`}
+              >
+                Chaos {chaos.score} · {chaos.grade}
+              </li>
+            ) : null}
           </ul>
         ) : null}
 

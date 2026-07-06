@@ -292,6 +292,57 @@
   outline-offset: 2px;
 }
 
+/* --- Chaos Score (issue #30) ------------------------------------------------
+   A small brass-bordered badge, same family as .storyReceipt but visually
+   distinct (rounded score "coin" + grade/line) so it reads as a fun aside,
+   never as another financial figure. Entirely optional/playful — no emoji,
+   copy stays dry per the rubric in lib/chaosScore.ts. */
+
+.storyChaos {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 14px 18px;
+  border: 1px dashed var(--brass);
+  border-radius: 12px;
+  background: var(--panel-raised);
+}
+
+.storyChaosScore {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--brass);
+}
+
+.storyChaosScore small {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.storyChaosBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.storyChaosGrade {
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  color: var(--ink);
+}
+
+.storyChaosLine {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
 /* Share strip — a quiet stamp row under the actions, above the footnote. */
 .storyShare {
   margin-top: 20px;
