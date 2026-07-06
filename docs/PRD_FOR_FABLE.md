@@ -13,6 +13,25 @@ note + vibe tags + provenance), **Crawl Story** (a shareable pub route), **PUBMA
 / anecdote / demo — *never flattened*), **story pub**, **landmark**, **POI**, **borough page**,
 **favourite pint**, **presence** ("I'm here tonight").
 
+## Working rules for Fable (difficulty & model routing)
+
+Fable is cost-disciplined. These are hard rules:
+
+- **Only pick up issues labelled `difficulty:low` or `difficulty:medium`.** Leave
+  `difficulty:high` alone — those need a senior / Opus pass with human oversight
+  (auth & security, data pipelines, complex map maths). Skipping High is the rule, not a failure.
+- **Pick the model by difficulty:** `difficulty:low` → **Sonnet 5**; `difficulty:medium` →
+  **Opus 4.8**. Never run Opus on a Low task. Each issue also carries a matching `model:*` label —
+  trust it.
+- Work the **highest existing seam**; ship + verify (`npm run ci`, incl. the coverage +
+  `validate-data` score gate, and `npm run test:e2e`) before opening a PR; keep provenance
+  honest and the quality floor green.
+
+Current triage (2026-07-06):
+- **Fable-eligible:** #18 (low · Sonnet 5); #14, #17, #19, #20 (medium · Opus 4.8).
+- **High — NOT Fable** (senior/Opus + human): #15, #16, #21, #22, #23 (map story-bands, parallel
+  tube lines, auth ownership, social-depth backend, real-time-price pipeline).
+
 ## Problem Statement
 
 I've built a genuinely rich London pub-crawl map — a premium basemap, recognizable landmark
