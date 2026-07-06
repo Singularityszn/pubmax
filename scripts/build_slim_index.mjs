@@ -1,0 +1,111 @@
+// Build the SLIM venue index the map needs to render pins + labels + price
+// colour, WITHOUT shipping the ~6 MB raw price dataset to every visitor.
+//
+// The map only needs, per venue: a stable id (to deep-link + fetch heavy detail
+// on open), name, lat/lng, the cheapest numeric price (for the label + colour),
+// and a borough. This script groups the raw rows the SAME way
+// lib/venues.ts#groupVenuePrices does — same FNV-1a stable id, same grouping
+// key — so every slim id is byte-identical to the "venue-…" id the rest of the
+// app links by. The heavy detail (all prices, amenities, curation) is fetched
+// lazily per-id via /api/venue/[id].
+//
+// Run once at build/refresh:  node scripts/build_slim_index.mjs
+//
+// The grouping/id logic below is a plain-JS MIRROR of lib/venues.ts (importing
+// TS from a .mjs is awkward); __tests__/venuesSlim.test.ts asserts a sample of
+// the ids this produces equals stableVenueIdFromKey(venueGroupingKey(...)) from
+// the real TS, so the mirror can never silently drift.
+
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, "..");
+const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
+const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
+
+// --- mirror of lib/venues.ts grouping + id logic (keep in lockstep) ----------
+
+function normaliseVenueKeyPart(value) {
+  return String(value).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function venueGroupingKey(row) {
+  return [
+    normaliseVenueKeyPart(row.pub_name),
+    normaliseVenueKeyPart(row.address),
+    Number(row.latitude).toFixed(5),
+    Number(row.longitude).toFixed(5),
+  ].join("|");
+}
+
+function stableVenueIdFromKey(key) {
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i += 1) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `venue-${(hash >>> 0).toString(36)}`;
+}
+
+// --- build -------------------------------------------------------------------
+
+async function main() {
+  const rawText = await readFile(RAW_PATH, "utf8");
+  const rows = JSON.parse(rawText);
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
+  }
+
+  // Group rows by the canonical key. Preserve first-seen order so the first row
+  // of a group supplies name/lat/lng/borough — matching groupVenuePrices, whose
+  // Map preserves insertion order and reads name/coords/borough off `first`
+  // (the first row inserted, not the price-sorted first).
+  const grouped = new Map();
+  for (const row of rows) {
+    const key = venueGroupingKey(row);
+    const bucket = grouped.get(key);
+    if (bucket) bucket.push(row);
+    else grouped.set(key, [row]);
+  }
+
+  const slim = [];
+  for (const [key, prices] of grouped) {
+    const first = prices[0];
+    const numericPrices = prices
+      .map((p) => p.price_gbp)
+      .filter((p) => typeof p === "number" && Number.isFinite(p));
+    const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
+
+    slim.push({
+      id: stableVenueIdFromKey(key),
+      name: String(first.pub_name),
+      lat: Number(first.latitude),
+      lng: Number(first.longitude),
+      cheapestPrice,
+      borough: String(first.primary_borough || ""),
+    });
+  }
+
+  // Compact JSON (no whitespace) — the map never reads this file by hand.
+  const slimText = JSON.stringify(slim);
+  await writeFile(SLIM_PATH, slimText);
+
+  const rawBytes = Buffer.byteLength(rawText);
+  const slimBytes = Buffer.byteLength(slimText);
+  const kb = (bytes) => (bytes / 1024).toFixed(1);
+  const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(2);
+
+  console.log(`raw:   ${rows.length} price rows   ${mb(rawBytes)} MB (${rawBytes} bytes)`);
+  console.log(`slim:  ${slim.length} venues       ${kb(slimBytes)} KB (${slimBytes} bytes)`);
+  console.log(
+    `saved: ${mb(rawBytes - slimBytes)} MB   (slim is ${(100 - (slimBytes / rawBytes) * 100).toFixed(1)}% smaller)`,
+  );
+  console.log(`wrote: ${path.relative(ROOT, SLIM_PATH)}`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

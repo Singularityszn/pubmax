@@ -43,6 +43,15 @@ const MAP_STYLES = {
   light: "https://tiles.openfreemap.org/styles/liberty",
 } as const;
 
+// If OpenFreeMap (community-run) is slow or down, fall back to CARTO's keyless
+// vector styles — same OpenMapTiles-ish `building` source-layer so 3-D buildings
+// and buildScene keep working. Last resort after this is the WebGL notice.
+const FALLBACK_STYLES = {
+  dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+  light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+} as const;
+const STYLE_LOAD_TIMEOUT_MS = 8000;
+
 // PRD camera: pitched, slightly rotated London (londonszn uses 42/-12).
 const LONDON_VIEW = {
   center: [-0.118, 51.512] as [number, number],
@@ -911,6 +920,39 @@ export default function PubMapCanvas({
     };
     map.on("style.load", buildScene);
 
+    // --- Basemap fallback: OpenFreeMap is community-run, so if the primary style
+    // hasn't loaded within a timeout (or errors before first load), swap to
+    // CARTO's keyless styles; if that also fails, surface the same graceful
+    // notice as a WebGL failure rather than a blank map.
+    let styleLoaded = false;
+    let usingFallback = false;
+    let hardFailTimer: ReturnType<typeof setTimeout> | undefined;
+    map.on("style.load", () => {
+      styleLoaded = true;
+      clearTimeout(fallbackTimer);
+      if (hardFailTimer) clearTimeout(hardFailTimer);
+    });
+    const swapToBasemapFallback = () => {
+      if (styleLoaded || usingFallback) return;
+      usingFallback = true;
+      map.setStyle(FALLBACK_STYLES[themeRef.current], { diff: false });
+      hardFailTimer = setTimeout(() => {
+        if (!styleLoaded) {
+          queueMicrotask(() =>
+            setMapError(
+              "The map couldn't load its tiles right now — the pub list and crawl planner still work.",
+            ),
+          );
+        }
+      }, STYLE_LOAD_TIMEOUT_MS);
+    };
+    const fallbackTimer = setTimeout(swapToBasemapFallback, STYLE_LOAD_TIMEOUT_MS);
+    // An error before the first style loads means the style URL itself failed;
+    // tile hiccups after load are harmless and ignored.
+    map.on("error", () => {
+      if (!styleLoaded) swapToBasemapFallback();
+    });
+
     // --- Click + cursor wiring (delegated by layer id; survives setStyle).
     map.on("click", "pubs-point", (event) => {
       const id = event.features?.[0]?.properties?.id;
@@ -1042,6 +1084,8 @@ export default function PubMapCanvas({
 
     return () => {
       cancelAnimationFrame(rafId);
+      clearTimeout(fallbackTimer);
+      if (hardFailTimer) clearTimeout(hardFailTimer);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);

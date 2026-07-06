@@ -138,12 +138,29 @@ export default function PubMap() {
   const { dropsByVenueId, venueSignals, refreshVenueDrops, closeComposer } = pintDrops;
 
   useEffect(() => {
-    fetch("/data/pint_prices_app_dataset.json")
-      .then((response) => response.json())
-      .then((data: VenuePrice[]) => setRows(data))
-      // Flip `loaded` in the fetch handler (settled path), not a bare effect,
-      // so an empty result reads as "no matches" and never a permanent skeleton.
-      .finally(() => setLoaded(true));
+    // Reliability: abort a hung fetch after a timeout and guard the response so a
+    // slow/failed CDN degrades to the friendly empty state instead of freezing on
+    // the skeleton forever. `loaded` still flips on every settled path.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    fetch("/data/pint_prices_app_dataset.json", { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((data: VenuePrice[]) => setRows(Array.isArray(data) ? data : []))
+      .catch(() => {
+        // Network / timeout / parse error — leave rows empty; the empty state
+        // (not a permanent skeleton) renders once `loaded` flips below.
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+        setLoaded(true);
+      });
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, []);
 
   const baseVenues = useMemo(() => groupVenuePrices(rows), [rows]);
