@@ -1,0 +1,179 @@
+import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
+
+import { formatPrice, type Venue } from "@/lib/venues";
+import type { Provenance } from "@/lib/curation";
+import {
+  computeVenuePriceStory,
+  type VenuePriceStamp,
+  type VenuePriceStoryDrop,
+} from "@/lib/thenVsNow";
+
+import "./venuePriceStory.css";
+
+// The Golden Thread on the venue surface: a pub's own price story — the baseline
+// price on record, the freshest community-logged price, the delta between them,
+// and (when the community has passed down a dated memory) an inflation line
+// "a pint here was £X in YYYY — £Y in today's money". Purely presentational and
+// prop-driven: VenueInspector computes nothing; it hands over the venue + its
+// drops and this block resolves the whole story via computeVenuePriceStory.
+//
+// Provenance is NEVER flattened: every figure carries its own badge (sourced /
+// contributor / anecdote / demo) so a seeded demo price can never masquerade as
+// real community data. When the venue has no price story at all, an honest
+// empty state renders instead of an empty frame.
+
+const PROVENANCE_LABEL: Record<Provenance, string> = {
+  sourced: "Sourced",
+  contributor: "Contributor",
+  anecdote: "Anecdote",
+  demo: "Demo",
+};
+
+function ProvChip({ provenance }: { provenance: Provenance }) {
+  return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
+}
+
+function direction(deltaGbp: number): "up" | "down" | "flat" {
+  const pennies = Math.round(deltaGbp * 100);
+  if (pennies > 0) return "up";
+  if (pennies < 0) return "down";
+  return "flat";
+}
+
+// The two price stamps drawn as proportional bars in the brass field-guide
+// style — the taller bar is the dearer pint, so the movement reads at a glance
+// before any number is parsed. Pure SVG/CSS, no chart dependency.
+function StoryBars({ baseline, now }: { baseline: VenuePriceStamp; now: VenuePriceStamp }) {
+  const max = Math.max(baseline.gbp, now.gbp, 0.01);
+  const thenPct = Math.max(6, Math.round((baseline.gbp / max) * 100));
+  const nowPct = Math.max(6, Math.round((now.gbp / max) * 100));
+  return (
+    <div className="vpsBars" aria-hidden="true">
+      <div className="vpsBarRow">
+        <span className="vpsBarLabel">Baseline</span>
+        <span className="vpsBarTrack">
+          <span className="vpsBarFill vpsBarFillThen" style={{ width: `${thenPct}%` }} />
+        </span>
+        <span className="vpsBarValue">{formatPrice(baseline.gbp)}</span>
+      </div>
+      <div className="vpsBarRow">
+        <span className="vpsBarLabel">Now</span>
+        <span className="vpsBarTrack">
+          <span className="vpsBarFill vpsBarFillNow" style={{ width: `${nowPct}%` }} />
+        </span>
+        <span className="vpsBarValue">{formatPrice(now.gbp)}</span>
+      </div>
+    </div>
+  );
+}
+
+type VenuePriceStoryProps = {
+  venue: Venue;
+  drops: VenuePriceStoryDrop[];
+};
+
+export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) {
+  const story = computeVenuePriceStory(venue, drops);
+
+  if (story.isEmpty) {
+    return (
+      <section className="venuePriceStory" aria-labelledby="vpsTitle">
+        <div className="inspectorTitle">
+          <TrendingUp size={16} />
+          <span id="vpsTitle">The Golden Thread</span>
+        </div>
+        <p className="description muted">
+          No price story on record for {venue.name} yet. Log tonight&rsquo;s price — or pass down a
+          dated memory (&ldquo;a pint here in 1985&hellip;&rdquo;) — and this pub&rsquo;s thread
+          starts here.
+        </p>
+      </section>
+    );
+  }
+
+  const { baseline, now, deltaGbp, pct, inflation } = story;
+  const dir = deltaGbp !== null ? direction(deltaGbp) : "flat";
+  const DirIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
+
+  return (
+    <section className="venuePriceStory" aria-labelledby="vpsTitle">
+      <div className="inspectorTitle">
+        <TrendingUp size={16} />
+        <span id="vpsTitle">The Golden Thread</span>
+      </div>
+
+      {/* Then vs Now: the baseline on record against the freshest community
+          price. Each stamp keeps its own provenance badge. */}
+      {baseline || now ? (
+        <div className="vpsStamps">
+          {baseline ? (
+            <div className="vpsStamp">
+              <span className="vpsStampLabel">{baseline.label}</span>
+              <span className="vpsStampValue vpsStampThen ink-stamp">
+                {formatPrice(baseline.gbp)}
+              </span>
+              <ProvChip provenance={baseline.provenance} />
+            </div>
+          ) : null}
+          {baseline && now ? (
+            <span className="vpsArrow" aria-hidden="true">
+              →
+            </span>
+          ) : null}
+          {now ? (
+            <div className="vpsStamp">
+              <span className="vpsStampLabel">{now.label}</span>
+              <span className="vpsStampValue vpsStampNow ink-stamp">{formatPrice(now.gbp)}</span>
+              <ProvChip provenance={now.provenance} />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {baseline && now ? <StoryBars baseline={baseline} now={now} /> : null}
+
+      {deltaGbp !== null && pct !== null ? (
+        <p className={`vpsDelta vpsDelta-${dir}`}>
+          <DirIcon size={15} aria-hidden="true" />
+          <span aria-hidden="true">
+            {dir === "flat"
+              ? "No change from the baseline"
+              : `${dir === "up" ? "+" : "−"}${formatPrice(Math.abs(deltaGbp))} (${Math.abs(
+                  pct,
+                ).toFixed(0)}%) vs baseline`}
+          </span>
+          <span className="srOnly">
+            {dir === "flat"
+              ? `The community price matches the ${formatPrice(baseline!.gbp)} baseline on record.`
+              : `${dir === "up" ? "Up" : "Down"} ${formatPrice(Math.abs(deltaGbp))} (${Math.abs(
+                  pct,
+                ).toFixed(0)}%) from the ${formatPrice(
+                  baseline!.gbp,
+                )} baseline, community-reported.`}
+          </span>
+        </p>
+      ) : null}
+
+      {/* The inflation line — a dated, priced memory revalued into today's
+          money. Provenance-badged: an anecdote is never mistaken for a fact. */}
+      {inflation ? (
+        <div className="vpsInflation">
+          <p className="vpsInflationLine">
+            A pint here was <strong>{formatPrice(inflation.thenGbp)}</strong> in{" "}
+            <strong>{inflation.year}</strong> — that&rsquo;s{" "}
+            <strong className="vpsToday">{formatPrice(inflation.todayGbp)}</strong> in{" "}
+            {inflation.todayYear}&rsquo;s money.
+          </p>
+          <div className="vpsInflationMeta">
+            <ProvChip provenance={inflation.provenance} />
+            <span className="vpsInflationBy">passed down by {inflation.handle}</span>
+          </div>
+        </div>
+      ) : null}
+
+      <p className="vpsFootnote">
+        Baseline = dataset price on record · Now = community-reported · inflation revalued via UK CPI
+      </p>
+    </section>
+  );
+}

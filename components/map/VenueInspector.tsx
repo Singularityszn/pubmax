@@ -10,6 +10,7 @@ import { buildVenueClaims, type ClaimKind, type Provenance } from "@/lib/curatio
 import LandlordPanel from "@/components/LandlordPanel";
 import LastTrainCard from "./LastTrainCard";
 import PintDropComposer from "@/components/map/PintDropComposer";
+import VenuePriceStory from "@/components/map/VenuePriceStory";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
@@ -315,6 +316,10 @@ export default function VenueInspector({
         className="venueTabPanel"
         hidden={tab !== "pints"}
       >
+        {/* The Golden Thread — this pub's price story (baseline vs community
+            price + inflation on a dated memory). Leads the Pints tab; falls back
+            to an honest empty state when the venue has no price story yet. */}
+        <VenuePriceStory venue={venue} drops={drops} />
         <section className="pintDrops">
           <div className="inspectorTitle">
             <Quote size={16} />
