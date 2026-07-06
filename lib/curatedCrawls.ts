@@ -1,4 +1,5 @@
 import type { CrawlStyle } from "@/lib/venues";
+import type { AltCrawlStyle } from "@/lib/crawlUrl";
 
 // Named "generational" curated crawls — hand-picked routes through pubs that
 // genuinely cluster in a themed patch of London, so an older drinker's pub
@@ -22,6 +23,12 @@ export type CuratedCrawl = {
    * undefined for a crawl with no obvious single landmark start.
    */
   startLandmarkId?: string;
+  /**
+   * Optional alt "kind of night" style (issue #31). Undefined reads as a
+   * classic pint crawl ("pint"). Only shapes copy — the scoring crawlStyle is
+   * unchanged — and a "mocktail" crawl nudges the non-alcoholic filter on.
+   */
+  altStyle?: AltCrawlStyle;
 };
 
 export const curatedCrawls: CuratedCrawl[] = [
@@ -151,5 +158,41 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-1d1tez", // The Dublin Castle — 94 Parkway
     ],
     startLandmarkId: "camden-lock",
+  },
+  {
+    id: "soho-food-crawl",
+    name: "Soho small plates",
+    blurb:
+      "A kitchen-first loop through Dean Street's food pubs — proper plates between the pints, so nobody drinks on an empty stomach.",
+    crawlStyle: "balanced",
+    altStyle: "food",
+    // Every stop serves food; tight Dean St / Bateman St cluster, W1D — legs
+    // all under 200m.
+    venueIds: [
+      "venue-1ufn31x", // The Nellie Dean — 89 Dean St (food)
+      "venue-1t8siin", // The Crown & Two Chairmen — 31-32 Dean St (food)
+      "venue-xiesdn", // The Dog & Duck — 18 Bateman St (food)
+      "venue-phqazo", // The Coach & Horses — 29 Greek St (food)
+      "venue-15i2wst", // Golden Lion (Soho) — 51 Dean Street (food)
+    ],
+    startLandmarkId: "piccadilly-circus",
+  },
+  {
+    id: "leicester-mocktail-crawl",
+    name: "Leicester Square soft round",
+    blurb:
+      "A cocktail-bar loop off Leicester Square — every stop mixes drinks, so it's an easy one to run alcohol-free: order the mocktail version of the round.",
+    crawlStyle: "dateNight",
+    altStyle: "mocktail",
+    // All stops list cocktails (so a mocktail is on the menu); tight cluster
+    // around Leicester Square / Charing Cross, WC2 — legs all under 120m.
+    venueIds: [
+      "venue-11u4gpi", // Imperial — 5 Leicester Street (cocktails)
+      "venue-ymqu1w", // Hippodrome Casino — Cranbourn St (cocktails)
+      "venue-12bzb84", // Brewmaster — 37 Cranbourn Street (cocktails)
+      "venue-165ayyi", // Garrick Arms — 8-10 Charing Cross (cocktails)
+      "venue-1jmwk6r", // Round Table — 26-27 St Martins Court (cocktails)
+    ],
+    startLandmarkId: "piccadilly-circus",
   },
 ];

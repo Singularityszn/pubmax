@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { curatedCrawls } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
+import { ALT_CRAWL_STYLES } from "@/lib/crawlUrl";
 import { groupVenuePrices, type CrawlStyle, type VenuePrice } from "@/lib/venues";
 import dataset from "../public/data/pint_prices_app_dataset.json";
 
@@ -22,10 +23,11 @@ const validStyles: CrawlStyle[] = [
 
 describe("curated crawls", () => {
   it("has 3-8 crawls with unique ids", () => {
-    // Started at 3-4; extended with 4 themed POI-threading crawls (story 26) —
-    // 8 is the new ceiling, still small enough to hand-curate honestly.
+    // Started at 3-4; extended with 4 themed POI-threading crawls (story 26),
+    // then 2 alt-style crawls (issue #31) — 10 is the new ceiling, still small
+    // enough to hand-curate honestly.
     expect(curatedCrawls.length).toBeGreaterThanOrEqual(3);
-    expect(curatedCrawls.length).toBeLessThanOrEqual(8);
+    expect(curatedCrawls.length).toBeLessThanOrEqual(10);
     expect(new Set(curatedCrawls.map((c) => c.id)).size).toBe(curatedCrawls.length);
   });
 
@@ -71,5 +73,28 @@ describe("curated crawls", () => {
     expect(ids.has("pint-park-view")).toBe(true);
     expect(ids.has("borough-market-crawl")).toBe(true);
     expect(ids.has("bankside-riverside")).toBe(true);
+  });
+
+  it("every altStyle, when set, is a known alt crawl style (issue #31)", () => {
+    for (const crawl of curatedCrawls) {
+      if (!crawl.altStyle) continue;
+      expect(ALT_CRAWL_STYLES, `${crawl.id} altStyle`).toContain(crawl.altStyle);
+    }
+  });
+
+  it("ships the two alt-style crawls, honestly matched to their theme", () => {
+    const byId = new Map(curatedCrawls.map((c) => [c.id, c]));
+    const food = byId.get("soho-food-crawl");
+    const mocktail = byId.get("leicester-mocktail-crawl");
+    expect(food?.altStyle).toBe("food");
+    expect(mocktail?.altStyle).toBe("mocktail");
+    // Every food-crawl stop actually serves food; every mocktail-crawl stop
+    // actually mixes drinks — provenance stays honest.
+    for (const id of food?.venueIds ?? []) {
+      expect(venueById.get(id)?.amenities.food, `${id} food`).toBe(true);
+    }
+    for (const id of mocktail?.venueIds ?? []) {
+      expect(venueById.get(id)?.amenities.cocktails, `${id} cocktails`).toBe(true);
+    }
   });
 });

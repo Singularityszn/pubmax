@@ -25,6 +25,7 @@ import VenueInspector from "@/components/map/VenueInspector";
 import MapToolbar from "@/components/map/MapToolbar";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import {
   clearFavoritePint,
   getFavoritePint,
@@ -69,6 +70,18 @@ const BUILT_STORAGE_KEY = "pubmax_built_ids";
 // PubMap component body and off its complexity budget.
 function crawlStopsFromPubIds(ids: string[]): string[] {
   return ids.filter(Boolean).slice(0, 3);
+}
+
+// Issue #31: fold a curated crawl's style choices onto the current filters. A
+// mocktail crawl composes with the non-alcoholic filter — the honest, minimal
+// way an alt style touches the actual route. Module-level (pure) so the branch
+// lives off PubMap's complexity budget.
+function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters {
+  return {
+    ...current,
+    crawlStyle: crawl.crawlStyle,
+    requireNonAlcoholic: crawl.altStyle === "mocktail" ? true : current.requireNonAlcoholic,
+  };
 }
 
 // Issue #15: the landmark card's two journey actions, hoisted into their own
@@ -220,6 +233,10 @@ export default function PubMap() {
   // The curated crawl whose blurb is shown under the route title. Cleared the
   // moment the user manually mutates the stops (add/remove/reverse/clear).
   const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(null);
+  // Issue #31 alt crawl style ("kind of night" label). Seeded from the URL and
+  // synced back so a shared link reproduces it. Only shapes copy + the .ics
+  // export noun; the scoring crawlStyle is untouched.
+  const [altStyle, setAltStyle] = useState<AltCrawlStyle>(seed.altStyle);
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
@@ -309,8 +326,8 @@ export default function PubMap() {
   // Keep the URL in sync so "Copy link" shares the current crawl.
   useCrawlUrlSync(
     useMemo(
-      () => ({ mode, filters, builtIds, selectedVenueId, bandId: activeBandId }),
-      [mode, filters, builtIds, selectedVenueId, activeBandId],
+      () => ({ mode, filters, builtIds, selectedVenueId, bandId: activeBandId, altStyle }),
+      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle],
     ),
   );
 
@@ -517,7 +534,8 @@ export default function PubMap() {
     (crawl: CuratedCrawl) => {
       setMode("build");
       setBuiltIds(crawl.venueIds);
-      setFilters((current) => ({ ...current, crawlStyle: crawl.crawlStyle }));
+      setFilters((current) => filtersForCuratedCrawl(current, crawl));
+      setAltStyle(crawl.altStyle ?? "pint"); // "kind of night" label for copy
       setActiveCrawl(crawl); // its blurb shows under the route title until mutated
       setPlanningOpen(true); // a loaded crawl needs the planner visible
       selectVenue(crawl.venueIds[0] ?? "");
@@ -742,6 +760,8 @@ export default function PubMap() {
         <RoutePanel
           mode={mode}
           crawlStyle={filters.crawlStyle}
+          altStyle={altStyle}
+          onAltStyleChange={setAltStyle}
           route={route}
           filteredVenues={filteredVenues}
           builtIds={builtIds}
@@ -749,6 +769,7 @@ export default function PubMap() {
           venueSignals={venueSignals}
           crawlBlurb={activeCrawl?.blurb}
           crawlName={activeCrawl?.name}
+          crawlId={activeCrawl?.id}
           onSelectVenue={selectVenue}
           onToggleStop={toggleBuiltStop}
           onReverseRoute={reverseRoute}

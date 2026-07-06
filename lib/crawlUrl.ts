@@ -1,6 +1,37 @@
 import type { CrawlStyle, Filters } from "@/lib/venues";
 import { initialFilters, type CrawlMode } from "@/components/map/ControlRail";
 
+// Alt crawl styles (issue #31): a light "what kind of night" label that rides
+// alongside the scoring crawlStyle without touching it. It only shapes copy —
+// e.g. a "coffee" crawl calls each stop a "coffee stop" — and the "mocktail"
+// style naturally composes with the non-alcoholic filter. "pint" is the
+// default (a classic pint crawl), so a plain link stays short.
+export type AltCrawlStyle = "pint" | "food" | "coffee" | "mocktail";
+
+export const ALT_CRAWL_STYLES: AltCrawlStyle[] = ["pint", "food", "coffee", "mocktail"];
+
+// Display label for the control chip.
+export const altStyleLabels: Record<AltCrawlStyle, string> = {
+  pint: "Pint",
+  food: "Food",
+  coffee: "Coffee",
+  mocktail: "Mocktail",
+};
+
+// The per-stop noun each style uses in copy ("coffee stop", "food stop", …).
+export const altStyleStopNoun: Record<AltCrawlStyle, string> = {
+  pint: "pint stop",
+  food: "food stop",
+  coffee: "coffee stop",
+  mocktail: "mocktail stop",
+};
+
+// Styles that make sense to pair with the non-alcoholic filter — mocktail
+// crawls are alcohol-free by nature, so the UI can offer to compose the two.
+export function altStyleSuggestsNonAlcoholic(style: AltCrawlStyle): boolean {
+  return style === "mocktail";
+}
+
 // Shareable-crawl URL: capture just enough of PubMap's state that a link
 // reproduces the crawl. Kept short + human-ish, e.g.
 //   ?mode=build&style=heritage&max=7&stops=6&win=20&pubs=id1,id2&sel=id
@@ -17,6 +48,9 @@ export type CrawlUrlState = {
   // stays short. Never validated against the band list here (keeps this module
   // decoupled from lib/storyBands) — an unknown id just resolves to no band.
   bandId?: string;
+  // Additive (issue #31 alt crawl styles): the "kind of night" label. "pint" is
+  // the default and is omitted from the URL; unknown values decode back to pint.
+  altStyle?: AltCrawlStyle;
 };
 
 // The bounds mirror the sliders in ControlRail.tsx — keep in sync.
@@ -57,6 +91,8 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
   if (state.bandId) params.set("band", state.bandId);
+  // Only encode an alt style when it isn't the default "pint".
+  if (state.altStyle && state.altStyle !== "pint") params.set("alt", state.altStyle);
   return params.toString();
 }
 
@@ -95,6 +131,11 @@ export function decodeCrawl(
   const band = params.get("band");
   if (band) out.bandId = band.trim();
 
+  const alt = params.get("alt");
+  if (alt && ALT_CRAWL_STYLES.includes(alt as AltCrawlStyle)) {
+    out.altStyle = alt as AltCrawlStyle;
+  }
+
   return out;
 }
 
@@ -105,6 +146,7 @@ export function seedCrawlState(search: string): {
   builtIds: string[];
   selectedVenueId: string;
   bandId: string;
+  altStyle: AltCrawlStyle;
 } {
   const decoded = decodeCrawl(new URLSearchParams(search));
   return {
@@ -113,5 +155,6 @@ export function seedCrawlState(search: string): {
     builtIds: decoded.builtIds ?? [],
     selectedVenueId: decoded.selectedVenueId ?? "",
     bandId: decoded.bandId ?? "",
+    altStyle: decoded.altStyle ?? "pint",
   };
 }

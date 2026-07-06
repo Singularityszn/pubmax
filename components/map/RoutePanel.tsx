@@ -14,6 +14,7 @@ import {
   Route,
   Trophy,
   ArrowUpDown,
+  CalendarPlus,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -28,6 +29,14 @@ import {
 } from "@/lib/routeLegs";
 import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
 import SaveCrawlStory from "@/components/crawl/SaveCrawlStory";
+import {
+  ALT_CRAWL_STYLES,
+  altStyleLabels,
+  altStyleStopNoun,
+  type AltCrawlStyle,
+} from "@/lib/crawlUrl";
+import { buildCrawlIcs, icsFilename } from "@/lib/icsExport";
+import "@/components/map/routePanel.css";
 
 // ponytail: cap the keyboard picker render; search narrows the rest.
 const PICKER_LIMIT = 40;
@@ -40,6 +49,10 @@ type VenueSignals = Map<
 type RoutePanelProps = {
   mode: CrawlMode;
   crawlStyle: Filters["crawlStyle"];
+  // Alt crawl style (issue #31): the "kind of night" label. Shapes copy + the
+  // .ics export noun; independent of the scoring crawlStyle above.
+  altStyle: AltCrawlStyle;
+  onAltStyleChange: (style: AltCrawlStyle) => void;
   route: Venue[];
   filteredVenues: Venue[];
   builtIds: string[];
@@ -47,15 +60,32 @@ type RoutePanelProps = {
   venueSignals: VenueSignals;
   crawlBlurb?: string;
   crawlName?: string;
+  crawlId?: string;
   onSelectVenue: (id: string) => void;
   onToggleStop: (id: string) => void;
   onReverseRoute?: () => void;
   children?: React.ReactNode;
 };
 
+// Trigger a client-side .ics download via a blob URL. Kept tiny + SSR-guarded.
+function downloadIcs(filename: string, contents: string): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  const blob = new Blob([contents], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function RoutePanel({
   mode,
   crawlStyle,
+  altStyle,
+  onAltStyleChange,
   route,
   filteredVenues,
   builtIds,
@@ -63,6 +93,7 @@ export default function RoutePanel({
   venueSignals,
   crawlBlurb,
   crawlName,
+  crawlId,
   onSelectVenue,
   onToggleStop,
   onReverseRoute,
@@ -112,6 +143,24 @@ export default function RoutePanel({
     }
   }
 
+  // Alt-style copy: a "coffee stop" / "food stop" / "mocktail stop" instead of
+  // the default "pint stop". A single source (lib/crawlUrl) keeps label + noun
+  // in sync with the URL round-trip.
+  const stopNoun = altStyleStopNoun[altStyle];
+  const crawlTitle =
+    mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
+
+  function addToCalendar() {
+    const crawl = {
+      id: crawlId || crawlTitle,
+      title: crawlTitle,
+      blurb: crawlBlurb,
+      stopNoun,
+      stops: route.map((venue) => ({ name: venue.name, address: venue.address })),
+    };
+    downloadIcs(icsFilename(crawl), buildCrawlIcs(crawl));
+  }
+
   return (
     <aside className="routePanel">
       <div className="routeHeader">
@@ -140,6 +189,26 @@ export default function RoutePanel({
         <Route size={24} />
       </div>
 
+      <div
+        className="altStylePicker"
+        role="radiogroup"
+        aria-label="Crawl style"
+        data-testid="alt-style-picker"
+      >
+        {ALT_CRAWL_STYLES.map((style) => (
+          <button
+            key={style}
+            type="button"
+            role="radio"
+            aria-checked={altStyle === style}
+            className={altStyle === style ? "altStyleBtn active" : "altStyleBtn"}
+            onClick={() => onAltStyleChange(style)}
+          >
+            {altStyleLabels[style]}
+          </button>
+        ))}
+      </div>
+
       <div className="routeMetrics">
         <div>
           <BadgePoundSterling size={17} />
@@ -165,7 +234,7 @@ export default function RoutePanel({
         <div>
           <Trophy size={17} />
           <span>{route.length}</span>
-          <small>stops</small>
+          <small>{route.length === 1 ? stopNoun : `${stopNoun}s`}</small>
         </div>
         <div>
           <Landmark size={17} />
@@ -224,6 +293,18 @@ export default function RoutePanel({
           </button>
           <span className="routePaceTotal">{formatRouteTotal(legSummary)}</span>
         </div>
+      ) : null}
+
+      {route.length >= 1 ? (
+        <button
+          type="button"
+          className="addStopBtn calendarBtn"
+          onClick={addToCalendar}
+          data-testid="add-to-calendar"
+        >
+          <CalendarPlus size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+          Add to calendar (.ics)
+        </button>
       ) : null}
 
       {route.length >= 2 ? (

@@ -63,6 +63,7 @@ describe("crawlUrl", () => {
       builtIds: sample.builtIds,
       selectedVenueId: sample.selectedVenueId,
       bandId: "", // additive story-band field, "" when no ?band= in the URL
+      altStyle: "pint", // additive alt-style field, defaults to "pint" (issue #31)
     });
   });
 
@@ -74,6 +75,20 @@ describe("crawlUrl", () => {
     const bare = decodeCrawl(new URLSearchParams(encodeCrawl(sample)));
     expect(bare.bandId).toBeUndefined();
     expect(seedCrawlState(`?${encodeCrawl(withBand)}`).bandId).toBe("river-history");
+  });
+
+  it("round-trips an alt crawl style via ?alt= (issue #31)", () => {
+    const coffee = { ...sample, altStyle: "coffee" as const };
+    const decoded = decodeCrawl(new URLSearchParams(encodeCrawl(coffee)));
+    expect(decoded.altStyle).toBe("coffee");
+    // The default "pint" is omitted from the URL (kept short) and seeds back.
+    const pint = { ...sample, altStyle: "pint" as const };
+    expect(encodeCrawl(pint)).not.toContain("alt=");
+    expect(decodeCrawl(new URLSearchParams(encodeCrawl(pint))).altStyle).toBeUndefined();
+    expect(seedCrawlState(`?${encodeCrawl(coffee)}`).altStyle).toBe("coffee");
+    // An unknown alt value is ignored (decodes to undefined -> seeds "pint").
+    expect(decodeCrawl(new URLSearchParams("alt=wizard")).altStyle).toBeUndefined();
+    expect(seedCrawlState("?alt=wizard").altStyle).toBe("pint");
   });
 
   it("decodes garbage without throwing and returns a safe partial", () => {
