@@ -462,8 +462,20 @@
 /* ── Load more / end ──────────────────────────────────────────────────── */
 .feedLoadMore {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   width: 100%;
+}
+
+/* Mobile infinite-scroll sentinel (PRD §2.5). Zero-height and aria-hidden so it
+   never affects layout or reading order — the IntersectionObserver watches it to
+   auto-reveal the next page on phones. The button below stays the fallback for
+   desktop, keyboard, and no-JS/observer-unsupported clients. */
+.feedSentinel {
+  width: 100%;
+  height: 1px;
+  pointer-events: none;
 }
 
 .feedLoadMoreBtn {

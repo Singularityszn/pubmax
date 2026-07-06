@@ -113,6 +113,16 @@ export default function FeedPage() {
   const [myHandle, setMyHandle] = useState("");
   const [followingHandles, setFollowingHandles] = useState<Set<string> | null>(null);
 
+  // Mobile (<=640px) turns the "Load more" button into IntersectionObserver-driven
+  // infinite scroll (PRD §2.5); desktop keeps the explicit button. Read once with a
+  // lazy initializer (SSR-safe: no window on the server) and kept in sync via the
+  // media query's change event. `false` on the server means the button-only path
+  // renders first, then hydration flips it on phones — never a mismatch mid-frame.
+  const [isMobile, setIsMobile] = useState(false);
+  // The end-of-list sentinel the observer watches. Rendered only when there's more
+  // to reveal, so once we hit the bottom the observer has nothing to trip on.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/pint-drops", { signal: controller.signal })
@@ -192,6 +202,21 @@ export default function FeedPage() {
     return () => controller.abort();
   }, [myHandle]);
 
+  // Track the "phone" breakpoint via matchMedia so infinite scroll is a mobile-only
+  // affordance. setState fires from the change listener / an async microtask (never
+  // the synchronous effect body) per react-hooks/set-state-in-effect. Guarded on
+  // `window` for SSR; the initial `false` is corrected on mount.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia("(max-width: 640px)");
+    // Sync the current value off the effect's sync path (microtask), so the first
+    // render's `false` is reconciled without a set-state-in-effect violation.
+    void Promise.resolve().then(() => setIsMobile(mql.matches));
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
   // "Load more" is cumulative: walk `paginate` from the top, chaining each
   // step's nextCursor into the next call, for `pagesLoaded` pages. Cursor
   // pagination stays the engine (each step advances by the last item's
@@ -261,6 +286,39 @@ export default function FeedPage() {
       });
     return () => controller.abort();
   }, [visibleIds, actorId]);
+
+  // Mobile infinite scroll (PRD §2.5). Watch the end-of-list sentinel; when it
+  // scrolls into view reveal the next page — the same bump the desktop button does.
+  // The observer is *created* in this effect, but setPagesLoaded fires from the
+  // observer CALLBACK (not the effect body), which satisfies
+  // react-hooks/set-state-in-effect. Guards that keep it honest:
+  //  - only arms on phones (isMobile) — desktop keeps the explicit button;
+  //  - only bumps while there's more to show (nextCursor) and the feed is ready;
+  //  - re-bumps only after each new page settles (the effect re-runs on nextCursor
+  //    change and reconnects), so one intersection = one page, never a runaway loop;
+  //  - disconnects on cleanup and whenever nextCursor becomes null (nothing left).
+  useEffect(() => {
+    if (!isMobile || !nextCursor || status !== "ready") return;
+    const node = sentinelRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+
+    let done = false; // one bump per observer instance — hard stop against double-fire
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!done && entry?.isIntersecting) {
+          done = true;
+          observer.disconnect();
+          setPagesLoaded((n) => n + 1);
+        }
+      },
+      // Prefetch a touch before the sentinel is fully on screen so the next page is
+      // ready as the user reaches the bottom, not after a visible pause.
+      { rootMargin: "300px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isMobile, nextCursor, status]);
 
   // Toggle one reaction on a drop. Optimistic: flip `mine` + adjust the count
   // immediately, then reconcile from the server's authoritative summary. A 404
@@ -421,6 +479,10 @@ export default function FeedPage() {
           </div>
           {nextCursor ? (
             <div className="feedLoadMore">
+              {/* Sentinel the mobile IntersectionObserver watches. Zero-height,
+                  aria-hidden — invisible to AT and keyboard users, who rely on the
+                  button below. On desktop it simply never trips (observer unarmed). */}
+              <div ref={sentinelRef} className="feedSentinel" aria-hidden="true" />
               <button
                 type="button"
                 className="feedLoadMoreBtn"
