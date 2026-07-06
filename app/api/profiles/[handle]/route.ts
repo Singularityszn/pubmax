@@ -8,12 +8,15 @@
 // Supabase when configured, process-memory otherwise. Reads never 503 — a
 // missing profile is a first-class "null" result, so the page always renders.
 
+import { callerUserId } from "@/lib/authServer";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { decideProfileWrite, shouldLinkUser } from "@/lib/profileOwnership";
 import {
   memoryProfileStore,
   supabaseProfileStore,
   type ProfilePatch,
+  type ProfileRecord,
   type ProfileStore,
 } from "@/lib/profileStore";
 import { memoryFollowStore, supabaseFollowStore, type FollowStore } from "@/lib/followStore";
@@ -33,6 +36,16 @@ function stores(): { profiles: ProfileStore; follows: FollowStore } {
 
 function profileStore(): ProfileStore {
   return isSupabaseConfigured() ? supabaseProfileStore : memoryProfileStore;
+}
+
+// Public projection of a profile row: strips the internal ownership key
+// (user_id) so it never crosses the wire on the public /u/[handle] read. Only
+// the display-facing fields are exposed.
+function toPublicProfile(profile: ProfileRecord | null): Omit<ProfileRecord, "userId"> | null {
+  if (!profile) return null;
+  const { userId: _userId, ...rest } = profile;
+  void _userId;
+  return rest;
 }
 
 // Trust boundary for profile edits — the request body is untrusted. cleanText
@@ -114,7 +127,10 @@ export async function GET(
     const viewerFollowing =
       viewer && viewer !== handle ? await follows.isFollowing(viewer, handle) : false;
 
-    return Response.json({ profile, counts, viewerFollowing }, { status: 200 });
+    return Response.json(
+      { profile: toPublicProfile(profile), counts, viewerFollowing },
+      { status: 200 },
+    );
   } catch {
     // A backend hiccup degrades to the synthesized-profile path on the client —
     // return an empty-but-valid shape rather than an error the page must handle.
@@ -127,16 +143,25 @@ export async function GET(
 
 // Update the editable fields of a profile ("claim your handle" / edit-profile).
 //
-// DEMO-TRUST LIMITATION: there is no auth yet, so the server CANNOT verify the
-// caller actually owns `handle` — a request could patch any handle's profile.
-// This is acceptable for the handle-based demo identity (the same trust stance
-// as authoring a pint drop under a self-asserted handle). The real gate comes
-// with Supabase Auth: the handler will require an authenticated session and
-// enforce `auth.uid() === profiles.user_id` (see profileStore + migration 0006)
-// before it will accept an edit. Until then we still apply the full server-side
-// trust boundary below (strip HTML/control chars, cap lengths, validate the
-// avatar URL) and rate-limit, so an unauthenticated caller can neither inject
-// markup nor flood the write path.
+// OWNERSHIP (user story 31), enforced HERE at the API seam because writes route
+// through the service-role admin client (which bypasses RLS — so RLS alone can't
+// gate the app's own writes; see lib/profileOwnership.ts + migration 0009):
+//   • We resolve the caller's VERIFIED auth uid from their bearer token
+//     (callerUserId → Supabase auth.getUser). No token / invalid token → null
+//     (anonymous), never a trusted uid.
+//   • decideProfileWrite(rowUserId, callerUserId): an UNLINKED handle stays
+//     editable by anyone (the demo/self-asserted-handle stance is preserved); a
+//     LINKED handle is editable ONLY by its matching authenticated owner — a
+//     non-owner (anonymous OR a different account) gets 403. This is the security
+//     win: once claimed, a handle can't be hijacked.
+//   • First authenticated touch LINKS the caller onto the handle (shouldLinkUser
+//     → store.linkUser) — this is also the account migration (story 32): every
+//     drop/save/follow is already handle-keyed, so stamping user_id claims them
+//     all with no data copy.
+//
+// Regardless of auth we still apply the full server-side trust boundary below
+// (strip HTML/control chars, cap lengths, validate the avatar URL) and
+// rate-limit, so any caller can neither inject markup nor flood the write path.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ handle: string }> },
@@ -173,13 +198,34 @@ export async function PATCH(
     return Response.json({ error: "Profile storage is not configured." }, { status: 503 });
   }
 
+  // Resolve the caller's verified identity (null when anonymous / bad token).
+  const caller = await callerUserId(request);
+
   try {
     const store = profileStore();
-    // Upsert-then-update: ensure a row exists (a handle that has only claimed,
-    // never dropped a pint, has no row yet), then apply the validated patch.
-    await store.ensure(handle);
+    // Upsert-then-ownership-check-then-update: ensure a row exists (a handle that
+    // has only claimed, never dropped a pint, has no row yet), so we can read its
+    // current ownership before deciding whether this caller may write.
+    const existing = await store.ensure(handle);
+
+    // OWNERSHIP GATE: a linked handle is owner-only; an unlinked handle stays
+    // editable by anyone (demo path). See lib/profileOwnership.ts.
+    const decision = decideProfileWrite(existing.userId, caller);
+    if (!decision.allowed) {
+      return Response.json(
+        { error: "This handle belongs to a signed-in account. Sign in as its owner to edit it." },
+        { status: decision.status },
+      );
+    }
+
+    // First authenticated touch of a still-unlinked handle claims it (account
+    // migration, story 32) — all its handle-keyed activity comes with it.
+    if (shouldLinkUser(existing.userId, caller)) {
+      await store.linkUser(handle, caller as string);
+    }
+
     const profile = await store.update(handle, built.patch);
-    return Response.json({ profile }, { status: 200 });
+    return Response.json({ profile: toPublicProfile(profile) }, { status: 200 });
   } catch {
     return Response.json({ error: "Profile storage is unavailable." }, { status: 503 });
   }

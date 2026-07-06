@@ -1,0 +1,113 @@
+// Pint Passport aggregation — pure, backend-free (user story 29).
+//
+// The passport is the collectible "field-guide" view of a handle's activity:
+// the numbers that make a night into identity. This module turns the raw inputs
+// the profile page already has (a handle's drops + its follow/story counts) into
+// a single flat PassportData shape the card renders. Everything here is pure and
+// deterministic so it unit-tests with no DOM, no network, no database — the same
+// stance as lib/profiles.ts, which it composes (profileStats + computeBadges).
+
+import {
+  computeBadges,
+  profileStats,
+  type Badge,
+  type ProfileDrop,
+} from "@/lib/profiles";
+
+// The distinct-drink signal. Drops carry an optional free-text `drink`
+// ("Guinness", "Neck Oil"…); we count DISTINCT non-empty drinks, case- and
+// whitespace-insensitive, so "Guinness" and " guinness " are one beer. A drop
+// with no drink named contributes nothing (it is not an anonymous "unknown"
+// beer). Kept loose — `drink` isn't on the base ProfileDrop, so read defensively.
+function distinctBeers(drops: readonly ProfileDrop[]): number {
+  const seen = new Set<string>();
+  for (const d of drops) {
+    const raw = (d as { drink?: unknown }).drink;
+    if (typeof raw === "string") {
+      const key = raw.trim().toLowerCase();
+      if (key) seen.add(key);
+    }
+  }
+  return seen.size;
+}
+
+// The passport's flat, render-ready shape. Every field is a finite number, a
+// null (for "none yet"), or a string list — no optionals the card must guard, so
+// the empty/first-run passport renders the same component with zeros.
+export type PassportData = {
+  /** Distinct pubs visited — venueId is the pub identity (drops carry it). */
+  pubs: number;
+  /** Distinct boroughs, when drops name one; [] when none do (never undefined). */
+  boroughs: string[];
+  /** Distinct named drinks ("beers"), case-insensitive. */
+  beers: number;
+  /** Crawls this handle has posted (passed in — no crawl-authorship on drops). */
+  crawls: number;
+  /** Total pints logged (drop count). */
+  pints: number;
+  /** Cheapest priced pint in GBP, or null when no priced drop exists. */
+  cheapestPintGbp: number | null;
+  /** Story posts authored (passed in from the crawl-story count). */
+  storyPosts: number;
+  /** EARNED badges only — the passport shows what you've done. */
+  badges: Badge[];
+  /** True when the handle has no activity at all — drives the first-run copy. */
+  isEmpty: boolean;
+};
+
+// Optional counts the profile page resolves from other stores (follows / crawl
+// stories). Defaulted + coerced so a caller can omit them and the passport still
+// renders a clean zero rather than NaN/undefined.
+export type PassportCounts = {
+  crawls?: number | null;
+  storyPosts?: number | null;
+};
+
+function nonNegInt(value: number | null | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : 0;
+}
+
+// Distinct pubs = distinct non-empty venueIds across the handle's drops. A drop
+// with no venueId (shouldn't happen for a real drop, but the DTO is loose)
+// contributes nothing rather than collapsing onto an empty-string pub.
+function distinctPubs(drops: readonly ProfileDrop[]): number {
+  const seen = new Set<string>();
+  for (const d of drops) {
+    const id = typeof d.venueId === "string" ? d.venueId.trim() : "";
+    if (id) seen.add(id);
+  }
+  return seen.size;
+}
+
+/**
+ * Aggregate a handle's drops (+ optional external counts) into the flat
+ * PassportData the card renders. Null/empty-safe: no drops yields a fully-zeroed
+ * passport with `isEmpty: true` and the full unearned-badge set filtered to none.
+ */
+export function buildPassport(
+  drops: readonly ProfileDrop[] | null | undefined,
+  counts: PassportCounts = {},
+): PassportData {
+  const list = Array.isArray(drops) ? drops : [];
+  const crawls = nonNegInt(counts.crawls);
+  const stats = profileStats(list, crawls);
+  const earnedBadges = computeBadges(list, stats).filter((b) => b.earned);
+  const storyPosts = nonNegInt(counts.storyPosts);
+
+  return {
+    pubs: distinctPubs(list),
+    boroughs: stats.boroughs ?? [],
+    beers: distinctBeers(list),
+    crawls,
+    pints: stats.pintsLogged,
+    cheapestPintGbp: stats.cheapestPintGbp,
+    storyPosts,
+    badges: earnedBadges,
+    // "Empty" is the honest first-run signal: nothing logged, no crawls, no
+    // stories. Follower/following counts don't count as activity here — a
+    // passport is about what YOU did, so a fresh handle reads as empty.
+    isEmpty: list.length === 0 && crawls === 0 && storyPosts === 0,
+  };
+}

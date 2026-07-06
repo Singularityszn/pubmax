@@ -2,15 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import FollowButton from "@/components/profile/FollowButton";
+import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SavedPubList from "@/components/profile/SavedPubList";
 import SiteNav from "@/components/nav/SiteNav";
 import { VENUE_FALLBACK_LABEL } from "@/lib/feed";
 import type { FollowCounts } from "@/lib/followStore";
+import { buildPassport } from "@/lib/passport";
 import {
   deriveProfileFromDrops,
   normalizeHandle,
@@ -80,9 +83,17 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
   return groups;
 }
 
+// "you" is the sentinel handle the nav uses (/u/you) before a device handle is
+// known. It is NOT a real person's handle — it means "the current viewer". When
+// the viewer already has a device handle we redirect /u/you → /u/<handle>; when
+// they don't, /u/you renders the first-run passport (story 30).
+const YOU_SENTINEL = "you";
+
 export default function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   // Route params are a promise in the App Router; unwrap with `use`.
   const routeHandle = normalizeHandle(use(params)?.handle);
+  const isYouRoute = routeHandle === YOU_SENTINEL;
+  const router = useRouter();
 
   const [drops, setDrops] = useState<PublicDrop[]>([]);
   const [state, setState] = useState<LoadState>("loading");
@@ -173,6 +184,17 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
     };
   }, []);
 
+  // /u/you resolution: once we know the viewer's device handle, redirect the
+  // sentinel route to their real profile (/u/<handle>). With no device handle,
+  // /u/you stays put and renders the anonymous first-run passport below. Guarded
+  // so we never redirect to /u/you itself (would loop).
+  useEffect(() => {
+    if (!isYouRoute) return;
+    if (myHandle && myHandle !== YOU_SENTINEL) {
+      router.replace(`/u/${encodeURIComponent(myHandle)}`);
+    }
+  }, [isYouRoute, myHandle, router]);
+
   // Fetch the durable profile row + follow counts + whether the viewer follows
   // this handle. Best-effort: a failure just leaves the synthesized identity and
   // zeroed counts, so the page still renders.
@@ -215,6 +237,14 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const isOwnProfile = myHandle !== "" && myHandle === routeHandle;
   const isAnonymous = myHandle === "";
 
+  // Pint Passport data (story 29): aggregated from the same drops the page
+  // already loaded. crawls / storyPosts are 0 here — crawl-story authorship
+  // lives behind a separate store seam; buildPassport accepts them so wiring a
+  // per-handle count later is a one-line change. On the /u/you first-run route
+  // (no device handle) the passport reads as own → shows the "start yours" CTA.
+  const passport = buildPassport(drops as ProfileDrop[]);
+  const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
+
   // Claim this handle: an anonymous visitor adopts the route handle as their own
   // demo identity (localStorage `pubmax_handle`) — the same identity that
   // authors a pint drop or a follow. This is a client-only, self-asserted claim
@@ -241,6 +271,8 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   //  • own profile  → Edit (toggles the inline editor)
   //  • anonymous    → Claim this handle (adopt it, then edit)
   //  • other viewer → Follow
+  // On the /u/you sentinel route we never offer "Claim this handle" ("you" isn't
+  // a real handle to adopt) — the passport's first-run CTA drives the next step.
   const headerActions = isOwnProfile ? (
     <button
       type="button"
@@ -250,11 +282,11 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
     >
       {editing ? "Close editor" : "Edit profile"}
     </button>
-  ) : isAnonymous ? (
+  ) : isAnonymous && !isYouRoute ? (
     <button type="button" className="profileClaimBtn" onClick={claimHandle}>
       Claim this handle
     </button>
-  ) : (
+  ) : isYouRoute ? null : (
     <FollowButton
       targetHandle={routeHandle}
       followerHandle={myHandle}
@@ -293,6 +325,13 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               followers={counts.followers}
               following={counts.following}
               actions={headerActions}
+            />
+
+            <PintPassport
+              handle={routeHandle}
+              displayName={profile.displayName}
+              data={passport}
+              isOwn={passportIsOwn}
             />
 
             {isOwnProfile && editing ? (

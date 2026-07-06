@@ -619,3 +619,190 @@
     transform: translateY(-2px);
   }
 }
+
+/* ── Pint Passport (user stories 29–30) ─────────────────────────────────────
+   A collectible field-guide "passport page": brass-hairline card, pressed stat
+   stamps (.ink-stamp from globals.css), a signature tilted seal. First-run and
+   populated states share this block — zeros just read as an empty page to fill.
+   All colour from tokens so it flips light/dark. Scoped under .profilePage. */
+.profilePage .pintPassport {
+  margin: 0 0 28px;
+  padding: 22px 22px 24px;
+  border: 1.5px solid var(--brass);
+  border-radius: var(--radius-md, 12px);
+  background:
+    linear-gradient(180deg, var(--surface-tint-brass), var(--panel-raised));
+  box-shadow: var(--shadow-1, 0 1px 2px rgba(0, 0, 0, 0.08));
+}
+
+.profilePage .passportHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.profilePage .passportKicker {
+  margin: 0 0 2px;
+  font-family: var(--font-data, monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.profilePage .passportHolder {
+  margin: 0;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.profilePage .passportHandle {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.profilePage .passportSeal {
+  flex: none;
+  padding: 8px 12px;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 8%, transparent);
+  white-space: nowrap;
+}
+
+/* First-run block (story 30) — honest empty state with a clear call to action. */
+.profilePage .passportFirstRun {
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--paper) 60%, transparent);
+}
+
+.profilePage .passportFirstRunLead {
+  margin: 0 0 6px;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.profilePage .passportFirstRunCopy {
+  margin: 0 0 14px;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 46ch;
+}
+
+.profilePage .passportFirstRunActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profilePage .passportCta {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 16px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--brass);
+  background: transparent;
+  text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.profilePage .passportCta:hover {
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.profilePage .passportCtaPrimary {
+  color: var(--paper);
+  background: var(--brass);
+}
+
+.profilePage .passportCtaPrimary:hover {
+  background: color-mix(in srgb, var(--brass) 88%, black);
+}
+
+.profilePage .passportCta:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Stat grid — pressed stamps. Auto-fit so it reflows 4→3→2 across widths. */
+.profilePage .passportGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profilePage .passportStat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 12px 10px;
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+}
+
+.profilePage .passportStatValue {
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.profilePage .passportStatLabel {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.profilePage .passportBoroughs {
+  margin: 14px 0 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.profilePage .passportBoroughsLabel {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.profilePage .passportBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profilePage .passportBadge {
+  padding: 5px 11px;
+  font-size: 0.8rem;
+  color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 7%, transparent);
+}
+
+@media (max-width: 560px) {
+  .profilePage .passportGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .profilePage .passportHead {
+    flex-direction: column;
+  }
+}

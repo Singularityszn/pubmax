@@ -56,3 +56,21 @@ export function isAuthConfigured(): boolean {
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 }
+
+/**
+ * The current session's access token (JWT), or null when signed out /
+ * unconfigured. Ownership-sensitive writes send this as `Authorization: Bearer`
+ * so the server can verify the caller's identity (lib/authServer.ts). Best-effort
+ * and non-throwing: any failure resolves to null, and the caller simply makes an
+ * anonymous request (still valid for an unlinked, demo handle).
+ */
+export async function getAccessToken(): Promise<string | null> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { getAccessToken } from "@/lib/authClient";
 import type { ProfileRecord } from "@/lib/profileStore";
 
 // Inline "edit my profile" form for the owner of a handle. The page mounts this
@@ -12,11 +13,13 @@ import type { ProfileRecord } from "@/lib/profileStore";
 // and reports the saved row back up so the page can update the header
 // optimistically. React 19: every setState here runs in an event handler.
 //
-// DEMO-TRUST NOTE: identity is the self-asserted handle (localStorage
-// `pubmax_handle`), not a verified account. Anyone who has claimed a handle can
-// edit its profile — acceptable for the demo; real ownership arrives with
-// Supabase Auth (auth.uid() -> profiles.user_id), when this form will require a
-// signed-in session.
+// OWNERSHIP NOTE: for an UNLINKED handle, identity is still the self-asserted
+// handle (localStorage `pubmax_handle`) and anyone may edit — the demo stance.
+// But once a handle is LINKED to a signed-in account (first authenticated edit
+// stamps profiles.user_id), the server requires the caller's Supabase JWT to
+// match the owner (auth.uid() -> profiles.user_id). This form attaches that
+// token when signed in (getAccessToken); the server is the trust boundary and
+// returns 403 to a non-owner. See app/api/profiles/[handle]/route.ts + 0009.
 
 // Caps mirror the server (app/api/profiles/[handle]/route.ts). Kept here purely
 // for UX (live counters, an early avatar hint) — never as the source of truth.
@@ -84,9 +87,17 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
     setError(null);
 
     try {
+      // Attach the Supabase access token when signed in, so the server can
+      // verify ownership (a linked handle is owner-only). When signed out this
+      // is null and the request is anonymous — still valid for an unlinked
+      // (demo) handle. See lib/authServer.ts + the route's ownership gate.
+      const token = await getAccessToken();
+      const headers: Record<string, string> = { "content-type": "application/json" };
+      if (token) headers.authorization = `Bearer ${token}`;
+
       const res = await fetch(`/api/profiles/${encodeURIComponent(handle)}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers,
         // Send all four fields (an empty string clears a field server-side).
         body: JSON.stringify({ displayName, bio, homeCity, avatarUrl }),
       });

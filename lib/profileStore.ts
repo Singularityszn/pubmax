@@ -18,6 +18,12 @@ import { cleanText, isHttpUrl } from "@/lib/textClean";
 export type ProfileRecord = {
   id: string;
   handle: string;
+  // The linked Supabase Auth user id, or undefined when the handle is still an
+  // unlinked (demo / anonymous) identity. Set once on first authenticated touch
+  // (see linkUser) — this is what makes a handle un-hijackable (see
+  // lib/profileOwnership.ts + migration 0009). NEVER serialized to the public
+  // /u/[handle] read — it is an internal ownership key only.
+  userId?: string;
   displayName?: string;
   avatarUrl?: string;
   homeCity?: string;
@@ -81,6 +87,16 @@ export type ProfileStore = {
   ensure(handle: string): Promise<ProfileRecord>;
   /** Apply a patch to an existing profile. Returns null when the handle is unknown. */
   update(handle: string, patch: ProfilePatch): Promise<ProfileRecord | null>;
+  /**
+   * Link an authenticated user id onto a handle's row (account migration, story
+   * 32): ensures the row exists, then stamps user_id when it is unset. Idempotent
+   * — re-linking the SAME user is a no-op that returns the row; attempting to
+   * re-link a row already owned by a DIFFERENT user throws (the ownership check
+   * at the API seam rejects that before we ever get here). All the handle's
+   * prior activity (drops/saves/follows) is already handle-keyed, so linking the
+   * row IS the migration — nothing is copied.
+   */
+  linkUser(handle: string, userId: string): Promise<ProfileRecord>;
 };
 
 const TABLE = "profiles";
@@ -97,6 +113,7 @@ function fromRow(row: Record<string, unknown>): ProfileRecord {
   return {
     id: String(row.id),
     handle: String(row.handle),
+    userId: row.user_id ? String(row.user_id) : undefined,
     displayName: row.display_name ? String(row.display_name) : undefined,
     avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
     homeCity: row.home_city ? String(row.home_city) : undefined,
@@ -174,6 +191,37 @@ export const supabaseProfileStore: ProfileStore = {
     const updated = (data ?? [])[0];
     return updated ? fromRow(updated as Record<string, unknown>) : null;
   },
+
+  async linkUser(handle, userId) {
+    const key = normalizeHandle(handle);
+    if (!key) throw new Error("A profile needs a non-empty handle.");
+    if (!userId) throw new Error("A user id is required to link a profile.");
+    const existing = await this.ensure(key);
+    // Already linked to this user → nothing to do (idempotent).
+    if (existing.userId === userId) return existing;
+    // Linked to someone else → refuse. The API seam's ownership check rejects
+    // this before we get here; throwing is the last line of defence.
+    if (existing.userId && existing.userId !== userId) {
+      throw new Error("Handle is already linked to another account.");
+    }
+    const { data, error } = await admin()
+      .from(TABLE)
+      .update({ user_id: userId, updated_at: new Date().toISOString() })
+      .eq("handle", key)
+      // Only stamp when still unlinked — a concurrent link by another user loses
+      // this race and returns 0 rows, which we surface as a conflict below.
+      .is("user_id", null)
+      .select("*")
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const linked = (data ?? [])[0];
+    if (linked) return fromRow(linked as Record<string, unknown>);
+    // 0 rows: someone linked it between our read and write. Re-read; if it is now
+    // ours, fine; otherwise it belongs to someone else.
+    const after = await this.getByHandle(key);
+    if (after?.userId === userId) return after;
+    throw new Error("Handle is already linked to another account.");
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -213,6 +261,24 @@ export const memoryProfileStore: ProfileStore = {
       ...("avatarUrl" in patch ? { avatarUrl: patch.avatarUrl ?? undefined } : {}),
       ...("homeCity" in patch ? { homeCity: patch.homeCity ?? undefined } : {}),
       ...("bio" in patch ? { bio: patch.bio ?? undefined } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    memoryProfiles.set(key, next);
+    return next;
+  },
+
+  async linkUser(handle, userId) {
+    const key = normalizeHandle(handle);
+    if (!key) throw new Error("A profile needs a non-empty handle.");
+    if (!userId) throw new Error("A user id is required to link a profile.");
+    const existing = await this.ensure(key);
+    if (existing.userId === userId) return existing;
+    if (existing.userId && existing.userId !== userId) {
+      throw new Error("Handle is already linked to another account.");
+    }
+    const next: ProfileRecord = {
+      ...existing,
+      userId,
       updatedAt: new Date().toISOString(),
     };
     memoryProfiles.set(key, next);

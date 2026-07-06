@@ -1,0 +1,97 @@
+import { describe, expect, it } from "vitest";
+
+import { buildPassport } from "@/lib/passport";
+import type { ProfileDrop } from "@/lib/profiles";
+
+// Pure aggregation for the Pint Passport render (user story 29). No DOM/network:
+// buildPassport composes profileStats + computeBadges and adds the passport-only
+// signals (distinct pubs, distinct beers, story posts). We assert the render
+// DATA the card shows, plus the first-run (isEmpty) contract (story 30).
+
+function drop(overrides: Partial<ProfileDrop> = {}): ProfileDrop {
+  return { handle: "ken", venueId: "v1", priceGbp: 5, ...overrides };
+}
+
+describe("buildPassport — first-run / empty", () => {
+  it("is fully zeroed and isEmpty for no drops and no counts", () => {
+    const p = buildPassport([]);
+    expect(p.pubs).toBe(0);
+    expect(p.boroughs).toEqual([]);
+    expect(p.beers).toBe(0);
+    expect(p.crawls).toBe(0);
+    expect(p.pints).toBe(0);
+    expect(p.cheapestPintGbp).toBeNull();
+    expect(p.storyPosts).toBe(0);
+    expect(p.badges).toEqual([]);
+    expect(p.isEmpty).toBe(true);
+  });
+
+  it("treats null / undefined drops as empty, never throws", () => {
+    expect(buildPassport(null).isEmpty).toBe(true);
+    expect(buildPassport(undefined).isEmpty).toBe(true);
+  });
+
+  it("is NOT empty when the handle has crawls or story posts but no drops", () => {
+    expect(buildPassport([], { crawls: 2 }).isEmpty).toBe(false);
+    expect(buildPassport([], { storyPosts: 1 }).isEmpty).toBe(false);
+  });
+});
+
+describe("buildPassport — aggregation", () => {
+  it("counts DISTINCT pubs by venueId, not raw drop count", () => {
+    const p = buildPassport([
+      drop({ venueId: "v1" }),
+      drop({ venueId: "v1" }),
+      drop({ venueId: "v2" }),
+    ]);
+    expect(p.pubs).toBe(2);
+    expect(p.pints).toBe(3); // pints is total drops
+  });
+
+  it("counts DISTINCT beers case- and whitespace-insensitively", () => {
+    const p = buildPassport([
+      drop({ drink: "Guinness" } as Partial<ProfileDrop>),
+      drop({ drink: " guinness " } as Partial<ProfileDrop>),
+      drop({ drink: "Neck Oil" } as Partial<ProfileDrop>),
+      drop({ drink: "" } as Partial<ProfileDrop>),
+      drop({}), // no drink named → contributes nothing
+    ]);
+    expect(p.beers).toBe(2);
+  });
+
+  it("surfaces the cheapest priced pint and ignores null/zero prices", () => {
+    const p = buildPassport([
+      drop({ priceGbp: 6.2 }),
+      drop({ priceGbp: 3.8 }),
+      drop({ priceGbp: null }),
+    ]);
+    expect(p.cheapestPintGbp).toBe(3.8);
+  });
+
+  it("lists sorted unique boroughs when drops name them", () => {
+    const p = buildPassport([
+      drop({ borough: "Hackney" }),
+      drop({ borough: "Camden" }),
+      drop({ borough: "Hackney" }),
+    ]);
+    expect(p.boroughs).toEqual(["Camden", "Hackney"]);
+  });
+
+  it("carries crawls + story posts through, coercing junk to 0", () => {
+    const p = buildPassport([drop()], { crawls: 3, storyPosts: 2 });
+    expect(p.crawls).toBe(3);
+    expect(p.storyPosts).toBe(2);
+    const junk = buildPassport([drop()], { crawls: -5, storyPosts: Number.NaN });
+    expect(junk.crawls).toBe(0);
+    expect(junk.storyPosts).toBe(0);
+  });
+
+  it("returns only EARNED badges, and awards First Pint + Cheap Legend appropriately", () => {
+    const p = buildPassport([drop({ priceGbp: 3.5 })]);
+    const ids = p.badges.map((b) => b.id);
+    expect(ids).toContain("first-pint");
+    expect(ids).toContain("cheap-legend");
+    // Every returned badge is earned (the card shows accomplishments, not a ladder).
+    expect(p.badges.every((b) => b.earned)).toBe(true);
+  });
+});

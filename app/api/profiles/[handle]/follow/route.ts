@@ -4,6 +4,7 @@
 // (follows has no anon INSERT policy); the response echoes the new follow state
 // and the target's fresh counts so the button + header update in one round trip.
 
+import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { isSelfFollow, memoryFollowStore, supabaseFollowStore, type FollowStore } from "@/lib/followStore";
@@ -58,6 +59,17 @@ export async function POST(
     const following = unfollow
       ? !(await s.unfollow(follower, target))
       : await s.follow(follower, target);
+    // Emit seam (additive, best-effort): a NEW follow notifies the target. Never
+    // awaited into the response path failure — emitNotification never throws and a
+    // failed notification must never fail the follow write.
+    if (!unfollow && following) {
+      void emitNotification({
+        recipientHandle: target,
+        actorHandle: follower,
+        kind: "follow",
+        subjectRef: follower,
+      });
+    }
     const counts = await s.counts(target);
     return Response.json({ following, counts }, { status: 200 });
   } catch {
