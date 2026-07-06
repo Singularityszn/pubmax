@@ -129,11 +129,15 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
 
-  // Overview is the default tab and always carries a journey entry from this pub.
+  // The sheet opens on the Pints tab; Overview carries the journey entry from
+  // this pub, so switch to it the way a user would — via its tab.
+  await page.locator("#venueTab-overview").click();
   const overviewPanel = page.locator("#venuePanel-overview");
   await expect(overviewPanel).toBeVisible();
 
-  const addToCrawl = overviewPanel.locator("button.addStopBtn");
+  // The presence button shares the addStopBtn class — target the crawl entry
+  // by its accessible name, the way a user finds it.
+  const addToCrawl = overviewPanel.getByRole("button", { name: "Add to crawl" });
   // The add-to-crawl button is build-mode-only (its aria-pressed toggle is the
   // "start a crawl here" journey entry). ?mode=build should seed build mode, but
   // if the seed didn't take (e.g. a shared-crawl restore overrode it), the

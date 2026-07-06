@@ -111,8 +111,9 @@ test("pint permalink is a real shareable post; unknown id stays friendly (§8)",
   await expect(page.locator(".permalink__mat")).toBeVisible();
   // …with a share strip so the pint can travel into a group chat…
   await expect(page.locator(".permalink__share .shareBar")).toBeVisible();
-  // …and a working way back onto the map (the pub link).
-  await expect(page.locator(".permalink__ghost")).toHaveAttribute("href", /\/map/);
+  // …and a working way back onto the map (the pub link). The card can carry
+  // several ghost links (map, Ledger); the map one is the §8 guarantee.
+  await expect(page.locator('.permalink__ghost[href*="/map"]')).toHaveAttribute("href", /\/map/);
 
   expect(errors).toEqual([]);
 
