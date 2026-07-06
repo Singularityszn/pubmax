@@ -36,6 +36,13 @@ const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 //     (Pint Drop pint photos in Storage).
 //   - font-src / connect-src: openfreemap tiles+glyphs+sprites, Supabase
 //     auth/rest/storage. TfL is server-only (/api/last-train) so it's NOT listed.
+//     connect-src ALSO lists the CARTO basemap hosts: when OpenFreeMap is slow or
+//     down, PubMapCanvas swaps to CARTO's keyless styles (FALLBACK_STYLES). CARTO
+//     serves the style.json entrypoint from basemaps.cartocdn.com and everything
+//     the style references — sprite, glyphs, TileJSON + vector tiles — from
+//     tiles.basemaps.cartocdn.com. MapLibre fetches ALL of these via fetch(), so
+//     both hosts must be in connect-src or the fallback is CSP-blocked and users
+//     hit the "Map tiles unavailable" screen on any transient OpenFreeMap blip.
 //   - worker-src/child-src blob:: MapLibre spins up its tile workers from blobs.
 //     worker-src 'self' ALSO covers the offline service worker (public/sw.js,
 //     issue #32); its fetch/caching targets (self + tiles.openfreemap.org) are
@@ -46,7 +53,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co",
   "font-src 'self' data: https://tiles.openfreemap.org",
-  "connect-src 'self' https://tiles.openfreemap.org https://*.supabase.co",
+  "connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co",
   "worker-src 'self' blob:",
   "child-src blob:",
   "frame-ancestors 'none'",

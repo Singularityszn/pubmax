@@ -11,6 +11,9 @@ import { test, expect } from "@playwright/test";
 test("/map renders the MapLibre canvas with real size and never falls back", async ({
   page,
 }) => {
+  // This test deliberately waits out the full tile-timeout window (see the
+  // second assertion block), which alone exceeds the 30s project default.
+  test.setTimeout(60_000);
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
@@ -34,6 +37,20 @@ test("/map renders the MapLibre canvas with real size and never falls back", asy
   // auto-retry window (1500ms) could have elapsed, so a late fallback can't slip
   // through green.
   await page.waitForTimeout(2000);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  await expect(canvas).toBeVisible();
+
+  // Tile-timeout regression guard (the "Map tiles unavailable" report). The
+  // canvas can construct fine while the *style* silently fails to load its
+  // tiles: PubMapCanvas waits STYLE_LOAD_TIMEOUT_MS (8s), swaps to the CARTO
+  // fallback style, then waits another 8s before surfacing the kind:"tiles"
+  // .mapFallback. A short wait (above) passes green even if that's about to
+  // fire — and a CSP that blocks the CARTO fallback (basemaps.cartocdn.com /
+  // tiles.basemaps.cartocdn.com must be in connect-src) guarantees it fires.
+  // Wait out the full 8s+8s window so a tile/CSP failure can't hide behind an
+  // early green. Either OpenFreeMap loads directly, or the CARTO fallback does;
+  // either way the fallback must never appear and the canvas must stay up.
+  await page.waitForTimeout(18_000);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(canvas).toBeVisible();
 });
