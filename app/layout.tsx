@@ -23,9 +23,15 @@ const displaySerif = Fraunces({
   variable: "--font-display",
   display: "swap",
   // Variable font: weight must stay "variable" for the opsz/SOFT axes to load.
+  // Weight is set per-rule in CSS (headings ~600) — the variable face carries the
+  // full 100–900 range, and font-optical-sizing:auto drives opsz from font-size.
   axes: ["opsz", "SOFT"],
   weight: "variable",
   style: ["normal", "italic"],
+  // adjustFontFallback defaults ON: next/font emits a metric-matched
+  // "Fraunces Fallback" @font-face (size-adjust + ascent/descent/line-gap
+  // overrides) so the Palatino→Fraunces swap does not reflow. Kept explicit.
+  adjustFontFallback: true,
 });
 
 const bodySans = Inter({
@@ -38,7 +44,10 @@ const dataMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-data",
   display: "swap",
-  weight: ["500", "700"],
+  // 400 added so un-weighted var(--font-data) consumers (globals.css .font-data,
+  // venue price story) render a real regular weight rather than a synthesised
+  // (faux-bold-adjacent) fallback. 500/700 remain for stamped/emphasis numerals.
+  weight: ["400", "500", "700"],
 });
 
 export const metadata: Metadata = {

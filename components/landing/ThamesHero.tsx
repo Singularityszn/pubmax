@@ -65,6 +65,7 @@ export default function ThamesHero() {
         fill="var(--river)"
         fontFamily="var(--serif)"
         fontStyle="italic"
+        fontWeight="600"
         fontSize="15"
         opacity="0.8"
       >
@@ -107,6 +108,7 @@ export default function ThamesHero() {
             textAnchor="middle"
             fill="var(--ink-soft)"
             fontFamily="var(--serif)"
+            fontWeight="600"
             fontSize="11.5"
           >
             {pin.label}

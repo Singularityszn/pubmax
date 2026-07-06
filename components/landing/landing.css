@@ -25,6 +25,9 @@
 
 .lp .lpSerif {
   font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
 }
 
 .lp .container {
@@ -209,6 +212,9 @@
 
 .lp .sectionHead h2 {
   font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
   font-size: clamp(1.9rem, 3.6vw, 2.7rem);
   line-height: 1.08;
   letter-spacing: -0.015em;
@@ -236,6 +242,9 @@
 
 .lp .heroCopy h1 {
   font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
   font-size: clamp(2.6rem, 6vw, 4.4rem);
   line-height: 1.02;
   letter-spacing: -0.02em;
@@ -296,6 +305,8 @@
 .lp .statChip strong {
   display: block;
   font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
   font-size: 1.24rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -322,6 +333,9 @@
   display: block;
   width: 100%;
   height: auto;
+  /* Lock the box to the viewBox ratio (560×340) so the hero reserves its
+     final height before the SVG paints — no CLS/reflow on first render. */
+  aspect-ratio: 560 / 340;
 }
 
 .lp .figCaption {
@@ -830,6 +844,9 @@
 
 .lp .goldenCard h3 {
   font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
   font-size: 1.42rem;
   line-height: 1.12;
   margin: 0;
@@ -858,6 +875,9 @@
 .lp .unityInner blockquote {
   margin: 0 0 22px;
   font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
   font-size: clamp(1.7rem, 3.4vw, 2.5rem);
   line-height: 1.22;
   letter-spacing: -0.01em;
@@ -918,6 +938,9 @@
 
 .lp .ctaInner h2 {
   font-family: var(--font-garamond, var(--serif));
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
   font-size: clamp(2rem, 4.4vw, 3rem);
   line-height: 1.05;
   letter-spacing: -0.02em;

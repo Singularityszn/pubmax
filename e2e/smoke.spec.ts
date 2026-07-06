@@ -35,6 +35,23 @@ test("landing / serves, shows hero + Example honesty label + a working /map CTA"
   expect(errors).toEqual([]);
 });
 
+test("landing hero headline renders the display serif at a deliberate (>=600) weight", async ({
+  page,
+}) => {
+  // Regression guard for the "font looks thin" defect: Fraunces is a variable
+  // font, so a heading with no explicit font-weight falls to the 400 default and
+  // reads thin. The base h1/h2/h3 rules in globals.css set 600 — assert the
+  // computed weight so a future revert (e.g. a co-dev overwrite) fails loudly.
+  await page.goto("/");
+  const hero = page.locator("#hero-title");
+  await expect(hero).toBeVisible();
+  await page.evaluate(() => (document as unknown as { fonts: FontFaceSet }).fonts.ready);
+  const weight = await hero.evaluate((el) =>
+    parseInt(getComputedStyle(el).fontWeight, 10),
+  );
+  expect(weight).toBeGreaterThanOrEqual(600);
+});
+
 test("/map mounts the map region (canvas OR fallback)", async ({ page }) => {
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
@@ -61,6 +78,34 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
   // The feed fetches /api/pint-drops and degrades to a social empty state on
   // failure, so we assert the always-present scaffold (site nav), not content.
   await expect(page.getByRole("link", { name: "Map", exact: true }).first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("/feed exposes the For You lane control (issue #36)", async ({ page }) => {
+  const errors = watchPageErrors(page);
+  const response = await page.goto("/feed");
+  expect(response?.status()).toBe(200);
+  // The lane switcher is always rendered (FeedFilters), independent of feed
+  // content — assert the new For-You chip is present and pressable.
+  const forYou = page.getByRole("button", { name: /for you/i }).first();
+  await expect(forYou).toBeVisible();
+  await forYou.click();
+  await expect(forYou).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
+
+test("/bar-tab/[id] renders the venue Bar Tab for a real venue id (issue #36)", async ({
+  page,
+}) => {
+  const errors = watchPageErrors(page);
+  // Deep-link straight to a known seed pub's Bar Tab via the same stable FNV-1a
+  // id helper the venue-sheet test uses — no canvas pin click needed.
+  const response = await page.goto(`/bar-tab/${ARNOS_ARMS_ID}`);
+  expect(response?.status()).toBe(200);
+  // The header eyebrow is app-owned + stable ("The Bar Tab"); the venue name and
+  // "Open on the map" cross-link always render for a resolvable id.
+  await expect(page.getByText("The Bar Tab", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /open on the map/i }).first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 
