@@ -210,6 +210,7 @@ export default function VenueInspector({
           <Amenity active={venue.hasStory} label="heritage" />
           <Amenity active={Boolean(venue.curation.writerPick)} label="writer" />
           <Amenity active={venue.amenities.beerGarden} label="garden" />
+          <Amenity active={venue.amenities.nonAlcoholic} label="0.0" />
           <Amenity active={venue.amenities.liveSports} label="sports" />
           <Amenity active={venue.amenities.food} label="food" />
           <Amenity active={venue.amenities.cocktails} label="cocktails" />

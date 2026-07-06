@@ -1,4 +1,5 @@
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
 
 export type CrawlStyle =
   | "balanced"
@@ -81,6 +82,9 @@ export type Venue = {
     pool: boolean;
     happyHour: boolean;
     karaoke: boolean;
+    // Derived (not a dataset flag): the pub pours at least one non-alcoholic /
+    // 0.0 option (Lucky Saint, Guinness 0.0, "…Alcohol Free 0.5%"…).
+    nonAlcoholic: boolean;
   };
   website: string;
   imageUrl: string;
@@ -97,6 +101,7 @@ export type Filters = {
   stopCount: number;
   routeWindow: number;
   requireBeerGarden: boolean;
+  requireNonAlcoholic: boolean;
   requireLiveSports: boolean;
   requireFood: boolean;
   requireCocktails: boolean;
@@ -195,6 +200,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         pool: prices.some((price) => truthyFlag(price.pool)),
         happyHour: prices.some((price) => truthyFlag(price.happy_hour)),
         karaoke: prices.some((price) => truthyFlag(price.karaoke)),
+        nonAlcoholic: hasNonAlcoholic(prices.map((price) => price.pint_name)),
       },
       website: prices.find((price) => price.website)?.website ?? "",
       imageUrl: prices.find((price) => price.image_url)?.image_url ?? "",
@@ -271,6 +277,7 @@ export function filterVenues(
 
     const matchesAmenities =
       (!filters.requireBeerGarden || venue.amenities.beerGarden) &&
+      (!filters.requireNonAlcoholic || venue.amenities.nonAlcoholic) &&
       (!filters.requireLiveSports || venue.amenities.liveSports) &&
       (!filters.requireFood || venue.amenities.food) &&
       (!filters.requireCocktails || venue.amenities.cocktails);

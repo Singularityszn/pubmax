@@ -69,6 +69,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     stopCount: 4,
     routeWindow: 25,
     requireBeerGarden: false,
+    requireNonAlcoholic: false,
     requireLiveSports: false,
     requireFood: false,
     requireCocktails: false,

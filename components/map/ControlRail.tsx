@@ -40,6 +40,7 @@ export const initialFilters: Filters = {
   stopCount: 6,
   routeWindow: 20,
   requireBeerGarden: false,
+  requireNonAlcoholic: false,
   requireLiveSports: false,
   requireFood: false,
   requireCocktails: false,
@@ -319,6 +320,16 @@ export default function ControlRail({
             }
           />
           Beer garden
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireNonAlcoholic}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requireNonAlcoholic: event.target.checked })
+            }
+          />
+          Non-alcoholic
         </label>
         <label>
           <input
