@@ -54,3 +54,33 @@ test("/map renders the MapLibre canvas with real size and never falls back", asy
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(canvas).toBeVisible();
 });
+
+// Issue #35 — optimistic-pins perf guard. The map paints pins from the ~116 KB
+// slim index BEFORE the ~5.6 MB full dataset lands; PubMap drops a
+// `pubmax:first-pins` performance.mark the instant those slim pins are set.
+// Asserting the mark exists and fires early is a WebGL-flake-free proxy for
+// "first interactive pin is fast" (the PRD's map-click → first pin target),
+// since it measures the data path, not the GPU. Threshold is a generous CI
+// ceiling (4s) well under the old full-dataset-only path.
+test("/map paints optimistic pins from the slim index quickly", async ({ page }) => {
+  test.setTimeout(30_000);
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  // Wait until PubMap has set its first-pins mark. It's dropped in a client
+  // effect after loadSlimVenues() resolves, so poll the Performance timeline.
+  await page.waitForFunction(
+    () => performance.getEntriesByName("pubmax:first-pins").length > 0,
+    { timeout: 15_000 },
+  );
+
+  const startTime = await page.evaluate(() => {
+    const [mark] = performance.getEntriesByName("pubmax:first-pins");
+    return mark ? mark.startTime : Number.POSITIVE_INFINITY;
+  });
+
+  // startTime is ms since navigation start — the time to the first optimistic
+  // pin paint. Generous CI ceiling; a regression to the full-dataset-first path
+  // would blow well past this.
+  expect(startTime).toBeLessThan(4000);
+});
