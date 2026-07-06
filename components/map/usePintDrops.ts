@@ -54,6 +54,24 @@ export function usePintDrops() {
   // the button unmounts on click, so double-submit can't happen.
   const reportsInFlight = useRef(new Set<string>());
 
+  // Refresh the WHOLE drops layer from the public list (all venues). This is the
+  // same read the initial load uses — so #29 visibility filtering re-applies —
+  // and re-groups by venue, which repaints every pin halo / venue signal. Live
+  // updates (issue #37, useLiveDrops) call this on a new-drop signal. Fail-soft:
+  // a failed refresh leaves the current layer intact (does NOT wipe it), so a
+  // transient hiccup never blanks the map.
+  const refreshAllDrops = useCallback(() => {
+    fetch("/api/pint-drops")
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
+      .then((data: { drops?: DropWithPhotos[] }) =>
+        setDropsByVenueId(groupDropsByVenueId(data.drops ?? [])),
+      )
+      .catch(() => {
+        // Keep the existing layer — a live refresh failure is not a reason to
+        // blank the map (unlike the initial load, which has nothing to preserve).
+      });
+  }, []);
+
   useEffect(() => {
     fetch("/api/pint-drops")
       .then((response) => (response.ok ? response.json() : { drops: [] }))
@@ -255,6 +273,7 @@ export function usePintDrops() {
     dropsByVenueId,
     venueSignals,
     refreshVenueDrops,
+    refreshAllDrops,
     handle,
     setHandle,
     composerOpen,
