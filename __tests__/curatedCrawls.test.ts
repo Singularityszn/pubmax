@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { curatedCrawls } from "@/lib/curatedCrawls";
+import { landmarks } from "@/lib/landmarks";
 import { groupVenuePrices, type CrawlStyle, type VenuePrice } from "@/lib/venues";
 import dataset from "../public/data/pint_prices_app_dataset.json";
 
@@ -20,9 +21,11 @@ const validStyles: CrawlStyle[] = [
 ];
 
 describe("curated crawls", () => {
-  it("has 3-4 crawls with unique ids", () => {
+  it("has 3-8 crawls with unique ids", () => {
+    // Started at 3-4; extended with 4 themed POI-threading crawls (story 26) —
+    // 8 is the new ceiling, still small enough to hand-curate honestly.
     expect(curatedCrawls.length).toBeGreaterThanOrEqual(3);
-    expect(curatedCrawls.length).toBeLessThanOrEqual(4);
+    expect(curatedCrawls.length).toBeLessThanOrEqual(8);
     expect(new Set(curatedCrawls.map((c) => c.id)).size).toBe(curatedCrawls.length);
   });
 
@@ -48,5 +51,25 @@ describe("curated crawls", () => {
         crawl.venueIds.length,
       );
     }
+  });
+
+  it("every startLandmarkId, when set, resolves to a real landmark (story 27)", () => {
+    for (const crawl of curatedCrawls) {
+      if (!crawl.startLandmarkId) continue;
+      expect(
+        landmarks.some((lm) => lm.id === crawl.startLandmarkId),
+        `crawl ${crawl.id} points at missing landmark ${crawl.startLandmarkId}`,
+      ).toBe(true);
+    }
+  });
+
+  it("at least one new themed crawl threads each POI category (garden/market/historic/viewpoint)", () => {
+    // Not a strict per-crawl requirement — poisOnLeg (lib/routeLegs) threads POIs
+    // generically for any route — but the themed crawls should sit near real
+    // examples of each category so "on the way" has something to surface.
+    const ids = new Set(curatedCrawls.map((c) => c.id));
+    expect(ids.has("pint-park-view")).toBe(true);
+    expect(ids.has("borough-market-crawl")).toBe(true);
+    expect(ids.has("bankside-riverside")).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import {
   Beer,
   BookOpen,
   Check,
+  Footprints,
   Landmark,
   Link2,
   MapPin,
@@ -14,9 +15,17 @@ import {
   Trophy,
   ArrowUpDown,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { crawlSummary, formatPrice, type Filters, type Venue } from "@/lib/venues";
+import { loadPois, type Poi } from "@/lib/pois";
+import {
+  buildRouteLegs,
+  formatLeg,
+  formatRouteTotal,
+  poisOnRoute,
+  type RoutePace,
+} from "@/lib/routeLegs";
 import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
 import SaveCrawlStory from "@/components/crawl/SaveCrawlStory";
 
@@ -63,6 +72,34 @@ export default function RoutePanel({
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
   const routeHeritageCount = route.filter((venue) => venue.hasStory).length;
   const routeWriterCount = route.filter((venue) => venue.curation.writerPick).length;
+
+  // Walking (or running) legs between stops (story 25) — pure math from
+  // lib/routeLegs, honestly labelled "straight-line" throughout.
+  const [pace, setPace] = useState<RoutePace>("walk");
+  const legSummary = useMemo(() => buildRouteLegs(route, pace), [route, pace]);
+
+  // "On the way" POI threading (story 26): garden/market/historic/viewpoint
+  // POIs within ~250m of a leg. Loaded independently of the map canvas — a
+  // second, cheap client fetch of the same bundled dataset — so RoutePanel
+  // doesn't need PubMapCanvas's internal POI state lifted out.
+  const [pois, setPois] = useState<Poi[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    loadPois()
+      .then((loaded) => {
+        if (!cancelled) setPois(loaded);
+      })
+      .catch(() => {
+        // "On the way" is a nicety — a fetch failure just leaves it empty.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const onTheWayByLeg = useMemo(
+    () => poisOnRoute(legSummary.legs, pois),
+    [legSummary.legs, pois],
+  );
 
   const [copied, setCopied] = useState(false);
   async function copyLink() {
@@ -116,6 +153,15 @@ export default function RoutePanel({
           <span>{summary.distance.toFixed(1)} km</span>
           <small>straight-line, between stops</small>
         </div>
+        {legSummary.legs.length > 0 ? (
+          <div
+            title="Estimated at 4.8 km/h (walking) or 9 km/h (running), over the same straight-line distance. Real pavement time will be longer."
+          >
+            <Footprints size={17} />
+            <span>{legSummary.totalMinutes} min</span>
+            <small>{pace === "run" ? "running, straight-line" : "walking, straight-line"}</small>
+          </div>
+        ) : null}
         <div>
           <Trophy size={17} />
           <span>{route.length}</span>
@@ -158,6 +204,28 @@ export default function RoutePanel({
         </button>
       ) : null}
 
+      {legSummary.legs.length > 0 ? (
+        <div className="routePace" role="group" aria-label="Walking or running pace">
+          <button
+            type="button"
+            className={pace === "walk" ? "routePaceBtn active" : "routePaceBtn"}
+            aria-pressed={pace === "walk"}
+            onClick={() => setPace("walk")}
+          >
+            Walk
+          </button>
+          <button
+            type="button"
+            className={pace === "run" ? "routePaceBtn active" : "routePaceBtn"}
+            aria-pressed={pace === "run"}
+            onClick={() => setPace("run")}
+          >
+            Run
+          </button>
+          <span className="routePaceTotal">{formatRouteTotal(legSummary)}</span>
+        </div>
+      ) : null}
+
       {route.length >= 2 ? (
         <SaveCrawlStory
           stops={route.map((venue) => ({
@@ -179,6 +247,8 @@ export default function RoutePanel({
         {route.map((venue, index) => {
           const signal = venueSignals.get(venue.id);
           const dropCount = signal?.dropCount ?? 0;
+          const leg = legSummary.legs[index];
+          const onTheWay = onTheWayByLeg.get(index) ?? [];
           return (
           <li key={venue.id} className={activeVenueId === venue.id ? "active" : ""}>
             <button
@@ -213,6 +283,17 @@ export default function RoutePanel({
                 </small>
               </div>
             </button>
+            {leg ? (
+              <div className="routeLeg" aria-label={`Leg to ${leg.to.name}`}>
+                <Footprints size={13} aria-hidden="true" />
+                <span>{formatLeg(leg)}</span>
+                {onTheWay.length > 0 ? (
+                  <p className="routeLegOnWay">
+                    On the way: {onTheWay.map((m) => m.poi.name).join(", ")}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </li>
           );
         })}

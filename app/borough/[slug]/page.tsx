@@ -3,25 +3,78 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
-import { groupVenuePrices, formatPrice, type VenuePrice } from "@/lib/venues";
-import { boroughFromSlug, pubsInBorough } from "@/lib/boroughs";
+import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
+import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
 
 import "./borough.css";
 
-// Borough discovery page: /borough/[slug]. A SERVER component (cc_plan2
-// §14/§25) — it reads the bundled dataset via getVenueIndex's underlying loader
-// (venueIndex is server-only, which is fine here), groups it, resolves the
-// borough from the slug, and renders a shareable "pubs in Camden" page: a dek,
-// a cheapest-first list of that borough's pubs (each linking onto the map) with
-// a price stamp, and a "plan a crawl here" link. generateMetadata gives it a
-// share-worthy title/description. An unknown slug resolves to notFound() — the
-// page never crashes on a borough that doesn't exist.
+// Borough discovery / "night-out chapter" page: /borough/[slug]. A SERVER
+// component (cc_plan2 §14/§25, story 28) — it reads the bundled dataset via
+// getVenueIndex's underlying loader (venueIndex is server-only, which is fine
+// here), groups it, resolves the borough from the slug, and renders a
+// shareable page: a dek, cheapest-first pubs (each linking onto the map), the
+// borough's story pubs, any curated/themed crawl that touches the borough, and
+// a transport hint that links the map pre-filtered to the area. generateMetadata
+// gives it a share-worthy title/description. An unknown slug resolves to
+// notFound() — the page never crashes on a borough that doesn't exist.
 //
 // Next 16 dynamic route params are async — `params` is a Promise we await.
 
 type PageProps = { params: Promise<{ slug: string }> };
+
+// A curated/themed crawl "touches" a borough when at least one of its stops'
+// primary/visible borough slugs matches the page's borough slug. Pure, reads
+// only what's already loaded (no extra fetch) — a crawl with no matching stop
+// just doesn't show up in the borough's chapter.
+function crawlsTouchingBorough(
+  crawls: CuratedCrawl[],
+  venues: Venue[],
+  slug: string,
+): CuratedCrawl[] {
+  const target = slugifyBorough(slug);
+  if (!target) return [];
+  const venueById = new Map(venues.map((venue) => [venue.id, venue]));
+  return crawls.filter((crawl) =>
+    crawl.venueIds.some((id) => {
+      const venue = venueById.get(id);
+      if (!venue) return false;
+      return (
+        slugifyBorough(venue.primaryBorough) === target ||
+        venue.visibleBoroughs.some((borough) => slugifyBorough(borough) === target)
+      );
+    }),
+  );
+}
+
+// Reproduce a curated crawl on the map — same share-URL shape the crawls page
+// uses (mode=build&pubs=id1,id2).
+function curatedCrawlHref(crawl: CuratedCrawl): string {
+  const params = new URLSearchParams();
+  params.set("mode", "build");
+  params.set("pubs", crawl.venueIds.join(","));
+  return `/map?${params.toString()}`;
+}
+
+// Cap the transport-hint link to a shareable number of stops — a large
+// borough's full pub list would make an unwieldy URL, and the point is "here's
+// the corner of the map", not every last venue.
+const MAP_LINK_STOP_CAP = 12;
+
+// The map, scoped to this borough's cheapest pubs by pre-building the same
+// share-URL shape a hand-built crawl uses (mode=build&pubs=id1,id2) — the
+// "transport hint": open the map already centred on where the borough's pubs
+// are, rather than a bespoke transit widget the app has no data to back.
+// Honest: this is "here's where they are", not a routed transit itinerary.
+function boroughMapUrl(pubs: Venue[]): string {
+  if (pubs.length === 0) return "/map";
+  const params = new URLSearchParams();
+  params.set("mode", "build");
+  params.set("pubs", pubs.slice(0, MAP_LINK_STOP_CAP).map((pub) => pub.id).join(","));
+  return `/map?${params.toString()}`;
+}
 
 // Load the grouped venue set from disk. We reuse the same dataset getVenueIndex
 // reads (via its build path) but need full Venue[] here, not the id→ref map, so
@@ -84,6 +137,8 @@ export default async function BoroughPage({ params }: PageProps) {
   if (!name) notFound();
 
   const pubs = pubsInBorough(venues, slug);
+  const storyPubs = pubs.filter((pub) => pub.hasStory);
+  const touchingCrawls = crawlsTouchingBorough(curatedCrawls, venues, slug);
 
   return (
     <main className="boroughPage">
@@ -106,8 +161,8 @@ export default async function BoroughPage({ params }: PageProps) {
             </>
           )}
         </p>
-        <Link className="boroughCrawlLink" href="/map">
-          Plan a crawl here →
+        <Link className="boroughCrawlLink" href={boroughMapUrl(pubs)}>
+          {pubs.length > 0 ? `See ${name} on the map →` : "Plan a crawl here →"}
         </Link>
       </header>
 
@@ -162,6 +217,56 @@ export default async function BoroughPage({ params }: PageProps) {
           </tbody>
         </table>
       )}
+
+      {storyPubs.length > 0 ? (
+        <section className="boroughSection" aria-labelledby="boroughStoryHeading">
+          <h2 id="boroughStoryHeading" className="boroughSectionTitle">
+            Story pubs in {name}
+          </h2>
+          <p className="boroughSectionDek">
+            {storyPubs.length} {storyPubs.length === 1 ? "pub" : "pubs"} here carry a heritage
+            note or a passed-down story — the ones worth a detour, not just a cheap pint.
+          </p>
+          <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
+            {storyPubs.map((pub) => (
+              <li key={pub.id}>
+                <Link href={venueMapUrl(pub.id)} className="boroughChip">
+                  {pub.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {touchingCrawls.length > 0 ? (
+        <section className="boroughSection" aria-labelledby="boroughCrawlsHeading">
+          <h2 id="boroughCrawlsHeading" className="boroughSectionTitle">
+            Crawls through {name}
+          </h2>
+          <p className="boroughSectionDek">
+            A curated route with at least one stop here — plan the whole walk, not just this
+            borough&rsquo;s corner of it.
+          </p>
+          <ul className="boroughCrawlList" aria-label={`Curated crawls through ${name}`}>
+            {touchingCrawls.map((crawl) => (
+              <li key={crawl.id} className="boroughCrawlCard">
+                <div>
+                  <strong>{crawl.name}</strong>
+                  <p>{crawl.blurb}</p>
+                </div>
+                <Link
+                  href={curatedCrawlHref(crawl)}
+                  className="boroughCrawlPlanLink"
+                  aria-label={`Plan the ${crawl.name} crawl on the map`}
+                >
+                  Plan this crawl →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <p className="boroughFootnote">
         Every pint has a story. <Link href="/borough">See every borough →</Link>

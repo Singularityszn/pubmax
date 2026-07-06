@@ -1,13 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Copy, MapPin } from "lucide-react";
+import { Check, Copy, MapPin, Flag } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { landmarks } from "@/lib/landmarks";
 import SiteNav from "@/components/nav/SiteNav";
 import "./crawls.css";
+
+// The landmark a crawl starts at (story 27) — "starts at Big Ben"-style chip.
+// Undefined when the crawl carries no startLandmarkId, or it points at an id
+// that isn't a real landmark (defensive: never crash the crawls page over a
+// stale reference).
+function startLandmarkName(crawl: CuratedCrawl): string | undefined {
+  if (!crawl.startLandmarkId) return undefined;
+  return landmarks.find((lm) => lm.id === crawl.startLandmarkId)?.name;
+}
 
 function formatGbp(value: number): string {
   return `£${value.toFixed(2)}`;
@@ -79,23 +89,31 @@ export default function CrawlsPage() {
           </p>
 
           <ul className="curatedGrid" aria-label="Curated crawls worth walking">
-            {curatedCrawls.map((crawl) => (
-              <li key={crawl.id} className="curatedCard">
-                <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
-                <h2 className="curatedName">{crawl.name}</h2>
-                <p className="curatedBlurb">{crawl.blurb}</p>
-                <p className="curatedMeta">
-                  {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
-                </p>
-                <Link
-                  href={curatedCrawlHref(crawl)}
-                  className="curatedLink"
-                  aria-label={`Plan the ${crawl.name} crawl on the map`}
-                >
-                  Plan this crawl →
-                </Link>
-              </li>
-            ))}
+            {curatedCrawls.map((crawl) => {
+              const originName = startLandmarkName(crawl);
+              return (
+                <li key={crawl.id} className="curatedCard">
+                  <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
+                  <h2 className="curatedName">{crawl.name}</h2>
+                  <p className="curatedBlurb">{crawl.blurb}</p>
+                  {originName ? (
+                    <span className="curatedOriginChip">
+                      <Flag size={12} aria-hidden="true" /> Starts at {originName}
+                    </span>
+                  ) : null}
+                  <p className="curatedMeta">
+                    {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+                  </p>
+                  <Link
+                    href={curatedCrawlHref(crawl)}
+                    className="curatedLink"
+                    aria-label={`Plan the ${crawl.name} crawl on the map`}
+                  >
+                    Plan this crawl →
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
 
           <p className="crawlEmptyBody crawlOwnLead">

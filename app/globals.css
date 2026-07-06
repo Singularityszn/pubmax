@@ -1341,6 +1341,48 @@ input[type="range"] {
   color: var(--muted);
 }
 
+/* The technical diagnostic — a printer's-mark footnote: monospaced, dim, so it
+   reads as a stamp rather than prose. Wraps so long statusMessages don't clip. */
+.mapFallbackDetail {
+  max-width: 340px;
+  margin: 2px auto 0;
+  font-family: var(--mono, ui-monospace, "SFMono-Regular", Menlo, monospace);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  color: var(--muted);
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
+
+/* Retry — a brass-rimmed field-guide button, matching the candle-lit accents
+   used for guidebook actions elsewhere; lifts on hover like the map's cards. */
+.mapFallbackRetry {
+  margin-top: 14px;
+  padding: 7px 20px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--paper);
+  font-family: var(--serif, inherit);
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.mapFallbackRetry:hover {
+  background: var(--brass);
+  color: var(--ink-deep);
+}
+
+.mapFallbackRetry:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 /* Hero story teaser on first paint — a guidebook margin note, bottom-left. */
 .mapHeroCard {
   position: absolute;
@@ -2185,6 +2227,65 @@ input[type="range"] {
 .routeList small {
   color: var(--brass);
   font-weight: 600;
+}
+
+/* Walk/run pace toggle + honest route-total line (story 25). */
+.routePace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  flex-wrap: wrap;
+}
+
+.routePaceBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.routePaceBtn.active {
+  border-color: var(--brass);
+  color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+}
+
+.routePaceTotal {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Per-leg walk/run time + "on the way" POI line, rendered under each stop that
+   has a next stop (story 25/26). Honest straight-line label lives in the text
+   itself (see lib/routeLegs.formatLeg), not just a tooltip. */
+.routeLeg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 2px 0 0 41px;
+  padding: 4px 0 6px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  border-bottom: 1px dashed var(--line);
+}
+
+.routeLeg svg {
+  color: var(--brass);
+  flex-shrink: 0;
+}
+
+.routeLegOnWay {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--ink-soft, var(--muted));
 }
 
 /* Keyboard route-building path: filtered venue list with Add/Remove controls. */

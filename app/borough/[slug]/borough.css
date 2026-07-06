@@ -243,6 +243,100 @@
   color: var(--ink-soft);
 }
 
+/* --- night-out chapter sections (story pubs / crawls) ---------------------- */
+
+.boroughSection {
+  margin: 32px 0 0;
+}
+
+.boroughSectionTitle {
+  margin: 0 0 6px;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.boroughSectionDek {
+  margin: 0 0 14px;
+  max-width: 62ch;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.boroughChipList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.boroughChip {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.boroughChip:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.boroughCrawlList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.boroughCrawlCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.boroughCrawlCard strong {
+  display: block;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.boroughCrawlCard p {
+  margin: 3px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.boroughCrawlPlanLink {
+  flex-shrink: 0;
+  color: var(--brass);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.boroughCrawlPlanLink:hover {
+  text-decoration: underline;
+}
+
 /* --- footnote ------------------------------------------------------------- */
 
 .boroughFootnote {
@@ -267,6 +361,8 @@
 .boroughPub:focus-visible,
 .boroughCard:focus-visible,
 .boroughCrawlLink:focus-visible,
+.boroughChip:focus-visible,
+.boroughCrawlPlanLink:focus-visible,
 .boroughEmpty a:focus-visible,
 .boroughEyebrow a:focus-visible,
 .boroughFootnote a:focus-visible {
@@ -307,6 +403,11 @@
 
   .boroughGrid {
     grid-template-columns: 1fr;
+  }
+
+  .boroughCrawlCard {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
