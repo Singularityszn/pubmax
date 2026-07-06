@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Accessibility,
   Anchor,
   Beer,
   BookOpen,
@@ -19,7 +20,15 @@ import { useMemo } from "react";
 
 import { pubSources, writerProfile } from "@/lib/curation";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import {
+  accessibilityFilterSummary,
+  isKnownAccessibleToilet,
+  isKnownSeatedService,
+  isKnownStepFree,
+} from "@/lib/venueAccessibility";
 import type { CrawlStyle, Filters, Venue } from "@/lib/venues";
+
+import "./accessibilityFilters.css";
 
 export type CrawlMode = "suggest" | "build";
 
@@ -48,6 +57,9 @@ export const initialFilters: Filters = {
   requireHeritage: false,
   requirePintDrops: false,
   canonicalOnly: true,
+  requireStepFree: false,
+  requireAccessibleToilet: false,
+  requireSeatedService: false,
 };
 
 type ControlRailProps = {
@@ -89,6 +101,26 @@ export default function ControlRail({
   const waterCount = filteredVenues.filter((venue) => venue.curation.nearWater).length;
   const heritageCount = filteredVenues.filter((venue) => venue.hasStory).length;
   const writerCount = filteredVenues.filter((venue) => venue.curation.writerPick).length;
+
+  // Confirmed-so-far count for the honest accessibility summary: how many of the
+  // CURRENTLY-SHOWN pubs are known to meet EVERY active accessibility filter.
+  // Because filteredVenues has already been narrowed by those filters, this is
+  // simply its length when any are on — but we recompute against the predicates
+  // so the copy stays correct even if the caller ever passes an un-narrowed set.
+  const accessibilityConfirmedCount = filteredVenues.filter(
+    (venue) =>
+      (!filters.requireStepFree || isKnownStepFree(venue)) &&
+      (!filters.requireAccessibleToilet || isKnownAccessibleToilet(venue)) &&
+      (!filters.requireSeatedService || isKnownSeatedService(venue)),
+  ).length;
+  const accessibilitySummary = accessibilityFilterSummary(
+    {
+      stepFree: filters.requireStepFree,
+      accessibleToilet: filters.requireAccessibleToilet,
+      seatedService: filters.requireSeatedService,
+    },
+    accessibilityConfirmedCount,
+  );
 
   const filtersDirty = useMemo(
     () => JSON.stringify(filters) !== JSON.stringify(initialFilters),
@@ -369,6 +401,52 @@ export default function ControlRail({
           />
           Clean borough rows
         </label>
+      </section>
+
+      <section className="panelSection toggles accessibilityFilters">
+        <div className="sectionTitle">
+          <Accessibility size={16} />
+          <span>Accessible venues</span>
+        </div>
+        <p className="accessibilityHint">
+          Only pubs with access we can <strong>confirm</strong> from a public source — unknown
+          pubs are hidden here rather than guessed. Help by spilling what you know.
+        </p>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireStepFree}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requireStepFree: event.target.checked })
+            }
+          />
+          Step-free entry
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireAccessibleToilet}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requireAccessibleToilet: event.target.checked })
+            }
+          />
+          Accessible toilet
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.requireSeatedService}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, requireSeatedService: event.target.checked })
+            }
+          />
+          Seated service
+        </label>
+        {accessibilitySummary ? (
+          <p className="accessibilitySummary" role="status">
+            {accessibilitySummary}
+          </p>
+        ) : null}
       </section>
 
       <section className="statsGrid">

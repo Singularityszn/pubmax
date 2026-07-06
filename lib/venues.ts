@@ -1,5 +1,10 @@
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
+import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
+import {
+  matchesAccessibilityFilters,
+  type VenueAccessibility,
+} from "@/lib/venueAccessibility";
 
 export type CrawlStyle =
   | "balanced"
@@ -99,6 +104,12 @@ export type Venue = {
   dataQualityNotes: string[];
   sourceDatasets: string[];
   curation: VenueCuration;
+  // Publicly-documented accessible-venue facts (PRD issue #28). Present ONLY for
+  // the small curated seed of pubs whose access is documented (see
+  // lib/venueAccessibilitySeeds.ts); for every other venue this is undefined —
+  // honestly UNKNOWN, never fabricated. See lib/venueAccessibility.ts for the
+  // predicates + filter contract (an unknown field FAILS a positive filter).
+  accessibility?: VenueAccessibility;
 };
 
 export type Filters = {
@@ -116,6 +127,12 @@ export type Filters = {
   requireHeritage: boolean;
   requirePintDrops: boolean;
   canonicalOnly: boolean;
+  // Accessible-venue filters (PRD issue #28). Each, when on, narrows to pubs
+  // KNOWN to have that facet — an unknown fact fails the filter (see
+  // lib/venueAccessibility.matchesAccessibilityFilters). Off = no-op.
+  requireStepFree: boolean;
+  requireAccessibleToilet: boolean;
+  requireSeatedService: boolean;
 };
 
 export function truthyFlag(value: string): boolean {
@@ -180,6 +197,10 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     }
 
     const curation = getVenueCuration(sortedPrices);
+    // Attach documented accessibility facts for the curated seed only; every
+    // other venue gets undefined (honestly unknown). Keyed by pub name +
+    // borough so a common name doesn't cross-contaminate the wrong pub.
+    const accessibility = getVenueAccessibility(first.pub_name, first.primary_borough);
 
     return {
       id: stableVenueIdFromKey(key),
@@ -218,6 +239,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       dataQualityNotes: Array.from(dataQualityNotes),
       sourceDatasets: Array.from(sourceDatasets),
       curation,
+      accessibility,
     };
   });
 }
@@ -334,13 +356,22 @@ export function filterVenues(
 
     const matchesPintDrops = !filters.requirePintDrops || hasPintDrops(venue.id);
 
+    // Accessible-venue filters: an unknown fact fails a positive filter, so
+    // filtering to step-free shows only pubs KNOWN step-free (never guessed).
+    const matchesAccessibility = matchesAccessibilityFilters(venue, {
+      stepFree: filters.requireStepFree,
+      accessibleToilet: filters.requireAccessibleToilet,
+      seatedService: filters.requireSeatedService,
+    });
+
     return (
       matchesQuery &&
       matchesPrice &&
       matchesAmenities &&
       matchesCuration &&
       matchesCanonical &&
-      matchesPintDrops
+      matchesPintDrops &&
+      matchesAccessibility
     );
   });
 }

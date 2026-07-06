@@ -7,6 +7,10 @@ import { useMemo, useRef, useState } from "react";
 
 import { COMMUNITY_PRICE_NOTE, formatFreshness, formatPrice, type Venue } from "@/lib/venues";
 import { buildVenueClaims, type ClaimKind, type Provenance } from "@/lib/curation";
+import {
+  accessibilityChipLabels,
+  quietHoursLabel,
+} from "@/lib/venueAccessibility";
 import LandlordPanel from "@/components/LandlordPanel";
 import LastTrainCard from "./LastTrainCard";
 import PintDropComposer from "@/components/map/PintDropComposer";
@@ -16,6 +20,7 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
 import "./venueSheet.css";
+import "./accessibilityFilters.css";
 
 // Mobile-first tabs regroup the panel's long vertical scroll into thumb-friendly
 // sections (most PUBMAXXERs are on a phone while travelling). Pints is the
@@ -175,6 +180,11 @@ export default function VenueInspector({
   // Editorial Sourced claims and contributor/anecdote drops stay separate.
   const claims = useMemo(() => buildVenueClaims(venue.curation, drops), [venue.curation, drops]);
 
+  // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
+  // facets render nothing — never a "No" — per the provenance-honesty rule.
+  const accessChips = accessibilityChipLabels(venue);
+  const quietHours = quietHoursLabel(venue);
+
   return (
     <section className="venueInspector">
       {/* The grab handle is the primary drag surface on mobile — a generous
@@ -241,6 +251,22 @@ export default function VenueInspector({
           <Amenity active={venue.amenities.cocktails} label="cocktails" />
           <Amenity active={venue.amenities.pubQuiz} label="quiz" />
         </div>
+        {/* Accessibility — only publicly-confirmed facts, shown as chips. A pub
+            with no confirmed access facts shows nothing here (never a "No"). */}
+        {accessChips.length > 0 ? (
+          <div className="accessibilityChips" aria-label="Confirmed accessibility">
+            {accessChips.map((label) => (
+              <span key={label} className="accessibilityChip">
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {quietHours ? (
+          <p className="accessibilityQuietHours">
+            <strong>Quiet hours:</strong> {quietHours}
+          </p>
+        ) : null}
         {latestContributorPrice !== null && latestContributorPrice !== undefined ? (
           <div className="contributorPrice">
             <span>Latest Pint Drop price</span>
