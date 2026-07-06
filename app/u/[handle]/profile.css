@@ -328,12 +328,28 @@
   gap: 12px;
 }
 
+/* The pub name — a link to the map (?sel). Never the raw venue id.
+   Mirrors .feedVenueLink so the anchor reads as a name, not a raw browser link. */
 .profilePage .profileDropVenue {
   font-weight: 700;
   font-size: 0.9rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--brass);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.18s ease;
+}
+
+.profilePage .profileDropVenue:hover {
+  border-bottom-color: var(--brass);
+}
+
+.profilePage .profileDropVenue:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .profilePage .profileDropPrice {

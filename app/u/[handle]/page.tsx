@@ -8,6 +8,7 @@ import FollowButton from "@/components/profile/FollowButton";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SavedPubList from "@/components/profile/SavedPubList";
+import { VENUE_FALLBACK_LABEL } from "@/lib/feed";
 import type { FollowCounts } from "@/lib/followStore";
 import {
   deriveProfileFromDrops,
@@ -38,6 +39,11 @@ import "./profile.css";
 // The public drop DTO — kept loose; only the fields this page reads are named.
 type PublicDrop = ProfileDrop & {
   venueId: string;
+  // Enriched server-side by /api/pint-drops (withVenueNames): the human pub name
+  // + a "/map?sel=…" url. Optional here because the local PublicDrop shape is
+  // kept loose, but the API always sets both (name falls back to "A London pub").
+  venueName?: string;
+  venueMapUrl?: string;
   priceGbp?: number | null;
   pintPhotoUrl?: string | null;
   venuePhotoUrl?: string | null;
@@ -330,13 +336,20 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
                     const price = formatGbp(drop.priceGbp);
                     const photo = drop.pintPhotoUrl || drop.venuePhotoUrl || null;
                     const key = (drop.id as string | undefined) ?? `${drop.venueId}:${i}`;
+                    // The human pub name (never the raw venue id): prefer the
+                    // server-enriched venueName, fall back to the friendly label.
+                    const venueLabel = drop.venueName || VENUE_FALLBACK_LABEL;
+                    // Tapping the venue opens the map with it selected (§9). Use
+                    // the enriched map url, or build the same ?sel=<id> fallback.
+                    const venueHref =
+                      drop.venueMapUrl ?? `/map?sel=${encodeURIComponent(drop.venueId)}`;
                     return (
                       <li className="profileDropCard" key={key}>
                         {photo ? (
                           <div className="profileDropPhoto">
                             <Image
                               src={photo}
-                              alt={drop.drink ? `${drop.drink} at ${drop.venueId}` : ""}
+                              alt={drop.drink ? `${drop.drink} at ${venueLabel}` : ""}
                               width={320}
                               height={220}
                               unoptimized
@@ -349,7 +362,9 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
                         )}
                         <div className="profileDropBody">
                           <div className="profileDropTop">
-                            <span className="profileDropVenue">{drop.venueId}</span>
+                            <Link className="profileDropVenue" href={venueHref}>
+                              {venueLabel}
+                            </Link>
                             {price ? <span className="profileDropPrice">{price}</span> : null}
                           </div>
                           {drop.passedDownNote ? (
