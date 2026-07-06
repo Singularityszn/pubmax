@@ -32,14 +32,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Build-time data gate: every bundled dataset is validated with the same
+      # rules the app uses, and a truncated pint dataset fails the run.
+      - name: Validate data
+        run: npm run validate-data
+
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm test
+      # Quality-score gate: runs the suite with v8 coverage. vitest fails the
+      # step if coverage drops below the thresholds in vitest.config.ts, so a
+      # merge that regresses coverage is blocked.
+      - name: Unit tests (coverage gate)
+        run: npm run coverage
+
+      # Surface the coverage % as a one-line "score" in the CI log for at-a-
+      # glance tracking. Reads the json-summary vitest writes to coverage/.
+      - name: Coverage score
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node -e "const t=require('./coverage/coverage-summary.json').total; console.log('SCORE lines=%s% functions=%s% statements=%s% branches=%s%', t.lines.pct, t.functions.pct, t.statements.pct, t.branches.pct);"
+          else
+            echo "SCORE: coverage summary not found"
+          fi
 
       - name: Production build
         run: npm run build
