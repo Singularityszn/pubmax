@@ -14,7 +14,7 @@ const LNG_MAX = 0.3;
 const LAT_MIN = 51.28;
 const LAT_MAX = 51.72;
 
-const CATEGORIES: PoiCategory[] = ["tube", "park", "sight"];
+const CATEGORIES: PoiCategory[] = ["tube", "rail", "bus", "river", "park", "sight"];
 
 describe("london_pois dataset", () => {
   it("parses to a non-empty Poi[]", () => {
@@ -57,7 +57,10 @@ describe("london_pois dataset", () => {
   });
 
   it("each category has a reasonable count", () => {
-    const counts: Record<PoiCategory, number> = { tube: 0, park: 0, sight: 0 };
+    const counts = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<
+      PoiCategory,
+      number
+    >;
     for (const poi of pois) counts[poi.category] += 1;
     for (const category of CATEGORIES) {
       expect(counts[category], `${category} count`).toBeGreaterThan(0);

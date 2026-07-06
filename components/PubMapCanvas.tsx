@@ -8,7 +8,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { landmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
 import { priceForBeer } from "@/lib/beers";
-import { loadPois, POI_CATEGORY_META, type Poi, type PoiCategory } from "@/lib/pois";
+import {
+  loadPois,
+  POI_CATEGORY_META,
+  TRANSPORT_CATEGORIES,
+  type Poi,
+  type PoiCategory,
+} from "@/lib/pois";
+import { MAP_ICON_SPECS, iconId, rasterize, type IconTokens } from "@/lib/mapIcons";
 import type { Venue } from "@/lib/venues";
 
 type VenueSignal = { hasPintDrops: boolean; latestContributorPrice: number | null };
@@ -147,25 +154,72 @@ function pubsToGeoJSON(
   };
 }
 
-// POIs → GeoJSON, one feature per point, category carried for per-layer filter.
+// POIs → GeoJSON, one feature per point. category drives which layer/symbol it
+// renders on; rank (1 = major interchange, 2 = minor) drives the zoom-depth
+// reveal so the network reads wide and detail fills in as you zoom.
 function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pois.map((poi) => ({
       type: "Feature" as const,
-      properties: { id: poi.id, name: poi.name, category: poi.category },
+      properties: {
+        id: poi.id,
+        name: poi.name,
+        category: poi.category,
+        rank: poi.rank ?? 2,
+      },
       geometry: { type: "Point" as const, coordinates: poi.coordinates },
     })),
   };
 }
 
-const POI_CATEGORIES: PoiCategory[] = ["tube", "park", "sight"];
+const POI_CATEGORIES: PoiCategory[] = ["tube", "rail", "bus", "river", "park", "sight"];
+// Ambient categories render as soft dots; transport (TRANSPORT_CATEGORIES) render
+// as their real TfL / National Rail symbol on separate layers.
+const AMBIENT_CATEGORIES: readonly PoiCategory[] = ["park", "sight"];
 
-// A MapLibre filter that keeps only the categories the user hasn't hidden.
-function poiFilter(hidden: Record<PoiCategory, boolean>): maplibregl.FilterSpecification {
-  const visible = POI_CATEGORIES.filter((category) => !hidden[category]);
+// A MapLibre filter keeping only the not-hidden categories within a given group
+// (the transport symbols and the ambient dots live on different layers).
+function poiFilter(
+  hidden: Record<PoiCategory, boolean>,
+  group: readonly PoiCategory[],
+): maplibregl.FilterSpecification {
+  const visible = group.filter((category) => !hidden[category]);
   return ["in", ["get", "category"], ["literal", visible]];
 }
+
+// Transport filter, split by rank so majors (the skeleton) and minors (revealed
+// deeper) can sit on separate zoom-gated layers while both honour the toggles.
+function transportFilter(
+  hidden: Record<PoiCategory, boolean>,
+  majorOnly: boolean,
+): maplibregl.FilterSpecification {
+  const visible = TRANSPORT_CATEGORIES.filter((category) => !hidden[category]);
+  const inCategory: maplibregl.ExpressionSpecification = [
+    "in",
+    ["get", "category"],
+    ["literal", visible],
+  ];
+  const rankTest: maplibregl.ExpressionSpecification = majorOnly
+    ? ["==", ["coalesce", ["get", "rank"], 2], 1]
+    : ["!=", ["coalesce", ["get", "rank"], 2], 1];
+  return ["all", inCategory, rankTest];
+}
+
+// icon-image match for a transport feature → its TfL symbol id (lib/mapIcons).
+const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
+  "match",
+  ["get", "category"],
+  "tube",
+  iconId("tfl", "underground"),
+  "rail",
+  iconId("tfl", "rail"),
+  "bus",
+  iconId("tfl", "bus"),
+  "river",
+  iconId("tfl", "river"),
+  iconId("tfl", "underground"),
+];
 
 function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
   return {
@@ -197,39 +251,31 @@ function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
   };
 }
 
+// Each landmark carries its own pictogram id (lib/mapIcons, ns "lm") so the
+// symbol layer draws a recognisable Big Ben / dome / bridge / wheel silhouette
+// per feature rather than one generic glyph.
 const LANDMARKS_GEOJSON: GeoJSON.FeatureCollection = {
   type: "FeatureCollection",
   features: landmarks.map((landmark) => ({
     type: "Feature",
-    properties: { id: landmark.id, name: landmark.name },
+    properties: {
+      id: landmark.id,
+      name: landmark.name,
+      icon: iconId("lm", landmark.icon),
+    },
     geometry: { type: "Point", coordinates: landmark.coordinates },
   })),
 };
 
-// A small brass compass-diamond glyph, drawn once per theme — a designed
-// symbol layer, not a default marker.
-function landmarkGlyph(fill: string, outline: string): ImageData {
-  const size = 44; // rendered at pixelRatio 2 → 22 css px
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  ctx.translate(size / 2, size / 2);
-  ctx.rotate(Math.PI / 4);
-  const half = size * 0.26;
-  ctx.beginPath();
-  ctx.rect(-half, -half, half * 2, half * 2);
-  ctx.fillStyle = fill;
-  ctx.strokeStyle = outline;
-  ctx.lineWidth = 3;
-  ctx.fill();
-  ctx.stroke();
-  ctx.rotate(-Math.PI / 4);
-  ctx.beginPath();
-  ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
-  ctx.fillStyle = outline;
-  ctx.fill();
-  return ctx.getImageData(0, 0, size, size);
+// Register every designed marker image (landmark pictograms + TfL symbols) with
+// the map, re-tinting from the live theme tokens. Called from buildScene on the
+// first load and after each theme-driven setStyle (which wipes prior images).
+function registerMapIcons(map: maplibregl.Map, tokens: IconTokens) {
+  for (const spec of MAP_ICON_SPECS) {
+    const id = iconId(spec.ns, spec.key);
+    if (map.hasImage(id)) map.removeImage(id);
+    map.addImage(id, rasterize(spec, tokens), { pixelRatio: 2 });
+  }
 }
 
 export default function PubMapCanvas({
@@ -252,6 +298,9 @@ export default function PubMapCanvas({
   // but each category is togglable and zoom-gated so it never clutters.
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>({
     tube: false,
+    rail: false,
+    bus: false,
+    river: false,
     park: false,
     sight: false,
   });
@@ -430,13 +479,20 @@ export default function PubMapCanvas({
         );
       }
 
-      // --- Landmarks + history layer: brass glyphs, tap for a sourced card.
-      if (map.hasImage("landmark-glyph")) map.removeImage("landmark-glyph");
-      map.addImage(
-        "landmark-glyph",
-        landmarkGlyph(tokens.brassBright, dark ? tokens.inkDeep : tokens.paper),
-        { pixelRatio: 2 },
-      );
+      // --- Designed marker images: landmark pictograms + TfL symbols, re-tinted
+      // from the live theme tokens (a setStyle wipes them, so re-register here).
+      const iconTokens: IconTokens = {
+        ink: tokens.ink,
+        paper: dark ? tokens.inkDeep : tokens.paper,
+        brass: tokens.brass,
+        brassBright: tokens.brassBright,
+        river: tokens.river,
+        riverBright: tokens.riverBright,
+      };
+      registerMapIcons(map, iconTokens);
+
+      // --- Landmarks + history layer: a recognisable pictogram per landmark
+      // (Big Ben, St Paul's dome, Tower Bridge…), tap for a sourced history card.
       if (!map.getSource("landmarks")) {
         map.addSource("landmarks", { type: "geojson", data: LANDMARKS_GEOJSON });
       }
@@ -445,43 +501,90 @@ export default function PubMapCanvas({
         type: "symbol",
         source: "landmarks",
         layout: {
-          "icon-image": "landmark-glyph",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.55, 13, 0.85],
+          "icon-image": ["get", "icon"],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.5, 13, 0.82, 16, 1],
           "icon-allow-overlap": true,
           "text-field": ["get", "name"],
           "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
           "text-size": 10.5,
           "text-letter-spacing": 0.04,
+          "text-offset": [0, 1.4],
+          "text-anchor": "top",
+          "text-optional": true,
+        },
+        paint: {
+          "text-color": tokens.ink,
+          "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+          "text-halo-width": 1.3,
+        },
+        minzoom: 9.5,
+      });
+
+      // --- Points of interest. Transport (tube/rail/bus/river) render as their
+      // real TfL / National Rail symbols on two zoom-gated layers: major
+      // interchanges form the skeleton from a wide zoom, minor stops fade in as
+      // you go deeper — a transit map revealing detail. Parks/sights stay soft
+      // dots. All honour the category toggles (kept across theme rebuilds).
+      if (!map.getSource("pois")) {
+        map.addSource("pois", { type: "geojson", data: poisDataRef.current });
+      }
+      addLayerOnce({
+        id: "pois-transport-major",
+        type: "symbol",
+        source: "pois",
+        minzoom: 9.5,
+        filter: transportFilter(poiHiddenRef.current, true),
+        layout: {
+          "icon-image": TRANSPORT_ICON_MATCH,
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 9.5, 0.4, 13, 0.62, 16, 0.78],
+          "icon-allow-overlap": true,
+        },
+      });
+      addLayerOnce({
+        id: "pois-transport-minor",
+        type: "symbol",
+        source: "pois",
+        minzoom: 12.4,
+        filter: transportFilter(poiHiddenRef.current, false),
+        layout: {
+          "icon-image": TRANSPORT_ICON_MATCH,
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 12.4, 0.42, 16, 0.66],
+          "icon-allow-overlap": false,
+        },
+        paint: {
+          "icon-opacity": ["interpolate", ["linear"], ["zoom"], 12.4, 0, 13.1, 1],
+        },
+      });
+      addLayerOnce({
+        id: "pois-transport-label",
+        type: "symbol",
+        source: "pois",
+        minzoom: 13,
+        filter: poiFilter(poiHiddenRef.current, TRANSPORT_CATEGORIES),
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-size": 10,
           "text-offset": [0, 1.1],
           "text-anchor": "top",
           "text-optional": true,
         },
         paint: {
           "text-color": tokens.ink,
-          "text-halo-color": tokens.paper,
-          "text-halo-width": 1.3,
+          "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+          "text-halo-width": 1.2,
         },
-        minzoom: 9.5,
       });
-
-      // --- Points of interest (tube / parks / sights): an ambient context
-      // layer under the pubs. Zoom-gated so the wide view stays clean, and
-      // filtered by the user's category toggles (kept across theme rebuilds).
-      if (!map.getSource("pois")) {
-        map.addSource("pois", { type: "geojson", data: poisDataRef.current });
-      }
       addLayerOnce({
         id: "pois-dot",
         type: "circle",
         source: "pois",
         minzoom: 11,
-        filter: poiFilter(poiHiddenRef.current),
+        filter: poiFilter(poiHiddenRef.current, AMBIENT_CATEGORIES),
         paint: {
           "circle-color": [
             "match",
             ["get", "category"],
-            "tube",
-            POI_CATEGORY_META.tube.color,
             "park",
             POI_CATEGORY_META.park.color,
             "sight",
@@ -499,7 +602,7 @@ export default function PubMapCanvas({
         type: "symbol",
         source: "pois",
         minzoom: 12.5,
-        filter: poiFilter(poiHiddenRef.current),
+        filter: poiFilter(poiHiddenRef.current, AMBIENT_CATEGORIES),
         layout: {
           "text-field": ["get", "name"],
           "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
@@ -752,15 +855,27 @@ export default function PubMapCanvas({
       });
     });
     // POI tap: a light name/category label (not the sourced-history card that
-    // landmarks get) and a gentle nudge in — POIs orient, pubs are the subject.
-    map.on("click", "pois-dot", (event) => {
+    // landmarks get) — POIs orient, pubs are the subject. Wired to the ambient
+    // dots and both transport symbol layers so any station/pier is tappable.
+    const onPoiClick = (event: maplibregl.MapLayerMouseEvent) => {
       const props = event.features?.[0]?.properties;
       const name = props?.name;
       const category = props?.category;
       if (typeof name !== "string" || typeof category !== "string") return;
       setActivePoi({ name, category: category as PoiCategory });
-    });
-    for (const layer of ["pubs-point", "clusters", "route-stops", "landmarks-icon", "pois-dot"]) {
+    };
+    for (const layer of ["pois-dot", "pois-transport-major", "pois-transport-minor"]) {
+      map.on("click", layer, onPoiClick);
+    }
+    for (const layer of [
+      "pubs-point",
+      "clusters",
+      "route-stops",
+      "landmarks-icon",
+      "pois-dot",
+      "pois-transport-major",
+      "pois-transport-minor",
+    ]) {
       map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
     }
@@ -879,14 +994,21 @@ export default function PubMapCanvas({
   }, [mapReady]);
 
   // POI category toggles → layer filters (kept in a ref for theme rebuilds).
+  // Transport layers filter by category+rank; ambient dots by category only.
   useEffect(() => {
     poiHiddenRef.current = poiHidden;
     const map = mapRef.current;
     if (!map || !mapReady) return;
-    const filter = poiFilter(poiHidden);
-    for (const layer of ["pois-dot", "pois-label"]) {
+    const ambient = poiFilter(poiHidden, AMBIENT_CATEGORIES);
+    const transportAll = poiFilter(poiHidden, TRANSPORT_CATEGORIES);
+    const setFilter = (layer: string, filter: maplibregl.FilterSpecification) => {
       if (map.getLayer(layer)) map.setFilter(layer, filter);
-    }
+    };
+    setFilter("pois-dot", ambient);
+    setFilter("pois-label", ambient);
+    setFilter("pois-transport-major", transportFilter(poiHidden, true));
+    setFilter("pois-transport-minor", transportFilter(poiHidden, false));
+    setFilter("pois-transport-label", transportAll);
   }, [poiHidden, mapReady]);
 
   // Route + selection ring → sources/filter.
@@ -1066,6 +1188,21 @@ export default function PubMapCanvas({
       </button>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>
+          {activeLandmark.image ? (
+            <figure className="landmarkPhoto">
+              {/* Plain <img> (not next/image): a remote Wikimedia URL loaded
+                  lazily, so no remotePatterns config and no layout cost until the
+                  card opens. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={activeLandmark.image.url}
+                alt={activeLandmark.name}
+                loading="lazy"
+                decoding="async"
+              />
+              <figcaption>Photo · {activeLandmark.image.credit}</figcaption>
+            </figure>
+          ) : null}
           <div className="landmarkCardHead">
             <LandmarkIcon size={15} />
             <strong>{activeLandmark.name}</strong>

@@ -6,7 +6,10 @@
 // text and no sources. They are ambient orientation dots that complement the
 // sourced heritage landmarks, not duplicates of them.
 
-export type PoiCategory = "tube" | "park" | "sight";
+// Transport categories carry their own real-world TfL / National Rail symbol on
+// the map (roundel, double-arrow, bus roundel, river-bus pier); park/sight stay
+// as ambient dots. Kept in one union so the toggle + filters iterate them all.
+export type PoiCategory = "tube" | "rail" | "bus" | "river" | "park" | "sight";
 
 export type Poi = {
   id: string;
@@ -14,9 +17,22 @@ export type Poi = {
   category: PoiCategory;
   /** [lng, lat] — same convention as lib/landmarks.ts. */
   coordinates: [number, number];
+  /**
+   * Zoom-depth tier. 1 = a major interchange / terminus, drawn from a wide zoom
+   * so the network reads at a glance; 2 (or absent) = a minor stop that only
+   * fades in as you zoom deeper, the way a real transit map reveals detail.
+   */
+  rank?: 1 | 2;
 };
 
-const POI_CATEGORIES: readonly PoiCategory[] = ["tube", "park", "sight"];
+const POI_CATEGORIES: readonly PoiCategory[] = [
+  "tube",
+  "rail",
+  "bus",
+  "river",
+  "park",
+  "sight",
+];
 
 // Advisory display metadata the map canvas (WS-D) consumes. Colours reuse the
 // app's brass/river/pint token hexes from app/globals.css where sensible; the
@@ -25,13 +41,22 @@ export const POI_CATEGORY_META: Record<
   PoiCategory,
   { label: string; color: string; glyph: string }
 > = {
-  // Roundel-ish: TfL red bar over a river-blue ring reads as a station marker.
-  tube: { label: "Station", color: "#e01e2b", glyph: "Ⓤ" },
+  // Transport swatches use the real TfL / National Rail brand colours so the
+  // toggle chips match the symbols drawn on the map.
+  tube: { label: "Tube", color: "#DC241F", glyph: "Ⓤ" },
+  rail: { label: "Rail", color: "#E30613", glyph: "≷" },
+  bus: { label: "Bus", color: "#DC241F", glyph: "▭" },
+  river: { label: "River", color: "#009FDF", glyph: "⛴" },
   // Green space → the "cheap pint / positive" pint token.
-  park: { label: "Green space", color: "#2f8f5b", glyph: "🌳" },
+  park: { label: "Parks", color: "#2f8f5b", glyph: "🌳" },
   // Tourist sight → the guidebook brass accent.
-  sight: { label: "Sight", color: "#9a6a24", glyph: "★" },
+  sight: { label: "Sights", color: "#9a6a24", glyph: "★" },
 };
+
+// Transport categories that render as their real-world TfL symbol (drawn by the
+// map canvas) rather than an ambient dot. Exported so the canvas and any filter
+// share one source of truth.
+export const TRANSPORT_CATEGORIES: readonly PoiCategory[] = ["tube", "rail", "bus", "river"];
 
 function isPoiCategory(value: unknown): value is PoiCategory {
   return typeof value === "string" && (POI_CATEGORIES as readonly string[]).includes(value);
@@ -65,5 +90,10 @@ export async function loadPois(): Promise<Poi[]> {
   const response = await fetch("/data/london_pois.json");
   const data: unknown = await response.json();
   if (!Array.isArray(data)) return [];
-  return data.filter(isValidPoi);
+  // Keep only well-formed rows, then normalise rank to 1 | 2 | undefined so the
+  // canvas's zoom-depth expression never sees a stray value.
+  return data.filter(isValidPoi).map((poi) => {
+    const rank = (poi as { rank?: unknown }).rank;
+    return rank === 1 || rank === 2 ? { ...poi, rank } : { ...poi, rank: undefined };
+  });
 }
