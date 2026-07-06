@@ -10,6 +10,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 // truth: backend failures return a 503 instead of acknowledging data that
 // would only live in process memory.
 
+import { log } from "@/lib/log";
 import { isLimited, validatePintDrop, type PintDropStatus } from "@/lib/pintDrops";
 import {
   memoryPintDropStore,
@@ -148,7 +149,14 @@ async function parseBody(
       fields: (await request.json()) as Record<string, unknown>,
       photos: { pint: null, venue: null },
     };
-  } catch {
+  } catch (err) {
+    // Malformed JSON body — the caller turns this into a 400. Log the parse
+    // failure (message only, never the raw body) so a spike in bad requests is
+    // visible instead of silently swallowed.
+    log("warn", "pint_drops.malformed_body", {
+      route: "POST /api/pint-drops",
+      error: err instanceof Error ? err.message : String(err),
+    });
     return null;
   }
 }
@@ -174,7 +182,12 @@ export async function POST(request: Request): Promise<Response> {
     if (unavailable) return unavailable;
     try {
       return (await store().report(id, readString(fields.reason))) ? ok() : notFound();
-    } catch {
+    } catch (err) {
+      log("error", "pint_drops.report_failed", {
+        route: "POST /api/pint-drops",
+        action: "report",
+        error: err instanceof Error ? err.message : String(err),
+      });
       return storageUnavailable();
     }
   }
@@ -190,7 +203,12 @@ export async function POST(request: Request): Promise<Response> {
     if (unavailable) return unavailable;
     try {
       return (await store().moderate(id, status, readString(fields.note))) ? ok() : notFound();
-    } catch {
+    } catch (err) {
+      log("error", "pint_drops.moderate_failed", {
+        route: "POST /api/pint-drops",
+        action: fields.action === "restore" ? "restore" : "keep_hidden",
+        error: err instanceof Error ? err.message : String(err),
+      });
       return storageUnavailable();
     }
   }
@@ -219,10 +237,18 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ drop }, { status: 201 });
   } catch (err) {
     // An invalid photo is the user's fault — surface as 400. The store has
-    // already cleaned up anything it uploaded (no orphans).
+    // already cleaned up anything it uploaded (no orphans). We don't log this
+    // as an error: it's expected client input, and the store already logged
+    // any processing failure (§7.2) at its own boundary.
     if (err instanceof Error && err.message.startsWith("Photo must")) {
       return Response.json({ error: err.message }, { status: 400 });
     }
+    // A genuine storage/insert failure — the user gets a 503. Log it (message
+    // only) so the outage is observable instead of a silent 503.
+    log("error", "pint_drops.create_failed", {
+      route: "POST /api/pint-drops",
+      error: err instanceof Error ? err.message : String(err),
+    });
     return storageUnavailable();
   }
 }
@@ -238,7 +264,12 @@ export async function GET(request: Request): Promise<Response> {
     if (unavailable) return unavailable;
     try {
       return Response.json({ drops: await store().listForReview(status) }, { status: 200 });
-    } catch {
+    } catch (err) {
+      log("error", "pint_drops.list_review_failed", {
+        route: "GET /api/pint-drops",
+        status,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return storageUnavailable();
     }
   }
@@ -249,7 +280,11 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const drops = await store().listVisible(params.get("venueId") ?? undefined);
     return Response.json({ drops: await withVenueNames(drops) }, { status: 200 });
-  } catch {
+  } catch (err) {
+    log("error", "pint_drops.list_visible_failed", {
+      route: "GET /api/pint-drops",
+      error: err instanceof Error ? err.message : String(err),
+    });
     return storageUnavailable();
   }
 }

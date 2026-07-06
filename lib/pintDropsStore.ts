@@ -5,7 +5,10 @@
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
+import sharp from "sharp";
+
 import type { Provenance } from "@/lib/curation";
+import { log } from "@/lib/log";
 import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
 import {
   addPintDrop,
@@ -323,6 +326,15 @@ export const supabasePintDropStore: PintDropStore = {
         if (retryError) throw new Error(retryError.message);
       }
     } catch (err) {
+      // Log the storage/insert failure (safe fields only — no buffers, no keys)
+      // before cleaning up and re-throwing. The route still maps this to the
+      // same 503/400 for the user; logging is purely additive observability.
+      log("error", "pint_drops.create_failed", {
+        dropId: drop.id,
+        venueId: drop.venueId,
+        uploadedCount: uploaded.length,
+        error: err instanceof Error ? err.message : String(err),
+      });
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
     }
@@ -408,16 +420,52 @@ export const supabasePintDropStore: PintDropStore = {
   },
 };
 
-function ext(type: string): string {
-  return type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
+// PRD §7.2: we normalize EVERY upload to JPEG, so the stored object is always
+// `.jpg` / `image/jpeg` regardless of what the client sent. One output format
+// keeps the storage-key + content-type derivation trivial and side-steps
+// format-specific metadata quirks; JPEG q80 at ≤1200px is plenty for a pint
+// photo. (If we ever want format-preserving output, branch here and in the
+// sharp pipeline together.)
+const NORMALIZED_EXT = "jpg";
+const NORMALIZED_CONTENT_TYPE = "image/jpeg";
+const MAX_IMAGE_DIMENSION = 1200;
+const JPEG_QUALITY = 80;
+
+/**
+ * PRD §7.2 — decode the uploaded bytes and re-emit a privacy-safe, normalized
+ * JPEG. Phone photos embed GPS + device data in EXIF; uploading the raw file
+ * leaks the contributor's location. sharp strips ALL metadata by default (we
+ * never call `.withMetadata()`), and `.rotate()` bakes the EXIF orientation
+ * into the pixels before that metadata is dropped so the image still displays
+ * upright. We also downscale to a sane max and re-encode so a huge original
+ * can't be served verbatim.
+ *
+ * Throws on a decode/encode failure so the caller can FAIL SAFE — we must never
+ * fall back to uploading the raw (EXIF-bearing) bytes, which would defeat the
+ * whole point of stripping.
+ */
+async function normalizeImage(input: Uint8Array): Promise<Buffer> {
+  return sharp(input)
+    // Apply the EXIF orientation to the pixels, THEN let sharp drop the EXIF
+    // (default) — the tag is gone but the image is no longer sideways.
+    .rotate()
+    .resize({
+      width: MAX_IMAGE_DIMENSION,
+      height: MAX_IMAGE_DIMENSION,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: JPEG_QUALITY })
+    .toBuffer();
 }
 
 /**
- * Validate + upload one photo (pint or venue) to Storage. Returns the object key
- * to stash on the drop. Keys are deterministic (`${venueId}/${dropId}/${slot}.${ext}`)
- * so a failed insert has an exact key to clean up — no orphan hunt. Throws a
- * user-safe Error on an invalid file (trust boundary — the client is untrusted,
- * so type/size are checked here, not just in the browser).
+ * Validate + normalize + upload one photo (pint or venue) to Storage. Returns
+ * the object key to stash on the drop. Keys are deterministic
+ * (`${venueId}/${dropId}/${slot}.${ext}`) so a failed insert has an exact key
+ * to clean up — no orphan hunt. Throws a user-safe Error on an invalid file
+ * (trust boundary — the client is untrusted, so type/size are checked here, not
+ * just in the browser).
  */
 export async function uploadPhoto(
   slot: "pint" | "venue",
@@ -428,7 +476,7 @@ export async function uploadPhoto(
   const invalid = validatePhoto(file.type, file.size);
   if (invalid) throw new Error(invalid);
 
-  // Read the bytes once, sniff the signature, then upload the same buffer. A
+  // Read the bytes once, sniff the signature, then normalize. A
   // mislabelled/crafted file that passed the MIME check is rejected here with
   // the same user-safe "Photo must…" error path (route → 400).
   const buffer = new Uint8Array(await file.arrayBuffer());
@@ -436,12 +484,38 @@ export async function uploadPhoto(
     throw new Error("Photo must be a JPEG, PNG, or WebP image.");
   }
 
-  const key = `${venueId}/${dropId}/${slot}.${ext(file.type)}`;
+  // PRD §7.2: strip EXIF (incl. GPS) + normalize BEFORE upload. A processing
+  // failure must FAIL SAFE — log it and reject the upload; we never fall
+  // through to the raw, EXIF-bearing bytes. `slot`/`dropId`/`venueId` are safe
+  // to log (opaque ids); the image bytes are NEVER logged.
+  let processed: Buffer;
+  try {
+    processed = await normalizeImage(buffer);
+  } catch (err) {
+    log("error", "pint_drops.image_normalize_failed", {
+      slot,
+      venueId,
+      dropId,
+      contentType: file.type,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw new Error("Photo could not be processed. Please try a different image.");
+  }
+
+  const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
 
   const { error } = await admin()
     .storage.from(STORAGE_BUCKET)
-    .upload(key, buffer, { contentType: file.type, upsert: false });
-  if (error) throw new Error(error.message);
+    .upload(key, processed, { contentType: NORMALIZED_CONTENT_TYPE, upsert: false });
+  if (error) {
+    log("error", "pint_drops.photo_upload_failed", {
+      slot,
+      venueId,
+      dropId,
+      error: error.message,
+    });
+    throw new Error(error.message);
+  }
   return key;
 }
 
@@ -453,8 +527,13 @@ export async function deletePhotos(keys: string[]): Promise<void> {
   if (!present.length) return;
   try {
     await admin().storage.from(STORAGE_BUCKET).remove(present);
-  } catch {
-    // Swallow — a stray object is a cleanup-job problem, not a request-path one.
-    // Upgrade to a logged retry if orphans pile up.
+  } catch (err) {
+    // Never re-throw — cleanup must not mask the original failure. But log a
+    // warning (safe fields only: a count, not the keys) so orphaned objects are
+    // observable rather than silently accumulating.
+    log("warn", "pint_drops.photo_cleanup_failed", {
+      keyCount: present.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
