@@ -39,14 +39,36 @@ export const LIST_TYPES = [
   "Local Legend",
 ] as const;
 
-export type ListType = (typeof LIST_TYPES)[number];
+// The list a pub is filed under is now free text (story 33): the seven built-ins
+// are the SUGGESTED defaults, but a handle can create its own named lists too.
+// `ListType` stays `string` so custom names round-trip; the seven live on as the
+// UI's default suggestions + the seed for a handle with no custom lists yet.
+export type ListType = string;
 
 const LIST_TYPE_SET: ReadonlySet<string> = new Set(LIST_TYPES);
 
-/** Server trust boundary: is `value` an allow-listed list type? Anything else is
- *  rejected by the route (never stored) — the client mirrors this list for UX. */
-export function isListType(value: unknown): value is ListType {
+/** Is `value` one of the seven BUILT-IN list types? Kept for the UI's default
+ *  suggestions and for tests; NOT the write gate any more (custom lists are
+ *  allowed — see cleanListType). */
+export function isBuiltInListType(value: unknown): value is (typeof LIST_TYPES)[number] {
   return typeof value === "string" && LIST_TYPE_SET.has(value);
+}
+
+// A custom list name is untrusted free text: strip inline HTML / control chars,
+// collapse whitespace, cap length. Mirrors cleanNote's trust boundary.
+const MAX_LIST_NAME = 60;
+
+/** Clean + validate an untrusted list type/name. Returns "" for anything that
+ *  cleans down to empty (rejected by the route, never stored). This is the write
+ *  gate now: any non-empty cleaned string — built-in OR custom — is a valid list. */
+export function cleanListType(value: unknown): string {
+  return cleanText(value, MAX_LIST_NAME);
+}
+
+/** Server trust boundary: is `value` a storable list type (built-in or custom)?
+ *  True for any value that cleans to a non-empty name. */
+export function isListType(value: unknown): value is ListType {
+  return cleanListType(value).length > 0;
 }
 
 // Cap the note like every other free-text field (mirrors lib/pintDrops clean()).
@@ -173,11 +195,11 @@ export const supabaseSavedPubsStore: SavedPubsStore = {
   },
 
   async toggleSaved(input) {
-    const listType = input.listType;
+    const listType = cleanListType(input.listType);
     const venueId = input.venueId;
     try {
       const profileId = await profileIdForHandle(supabaseProfileStore, input.handle, true);
-      if (!profileId || !venueId || !isListType(listType)) {
+      if (!profileId || !venueId || !listType) {
         return this.listSaved({ handle: input.handle });
       }
 
@@ -247,18 +269,19 @@ export const memorySavedPubsStore: SavedPubsStore = {
 
   async toggleSaved(input) {
     const owner = ownerKey(input.handle, input.actorHash);
-    if (!input.venueId || !isListType(input.listType)) {
+    const listType = cleanListType(input.listType);
+    if (!input.venueId || !listType) {
       return this.listSaved({ handle: input.handle, actorHash: input.actorHash });
     }
     const partition = memoryRows.get(owner) ?? new Map<string, SavedRow>();
-    const key = rowKey(input.venueId, input.listType);
+    const key = rowKey(input.venueId, listType);
     if (partition.has(key)) {
       partition.delete(key);
     } else {
       const note = cleanNote(input.note);
       partition.set(key, {
         venueId: input.venueId,
-        listType: input.listType,
+        listType,
         ...(note ? { note } : {}),
         savedAt: new Date().toISOString(),
       });
@@ -278,4 +301,91 @@ export function savedPubsStore(): SavedPubsStore {
 /** Test-only: clear the in-memory saved-pub partitions between cases. */
 export function __resetMemorySavedPubs(): void {
   memoryRows.clear();
+}
+
+// ── Custom lists registry (story 33) ─────────────────────────────────────────
+// A handle's list "menu" = the seven built-ins ALWAYS, plus any custom lists it
+// has registered (public.saved_lists — migration 0010). The registry is what lets
+// a handle create/name a list that has no saves yet, so the pick-UI can offer it.
+// Same dual-backend seam. Every method is fail-soft: an outage renders as "just
+// the built-ins", never a 500 on the save control.
+
+const LISTS_TABLE = "saved_lists";
+
+export type SavedListsStore = {
+  /** A handle's custom list names (built-ins excluded), newest-first. Never throws. */
+  listCustom(handle: string): Promise<string[]>;
+  /** Register a custom list name for a handle (idempotent). Returns the fresh
+   *  custom-list array. A name colliding with a built-in is a no-op (it already
+   *  exists as a default). Never throws. */
+  createList(handle: string, name: string): Promise<string[]>;
+};
+
+export const supabaseSavedListsStore: SavedListsStore = {
+  async listCustom(handle) {
+    try {
+      const profileId = await profileIdForHandle(supabaseProfileStore, handle, false);
+      if (!profileId) return [];
+      const { data, error } = await admin()
+        .from(LISTS_TABLE)
+        .select("name, created_at")
+        .eq("profile_id", profileId)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? [])
+        .map((r) => String((r as { name?: unknown }).name ?? ""))
+        .filter((n) => n && !LIST_TYPE_SET.has(n));
+    } catch {
+      return [];
+    }
+  },
+
+  async createList(handle, name) {
+    const clean = cleanListType(name);
+    // A built-in name needs no registry row — it's always offered. Blank → no-op.
+    if (!clean || LIST_TYPE_SET.has(clean)) return this.listCustom(handle);
+    try {
+      const profileId = await profileIdForHandle(supabaseProfileStore, handle, true);
+      if (!profileId) return this.listCustom(handle);
+      const { error } = await admin()
+        .from(LISTS_TABLE)
+        .insert({ profile_id: profileId, name: clean });
+      // A duplicate (23505) means the list already exists — idempotent success.
+      if (error && error.code !== "23505") throw new Error(error.message);
+    } catch {
+      // Fail-soft — the caller keeps whatever list menu it already had.
+    }
+    return this.listCustom(handle);
+  },
+};
+
+// In-memory: Map<ownerHandle, Set<listName>>, resets on restart.
+const memoryLists = new Map<string, Set<string>>();
+
+export const memorySavedListsStore: SavedListsStore = {
+  async listCustom(handle) {
+    const key = normalizeHandle(handle);
+    if (!key) return [];
+    return [...(memoryLists.get(key) ?? new Set())].filter((n) => !LIST_TYPE_SET.has(n)).reverse();
+  },
+
+  async createList(handle, name) {
+    const key = normalizeHandle(handle);
+    const clean = cleanListType(name);
+    if (key && clean && !LIST_TYPE_SET.has(clean)) {
+      const set = memoryLists.get(key) ?? new Set<string>();
+      set.add(clean);
+      memoryLists.set(key, set);
+    }
+    return this.listCustom(handle);
+  },
+};
+
+export function savedListsStore(): SavedListsStore {
+  return isSupabaseConfigured() ? supabaseSavedListsStore : memorySavedListsStore;
+}
+
+/** Test-only: clear the in-memory custom-list registry between cases. */
+export function __resetMemorySavedLists(): void {
+  memoryLists.clear();
 }
