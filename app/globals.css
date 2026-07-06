@@ -3203,3 +3203,137 @@ button:disabled {
     gap: 9px;
   }
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+   Legacy Mode (issue #28) — a global, persisted accessibility toggle for
+   older + low-vision users, mirroring ThemeToggle's persistence pattern
+   (see components/LegacyToggle.tsx + public/theme-init.js: html[data-legacy]
+   is set no-flash-safe before paint, same as html[data-theme]).
+
+   This is a pure TOKEN-OVERRIDE layer, exactly like html[data-theme="dark"]
+   in theme.css overrides the same :root tokens — no component is forked.
+   Bumping --text-* and swapping a few surface tokens for higher-contrast
+   values cascades through every component that already reads them.
+   ──────────────────────────────────────────────────────────────────────── */
+html[data-legacy="1"] {
+  /* — Larger base type (~112-120% across the scale). Components that read
+       var(--text-base) etc. (not literal rem values) grow automatically. */
+  --text-2xs: 0.78rem;
+  --text-xs: 0.88rem;
+  --text-sm: 0.98rem;
+  --text-base: 1.15rem;
+  --text-md: 1.34rem;
+  --text-lg: 1.62rem;
+  --text-xl: 1.98rem;
+  --text-2xl: 2.42rem;
+  --text-3xl: 2.95rem;
+  --leading-normal: 1.6;
+  --leading-snug: 1.45;
+
+  /* — Higher contrast: push text/border tokens toward pure ink/white and
+       thicken the hairline border so low-vision users get a stronger edge
+       between surfaces, without abandoning the theme's palette (light vs.
+       dark keeps working — this just tightens contrast within whichever
+       theme is active). */
+  --ink: #0b0f0c;
+  --ink-soft: #1c231e;
+  --muted: #40473f;
+  --line: #8a8172;
+  --color-border: var(--line);
+}
+
+html[data-theme="dark"][data-legacy="1"] {
+  --ink: #fdfaf2;
+  --ink-soft: #f1ecdd;
+  --muted: #cfc8b4;
+  --line: #6d6a5c;
+  --color-border: var(--line);
+}
+
+/* — Stronger focus rings: 2px brass outline everywhere already, Legacy Mode
+     widens it and adds an offset so keyboard focus never gets lost in the
+     bigger type. */
+html[data-legacy="1"] :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 3px solid var(--brass);
+  outline-offset: 3px;
+}
+
+/* — Reduced motion, forced: Legacy Mode implies prefers-reduced-motion,
+     independent of the OS setting. This does not touch the existing
+     @media (prefers-reduced-motion: reduce) rules elsewhere in this file —
+     those keep working for users who set the OS preference without Legacy
+     Mode. This rule only adds the same "no motion" outcome when Legacy Mode
+     is on, by neutralising animation/transition wherever it runs. */
+html[data-legacy="1"] *,
+html[data-legacy="1"] *::before,
+html[data-legacy="1"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Legacy toggle button — same shape/behaviour as .themeToggle (theme.css) so
+   the two controls sit together as a matched pair; kept here since
+   LegacyToggle.tsx/globals.css are this feature's owned files. */
+.legacyToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.legacyToggle:hover {
+  color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+  border-color: color-mix(in srgb, var(--brass) 30%, transparent);
+}
+
+.legacyToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.legacyToggle[aria-pressed="true"] {
+  color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  border-color: color-mix(in srgb, var(--brass) 35%, transparent);
+}
+
+/* Floating variant on /map — matches .themeToggle.floating's pill, offset
+   so the two floating controls stack without overlapping. */
+.legacyToggle.floating {
+  position: fixed;
+  top: 16px;
+  right: 62px;
+  z-index: 50;
+  width: 40px;
+  height: 40px;
+  border-color: var(--line);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+}
+
+.legacyToggle.floating:hover {
+  color: var(--ink);
+  background: var(--panel-raised);
+  border-color: var(--brass);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .legacyToggle.floating {
+    top: 12px;
+    right: 58px;
+  }
+}

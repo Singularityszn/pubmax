@@ -1,0 +1,39 @@
+import { test, expect } from "@playwright/test";
+
+// No-WebGL contract. Runs only under the `chromium-no-gl` project, which launches
+// Chromium with `--disable-webgl --disable-webgl2` so the MapLibre constructor
+// gets NO context — exactly the genuinely-WebGL-less browser we owe an honest,
+// diagnosable dead end. This spec proves that dead end: the fallback renders, it
+// carries a technical detail line, and (because a re-init can't conjure a context
+// that doesn't exist) it hides Retry only in this confirmed-no-WebGL case.
+//
+// Note: the component auto-retries once (1500ms) before ever surfacing the
+// fallback, so the timeout below must clear that window.
+
+test("/map surfaces an honest fallback with a detail line when WebGL is disabled", async ({
+  page,
+}) => {
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20000 });
+
+  // The fallback appears only after the silent auto-retry (attempt 2) also fails,
+  // so allow generous time for two construct attempts + the 1500ms retry gap.
+  const fallback = page.locator(".mapFallback");
+  await expect(fallback).toBeVisible({ timeout: 20000 });
+
+  // Honest copy: a confirmed-no-WebGL probe is the only case allowed to claim it.
+  await expect(fallback).toContainText(/WebGL/i);
+
+  // The technical diagnostic line is present — this is the "diagnosable" half of
+  // the contract (the browser's own statusMessage / MapLibre's embedded message).
+  await expect(page.locator(".mapFallbackDetail")).toBeVisible();
+
+  // Retry is hidden in the confirmed-no-WebGL case: a re-init can't produce a
+  // context this browser refuses to give.
+  await expect(page.locator(".mapFallbackRetry")).toHaveCount(0);
+
+  // The canvas must NOT be present — this is the true no-GL path.
+  await expect(page.locator(".maplibreMap canvas")).toHaveCount(0);
+});

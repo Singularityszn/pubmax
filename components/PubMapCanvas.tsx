@@ -402,7 +402,23 @@ export default function PubMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
+  // The fallback is a real user-facing dead end, so it carries enough to be
+  // honest about *why*: `kind` drives the copy (only "constructor" with a
+  // confirmed-dead probe may claim "needs WebGL"), `detail` surfaces the raw
+  // browser diagnostic, and it never fires on a transient GPU hiccup because
+  // the mount effect auto-retries once before ever setting this.
+  const [mapError, setMapError] = useState<{
+    message: string;
+    detail?: string;
+    kind: "constructor" | "zero-size" | "context-lost" | "tiles";
+    // true only when the detached-canvas probe returned no context at all, so
+    // Retry would be pointless — this is the sole case that hides the button.
+    noWebgl?: boolean;
+  } | null>(null);
+  // Bumped to re-run the mount effect: once silently (auto-retry after a
+  // constructor throw) and again on the user's Retry click. The cleanup fully
+  // tears the map down, so each bump is a clean re-init.
+  const [initAttempt, setInitAttempt] = useState(0);
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(null);
   const [heroDismissed, setHeroDismissed] = useState(false);
   // POI layer visibility — default all-on so "everything is there" on load,
@@ -516,26 +532,156 @@ export default function PubMapCanvas({
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
 
+    // Timers/observers this effect owns; cleanup below tears them all down so a
+    // re-run (theme dep change, auto-retry, or Retry click) starts clean.
+    let sizeObserver: ResizeObserver | undefined;
+    let sizeProceedTimer: ReturnType<typeof setTimeout> | undefined;
+    let autoRetryTimer: ReturnType<typeof setTimeout> | undefined;
+    let contextLostTimer: ReturnType<typeof setTimeout> | undefined;
+    let didConstruct = false;
+    let constructCleanup: (() => void) | undefined;
+
+    // --- Size gate. `.mapStage` is `absolute inset:0` inside a 100vh shell, so
+    // it should be sized at mount — but if the shell hasn't laid out yet MapLibre
+    // would build against a 0×0 canvas and paint nothing. Rather than construct
+    // blind, wait (briefly) for a real box. This eliminates the 0-size hypothesis
+    // entirely: we only construct once the container has area, or after a short
+    // proceed-anyway timeout (so a genuinely-hidden container never hangs).
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      sizeObserver = new ResizeObserver((entries) => {
+        const box = entries[0]?.contentRect;
+        if (box && box.width > 0 && box.height > 0) {
+          sizeObserver?.disconnect();
+          sizeObserver = undefined;
+          if (sizeProceedTimer) clearTimeout(sizeProceedTimer);
+          if (!didConstruct) construct();
+        }
+      });
+      sizeObserver.observe(container);
+      sizeProceedTimer = setTimeout(() => {
+        sizeObserver?.disconnect();
+        sizeObserver = undefined;
+        if (!didConstruct) {
+          console.warn(
+            "[pubmap] constructing map in 0-size container",
+            container.getBoundingClientRect(),
+          );
+          construct();
+        }
+      }, 2000);
+    } else {
+      construct();
+    }
+
+    // The full construct-and-wire body lives in a local function so the size
+    // gate can defer it. `container`/timers above are closed over; everything
+    // this function creates (the map, its listeners) is torn down in cleanup.
+    function construct() {
+      if (didConstruct) return;
+      didConstruct = true;
+
     // No-WebGL environments (locked-down browsers, headless boxes) throw
-    // synchronously from the constructor; fall back to a styled notice.
+    // synchronously from the constructor. MapLibre 5 already asks for
+    // `webgl2withfallback` + `failIfMajorPerformanceCaveat: false` +
+    // high-performance, so a throw means the browser returned NO context
+    // (transient GPU crash, context-slot exhaustion, policy-disabled) — hence
+    // the auto-retry below rather than an immediate dead end.
+    const lowPower = initAttempt >= 1;
     let map: maplibregl.Map;
     try {
       map = new maplibregl.Map({
-        container: containerRef.current,
+        container,
         style: MAP_STYLES[themeRef.current],
         ...LONDON_VIEW,
         maxBounds: [
           [-0.55, 51.28],
           [0.35, 51.72],
         ],
+        // Attempt 2 drops to low-power: some drivers refuse a
+        // high-performance context under load but grant the integrated GPU.
+        ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
       });
     } catch (error) {
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
+
+      // Diagnostic probe on a throwaway canvas: does *any* WebGL context exist?
+      // This distinguishes a truly WebGL-less browser (honest dead end, no
+      // Retry) from a transient failure (worth retrying). We capture the
+      // browser's own statusMessage via the webglcontextcreationerror event.
+      let probeStatus = "";
+      let probeHasContext = false;
+      try {
+        const probe = document.createElement("canvas");
+        probe.addEventListener(
+          "webglcontextcreationerror",
+          (event) => {
+            probeStatus = (event as WebGLContextEvent).statusMessage || probeStatus;
+          },
+          { once: true },
+        );
+        const gl =
+          probe.getContext("webgl2") ||
+          probe.getContext("webgl") ||
+          (probe.getContext("experimental-webgl") as WebGLRenderingContext | null);
+        probeHasContext = Boolean(gl);
+        gl?.getExtension("WEBGL_lose_context")?.loseContext();
+      } catch {
+        // Probe itself may throw in the same locked-down browser; treat as no
+        // context — the message below stays honest.
+      }
+
+      // MapLibre embeds the browser's statusMessage as JSON in error.message.
+      let embedded = "";
+      const rawMessage =
+        error instanceof Error ? error.message : "Map could not start in this browser.";
+      try {
+        const parsed = JSON.parse(rawMessage);
+        if (parsed && typeof parsed.message === "string") embedded = parsed.message;
+      } catch {
+        // Not JSON — rawMessage is already human-ish.
+      }
+
+      const detail = [probeStatus, embedded, embedded ? "" : rawMessage]
+        .filter(Boolean)
+        .join(" · ");
+
+      console.error("[pubmap] map init failed", {
+        attempt: initAttempt,
+        lowPower,
+        probeHasContext,
+        probeStatus,
+        embedded,
+        rawMessage,
+      });
+
+      // First failure gets one silent auto-retry — the common real-browser
+      // cause is a transient context miss that a beat later succeeds.
+      if (initAttempt === 0) {
+        autoRetryTimer = setTimeout(() => setInitAttempt(1), 1500);
+        return;
+      }
+
+      // Attempt 2 also threw. If the probe confirmed no context at all, be
+      // honest that this browser lacks WebGL; otherwise it's a stubborn
+      // constructor failure the user can Retry.
       queueMicrotask(() =>
         setMapError(
-          error instanceof Error ? error.message : "Map could not start in this browser.",
+          probeHasContext
+            ? {
+                kind: "constructor",
+                message: "The map couldn't start its renderer.",
+                detail: detail || undefined,
+              }
+            : {
+                kind: "constructor",
+                noWebgl: true,
+                message: "This browser can't run the map — it needs WebGL.",
+                detail: detail || undefined,
+              },
         ),
       );
       return;
@@ -1078,9 +1224,11 @@ export default function PubMapCanvas({
       hardFailTimer = setTimeout(() => {
         if (!styleLoaded) {
           queueMicrotask(() =>
-            setMapError(
-              "The map couldn't load its tiles right now — the pub list and crawl planner still work.",
-            ),
+            setMapError({
+              kind: "tiles",
+              message:
+                "The map couldn't load its tiles right now — the pub list and crawl planner still work.",
+            }),
           );
         }
       }, STYLE_LOAD_TIMEOUT_MS);
@@ -1090,6 +1238,29 @@ export default function PubMapCanvas({
     // tile hiccups after load are harmless and ignored.
     map.on("error", () => {
       if (!styleLoaded) swapToBasemapFallback();
+    });
+
+    // --- Post-init context loss. A GPU reset fires `webglcontextlost`; the
+    // browser usually restores within a frame or two (`webglcontextrestored`),
+    // and MapLibre repaints on its own — so a brief loss should stay silent.
+    // Only a loss that never restores leaves a permanently blank canvas, and
+    // that is worth surfacing. We give it a grace window, then fall back with an
+    // honest one-liner (and a Retry, which fully re-inits the map).
+    map.on("webglcontextlost", () => {
+      if (contextLostTimer) clearTimeout(contextLostTimer);
+      contextLostTimer = setTimeout(() => {
+        queueMicrotask(() =>
+          setMapError({
+            kind: "context-lost",
+            message: "The map lost its graphics context and couldn't recover.",
+            detail: "WebGL context lost without restore",
+          }),
+        );
+      }, 4000);
+    });
+    map.on("webglcontextrestored", () => {
+      if (contextLostTimer) clearTimeout(contextLostTimer);
+      contextLostTimer = undefined;
     });
 
     // --- Click + cursor wiring (delegated by layer id; survives setStyle).
@@ -1221,7 +1392,10 @@ export default function PubMapCanvas({
       attributeFilter: ["data-theme"],
     });
 
-    return () => {
+    // The construct body owns the map + its listeners/timers; it registers its
+    // teardown here so the effect's single cleanup (below) can run it whether or
+    // not construction was deferred by the size gate.
+    constructCleanup = () => {
       cancelAnimationFrame(rafId);
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
@@ -1236,7 +1410,26 @@ export default function PubMapCanvas({
       mapRef.current = null;
       setMapReady(false);
     };
-  }, [cinematic, selectLandmark]);
+    } // end construct()
+
+    return () => {
+      // Outer teardown: size-gate observer/timer and the pending auto-retry /
+      // context-lost timers are the effect's, not construct's, so they clear
+      // even if we never constructed. Then run construct's teardown if it ran.
+      sizeObserver?.disconnect();
+      if (sizeProceedTimer) clearTimeout(sizeProceedTimer);
+      if (autoRetryTimer) clearTimeout(autoRetryTimer);
+      if (contextLostTimer) clearTimeout(contextLostTimer);
+      constructCleanup?.();
+      // If the constructor threw before wiring, its own catch already removed
+      // the window/media listeners; guard so cleanup is idempotent.
+      if (!constructCleanup) {
+        reducedQuery.removeEventListener("change", onReducedChange);
+        window.removeEventListener("blur", onBlur);
+        window.removeEventListener("focus", onFocus);
+      }
+    };
+  }, [cinematic, selectLandmark, initAttempt]);
 
   // Pubs data → source. Rebuilds when the favorite pint changes so the price
   // buckets + serves flags re-derive against that beer.
@@ -1447,14 +1640,41 @@ export default function PubMapCanvas({
   }, [venues, venueSignals]);
 
   if (mapError) {
+    // Heading + body vary by cause so we never cry "needs WebGL" at a browser
+    // that has it. Only the confirmed-dead-probe case makes that claim (and
+    // hides Retry, since a re-init can't conjure a context that doesn't exist);
+    // every other kind gets an honest one-liner and a Retry that fully re-inits.
+    const heading = mapError.noWebgl
+      ? "Map renderer unavailable"
+      : mapError.kind === "tiles"
+        ? "Map tiles unavailable"
+        : mapError.kind === "context-lost"
+          ? "Map lost its graphics"
+          : "Map couldn't start";
     return (
       <div className="mapCanvasWrap">
         <div className="mapFallback" role="alert">
-          <strong>Map renderer unavailable</strong>
+          <strong>{heading}</strong>
           <p>
-            This browser could not start the three-dimensional map — it needs WebGL.
+            {mapError.message}
+            {" "}
             The pub list and crawl planner beside it still work as ever.
           </p>
+          {mapError.detail ? (
+            <small className="mapFallbackDetail">{mapError.detail}</small>
+          ) : null}
+          {mapError.noWebgl ? null : (
+            <button
+              type="button"
+              className="mapFallbackRetry"
+              onClick={() => {
+                setMapError(null);
+                setInitAttempt((a) => a + 1);
+              }}
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     );
