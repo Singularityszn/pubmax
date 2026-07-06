@@ -1,0 +1,20 @@
+{
+  "$comment": "Allowlist of PERMISSIBLE first-party / open price sources for the scheduled refresh (scripts/refresh_prices.mjs). GOVERNANCE HARD RULE: only pub/brewery OFFICIAL sites and open-data feeds may appear here. NEVER add a competitor price-aggregator or any site whose terms forbid automated access. Every source must be a first-party publisher of its own prices, or an open-licensed dataset. The refresh script reads this file and (in a real run) fetches ONLY these URLs; it will refuse any URL not listed here.",
+  "version": 1,
+  "sources": [
+    {
+      "id": "example-brewery-official",
+      "label": "Example Brewery — official taproom page",
+      "kind": "first-party-official",
+      "url": "https://www.example-brewery.co.uk/taproom",
+      "note": "PLACEHOLDER. Replace with a real brewery/pub official menu page you have permission to read. First-party publisher of their own pint prices."
+    },
+    {
+      "id": "example-open-data",
+      "label": "Example open-data pub dataset",
+      "kind": "open-data",
+      "url": "https://data.example.gov.uk/pub-prices",
+      "note": "PLACEHOLDER. Replace with a real open-licensed dataset (e.g. a council/OS/ONS open feed). Must carry an open licence permitting reuse."
+    }
+  ]
+}

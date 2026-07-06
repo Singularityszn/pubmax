@@ -10,10 +10,12 @@ import {
   filterVenues,
   groupVenuePrices,
   mergeVenueDrops,
+  venueGroupingKey,
   type Filters,
   type Venue,
   type VenuePrice,
 } from "@/lib/venues";
+import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
@@ -163,10 +165,27 @@ export default function PubMap() {
     };
   }, []);
 
+  // Sourced price-refresh layer (issue #23): fetched 404-tolerantly; community
+  // drops always outrank it inside mergePriceUpdates.
+  const [priceUpdates, setPriceUpdates] = useState<PriceUpdate[]>([]);
+  useEffect(() => {
+    fetch("/data/price_updates/latest.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((raw) => {
+        if (raw) setPriceUpdates(parsePriceUpdates(raw));
+      })
+      .catch(() => {
+        // No update file (or bad JSON) — baseline + community prices stand.
+      });
+  }, []);
+
   const baseVenues = useMemo(() => groupVenuePrices(rows), [rows]);
-  const venues = useMemo(
-    () => mergeVenueDrops(baseVenues, dropsByVenueId),
-    [baseVenues, dropsByVenueId],
+  const venues = useMemo<Venue[]>(
+    () =>
+      mergePriceUpdates(mergeVenueDrops(baseVenues, dropsByVenueId), priceUpdates, (venue) =>
+        venueGroupingKey(venue.prices[0]),
+      ),
+    [baseVenues, dropsByVenueId, priceUpdates],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Base narrowing: the existing filter pipeline (story filters, price, query,

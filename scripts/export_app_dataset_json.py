@@ -11,6 +11,17 @@ from pathlib import Path
 SOURCE = Path("data/pint_prices_app_dataset.csv")
 DESTINATION = Path("public/data/pint_prices_app_dataset.json")
 
+# Greater London bounding box. Rows with coordinates outside this box are a
+# data-quality bug (a mis-geocoded pub, a lat/lng swap) — they scatter pins far
+# off the map. Drop them at export and report the count. Kept in lockstep with
+# scripts/validate-data.mjs and scripts/build_slim_index.mjs.
+LAT_MIN, LAT_MAX = 51.26, 51.72
+LON_MIN, LON_MAX = -0.55, 0.30
+
+
+def in_london(lat: float, lng: float) -> bool:
+    return LAT_MIN <= lat <= LAT_MAX and LON_MIN <= lng <= LON_MAX
+
 FIELDS = [
     "app_price_id",
     "pub_name",
@@ -71,12 +82,17 @@ def parse_float(value: str) -> float | None:
 def main() -> None:
     DESTINATION.parent.mkdir(parents=True, exist_ok=True)
     rows = []
+    dropped_oob = 0
     with SOURCE.open(encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle):
             record = {field: row.get(field, "") for field in FIELDS}
             record["price_gbp"] = parse_float(record["price_gbp"])
             record["latitude"] = float(record["latitude"])
             record["longitude"] = float(record["longitude"])
+            # Bounds filter: drop rows with coordinates outside Greater London.
+            if not in_london(record["latitude"], record["longitude"]):
+                dropped_oob += 1
+                continue
             record["source_row_count"] = int(float(record["source_row_count"] or 0))
             for field in [
                 "has_visible_borough_row",
@@ -89,6 +105,7 @@ def main() -> None:
 
     DESTINATION.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
     print(f"Exported {len(rows)} rows to {DESTINATION}")
+    print(f"Dropped {dropped_oob} row(s) outside Greater London bounds")
 
 
 if __name__ == "__main__":

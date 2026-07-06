@@ -25,6 +25,19 @@ const ROOT = path.resolve(__dirname, "..");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 
+// Greater London bounding box — a safety net mirroring
+// scripts/export_app_dataset_json.py and scripts/validate-data.mjs. The export
+// already drops out-of-bounds rows; this guards the slim index against any that
+// slip through a hand-edited JSON.
+const LAT_MIN = 51.26;
+const LAT_MAX = 51.72;
+const LON_MIN = -0.55;
+const LON_MAX = 0.3;
+
+function inLondon(lat, lng) {
+  return lat >= LAT_MIN && lat <= LAT_MAX && lng >= LON_MIN && lng <= LON_MAX;
+}
+
 // --- mirror of lib/venues.ts grouping + id logic (keep in lockstep) ----------
 
 function normaliseVenueKeyPart(value) {
@@ -63,11 +76,21 @@ async function main() {
   // Map preserves insertion order and reads name/coords/borough off `first`
   // (the first row inserted, not the price-sorted first).
   const grouped = new Map();
+  let droppedOob = 0;
   for (const row of rows) {
+    const lat = Number(row.latitude);
+    const lng = Number(row.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !inLondon(lat, lng)) {
+      droppedOob += 1;
+      continue;
+    }
     const key = venueGroupingKey(row);
     const bucket = grouped.get(key);
     if (bucket) bucket.push(row);
     else grouped.set(key, [row]);
+  }
+  if (droppedOob > 0) {
+    console.log(`dropped ${droppedOob} row(s) outside Greater London bounds`);
   }
 
   const slim = [];

@@ -71,6 +71,13 @@ export type Venue = {
   // editorial heritage note OR a contributor Pint Drop, so mergeVenueDrops never
   // has to overwrite curation.heritageNote to make a venue read as a story pub.
   hasStory: boolean;
+  // Live community-price layer, populated by mergeVenueDrops from the newest
+  // organic (non-demo) price drop. `latestContributorPrice` is the override the
+  // UI shows in place of the static baseline; `latestContributorAt` is that
+  // drop's ISO timestamp so the UI can render freshness (formatFreshness).
+  // Both null when no organic price drop exists — the baseline stands alone.
+  latestContributorPrice: number | null;
+  latestContributorAt: string | null;
   amenities: {
     food: boolean;
     cocktails: boolean;
@@ -189,6 +196,9 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
         : null,
       hasStory: Boolean(curation.heritageNote),
+      // No community layer until mergeVenueDrops folds one in.
+      latestContributorPrice: null,
+      latestContributorAt: null,
       amenities: {
         food: prices.some((price) => truthyFlag(price.food)),
         cocktails: prices.some((price) => truthyFlag(price.cocktails)),
@@ -218,7 +228,35 @@ export type SummaryDrop = {
   priceGbp: number | null;
   passedDownNote: string;
   provenance: Provenance;
+  // ISO timestamp the drop was logged. Carried through so the UI can show how
+  // fresh the live community price is ("logged 2h ago") — see formatFreshness.
+  createdAt: string;
 };
+
+// Honesty note the venue detail can render alongside a community-updated price,
+// so a Pint Drop override never reads as an authoritative live feed. Exported as
+// a plain constant (no new UI) — the integrator drops it in next to the price.
+export const COMMUNITY_PRICE_NOTE =
+  "Prices are community-updated — logged by drinkers, not a live feed.";
+
+// Pure formatter for a drop/observation timestamp → a short human "freshness"
+// label ("logged 2h ago", "logged 3 days ago"). Unit-tested at the boundaries.
+// Returns "" for a missing/invalid/future ISO so the UI can skip the note.
+export function formatFreshness(iso: string | null | undefined, now: Date = new Date()): string {
+  if (typeof iso !== "string" || iso.length === 0) return "";
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return "";
+  const diffMs = now.getTime() - then;
+  // Guard clock skew / future timestamps — never claim a negative age.
+  if (diffMs < 0) return "logged just now";
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "logged just now";
+  if (mins < 60) return `logged ${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `logged ${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `logged ${days} ${days === 1 ? "day" : "days"} ago`;
+}
 
 // Fold Pint Drops into the venue's DERIVED SUMMARY SIGNALS only — never into
 // the editorial curation note. Rules:
@@ -249,6 +287,10 @@ export function mergeVenueDrops<D extends SummaryDrop>(
       ...venue,
       cheapestPrice,
       cheapestPint: latestPriceDrop?.drink || venue.cheapestPint,
+      // Carry the live community price + its logged-at timestamp so the UI can
+      // both show the override AND how fresh it is (formatFreshness).
+      latestContributorPrice: contributorPrice,
+      latestContributorAt: latestPriceDrop?.createdAt ?? null,
       hasStory:
         venue.hasStory || organic.some((drop) => drop.passedDownNote.trim().length > 0),
     };

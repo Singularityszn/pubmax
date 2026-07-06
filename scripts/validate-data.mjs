@@ -34,10 +34,12 @@ const POI_CATEGORIES = new Set([
 ]);
 
 // Greater London bounding box. Coordinates are [lng, lat] to match
-// lib/landmarks.ts / lib/pois.ts convention.
+// lib/landmarks.ts / lib/pois.ts convention. Kept in lockstep with
+// scripts/export_app_dataset_json.py and scripts/build_slim_index.mjs so the
+// export, the slim index, and this validator all agree on "in London".
 const LON_MIN = -0.55;
-const LON_MAX = 0.35;
-const LAT_MIN = 51.28;
+const LON_MAX = 0.3;
+const LAT_MIN = 51.26;
 const LAT_MAX = 51.72;
 
 // A healthy pint dataset is ~3k rows; anything well below that means the export
@@ -228,6 +230,7 @@ function validatePintPrices() {
     errs.add(`row count ${count} is below the floor of ${PINT_ROW_FLOOR} — dataset looks truncated`);
   }
 
+  let outOfBounds = 0;
   data.forEach((row, i) => {
     const where = `row ${i}`;
     if (typeof row !== "object" || row === null) {
@@ -243,8 +246,19 @@ function validatePintPrices() {
     }
     if (!isFiniteNumber(row.latitude) || !isFiniteNumber(row.longitude)) {
       errs.add(`${where}: latitude/longitude must be finite numbers`);
+    } else if (!inLondon(row.longitude, row.latitude)) {
+      // Out-of-London coordinates are a data-quality bug the export is meant to
+      // strip. Fail the build so a regressed export can't ship scattered pins.
+      outOfBounds += 1;
+      errs.add(
+        `${where} (${row.pub_name}): [${row.longitude}, ${row.latitude}] outside Greater London bounds`,
+      );
     }
   });
+
+  if (outOfBounds > 0) {
+    console.log(`  ${outOfBounds} row(s) outside Greater London bounds`);
+  }
 
   const ok = errs.count === 0;
   console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${count} rows (floor ${PINT_ROW_FLOOR}), ${errs.count} error(s)`);

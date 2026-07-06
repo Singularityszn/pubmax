@@ -6,6 +6,7 @@ import {
   buildCrawlRoute,
   crawlSummary,
   mergeVenueDrops,
+  formatFreshness,
   stableVenueIdFromKey,
   venueGroupingKey,
   type SummaryDrop,
@@ -221,6 +222,7 @@ describe("mergeVenueDrops", () => {
       priceGbp: null,
       passedDownNote: "",
       provenance: "contributor",
+      createdAt: "2026-01-01T00:00:00.000Z",
       ...overrides,
     };
   }
@@ -319,6 +321,59 @@ describe("mergeVenueDrops", () => {
       new Map([[venue.id, [makeSummaryDrop({ priceGbp: 5 })]]]),
     );
     expect(merged.hasStory).toBe(true);
+  });
+
+  it("carries the organic price drop's createdAt through as latestContributorAt", () => {
+    const venue = plainVenue();
+    expect(venue.latestContributorPrice).toBeNull();
+    expect(venue.latestContributorAt).toBeNull();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [venue.id, [makeSummaryDrop({ priceGbp: 4.5, createdAt: "2026-06-01T10:00:00.000Z" })]],
+      ]),
+    );
+    expect(merged.latestContributorPrice).toBe(4.5);
+    expect(merged.latestContributorAt).toBe("2026-06-01T10:00:00.000Z");
+  });
+
+  it("a note-only drop leaves the contributor price layer null (no live price)", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([[venue.id, [makeSummaryDrop({ passedDownNote: "Grandad's local.", provenance: "anecdote" })]]]),
+    );
+    expect(merged.latestContributorPrice).toBeNull();
+    expect(merged.latestContributorAt).toBeNull();
+  });
+});
+
+describe("formatFreshness", () => {
+  const now = new Date("2026-07-06T12:00:00.000Z");
+
+  it("returns empty string for missing/invalid input", () => {
+    expect(formatFreshness(null, now)).toBe("");
+    expect(formatFreshness(undefined, now)).toBe("");
+    expect(formatFreshness("", now)).toBe("");
+    expect(formatFreshness("not-a-date", now)).toBe("");
+  });
+
+  it("collapses sub-minute and future ages to 'just now'", () => {
+    expect(formatFreshness("2026-07-06T11:59:30.000Z", now)).toBe("logged just now");
+    // Future timestamp (clock skew) never claims a negative age.
+    expect(formatFreshness("2026-07-06T13:00:00.000Z", now)).toBe("logged just now");
+  });
+
+  it("formats minutes, hours and days at the boundaries", () => {
+    expect(formatFreshness("2026-07-06T11:58:00.000Z", now)).toBe("logged 2m ago");
+    // 59 minutes stays minutes; 60 rolls to hours.
+    expect(formatFreshness("2026-07-06T11:01:00.000Z", now)).toBe("logged 59m ago");
+    expect(formatFreshness("2026-07-06T11:00:00.000Z", now)).toBe("logged 1h ago");
+    expect(formatFreshness("2026-07-06T10:00:00.000Z", now)).toBe("logged 2h ago");
+    // 23h stays hours; 24h rolls to a singular day.
+    expect(formatFreshness("2026-07-05T13:00:00.000Z", now)).toBe("logged 23h ago");
+    expect(formatFreshness("2026-07-05T12:00:00.000Z", now)).toBe("logged 1 day ago");
+    expect(formatFreshness("2026-07-03T12:00:00.000Z", now)).toBe("logged 3 days ago");
   });
 });
 

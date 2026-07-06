@@ -16,6 +16,8 @@
     "coverage": "vitest run --coverage",
     "validate-data": "node scripts/validate-data.mjs",
     "export:data": "python3 scripts/export_app_dataset_json.py",
+    "build:slim": "node scripts/build_slim_index.mjs",
+    "refresh:prices": "node scripts/refresh_prices.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage",
     "ci": "npm run verify && npm run build",
     "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'"

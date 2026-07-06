@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ExternalLink, Flag, MapPin, PlusCircle, Quote, Waves } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
-import { formatPrice, type Venue } from "@/lib/venues";
+import { COMMUNITY_PRICE_NOTE, formatFreshness, formatPrice, type Venue } from "@/lib/venues";
 import { buildVenueClaims, type ClaimKind, type Provenance } from "@/lib/curation";
 import LandlordPanel from "@/components/LandlordPanel";
 import LastTrainCard from "./LastTrainCard";
@@ -220,6 +220,10 @@ export default function VenueInspector({
           <div className="contributorPrice">
             <span>Latest Pint Drop price</span>
             <strong>{formatPrice(latestContributorPrice)}</strong>
+            {venue.latestContributorAt ? (
+              <small>{formatFreshness(venue.latestContributorAt)}</small>
+            ) : null}
+            <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
           </div>
         ) : null}
         {mode === "build" ? (
