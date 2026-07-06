@@ -33,12 +33,14 @@ Use `docs/PRD_OPUS_NEXT_IMPROVEMENTS_2026_07_06.md` for the next implementation 
 7. Add the TfL-backed Last Pint transport layer: nearest stations, live arrivals, line status, destination privacy, and leave-by countdown.
 8. Upgrade profile editing from handle-trust to authenticated ownership after Supabase Auth provider config is confirmed.
 
-## ⚠️ Required for durable social persistence
+## ✅ Migrations applied — durable social persistence is LIVE
 
-Apply these in the Supabase SQL editor (project `iankajxliutqogqkmvdg`), in order — DDL can't be run from the app with only the service-role/publishable keys:
+Both migrations are applied to the production Supabase project (`iankajxliutqogqkmvdg`), verified via the Supabase MCP (all 11 tables present, RLS on, security advisors clean):
 
-1. `supabase/migrations/0005_pint_drop_vibe_tags.sql` — the `vibe_tags` column. (Until applied, the app degrades gracefully: the Pint Drop insert retries without vibe tags rather than failing.)
-2. `supabase/migrations/0006_social_layer.sql` — profiles, follows, saved_pubs, reactions, comments, actor-scoped reports, crawl_stories, crawl_story_stops.
+1. `supabase/migrations/0005_pint_drop_vibe_tags.sql` — the `vibe_tags` column. ✅ applied
+2. `supabase/migrations/0006_social_layer.sql` — profiles, follows, saved_pubs, reactions, comments, actor-scoped reports, crawl_stories, crawl_story_stops. ✅ applied
+
+So reactions, follows, comments, saved pubs, and durable crawl stories persist to Supabase in production (no longer demo-only). The remaining gap is real **auth ownership** — actions are keyed by a self-asserted handle until Supabase Auth (`auth.uid()` → `profiles.user_id`) gates them.
 
 ## Demo checklist (one-minute flow)
 
