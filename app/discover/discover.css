@@ -168,6 +168,135 @@
   transform: rotate(-1.5deg);
 }
 
+/* ── Then vs Now cards ─────────────────────────────────────────────────
+   Baseline dataset price ("then") next to the newest community-reported price
+   ("now"), with the delta coloured by direction: cheaper reads sober-green
+   (--pint), dearer reads rust (--brick). Tokens only. */
+
+.tvnGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.tvnCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tvnCard:hover {
+  border-color: var(--brass);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.tvnName {
+  margin: 0;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.tvnLink {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tvnLink:hover {
+  color: var(--brass);
+  text-decoration: underline;
+}
+
+.tvnLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.tvnStamps {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tvnStampGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tvnStampLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.tvnStamp {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1.5px solid var(--line);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+.tvnStampThen {
+  color: var(--ink-soft);
+  border-color: var(--line);
+  transform: rotate(-1.5deg);
+}
+
+.tvnStampNow {
+  color: var(--brass);
+  border-color: var(--brass);
+  transform: rotate(1.5deg);
+}
+
+.tvnArrow {
+  color: var(--ink-soft);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.tvnDelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Up = dearer now = rust; down = cheaper now = sober-green; flat = muted. */
+.tvnDelta-up {
+  color: var(--brick);
+}
+
+.tvnDelta-down {
+  color: var(--pint);
+}
+
+.tvnDelta-flat {
+  color: var(--ink-soft);
+}
+
+.tvnFootnote {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
 /* ── Editorial cards ───────────────────────────────────────────────── */
 
 .editorialGrid {
@@ -283,14 +412,16 @@
     display: none;
   }
 
-  .editorialGrid {
+  .editorialGrid,
+  .tvnGrid {
     grid-template-columns: 1fr;
   }
 }
 
 /* Motion (gated): the card lift only where motion is welcome. */
 @media (prefers-reduced-motion: no-preference) {
-  .editorialCard:hover {
+  .editorialCard:hover,
+  .tvnCard:hover {
     transform: translateY(-2px);
     transition: border-color 0.18s ease, box-shadow 0.18s ease,
       transform 0.18s ease;

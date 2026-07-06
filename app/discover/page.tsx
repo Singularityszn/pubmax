@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { cheapestPints, type LeaderboardEntry } from "@/lib/leaderboard";
+import { computeThenVsNow, type ThenVsNowDrop, type ThenVsNowItem } from "@/lib/thenVsNow";
 import LeaderboardTable from "@/components/discovery/LeaderboardTable";
 import EditorialCard, { type EditorialCardData } from "@/components/discovery/EditorialCard";
+import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import "./discover.css";
 
 // Static editorial lanes. Real content, real links into the planner — the copy
@@ -46,9 +48,36 @@ const EDITORIAL: EditorialCardData[] = [
   },
 ];
 
+// Narrow the public /api/pint-drops payload to the {venueId, priceGbp,
+// createdAt} shape computeThenVsNow reads. Defensive: any malformed body yields
+// an empty list so the section simply doesn't render (never crashes the page).
+function pickDrops(raw: unknown): ThenVsNowDrop[] {
+  if (!raw || typeof raw !== "object") return [];
+  const list = (raw as { drops?: unknown }).drops;
+  if (!Array.isArray(list)) return [];
+  const out: ThenVsNowDrop[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const d = item as Record<string, unknown>;
+    if (typeof d.venueId !== "string" || !d.venueId) continue;
+    out.push({
+      venueId: d.venueId,
+      priceGbp:
+        typeof d.priceGbp === "number" && Number.isFinite(d.priceGbp) ? d.priceGbp : null,
+      createdAt: typeof d.createdAt === "string" ? d.createdAt : "",
+    });
+  }
+  return out;
+}
+
 export default function DiscoverPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  // "Then vs Now" is best-effort and independent of the leaderboard: it needs
+  // BOTH the dataset (for baseline prices + names) and the community drops. If
+  // either fetch fails we just leave this empty and show a friendly note — the
+  // rest of the page is unaffected.
+  const [thenVsNow, setThenVsNow] = useState<ThenVsNowItem[]>([]);
 
   // Fetch the public dataset and rank it. setState only fires in the async
   // handlers (never the effect body) — React 19 set-state-in-effect is an error.
@@ -59,10 +88,23 @@ export default function DiscoverPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then((rows: VenuePrice[]) => {
+      .then(async (rows: VenuePrice[]) => {
         const venues: Venue[] = groupVenuePrices(Array.isArray(rows) ? rows : []);
         setEntries(cheapestPints(venues, 10));
         setStatus("ready");
+
+        // Best-effort community "now" prices. Wrapped so a failed/aborted drops
+        // fetch never rejects the dataset chain — worst case the section stays
+        // empty and shows its friendly note.
+        try {
+          const res = await fetch("/api/pint-drops", { signal: controller.signal });
+          if (!res.ok) return;
+          const body = await res.json();
+          setThenVsNow(computeThenVsNow(venues, pickDrops(body), 8));
+        } catch (err) {
+          if ((err as Error).name === "AbortError") return;
+          // Swallow: no community "now" prices → empty section, friendly note.
+        }
       })
       .catch((err) => {
         if ((err as Error).name === "AbortError") return;
@@ -80,6 +122,7 @@ export default function DiscoverPage() {
         <Link href="/discover" aria-current="page">
           Discover
         </Link>
+        <Link href="/borough">Boroughs</Link>
         <Link href="/crawls">Crawls</Link>
       </nav>
 
@@ -111,6 +154,28 @@ export default function DiscoverPage() {
           </p>
         ) : (
           <LeaderboardTable entries={entries} />
+        )}
+      </section>
+
+      <section className="discoverSection" aria-labelledby="thenVsNow-title">
+        <h2 id="thenVsNow-title" className="discoverSectionTitle">
+          Then vs Now
+        </h2>
+        <p className="discoverSectionDek">
+          Today&rsquo;s community-reported pint against the baseline price on
+          record — the biggest movers first. Community numbers, not gospel.
+        </p>
+        {thenVsNow.length === 0 ? (
+          <p className="discoverEmpty" role="status">
+            Not enough community prices yet to compare.{" "}
+            <Link href="/map">Log a pint on the map</Link> to help fill this in.
+          </p>
+        ) : (
+          <div className="tvnGrid">
+            {thenVsNow.map((item) => (
+              <ThenVsNowCard key={item.venueId} item={item} />
+            ))}
+          </div>
         )}
       </section>
 
