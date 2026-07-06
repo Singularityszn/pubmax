@@ -38,6 +38,9 @@ import {
 } from "@/lib/tfl";
 
 export const runtime = "nodejs";
+// The nearest-station geo query plus the concurrent timetable fan-out can take
+// several seconds from a serverless region; give the function room to finish.
+export const maxDuration = 30;
 
 const TFL_BASE = "https://api.tfl.gov.uk";
 const STATION_RADIUS_M = 1500;
@@ -48,7 +51,9 @@ const MODES = "tube,dlr,elizabeth-line,overground";
 // Cap the timetable fan-out so a busy interchange (many lines) can't blow the
 // keyless rate limit; four lines is plenty for a "head home" glance.
 const LINE_CAP = 4;
-const CALL_TIMEOUT_MS = 6000;
+// TfL's StopPoint geo query is ~3s and slower from a serverless region; give it
+// headroom so a slow-but-fine response isn't aborted as a "failure".
+const CALL_TIMEOUT_MS = 9000;
 
 // app_key is optional — the keyless API works fine. Only append it when present.
 function withKey(url: string): string {
@@ -59,21 +64,32 @@ function withKey(url: string): string {
 
 // One TfL GET, JSON-parsed, with a hard per-call timeout. Returns null on ANY
 // failure (network, timeout, non-2xx, bad JSON) — callers decide what null means.
-async function tflGet<T>(path: string): Promise<T | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
-  try {
-    const res = await fetch(withKey(`${TFL_BASE}${path}`), {
-      signal: controller.signal,
-      headers: { accept: "application/json" },
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
+// `retries` adds attempts for transient failures (timeouts, 429 rate-limit, 5xx);
+// a genuine 4xx (other than 429) is not retried. A descriptive User-Agent keeps
+// us on the right side of TfL's fair-use expectations.
+async function tflGet<T>(path: string, retries = 0): Promise<T | null> {
+  const url = path.startsWith("http") ? path : `${TFL_BASE}${path}`;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+    try {
+      const res = await fetch(withKey(url), {
+        signal: controller.signal,
+        headers: {
+          accept: "application/json",
+          "user-agent": "PubMaxxing/1.0 (+https://pubmaxxing.com)",
+        },
+      });
+      if (res.ok) return (await res.json()) as T;
+      // Only transient statuses are worth another attempt.
+      if (res.status !== 429 && res.status < 500) return null;
+    } catch {
+      // network / timeout — fall through and retry if attempts remain
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  return null;
 }
 
 // --- Minimal shapes for just the fields we read off the TfL responses. ---
@@ -198,14 +214,18 @@ function londonNow(): Date {
   );
 }
 
-function json(body: unknown, status = 200): Response {
+// Only a successful result (a real station + at least one train) is cacheable —
+// timetables barely move, so hold it at the edge for an hour. Errors and empty
+// results are `no-store` so a transient TfL hiccup never sticks for an hour.
+function json(body: unknown, opts: { status?: number; cache?: boolean } = {}): Response {
+  const { status = 200, cache = false } = opts;
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      // Timetables barely move: hold at the edge for an hour, serve stale for a
-      // day while revalidating.
-      "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      "cache-control": cache
+        ? "public, s-maxage=3600, stale-while-revalidate=86400"
+        : "no-store",
     },
   });
 }
@@ -215,14 +235,15 @@ export async function GET(request: Request): Promise<Response> {
   const lat = Number.parseFloat(params.get("lat") ?? "");
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return json({ error: "lat and lng are required numbers." }, 400);
+    return json({ error: "lat and lng are required numbers." }, { status: 400 });
   }
 
-  // 1) Nearest station. Any failure here is graceful (200 + error), never a 500.
+  // 1) Nearest station. Retried once for transient failures; any failure here is
+  // graceful (200 + error, NOT cached), never a 500.
   const stopUrl =
     `/StopPoint?lat=${lat}&lon=${lng}` +
     `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
-  const stops = await tflGet<StopPointResponse>(stopUrl);
+  const stops = await tflGet<StopPointResponse>(stopUrl, 1);
   const nearest = stops?.stopPoints?.[0];
   if (!nearest?.id) {
     return json({
@@ -266,5 +287,7 @@ export async function GET(request: Request): Promise<Response> {
     trains,
     generatedAt: new Date().toISOString(),
   };
-  return json(result);
+  // Cache only a complete answer; if we found the station but no timetables came
+  // back, don't pin an empty result at the edge — let the next request retry.
+  return json(result, { cache: trains.length > 0 });
 }
