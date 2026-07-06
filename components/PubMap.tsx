@@ -16,7 +16,7 @@ import {
 import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
-import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector from "@/components/map/VenueInspector";
 import MapToolbar from "@/components/map/MapToolbar";
@@ -55,6 +55,20 @@ function readStoredBuiltIds(): string[] {
   }
 }
 
+// §4.5 curated-crawl onboarding: dismissal is per-session so a reload during the
+// same visit doesn't re-nag, but a fresh session gets the offer again. sessionStorage
+// (not localStorage) keeps it a gentle, per-visit prompt.
+const ONBOARDING_DISMISSED_KEY = "pubmax_onboarding_dismissed";
+
+function readOnboardingDismissed(): boolean {
+  if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
+  try {
+    return window.sessionStorage.getItem(ONBOARDING_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export default function PubMap() {
   // Seed the crawl from the shareable URL (falls back to defaults / honors
   // ?style=heritage from the landing page). Lazy init keeps this off effects.
@@ -68,6 +82,14 @@ export default function PubMap() {
       if (stored.length) return { ...seeded, mode: "build" as const, builtIds: stored };
     }
     return seeded;
+  }, []);
+  // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
+  // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
+  // to the URL after ~300ms, so re-reading location.search later would be wrong.
+  // If any of these are present, the arrival is intentional and we never onboard.
+  const arrivedWithCrawlParams = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return /[?&](pubs|sel|style|mode|q)=/.test(window.location.search);
   }, []);
   const [rows, setRows] = useState<VenuePrice[]>([]);
   // `loaded` flips true only when the fetch resolves — lets the UI tell a
@@ -106,6 +128,9 @@ export default function PubMap() {
   // The curated crawl whose blurb is shown under the route title. Cleared the
   // moment the user manually mutates the stops (add/remove/reverse/clear).
   const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(null);
+  // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
+  // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
+  const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   const pintDrops = usePintDrops();
@@ -207,6 +232,20 @@ export default function PubMap() {
     setSavedOnly(next);
   }, []);
 
+  // Dismiss the §4.5 onboarding overlay and remember it for the session. Event
+  // handler, so setState is fine; the sessionStorage write is best-effort.
+  const dismissOnboarding = useCallback(() => {
+    setOnboardingDismissed(true);
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem(ONBOARDING_DISMISSED_KEY, "1");
+      } catch {
+        // sessionStorage can throw (private mode / quota) — the state flag alone
+        // still closes the overlay for this render session.
+      }
+    }
+  }, []);
+
   // Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
   // the selected venue. The effect only adds/removes a DOM listener — the handler
   // calls setState, which is allowed (react-hooks/set-state-in-effect forbids
@@ -262,12 +301,15 @@ export default function PubMap() {
     if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
   }, []);
 
+  // Trust fix (§4.3): a pin tap INSPECTS ONLY, in both modes. It never mutates
+  // the crawl — otherwise browsing pubs in build mode silently adds/removes
+  // stops and destroys a carefully-built route. The crawl is mutated ONLY via
+  // the explicit Add/Remove button in VenueInspector (which calls toggleBuiltStop).
   const handleVenueClick = useCallback(
     (id: string) => {
       selectVenue(id);
-      if (mode === "build") toggleBuiltStop(id);
     },
-    [mode, selectVenue, toggleBuiltStop],
+    [selectVenue],
   );
 
   // Load a named curated crawl into Build mode. URL-sync makes it shareable.
@@ -279,8 +321,9 @@ export default function PubMap() {
       setActiveCrawl(crawl); // its blurb shows under the route title until mutated
       setPlanningOpen(true); // a loaded crawl needs the planner visible
       selectVenue(crawl.venueIds[0] ?? "");
+      dismissOnboarding(); // picking a crawl from the overlay closes + remembers it
     },
-    [selectVenue],
+    [selectVenue, dismissOnboarding],
   );
 
   // "Pubs near me": ask for location, build a crawl from the nearest matching
@@ -320,6 +363,22 @@ export default function PubMap() {
   }, [filteredVenues, filters.stopCount, selectVenue]);
 
   const detailOpen = Boolean(selectedVenueId) && loaded;
+
+  // §4.5: show the "Start with a story" onboarding overlay only on a clean first
+  // paint — data loaded, nothing selected, suggest mode, no hand-built stops, no
+  // active curated crawl, the page didn't arrive via a shared crawl link, and the
+  // viewer hasn't already dismissed it this session. Never blocks the map: it's a
+  // dismissible overlay, and it's the primary onboarding on mobile (rail hidden).
+  const showOnboarding =
+    loaded &&
+    !onboardingDismissed &&
+    !arrivedWithCrawlParams &&
+    mode === "suggest" &&
+    builtIds.length === 0 &&
+    !activeCrawl &&
+    !selectedVenueId;
+  // Show the first four curated crawls as the onboarding picks.
+  const onboardingCrawls = curatedCrawls.slice(0, 4);
 
   return (
     <main className="appShell dark">
@@ -378,6 +437,68 @@ export default function PubMap() {
             <i className="gold" /> writer
           </span>
         </div>
+
+        {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
+            offers curated crawls on a clean first paint. It's the mobile
+            onboarding (control rail is hidden on small screens) and never blocks
+            the map — the backdrop and the link both close it. */}
+        {showOnboarding ? (
+          <div
+            className="mapOnboarding"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="onboardingTitle"
+          >
+            <button
+              type="button"
+              className="mapOnboardingScrim"
+              aria-label="Dismiss and explore the map"
+              onClick={dismissOnboarding}
+            />
+            <div className="mapOnboardingCard">
+              <button
+                type="button"
+                className="mapOnboardingClose"
+                onClick={dismissOnboarding}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+              <p className="eyebrow">New here?</p>
+              <h2 id="onboardingTitle">Start with a story</h2>
+              <p className="mapOnboardingLead">
+                Curated crawls — one generation&rsquo;s pubs, handed to the next. Pick one to drop it
+                on the map, or explore on your own.
+              </p>
+              <div className="mapOnboardingList">
+                {onboardingCrawls.map((crawl) => (
+                  <button
+                    key={crawl.id}
+                    type="button"
+                    className="mapOnboardingCrawl"
+                    aria-label={`Load the ${crawl.name} crawl — ${crawl.venueIds.length} stops`}
+                    onClick={() => loadCuratedCrawl(crawl)}
+                  >
+                    <span className="mapOnboardingCrawlHead">
+                      <strong>{crawl.name}</strong>
+                      <span className="mapOnboardingCount">
+                        {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+                      </span>
+                    </span>
+                    <span className="mapOnboardingBlurb">{crawl.blurb}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="mapOnboardingDismiss"
+                onClick={dismissOnboarding}
+              >
+                Dismiss / explore the map
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {/* Left drawer: the whole crawl planner, on demand. */}
