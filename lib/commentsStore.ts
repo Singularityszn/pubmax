@@ -18,6 +18,7 @@
 // comments service is down" identically — the story just isn't shown).
 
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { cleanText } from "@/lib/textClean";
 
 // The only shape a reader ever sees. Deliberately minimal: no actor_hash, no
 // status, no raw DB columns.
@@ -45,22 +46,13 @@ export type CommentsStore = {
 };
 
 // ── Trust boundary ───────────────────────────────────────────────────────────
-// The body is untrusted. Mirror lib/pintDrops.ts clean(): strip anything that
-// could be inline HTML, drop control chars, collapse whitespace, cap length.
+// The body is untrusted. Cleaning is the shared cleanText (lib/textClean): strip
+// anything that could be inline HTML, drop control chars, collapse whitespace,
+// cap length — the same trust boundary every write path uses.
 export const MAX_BODY = 500;
 export const MAX_HANDLE = 40;
 // Public reads are hard-capped so one busy drop can't return an unbounded thread.
 export const MAX_COMMENTS = 100;
-
-function clean(value: unknown, cap: number): string {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/[<>]/g, "") // no inline user HTML
-    .replace(/[\u0000-\u001f\u007f]/g, " ") // strip control chars
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, cap);
-}
 
 export type CleanResult =
   | { ok: true; handle: string; body: string }
@@ -72,9 +64,9 @@ export type CleanResult =
  * empty body (or one that cleans down to empty, e.g. only "<>") is rejected.
  */
 export function cleanComment(handle: unknown, body: unknown): CleanResult {
-  const cleanHandle = clean(handle, MAX_HANDLE);
+  const cleanHandle = cleanText(handle, MAX_HANDLE);
   if (!cleanHandle) return { ok: false, error: "Add a handle." };
-  const cleanBody = clean(body, MAX_BODY);
+  const cleanBody = cleanText(body, MAX_BODY);
   if (!cleanBody) return { ok: false, error: "Comment can't be empty." };
   return { ok: true, handle: cleanHandle, body: cleanBody };
 }

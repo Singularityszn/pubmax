@@ -20,6 +20,7 @@ import {
 } from "@/lib/pintDropsStore";
 import { memoryProfileStore, supabaseProfileStore } from "@/lib/profileStore";
 import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { readString } from "@/lib/textClean";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
 // The single backend selection point. Read per request — env is stubbed per
@@ -113,10 +114,6 @@ function isModerator(request: Request): boolean {
 
 function forbidden(): Response {
   return Response.json({ error: "Not authorised." }, { status: 403 });
-}
-
-function readString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 // Parse either a JSON body or a multipart form. For multipart we pull the text

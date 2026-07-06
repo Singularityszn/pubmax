@@ -9,6 +9,7 @@
 // Supabase when configured, process-memory otherwise (reactions are non-critical,
 // so there is no 503 — an unconfigured prod just gets per-instance counts).
 
+import { isLimited } from "@/lib/pintDrops";
 import {
   isReactionKey,
   memoryReactionsStore,
@@ -17,17 +18,19 @@ import {
   type ReactionsStore,
 } from "@/lib/reactionsStore";
 import { hashActor, isSupabaseConfigured } from "@/lib/supabase";
+import { readString } from "@/lib/textClean";
 
 function store(): ReactionsStore {
   return isSupabaseConfigured() ? supabaseReactionsStore : memoryReactionsStore;
 }
 
-function readString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value : undefined;
-}
-
 // Cap how many drops one feed page can summarise in a single request.
 const MAX_IDS = 100;
+
+// Reactions are lightweight toggles, so the flood guard is deliberately
+// generous: many per feed page is normal, only a hammering actor should trip it.
+const REACTION_LIMIT = 40;
+const REACTION_WINDOW_MS = 60_000;
 
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
@@ -63,6 +66,16 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const actorHash = hashActor(readString(body.actor));
+
+  // Flood guard per hashed actor. Mirrors comments/saved-pubs, but with a
+  // generous budget (reactions are cheap toggles — a normal feed page fires
+  // several). 429 only once one actor blows past REACTION_LIMIT in the window.
+  if (
+    await isLimited(`reaction:${actorHash}`, `reaction:${actorHash}`, REACTION_LIMIT, REACTION_WINDOW_MS)
+  ) {
+    return Response.json({ error: "Too many reactions, slow down." }, { status: 429 });
+  }
+
   try {
     const summary = await store().toggle(id, actorHash, reaction);
     return Response.json({ summary }, { status: 200 });

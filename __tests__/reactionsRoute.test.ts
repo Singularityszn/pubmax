@@ -12,6 +12,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 // a stubbed store whose toggle throws UnknownDropError — see that describe block.
 
 import { GET, POST } from "@/app/api/pint-drops/reactions/route";
+import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryReactions } from "@/lib/reactionsStore";
 
 const URL_BASE = "http://localhost/api/pint-drops/reactions";
@@ -29,6 +30,10 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryReactions();
+  // The reactions POST is now flood-limited per hashed actor (in the same
+  // in-memory rate window every route shares). Reset it between cases so one
+  // test's toggles never bleed into another's budget.
+  __resetPintDrops();
 });
 
 afterAll(() => {
@@ -129,6 +134,26 @@ describe("POST /api/pint-drops/reactions (toggle)", () => {
     expect(blob).not.toMatch(/actor_?hash/i);
     expect(blob).not.toMatch(/"status"/);
     expect(blob).not.toContain("dev-secret"); // the raw actor id never echoes back
+  });
+
+  it("429s once one actor floods past the reaction limit (a fresh actor is unaffected)", async () => {
+    // The generous budget is 40 per actor per window; the 41st POST from the
+    // SAME actor trips the flood guard. We toggle a valid reaction each time so
+    // the request is otherwise well-formed and only the rate limit can 429.
+    for (let i = 0; i < 40; i++) {
+      const ok = await toggle({ id: "flood", actor: "spammer", reaction: "cheers" });
+      expect(ok.status).toBe(200); // every request up to the limit is accepted
+    }
+
+    // The 41st from the same actor is refused.
+    const limited = await toggle({ id: "flood", actor: "spammer", reaction: "cheers" });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: "Too many reactions, slow down." });
+
+    // A different actor has its own budget — the limit is keyed per hashed
+    // actor, so it is completely unaffected by the spammer's flood.
+    const fresh = await toggle({ id: "flood", actor: "innocent", reaction: "cheers" });
+    expect(fresh.status).toBe(200);
   });
 });
 

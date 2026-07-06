@@ -22,6 +22,7 @@
 import { normalizeHandle } from "@/lib/profiles";
 import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { cleanText } from "@/lib/textClean";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
 // The default list types a pub can be filed under. Ordered — the profile renders
@@ -52,15 +53,10 @@ export function isListType(value: unknown): value is ListType {
 const MAX_NOTE = 280;
 
 /** Strip inline HTML / control chars, collapse whitespace, cap length. Returns ""
- *  for a non-string or empty note. Mirrors the clean() used across the app. */
+ *  for a non-string or empty note. Delegates to the shared cleanText so the note
+ *  trust boundary matches every other write path. */
 export function cleanNote(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/[<>]/g, "")
-    .replace(/[\u0000-\u001f\u007f]/g, " ") // strip control chars
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_NOTE);
+  return cleanText(value, MAX_NOTE);
 }
 
 // The public shape the profile renders. Carries the resolved venue NAME + map url

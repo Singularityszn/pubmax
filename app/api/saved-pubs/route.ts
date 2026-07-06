@@ -18,10 +18,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { isLimited } from "@/lib/pintDrops";
 import { cleanNote, isListType, savedPubsStore } from "@/lib/savedPubsStore";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
-
-function readString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value : undefined;
-}
+import { readString } from "@/lib/textClean";
 
 // venue ids are content-hashed (e.g. "venue-1ufn31x"); cap and trim, never trust
 // the raw client length.

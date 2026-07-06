@@ -17,10 +17,7 @@
 import { cleanComment, commentsStore } from "@/lib/commentsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
-
-function readString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value : undefined;
-}
+import { readString } from "@/lib/textClean";
 
 export async function GET(request: Request): Promise<Response> {
   const dropId = new URL(request.url).searchParams.get("dropId");
