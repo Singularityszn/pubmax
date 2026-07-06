@@ -5,6 +5,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  /* Lets the button shrink inside the nav's flex row instead of forcing an
+     overflow/clip when the bar is tight (see the 390px fix below). */
+  flex: 0 1 auto;
+  min-width: 0;
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -14,10 +18,36 @@
   font-weight: 600;
   font-size: 0.9rem;
   line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     border-color 0.18s ease,
     background-color 0.18s ease;
+}
+
+/* Full vs. short label: only one renders at a time (both are real text, not a
+   display:none replacement of the accessible name — the button keeps its own
+   aria-label="Continue with Google" regardless of which is visible). Default
+   (room to spare) shows the full label; ≤480px swaps to "Sign in" so the
+   button never crowds or clips the nav at 390px alongside the wordmark and
+   theme toggle. */
+.authSignInLabelShort {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .authSignIn {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.85rem;
+  }
+
+  .authSignInLabelFull {
+    display: none;
+  }
+
+  .authSignInLabelShort {
+    display: inline;
+  }
 }
 
 .authSignIn:hover {

@@ -64,8 +64,13 @@ test("feed shows real pub names, is shareable, and links to the map (§9/§11)",
     await expect(first.locator(".feedCardFooter .shareBar").first()).toBeVisible();
   } else {
     // Empty DB is a valid state — assert the social empty state, never fail.
+    // The empty state is the shared EmptyState component (components/EmptyState.tsx);
+    // its one action renders inside .emptyStateAction.
     await expect(page.locator(".feedEmpty")).toBeVisible();
-    await expect(page.locator(".feedEmpty .feedEmptyCta")).toHaveAttribute("href", /\/map/);
+    await expect(page.locator(".feedEmpty .emptyStateAction a")).toHaveAttribute(
+      "href",
+      /\/map/,
+    );
   }
 
   expect(errors).toEqual([]);

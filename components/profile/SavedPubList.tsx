@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import EmptyState from "@/components/EmptyState";
 import { LIST_TYPES, type ListType, type SavedPubDTO } from "@/lib/savedPubs";
 
 // Presentational saved-pub lists, grouped by list type. Prop-driven: the page
@@ -24,7 +25,12 @@ export default function SavedPubList({ groups }: SavedPubListProps) {
         <h2 id="savedHeading" className="savedHeading">
           Saved pubs
         </h2>
-        <p className="savedEmpty">No saved pubs yet — save one from the map to start a list.</p>
+        <EmptyState
+          eyebrow="Your lists"
+          title="No saved pubs yet."
+          body="Save a pub from the map to start a list — favourites, want-to-try, whatever you call it."
+          action={<Link href="/map">Open the map</Link>}
+        />
       </section>
     );
   }

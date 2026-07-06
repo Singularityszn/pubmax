@@ -133,8 +133,8 @@
   height: 8px;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: #2f9e44;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #2f9e44 22%, transparent);
+  background: var(--pint);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pint) 22%, transparent);
 }
 
 .presenceList {
@@ -607,60 +607,11 @@
 }
 
 /* ── Empty state ──────────────────────────────────────────────────────── */
+/* The visual pattern (dashed panel, eyebrow, serif title, muted body, one
+   action) now lives in the shared components/EmptyState.tsx + emptyState.css;
+   this class only widens it slightly for the feed's column layout. */
 .feedEmpty {
-  width: 100%;
   max-width: 500px;
-  text-align: center;
-  padding: 44px 26px;
-  border: 1px dashed var(--line);
-  border-radius: 16px;
-  background: var(--panel);
-}
-
-.feedEmptyEyebrow {
-  margin: 0 0 8px;
-  color: var(--brass);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.feedEmpty h2 {
-  margin: 0 0 12px;
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: 1.7rem;
-  line-height: 1.15;
-}
-
-.feedEmptyBody {
-  margin: 0 auto 22px;
-  max-width: 42ch;
-  color: var(--ink-soft);
-  line-height: 1.55;
-}
-
-.feedEmptyCta {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 20px;
-  border-radius: var(--radius-sm, 10px);
-  background: var(--ink-deep, #1c231d);
-  /* Always-cream on the theme-stable dark ink surface (see filter chip note). */
-  color: #fdfaf2;
-  font-weight: 600;
-  text-decoration: none;
-  transition: filter 0.18s ease;
-}
-
-.feedEmptyCta:hover {
-  filter: brightness(1.15);
-}
-
-.feedEmptyCta:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────────────── */
@@ -772,10 +723,10 @@
 @keyframes presencePulse {
   0%,
   100% {
-    box-shadow: 0 0 0 3px color-mix(in srgb, #2f9e44 22%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pint) 22%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 5px color-mix(in srgb, #2f9e44 6%, transparent);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--pint) 6%, transparent);
   }
 }
 
@@ -881,7 +832,7 @@
 }
 
 .commentError {
-  color: #b4472e;
+  color: var(--brick);
 }
 
 .commentForm {

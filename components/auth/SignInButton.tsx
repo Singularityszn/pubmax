@@ -123,7 +123,17 @@ export default function SignInButton(): React.JSX.Element | null {
         aria-label="Continue with Google"
       >
         <GoogleMark />
-        <span>Continue with Google</span>
+        {/* Full label on room-to-spare widths; a short label takes over at
+            narrow viewports (see authSignInLabelShort in auth.css) so the
+            button never crowds/clips the nav at 390px. Both are real text (not
+            display:none-only-in-CSS trickery) — aria-label above is what
+            screen readers announce regardless of which is visually shown. */}
+        <span className="authSignInLabelFull" aria-hidden="true">
+          Continue with Google
+        </span>
+        <span className="authSignInLabelShort" aria-hidden="true">
+          Sign in
+        </span>
       </button>
       {error ? (
         <span className="authError" role="alert">

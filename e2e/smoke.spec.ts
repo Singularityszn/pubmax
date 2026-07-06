@@ -83,6 +83,41 @@ test("/u/[handle] renders a public profile for any handle without crashing", asy
   expect(errors).toEqual([]);
 });
 
+test("nav does not overflow at 390px — sign-in button never clips (GH #18)", async ({
+  page,
+}) => {
+  // iPhone 12/13/14-class width, the narrowest common phone viewport and the
+  // one the bug report was filed against.
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const response = await page.goto("/feed");
+  expect(response?.status()).toBe(200);
+
+  const nav = page.locator(".siteNavBar").first();
+  await expect(nav).toBeVisible();
+
+  const viewportWidth = 390;
+  const navBox = await nav.boundingBox();
+  expect(navBox).not.toBeNull();
+  if (navBox) {
+    // The bar itself must stay within the viewport (no horizontal overflow).
+    expect(navBox.x).toBeGreaterThanOrEqual(0);
+    expect(navBox.x + navBox.width).toBeLessThanOrEqual(viewportWidth + 1); // +1px rounding
+  }
+
+  // The sign-in control (present when Google auth is configured) must also
+  // stay fully inside the viewport — this is the exact element the bug named.
+  const signIn = page.locator(".authSignIn");
+  if ((await signIn.count()) > 0) {
+    const box = await signIn.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewportWidth + 1);
+    }
+  }
+});
+
 test("theme toggle flips html[data-theme], persists to localStorage, survives reload", async ({
   page,
 }) => {

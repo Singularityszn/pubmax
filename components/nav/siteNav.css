@@ -119,8 +119,13 @@
 /* ── Right-side actions (theme toggle + sign-in) ───────────────────────── */
 .siteNavActions {
   display: flex;
-  flex: 0 0 auto;
+  /* Allow this cluster to shrink (not just the sign-in button inside it) so
+     the compact mobile bar — wordmark + toggle + sign-in only — never forces
+     a horizontal overflow at 390px. */
+  flex: 1 1 auto;
+  min-width: 0;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   margin-left: auto;
 }

@@ -7,6 +7,7 @@ import FeedCard from "@/components/feed/FeedCard";
 import FeedFilters from "@/components/feed/FeedFilters";
 import PresenceStrip from "@/components/feed/PresenceStrip";
 import SiteNav from "@/components/nav/SiteNav";
+import EmptyState from "@/components/EmptyState";
 import { getAnonId } from "@/lib/anonId";
 import {
   applyFeedFilter,
@@ -435,29 +436,21 @@ export default function FeedPage() {
           ))}
         </div>
       ) : friendsEmpty ? (
-        <section className="feedEmpty">
-          <p className="feedEmptyEyebrow">Your crew</p>
-          <h2>Your Friends feed is empty.</h2>
-          <p className="feedEmptyBody">
-            Follow people to fill your Friends feed — every pint they drop lands
-            here. Find drinkers to follow on the map or over on Discover.
-          </p>
-          <Link href="/discover" className="feedEmptyCta">
-            Find people to follow
-          </Link>
-        </section>
+        <EmptyState
+          className="feedEmpty"
+          eyebrow="Your crew"
+          title="Your Friends feed is empty."
+          body="Follow people to fill your Friends feed — every pint they drop lands here. Find drinkers to follow on the map or over on Discover."
+          action={<Link href="/discover">Find people to follow</Link>}
+        />
       ) : isEmpty ? (
-        <section className="feedEmpty">
-          <p className="feedEmptyEyebrow">Quiet at the bar</p>
-          <h2>No pints logged yet tonight.</h2>
-          <p className="feedEmptyBody">
-            Be the first to drop one — snap your pint, log the price, pass down a
-            story. The feed fills up as London drinks.
-          </p>
-          <Link href="/map" className="feedEmptyCta">
-            Find a pub and drop a pint
-          </Link>
-        </section>
+        <EmptyState
+          className="feedEmpty"
+          eyebrow="Quiet at the bar"
+          title="No pints logged yet tonight."
+          body="Be the first to drop one — snap your pint, log the price, pass down a story. The feed fills up as London drinks."
+          action={<Link href="/map">Find a pub and drop a pint</Link>}
+        />
       ) : (
         <>
           <div className="feedList">

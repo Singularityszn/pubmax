@@ -6,6 +6,7 @@ import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, formatPrice, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough } from "@/lib/boroughs";
 import SiteNav from "@/components/nav/SiteNav";
+import EmptyState from "@/components/EmptyState";
 
 import "./borough.css";
 
@@ -111,11 +112,12 @@ export default async function BoroughPage({ params }: PageProps) {
       </header>
 
       {pubs.length === 0 ? (
-        <p className="boroughEmpty" role="status">
-          We don&rsquo;t have any pubs pinned in {name} yet.{" "}
-          <Link href="/borough">Browse other boroughs</Link> or{" "}
-          <Link href="/map">open the map</Link>.
-        </p>
+        <EmptyState
+          eyebrow="Nothing pinned here yet"
+          title={`No pubs mapped in ${name} yet.`}
+          body="The rest of London is on the map already — this corner just hasn't been walked yet."
+          action={<Link href="/borough">Browse other boroughs</Link>}
+        />
       ) : (
         <table className="boroughTable">
           <caption className="srOnly">

@@ -1,0 +1,75 @@
+/* Shared empty-state pattern (see EmptyState.tsx). Token-driven only — no
+   hard-coded colours — so it flips light/dark for free and reads correctly on
+   every surface that uses it (borough, feed, crawls, profile). */
+
+.emptyState {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 36px 24px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--panel);
+  text-align: center;
+}
+
+.emptyStateEyebrow {
+  margin: 0 0 8px;
+  color: var(--brass);
+  font-size: var(--text-2xs, 0.72rem);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wider, 0.08em);
+  text-transform: uppercase;
+}
+
+.emptyStateTitle {
+  margin: 0 0 10px;
+  font-family: var(--font-display, var(--serif, Georgia, "Times New Roman", serif));
+  font-size: var(--text-lg, 1.4rem);
+  line-height: var(--leading-tight, 1.15);
+  color: var(--ink);
+}
+
+.emptyStateBody {
+  margin: 0 auto;
+  max-width: 42ch;
+  color: var(--ink-soft);
+  font-size: var(--text-sm, 0.9rem);
+  line-height: var(--leading-normal, 1.55);
+}
+
+.emptyStateAction {
+  margin-top: 20px;
+}
+
+.emptyStateAction :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-sm, 10px);
+  border: none;
+  background: var(--ink-deep, #1c231d);
+  color: var(--color-on-inverse, #fdfaf2);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter var(--duration-base, 0.18s) var(--ease-standard, ease);
+}
+
+.emptyStateAction :is(a, button):hover {
+  filter: brightness(1.15);
+}
+
+.emptyStateAction :is(a, button):focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emptyStateAction :is(a, button) {
+    transition: none;
+  }
+}
