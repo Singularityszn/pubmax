@@ -17,16 +17,41 @@ vi.mock("@/lib/pintDropsStore", async () => {
   };
 });
 
-// Mock only the durable limiter; everything else in lib/supabase stays real.
-// Default (null) = "durable limiter unavailable", so every existing test keeps
-// exercising the in-memory fallback exactly as before.
-const { checkRateLimitDurable } = vi.hoisted(() => ({
+// Mock the lib/supabase seam. Two reasons, both about determinism under a
+// PRODUCTION build (Vercel CI presets NODE_ENV=production, and Vite bakes
+// process.env.NODE_ENV at transform time — so runtime vi.stubEnv on it is a
+// silent no-op, exactly the trap profileOwnershipRoute.test.ts documents):
+//   • checkRateLimitDurable — default (null) = "durable limiter unavailable",
+//     so every existing test keeps exercising the in-memory fallback as before.
+//   • isSupabaseConfigured / requiresSupabaseStore — mocked as controllable
+//     flags. isSupabaseConfigured() is FALSE by default so assertServerEnv()
+//     (called at ROUTE IMPORT, before any beforeEach) never throws its FATAL
+//     even when NODE_ENV is baked to "production". The two 503/guard cases flip
+//     the corresponding flag explicitly rather than stubbing NODE_ENV.
+const { checkRateLimitDurable, supaGuard } = vi.hoisted(() => ({
   checkRateLimitDurable: vi.fn<(key: string) => Promise<boolean | null>>(),
+  supaGuard: { configured: false, requiresStore: false },
 }));
-vi.mock("@/lib/supabase", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/supabase")>("@/lib/supabase");
-  return { ...actual, checkRateLimitDurable };
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return {
+    ...actual,
+    checkRateLimitDurable,
+    isSupabaseConfigured: () => supaGuard.configured,
+    requiresSupabaseStore: () => supaGuard.requiresStore,
+  };
 });
+
+// assertServerEnv() runs at ROUTE IMPORT (route.ts:39) — before any beforeEach —
+// and throws a FATAL when NODE_ENV==="production" and Supabase is unconfigured.
+// Under a production build (Vercel CI) that import-time throw would fail the whole
+// suite regardless of the supabase mock above (the throw fires during module
+// evaluation, before the mocked isSupabaseConfigured is reliably wired into the
+// transitive serverEnv binding). It is a pure startup guard with no bearing on
+// route behaviour — the 503 durable-store contract is exercised via the
+// requiresSupabaseStore() flag below — so no-op it here for a deterministic import
+// in every environment.
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/pint-drops/route";
 import { __resetPintDrops, validatePintDrop } from "@/lib/pintDrops";
@@ -77,7 +102,13 @@ const VENUE = "the-crown";
 
 beforeEach(() => {
   __resetPintDrops();
+  // The moderator gate still reads process.env.NODE_ENV at runtime; keep the
+  // stub for it. The durable-store guard is driven by the mocked supaGuard flags
+  // (reset to the in-memory demo defaults here), NOT by NODE_ENV — see the
+  // vi.mock above for why NODE_ENV stubbing can't drive it under a prod build.
   vi.stubEnv("NODE_ENV", "test");
+  supaGuard.configured = false;
+  supaGuard.requiresStore = false;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.ADMIN_TOKEN;
@@ -233,7 +264,11 @@ describe("GET + moderation", () => {
   });
 
   it("refuses the in-memory store in production when Supabase is absent", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+    // Flip the durable-store guard directly (the prod condition), leaving
+    // isSupabaseConfigured false — this is the requiresSupabaseStore() &&
+    // !isSupabaseConfigured() case that must 503. Driving it via the mocked
+    // flag is deterministic under both a dev and a production build.
+    supaGuard.requiresStore = true;
 
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     expect(created.status).toBe(503);
@@ -351,6 +386,10 @@ describe("moderation loop", () => {
 
 describe("durable rate limiting (Supabase configured)", () => {
   beforeEach(() => {
+    // Route writes through the Supabase store (mocked via storeCreate). The
+    // route's store() picks it when isSupabaseConfigured() is true — driven by
+    // the mocked flag now, not the raw env vars (kept for hashIp salting etc).
+    supaGuard.configured = true;
     process.env.SUPABASE_URL = "https://stub.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
     storeCreate.mockReset();

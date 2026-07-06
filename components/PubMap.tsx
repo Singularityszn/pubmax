@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 
@@ -24,6 +24,8 @@ import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector from "@/components/map/VenueInspector";
 import MapToolbar from "@/components/map/MapToolbar";
 import { usePintDrops } from "@/components/map/usePintDrops";
+import { useLiveDrops } from "@/components/map/useLiveDrops";
+import { useSheetDrag, sheetSnapTranslateYPx } from "@/components/map/useSheetDrag";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import {
@@ -32,30 +34,68 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { getSaved } from "@/lib/savedPubs";
-import { resolveSheetSnap, type SheetSnap } from "@/lib/sheetSnap";
+import { loadSlimVenues } from "@/lib/venuesSlim";
+import { slimVenuesToPins } from "@/lib/slimPins";
 
-// Mobile venue-detail bottom sheet: the drag gesture is only active ≤640px
-// (matches the mobile breakpoint used across venueSheet.css / globals.css) —
-// above that width the panel is the existing side drawer with no drag.
-const SHEET_GESTURE_MAX_WIDTH = 640;
-
-// The sheet's resting translateY as a fraction of the VIEWPORT height (not the
-// drawer's own 82vh-capped height — see venueSheet.css's `.sheet-*` rules,
-// which these mirror exactly so a live drag lines up with the CSS-driven
-// resting position it settles into on release). Kept local to PubMap (the
-// drawer/sheet owner) rather than in lib/sheetSnap.ts, which only resolves
-// WHICH snap a drag lands on and stays agnostic of this box's own CSS cap.
-const SHEET_SNAP_VH: Record<SheetSnap, number> = { full: 0, half: 0.27, peek: 0.68 };
-
-function sheetSnapTranslateYPx(snap: SheetSnap, viewportHeight: number): number {
-  return SHEET_SNAP_VH[snap] * viewportHeight;
-}
+// Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
+// useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
+// default on a fresh pick and renders the sheet chrome.
 
 // The set of venue ids this device has saved (any list). Read from the client
 // saved-pub store; SSR-safe (getSaved returns [] on the server). Used only to
 // narrow the map/list when the viewer flips "Saved only" on.
 function readSavedVenueIds(): Set<string> {
   return new Set(getSaved().map((entry) => entry.venueId));
+}
+
+// SSR-safe read of the current URL query. Kept in one place so the several
+// param probes below can't drift on the SSR ("") fallback.
+function currentSearch(): string {
+  return typeof window === "undefined" ? "" : window.location.search;
+}
+
+// §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
+// link)? If any are present the arrival is intentional and we never onboard.
+// Module-level (pure) so the branch lives off PubMap's complexity budget.
+function hasCrawlArrivalParams(search: string): boolean {
+  return /[?&](pubs|sel|style|mode|q)=/.test(search);
+}
+
+// The planner (left drawer) starts open when a shared/restored crawl means the
+// route would otherwise be invisible on arrival. Pure so its three-way OR lives
+// off PubMap's complexity budget.
+function shouldOpenPlanningInitially(
+  seededBuiltIds: string[],
+  seededMode: CrawlMode,
+  search: string,
+): boolean {
+  return (
+    seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|sel|mode|q)=/.test(search)
+  );
+}
+
+// §4.5: the "Start with a story" overlay shows only on a clean first paint —
+// data loaded, nothing selected, suggest mode, no hand-built stops, no active
+// curated crawl, not a shared-link arrival, and not already dismissed this
+// session. Pure so its long AND-chain lives off PubMap's complexity budget.
+function shouldShowOnboarding(input: {
+  loaded: boolean;
+  onboardingDismissed: boolean;
+  arrivedWithCrawlParams: boolean;
+  mode: CrawlMode;
+  builtIdsCount: number;
+  hasActiveCrawl: boolean;
+  selectedVenueId: string;
+}): boolean {
+  return (
+    input.loaded &&
+    !input.onboardingDismissed &&
+    !input.arrivedWithCrawlParams &&
+    input.mode === "suggest" &&
+    input.builtIdsCount === 0 &&
+    !input.hasActiveCrawl &&
+    !input.selectedVenueId
+  );
 }
 
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
@@ -170,34 +210,21 @@ export default function PubMap() {
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
   // If any of these are present, the arrival is intentional and we never onboard.
-  const arrivedWithCrawlParams = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return /[?&](pubs|sel|style|mode|q)=/.test(window.location.search);
-  }, []);
+  const arrivedWithCrawlParams = useMemo(() => hasCrawlArrivalParams(currentSearch()), []);
   const [rows, setRows] = useState<VenuePrice[]>([]);
-  // `loaded` flips true only when the fetch resolves — lets the UI tell a
-  // still-loading empty from a genuine zero-result. Set in the fetch handler
-  // below (never in a bare effect: react-hooks/set-state-in-effect is an error).
+  // `loaded` flips true only when the FULL dataset fetch resolves — lets the UI
+  // tell a still-loading empty from a genuine zero-result, and gates every
+  // feature that needs full-Venue fields (filters, saved-only, crawl scoring,
+  // the onboarding overlay). Set in the fetch handler below (never in a bare
+  // effect: react-hooks/set-state-in-effect is an error).
   const [loaded, setLoaded] = useState(false);
+  // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
+  // ~116 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
+  // the ~5.6 MB full dataset lands so the first interactive pin appears fast.
+  // They carry only what pubsToGeoJSON needs (id/name/coords/cheapestPrice);
+  // hasStory + prices degrade to inert defaults until hydration (see lib/slimPins).
+  const [slimPins, setSlimPins] = useState<Venue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>(seed.selectedVenueId);
-  // Mobile bottom-sheet drag state (GH #17). The sheet itself is the existing
-  // .mapDrawer.right seam — this only adds snap-point tracking + a live
-  // translateY while dragging. "half" is the default resting snap whenever a
-  // venue is freshly selected (peek would hide the primary CTA; full feels
-  // like a takeover on first tap). Desktop ignores all of this — the CSS drag
-  // transform only applies ≤640px (see venueSheet.css).
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("half");
-  // Live px offset while a drag is in progress; null when not dragging (CSS
-  // owns the resting transform via the snap class at that point).
-  const [sheetDragY, setSheetDragY] = useState<number | null>(null);
-  const sheetDragRef = useRef<{
-    startY: number;
-    startTime: number;
-    lastY: number;
-    lastTime: number;
-    velocity: number;
-    active: boolean;
-  } | null>(null);
   const [filters, setFilters] = useState<Filters>(seed.filters);
   const [mode, setMode] = useState<CrawlMode>(seed.mode);
   const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
@@ -208,11 +235,8 @@ export default function PubMap() {
   // Map-first layout: the planner (left drawer) is hidden until the user asks
   // for it — but a shared/restored crawl link opens straight into planning so
   // the route isn't invisible on arrival.
-  const [planningOpen, setPlanningOpen] = useState<boolean>(
-    () =>
-      seed.builtIds.length > 0 ||
-      seed.mode === "build" ||
-      (typeof window !== "undefined" && /[?&](style|sel|mode|q)=/.test(window.location.search)),
+  const [planningOpen, setPlanningOpen] = useState<boolean>(() =>
+    shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch()),
   );
   // Favorite pint: re-prices the map to one beer. Persisted per-device; the
   // guard mirrors readStoredBuiltIds so SSR and hydration read the same source.
@@ -244,6 +268,56 @@ export default function PubMap() {
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   const pintDrops = usePintDrops();
   const { dropsByVenueId, venueSignals, refreshVenueDrops, closeComposer } = pintDrops;
+  // Live map pins (issue #37): refetch the drops layer on a new-drop signal (or
+  // a 30s poll when realtime is unavailable). Self-contained, signal-only.
+  useLiveDrops(pintDrops.refreshAllDrops);
+
+  // Mobile bottom-sheet drag (GH #17) — state + pointer handlers live in
+  // useSheetDrag. A fling-to-dismiss clears the selected venue and closes the
+  // composer, exactly as the inline handler did. "half" is the default resting
+  // snap; selectVenue re-asserts it on every fresh pick below.
+  const dismissSheet = useCallback(() => {
+    setSelectedVenueId("");
+    closeComposer();
+  }, [closeComposer]);
+  const {
+    sheetSnap,
+    setSheetSnap,
+    sheetDragY,
+    setSheetDragY,
+    onSheetDragStart,
+    onSheetDragMove,
+    onSheetDragEnd,
+  } = useSheetDrag(dismissSheet);
+
+  // Issue #35 — stage 1: paint pins from the slim index first. This resolves in
+  // ~116 KB (or instantly from IndexedDB) so pins appear long before the full
+  // dataset. On success we drop a `pubmax:first-pins` performance mark — the
+  // perf-assertion signal the e2e reads. A slim failure is silent: the full
+  // dataset (stage 2) is the source of truth and still paints everything.
+  useEffect(() => {
+    let cancelled = false;
+    loadSlimVenues()
+      .then((slim) => {
+        if (cancelled || slim.length === 0) return;
+        setSlimPins(slimVenuesToPins(slim));
+        if (typeof performance !== "undefined" && typeof performance.mark === "function") {
+          try {
+            performance.mark("pubmax:first-pins");
+          } catch {
+            // performance.mark can throw under strict CSP / locked-down envs;
+            // the pins still painted, the mark is best-effort telemetry only.
+          }
+        }
+      })
+      .catch(() => {
+        // Slim fetch failed with no offline mirror — stage 2 below still loads
+        // the full dataset; the map just skips the optimistic first paint.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     // Reliability: abort a hung fetch after a timeout and guard the response so a
@@ -308,6 +382,16 @@ export default function PubMap() {
     [pipelineVenues, savedOnly, savedIds],
   );
 
+  // Issue #35 — what the MAP CANVAS paints. Until the full dataset hydrates
+  // (`venues` empty), paint the optimistic slim pins directly, BYPASSING the
+  // filter/saved-only/scoring pipeline — slim pins lack the fields those read
+  // (amenities, curation, prices), so running them through filterVenues would
+  // wrongly narrow the first paint. The moment the real venues arrive, we swap
+  // to the fully-filtered set. Everything else in the UI (planner, inspector,
+  // crawl, saved-only, band, favorite-pint repricing) keeps reading the
+  // hydrated `filteredVenues`/`venues`, so no pre-hydration feature is faked.
+  const canvasVenues = venues.length === 0 ? slimPins : filteredVenues;
+
   const suggestedRoute = useMemo(
     () => buildCrawlRoute(filteredVenues, filters),
     [filteredVenues, filters],
@@ -359,79 +443,7 @@ export default function PubMap() {
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
     },
-    [closeComposer],
-  );
-
-  // Pointer-drag handlers for the mobile bottom-sheet (GH #17). Active only
-  // ≤640px — above that the panel is the unchanged desktop side drawer, so we
-  // bail out immediately rather than attach any gesture. Pointer Events (not
-  // touch/mouse-specific) so mouse-drag on a narrow browser window works too,
-  // which keeps this testable without a real touch device.
-  const sheetGestureEnabled = useCallback(
-    () => typeof window !== "undefined" && window.innerWidth <= SHEET_GESTURE_MAX_WIDTH,
-    [],
-  );
-
-  const onSheetDragStart = useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
-      if (!sheetGestureEnabled()) return;
-      // Ignore drags that start on an interactive control inside the header
-      // (e.g. the close button) — only the grab handle / header chrome itself
-      // initiates the gesture, so tab/button clicks are unaffected.
-      const target = event.target as HTMLElement;
-      if (target.closest("button, a, input, textarea, select")) return;
-      const now = performance.now();
-      sheetDragRef.current = {
-        startY: event.clientY,
-        startTime: now,
-        lastY: event.clientY,
-        lastTime: now,
-        velocity: 0,
-        active: true,
-      };
-      event.currentTarget.setPointerCapture(event.pointerId);
-    },
-    [sheetGestureEnabled],
-  );
-
-  const onSheetDragMove = useCallback((event: React.PointerEvent<HTMLElement>) => {
-    const drag = sheetDragRef.current;
-    if (!drag || !drag.active) return;
-    // Dragging the sheet must never also pan/zoom the map underneath.
-    event.preventDefault();
-    event.stopPropagation();
-    const now = performance.now();
-    const dt = now - drag.lastTime;
-    if (dt > 0) {
-      drag.velocity = (event.clientY - drag.lastY) / dt;
-    }
-    drag.lastY = event.clientY;
-    drag.lastTime = now;
-    setSheetDragY(event.clientY - drag.startY);
-  }, []);
-
-  const onSheetDragEnd = useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
-      const drag = sheetDragRef.current;
-      sheetDragRef.current = null;
-      if (!drag || !drag.active) return;
-      event.currentTarget.releasePointerCapture(event.pointerId);
-      const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight;
-      const result = resolveSheetSnap({
-        currentSnap: sheetSnap,
-        viewportHeight,
-        dragDeltaY: event.clientY - drag.startY,
-        velocity: drag.velocity,
-      });
-      setSheetDragY(null);
-      if (result.dismissed) {
-        setSelectedVenueId("");
-        closeComposer();
-        return;
-      }
-      setSheetSnap(result.snap);
-    },
-    [sheetSnap, closeComposer],
+    [closeComposer, setSheetSnap, setSheetDragY],
   );
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
@@ -601,14 +613,15 @@ export default function PubMap() {
   // active curated crawl, the page didn't arrive via a shared crawl link, and the
   // viewer hasn't already dismissed it this session. Never blocks the map: it's a
   // dismissible overlay, and it's the primary onboarding on mobile (rail hidden).
-  const showOnboarding =
-    loaded &&
-    !onboardingDismissed &&
-    !arrivedWithCrawlParams &&
-    mode === "suggest" &&
-    builtIds.length === 0 &&
-    !activeCrawl &&
-    !selectedVenueId;
+  const showOnboarding = shouldShowOnboarding({
+    loaded,
+    onboardingDismissed,
+    arrivedWithCrawlParams,
+    mode,
+    builtIdsCount: builtIds.length,
+    hasActiveCrawl: Boolean(activeCrawl),
+    selectedVenueId,
+  });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = curatedCrawls.slice(0, 4);
 
@@ -627,14 +640,25 @@ export default function PubMap() {
 
       {/* Full-bleed map is the base layer; every panel slides in over it. */}
       <section className="mapStage">
-        {!loaded ? (
+        {/* Issue #35 — skeleton continuity. Show the loading chip ONLY until the
+            first optimistic pins paint (slim index resolved). It continues the
+            loading.tsx dot idiom — a small row of price-coloured dots, not a
+            plain spinner — so the route-skeleton → canvas transition is seamless.
+            Once slim pins are up the map is already interactive, so the chip
+            retires even while the full dataset is still hydrating in the
+            background. */}
+        {slimPins.length === 0 && !loaded ? (
           <div className="mapLoading" aria-live="polite">
-            <span aria-hidden="true" className="mapLoadingDot" />
-            Loading London&rsquo;s pubs…
+            <span aria-hidden="true" className="mapLoadingDots">
+              <i style={{ background: "var(--pint)" }} />
+              <i style={{ background: "var(--amber)" }} />
+              <i style={{ background: "var(--brick)" }} />
+            </span>
+            Pouring London&rsquo;s pubs…
           </div>
         ) : null}
         <PubMapCanvas
-          venues={filteredVenues}
+          venues={canvasVenues}
           // The crawl only draws on the map while the planner is open — the
           // clean first view is pubs + POIs, never a route the user didn't ask for.
           route={planningOpen ? route : []}
