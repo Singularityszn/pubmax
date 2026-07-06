@@ -6,6 +6,7 @@
 // we cap lengths / clamp counts / allowlist here so junk never reaches it.
 
 import {
+  countStoriesByAuthor,
   createCrawlStory,
   getCrawlStoryBySlug,
   getStoryAuthor,
@@ -132,7 +133,20 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const slug = new URL(request.url).searchParams.get("slug");
+  const params = new URL(request.url).searchParams;
+
+  // ?author=<handle> — the published crawl-story count for a handle. Powers the
+  // Pint Passport's "story posts" number on /u/[handle] (a client component that
+  // can't import the server store directly). Fail-soft: an unknown/blank handle
+  // resolves to 0, never an error, so the passport degrades to a clean zero.
+  const author = params.get("author");
+  if (author !== null) {
+    const handle = normalizeHandle(readString(author, MAX_HANDLE));
+    const count = handle ? await countStoriesByAuthor(handle) : 0;
+    return Response.json({ handle, count }, { status: 200 });
+  }
+
+  const slug = params.get("slug");
   if (!slug) {
     return Response.json({ error: "A slug is required." }, { status: 400 });
   }

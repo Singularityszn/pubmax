@@ -114,6 +114,11 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const [following, setFollowing] = useState(false);
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
+  // Published crawl-story count for this handle, from /api/crawls?author= (the
+  // crawl-story store is server-only, so a client route carries the number).
+  // Feeds the Pint Passport's "story posts" stat. Starts at 0 so the first paint
+  // matches the zeroed passport, then fills in after the fetch.
+  const [storyCount, setStoryCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -184,6 +189,35 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
     };
   }, []);
 
+  // This handle's published crawl-story count (story 35 authorship). Best-effort:
+  // a failure just leaves 0, so the passport still renders. Runs in an async
+  // callback (not the sync effect body) so setState never fires synchronously in
+  // the effect — matching the loadSaved / loadProfile pattern above.
+  useEffect(() => {
+    // /u/you is the sentinel (not a real handle) — it has no stories to count, and
+    // the route redirects to the real handle once one is known. Skip the fetch.
+    if (!routeHandle || routeHandle === YOU_SENTINEL) return;
+    const controller = new AbortController();
+    async function loadStoryCount() {
+      try {
+        const res = await fetch(`/api/crawls?author=${encodeURIComponent(routeHandle)}`, {
+          signal: controller.signal,
+        });
+        // Fail-soft: a non-ok / offline response leaves the count at its default
+        // 0. Reset to 0 first (in the async body, not the sync effect) so a
+        // handle with no stories clears a previous handle's count.
+        const next = res.ok
+          ? ((await res.json()) as { count?: number }).count ?? 0
+          : 0;
+        if (!controller.signal.aborted && Number.isFinite(next)) setStoryCount(next);
+      } catch {
+        // aborted / offline — keep the previous value (a transient blip)
+      }
+    }
+    void loadStoryCount();
+    return () => controller.abort();
+  }, [routeHandle]);
+
   // /u/you resolution: once we know the viewer's device handle, redirect the
   // sentinel route to their real profile (/u/<handle>). With no device handle,
   // /u/you stays put and renders the anonymous first-run passport below. Guarded
@@ -238,11 +272,15 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const isAnonymous = myHandle === "";
 
   // Pint Passport data (story 29): aggregated from the same drops the page
-  // already loaded. crawls / storyPosts are 0 here — crawl-story authorship
-  // lives behind a separate store seam; buildPassport accepts them so wiring a
-  // per-handle count later is a one-line change. On the /u/you first-run route
+  // already loaded, plus this handle's published crawl-story count from
+  // /api/crawls?author= (storyCount above). A durable crawl story IS the posted
+  // crawl AND the story post — both passport inputs draw from the one authored-
+  // story number per buildPassport's semantics. On the /u/you first-run route
   // (no device handle) the passport reads as own → shows the "start yours" CTA.
-  const passport = buildPassport(drops as ProfileDrop[]);
+  const passport = buildPassport(drops as ProfileDrop[], {
+    crawls: storyCount,
+    storyPosts: storyCount,
+  });
   const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
 
   // Claim this handle: an anonymous visitor adopts the route handle as their own

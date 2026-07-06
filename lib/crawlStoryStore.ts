@@ -501,6 +501,39 @@ export async function getStoryAuthor(slug: string): Promise<string | null> {
   return memoryStories.get(key)?.authorHandle ?? null;
 }
 
+/** Count the PUBLISHED (public/unlisted — never draft) stories a handle has
+ *  authored. Powers the Pint Passport's "story posts" number on /u/[handle]:
+ *  attribution is by the self-asserted `author_handle` (story 35), so this is the
+ *  same weak-but-honest identity the rest of authorship uses. Never throws — a
+ *  storage miss / bad handle resolves to 0 so the passport degrades to a clean
+ *  zero rather than a 500. Draft stories don't count (they aren't public posts). */
+export async function countStoriesByAuthor(handle: string): Promise<number> {
+  const author = normalizeHandle(handle ?? "");
+  if (!author) return 0;
+  if (isSupabaseConfigured()) {
+    try {
+      const { count, error } = await admin()
+        .from(STORIES_TABLE)
+        .select("id", { count: "exact", head: true })
+        .eq("author_handle", author)
+        .neq("visibility", "draft");
+      if (error) throw new Error(error.message);
+      return typeof count === "number" && count > 0 ? count : 0;
+    } catch (err) {
+      console.error(
+        "[crawl-stories] could not count stories by author:",
+        err instanceof Error ? err.message : err,
+      );
+      return 0;
+    }
+  }
+  let total = 0;
+  for (const story of memoryStories.values()) {
+    if (story.authorHandle === author && story.visibility !== "draft") total += 1;
+  }
+  return total;
+}
+
 /** Is `handle` the author of `slug`? False for an anonymous story (no author to
  *  match), an unknown slug, or a mismatch. THE edit/delete gate (see seam note). */
 export async function isAuthor(slug: string, handle: string): Promise<boolean> {
