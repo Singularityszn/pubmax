@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import FeedCard from "@/components/feed/FeedCard";
 import FeedFilters from "@/components/feed/FeedFilters";
+import PresenceStrip from "@/components/feed/PresenceStrip";
 import SignInButton from "@/components/auth/SignInButton";
 import { getAnonId } from "@/lib/anonId";
 import {
@@ -424,6 +425,8 @@ export default function FeedPage() {
           handed down over the bar.
         </p>
       </header>
+
+      <PresenceStrip />
 
       <FeedFilters active={filter} onChange={onFilterChange} />
 

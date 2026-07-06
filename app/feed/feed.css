@@ -95,6 +95,105 @@
   line-height: 1.55;
 }
 
+/* ── "Live tonight" presence strip (PRD §1.5 / §5.1 tonight loop) ───────────
+   A compact horizontal band at the top of the feed showing who tapped "I'm
+   here" recently. Renders nothing when empty (the component returns null), so
+   these styles only ever apply to a populated strip. Horizontally scrollable on
+   overflow so a busy night never wraps into a tall block. */
+.presenceStrip {
+  width: 100%;
+  max-width: 620px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--shadow, 0 8px 22px rgba(24, 34, 26, 0.06));
+  overflow: hidden;
+}
+
+.presenceStripLabel {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--brass);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* A small live "on air" dot next to the label. A soft pulse under
+   prefers-reduced-motion: no-preference (see the motion block at the bottom). */
+.presenceDot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #2f9e44;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2f9e44 22%, transparent);
+}
+
+.presenceList {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  padding: 0 2px;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.presenceList::-webkit-scrollbar {
+  display: none;
+}
+
+.presenceItem {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: 0.86rem;
+}
+
+.presenceHandle {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.presenceAt {
+  color: var(--muted, #8a8577);
+}
+
+.presenceVenue {
+  color: var(--brass);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.18s ease;
+}
+
+.presenceVenue:hover {
+  border-bottom-color: var(--brass);
+}
+
+.presenceVenue:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.presenceAgo {
+  color: var(--muted, #8a8577);
+  font-size: 0.8rem;
+}
+
 /* ── Filter chips ─────────────────────────────────────────────────────── */
 .feedFilters {
   width: 100%;
@@ -661,6 +760,22 @@
     );
     background-size: 200% 100%;
     animation: feedShimmer 1.4s ease-in-out infinite;
+  }
+
+  /* The "live tonight" dot breathes gently so the band reads as active. Gated
+     behind reduced-motion so it stays a static dot for anyone who opts out. */
+  .presenceDot {
+    animation: presencePulse 2.2s ease-in-out infinite;
+  }
+}
+
+@keyframes presencePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, #2f9e44 22%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, #2f9e44 6%, transparent);
   }
 }
 
