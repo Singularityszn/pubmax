@@ -3,6 +3,7 @@ import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
+import OfflineReady from "@/components/OfflineReady";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 
 // Type trio for the field-guide identity (see docs/DESIGN_SYSTEM.md):
@@ -108,6 +109,9 @@ export default function RootLayout({
           {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
               display:none on desktop so the existing navs are untouched. */}
           <MobileTabBar />
+          {/* Silent offline SW registration (issue #32) — renders nothing,
+              production-only, registers after load. */}
+          <OfflineReady />
         </AuthProvider>
       </body>
     </html>

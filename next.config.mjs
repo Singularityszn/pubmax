@@ -3,6 +3,15 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
+// Per-deploy build id for the offline service worker (issue #32). Evaluated
+// once when `next build` loads this config and inlined into the client bundle
+// as NEXT_PUBLIC_SW_VERSION; components/OfflineReady.tsx appends it to the
+// registration URL (/sw.js?v=…). A new deploy → new URL → the browser installs
+// a fresh worker whose `activate` deletes the previous version's caches. The
+// env override lets CI/Vercel pin it to a commit SHA if ever desired; the
+// timestamp default needs zero extra scripts or package.json changes.
+const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
+
 // Content-Security-Policy. Every directive below maps to a real app dependency
 // so everything else is locked down to 'self':
 //   - script-src: NO 'unsafe-eval', NO wildcard/CDN script origins. Our own
@@ -28,6 +37,9 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 //   - font-src / connect-src: openfreemap tiles+glyphs+sprites, Supabase
 //     auth/rest/storage. TfL is server-only (/api/last-train) so it's NOT listed.
 //   - worker-src/child-src blob:: MapLibre spins up its tile workers from blobs.
+//     worker-src 'self' ALSO covers the offline service worker (public/sw.js,
+//     issue #32); its fetch/caching targets (self + tiles.openfreemap.org) are
+//     already in connect-src, so no CSP loosening was needed for offline mode.
 const contentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
@@ -63,6 +75,10 @@ const securityHeaders = [
 const nextConfig = {
   turbopack: {
     root: projectRoot,
+  },
+  env: {
+    // See swVersion above — SW cache-busting build id.
+    NEXT_PUBLIC_SW_VERSION: swVersion,
   },
   async headers() {
     return [

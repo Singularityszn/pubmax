@@ -10,6 +10,15 @@
 //
 // Mirrors lib/pois.ts#loadPois defensiveness: hand/refresh-generated JSON can
 // drift, so malformed rows are dropped rather than allowed to poison the map.
+//
+// Offline (issue #32): the service worker caches the /data/… bytes; on top of
+// that, every successful load is mirrored into IndexedDB (lib/offlineCache.ts)
+// so a fetch that fails ENTIRELY (no SW yet, dead cellar signal on a cold tab)
+// can still return the last parsed index instead of an empty map.
+
+import { offlineCache } from "@/lib/offlineCache";
+
+const OFFLINE_KEY = "venues_slim:v1";
 
 export type SlimVenue = {
   id: string;
@@ -36,18 +45,12 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   return priceOk;
 }
 
-/**
- * Fetches the bundled slim venue index (client-side), mirroring PubMap.tsx's
- * fetch of the pint dataset. Malformed rows are filtered out so callers always
- * get a clean SlimVenue[]; a non-array payload yields [] so the map degrades to
- * "no pins" rather than throwing.
- */
-export async function loadSlimVenues(): Promise<SlimVenue[]> {
-  const response = await fetch("/data/venues_slim.json");
-  const data: unknown = await response.json();
+// Normalise each surviving row to exactly the SlimVenue shape so no stray
+// dataset field ever rides along into the client render path. Applied to BOTH
+// the network payload and the IndexedDB fallback (a stored payload from an
+// older build gets the same distrust as fresh JSON).
+function normalizeRows(data: unknown): SlimVenue[] {
   if (!Array.isArray(data)) return [];
-  // Normalise each surviving row to exactly the SlimVenue shape so no stray
-  // dataset field ever rides along into the client render path.
   return data.filter(isValidSlimVenue).map((venue) => ({
     id: venue.id,
     name: venue.name,
@@ -56,4 +59,30 @@ export async function loadSlimVenues(): Promise<SlimVenue[]> {
     cheapestPrice: venue.cheapestPrice,
     borough: venue.borough,
   }));
+}
+
+/**
+ * Fetches the bundled slim venue index (client-side), mirroring PubMap.tsx's
+ * fetch of the pint dataset. Malformed rows are filtered out so callers always
+ * get a clean SlimVenue[]; a non-array payload yields [] so the map degrades to
+ * "no pins" rather than throwing.
+ *
+ * Offline: a good load is mirrored to IndexedDB (fire-and-forget); if the
+ * fetch itself fails, the last mirrored index is returned instead. Only when
+ * there is no fallback either does the original error propagate — preserving
+ * the pre-offline contract for callers that show a load-error state.
+ */
+export async function loadSlimVenues(): Promise<SlimVenue[]> {
+  try {
+    const response = await fetch("/data/venues_slim.json");
+    const data: unknown = await response.json();
+    const rows = normalizeRows(data);
+    if (rows.length > 0) void offlineCache.set(OFFLINE_KEY, rows);
+    return rows;
+  } catch (error) {
+    const stored = await offlineCache.get<unknown>(OFFLINE_KEY);
+    const fallback = normalizeRows(stored);
+    if (fallback.length > 0) return fallback;
+    throw error;
+  }
 }
