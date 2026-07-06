@@ -39,12 +39,14 @@ test("/map mounts the map region (canvas OR fallback)", async ({ page }) => {
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  // The wrapper always renders; inside it is EITHER the maplibre container (GPU
-  // present) OR the "Map renderer unavailable" fallback (headless/no-WebGL).
-  // Pass on either so this stays green in real CI regardless of GPU.
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible();
+  // The map is a dynamic import (ssr:false) behind a loading shell, slow to
+  // hydrate under 4-worker parallel load — give it room so this doesn't flake.
+  // The wrapper always renders once PubMap mounts; inside it is EITHER the
+  // maplibre container (GPU present) OR the "Map renderer unavailable" fallback
+  // (headless/no-WebGL). Pass on either so it stays green regardless of GPU.
+  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20000 });
   const canvasOrFallback = page.locator(".maplibreMap, .mapFallback").first();
-  await expect(canvasOrFallback).toBeVisible();
+  await expect(canvasOrFallback).toBeVisible({ timeout: 20000 });
 
   // ponytail: no pageerror assertion here. MapLibre GL emits async teardown
   // errors under headless timing (getLayer on a torn-down style) that are not
