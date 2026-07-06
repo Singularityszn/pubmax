@@ -345,6 +345,157 @@
   line-height: 1.55;
 }
 
+/* ── Owner actions: edit toggle + claim ──────────────────────────────── */
+.profilePage .profileEditToggle,
+.profilePage .profileClaimBtn {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--brass);
+  background: transparent;
+  color: var(--brass);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.profilePage .profileClaimBtn {
+  background: var(--brass);
+  color: var(--paper);
+}
+
+.profilePage .profileEditToggle:hover {
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.profilePage .profileClaimBtn:hover {
+  background: color-mix(in srgb, var(--brass) 88%, var(--ink));
+}
+
+.profilePage .profileEditToggle:focus-visible,
+.profilePage .profileClaimBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* ── Edit-profile inline form ────────────────────────────────────────── */
+.profilePage .profileEditor {
+  display: grid;
+  gap: 18px;
+  padding: clamp(20px, 4vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+}
+
+.profilePage .profileEditorField {
+  display: grid;
+  gap: 6px;
+  position: relative;
+}
+
+.profilePage .profileEditorField label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.01em;
+}
+
+.profilePage .profileEditor input,
+.profilePage .profileEditor textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.profilePage .profileEditor textarea {
+  resize: vertical;
+  min-height: 84px;
+}
+
+.profilePage .profileEditor input:focus-visible,
+.profilePage .profileEditor textarea:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
+}
+
+.profilePage .profileEditorCount {
+  justify-self: end;
+  font-size: 0.74rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.profilePage .profileEditorHint {
+  font-size: 0.8rem;
+  color: #b4442f;
+  line-height: 1.4;
+}
+
+.profilePage .profileEditorActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.profilePage .profileEditorSave,
+.profilePage .profileEditorCancel {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--brass);
+}
+
+.profilePage .profileEditorSave {
+  background: var(--brass);
+  color: var(--paper);
+}
+
+.profilePage .profileEditorCancel {
+  background: transparent;
+  color: var(--ink-soft);
+  border-color: var(--line);
+}
+
+.profilePage .profileEditorSave:disabled,
+.profilePage .profileEditorCancel:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.profilePage .profileEditorSave:focus-visible,
+.profilePage .profileEditorCancel:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.profilePage .profileEditorStatus {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.profilePage .profileEditorStatusOk {
+  color: var(--brass);
+}
+
+.profilePage .profileEditorStatusErr {
+  color: #b4442f;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 560px) {
   .profilePage .profileIdentity {

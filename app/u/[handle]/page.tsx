@@ -5,6 +5,7 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 
 import FollowButton from "@/components/profile/FollowButton";
+import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SavedPubList from "@/components/profile/SavedPubList";
 import type { FollowCounts } from "@/lib/followStore";
@@ -93,6 +94,8 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const [stored, setStored] = useState<ProfileRecord | null>(null);
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [following, setFollowing] = useState(false);
+  // Owner-only "edit my profile" panel; opened from the header's Edit button.
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -203,19 +206,55 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   };
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = myHandle !== "" && myHandle === routeHandle;
+  const isAnonymous = myHandle === "";
 
-  // Follow control: shown only to a signed-in-by-handle viewer looking at
-  // someone else. A viewer with no handle sees nothing (following needs an
-  // identity — they get one by dropping a pint).
-  const followActions =
-    myHandle && !isOwnProfile ? (
-      <FollowButton
-        targetHandle={routeHandle}
-        followerHandle={myHandle}
-        initialFollowing={following}
-        onCountsChange={setCounts}
-      />
-    ) : null;
+  // Claim this handle: an anonymous visitor adopts the route handle as their own
+  // demo identity (localStorage `pubmax_handle`) — the same identity that
+  // authors a pint drop or a follow. This is a client-only, self-asserted claim
+  // (no server ownership check — that arrives with Supabase Auth). Setting
+  // myHandle makes this their own profile, unlocking the Edit control.
+  function claimHandle() {
+    try {
+      window.localStorage.setItem("pubmax_handle", routeHandle);
+    } catch {
+      // storage disabled — the in-memory claim below still owns this session
+    }
+    setMyHandle(routeHandle);
+    setEditing(true);
+  }
+
+  // Apply a saved profile row back onto the overlaid identity so the header
+  // updates the instant the editor reports success, without a refetch.
+  function handleSaved(saved: ProfileRecord) {
+    setStored(saved);
+    setEditing(false);
+  }
+
+  // Header action slot. Three mutually-exclusive states:
+  //  • own profile  → Edit (toggles the inline editor)
+  //  • anonymous    → Claim this handle (adopt it, then edit)
+  //  • other viewer → Follow
+  const headerActions = isOwnProfile ? (
+    <button
+      type="button"
+      className="profileEditToggle"
+      aria-expanded={editing}
+      onClick={() => setEditing((open) => !open)}
+    >
+      {editing ? "Close editor" : "Edit profile"}
+    </button>
+  ) : isAnonymous ? (
+    <button type="button" className="profileClaimBtn" onClick={claimHandle}>
+      Claim this handle
+    </button>
+  ) : (
+    <FollowButton
+      targetHandle={routeHandle}
+      followerHandle={myHandle}
+      initialFollowing={following}
+      onCountsChange={setCounts}
+    />
+  );
 
   return (
     <div className="lp profilePage">
@@ -241,7 +280,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               stats={stats}
               followers={counts.followers}
               following={counts.following}
-              actions={followActions}
+              actions={headerActions}
             />
             <p className="profileEmpty">
               Couldn&apos;t load pints right now. Please try again in a moment.
@@ -254,8 +293,25 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               stats={stats}
               followers={counts.followers}
               following={counts.following}
-              actions={followActions}
+              actions={headerActions}
             />
+
+            {isOwnProfile && editing ? (
+              <ProfileEditor
+                handle={routeHandle}
+                initial={{
+                  // Only pre-fill from durable, user-owned values — never the
+                  // synthesized bio/name (those are placeholders the user hasn't
+                  // authored, so the fields should read as empty and editable).
+                  displayName: stored?.displayName,
+                  bio: stored?.bio,
+                  homeCity: stored?.homeCity,
+                  avatarUrl: stored?.avatarUrl,
+                }}
+                onSaved={handleSaved}
+                onClose={() => setEditing(false)}
+              />
+            ) : null}
 
             <section className="profileDropsSection" aria-labelledby="dropsHeading">
               <h2 id="dropsHeading" className="profileSectionHeading">
