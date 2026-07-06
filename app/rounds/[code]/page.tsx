@@ -1,0 +1,505 @@
+"use client";
+
+import Link from "next/link";
+import { MapPin, Users, Check, Copy, DoorClosed } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import EmptyState from "@/components/EmptyState";
+import SiteNav from "@/components/nav/SiteNav";
+import { normalizeHandle } from "@/lib/profiles";
+import { isValidRoundCode, normalizeRoundCode, type RoundState } from "@/lib/rounds";
+import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
+import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
+import type { Venue } from "@/lib/venues";
+import "./round.css";
+
+// How often the open Round refetches its state. Live-ness by polling — the repo
+// convention (the notifications bell polls; no websockets). The page also refetches
+// on focus so switching back to the tab shows the latest route immediately.
+const POLL_MS = 10_000;
+
+// A minimal Venue shape for buildRouteLegs (read-only): the leg math only reads
+// longitude/latitude/id/name off each stop, so we adapt SlimVenue → that shape.
+function slimToVenue(slim: SlimVenue): Venue {
+  return {
+    id: slim.id,
+    name: slim.name,
+    latitude: slim.lat,
+    longitude: slim.lng,
+  } as unknown as Venue;
+}
+
+export default function RoundPage({ params }: { params: Promise<{ code: string }> }): React.JSX.Element {
+  // Route param resolved after mount (Next 15 async params).
+  const [code, setCode] = useState<string>("");
+  useEffect(() => {
+    let active = true;
+    void params.then((p) => {
+      if (active) setCode(normalizeRoundCode(p.code));
+    });
+    return () => {
+      active = false;
+    };
+  }, [params]);
+
+  const [state, setState] = useState<RoundState | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [myHandle, setMyHandle] = useState<string>("");
+
+  // Read the viewer's own handle after mount (the server can't know localStorage),
+  // mirroring the feed / profile pages so the whole social layer shares one handle.
+  useEffect(() => {
+    let active = true;
+    async function loadHandle() {
+      try {
+        const handle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
+        if (active) setMyHandle(handle);
+      } catch {
+        // Storage disabled → stays anonymous; the join form shows a handle field.
+      }
+    }
+    void loadHandle();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch + poll the Round state while it's open. Fail-soft: a fetch miss leaves
+  // the last-known state up rather than blanking the page.
+  const refetch = useCallback(async () => {
+    if (!code) return;
+    try {
+      const res = await fetch(`/api/rounds/${code}`, { cache: "no-store" });
+      if (res.ok) {
+        setState((await res.json()) as RoundState);
+      } else if (res.status === 404) {
+        setState(null);
+      }
+    } catch {
+      // Network blip — keep the last-known state.
+    } finally {
+      setLoaded(true);
+    }
+  }, [code]);
+
+  useEffect(() => {
+    if (!code) return;
+    async function loadRound() {
+      await refetch();
+    }
+    void loadRound();
+  }, [code, refetch]);
+
+  const isOpen = state != null && state.round.closedAt == null;
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = window.setInterval(() => void refetch(), POLL_MS);
+    const onFocus = () => void refetch();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [isOpen, refetch]);
+
+  const amMember = useMemo(
+    () => (state && myHandle ? state.members.some((m) => m.handle === myHandle) : false),
+    [state, myHandle],
+  );
+
+  // Invalid code / not found → an honest empty state (never a crash).
+  if (loaded && (!code || !isValidRoundCode(code) || state == null)) {
+    return (
+      <main className="roundShell">
+        <SiteNav active="crawls" />
+        <EmptyState
+          eyebrow="The Round"
+          title="No Round here"
+          body="This Round doesn't exist, or it's already been called and cleared. Ask your mate for the code, or start a fresh one."
+          action={
+            <Link href="/crawls" className="roundPrimaryBtn">
+              Back to crawls
+            </Link>
+          }
+        />
+      </main>
+    );
+  }
+
+  if (!loaded || state == null) {
+    return (
+      <main className="roundShell">
+        <SiteNav active="crawls" />
+        <p className="roundLoading">Finding the Round…</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="roundShell">
+      <SiteNav active="crawls" />
+      <RoundBoard
+        state={state}
+        myHandle={myHandle}
+        amMember={amMember}
+        onChange={setState}
+      />
+    </main>
+  );
+}
+
+function RoundBoard({
+  state,
+  myHandle,
+  amMember,
+  onChange,
+}: {
+  state: RoundState;
+  myHandle: string;
+  amMember: boolean;
+  onChange: (next: RoundState) => void;
+}): React.JSX.Element {
+  const { round, members, stops } = state;
+  const closed = round.closedAt != null;
+  const isCreator = myHandle !== "" && round.createdByHandle === myHandle;
+
+  const [copied, setCopied] = useState(false);
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(round.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard denied — no-op.
+    }
+  }
+
+  return (
+    <div className="roundBoard">
+      <header className="roundHead">
+        <p className="roundEyebrow">The Round · builds itself live</p>
+        <h1 className="roundTitle">{round.title}</h1>
+        <div className="roundCodeRow">
+          <span className="roundCodeLabel">Tell your mates</span>
+          <button type="button" className="roundCode" onClick={copyCode} aria-label={`Copy the Round code ${round.code}`}>
+            {round.code}
+            {copied ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+          </button>
+        </div>
+        <p className="roundStatus" role="status">
+          {closed ? "This Round has been called — it's closed." : `${members.length} out · still going`}
+        </p>
+      </header>
+
+      <section className="roundMembers" aria-label="Who's in the Round">
+        <h2 className="roundSectionTitle">
+          <Users size={16} aria-hidden="true" /> Who&apos;s out
+        </h2>
+        <ul className="roundMemberList">
+          {members.map((m) => (
+            <li key={m.handle} className="roundMemberChip">
+              <Link href={`/u/${m.handle}`}>@{m.handle}</Link>
+              {m.handle === round.createdByHandle ? <span className="roundHostTag">host</span> : null}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <RouteList stops={stops} />
+
+      {!amMember && !closed ? (
+        <JoinForm code={round.code} initialHandle={myHandle} onJoined={onChange} />
+      ) : null}
+
+      {amMember && !closed ? (
+        <AddStop code={round.code} handle={myHandle} onAdded={onChange} existing={stops.map((s) => s.venueId)} />
+      ) : null}
+
+      {isCreator && !closed ? (
+        <CloseRound code={round.code} handle={myHandle} onClosed={onChange} />
+      ) : null}
+    </div>
+  );
+}
+
+// The self-building route as a numbered stop list with who-added-what + a running
+// leg summary. Coords for the leg math are resolved from the slim index once.
+function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element {
+  const [venueIndex, setVenueIndex] = useState<Map<string, SlimVenue>>(new Map());
+  useEffect(() => {
+    let active = true;
+    void loadSlimVenues().then((venues) => {
+      if (!active) return;
+      setVenueIndex(new Map(venues.map((v) => [v.id, v])));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Build the leg summary from resolved coords — a stop whose id isn't in the slim
+  // index simply drops out of the leg math (its name still shows in the list).
+  const summary = useMemo(() => {
+    const resolved: Venue[] = stops
+      .map((s) => venueIndex.get(s.venueId))
+      .filter((v): v is SlimVenue => v != null)
+      .map(slimToVenue);
+    return buildRouteLegs(resolved);
+  }, [stops, venueIndex]);
+
+  if (stops.length === 0) {
+    return (
+      <EmptyState
+        eyebrow="The route"
+        title="No stops yet"
+        body="The route builds itself as people drop pints. Add the first pub to get the Round going."
+      />
+    );
+  }
+
+  return (
+    <section className="roundRoute" aria-label="The Round's route">
+      <h2 className="roundSectionTitle">
+        <MapPin size={16} aria-hidden="true" /> The route so far
+      </h2>
+      <ol className="roundStops">
+        {stops.map((stop, index) => (
+          <li key={stop.id} className="roundStop">
+            <span className="roundStopNumber" aria-hidden="true">
+              {index + 1}
+            </span>
+            <div className="roundStopBody">
+              <strong>{stop.venueName}</strong>
+              <span className="roundStopBy">
+                added by <Link href={`/u/${stop.addedByHandle}`}>@{stop.addedByHandle}</Link>
+              </span>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {summary.legs.length > 0 ? (
+        <div className="roundLegs">
+          <ul>
+            {summary.legs.map((leg) => (
+              <li key={leg.fromIndex}>
+                {leg.from.name} → {leg.to.name}: {formatLeg(leg)}
+              </li>
+            ))}
+          </ul>
+          <p className="roundLegTotal">{formatRouteTotal(summary)}</p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function JoinForm({
+  code,
+  initialHandle,
+  onJoined,
+}: {
+  code: string;
+  initialHandle: string;
+  onJoined: (next: RoundState) => void;
+}): React.JSX.Element {
+  const [handle, setHandle] = useState(initialHandle);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const clean = normalizeHandle(handle);
+    if (!clean) {
+      setError("Pick a handle to join.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/rounds/${code}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "join", handle: clean }),
+      });
+      const data = (await res.json()) as RoundState | { error: string };
+      if (res.ok) {
+        try {
+          window.localStorage.setItem("pubmax_handle", clean);
+        } catch {
+          // storage disabled — join still succeeded server-side
+        }
+        onJoined(data as RoundState);
+      } else {
+        setError((data as { error: string }).error ?? "Could not join.");
+      }
+    } catch {
+      setError("Could not join. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="roundForm" onSubmit={submit}>
+      <h2 className="roundSectionTitle">Join this Round</h2>
+      <label className="roundField">
+        <span>Your handle</span>
+        <input
+          type="text"
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          placeholder="e.g. cheap_pint_ken"
+          autoComplete="off"
+          maxLength={30}
+        />
+      </label>
+      {error ? (
+        <p className="roundError" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button type="submit" className="roundPrimaryBtn" disabled={busy}>
+        {busy ? "Joining…" : "I'm out too — join the Round"}
+      </button>
+    </form>
+  );
+}
+
+// Add a pub to the Round. Two honest seams:
+//  1. Search the slim index and add a pub directly (a member marks where they are).
+//  2. "Log a pint here" links to the map composer for a full Pint Drop — the
+//     composer flow is owned by another agent, so this is the smallest honest seam
+//     into it. Full auto-append from the composer (a drop with an active round code
+//     appends the stop for you) can land later; the addStop action already accepts
+//     a drop_ref for when it does. See the store header + issue #26.
+function AddStop({
+  code,
+  handle,
+  existing,
+  onAdded,
+}: {
+  code: string;
+  handle: string;
+  existing: string[];
+  onAdded: (next: RoundState) => void;
+}): React.JSX.Element {
+  const [venues, setVenues] = useState<SlimVenue[]>([]);
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const existingSet = useMemo(() => new Set(existing), [existing]);
+  const loadedRef = useRef(false);
+
+  // Load the slim index lazily on first focus of the search — same source the map
+  // uses, so a stop deep-links + prices by the same id everywhere.
+  const ensureLoaded = useCallback(async () => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    setVenues(await loadSlimVenues());
+  }, []);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return venues
+      .filter((v) => v.name.toLowerCase().includes(q) && !existingSet.has(v.id))
+      .slice(0, 8);
+  }, [query, venues, existingSet]);
+
+  async function add(venue: SlimVenue) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/rounds/${code}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "addStop",
+          handle,
+          venueId: venue.id,
+          venueName: venue.name,
+        }),
+      });
+      const data = (await res.json()) as RoundState | { error: string };
+      if (res.ok) {
+        setQuery("");
+        onAdded(data as RoundState);
+      } else {
+        setError((data as { error: string }).error ?? "Could not add that pub.");
+      }
+    } catch {
+      setError("Could not add that pub. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="roundAdd" aria-label="Add a pub to the Round">
+      <h2 className="roundSectionTitle">Add this pub</h2>
+      <p className="roundAddHint">Where are you now? Add it and the route grows.</p>
+      <input
+        type="text"
+        className="roundSearch"
+        value={query}
+        onFocus={ensureLoaded}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search a pub by name…"
+        autoComplete="off"
+        disabled={busy}
+      />
+      {matches.length > 0 ? (
+        <ul className="roundSearchResults">
+          {matches.map((v) => (
+            <li key={v.id}>
+              <button type="button" onClick={() => add(v)} disabled={busy}>
+                <strong>{v.name}</strong>
+                <span>{v.borough}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {error ? (
+        <p className="roundError" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <Link href="/map" className="roundSecondaryBtn">
+        <MapPin size={16} aria-hidden="true" /> Log a pint on the map
+      </Link>
+    </section>
+  );
+}
+
+function CloseRound({
+  code,
+  handle,
+  onClosed,
+}: {
+  code: string;
+  handle: string;
+  onClosed: (next: RoundState) => void;
+}): React.JSX.Element {
+  const [busy, setBusy] = useState(false);
+  async function close() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/rounds/${code}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "close", handle }),
+      });
+      if (res.ok) onClosed((await res.json()) as RoundState);
+    } catch {
+      // fail-soft — the poll will catch up
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button type="button" className="roundCloseBtn" onClick={close} disabled={busy}>
+      <DoorClosed size={16} aria-hidden="true" /> {busy ? "Calling it…" : "Call the Round (close it)"}
+    </button>
+  );
+}

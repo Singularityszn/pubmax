@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Copy, MapPin, Flag } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, Copy, MapPin, Flag, Users } from "lucide-react";
 import { useMemo, useState } from "react";
+
+import { normalizeHandle } from "@/lib/profiles";
+import type { RoundState } from "@/lib/rounds";
 
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
@@ -116,6 +120,8 @@ export default function CrawlsPage() {
             })}
           </ul>
 
+          <RoundStarter />
+
           <p className="crawlEmptyBody crawlOwnLead">
             Or build your own — pick the pubs, pass the round on.
           </p>
@@ -125,6 +131,89 @@ export default function CrawlsPage() {
         </section>
       )}
     </main>
+  );
+}
+
+// Start a Round: the group-crawl entry point (GH #26). A small additive card that
+// mints a Round and drops you onto its live page. Identity is the self-asserted
+// handle (localStorage `pubmax_handle`, shared with the rest of the social layer);
+// we ask for it inline when the device doesn't have one yet.
+function RoundStarter(): React.JSX.Element {
+  const router = useRouter();
+  const [handle, setHandle] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
+    } catch {
+      return "";
+    }
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function start(event: React.FormEvent) {
+    event.preventDefault();
+    const clean = normalizeHandle(handle);
+    if (!clean) {
+      setError("Pick a handle to start a Round.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      window.localStorage.setItem("pubmax_handle", clean);
+    } catch {
+      // storage disabled — the Round still starts, handle just isn't remembered
+    }
+    try {
+      const res = await fetch("/api/rounds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle: clean }),
+      });
+      const data = (await res.json()) as RoundState | { error: string };
+      if (res.ok) {
+        router.push(`/rounds/${(data as RoundState).round.code}`);
+      } else {
+        setError((data as { error: string }).error ?? "Could not start the Round.");
+        setBusy(false);
+      }
+    } catch {
+      setError("Could not start the Round. Try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="roundStarter" onSubmit={start}>
+      <span className="roundStarterBadge">
+        <Users size={14} aria-hidden="true" /> The Round · group crawl
+      </span>
+      <h2 className="roundStarterTitle">Start a Round</h2>
+      <p className="roundStarterBlurb">
+        A group crawl that builds itself. Friends join by a short code; as everyone drops pints,
+        the route grows itself, stop by stop.
+      </p>
+      <div className="roundStarterRow">
+        <input
+          type="text"
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          placeholder="your handle"
+          aria-label="Your handle"
+          autoComplete="off"
+          maxLength={30}
+        />
+        <button type="submit" className="crawlPrimaryBtn" disabled={busy}>
+          <Users size={16} aria-hidden="true" /> {busy ? "Starting…" : "Start a Round"}
+        </button>
+      </div>
+      {error ? (
+        <p className="roundStarterError" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </form>
   );
 }
 

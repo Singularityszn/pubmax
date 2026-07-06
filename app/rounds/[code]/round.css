@@ -1,0 +1,365 @@
+/* The Round — a group crawl that builds itself live. All selectors are new +
+   scoped to this page; values lean on the shared design-system tokens (brass
+   accent, cream paper, serif headings) so the Round inherits the guidebook theme. */
+
+.roundShell {
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 24px 16px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.roundShell .siteNav {
+  width: 100%;
+  max-width: 640px;
+}
+
+.roundLoading {
+  color: var(--muted);
+  margin-top: 48px;
+}
+
+.roundBoard {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* --- header: title + big shareable code ------------------------------------ */
+
+.roundHead {
+  text-align: center;
+  padding: 28px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.roundEyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--brass);
+  font-weight: 700;
+}
+
+.roundTitle {
+  margin: 0 0 16px;
+  font-family: var(--font-display, serif);
+  font-size: clamp(26px, 6vw, 38px);
+  line-height: 1.1;
+}
+
+.roundCodeRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.roundCodeLabel {
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.roundCode {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: clamp(28px, 8vw, 44px);
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--ink-deep);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.roundCode:hover {
+  color: var(--brass);
+}
+
+.roundStatus {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* --- section headings ------------------------------------------------------ */
+
+.roundSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+/* --- who's out ------------------------------------------------------------- */
+
+.roundMemberList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.roundMemberChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: 14px;
+}
+
+.roundMemberChip a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.roundMemberChip a:hover {
+  color: var(--brass);
+}
+
+.roundHostTag {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--brass);
+  font-weight: 700;
+}
+
+/* --- the self-building route ----------------------------------------------- */
+
+.roundStops {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.roundStop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.roundStopNumber {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brass);
+  color: var(--color-on-accent);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.roundStopBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.roundStopBody strong {
+  font-size: 16px;
+}
+
+.roundStopBy {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.roundStopBy a {
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.roundStopBy a:hover {
+  text-decoration: underline;
+}
+
+.roundLegs {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.roundLegs ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.roundLegTotal {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+/* --- join form / add stop -------------------------------------------------- */
+
+.roundForm,
+.roundAdd {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.roundField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.roundField input,
+.roundSearch {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.roundField input:focus,
+.roundSearch:focus {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.roundAddHint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.roundSearchResults {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.roundSearchResults li + li {
+  border-top: 1px solid var(--line-soft);
+}
+
+.roundSearchResults button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+}
+
+.roundSearchResults button:hover {
+  background: var(--paper);
+}
+
+.roundSearchResults button span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* --- buttons --------------------------------------------------------------- */
+
+.roundPrimaryBtn,
+.roundSecondaryBtn,
+.roundCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.roundPrimaryBtn {
+  background: var(--brass);
+  color: var(--color-on-accent);
+}
+
+.roundPrimaryBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.roundSecondaryBtn {
+  background: none;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.roundSecondaryBtn:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.roundCloseBtn {
+  align-self: center;
+  background: none;
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.roundCloseBtn:hover {
+  border-color: var(--ink-soft);
+  color: var(--ink-soft);
+}
+
+.roundError {
+  margin: 0;
+  color: #a4331f;
+  font-size: 13px;
+}
