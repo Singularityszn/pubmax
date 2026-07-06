@@ -285,3 +285,39 @@ on venue pages.
 ship the emotional extremes first (The Lock-In + The Ledger); camera + voice + large-text remove the
 keyboard barrier without losing Gen-Z speed; viral mechanics are always *optional* (a Boomer never
 sees a Chaos Score); make the Spill/Round OG image beautiful enough that sharing feels like a postcard.
+
+## The For-You map — X / TikTok / Instagram lens (Grok, next iteration)
+
+**Progress:** 17 issues shipped (design system, map storytelling, parallel tube lines, mobile
+drag-sheet, Last Pint, explore-London routes, Passport+auth, social depth, real-time prices, The
+Ledger, The Round, Legacy Mode, drop visibility/privacy, Chaos Score, offline, media hardening,
+then-vs-now, `.ics`). The Spill composer (#24) is in flight.
+
+**The #1 remaining gap (honest):** the **map's loading / first impression**. The landing is
+instant and polished; `/map` still feels abrupt (thin shell → MapLibre with no skeleton, no route-
+level `loading.tsx`, no optimistic pins). The map must feel *faster and more alive than the landing*
+— that's the difference between "beautiful marketing site" and "daily-habit app".
+
+**Design thesis:** treat the **map like TikTok's For-You page** and every **Spill like an IG/TikTok
+post**, while keeping **X-style provenance** (make the provenance badge as visible and trusted as a
+verified checkmark). Never doom-scroll without the pub/story anchor; never a dark pattern that loses
+an older user.
+
+**Priorities (first-principles order):**
+1. **Map loading experience** — a beautiful skeleton (pitched London outline + pulsing price-coloured
+   dots), route-level `loading.tsx` + Suspense, and optimistic/cached pins that paint instantly then
+   hydrate live. Target: map-click → first interactive pin **< 1.5s p95**. → **#35**.
+2. **Camera-first Spill composer** — camera opens first (rear/front), voice-to-text default, price
+   quick-add chips, one-tap "Add to Tonight / My Round / Family Table / Ledger", visibility secondary,
+   an **instant preview card** matching the final OG style. → enriches **#24**.
+3. **Vertical, beautiful Spill cards** — 9:16 full-bleed cards (TikTok/IG-Stories ratio), a "For You"
+   feed feel, a venue **Bar-Tab** page that reads like an Instagram grid, and one-tap share
+   (WhatsApp / iMessage / IG Story) using the dynamic OG image. → **#36**.
+4. **Live / real-time** — Supabase Realtime (or polling) so map pins + feed update as Spills post; an
+   "X people spilling right now" indicator; X-style **threaded replies** on a Spill. → **#37**.
+5. **Dual modes** — Lock-In (Tonight, default for new/young users) vs Ledger (Heritage, large-text) as
+   a light view layer over one data stream — mostly shipped (#25/#28/#30); just needs the mode switch.
+6. **One-tap production-quality OG share** — folded into #36.
+
+**Success metrics:** map-click → first pin < 1.5s p95; Spill completion > 70%; external-share rate >
+25%; cross-generational interaction (a Ledger-mode Spill drawing reactions from users < 30).
