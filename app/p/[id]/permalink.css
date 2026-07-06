@@ -397,7 +397,7 @@
   margin: 0;
 }
 .commentError {
-  color: #b4472e;
+  color: var(--brick);
 }
 
 .commentForm {

@@ -523,7 +523,7 @@
 
 .profilePage .profileEditorHint {
   font-size: 0.8rem;
-  color: #b4442f;
+  color: var(--brick);
   line-height: 1.4;
 }
 
@@ -578,7 +578,7 @@
 }
 
 .profilePage .profileEditorStatusErr {
-  color: #b4442f;
+  color: var(--brick);
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */

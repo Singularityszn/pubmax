@@ -53,7 +53,13 @@ html[data-theme="dark"] {
   --river: #4f9ec4; /* by-water + heritage */
   --river-bright: #6fb9db;
 
-  --shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  /* Candle-glow: dark theme's shadow gets a faint warm brass bloom instead of
+     a neutral drop shadow, so raised surfaces read as lit from within rather
+     than merely "dark mode dim". Light theme's --shadow (globals.css) stays a
+     cool paper-lift shadow by contrast — the day/night pairing is deliberate. */
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 24px rgba(211, 164, 74, 0.06);
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 10px rgba(211, 164, 74, 0.05);
+  --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(211, 164, 74, 0.12);
 }
 
 /* Theme toggle. Base = the inline/nav variant: a quiet brass-hover icon button

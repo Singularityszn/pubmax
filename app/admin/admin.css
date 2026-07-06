@@ -64,7 +64,7 @@
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
-  color: #fff;
+  color: var(--color-on-accent);
   font: inherit;
   cursor: pointer;
 }

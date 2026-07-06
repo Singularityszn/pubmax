@@ -1,5 +1,14 @@
+/* ────────────────────────────────────────────────────────────────────────
+   PUBMAXXING token scale — see docs/DESIGN_SYSTEM.md for the full rationale.
+   Thesis: "Every pint has a story" — a candle-lit field-guide, not a map app.
+
+   Every token name below that already existed keeps working unchanged (35+
+   components and the map's readTokens() read these directly). New tokens are
+   additive layers — semantic roles, type/spacing/motion scales — never a
+   fork of the existing system.
+   ──────────────────────────────────────────────────────────────────────── */
 :root {
-  /* Guidebook-margin palette: warm paper, ink-green, brass + river accents. */
+  /* — Colour: guidebook-margin palette (warm paper, ink-green, brass + river). */
   --ink: #1b2620;
   --ink-soft: #3d4842;
   --muted: #6b726a;
@@ -18,23 +27,176 @@
   --river: #2f6f8f; /* by-water + heritage */
   --river-bright: #4f9ec4;
 
+  /* — Colour, semantic roles: alias the palette above by job, not hue, so new
+       components reach for "what this means" rather than re-picking a raw
+       colour. These are pure aliases — change the palette above, everything
+       here (and everything built on it) follows. */
+  --color-accent: var(--brass); /* the one accent — brass, always */
+  --color-accent-strong: var(--brass-bright);
+  --color-positive: var(--pint); /* cheap pint */
+  --color-caution: var(--amber); /* mid price */
+  --color-negative: var(--brick); /* expensive / destructive */
+  --color-info: var(--river); /* heritage / by-water */
+  --color-info-strong: var(--river-bright);
+  --color-surface: var(--paper); /* page base */
+  --color-surface-panel: var(--panel); /* recessed panel */
+  --color-surface-raised: var(--panel-raised); /* cards, inputs */
+  --color-surface-inverse: var(--ink-deep); /* brand-mark / stamp-dark chrome */
+  --color-text: var(--ink);
+  --color-text-soft: var(--ink-soft);
+  --color-text-muted: var(--muted);
+  --color-border: var(--line);
+  --color-border-soft: var(--line-soft);
+
+  /* Fixed-contrast text: for content sitting on a solid brass/ink-deep FILL
+     (buttons, chips, photo captions), not a theme-flipping surface. These
+     intentionally do NOT change between themes — the fill they sit on
+     already carries the theme's contrast logic. */
+  --color-on-accent: #fdfaf2; /* cream text on solid brass */
+  --color-on-inverse: #fdfaf2; /* cream text on solid ink-deep */
+  --color-on-accent-strong: #12100c; /* dark text on solid brass-bright */
+  --color-on-photo: #ffffff; /* white text on a photo-scrim overlay */
+
+  /* — Type: display + body + data trio (wired via next/font in app/layout.tsx).
+       Each var falls back to a system stack so the tokens degrade gracefully
+       if a font fails to load. --serif is kept as an alias: every existing
+       component reading var(--serif) now gets Fraunces for free. */
+  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --serif: var(--font-display);
+
+  /* — Type scale: a deliberate step system (~1.22 ratio) rather than ad-hoc
+       rem values. Existing components keep their own literal sizes (unchanged
+       per-component); new work should reach for these. */
+  --text-2xs: 0.68rem;
+  --text-xs: 0.76rem;
+  --text-sm: 0.85rem;
+  --text-base: 1rem;
+  --text-md: 1.16rem;
+  --text-lg: 1.42rem;
+  --text-xl: 1.74rem;
+  --text-2xl: 2.13rem;
+  --text-3xl: 2.6rem;
+  --leading-tight: 1.12;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --tracking-tight: -0.01em;
+  --tracking-wide: 0.05em;
+  --tracking-wider: 0.08em;
+
+  /* — Spacing scale: 4px base, used for new work; existing literal paddings
+       are untouched. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* — Radius: existing --radius/--radius-sm untouched; --radius-lg + --radius-pill
+       added for the scale to be complete (drawers/sheets already use ad-hoc
+       18px/999px — alias them here for future use). */
   --radius: 10px;
   --radius-sm: 7px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+
+  /* — Shadow: --shadow kept as the default (paper-lift in light, overridden to
+       a deeper candle-glow in theme.css dark). --shadow-inset-* power the
+       pressed-ink utility below and are shared by both themes. */
   --shadow: 0 14px 30px rgba(24, 34, 26, 0.12);
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --shadow-sm: 0 4px 14px rgba(24, 34, 26, 0.1);
+  --shadow-inset-press: inset 0 1px 2px rgba(15, 28, 22, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.35);
+
+  /* — Motion: durations + easings, all consumed behind prefers-reduced-motion
+       guards (existing guards in this file and theme.css are unchanged; new
+       animation should reach for these instead of inlining numbers). */
+  --duration-fast: 0.12s;
+  --duration-base: 0.15s;
+  --duration-slow: 0.28s;
+  --duration-ambient: 1.4s;
+  --ease-standard: ease;
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* — Pressed-ink / bar-mat tactility: one shared token set for the price
+       stamp, provenance chips, and vibe tags (see .ink-stamp below). Kept
+       deliberately restrained — brass is the only accent colour it uses. */
+  --ink-stamp-border: 1.5px solid var(--brass);
+  --ink-stamp-radius: 6px;
+  --ink-stamp-tilt: -1.5deg;
+  --ink-stamp-shadow: var(--shadow-inset-press);
+
+  /* Theme-coherent card tints: a raised surface warmed slightly toward an
+     accent, used for gradient end-stops that must not go bright-cream in the
+     dark theme (color-mix tracks --panel-raised, so it always sits in the
+     current theme's tonal range). */
+  --surface-tint-river: color-mix(in srgb, var(--panel-raised) 88%, var(--river) 12%);
+  --surface-tint-brass: color-mix(in srgb, var(--panel-raised) 90%, var(--brass) 10%);
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* ── Pressed-ink / bar-mat utility ──────────────────────────────────────────
+   One shared treatment for anything that should read as "stamped" rather
+   than merely styled: the brass price stamp, provenance chips, vibe tags.
+   Apply `.ink-stamp` alongside a component's existing class — it only adds
+   the shared border/shadow/tilt/type, it never resets layout (display,
+   padding, colour stay owned by the component's own class).
+
+   API for other agents/components to adopt:
+     .ink-stamp        — base treatment: brass hairline border, inset
+                          "pressed" shadow, data face, tabular numerals.
+     .ink-stamp--tilt   — adds the signature -1.5deg press tilt. Reserve this
+                          for the ONE signature element (the brass price
+                          stamp) — provenance chips / vibe tags should use
+                          `.ink-stamp` alone, so the tilt stays rare.
+     .ink-stamp--flat   — same border/shadow, no data face (for chips whose
+                          copy is words, not numbers, e.g. provenance/vibe).
+   Existing .priceStamp / .provChip / .vibeChip classes are untouched; this
+   is additive so any of them can opt in with a single extra class. */
+.ink-stamp {
+  border: var(--ink-stamp-border);
+  border-radius: var(--ink-stamp-radius);
+  box-shadow: var(--ink-stamp-shadow);
+  font-family: var(--font-data);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ink-stamp--flat {
+  font-family: var(--font-body);
+  font-variant-numeric: normal;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ink-stamp--tilt {
+    transform: rotate(var(--ink-stamp-tilt));
+  }
+}
+
 body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Data/tabular utility — price stamps, stats, route metrics, and any other
+   numeric readout. Opt-in (existing components already set their own
+   font-variant-numeric: tabular-nums; this adds the mono data face on top
+   for anything migrating to the full "stamped ticket" look). */
+.font-data,
+.tabular-data {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
 }
 
 button,
@@ -308,7 +470,7 @@ h3 {
 .segmented button.selected {
   border-color: var(--ink-deep);
   background: var(--ink-deep);
-  color: #fdfaf2;
+  color: var(--color-on-inverse);
   box-shadow: inset 0 0 0 1px var(--brass);
 }
 
@@ -940,7 +1102,7 @@ input[type="range"] {
   padding: 2px 7px;
   font-size: 0.6rem;
   letter-spacing: 0.02em;
-  color: #f4efe4;
+  color: var(--color-on-inverse);
   background: rgba(15, 28, 22, 0.62);
   border-top-left-radius: var(--radius-sm);
 }
@@ -1301,7 +1463,7 @@ input[type="range"] {
 .shareBtn:focus-visible {
   border-color: var(--brass-bright);
   background: var(--brass);
-  color: #12100c;
+  color: var(--color-on-accent-strong);
 }
 
 .addStopBtn {
@@ -1311,7 +1473,7 @@ input[type="range"] {
   border: 1px solid var(--ink-deep);
   border-radius: var(--radius-sm);
   background: var(--ink-deep);
-  color: #fdfaf2;
+  color: var(--color-on-inverse);
   font-weight: 700;
   transition: transform 0.12s ease, filter 0.15s ease;
 }
@@ -1416,7 +1578,7 @@ input[type="range"] {
   padding: 15px;
   border: 1px solid rgba(47, 111, 143, 0.28);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, var(--panel-raised) 0%, #f2f6f4 100%);
+  background: linear-gradient(180deg, var(--panel-raised) 0%, var(--surface-tint-river) 100%);
   box-shadow: var(--shadow);
 }
 
@@ -1709,7 +1871,7 @@ input[type="range"] {
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
-  color: #fdfaf2;
+  color: var(--color-on-accent);
 }
 
 .landlordForm button:disabled {
@@ -1744,7 +1906,7 @@ input[type="range"] {
   padding: 13px;
   border: 1px solid rgba(176, 129, 58, 0.3);
   border-radius: var(--radius-sm);
-  background: linear-gradient(180deg, var(--panel-raised) 0%, #faf6ec 100%);
+  background: linear-gradient(180deg, var(--panel-raised) 0%, var(--surface-tint-brass) 100%);
 }
 
 .landlordAnswer p {
@@ -2149,7 +2311,7 @@ input[type="range"] {
   padding: 2px 8px;
   border-radius: 999px;
   background: rgba(20, 16, 12, 0.68);
-  color: #fff;
+  color: var(--color-on-photo);
   font-size: 0.66rem;
   font-weight: 700;
   text-transform: lowercase;
@@ -2338,7 +2500,7 @@ input[type="range"] {
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
-  color: #fdfaf2;
+  color: var(--color-on-accent);
   font-weight: 700;
   transition: filter 0.15s ease;
 }
@@ -2481,7 +2643,7 @@ input[type="range"] {
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
-  color: #fdfaf2;
+  color: var(--color-on-accent);
   font-size: 0.95rem;
   font-weight: 800;
   letter-spacing: 0.01em;

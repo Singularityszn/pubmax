@@ -1,8 +1,44 @@
 import type { Metadata } from "next";
+import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+
+// Type trio for the field-guide identity (see docs/DESIGN_SYSTEM.md):
+//  - display: Fraunces — a characterful, slightly inky serif (soft ink-trap
+//    details at "opsz" 72+) for brand + headlines. Distinct from the generic
+//    Playfair/cream-and-terracotta look; reads like hand-set guidebook type.
+//  - body: Inter — already the app's body face; formalised as a variable so
+//    every surface (not just `body`) can opt in without hardcoding a family.
+//  - data: JetBrains Mono — tabular, ticket/till-stamp character for prices,
+//    the price stamp, and other numeric readouts. Deliberately NOT the body
+//    face, so a price reads as "stamped", not just bolded text.
+// All three are wired as CSS custom properties on <html> so globals.css/
+// theme.css and every component that already reads var(--serif) etc. pick
+// them up with zero per-component edits.
+const displaySerif = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  // Variable font: weight must stay "variable" for the opsz/SOFT axes to load.
+  axes: ["opsz", "SOFT"],
+  weight: "variable",
+  style: ["normal", "italic"],
+});
+
+const bodySans = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const dataMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-data",
+  display: "swap",
+  weight: ["500", "700"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxx.vercel.app"),
@@ -46,7 +82,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${displaySerif.variable} ${bodySans.variable} ${dataMono.variable}`}
+    >
       <head>
         {/* Set theme before paint to avoid a flash of the wrong theme. Served
             as a static file (public/theme-init.js) rather than inline so it is

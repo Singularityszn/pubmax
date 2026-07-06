@@ -1,0 +1,311 @@
+# PUBMAXXING design system
+
+**Thesis: "Every pint has a story."** PUBMAXXING is a candle-lit field-guide to
+London's pubs, not a generic map app. Every surface — day or night — should
+feel like a page from a guidebook someone actually annotated: warm paper or
+candlelight, a brass margin accent, a stamped price, a hand-set headline.
+
+This document describes the token scale, type pairing, and pressed-ink
+tactility that make that thesis hold. It **extends** the existing system in
+`app/globals.css` (tokens, light theme) and `app/theme.css` (dark theme
+overrides + shared theme-toggle chrome) — nothing here forks or replaces those
+files, and every token that existed before this pass still resolves to the
+same value it always did.
+
+## Where things live
+
+| File | Owns |
+|---|---|
+| `app/globals.css` | `:root` token definitions (light/default values), resets, most component classes, the pressed-ink utility |
+| `app/theme.css` | `html[data-theme="dark"]` token overrides, the theme-flip transition, the theme-toggle button |
+| `app/layout.tsx` | `next/font` wiring — loads the three type-trio fonts as CSS variables on `<html>` |
+| `components/PubMapCanvas.tsx` | Reads tokens at runtime via `readTokens()` to paint the MapLibre style — the map is a *consumer* of these tokens, never a second source of truth |
+
+If you're adding a new component: reach for a token below before writing a
+literal value. If the token you need doesn't exist, add it here first.
+
+## Colour
+
+### Palette (the literal values)
+
+| Token | Light | Dark | Role |
+|---|---|---|---|
+| `--ink` | `#1b2620` | `#ece3d2` | primary text |
+| `--ink-soft` | `#3d4842` | `#c4bca9` | secondary text |
+| `--muted` | `#6b726a` | `#8f8875` | tertiary/label text |
+| `--line` | `#ddd5c4` | `#35362e` | hairline borders |
+| `--line-soft` | `#e8e1d3` | `#2a2b24` | faint dividers |
+| `--paper` | `#f4efe4` | `#12100c` | page base |
+| `--panel` | `#fbf8f0` | `#171712` | recessed panel |
+| `--panel-raised` | `#ffffff` | `#201f18` | cards, inputs |
+| `--ink-deep` | `#0f1c16` | `#0b0a07` | brand-mark / stamp-dark chrome |
+| `--pint` | `#2f8f5b` | `#46b378` | cheap pint / positive |
+| `--amber` | `#c2882a` | `#d99f45` | mid price / caution |
+| `--brick` | `#b5493a` | `#d16353` | expensive / destructive |
+| `--brass` | `#9a6a24` | `#d3a44a` | **the one accent** |
+| `--brass-bright` | `#d3a44a` | `#e6bd63` | accent on dark/brand-mark chrome |
+| `--river` | `#2f6f8f` | `#4f9ec4` | heritage / by-water |
+| `--river-bright` | `#4f9ec4` | `#6fb9db` | heritage on dark chrome |
+
+**Brass is the single accent.** Every other hue (`pint`/`amber`/`brick`,
+`river`) is a semantic status/category colour, not decoration — don't reach
+for them to "add colour" to something that isn't a price band or a
+heritage/by-water marker.
+
+### Semantic roles (new — additive aliases)
+
+Raw palette tokens describe *hue*; semantic tokens describe *job*. New work
+should prefer the semantic name so a future palette change (e.g. retuning
+`--brick`) propagates without hunting down every consumer:
+
+```
+--color-accent            → var(--brass)
+--color-accent-strong     → var(--brass-bright)
+--color-positive          → var(--pint)
+--color-caution           → var(--amber)
+--color-negative          → var(--brick)
+--color-info              → var(--river)
+--color-info-strong       → var(--river-bright)
+--color-surface           → var(--paper)
+--color-surface-panel     → var(--panel)
+--color-surface-raised    → var(--panel-raised)
+--color-surface-inverse   → var(--ink-deep)
+--color-text              → var(--ink)
+--color-text-soft         → var(--ink-soft)
+--color-text-muted        → var(--muted)
+--color-border            → var(--line)
+--color-border-soft       → var(--line-soft)
+```
+
+### Fixed-contrast text
+
+A handful of places set text colour on a **solid accent fill** (a brass
+button, an ink-deep button, a photo-caption scrim) rather than a
+theme-flipping surface. That text must stay constant in both themes — the
+fill already carries the theme's contrast logic. Use these instead of a raw
+hex:
+
+```
+--color-on-accent          #fdfaf2   cream text on solid brass
+--color-on-inverse         #fdfaf2   cream text on solid ink-deep
+--color-on-accent-strong   #12100c   dark text on solid brass-bright
+--color-on-photo           #ffffff   white text on a photo-scrim overlay
+```
+
+## Type
+
+### The trio
+
+| Role | Typeface | Variable | Why |
+|---|---|---|---|
+| Display | **Fraunces** (variable, `opsz`+`SOFT` axes) | `--font-display` (aliased by `--serif`) | A characterful, slightly inky serif with soft ink-trap detailing at larger optical sizes — it reads like hand-set guidebook type, not a generic high-contrast display serif. Open-licence, self-hosted via `next/font/google` (no external request, no layout shift). |
+| Body | **Inter** | `--font-body` | Already the app's body face — kept deliberately. Inter is neutral and extremely legible at small UI sizes (panel copy, chip labels), which is exactly what a body face should be: carry the display face's personality without competing for it. |
+| Data | **JetBrains Mono** | `--font-data` | Prices, stats, route metrics. A monospace gives numerals a "stamped ticket / till receipt" character that Inter's tabular figures don't — it's a deliberate second texture, not just a bolder body font. Paired with `font-variant-numeric: tabular-nums` so columns of numbers align. |
+
+All three are loaded once in `app/layout.tsx` via `next/font/google` and
+exposed as CSS variables on `<html>`, so `globals.css`/`theme.css` and any
+component reading `var(--serif)`, `var(--font-body)`, or `var(--font-data)`
+picks them up automatically — no per-component font imports.
+
+`--serif` is kept as a permanent alias for `--font-display`: every existing
+`h1`/`h2`/`h3`/`.eyebrow`/card-title that already reads `var(--serif)` now
+renders in Fraunces with zero changes to those components.
+
+### Type scale
+
+```
+--text-2xs   0.68rem     eyebrows, micro-labels
+--text-xs    0.76rem     chip/tag text
+--text-sm    0.85rem     secondary body copy
+--text-base  1rem        default body
+--text-md    1.16rem     h3 / card titles
+--text-lg    1.42rem     h2
+--text-xl    1.74rem     h1 / section heroes
+--text-2xl   2.13rem     page-level display
+--text-3xl   2.6rem      landing hero only
+```
+
+```
+--leading-tight   1.12   display headlines
+--leading-snug    1.35   card copy
+--leading-normal  1.5    body paragraphs
+--tracking-tight  -0.01em  large display type
+--tracking-wide   0.05em   eyebrows/labels
+--tracking-wider  0.08em   all-caps section titles
+```
+
+Existing components keep their literal `font-size` values (this pass doesn't
+rewrite 35+ components); the scale exists so **new** type decisions have a
+system to land on instead of another one-off rem value.
+
+### Data/tabular utility
+
+```css
+.font-data,
+.tabular-data {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+```
+
+Opt-in class for anything migrating to the full "stamped ticket" numeral
+treatment. Existing price displays that only set
+`font-variant-numeric: tabular-nums` (without the mono face) are untouched —
+adding the class is optional, additive polish.
+
+## Spacing, radius, shadow
+
+```
+--space-1 … --space-12   4px base scale (4/8/12/16/20/24/32/40/48)
+--radius       10px      default corner (cards, inputs)
+--radius-sm     7px      tight corner (chips, small controls)
+--radius-lg    18px      sheets / bottom-drawer corners
+--radius-pill 999px      pills, avatar-style chips
+```
+
+### Shadow: candle-glow (dark) vs paper-lift (light)
+
+`--shadow` is the same variable in both themes but tuned to a different
+*feeling*, not just a darker version of itself:
+
+- **Light (`app/globals.css`)** — `--shadow: 0 14px 30px rgba(24, 34, 26, 0.12)`.
+  A soft, cool, paper-lift shadow — like a card sitting slightly above a
+  printed page.
+- **Dark (`app/theme.css`)** — `--shadow: 0 16px 40px rgba(0,0,0,0.55), 0 0 24px rgba(211,164,74,0.06)`.
+  A deeper drop shadow **plus a faint warm brass bloom**, so raised surfaces
+  in the dark theme read as lit from within — candlelight — rather than
+  merely "the light theme's shadow, but dimmer."
+
+`--shadow-sm` follows the same day/night pairing for smaller elements.
+`--shadow-inset-press` is the inset "pressed" shadow shared by both themes
+for the pressed-ink utility (see below) — it flips its highlight edge (cream
+in light, brass in dark) so the letterpress effect reads correctly against
+either surface.
+
+## Motion
+
+```
+--duration-fast     0.12s   press/tap feedback
+--duration-base     0.15s   hover/focus colour transitions
+--duration-slow     0.28s   drawer/sheet slide
+--duration-ambient  1.4s    ambient pulses (loading dots, thinking indicator)
+--ease-standard     ease
+--ease-out          cubic-bezier(0.4, 0, 0.2, 1)
+```
+
+**Rule: every animated property lives behind
+`@media (prefers-reduced-motion: no-preference)`**, or is cut to `0.01ms` by
+the existing global
+`@media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }`
+rule at the bottom of `globals.css`. This was already true before this pass
+(map orbit, drawer transitions, hero-card reveal, pulse dots); the new
+`.ink-stamp--tilt` press-tilt utility follows the same rule — the tilt is
+purely visual, so it's skipped entirely for reduced-motion users rather than
+just made instant.
+
+## Pressed-ink / bar-mat tactility
+
+The price stamp, provenance chips, and vibe tags should feel like something
+**physically stamped** — pressed ink on a bar mat — not a generic rounded
+badge. One shared utility, defined once in `app/globals.css`:
+
+```css
+.ink-stamp {
+  border: var(--ink-stamp-border);       /* 1.5px solid brass */
+  border-radius: var(--ink-stamp-radius); /* 6px */
+  box-shadow: var(--ink-stamp-shadow);    /* inset letterpress shadow */
+  font-family: var(--font-data);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ink-stamp--flat  /* same border/shadow, body face instead of data face — for word chips */
+.ink-stamp--tilt  /* adds the -1.5deg press tilt, behind prefers-reduced-motion */
+```
+
+**API for other components to adopt** (additive — existing `.priceStamp`,
+`.provChip`, `.vibeChip` classes are untouched and keep working; add
+`.ink-stamp` alongside them):
+
+- `.ink-stamp` — base treatment for anything numeric (prices, stamped
+  figures).
+- `.ink-stamp--flat` — same border/shadow, but body-face type for
+  word-based chips (provenance labels, vibe tags).
+- `.ink-stamp--tilt` — the signature `-1.5deg` press tilt. **Reserve this for
+  the one signature element** (the brass price stamp) — provenance chips and
+  vibe tags should use `.ink-stamp`/`.ink-stamp--flat` *without* the tilt, so
+  the tilt itself stays rare and memorable rather than becoming "how all
+  chips look."
+
+Example adoption (not applied in this pass — components are owned by other
+in-flight work):
+
+```tsx
+<span className="priceStamp ink-stamp ink-stamp--tilt">£4.20</span>
+<span className="provChip sourced ink-stamp--flat">Sourced</span>
+<span className="vibeChip small ink-stamp--flat">rowdy</span>
+```
+
+## The signature element
+
+**One thing held with restraint: the brass price stamp.** It's the only
+place the press-tilt (`.ink-stamp--tilt`) treatment should appear. The
+candle-lit map is the second memory hook (already built — see
+`components/PubMapCanvas.tsx`'s `readTokens()`/scene build), but it is a
+*mode*, not a stampable UI element, so it doesn't compete with the price
+stamp for the "one signature" slot.
+
+Do not add a second tilted/stamped element elsewhere in the UI. If a new
+surface needs emphasis, reach for the brass border/accent colour, not a
+second signature gesture.
+
+## Day/night coherence
+
+Both themes flip from the same token names — `app/theme.css` only
+overrides values inside `html[data-theme="dark"]`, never introduces new
+variable names. The map (`components/PubMapCanvas.tsx`) reads the *current*
+computed values via `readTokens()` at scene-build time and re-triggers on
+theme change, so it never hardcodes a light or dark palette of its own.
+
+This pass audited `app/globals.css` and `app/theme.css` for literals that
+bypassed this: it found six repeated instances of hardcoded cream/dark text
+sitting on solid brass/ink-deep fills (now `--color-on-accent` /
+`--color-on-inverse` / `--color-on-accent-strong`), and two card gradients
+(`.writerCard`, `.landlordAnswer`) whose end-stop was a fixed light-cream hex
+that would have gone bright and jarring against the dark theme's charcoal
+surfaces — both now resolve via `--surface-tint-river` /
+`--surface-tint-brass`, `color-mix()`-derived from `--panel-raised` so they
+stay in the current theme's tonal range automatically.
+
+One legend swatch (`.mapLegend span`) keeps a fixed light-mode ink colour by
+design — the legend chip's background is intentionally always a light,
+translucent card (readable pinned over the map basemap in both themes), so
+its text should not flip dark.
+
+## Do / don't
+
+**Do**
+
+- Reach for a semantic token (`--color-accent`, `--color-positive`, …) before
+  a raw palette token, and a raw palette token before a literal hex.
+- Use `--font-display`/`--serif` for headlines and brand marks,
+  `--font-body` for everything else, `--font-data` for prices/stats.
+   the `--ink-stamp-*` tokens for the pressed-ink utility.
+- Gate any new animation behind `prefers-reduced-motion: no-preference`.
+- Add a new token here (and to `:root`) before inventing a one-off value.
+
+**Don't**
+
+- Don't introduce a second accent hue. Brass is the accent; `pint`/`amber`/
+  `brick`/`river` are semantic, not decorative.
+- Don't use gradients as decoration — the two gradients in this codebase
+  (`.writerCard`, `.landlordAnswer`) are subtle, single-hue surface tints, not
+  a visual flourish; don't add a rainbow/hero gradient elsewhere.
+- Don't add glassmorphism beyond the existing, narrow `backdrop-filter: blur()`
+  uses on floating chrome (toolbar, legend, onboarding scrim) — those are
+  functional (legibility over the map), not aesthetic.
+- Don't add a second tilted/stamped signature element — restraint is the
+  point.
+- Don't hardcode a hex value in a component that already has a token for that
+  role; if no token fits, propose one here first.
