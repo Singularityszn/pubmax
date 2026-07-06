@@ -169,6 +169,75 @@
   line-height: 1.55;
 }
 
+/* ── Badge chips ─────────────────────────────────────────────────────────
+   Earned achievements as small brass "brass-plate" chips. Token-driven so
+   they flip light/dark for free. Each chip carries a native title (label +
+   description) for sighted users and a visually-hidden description for AT. */
+.profilePage .profileBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profilePage .profileBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
+  color: var(--brass);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  cursor: default;
+}
+
+.profilePage .profileBadgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brass);
+  flex: 0 0 auto;
+}
+
+.profilePage .profileBadgeLabel {
+  white-space: nowrap;
+}
+
+/* Screen-reader-only description: announced but off-screen so the chip stays
+   compact. The chip's title carries the same text for sighted users. */
+.profilePage .profileBadgeDesc {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Keyboard/hover affordance so the chips don't read as dead text. Focusable
+   only if a future variant makes them links/buttons; for now, hover lifts the
+   plate a touch and focus-visible gets the standard brass ring. */
+.profilePage .profileBadge:hover {
+  background: color-mix(in srgb, var(--brass) 18%, var(--panel));
+  border-color: var(--brass);
+}
+
+.profilePage .profileBadge:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 /* Stats row */
 .profilePage .profileStats {
   display: flex;

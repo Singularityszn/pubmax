@@ -14,6 +14,12 @@ export type ProfileDrop = {
   handle: string;
   priceGbp?: number | null;
   venueId?: string;
+  // A period label ("Victorian", "1980s"…) when the memory is pinned to an era.
+  // Used by computeBadges to award the Heritage Walker badge.
+  era?: string | null;
+  // Where the drop came from. An "anecdote" is a passed-down memory (heritage
+  // signal); "sourced"/"contributor"/"demo" are not. See lib/curation.ts.
+  provenance?: string | null;
   // Forward-compatible: drops don't carry a borough today, but if a future DTO
   // does, profileStats surfaces it. Absent → boroughs is omitted, never [].
   borough?: string | null;
@@ -33,7 +39,21 @@ export type ProfileStats = {
   // Cheapest priced pint in GBP, or null when the handle has no priced drops
   // (notes-only / anecdote drops carry a null price).
   cheapestPintGbp: number | null;
+  // How many crawls this handle has posted. There's no crawl-authorship data on
+  // this page yet, so callers pass it in explicitly; it defaults to 0 and is
+  // always a finite, non-negative integer.
+  crawlsPosted: number;
   boroughs?: string[];
+};
+
+// An earned-or-not achievement badge. Pure data — the UI decides how to render.
+// `earned` lets callers keep the full catalogue (for a "locked" preview) or
+// filter to just the earned set; computeBadges returns the whole catalogue.
+export type Badge = {
+  id: string;
+  label: string;
+  description: string;
+  earned: boolean;
 };
 
 // Handles are the identity primitive, so normalization is strict and total:
@@ -66,14 +86,24 @@ function displayNameFromHandle(handle: string): string {
 // Pure stats over a handle's drops. Order-independent and null-safe:
 // - pintsLogged is the number of drops.
 // - cheapestPintGbp is the min of finite, positive prices, or null when none.
+// - crawlsPosted is passed in (this page has no crawl-authorship data), coerced
+//   to a finite, non-negative integer; junk / missing → 0.
 // - boroughs is a sorted unique list, OMITTED entirely when no drop names one.
-export function profileStats(drops: readonly ProfileDrop[] | null | undefined): ProfileStats {
+export function profileStats(
+  drops: readonly ProfileDrop[] | null | undefined,
+  crawlsPosted?: number | null,
+): ProfileStats {
   const list = Array.isArray(drops) ? drops : [];
 
   const prices = list
     .map((d) => d.priceGbp)
     .filter((p): p is number => typeof p === "number" && Number.isFinite(p) && p > 0);
   const cheapestPintGbp = prices.length ? Math.min(...prices) : null;
+
+  const crawls =
+    typeof crawlsPosted === "number" && Number.isFinite(crawlsPosted) && crawlsPosted > 0
+      ? Math.floor(crawlsPosted)
+      : 0;
 
   const boroughs = Array.from(
     new Set(
@@ -86,9 +116,95 @@ export function profileStats(drops: readonly ProfileDrop[] | null | undefined): 
   const stats: ProfileStats = {
     pintsLogged: list.length,
     cheapestPintGbp,
+    crawlsPosted: crawls,
   };
   if (boroughs.length) stats.boroughs = boroughs;
   return stats;
+}
+
+// Pint tiers for the "regular → local legend" ladder. A drinker becomes a
+// Regular at 25 logged pints and a Local Legend at 100 — round, aspirational
+// numbers that stay reachable in the demo while still marking a milestone.
+export const REGULAR_THRESHOLD = 25;
+export const LOCAL_LEGEND_THRESHOLD = 100;
+
+// Under this price a pint is a genuine bargain worth a badge. Strictly under —
+// £4.00 exactly is not "under £4", so it does NOT earn Cheap Legend.
+const CHEAP_LEGEND_MAX_GBP = 4;
+
+// Provenance values that mark a drop as a passed-down memory (a heritage
+// signal), as opposed to a live/sourced/seeded log.
+const HERITAGE_PROVENANCE = new Set(["anecdote", "heritage"]);
+
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+// Pure, deterministic badge catalogue for a handle. Turns activity into
+// identity (the Letterboxd pattern): each badge is returned with `earned` so
+// the UI can either show the full ladder or filter to the earned set. Never
+// throws — a null/empty drop list yields the catalogue with everything unearned.
+//
+// Badges:
+//  • First Pint      — ≥1 drop logged.
+//  • Cheap Legend    — any drop priced strictly under £4.
+//  • Heritage Walker — any drop carrying an era, or an anecdote/heritage
+//                      provenance (a passed-down memory).
+//  • Regular         — ≥25 pints logged.
+//  • Local Legend    — ≥100 pints logged.
+export function computeBadges(
+  drops: readonly ProfileDrop[] | null | undefined,
+  stats: ProfileStats,
+): Badge[] {
+  const list = Array.isArray(drops) ? drops : [];
+  const pints = stats.pintsLogged;
+
+  const cheapLegend = list.some(
+    (d) =>
+      typeof d.priceGbp === "number" &&
+      Number.isFinite(d.priceGbp) &&
+      d.priceGbp > 0 &&
+      d.priceGbp < CHEAP_LEGEND_MAX_GBP,
+  );
+
+  const heritageWalker = list.some(
+    (d) =>
+      hasText(d.era) ||
+      (hasText(d.provenance) && HERITAGE_PROVENANCE.has(d.provenance.trim().toLowerCase())),
+  );
+
+  return [
+    {
+      id: "first-pint",
+      label: "First Pint",
+      description: "Logged your first Pint Drop.",
+      earned: pints >= 1,
+    },
+    {
+      id: "cheap-legend",
+      label: "Cheap Legend",
+      description: "Found a pint under £4.",
+      earned: cheapLegend,
+    },
+    {
+      id: "heritage-walker",
+      label: "Heritage Walker",
+      description: "Logged a pint tied to an era or a passed-down memory.",
+      earned: heritageWalker,
+    },
+    {
+      id: "regular",
+      label: "Regular",
+      description: `Logged ${REGULAR_THRESHOLD}+ pints.`,
+      earned: pints >= REGULAR_THRESHOLD,
+    },
+    {
+      id: "local-legend",
+      label: "Local Legend",
+      description: `Logged ${LOCAL_LEGEND_THRESHOLD}+ pints.`,
+      earned: pints >= LOCAL_LEGEND_THRESHOLD,
+    },
+  ];
 }
 
 // Synthesize a demo Profile for a handle from its drops. There is no stored

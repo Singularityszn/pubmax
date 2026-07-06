@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  computeBadges,
   deriveProfileFromDrops,
+  LOCAL_LEGEND_THRESHOLD,
   normalizeHandle,
   profileStats,
+  REGULAR_THRESHOLD,
   type ProfileDrop,
 } from "@/lib/profiles";
 import {
@@ -91,9 +94,28 @@ describe("profileStats", () => {
   });
 
   it("handles an empty / missing drop list without throwing", () => {
-    expect(profileStats([])).toEqual({ pintsLogged: 0, cheapestPintGbp: null });
-    expect(profileStats(null)).toEqual({ pintsLogged: 0, cheapestPintGbp: null });
-    expect(profileStats(undefined)).toEqual({ pintsLogged: 0, cheapestPintGbp: null });
+    expect(profileStats([])).toEqual({ pintsLogged: 0, cheapestPintGbp: null, crawlsPosted: 0 });
+    expect(profileStats(null)).toEqual({ pintsLogged: 0, cheapestPintGbp: null, crawlsPosted: 0 });
+    expect(profileStats(undefined)).toEqual({
+      pintsLogged: 0,
+      cheapestPintGbp: null,
+      crawlsPosted: 0,
+    });
+  });
+
+  it("crawlsPosted defaults to 0 and is null-safe", () => {
+    expect(profileStats([drop()]).crawlsPosted).toBe(0);
+    expect(profileStats([drop()], undefined).crawlsPosted).toBe(0);
+    expect(profileStats([drop()], null).crawlsPosted).toBe(0);
+  });
+
+  it("crawlsPosted passes through a positive count, flooring/guarding junk", () => {
+    expect(profileStats([drop()], 3).crawlsPosted).toBe(3);
+    // non-integers floor; negatives / NaN / Infinity guard to 0
+    expect(profileStats([drop()], 2.9).crawlsPosted).toBe(2);
+    expect(profileStats([drop()], -5).crawlsPosted).toBe(0);
+    expect(profileStats([drop()], Number.NaN).crawlsPosted).toBe(0);
+    expect(profileStats([drop()], Number.POSITIVE_INFINITY).crawlsPosted).toBe(0);
   });
 
   it("omits boroughs entirely when no drop names one", () => {
@@ -108,6 +130,94 @@ describe("profileStats", () => {
       drop({ borough: null }),
     ]);
     expect(stats.boroughs).toEqual(["Camden", "Southwark"]);
+  });
+});
+
+describe("computeBadges", () => {
+  // Small helper: earned badge ids for a given drop list (crawls default 0).
+  function earnedIds(drops: ProfileDrop[], crawls?: number): string[] {
+    const stats = profileStats(drops, crawls);
+    return computeBadges(drops, stats)
+      .filter((b) => b.earned)
+      .map((b) => b.id);
+  }
+
+  it("returns the full catalogue with earned flags (nothing earned on empty)", () => {
+    const badges = computeBadges([], profileStats([]));
+    expect(badges.map((b) => b.id)).toEqual([
+      "first-pint",
+      "cheap-legend",
+      "heritage-walker",
+      "regular",
+      "local-legend",
+    ]);
+    expect(badges.every((b) => b.earned === false)).toBe(true);
+  });
+
+  it("is null-safe for a null/undefined drop list", () => {
+    expect(computeBadges(null, profileStats(null)).every((b) => !b.earned)).toBe(true);
+    expect(computeBadges(undefined, profileStats(undefined)).every((b) => !b.earned)).toBe(true);
+  });
+
+  it("First Pint triggers on ≥1 drop, not on zero", () => {
+    expect(earnedIds([])).not.toContain("first-pint");
+    expect(earnedIds([drop()])).toContain("first-pint");
+  });
+
+  it("Cheap Legend triggers strictly under £4 — not at £4.00", () => {
+    expect(earnedIds([drop({ priceGbp: 3.99 })])).toContain("cheap-legend");
+    // £4.00 exactly is NOT under £4
+    expect(earnedIds([drop({ priceGbp: 4 })])).not.toContain("cheap-legend");
+    expect(earnedIds([drop({ priceGbp: 4.5 })])).not.toContain("cheap-legend");
+  });
+
+  it("Cheap Legend ignores null / zero / negative prices", () => {
+    expect(earnedIds([drop({ priceGbp: null })])).not.toContain("cheap-legend");
+    expect(earnedIds([drop({ priceGbp: 0 })])).not.toContain("cheap-legend");
+    expect(earnedIds([drop({ priceGbp: -1 })])).not.toContain("cheap-legend");
+  });
+
+  it("Heritage Walker triggers on an era", () => {
+    expect(earnedIds([drop({ era: "Victorian" })])).toContain("heritage-walker");
+    // blank/whitespace era does not count
+    expect(earnedIds([drop({ era: "   " })])).not.toContain("heritage-walker");
+    expect(earnedIds([drop({ era: null })])).not.toContain("heritage-walker");
+  });
+
+  it("Heritage Walker triggers on an anecdote/heritage provenance (case-insensitive)", () => {
+    expect(earnedIds([drop({ provenance: "anecdote" })])).toContain("heritage-walker");
+    expect(earnedIds([drop({ provenance: "Heritage" })])).toContain("heritage-walker");
+    // a sourced/contributor/demo drop is NOT a passed-down memory
+    expect(earnedIds([drop({ provenance: "sourced" })])).not.toContain("heritage-walker");
+    expect(earnedIds([drop({ provenance: "contributor" })])).not.toContain("heritage-walker");
+    expect(earnedIds([drop({ provenance: "demo" })])).not.toContain("heritage-walker");
+  });
+
+  it("awards Regular at the threshold but not Local Legend below 100", () => {
+    const many = Array.from({ length: REGULAR_THRESHOLD }, () => drop());
+    const ids = earnedIds(many);
+    expect(ids).toContain("regular");
+    expect(ids).not.toContain("local-legend");
+    // one short of Regular → not yet
+    const nearlyThere = Array.from({ length: REGULAR_THRESHOLD - 1 }, () => drop());
+    expect(earnedIds(nearlyThere)).not.toContain("regular");
+  });
+
+  it("awards Local Legend (and Regular) at 100 pints", () => {
+    const legend = Array.from({ length: LOCAL_LEGEND_THRESHOLD }, () => drop());
+    const ids = earnedIds(legend);
+    expect(ids).toContain("regular");
+    expect(ids).toContain("local-legend");
+  });
+
+  it("is deterministic and does not mutate its inputs", () => {
+    const drops = [drop({ priceGbp: 3.5, era: "Georgian" })];
+    const snapshot = JSON.stringify(drops);
+    const stats = profileStats(drops);
+    const a = computeBadges(drops, stats);
+    const b = computeBadges(drops, stats);
+    expect(a).toEqual(b);
+    expect(JSON.stringify(drops)).toBe(snapshot);
   });
 });
 

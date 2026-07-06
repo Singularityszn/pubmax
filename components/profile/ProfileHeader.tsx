@@ -3,21 +3,25 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 
-import type { Profile, ProfileStats } from "@/lib/profiles";
+import { computeBadges, type Badge, type Profile, type ProfileDrop, type ProfileStats } from "@/lib/profiles";
 
 // Presentational header for a public profile. Prop-driven and stateless — the
 // page owns all data. Renders an avatar (image or a fallback initial), the
-// display name + @handle, optional home city and bio, a stats row (including
-// durable follower/following counts), and an optional actions slot (the page
-// drops the follow button here so the header stays purely presentational).
+// display name + @handle, optional home city and bio, earned achievement badges
+// (brass chips), a stats row (pints · cheapest · crawls, plus durable
+// follower/following counts), and an optional actions slot (the page drops the
+// follow button here so the header stays purely presentational).
 type ProfileHeaderProps = {
   profile: Profile;
   stats: ProfileStats;
   // Crawls are demo/0 for now — the page passes it explicitly so the header
-  // stays purely presentational.
+  // stays purely presentational. Falls back to stats.crawlsPosted, then 0.
   crawls?: number;
   followers?: number;
   following?: number;
+  // The handle's drops, used to derive badges. Optional so a caller that has no
+  // drops (an error/empty state) still renders a badge-free header cleanly.
+  drops?: readonly ProfileDrop[];
   actions?: ReactNode;
 };
 
@@ -33,12 +37,21 @@ function formatGbp(value: number | null): string {
 export default function ProfileHeader({
   profile,
   stats,
-  crawls = 0,
+  crawls,
   followers,
   following,
+  drops,
   actions,
 }: ProfileHeaderProps) {
   const { handle, displayName, homeCity, bio, avatarUrl } = profile;
+
+  // Prefer the explicit crawls prop; fall back to the stat the page computed.
+  const crawlsPosted =
+    typeof crawls === "number" ? crawls : stats.crawlsPosted ?? 0;
+
+  // Only surface EARNED badges — a public profile shows what you've done, not a
+  // to-do list of locked achievements.
+  const earnedBadges: Badge[] = computeBadges(drops, stats).filter((b) => b.earned);
 
   return (
     <header className="profileHeader">
@@ -74,6 +87,24 @@ export default function ProfileHeader({
 
       {bio ? <p className="profileBio">{bio}</p> : null}
 
+      {earnedBadges.length ? (
+        <ul className="profileBadges" aria-label="Badges earned">
+          {earnedBadges.map((badge) => (
+            <li
+              key={badge.id}
+              className="profileBadge"
+              title={`${badge.label} — ${badge.description}`}
+            >
+              <span aria-hidden="true" className="profileBadgeDot" />
+              <span className="profileBadgeLabel">{badge.label}</span>
+              {/* Description is announced to assistive tech but kept off-screen
+                  so the chip reads clean; sighted users get it via title. */}
+              <span className="profileBadgeDesc">{badge.description}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <dl className="profileStats" aria-label="Profile statistics">
         <div className="profileStat">
           <dt>Pints logged</dt>
@@ -97,7 +128,7 @@ export default function ProfileHeader({
         ) : null}
         <div className="profileStat">
           <dt>Crawls</dt>
-          <dd>{crawls}</dd>
+          <dd>{crawlsPosted}</dd>
         </div>
       </dl>
     </header>

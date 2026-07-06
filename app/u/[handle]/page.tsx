@@ -278,6 +278,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
             <ProfileHeader
               profile={profile}
               stats={stats}
+              drops={drops}
               followers={counts.followers}
               following={counts.following}
               actions={headerActions}
@@ -291,6 +292,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
             <ProfileHeader
               profile={profile}
               stats={stats}
+              drops={drops}
               followers={counts.followers}
               following={counts.following}
               actions={headerActions}
