@@ -181,6 +181,9 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
           <Link className="permalink__ghost" href={drop.venueMapUrl}>
             Open the pub on the map
           </Link>
+          <Link className="permalink__ghost" href={`/ledger/${drop.venueId}`}>
+            Open the Ledger
+          </Link>
         </div>
 
         {/* Share strip — the pint spreads across X, WhatsApp, and group chats. */}

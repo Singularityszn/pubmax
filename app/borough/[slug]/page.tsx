@@ -204,6 +204,9 @@ export default async function BoroughPage({ params }: PageProps) {
                   {pub.cheapestPint ? (
                     <span className="boroughPint">{pub.cheapestPint}</span>
                   ) : null}
+                  <Link href={`/ledger/${pub.id}`} className="boroughLedgerLink">
+                    The Ledger →
+                  </Link>
                 </td>
                 <td className="boroughPriceCell">
                   {typeof pub.cheapestPrice === "number" ? (

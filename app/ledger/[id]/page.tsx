@@ -1,0 +1,229 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { getVenueCuration } from "@/lib/curation";
+import { buildLedgerEntries, buildVenueClaims, ledgerClaimDrops } from "@/lib/ledger";
+import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
+import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
+
+import "./ledger.css";
+
+// The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
+// high-contrast, voice-friendly rendering of a venue's story for the
+// Boomer/Gen-X reading surface. Same seams as the map's venue sheet and the
+// /p/[id] permalink — the FULL venue detail (same cheap read path as
+// app/api/venue/[id]) plus the same Pint Drop store the API route reads
+// (lib/pintDropsStore) — reused, not rebuilt.
+//
+// A server component: no client fetch, so the first paint already carries the
+// whole logbook. The only client-side sliver is the optional "Read this page"
+// button (components/ledger/ReadLedgerButton), which is feature-detected and
+// degrades to nothing when speechSynthesis is unsupported.
+
+type PageProps = { params: Promise<{ id: string }> };
+
+// Mirrors app/api/venue/[id]'s memoized read: group the bundled dataset once
+// per process and look venues up by id. Never throws — a read/parse failure
+// yields an empty map so an unknown id 404s (friendly) instead of 500-ing.
+let cachedVenues: Map<string, Venue> | null = null;
+
+async function getVenue(id: string): Promise<Venue | null> {
+  if (!cachedVenues) {
+    const index = new Map<string, Venue>();
+    try {
+      await getVenueIndex(); // keeps the shared dataset read warm/memoized
+      const { promises: fs } = await import("fs");
+      const path = await import("path");
+      const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
+      const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
+      for (const venue of groupVenuePrices(Array.isArray(rows) ? rows : [])) {
+        index.set(venue.id, venue);
+      }
+    } catch {
+      // leave `index` empty — degrade to notFound(), never a 500
+    }
+    cachedVenues = index;
+  }
+  return cachedVenues.get(id) ?? null;
+}
+
+function pintDropStoreFor() {
+  return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const venue = await getVenue(id);
+
+  if (!venue) {
+    return {
+      title: "The Ledger — PUBMAXXING",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = `The Ledger: ${venue.name} — PUBMAXXING`;
+  const description = `The story of ${venue.name} in ${venue.primaryBorough || "London"} — heritage notes and the pub's logbook of visits, in large print.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "article" },
+    twitter: { card: "summary", title, description },
+  };
+}
+
+function NotInTheLedger() {
+  return (
+    <main className="ledgerPage ledgerPage--empty">
+      <div className="ledgerEmptyCard">
+        <p className="ledgerEyebrow">The Ledger</p>
+        <h1 className="ledgerEmptyTitle">This pub isn&rsquo;t in the ledger</h1>
+        <p className="ledgerEmptyBody">
+          It may have moved, or the link is wrong. Every mapped pub still has a home.
+        </p>
+        <Link className="ledgerPrimaryLink" href="/map">
+          Back to the map
+        </Link>
+      </div>
+    </main>
+  );
+}
+
+export default async function LedgerPage({ params }: PageProps) {
+  const { id } = await params;
+  const venue = await getVenue(id);
+  if (!venue) return <NotInTheLedger />;
+
+  const curation = getVenueCuration(venue.prices);
+  const drops = await pintDropStoreFor().listVisible(id);
+  const claimDrops = ledgerClaimDrops(
+    drops.map((d) => ({
+      id: d.id,
+      handle: d.handle,
+      drink: d.drink,
+      priceGbp: d.priceGbp,
+      passedDownNote: d.passedDownNote,
+      era: d.era,
+      provenance: d.provenance,
+      createdAt: d.createdAt,
+    })),
+  );
+  const claims = buildVenueClaims(curation, claimDrops);
+  const entries = buildLedgerEntries(
+    drops.map((d) => ({
+      id: d.id,
+      handle: d.handle,
+      drink: d.drink,
+      priceGbp: d.priceGbp,
+      passedDownNote: d.passedDownNote,
+      era: d.era,
+      provenance: d.provenance,
+      createdAt: d.createdAt,
+    })),
+  );
+
+  // Text handed to the "Read this page" button: name, heritage note, then the
+  // newest few entries — kept short and skimmable for a screen reader / TTS
+  // pass rather than reading the entire ledger aloud.
+  const speechParts = [
+    `The Ledger for ${venue.name}, ${venue.primaryBorough || "London"}.`,
+    curation.heritageNote ? curation.heritageNote : "",
+    ...entries
+      .slice(0, 5)
+      .map((entry) =>
+        entry.dateLabel
+          ? `${entry.dateLabel}: ${entry.note}`
+          : entry.note,
+      ),
+  ].filter(Boolean);
+
+  return (
+    <main className="ledgerPage">
+      <header className="ledgerHead">
+        <p className="ledgerEyebrow">The Ledger</p>
+        <h1 className="ledgerTitle">{venue.name}</h1>
+        <p className="ledgerAddress">
+          {venue.address ? `${venue.address} · ` : ""}
+          {venue.primaryBorough || "London"}
+        </p>
+
+        <div className="ledgerHeadActions">
+          <Link className="ledgerMapLink" href={venueMapUrl(id)}>
+            Open on the map
+          </Link>
+          <ReadLedgerButton text={speechParts.join(" ")} />
+        </div>
+      </header>
+
+      {claims.length > 0 ? (
+        <section className="ledgerSection" aria-labelledby="ledgerClaimsHeading">
+          <h2 id="ledgerClaimsHeading" className="ledgerSectionTitle">
+            The pub&rsquo;s story
+          </h2>
+          <ul className="ledgerClaimList">
+            {claims.map((claim, index) => (
+              <li className="ledgerClaim" key={`${claim.kind}-${index}`}>
+                <span className={`ledgerProvenance ledgerProvenance--${claim.kind}`}>
+                  {claim.label}
+                </span>
+                <p className="ledgerClaimBody">
+                  {claim.content}
+                  {claim.era ? <span className="ledgerClaimEra"> · {claim.era}</span> : null}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="ledgerSection" aria-labelledby="ledgerEntriesHeading">
+        <h2 id="ledgerEntriesHeading" className="ledgerSectionTitle">
+          Logbook
+        </h2>
+        {entries.length === 0 ? (
+          <p className="ledgerEmptyEntries">
+            No entries logged yet — the first Pint Drop here will open the logbook.
+          </p>
+        ) : (
+          <ol className="ledgerEntries" aria-label={`Logbook entries for ${venue.name}`}>
+            {entries.map((entry) => (
+              <li className="ledgerEntry" key={entry.id}>
+                <article aria-label={`Logbook entry, ${entry.dateLabel || "undated"}`}>
+                  <div className="ledgerEntryMeta">
+                    {entry.dateLabel ? (
+                      <time className="ledgerEntryDate" dateTime={entry.createdAt}>
+                        {entry.dateLabel}
+                      </time>
+                    ) : (
+                      <span className="ledgerEntryDate">Undated</span>
+                    )}
+                    <span
+                      className={`ledgerProvenance ledgerProvenance--${entry.provenance}`}
+                    >
+                      {entry.provenance === "demo" ? "Seeded example" : entry.handle}
+                    </span>
+                  </div>
+                  <p className="ledgerEntryNote">{entry.note}</p>
+                  {entry.priceLabel ? (
+                    <p className="ledgerEntryPrice">
+                      <span className="ledgerEntryPriceLabel">Paid</span>{" "}
+                      <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
+                    </p>
+                  ) : null}
+                </article>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <p className="ledgerFootnote">
+        Every pint has a story. <Link href={venueMapUrl(id)}>See {venue.name} on the map →</Link>
+      </p>
+    </main>
+  );
+}

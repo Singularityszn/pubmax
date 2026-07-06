@@ -169,6 +169,21 @@
   color: var(--ink-soft);
 }
 
+/* Modest entry point into the Ledger (issue #25) — a small, quiet link, not a
+   second CTA competing with the pub name link above it. */
+.boroughLedgerLink {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.boroughLedgerLink:hover {
+  text-decoration: underline;
+}
+
 .boroughPriceHead {
   text-align: right;
   white-space: nowrap;
