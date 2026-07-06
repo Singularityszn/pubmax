@@ -12,4 +12,16 @@
     }
     document.documentElement.dataset.theme = t;
   } catch (e) {}
+
+  // Legacy Mode: larger type / higher contrast / stronger focus rings / forced
+  // reduced motion, for older and low-vision users (issue #28). Same no-flash
+  // pattern as the theme above — read before paint so there is no flash of
+  // small/low-contrast type before this attribute lands. Keep in sync with the
+  // LegacyToggle storage key ("pubmax-legacy").
+  try {
+    var legacy = localStorage.getItem("pubmax-legacy");
+    if (legacy === "1") {
+      document.documentElement.dataset.legacy = "1";
+    }
+  } catch (e) {}
 })();

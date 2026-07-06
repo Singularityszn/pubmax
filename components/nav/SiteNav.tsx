@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import ThemeToggle from "@/components/ThemeToggle";
+import LegacyToggle from "@/components/LegacyToggle";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SignInButton from "@/components/auth/SignInButton";
 
@@ -115,6 +116,7 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
             Shows on mobile too (the compact bar keeps the bell + toggle + sign-in). */}
         <NotificationBell />
         <ThemeToggle />
+        <LegacyToggle />
         <SignInButton />
       </div>
     </nav>
