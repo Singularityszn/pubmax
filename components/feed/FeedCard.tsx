@@ -88,53 +88,106 @@ export default function FeedCard({
   });
   const showChaosBadge = chaos.score >= 30;
 
-  return (
-    <article className="feedCard" aria-label={`Pint drop from ${shownHandle}`}>
-      <header className="feedCardHead">
-        <span className="feedAvatar" aria-hidden="true">
-          {initial}
-        </span>
-        <div className="feedWho">
-          <span className="feedHandle">{shownHandle}</span>
-          {ago ? (
-            <time className="feedTime" dateTime={item.createdAt}>
-              {ago}
-            </time>
-          ) : null}
-        </div>
-        <span className={`feedProv feedProv-${item.provenance}`}>
-          {PROVENANCE_LABEL[item.provenance] ?? item.provenance}
-        </span>
-      </header>
+  const provLabel = PROVENANCE_LABEL[item.provenance] ?? item.provenance;
 
+  return (
+    <article
+      className={`feedCard${hero ? " feedCardSpill" : ""}`}
+      aria-label={`Pint drop from ${shownHandle}`}
+    >
       {hero ? (
-        <div className="feedPhotoWrap">
+        // Vertical 9:16 full-bleed "Spill" card (issue #36): the photo IS the
+        // card (IG-Stories ratio) with the handle, venue, note, price stamp and
+        // provenance badge overlaid on a bottom scrim — a TikTok/IG post treatment.
+        <div className="feedSpill">
           <Image
-            className="feedPhoto"
+            className="feedSpillPhoto"
             src={hero}
             alt={`Pint at ${item.venueName}, shared by ${shownHandle}`}
-            width={640}
-            height={640}
+            width={720}
+            height={1280}
             loading="lazy"
             unoptimized
           />
+          {/* Provenance badge — top-left, ALWAYS visible on the photo, read like
+              a verified checkmark (glyph + label): the X-style provenance
+              prominence the brief calls for. */}
+          <span
+            className={`feedSpillProv feedProv-${item.provenance}`}
+            title={`Provenance: ${provLabel}`}
+            aria-label={`Provenance: ${provLabel}`}
+          >
+            <ProvenanceCheck />
+            <span className="feedSpillProvLabel">{provLabel}</span>
+          </span>
+
+          {/* Price stamp — top-right, the pressed-ink signature. */}
           {typeof item.priceGbp === "number" ? (
-            <span className="feedPriceStamp">{formatGbp(item.priceGbp)}</span>
+            <span className="feedSpillPrice">{formatGbp(item.priceGbp)}</span>
           ) : null}
+
+          {/* Bottom scrim + overlaid content. The scrim is a FIXED dark gradient
+              (not theme-mixed) so text legibility is guaranteed over an arbitrary
+              photo background in BOTH themes. */}
+          <div className="feedSpillScrim">
+            <div className="feedSpillWho">
+              <span className="feedSpillAvatar" aria-hidden="true">
+                {initial}
+              </span>
+              <div className="feedSpillWhoText">
+                <span className="feedSpillHandle">{shownHandle}</span>
+                <span className="feedSpillMeta">
+                  <Link className="feedSpillVenueLink" href={item.venueMapUrl}>
+                    {item.venueName}
+                  </Link>
+                  {ago ? (
+                    <>
+                      {" · "}
+                      <time dateTime={item.createdAt}>{ago}</time>
+                    </>
+                  ) : null}
+                </span>
+              </div>
+            </div>
+            {item.caption ? <p className="feedSpillNote">{item.caption}</p> : null}
+            <Link
+              className="feedSpillBarTab"
+              href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
+            >
+              See the bar tab
+            </Link>
+          </div>
         </div>
       ) : (
-        // No photo → a typographic "receipt" card so the drop still reads as a
-        // collectible, never a broken image.
-        <div className="feedReceipt" role="img" aria-label="Pint drop receipt">
-          <span className="feedReceiptEyebrow">Pint Drop</span>
-          {typeof item.priceGbp === "number" ? (
-            <span className="feedReceiptPrice">{formatGbp(item.priceGbp)}</span>
-          ) : (
-            <span className="feedReceiptPrice feedReceiptPriceMuted">A memory</span>
-          )}
-          {item.drink ? <span className="feedReceiptDrink">{item.drink}</span> : null}
-          {item.era ? <span className="feedReceiptEra">{item.era}</span> : null}
-        </div>
+        // Text-only drop: keep the header + typographic "receipt" collectible.
+        // Do NOT force 9:16 on a card with no photo.
+        <>
+          <header className="feedCardHead">
+            <span className="feedAvatar" aria-hidden="true">
+              {initial}
+            </span>
+            <div className="feedWho">
+              <span className="feedHandle">{shownHandle}</span>
+              {ago ? (
+                <time className="feedTime" dateTime={item.createdAt}>
+                  {ago}
+                </time>
+              ) : null}
+            </div>
+            <span className={`feedProv feedProv-${item.provenance}`}>{provLabel}</span>
+          </header>
+
+          <div className="feedReceipt" role="img" aria-label="Pint drop receipt">
+            <span className="feedReceiptEyebrow">Pint Drop</span>
+            {typeof item.priceGbp === "number" ? (
+              <span className="feedReceiptPrice">{formatGbp(item.priceGbp)}</span>
+            ) : (
+              <span className="feedReceiptPrice feedReceiptPriceMuted">A memory</span>
+            )}
+            {item.drink ? <span className="feedReceiptDrink">{item.drink}</span> : null}
+            {item.era ? <span className="feedReceiptEra">{item.era}</span> : null}
+          </div>
+        </>
       )}
 
       <div className="feedCardBody">
@@ -151,7 +204,7 @@ export default function FeedCard({
                 drop actually clears "Steady" — most single pints won't. */}
             {showChaosBadge ? (
               <li
-                className="feedVibe"
+                className="feedVibe feedChaos"
                 title={chaos.oneLiner}
                 aria-label={`Chaos Score ${chaos.score} out of 100, ${chaos.grade}`}
               >
@@ -161,17 +214,27 @@ export default function FeedCard({
           </ul>
         ) : null}
 
-        {item.caption ? <p className="feedCaption">{item.caption}</p> : null}
+        {/* The caption + venue line live in the Spill scrim for photo drops; the
+            body only repeats them for the text-only receipt card. */}
+        {!hero && item.caption ? <p className="feedCaption">{item.caption}</p> : null}
 
-        {/* The pub name (never the raw venue id) links to the map with this
-            venue selected. */}
-        <p className="feedVenue">
-          {item.drink ? <span className="feedDrink">{item.drink}</span> : null}
-          <span className="feedVenueAt">at</span>
-          <Link className="feedVenueLink" href={item.venueMapUrl}>
-            {item.venueName}
-          </Link>
-        </p>
+        {!hero ? (
+          // The pub name (never the raw venue id) links to the map with this
+          // venue selected, plus a cross-link to the venue's Bar Tab grid.
+          <p className="feedVenue">
+            {item.drink ? <span className="feedDrink">{item.drink}</span> : null}
+            <span className="feedVenueAt">at</span>
+            <Link className="feedVenueLink" href={item.venueMapUrl}>
+              {item.venueName}
+            </Link>
+            <Link
+              className="feedVenueBarTab"
+              href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
+            >
+              See the bar tab
+            </Link>
+          </p>
+        ) : null}
 
         <div className="feedReactions" role="group" aria-label="React to this pint">
           {REACTION_KEYS.map((key) => {
@@ -216,5 +279,32 @@ export default function FeedCard({
         <CommentThread dropId={item.id} />
       </div>
     </article>
+  );
+}
+
+// The provenance "verified checkmark" glyph — a small sealed tick that gives a
+// Spill's provenance badge the visual weight of an X/Twitter verified mark,
+// without borrowing another brand's blue. currentColor so the per-provenance
+// colour (see feedProv-* in feed.css) carries.
+function ProvenanceCheck() {
+  return (
+    <svg
+      className="feedSpillProvGlyph"
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 1.5 14.6 4l3.5-.3.9 3.4 3 1.9-1.5 3.2 1.5 3.2-3 1.9-.9 3.4-3.5-.3L12 22.5 9.4 20l-3.5.3-.9-3.4-3-1.9L3.5 12 2 8.8l3-1.9.9-3.4 3.5.3L12 1.5Z" />
+      <path
+        d="m8.2 12.2 2.6 2.6 5-5.4"
+        fill="none"
+        stroke="var(--paper, #12100c)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

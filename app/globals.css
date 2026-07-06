@@ -380,9 +380,18 @@ p {
   margin-top: 0;
 }
 
+/* Display face (Fraunces, variable) — explicit weight so headings read as
+   hand-set guidebook type, not the thin 400 default a variable font falls to
+   when no weight is set. SOFT axis pinned to 0 for crisp ink-traps; optical
+   sizing left to `auto` so opsz tracks font-size. Weight lives in the
+   `font-weight` property (never font-variation-settings, which would clobber
+   the property and defeat per-element weight). */
 h1 {
   margin-bottom: 0;
   font-family: var(--serif);
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
   font-size: 1.5rem;
   line-height: 1.12;
   letter-spacing: -0.01em;
@@ -391,12 +400,18 @@ h1 {
 h2 {
   margin-bottom: 0;
   font-family: var(--serif);
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
   font-size: 1.24rem;
 }
 
 h3 {
   margin-bottom: 6px;
   font-family: var(--serif);
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
   font-size: 1.16rem;
 }
 
@@ -840,6 +855,8 @@ input[type="range"] {
 .mapOnboardingCard h2 {
   margin: 2px 0 8px;
   font-family: var(--serif);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
   color: var(--ink);
   font-size: 1.4rem;
 }
@@ -966,6 +983,130 @@ input[type="range"] {
   border-radius: 50%;
   background: var(--brass);
   animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* Issue #35 — the loading chip continues loading.tsx's price-coloured-dot idiom
+   (a small pint/amber/brick trio, staggered) instead of one plain spinner, so
+   the route-skeleton → canvas transition reads as one held frame. */
+.mapLoadingDots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.mapLoadingDots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.mapLoadingDots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.mapLoadingDots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapLoadingDots i {
+    animation: none;
+    opacity: 0.9;
+  }
+}
+
+/* Issue #35 — map loading skeleton. app/map/loading.tsx paints a pitched-London
+   impression (a river curve + pulsing price-coloured dots) during the route
+   chunk load; PubMap's .mapLoading (above) continues the SAME dot idiom while
+   the WebGL canvas style loads, so the transition reads as one held frame.
+   Every colour derives from existing tokens; reduced-motion holds the dots
+   still. --ink-deep backs the dark mode; the paper grid backs light. */
+.mapSkeleton {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  background-image: radial-gradient(rgba(176, 129, 58, 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+[data-theme="dark"] .mapSkeleton {
+  background: var(--ink-deep);
+  background-image: radial-gradient(rgba(176, 129, 58, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.mapSkeletonInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: min(78vw, 420px);
+}
+
+.mapSkeletonMap {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.mapSkeletonRiver {
+  stroke: var(--river);
+  stroke-width: 10;
+  stroke-linecap: round;
+  opacity: 0.35;
+}
+
+.mapSkeletonDot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mapSkeletonPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes mapSkeletonPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+.mapSkeletonCopy {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
+}
+
+.mapSkeletonSpinnerDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brass);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* Reduced motion: the field stays legible but still — dots hold at full weight,
+   the copy's pulse stops. Also stills PubMap's .mapLoadingDot continuation. */
+@media (prefers-reduced-motion: reduce) {
+  .mapSkeletonDot {
+    animation: none;
+    opacity: 0.9;
+  }
+  .mapSkeletonSpinnerDot,
+  .mapLoadingDot {
+    animation: none;
+    opacity: 0.9;
+  }
 }
 
 /* POI category toggles — a small pill stack, bottom-right of the map. */
@@ -1121,6 +1262,8 @@ input[type="range"] {
 
 .landmarkCardHead strong {
   font-family: var(--serif);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
   font-size: 1.02rem;
   line-height: 1.25;
 }
@@ -1169,6 +1312,8 @@ input[type="range"] {
 .landmarkNearby h4 {
   margin: 0 0 6px;
   font-family: var(--serif);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
   font-size: 0.86rem;
   color: var(--ink);
 }
@@ -1330,6 +1475,8 @@ input[type="range"] {
 
 .mapFallback strong {
   font-family: var(--serif);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
   font-size: 1.15rem;
 }
 
@@ -1365,6 +1512,8 @@ input[type="range"] {
   background: transparent;
   color: var(--paper);
   font-family: var(--serif, inherit);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
   font-size: 0.85rem;
   letter-spacing: 0.03em;
   cursor: pointer;
@@ -1453,6 +1602,8 @@ input[type="range"] {
 .mapHeroCard strong {
   display: block;
   font-family: var(--serif);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
   font-size: 1.02rem;
   line-height: 1.25;
 }
@@ -3248,6 +3399,14 @@ html[data-theme="dark"][data-legacy="1"] {
   --muted: #cfc8b4;
   --line: #6d6a5c;
   --color-border: var(--line);
+}
+
+/* — Viral mechanics are optional (PRD: "a Boomer never sees a Chaos Score").
+     Legacy Mode hides every chaos surface — the feed badge and the crawl-story
+     panel — via the same data-legacy flag the rest of the mode keys on. */
+html[data-legacy="1"] .feedChaos,
+html[data-legacy="1"] .storyChaos {
+  display: none;
 }
 
 /* — Stronger focus rings: 2px brass outline everywhere already, Legacy Mode
