@@ -33,11 +33,14 @@ type PubMapCanvasProps = {
   onLandmarkSelect?: (landmark: Landmark | null) => void;
 };
 
-// CARTO vector GL styles — free, keyless, and their `carto.streets` source
-// carries a `building` source-layer with render_height for fill-extrusion.
+// OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
+// data (free for commercial use, unlike CARTO's basemaps), and OpenMapTiles
+// schema: a `building` source-layer with `render_height` for our 3-D extrusion.
+// "liberty" is a rich, colourful consumer-map look (land-use tints, POI labels,
+// road hierarchy); "dark" matches our candle-lit night mode.
 const MAP_STYLES = {
-  dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-  light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  dark: "https://tiles.openfreemap.org/styles/dark",
+  light: "https://tiles.openfreemap.org/styles/liberty",
 } as const;
 
 // PRD camera: pitched, slightly rotated London (londonszn uses 42/-12).
@@ -443,16 +446,19 @@ export default function PubMapCanvas({
       });
 
       // --- 3-D buildings, extruded from the basemap's own building layer so
-      // the City and Canary Wharf read as skyline when you fly in.
+      // the City and Canary Wharf read as skyline when you fly in. If the style
+      // already ships its own extrusion (OpenFreeMap Liberty has `building-3d`),
+      // use that rather than stacking a second layer on top of it.
       const styleLayers = map.getStyle().layers;
       const firstSymbolId = styleLayers.find((layer) => layer.type === "symbol")?.id;
+      const hasExtrusion = styleLayers.some((layer) => layer.type === "fill-extrusion");
       const buildingLayer = styleLayers.find(
         (layer) =>
           layer.type === "fill" &&
           "source-layer" in layer &&
           layer["source-layer"] === "building",
       );
-      if (buildingLayer && "source" in buildingLayer) {
+      if (!hasExtrusion && buildingLayer && "source" in buildingLayer) {
         addLayerOnce(
           {
             id: "buildings-3d",
@@ -478,6 +484,52 @@ export default function PubMapCanvas({
           firstSymbolId,
         );
       }
+
+      // --- London Underground / Overground / DLR / Elizabeth / Tram lines: the
+      // real coloured transit network (open TfL/OSM geometry, official Colour
+      // Standard hexes baked into each feature). A soft casing lifts every line
+      // off the base; the colour layer sits under the pins. Northern's spec
+      // black is remapped to light grey on the night map so it stays visible.
+      // Toggled together with the Tube roundels.
+      if (!map.getSource("tube-lines")) {
+        map.addSource("tube-lines", {
+          type: "geojson",
+          data: "/data/tfl_lines.json",
+          attribution: "Rail lines © TfL / OpenStreetMap contributors (ODbL)",
+        });
+      }
+      const tubeVisibility: "none" | "visible" = poiHiddenRef.current.tube
+        ? "none"
+        : "visible";
+      addLayerOnce({
+        id: "tube-lines-casing",
+        type: "line",
+        source: "tube-lines",
+        minzoom: 9.5,
+        layout: { "line-cap": "round", "line-join": "round", visibility: tubeVisibility },
+        paint: {
+          "line-color": dark ? "rgba(9,15,12,0.6)" : "rgba(255,255,255,0.8)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 2.4, 13, 5.5, 16, 9],
+          "line-opacity": 0.75,
+        },
+      });
+      addLayerOnce({
+        id: "tube-lines-color",
+        type: "line",
+        source: "tube-lines",
+        minzoom: 9.5,
+        layout: { "line-cap": "round", "line-join": "round", visibility: tubeVisibility },
+        paint: {
+          "line-color": [
+            "case",
+            ["==", ["get", "color"], "#000000"],
+            dark ? "#c9c9c9" : "#000000",
+            ["get", "color"],
+          ],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 1.1, 13, 3, 16, 5],
+          "line-opacity": ["interpolate", ["linear"], ["zoom"], 9.5, 0.7, 13, 0.95],
+        },
+      });
 
       // --- Designed marker images: landmark pictograms + TfL symbols, re-tinted
       // from the live theme tokens (a setStyle wipes them, so re-register here).
@@ -1009,6 +1061,11 @@ export default function PubMapCanvas({
     setFilter("pois-transport-major", transportFilter(poiHidden, true));
     setFilter("pois-transport-minor", transportFilter(poiHidden, false));
     setFilter("pois-transport-label", transportAll);
+    // The coloured tube-line network toggles with the Tube roundels.
+    const tubeVisibility = poiHidden.tube ? "none" : "visible";
+    for (const layer of ["tube-lines-casing", "tube-lines-color"]) {
+      if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
+    }
   }, [poiHidden, mapReady]);
 
   // Route + selection ring → sources/filter.
