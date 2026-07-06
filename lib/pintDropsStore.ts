@@ -8,6 +8,7 @@
 import sharp from "sharp";
 
 import type { Provenance } from "@/lib/curation";
+import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
 import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
 import {
@@ -107,27 +108,15 @@ export function validatePhoto(type: string, size: number): string | null {
  * Content-sniff the leading bytes against the declared MIME so a client can't
  * pass the type/size check with a mislabelled or crafted file (e.g. a script
  * renamed .jpg). Pure so it is testable without a real File. JPEG = FF D8 FF,
- * PNG = 89 50 4E 47, WebP = "RIFF"....\"WEBP" (bytes 8..11). Unknown MIME is
- * rejected — validatePhoto has already gated the allow-list, this is defence
- * in depth on the same allow-list.
+ * PNG = 89 50 4E 47 0D 0A 1A 0A, WebP = "RIFF"....\"WEBP" (bytes 8..11).
+ * Unknown MIME is rejected — validatePhoto has already gated the allow-list,
+ * this is defence in depth on the same allow-list.
+ *
+ * Re-exported from lib/imageSafety.ts (Issue #33), which is the pure,
+ * dependency-free home for magic-byte detection AND metadata stripping. Kept
+ * as a named export here too so existing callers/tests are unaffected.
  */
-export function magicBytesOk(bytes: Uint8Array, mime: string): boolean {
-  const at = (i: number) => bytes[i];
-  switch (mime) {
-    case "image/jpeg":
-      return at(0) === 0xff && at(1) === 0xd8 && at(2) === 0xff;
-    case "image/png":
-      return at(0) === 0x89 && at(1) === 0x50 && at(2) === 0x4e && at(3) === 0x47;
-    case "image/webp":
-      // "RIFF" at 0..3 and "WEBP" at 8..11.
-      return (
-        at(0) === 0x52 && at(1) === 0x49 && at(2) === 0x46 && at(3) === 0x46 &&
-        at(8) === 0x57 && at(9) === 0x45 && at(10) === 0x42 && at(11) === 0x50
-      );
-    default:
-      return false;
-  }
-}
+export const magicBytesOk = magicBytesOkPure;
 
 function admin() {
   const client = getSupabaseAdmin();
@@ -476,12 +465,42 @@ export async function uploadPhoto(
   const invalid = validatePhoto(file.type, file.size);
   if (invalid) throw new Error(invalid);
 
-  // Read the bytes once, sniff the signature, then normalize. A
+  // Read the bytes once, sniff the signature, then strip + normalize. A
   // mislabelled/crafted file that passed the MIME check is rejected here with
   // the same user-safe "Photo must…" error path (route → 400).
   const buffer = new Uint8Array(await file.arrayBuffer());
   if (!magicBytesOk(buffer, file.type)) {
     throw new Error("Photo must be a JPEG, PNG, or WebP image.");
+  }
+
+  // Issue #33: pure-TypeScript, dependency-free metadata strip (JPEG segment /
+  // PNG chunk / WebP RIFF-chunk rewrite — see lib/imageSafety.ts) BEFORE the
+  // sharp re-encode below. This is an explicit, auditable belt-and-braces
+  // layer on top of sharp's own metadata drop: it never trusts a native
+  // binary to be the only thing standing between an uploaded file and a
+  // leaked GPS tag, and it fails closed on a malformed/truncated byte stream
+  // that magicBytesOk's leading-signature check wouldn't catch. Order:
+  // magic-byte check → strip → normalize → upload. A strip failure is FAIL
+  // CLOSED — reject, never fall through to the original (unstripped) bytes.
+  const kind = detectImageKind(buffer);
+  if (!kind) {
+    // Should be unreachable given magicBytesOk just passed, but keep the
+    // fail-closed guarantee explicit rather than assuming the two checks can
+    // never disagree.
+    throw new Error("Photo must be a JPEG, PNG, or WebP image.");
+  }
+  let stripped: Uint8Array;
+  try {
+    stripped = stripImageMetadata(buffer, kind);
+  } catch (err) {
+    log("error", "pint_drops.metadata_strip_failed", {
+      slot,
+      venueId,
+      dropId,
+      contentType: file.type,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw new Error("Photo must be a valid, uncorrupted image.");
   }
 
   // PRD §7.2: strip EXIF (incl. GPS) + normalize BEFORE upload. A processing
@@ -490,7 +509,7 @@ export async function uploadPhoto(
   // to log (opaque ids); the image bytes are NEVER logged.
   let processed: Buffer;
   try {
-    processed = await normalizeImage(buffer);
+    processed = await normalizeImage(stripped);
   } catch (err) {
     log("error", "pint_drops.image_normalize_failed", {
       slot,
