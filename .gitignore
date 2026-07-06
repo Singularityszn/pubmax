@@ -11,3 +11,13 @@ scripts/__pycache__/
 .context/
 test-results/
 playwright-report/
+
+# Local agent / skill / MCP tooling — never part of the app, machine-specific
+.agents/
+.claude/
+.mcp.json
+.playwright-mcp/
+skills-lock.json
+skill_disabled.md
+skill_in_pub.md
+skills_used_global.md
