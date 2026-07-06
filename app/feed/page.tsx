@@ -15,6 +15,7 @@ import {
   type FeedItem,
   type PintDropDTO,
 } from "@/lib/feed";
+import { normalizeHandle } from "@/lib/profiles";
 import {
   REACTION_KEYS,
   type ReactionKey,
@@ -103,6 +104,15 @@ export default function FeedPage() {
   // The viewer's stable anon id, read once (lazy init, never in an effect).
   const [actorId] = useState<string>(() => getAnonId());
 
+  // The viewer's own handle (localStorage `pubmax_handle`), read after mount so
+  // the server render and hydration agree, and the normalized set of handles
+  // they follow (fetched once from /api/profiles/<handle>/following). Together
+  // they power the Friends lane: null handle or an empty set ⇒ the lane is empty
+  // and the page shows a "follow people" prompt. `null` following = not yet
+  // loaded (so we don't flash the empty state before the fetch resolves).
+  const [myHandle, setMyHandle] = useState("");
+  const [followingHandles, setFollowingHandles] = useState<Set<string> | null>(null);
+
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/pint-drops", { signal: controller.signal })
@@ -124,12 +134,76 @@ export default function FeedPage() {
     return () => controller.abort();
   }, []);
 
+  // Read the viewer's own handle after mount (the server can't know
+  // localStorage). Done in an async step, not the synchronous effect body, so it
+  // satisfies react-hooks/set-state-in-effect (mirrors the /u/[handle] page).
+  useEffect(() => {
+    let active = true;
+    async function loadHandle() {
+      try {
+        const handle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
+        if (active) setMyHandle(handle);
+      } catch {
+        // Storage disabled → stays anonymous; the Friends lane shows its prompt.
+      }
+    }
+    void loadHandle();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch the handles the viewer follows once their handle is known. Best-effort
+  // and fail-soft: any failure (or no handle) resolves to an empty set, so the
+  // Friends lane falls through to its "follow people" state — never a crash.
+  // setState only runs inside the async callback (never the effect body).
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadFollowing() {
+      // No handle (viewer anonymous): settle to a known-empty set so the Friends
+      // lane renders its prompt rather than waiting on a fetch that never fires.
+      // Done in this async step (not the sync effect body) per react-hooks rules.
+      if (!myHandle) {
+        setFollowingHandles(new Set());
+        return;
+      }
+      try {
+        const res = await fetch(`/api/profiles/${encodeURIComponent(myHandle)}/following`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as { following?: unknown };
+        const list = Array.isArray(data.following) ? data.following : [];
+        const set = new Set<string>();
+        for (const h of list) {
+          const norm = normalizeHandle(typeof h === "string" ? h : "");
+          if (norm) set.add(norm);
+        }
+        setFollowingHandles(set);
+      } catch (err) {
+        if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+          return; // expected on unmount / handle change — not an error to surface
+        }
+        // Fail-soft: an empty set drives the Friends lane's empty state.
+        setFollowingHandles(new Set());
+      }
+    }
+    void loadFollowing();
+    return () => controller.abort();
+  }, [myHandle]);
+
   // "Load more" is cumulative: walk `paginate` from the top, chaining each
   // step's nextCursor into the next call, for `pagesLoaded` pages. Cursor
   // pagination stays the engine (each step advances by the last item's
   // createdAt|id, never an offset); `nextCursor` being non-null after the last
   // revealed page is what shows the Load-more button.
-  const filtered = useMemo(() => applyFeedFilter(items, filter), [items, filter]);
+  const filtered = useMemo(
+    () =>
+      applyFeedFilter(items, filter, {
+        followingHandles: followingHandles ?? undefined,
+      }),
+    [items, filter, followingHandles],
+  );
   const { visible, nextCursor } = useMemo(() => {
     const acc: FeedItem[] = [];
     let pageCursor: string | null = null;
@@ -260,6 +334,15 @@ export default function FeedPage() {
   }
 
   const isEmpty = status === "error" || (status === "ready" && filtered.length === 0);
+  // The Friends lane is empty *because the viewer follows nobody* (or is
+  // anonymous), not because the bar is quiet — show a follow-people prompt with a
+  // route to /discover instead of the generic "no pints" copy. Guarded on the
+  // following set having loaded, so we don't flash it before the fetch resolves.
+  const friendsEmpty =
+    filter === "friends" &&
+    status === "ready" &&
+    followingHandles !== null &&
+    (followingHandles.size === 0 || filtered.length === 0);
 
   return (
     <main className="feedShell">
@@ -300,6 +383,18 @@ export default function FeedPage() {
             </div>
           ))}
         </div>
+      ) : friendsEmpty ? (
+        <section className="feedEmpty">
+          <p className="feedEmptyEyebrow">Your crew</p>
+          <h2>Your Friends feed is empty.</h2>
+          <p className="feedEmptyBody">
+            Follow people to fill your Friends feed — every pint they drop lands
+            here. Find drinkers to follow on the map or over on Discover.
+          </p>
+          <Link href="/discover" className="feedEmptyCta">
+            Find people to follow
+          </Link>
+        </section>
       ) : isEmpty ? (
         <section className="feedEmpty">
           <p className="feedEmptyEyebrow">Quiet at the bar</p>

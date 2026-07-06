@@ -27,6 +27,12 @@ export type FollowStore = {
   isFollowing(followerHandle: string, followeeHandle: string): Promise<boolean>;
   /** Follower + following counts for a handle (0/0 for an unknown handle). */
   counts(handle: string): Promise<FollowCounts>;
+  /**
+   * The HANDLES this handle follows (its followees). Resolves handle → profile →
+   * followee edges → followee profile handles. Returns [] for an unknown handle.
+   * Powers the Friends feed lane (lib/feed.ts).
+   */
+  listFollowing(handle: string): Promise<string[]>;
 };
 
 const TABLE = "follows";
@@ -108,11 +114,35 @@ export const supabaseFollowStore: FollowStore = {
     if (following.error) throw new Error(following.error.message);
     return { followers: followers.count ?? 0, following: following.count ?? 0 };
   },
+
+  async listFollowing(handle) {
+    const profile = await supabaseProfileStore.getByHandle(handle);
+    if (!profile) return [];
+    // One join: the followee rows this profile follows, embedding each followee's
+    // handle from public.profiles (the FK follows.followee_id → profiles.id).
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("followee:followee_id ( handle )")
+      .eq("follower_id", profile.id);
+    if (error) throw new Error(error.message);
+    const handles: string[] = [];
+    for (const row of (data ?? []) as { followee?: { handle?: unknown } | null }[]) {
+      const h = normalizeHandle(String(row.followee?.handle ?? ""));
+      if (h) handles.push(h);
+    }
+    return handles;
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
 // Edges as a Set of "followerId>followeeId" keys. Resets on restart.
 const memoryEdges = new Set<string>();
+// Reverse index: profile id → normalized handle, so listFollowing can resolve a
+// followee id (all the edge set carries) back to a handle without a scan or a
+// getById on ProfileStore. Filled from the handles already in scope whenever an
+// edge is created (follow ensures both profiles), and never trimmed — an id that
+// once had a handle keeps it for the process lifetime.
+const memoryHandleById = new Map<string, string>();
 
 function edgeKey(followerId: string, followeeId: string): string {
   return `${followerId}>${followeeId}`;
@@ -125,6 +155,9 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
       const follower = await profiles.ensure(followerHandle);
       const followee = await profiles.ensure(followeeHandle);
       memoryEdges.add(edgeKey(follower.id, followee.id));
+      // Record both ids' handles so listFollowing can map a followee id → handle.
+      memoryHandleById.set(follower.id, normalizeHandle(follower.handle));
+      memoryHandleById.set(followee.id, normalizeHandle(followee.handle));
       return true;
     },
     async unfollow(followerHandle, followeeHandle) {
@@ -151,12 +184,27 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
       }
       return { followers, following };
     },
+    async listFollowing(handle) {
+      const profile = await profiles.getByHandle(handle);
+      if (!profile) return [];
+      // Collect the followee ids this profile follows, then resolve each back to
+      // its handle via the reverse index (the edge set carries ids only).
+      const handles: string[] = [];
+      for (const key of memoryEdges) {
+        const [from, to] = key.split(">");
+        if (from !== profile.id) continue;
+        const h = memoryHandleById.get(to);
+        if (h) handles.push(h);
+      }
+      return handles;
+    },
   };
 }
 
 export const memoryFollowStore: FollowStore = makeMemoryFollowStore(memoryProfileStore);
 
-/** Test-only: clear the in-memory edge set between cases. */
+/** Test-only: clear the in-memory edge set + handle index between cases. */
 export function __resetMemoryFollows(): void {
   memoryEdges.clear();
+  memoryHandleById.clear();
 }
