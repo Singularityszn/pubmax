@@ -5,11 +5,29 @@ import { Check, Copy, MapPin } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import "./crawls.css";
 
 function formatGbp(value: number): string {
   return `£${value.toFixed(2)}`;
+}
+
+// Turn a camelCase CrawlStyle ("writerTrail") into a human badge label
+// ("Writer Trail"). Single-word styles ("heritage") just get capitalised.
+function styleLabel(style: string): string {
+  return style
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (char) => char.toUpperCase());
+}
+
+// Reproduce a curated crawl on the map — same share-URL shape as planCrawlHref,
+// but the ids come straight off the pinned curated entry (no story to unpack).
+function curatedCrawlHref(crawl: CuratedCrawl): string {
+  const params = new URLSearchParams();
+  params.set("mode", "build");
+  params.set("pubs", crawl.venueIds.join(","));
+  return `/map?${params.toString()}`;
 }
 
 // Reproduce a crawl on the map from a story's stop ids, matching the existing
@@ -51,16 +69,40 @@ export default function CrawlsPage() {
       {story ? (
         <CrawlPoster story={story} copied={copied} onCopy={copyShareLink} />
       ) : (
-        <section className="crawlEmpty">
-          <p className="crawlEyebrow">Crawl Story</p>
-          <h1>No crawl to show here yet.</h1>
+        <section className="crawlEmpty" aria-labelledby="crawlsHeading">
+          <p className="crawlEyebrow">Crawls worth walking</p>
+          <h1 id="crawlsHeading">Every pint has a story.</h1>
           <p className="crawlEmptyBody">
             A Crawl Story is a shareable poster of a London pub crawl — the stops, the prices,
-            the vibe. Build one on the map, hit <strong>Save as story</strong>, and share the
-            link.
+            the vibe. Here are a few routes worth the walk, handed down from the old hands who
+            drank them first. Pick one, or start your own on the map.
+          </p>
+
+          <ul className="curatedGrid" aria-label="Curated crawls worth walking">
+            {curatedCrawls.map((crawl) => (
+              <li key={crawl.id} className="curatedCard">
+                <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
+                <h2 className="curatedName">{crawl.name}</h2>
+                <p className="curatedBlurb">{crawl.blurb}</p>
+                <p className="curatedMeta">
+                  {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+                </p>
+                <Link
+                  href={curatedCrawlHref(crawl)}
+                  className="curatedLink"
+                  aria-label={`Plan the ${crawl.name} crawl on the map`}
+                >
+                  Plan this crawl →
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          <p className="crawlEmptyBody crawlOwnLead">
+            Or build your own — pick the pubs, pass the round on.
           </p>
           <Link href="/map" className="crawlPrimaryBtn">
-            <MapPin size={16} aria-hidden="true" /> Build a crawl on the map
+            <MapPin size={16} aria-hidden="true" /> Build your own crawl on the map
           </Link>
         </section>
       )}
