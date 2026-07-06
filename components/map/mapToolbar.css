@@ -1,0 +1,42 @@
+/* Mobile thumb-reach pass for the floating map chrome (GH #17 user story 17).
+   Scoped entirely to ≤640px so desktop/tablet layout (owned by globals.css)
+   is untouched. `.mapToolbar` / `.mapLegend` themselves stay globals.css's —
+   this file only adds a collision-avoidance behavior driven by the sheet's
+   snap state, expressed as a `.sheet-full` class PubMap.tsx puts on the
+   shared `.appShell` ancestor (see components/PubMap.tsx) while the venue
+   bottom-sheet is at its most-expanded snap. */
+@media (max-width: 640px) {
+  /* At the sheet's "full" snap it covers ~92% of the viewport height, so the
+     floating toolbar (top) and legend (bottom) would otherwise sit uselessly
+     behind it — an unreachable, overlapping control a thumb can't get to.
+     Sliding the toolbar up and out and fading the legend keeps the map's
+     floating chrome from ever fighting the expanded sheet for space, and
+     both slide right back the moment the sheet drops to half/peek. */
+  .appShell.sheet-full .mapToolbar {
+    transform: translate(-50%, -120%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  .appShell.sheet-full .mapLegend {
+    transform: translateY(120%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  .mapToolbar,
+  .mapLegend {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .appShell.sheet-full .mapToolbar,
+    .appShell.sheet-full .mapLegend,
+    .mapToolbar,
+    .mapLegend {
+      transition: none;
+    }
+  }
+}

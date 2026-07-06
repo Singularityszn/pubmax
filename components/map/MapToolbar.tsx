@@ -4,6 +4,8 @@ import { Route, Search, X } from "lucide-react";
 
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 
+import "./mapToolbar.css";
+
 // The only chrome on the clean, full-bleed map: search, favorite-pint picker,
 // and a "Plan a crawl" toggle. Everything else (filters, route, venue detail)
 // lives in drawers that slide in only when the user acts.

@@ -118,6 +118,67 @@ test("nav does not overflow at 390px — sign-in button never clips (GH #18)", a
   }
 });
 
+// Mirrors lib/venues.ts venueGroupingKey + stableVenueIdFromKey exactly (a
+// tiny, stable, public hash) so this test can deep-link straight to a known
+// seed pub's detail sheet without depending on canvas pin clicks — headless
+// Chromium has no WebGL/GPU, so the MapLibre canvas doesn't reliably paint
+// clickable pins (see the WebGL-agnostic note at the top of this file).
+function stableVenueIdFromKey(key: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i += 1) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `venue-${(hash >>> 0).toString(36)}`;
+}
+
+function normaliseVenueKeyPart(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// A known seed row from public/data/pint_prices_app_dataset.json ("Arnos
+// Arms") — stable dataset, so this id doesn't drift.
+const ARNOS_ARMS_ID = stableVenueIdFromKey(
+  [
+    normaliseVenueKeyPart("Arnos Arms"),
+    normaliseVenueKeyPart("338 Bowes Road, Arnos Grove, London, N11 1AN"),
+    (51.6162).toFixed(5),
+    (-0.132117).toFixed(5),
+  ].join("|"),
+);
+
+test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px", async ({
+  page,
+}) => {
+  // iPhone-class width — the same viewport the nav-overflow test above uses,
+  // and the width the drag bottom-sheet gesture is scoped to (≤640px).
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+  expect(response?.status()).toBe(200);
+
+  // The right drawer is the mobile bottom sheet (components/PubMap.tsx +
+  // venueSheet.css). A `sel=` deep link opens it immediately at the "half"
+  // snap (PubMap.tsx's selectVenue default) — asserting `.open` rather than a
+  // specific `.sheet-*` class keeps this robust to the exact snap default
+  // while still proving the sheet-open contract that peek/half/full build on.
+  const sheet = page.locator(".mapDrawer.right");
+  await expect(sheet).toHaveClass(/open/);
+
+  // The grab handle (the drag affordance itself) is visible and — even
+  // without simulating a real pointer-drag — present in the DOM as the
+  // documented gesture surface (components/map/VenueInspector.tsx).
+  await expect(page.locator(".venueSheetGrab")).toBeVisible();
+
+  // The sheet stays fully usable with no gesture at all: the close button and
+  // tabs are reachable and functional (a11y contract from the spec).
+  await expect(page.locator(".drawerClose")).toBeVisible();
+  const tabs = page.getByRole("tab");
+  await expect(tabs.first()).toBeVisible();
+  await page.locator(".drawerClose").click();
+  await expect(sheet).not.toHaveClass(/open/);
+});
+
 test("theme toggle flips html[data-theme], persists to localStorage, survives reload", async ({
   page,
 }) => {

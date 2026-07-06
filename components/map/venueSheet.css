@@ -4,12 +4,24 @@
    there is no desktop layout regression. Uses the shared app tokens
    (--brass, --ink, --line, --paper, --muted, --panel-raised, --radius-sm). */
 
-/* A short grabber bar gives the panel a bottom-sheet affordance on phones. */
+/* A short grabber bar gives the panel a bottom-sheet affordance on phones.
+   The visual bar (.venueSheetGrab) stays a thin 4px line; the surrounding
+   .venueSheetGrabZone is the real pointer target — a much taller strip so a
+   thumb doesn't need pinpoint accuracy to start a drag (WCAG 2.5.5-ish target
+   size, even though this control isn't in the accessibility tree itself). */
+.venueSheetGrabZone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  margin: -6px 0 4px;
+  touch-action: none; /* the sheet owns vertical drags here, not page/map scroll */
+}
+
 .venueSheetGrab {
   display: block;
   width: 38px;
   height: 4px;
-  margin: 0 auto 10px;
   border-radius: 999px;
   background: var(--line);
 }
@@ -85,3 +97,105 @@
     transition: none;
   }
 }
+
+/* ── Mobile drag bottom-sheet (GH #17) ───────────────────────────────────────
+   Gesture + snap points are active only ≤640px, matching the breakpoint the
+   rest of the mobile chrome uses (mobileNav.css, siteNav.css). Above that
+   width the panel stays the existing, un-draggable side drawer — none of the
+   rules below apply (no .sheet-* class is ever added by PubMap on desktop
+   widths, but we still scope by media query as a hard belt-and-braces cut). */
+@media (max-width: 640px) {
+  /* .mapDrawer.right already owns position/width/the base transition and a
+     `max-height: 82vh` ceiling (globals.css, ≤768px) — here we only add the
+     resting transform for each snap state, so the sheet settles to
+     peek/half/full instead of just open/closed. globals.css's own
+     `transform: translateY(100%)` (closed) and `.open { transform:
+     translateY(0) }` still apply while detailOpen is false / as the base
+     "open" position — these rules fire once `.open` is also present (i.e.
+     detailOpen is true), overriding its translateY per snap. Values are
+     translateY DOWN from that 82vh-tall box's own top, so "full" is 0 (the
+     whole 82vh shows, same as the pre-existing default) and smaller snaps
+     push it further down to reveal only a slice of it. */
+  .mapDrawer.right.open.sheet-full {
+    transform: translateY(0);
+  }
+
+  .mapDrawer.right.open.sheet-half {
+    /* Reveal ~55vh of the 82vh-tall sheet. */
+    transform: translateY(27vh);
+  }
+
+  .mapDrawer.right.open.sheet-peek {
+    /* Reveal ~14vh — grabber + title + price, per the PRD's "peek" spec. */
+    transform: translateY(68vh);
+  }
+
+  /* While actively dragging, PubMap sets an inline transform (a live px
+     offset) and `transition: none` directly on the element — this class is
+     a marker for disabling ancillary motion (nothing currently needs it,
+     but it keeps the "no transition mid-drag" contract visible in one place
+     for future rules) and for disabling text selection while dragging. */
+  .mapDrawer.right.sheet-dragging {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* The header (grabber + close button) is a drag surface too, not just the
+     grabber itself — a slightly bigger, more forgiving target. */
+  .sheetDragHandle {
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .mapDrawer.right.sheet-dragging .sheetDragHandle {
+    cursor: grabbing;
+  }
+
+  /* Snap without an animated transition for reduced-motion users — the sheet
+     still moves between snaps, just instantly rather than eased. */
+  @media (prefers-reduced-motion: reduce) {
+    .mapDrawer.right {
+      transition: none;
+    }
+  }
+}
+
+/* ── Primary-action tab-bar clearance (user story 15) ────────────────────────
+   The mobile bottom tab bar (components/nav/mobileNav.css) is ~62px tall plus
+   env(safe-area-inset-bottom), fixed to the viewport bottom. The sheet sits
+   above it (higher z-index) at every snap point, so the tab bar can never
+   visually cover the sheet — but without this padding the sheet's own primary
+   CTA could still render flush with the very bottom edge, right where the tab
+   bar sits, leaving no visual separation and risking a mis-tap between the
+   two fixed-position layers. Reserve room for the tab bar's height on every
+   scrollable, primary-CTA-bearing tab panel inside the sheet. */
+@media (max-width: 640px) {
+  .venueTabPanel {
+    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 12px);
+  }
+
+  /* The Pints tab's sticky log bar (globals.css `.logDropBar`, sticky at
+     `bottom: 8px` under ≤1050px) needs its own clearance since it pins to the
+     BOTTOM of the scroll container, not the natural document flow the panel
+     padding above covers. */
+  .logDropBar {
+    bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 8px) !important;
+  }
+}
+
+/* ── Large-text / 200% zoom pass (user story 18) ─────────────────────────────
+   Fixed px heights clip under large text; rem-based sizing and no fixed
+   max-height on the tab strip lets the strip and its labels grow with the
+   user's font size instead of clipping. */
+@media (max-width: 640px) {
+  .venueTabs {
+    flex-wrap: wrap;
+    max-height: none;
+  }
+
+  .venueTab {
+    min-height: 2.75rem;
+    height: auto;
+  }
+}
+

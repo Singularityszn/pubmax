@@ -66,6 +66,14 @@ type VenueInspectorProps = {
   latestContributorPrice: number | null | undefined;
   onToggleStop: (id: string) => void;
   pintDrops: PintDropsState;
+  // The mobile bottom-sheet drag gesture (GH #17) lives in PubMap.tsx (the
+  // owner of the .mapDrawer seam); this component only exposes the grab
+  // handle as a pointer-event surface so the drag can start from the visible
+  // grabber, not just the header bar above it. All three are no-ops on
+  // desktop (PubMap gates the gesture to ≤640px before anything fires).
+  onGrabDragStart?: (event: React.PointerEvent<HTMLElement>) => void;
+  onGrabDragMove?: (event: React.PointerEvent<HTMLElement>) => void;
+  onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
 };
 
 export default function VenueInspector({
@@ -75,6 +83,9 @@ export default function VenueInspector({
   latestContributorPrice,
   onToggleStop,
   pintDrops,
+  onGrabDragStart,
+  onGrabDragMove,
+  onGrabDragEnd,
 }: VenueInspectorProps) {
   const { dropsByVenueId, composerOpen, setComposerOpen, dropMsg, reportDrop } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
@@ -164,7 +175,19 @@ export default function VenueInspector({
 
   return (
     <section className="venueInspector">
-      <span className="venueSheetGrab" aria-hidden="true" />
+      {/* The grab handle is the primary drag surface on mobile — a generous
+          hit area (not just the thin visual bar) so it's easy to grab with a
+          thumb. Pointer handlers are optional props; when absent (e.g. any
+          future non-map usage of this component) it's simply not draggable. */}
+      <div
+        className="venueSheetGrabZone"
+        onPointerDown={onGrabDragStart}
+        onPointerMove={onGrabDragMove}
+        onPointerUp={onGrabDragEnd}
+        onPointerCancel={onGrabDragEnd}
+      >
+        <span className="venueSheetGrab" aria-hidden="true" />
+      </div>
       <div className="inspectorTitle">
         <Waves size={17} />
         <span>Venue Detail</span>
