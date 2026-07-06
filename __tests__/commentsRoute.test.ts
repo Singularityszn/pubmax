@@ -94,7 +94,7 @@ describe("POST /api/pint-drops/comments", () => {
     const res = await post({ dropId: "drop-1", handle: "ale", body: "grand pint" });
     expect(res.status).toBe(201);
     const { comment } = await res.json();
-    expect(Object.keys(comment).sort()).toEqual(["body", "createdAt", "handle", "id"]);
+    expect(Object.keys(comment).sort()).toEqual(["body", "createdAt", "handle", "id", "parentId"].sort());
     expect(comment.handle).toBe("ale");
     expect(comment.body).toBe("grand pint");
     expect(typeof comment.createdAt).toBe("string");
@@ -166,7 +166,7 @@ describe("POST /api/pint-drops/comments", () => {
     );
     const json = await res.json();
     const blob = JSON.stringify(json);
-    expect(Object.keys(json.comment).sort()).toEqual(["body", "createdAt", "handle", "id"]);
+    expect(Object.keys(json.comment).sort()).toEqual(["body", "createdAt", "handle", "id", "parentId"].sort());
     expect(blob).not.toMatch(/actor_?hash/i);
     expect(blob).not.toMatch(/"status"/);
     // The derived hash of the IP must not appear anywhere in the body.
@@ -177,7 +177,7 @@ describe("POST /api/pint-drops/comments", () => {
     await post({ dropId: "drop-dto", handle: "ale", body: "clean read" });
     const { comments } = await (await list("drop-dto")).json();
     const blob = JSON.stringify(comments);
-    expect(Object.keys(comments[0]).sort()).toEqual(["body", "createdAt", "handle", "id"]);
+    expect(Object.keys(comments[0]).sort()).toEqual(["body", "createdAt", "handle", "id", "parentId"].sort());
     expect(blob).not.toMatch(/actor_?hash/i);
     expect(blob).not.toMatch(/"status"/);
   });

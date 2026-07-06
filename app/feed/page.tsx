@@ -18,6 +18,7 @@ import {
   type PintDropDTO,
 } from "@/lib/feed";
 import { normalizeHandle } from "@/lib/profiles";
+import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
 import {
   REACTION_KEYS,
   type ReactionKey,
@@ -125,6 +126,18 @@ export default function FeedPage() {
   // to reveal, so once we hit the bottom the observer has nothing to trip on.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  // ── Live-ness (issue #37) ───────────────────────────────────────────────────
+  // New drops that landed since the last view, BUFFERED rather than injected, so
+  // a live update never yanks the reader's scroll. A subtle "N new pints" pill
+  // reveals them on tap. The realtime subscription is a SIGNAL ONLY: on an event
+  // we refetch page-1 through the SAME filtered GET /api/pint-drops (so #29
+  // visibility/anonymity re-applies) and diff for genuinely-new visible items.
+  const [pendingItems, setPendingItems] = useState<FeedItem[]>([]);
+  // Every drop id we've already placed on screen OR buffered — the dedupe set the
+  // diff checks against, so a refetch never double-counts. Seeded from the
+  // initial load and each reveal.
+  const knownIds = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/pint-drops", { signal: controller.signal })
@@ -134,6 +147,9 @@ export default function FeedPage() {
         return Array.isArray(data.drops) ? data.drops.map(normalizePintDrop) : [];
       })
       .then((normalized) => {
+        // Seed the live dedupe set with everything we loaded, so the first live
+        // refetch only surfaces drops that arrived AFTER this load.
+        for (const it of normalized) knownIds.current.add(it.id);
         setItems(normalized);
         setStatus("ready");
       })
@@ -145,6 +161,60 @@ export default function FeedPage() {
       });
     return () => controller.abort();
   }, []);
+
+  // Live subscription (issue #37). A new-drop event is a SIGNAL ONLY — we never
+  // read the realtime payload (it carries the raw row, which could leak a
+  // hidden/anonymous drop). Instead we refetch page-1 through the same filtered
+  // GET /api/pint-drops the initial load uses (so #29 visibility re-applies) and
+  // BUFFER any genuinely-new visible items into `pendingItems` (dedup via
+  // knownIds), showing a "N new pints" pill rather than jumping the scroll. With
+  // no Supabase env the helper drives this same refetch on a 30s poll instead;
+  // a dropped channel likewise falls back to polling. Never throws.
+  useEffect(() => {
+    const refetchAndBuffer = () => {
+      const controller = new AbortController();
+      fetch("/api/pint-drops", { signal: controller.signal })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+        .then((data: { drops?: PintDropDTO[] }) => {
+          const fresh = (Array.isArray(data.drops) ? data.drops : [])
+            .map(normalizePintDrop)
+            .filter((it) => !knownIds.current.has(it.id));
+          if (fresh.length === 0) return;
+          for (const it of fresh) knownIds.current.add(it.id);
+          // Prepend newest-first; the pill count is the buffer length.
+          setPendingItems((prev) => [...fresh, ...prev]);
+        })
+        .catch(() => {
+          // Best-effort: a failed live refetch just means no new pill this time.
+        });
+    };
+    // Signal-only + poll fallback are the SAME action here.
+    const unsubscribe = subscribeToNewDrops(refetchAndBuffer, { poll: refetchAndBuffer });
+    return unsubscribe;
+  }, []);
+
+  // Reveal buffered live drops on tap: merge them into `items` (they're already
+  // in knownIds) and clear the pill. Prepending keeps them at the top without
+  // disturbing the reader's current position until they choose to look.
+  const revealPending = useCallback(() => {
+    setPendingItems((buffered) => {
+      if (buffered.length > 0) setItems((prev) => [...buffered, ...prev]);
+      return [];
+    });
+  }, []);
+
+  // "X spilling right now" (issue #37): a derived count, not a stream — how many
+  // PINT DROPS were logged in the last hour, off the SAME already-filtered feed
+  // read (so a withheld drop is never counted). Buffered live drops count too
+  // (they're genuinely recent). Recomputed when the feed or buffer changes; the
+  // now-anchored recency is a snapshot per render (no live ticking).
+  const spillingNow = useMemo(
+    () =>
+      countSpillingNow(
+        [...pendingItems, ...items].filter((it) => it.type === "pint_drop"),
+      ),
+    [items, pendingItems],
+  );
 
   // Read the viewer's own handle after mount (the server can't know
   // localStorage). Done in an async step, not the synchronous effect body, so it
@@ -224,12 +294,29 @@ export default function FeedPage() {
   // pagination stays the engine (each step advances by the last item's
   // createdAt|id, never an offset); `nextCursor` being non-null after the last
   // revealed page is what shows the Load-more button.
+  // Fold the loaded reaction summaries into a flat id→count map for the For-You
+  // ranking (a drop with no loaded summary simply scores no reaction bonus). The
+  // ranking's `now` is pinned ONCE per mount (a stable ref) so the For-You order
+  // doesn't reshuffle under the viewer on every render/tick — it stays stable
+  // for the session, matching the "screenshot-worthy, calm" feed intent.
+  const [forYouNow] = useState(() => Date.now());
+  const reactionCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const [id, summary] of Object.entries(summaries)) {
+      let total = 0;
+      for (const n of Object.values(summary.counts)) total += n ?? 0;
+      if (total > 0) counts[id] = total;
+    }
+    return counts;
+  }, [summaries]);
+
   const filtered = useMemo(
     () =>
       applyFeedFilter(items, filter, {
         followingHandles: followingHandles ?? undefined,
+        forYou: { now: forYouNow, reactionCounts },
       }),
-    [items, filter, followingHandles],
+    [items, filter, followingHandles, forYouNow, reactionCounts],
   );
   const { visible, nextCursor } = useMemo(() => {
     const acc: FeedItem[] = [];
@@ -417,9 +504,19 @@ export default function FeedPage() {
         </p>
       </header>
 
-      <PresenceStrip />
+      <PresenceStrip spillingNow={spillingNow} />
 
       <FeedFilters active={filter} onChange={onFilterChange} />
+
+      {/* Live "N new pints" pill (issue #37): reveals buffered new drops on tap
+          rather than yanking the scroll. Hidden when nothing is buffered. */}
+      {pendingItems.length > 0 ? (
+        <button type="button" className="feedNewPill" onClick={revealPending}>
+          {pendingItems.length === 1
+            ? "1 new pint — tap to show"
+            : `${pendingItems.length} new pints — tap to show`}
+        </button>
+      ) : null}
 
       {status === "loading" ? (
         <div className="feedList" aria-hidden="true">

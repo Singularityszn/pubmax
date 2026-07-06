@@ -1,20 +1,25 @@
 // Comments on Pint Drops — the thread that keeps a drop's story going after the
 // night (cc_plan2 §4).
 //
-//   GET  ?dropId=<id>              → { comments: CommentDTO[] }  (visible only)
-//   POST { dropId, handle, body }  → { comment: CommentDTO }     (201)
+//   GET  ?dropId=<id>                        → { comments: CommentDTO[] }  (visible only)
+//   POST { dropId, handle, body, parentId? }  → { comment: CommentDTO }     (201)
+//
+// `parentId` (optional, issue #37) turns a comment into a one-level REPLY under
+// an existing top-level comment on the SAME drop. An invalid parent (unknown /
+// wrong drop / itself a reply) is a client error → 400. Omitting it (or null)
+// keeps today's behaviour exactly: a top-level comment. Additive + versionless.
 //
 // The commenter is unauthenticated: we derive a stable `actor_hash` from the
 // request IP (hashIp(clientIp(request))) for rate-limiting and future
 // moderation only — it is stored, never returned. The public CommentDTO exposes
-// ONLY { id, handle, body, createdAt } (see lib/commentsStore.ts toDTO).
+// ONLY { id, handle, body, createdAt, parentId } (see lib/commentsStore.ts toDTO).
 //
 // A comments API error must NOT break feed rendering: GET degrades to an empty
 // list (listComments is already fail-soft), and the client treats any POST/GET
 // failure as "no comments". Store choice is the usual seam: Supabase when
 // configured, process-memory otherwise.
 
-import { cleanComment, commentsStore } from "@/lib/commentsStore";
+import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsStore";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -45,6 +50,11 @@ export async function POST(request: Request): Promise<Response> {
   const cleaned = cleanComment(body.handle, body.body);
   if (!cleaned.ok) return Response.json({ error: cleaned.error }, { status: 400 });
 
+  // Optional parentId → this is a one-level reply. Empty/absent means top-level
+  // (today's behaviour). The store validates existence/same-drop/top-level and
+  // throws InvalidParentError, which we map to a 400 below.
+  const parentId = readString(body.parentId) || null;
+
   // actor_hash is derived here, never from the client. Used for rate-limiting
   // and future moderation; never part of the public DTO.
   const actorHash = hashIp(clientIp(request));
@@ -62,6 +72,7 @@ export async function POST(request: Request): Promise<Response> {
       handle: cleaned.handle,
       body: cleaned.body,
       actorHash,
+      parentId,
     });
     // Emit seam (best-effort): notify the drop's author that someone commented.
     // The owner handle is resolved server-side (never client-supplied); a miss
@@ -78,7 +89,12 @@ export async function POST(request: Request): Promise<Response> {
       });
     });
     return Response.json({ comment }, { status: 201 });
-  } catch {
+  } catch (err) {
+    // An invalid reply parent is a CLIENT error (400), distinct from a store
+    // outage (503) — an honest failure shape so the client can tell them apart.
+    if (err instanceof InvalidParentError) {
+      return Response.json({ error: err.message }, { status: 400 });
+    }
     // A write failure is non-critical to the feed — the client treats it as
     // "comment didn't post" and keeps rendering the drop.
     return Response.json({ error: "Comments are unavailable." }, { status: 503 });

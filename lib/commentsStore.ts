@@ -21,22 +21,40 @@ import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { cleanText } from "@/lib/textClean";
 
 // The only shape a reader ever sees. Deliberately minimal: no actor_hash, no
-// status, no raw DB columns.
+// status, no raw DB columns. `parentId` (issue #37) is the ONE structural field
+// a reader gets: null for a top-level comment, the parent's id for a one-level
+// reply. It carries the thread shape without leaking anything sensitive, and
+// lets CommentThread render replies as a single indent under their parent
+// (flat-list + parentId is simpler for the client than a nested tree).
 export type CommentDTO = {
   id: string;
   handle: string;
   body: string;
   createdAt: string;
+  parentId: string | null;
 };
 
 // The write payload. actorHash is derived server-side from the request IP; the
-// client never supplies it.
+// client never supplies it. `parentId` (optional) makes this a reply — it must
+// reference a TOP-LEVEL comment on the SAME drop (validated in addComment); one
+// level of nesting only.
 export type NewComment = {
   pintDropId: string;
   handle: string;
   body: string;
   actorHash: string;
+  parentId?: string | null;
 };
+
+// Thrown by addComment when a reply's parentId is invalid — unknown, on a
+// different drop, or itself a reply (two-level nesting is rejected). The route
+// maps this to a 400 (client error), distinct from a 503 store failure.
+export class InvalidParentError extends Error {
+  constructor(message = "That comment can't be replied to.") {
+    super(message);
+    this.name = "InvalidParentError";
+  }
+}
 
 // The moderation view of a comment (admin only — story 37). Unlike CommentDTO
 // this carries the `status` + the drop it belongs to so the console can show the
@@ -91,6 +109,43 @@ export function cleanComment(handle: unknown, body: unknown): CleanResult {
 
 const TABLE = "pint_drop_comments";
 
+// Order a flat comment list into thread order: each top-level comment (parentId
+// null) oldest-first, immediately followed by ITS replies oldest-first. The
+// client renders this as one indent level — a reply sits under its parent with
+// no further recursion. Orphan replies (parent not visible / not in this page)
+// are appended at the end as top-level, so a hidden parent never swallows a
+// visible reply. Pure + input-order-preserving (the query already sorted
+// oldest-first), so it's trivially testable.
+export function threadOrder(comments: CommentDTO[]): CommentDTO[] {
+  const replies = new Map<string, CommentDTO[]>();
+  const tops: CommentDTO[] = [];
+  const topIds = new Set<string>();
+  for (const c of comments) {
+    if (!c.parentId) {
+      tops.push(c);
+      topIds.add(c.id);
+    }
+  }
+  for (const c of comments) {
+    if (c.parentId) {
+      const bucket = replies.get(c.parentId);
+      if (bucket) bucket.push(c);
+      else replies.set(c.parentId, [c]);
+    }
+  }
+  const out: CommentDTO[] = [];
+  for (const top of tops) {
+    out.push(top);
+    for (const r of replies.get(top.id) ?? []) out.push(r);
+  }
+  // Replies whose parent isn't a visible top-level comment in this list — keep
+  // them rather than dropping the story; render them flat (as if top-level).
+  for (const c of comments) {
+    if (c.parentId && !topIds.has(c.parentId)) out.push(c);
+  }
+  return out;
+}
+
 function admin() {
   const client = getSupabaseAdmin();
   if (!client) throw new Error("Supabase not configured.");
@@ -98,9 +153,22 @@ function admin() {
 }
 
 // Map a raw DB row to the public DTO — the single choke point that guarantees
-// actor_hash and status never leave the server.
-function toDTO(row: { id: string; handle: string; body: string; created_at: string }): CommentDTO {
-  return { id: row.id, handle: row.handle, body: row.body, createdAt: row.created_at };
+// actor_hash and status never leave the server. `parent_id` rides along as the
+// public `parentId` (thread shape only; never sensitive).
+function toDTO(row: {
+  id: string;
+  handle: string;
+  body: string;
+  created_at: string;
+  parent_id?: string | null;
+}): CommentDTO {
+  return {
+    id: row.id,
+    handle: row.handle,
+    body: row.body,
+    createdAt: row.created_at,
+    parentId: row.parent_id ?? null,
+  };
 }
 
 // Map a raw row → the MODERATOR DTO. Carries status + drop id (admin needs them);
@@ -126,8 +194,8 @@ export const supabaseCommentsStore: CommentsStore = {
       const { data, error } = await admin()
         .from(TABLE)
         // Select ONLY the public columns — actor_hash/status are never fetched
-        // into the DTO path.
-        .select("id, handle, body, created_at")
+        // into the DTO path. parent_id carries the (harmless) thread shape.
+        .select("id, handle, body, created_at, parent_id")
         .eq("pint_drop_id", pintDropId)
         .eq("status", "visible") // public reads: visible only
         .order("created_at", { ascending: true }) // oldest-first
@@ -136,8 +204,18 @@ export const supabaseCommentsStore: CommentsStore = {
         console.error("[comments] list failed — returning empty thread:", error.message);
         return [];
       }
-      return (data ?? []).map((row) =>
-        toDTO(row as { id: string; handle: string; body: string; created_at: string }),
+      return threadOrder(
+        (data ?? []).map((row) =>
+          toDTO(
+            row as {
+              id: string;
+              handle: string;
+              body: string;
+              created_at: string;
+              parent_id?: string | null;
+            },
+          ),
+        ),
       );
     } catch (err) {
       // Fail-soft: a comments outage must never break feed rendering.
@@ -149,7 +227,25 @@ export const supabaseCommentsStore: CommentsStore = {
     }
   },
 
-  async addComment({ pintDropId, handle, body, actorHash }) {
+  async addComment({ pintDropId, handle, body, actorHash, parentId }) {
+    // Reply validation (issue #37, one level only). A parent must EXIST, belong
+    // to the SAME drop, and itself be top-level (parent_id null). Any miss →
+    // InvalidParentError (the route maps it to a 400), never a silent orphan.
+    if (parentId) {
+      const { data: parent, error: parentErr } = await admin()
+        .from(TABLE)
+        .select("id, pint_drop_id, parent_id")
+        .eq("id", parentId)
+        .maybeSingle();
+      if (parentErr) throw new Error(parentErr.message);
+      if (
+        !parent ||
+        String((parent as { pint_drop_id?: unknown }).pint_drop_id) !== pintDropId ||
+        (parent as { parent_id?: unknown }).parent_id != null
+      ) {
+        throw new InvalidParentError();
+      }
+    }
     const { data, error } = await admin()
       .from(TABLE)
       .insert({
@@ -158,11 +254,20 @@ export const supabaseCommentsStore: CommentsStore = {
         handle,
         body,
         status: "visible",
+        parent_id: parentId ?? null,
       })
-      .select("id, handle, body, created_at")
+      .select("id, handle, body, created_at, parent_id")
       .single();
     if (error) throw new Error(error.message);
-    return toDTO(data as { id: string; handle: string; body: string; created_at: string });
+    return toDTO(
+      data as {
+        id: string;
+        handle: string;
+        body: string;
+        created_at: string;
+        parent_id?: string | null;
+      },
+    );
   },
 
   async listForReview(status) {
@@ -210,6 +315,7 @@ type MemoryRow = {
   actor_hash: string;
   status: "visible" | "hidden" | "pending";
   created_at: string;
+  parent_id: string | null;
 };
 
 const memoryRows = new Map<string, MemoryRow[]>();
@@ -222,14 +328,23 @@ export const memoryCommentsStore: CommentsStore = {
   async listComments(pintDropId) {
     if (!pintDropId) return [];
     const rows = memoryRows.get(pintDropId) ?? [];
-    return rows
+    const dtos = rows
       .filter((r) => r.status === "visible") // hidden/pending never returned
       .sort((a, b) => a.created_at.localeCompare(b.created_at)) // oldest-first
       .slice(0, MAX_COMMENTS)
       .map(toDTO);
+    return threadOrder(dtos);
   },
 
-  async addComment({ pintDropId, handle, body, actorHash }) {
+  async addComment({ pintDropId, handle, body, actorHash, parentId }) {
+    const list = memoryRows.get(pintDropId) ?? [];
+    // Reply validation (one level only): parent must exist on THIS drop and be
+    // top-level. A hidden/pending parent still counts as "exists" — a reply to a
+    // moderated comment is rejected, not silently orphaned.
+    if (parentId) {
+      const parent = list.find((r) => r.id === parentId);
+      if (!parent || parent.parent_id != null) throw new InvalidParentError();
+    }
     const row: MemoryRow = {
       id: `c${++memorySeq}`,
       handle,
@@ -239,8 +354,8 @@ export const memoryCommentsStore: CommentsStore = {
       // Distinct, monotonic timestamps so oldest-first ordering is stable even
       // when two comments land in the same millisecond.
       created_at: new Date(Date.now() + memorySeq).toISOString(),
+      parent_id: parentId ?? null,
     };
-    const list = memoryRows.get(pintDropId) ?? [];
     list.push(row);
     memoryRows.set(pintDropId, list);
     return toDTO(row);
@@ -295,6 +410,7 @@ export function __addMemoryCommentForTest(
     actor_hash: row.actorHash,
     status: row.status,
     created_at: new Date(Date.now() + memorySeq).toISOString(),
+    parent_id: null,
   };
   const list = memoryRows.get(pintDropId) ?? [];
   list.push(stored);

@@ -1,17 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { displayHandle } from "@/lib/handleDisplay";
+import { subscribeToComments } from "@/lib/realtime";
 
 // The comment thread under a Pint Drop — where a drop's story continues after
-// the night (cc_plan2 §4). Collapsed by default so it stays out of the way on a
-// mobile feed; expanding lazily fetches the thread (visible-only, oldest-first)
-// and reveals a compact composer.
+// the night (cc_plan2 §4), now with one-level THREADED replies (issue #37) and
+// LIVE updates. Collapsed by default so it stays out of the way on a mobile
+// feed; expanding lazily fetches the thread (visible-only, thread-ordered) and
+// reveals a compact composer.
 //
 // Resilience contract: this component NEVER crashes its host page. A failed
 // fetch or post shows a quiet inline message and leaves the drop card intact —
 // the feed treats "no comments" and "comments unavailable" the same way.
+//
+// LIVE (issue #37): while open, we subscribe to new comments on this drop. The
+// subscription is a SIGNAL ONLY — on any event we REFETCH through the existing
+// GET /api/pint-drops/comments (visible-only, thread-ordered), never rendering
+// the raw realtime payload (which could leak a hidden/anonymous row). With no
+// Supabase env the helper degrades to a 30s poll; if the channel drops it falls
+// back to polling too — either way the thread stays fresh without a crash.
 //
 // React 19 hygiene: fetch happens inside an effect (with AbortController
 // cleanup); setState only ever runs in async handlers / effect callbacks, never
@@ -23,6 +32,7 @@ type Comment = {
   handle: string;
   body: string;
   createdAt: string;
+  parentId: string | null;
 };
 
 const HANDLE_STORAGE_KEY = "pubmax:comment:handle";
@@ -75,46 +85,76 @@ export default function CommentThread({ dropId }: { dropId: string }) {
   const [handle, setHandle] = useState<string>(() => readStoredHandle());
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
+  // Which top-level comment the reply composer is currently attached to (null =
+  // the top-level composer). One reply composer is open at a time.
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+
+  // A ref to the latest fetch routine so the realtime subscription (set up in a
+  // separate effect keyed only on open/dropId) can trigger a refetch without
+  // re-subscribing on every state change.
+  const refetchRef = useRef<() => void>(() => {});
 
   // Fetch the thread when the panel first opens (or the drop changes while
   // open). AbortController cleanup cancels an in-flight request so a fast
-  // collapse/re-expand can't land a stale response.
+  // collapse/re-expand can't land a stale response. Extracted callback so both
+  // the open-effect and the live subscription can invoke it.
+  const fetchThread = useCallback(
+    (signal?: AbortSignal) => {
+      Promise.resolve()
+        .then(() => {
+          setLoading(true);
+          setError(null);
+          return fetch(`/api/pint-drops/comments?dropId=${encodeURIComponent(dropId)}`, {
+            signal,
+          });
+        })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+        .then((data: { comments?: Comment[] }) => {
+          setComments(Array.isArray(data.comments) ? data.comments : []);
+          setLoaded(true);
+        })
+        .catch((err: unknown) => {
+          if (signal?.aborted || (err instanceof Error && err.name === "AbortError")) {
+            return; // expected on unmount / collapse — not an error to surface
+          }
+          setError("Couldn't load comments.");
+        })
+        .finally(() => {
+          if (!signal?.aborted) setLoading(false);
+        });
+    },
+    [dropId],
+  );
+
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    // All setState runs inside the promise callbacks below, never synchronously
-    // in the effect body (react-hooks/set-state-in-effect). The first .then()
-    // flips the loading flag once the request is actually in flight.
-    Promise.resolve()
-      .then(() => {
-        setLoading(true);
-        setError(null);
-        return fetch(`/api/pint-drops/comments?dropId=${encodeURIComponent(dropId)}`, {
-          signal: controller.signal,
-        });
-      })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { comments?: Comment[] }) => {
-        setComments(Array.isArray(data.comments) ? data.comments : []);
-        setLoaded(true);
-      })
-      .catch((err: unknown) => {
-        if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
-          return; // expected on unmount / collapse — not an error to surface
-        }
-        setError("Couldn't load comments.");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
+    // Keep the ref pointed at a signal-less refetch for the live path (a live
+    // refetch shouldn't be cancelled by this effect's cleanup).
+    refetchRef.current = () => fetchThread();
+    fetchThread(controller.signal);
     return () => controller.abort();
+  }, [open, dropId, fetchThread]);
+
+  // LIVE subscription (issue #37) — signal only, refetch through the filtered
+  // API. Only active while the panel is open. Degrades to a 30s poll with no
+  // Supabase env / on a dropped channel (subscribeToComments handles both).
+  useEffect(() => {
+    if (!open || !dropId) return;
+    const nudge = () => refetchRef.current();
+    const unsubscribe = subscribeToComments(dropId, nudge, { poll: nudge });
+    return unsubscribe;
   }, [open, dropId]);
 
-  const submit = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
+  // Post a comment or a reply. `parentId` null → top-level; a comment id → a
+  // one-level reply. Reconciles from the server response (server-cleaned +
+  // real id/timestamp) rather than trusting the optimistic copy; the live
+  // subscription also re-syncs, so a lost response still catches up.
+  const post = useCallback(
+    async (text: string, parentId: string | null) => {
       const trimmedHandle = handle.trim();
-      const trimmedBody = body.trim();
+      const trimmedBody = text.trim();
       if (!trimmedHandle || !trimmedBody || posting) return;
 
       setPosting(true);
@@ -125,22 +165,35 @@ export default function CommentThread({ dropId }: { dropId: string }) {
         const res = await fetch("/api/pint-drops/comments", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ dropId, handle: trimmedHandle, body: trimmedBody }),
+          body: JSON.stringify({
+            dropId,
+            handle: trimmedHandle,
+            body: trimmedBody,
+            ...(parentId ? { parentId } : {}),
+          }),
         });
         if (!res.ok) {
           setError(
             res.status === 429
               ? "You're commenting too fast — give it a sec."
-              : "Couldn't post that comment.",
+              : res.status === 400
+                ? "Couldn't post that reply."
+                : "Couldn't post that comment.",
           );
           return;
         }
         const data = (await res.json()) as { comment?: Comment };
-        // Reconcile from the server response (server-cleaned handle/body, real
-        // id + timestamp) rather than trusting the optimistic local copy.
         if (data.comment) {
-          setComments((prev) => [...prev, data.comment as Comment]);
-          setBody("");
+          const posted = data.comment;
+          // Insert in thread order: a reply goes right after the last comment
+          // belonging to its parent's group; a top-level comment appends.
+          setComments((prev) => insertThreaded(prev, posted));
+          if (parentId) {
+            setReplyBody("");
+            setReplyTo(null);
+          } else {
+            setBody("");
+          }
         }
       } catch {
         setError("Couldn't post that comment.");
@@ -148,7 +201,23 @@ export default function CommentThread({ dropId }: { dropId: string }) {
         setPosting(false);
       }
     },
-    [handle, body, posting, dropId],
+    [handle, posting, dropId],
+  );
+
+  const submitTop = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      void post(body, null);
+    },
+    [post, body],
+  );
+
+  const submitReply = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (replyTo) void post(replyBody, replyTo);
+    },
+    [post, replyBody, replyTo],
   );
 
   const count = comments.length;
@@ -166,7 +235,7 @@ export default function CommentThread({ dropId }: { dropId: string }) {
 
       {open ? (
         <div className="commentPanel">
-          {loading ? <p className="commentStatus">Loading comments…</p> : null}
+          {loading && !loaded ? <p className="commentStatus">Loading comments…</p> : null}
 
           {!loading && loaded && count === 0 ? (
             <p className="commentEmpty">No comments yet — start the story.</p>
@@ -176,8 +245,12 @@ export default function CommentThread({ dropId }: { dropId: string }) {
             <ul className="commentList">
               {comments.map((c) => {
                 const ago = relativeTime(c.createdAt);
+                const isReply = Boolean(c.parentId);
                 return (
-                  <li key={c.id} className="commentItem">
+                  <li
+                    key={c.id}
+                    className={isReply ? "commentItem commentItemReply" : "commentItem"}
+                  >
                     <span className="commentHandle">{displayHandle(c.handle)}</span>
                     {ago ? (
                       <time className="commentTime" dateTime={c.createdAt}>
@@ -185,13 +258,49 @@ export default function CommentThread({ dropId }: { dropId: string }) {
                       </time>
                     ) : null}
                     <p className="commentBody">{c.body}</p>
+                    {/* Reply is a one-level affordance: only top-level comments
+                        can be replied to (a reply has no reply button). */}
+                    {!isReply ? (
+                      <button
+                        type="button"
+                        className="commentReplyToggle"
+                        aria-expanded={replyTo === c.id}
+                        onClick={() => {
+                          setReplyTo((cur) => (cur === c.id ? null : c.id));
+                          setReplyBody("");
+                        }}
+                      >
+                        {replyTo === c.id ? "Cancel" : "Reply"}
+                      </button>
+                    ) : null}
+
+                    {replyTo === c.id ? (
+                      <form className="commentForm commentReplyForm" onSubmit={submitReply}>
+                        <textarea
+                          className="commentBodyInput"
+                          value={replyBody}
+                          onChange={(e) => setReplyBody(e.target.value)}
+                          placeholder={`Reply to ${displayHandle(c.handle)}…`}
+                          aria-label={`Reply to ${displayHandle(c.handle)}`}
+                          maxLength={MAX_BODY}
+                          rows={2}
+                        />
+                        <button
+                          type="submit"
+                          className="commentSubmit"
+                          disabled={posting || !handle.trim() || !replyBody.trim()}
+                        >
+                          {posting ? "Posting…" : "Reply"}
+                        </button>
+                      </form>
+                    ) : null}
                   </li>
                 );
               })}
             </ul>
           ) : null}
 
-          <form className="commentForm" onSubmit={submit}>
+          <form className="commentForm" onSubmit={submitTop}>
             <input
               className="commentHandleInput"
               type="text"
@@ -229,4 +338,31 @@ export default function CommentThread({ dropId }: { dropId: string }) {
       ) : null}
     </section>
   );
+}
+
+// Insert a freshly-posted comment into a thread-ordered list at the right spot:
+// a reply lands right after the last comment in its parent's group (the parent
+// then its existing replies); a top-level comment appends at the end. Keeps the
+// on-screen order consistent with what a refetch would return (threadOrder),
+// so the optimistic insert and the live refetch never disagree. Pure.
+function insertThreaded(list: Comment[], posted: Comment): Comment[] {
+  // De-dupe: the live refetch may have already added it.
+  if (list.some((c) => c.id === posted.id)) return list;
+  if (!posted.parentId) return [...list, posted];
+  const out: Comment[] = [];
+  let inserted = false;
+  for (let i = 0; i < list.length; i += 1) {
+    out.push(list[i]);
+    const isLastOfGroup =
+      list[i].id === posted.parentId || list[i].parentId === posted.parentId;
+    const nextBelongs =
+      i + 1 < list.length &&
+      (list[i + 1].id === posted.parentId || list[i + 1].parentId === posted.parentId);
+    if (!inserted && isLastOfGroup && !nextBelongs) {
+      out.push(posted);
+      inserted = true;
+    }
+  }
+  if (!inserted) out.push(posted); // parent not found in view — append (orphan)
+  return out;
 }

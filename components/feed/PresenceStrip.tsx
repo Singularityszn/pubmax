@@ -35,7 +35,12 @@ function relativeTime(at: string): string {
   return `${hrs}h ago`;
 }
 
-export default function PresenceStrip() {
+// `spillingNow` (issue #37): a derived count of drops logged in the last hour,
+// passed in by the host (the feed already read the filtered pint-drops list, so
+// this respects #29 visibility — a withheld drop was never counted). Optional so
+// the strip works anywhere; a 0/absent count simply hides the "spilling now"
+// chip. The strip still renders if there's presence OR a live count.
+export default function PresenceStrip({ spillingNow = 0 }: { spillingNow?: number }) {
   const [presence, setPresence] = useState<PresenceDTO[]>([]);
 
   useEffect(() => {
@@ -56,8 +61,8 @@ export default function PresenceStrip() {
     return () => controller.abort();
   }, []);
 
-  // Empty (or failed) → render nothing. Never a broken/empty band.
-  if (presence.length === 0) return null;
+  // Empty presence AND no live count → render nothing. Never a broken/empty band.
+  if (presence.length === 0 && spillingNow <= 0) return null;
 
   return (
     <section className="presenceStrip" aria-label="People out tonight">
@@ -65,6 +70,12 @@ export default function PresenceStrip() {
         <span className="presenceDot" aria-hidden="true" />
         Live tonight
       </span>
+      {spillingNow > 0 ? (
+        <span className="presenceSpilling" aria-label={`${spillingNow} spilling right now`}>
+          {spillingNow} spilling right now
+        </span>
+      ) : null}
+      {presence.length > 0 ? (
       <ul className="presenceList">
         {presence.map((p) => {
           const ago = relativeTime(p.at);
@@ -80,6 +91,7 @@ export default function PresenceStrip() {
           );
         })}
       </ul>
+      ) : null}
     </section>
   );
 }
