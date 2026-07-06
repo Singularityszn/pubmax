@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 
+import { displayHandle } from "@/lib/handleDisplay";
 import { computeBadges, type Badge, type Profile, type ProfileDrop, type ProfileStats } from "@/lib/profiles";
 
 // Presentational header for a public profile. Prop-driven and stateless — the
@@ -73,7 +74,7 @@ export default function ProfileHeader({
 
         <div className="profileNames">
           <h1 className="profileDisplayName">{displayName}</h1>
-          <p className="profileHandle">@{handle}</p>
+          <p className="profileHandle">{displayHandle(handle)}</p>
           {homeCity ? (
             <p className="profileHomeCity">
               <span aria-hidden="true">📍 </span>

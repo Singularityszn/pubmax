@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { displayHandle } from "@/lib/handleDisplay";
+
 // The comment thread under a Pint Drop — where a drop's story continues after
 // the night (cc_plan2 §4). Collapsed by default so it stays out of the way on a
 // mobile feed; expanding lazily fetches the thread (visible-only, oldest-first)
@@ -176,7 +178,7 @@ export default function CommentThread({ dropId }: { dropId: string }) {
                 const ago = relativeTime(c.createdAt);
                 return (
                   <li key={c.id} className="commentItem">
-                    <span className="commentHandle">@{c.handle}</span>
+                    <span className="commentHandle">{displayHandle(c.handle)}</span>
                     {ago ? (
                       <time className="commentTime" dateTime={c.createdAt}>
                         {ago}

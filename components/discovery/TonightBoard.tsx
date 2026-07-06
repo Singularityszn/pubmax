@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { displayHandle } from "@/lib/handleDisplay";
 import { formatPrice } from "@/lib/venues";
 import type { TonightEntry } from "@/lib/leaderboard";
 
@@ -64,7 +65,7 @@ export default function TonightBoard({
               </Link>
               <span className="tonightMeta">
                 {entry.handle ? (
-                  <span className="tonightHandle">@{entry.handle}</span>
+                  <span className="tonightHandle">{displayHandle(entry.handle)}</span>
                 ) : (
                   <span className="tonightHandle tonightHandleAnon">anon</span>
                 )}

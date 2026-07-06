@@ -6,6 +6,7 @@ import Link from "next/link";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
 import type { FeedItem } from "@/lib/feed";
+import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactionsStore";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
@@ -64,15 +65,18 @@ export default function FeedCard({
   const initial = item.handle.trim().charAt(0).toUpperCase() || "?";
   const ago = relativeTime(item.createdAt);
   const mine = new Set(summary.mine);
+  // One normalized "@handle" used everywhere this card names the author, so a
+  // seed handle that already carries a leading "@" can't render as "@@".
+  const shownHandle = displayHandle(item.handle);
 
   return (
-    <article className="feedCard" aria-label={`Pint drop from ${item.handle}`}>
+    <article className="feedCard" aria-label={`Pint drop from ${shownHandle}`}>
       <header className="feedCardHead">
         <span className="feedAvatar" aria-hidden="true">
           {initial}
         </span>
         <div className="feedWho">
-          <span className="feedHandle">@{item.handle}</span>
+          <span className="feedHandle">{shownHandle}</span>
           {ago ? (
             <time className="feedTime" dateTime={item.createdAt}>
               {ago}
@@ -89,7 +93,7 @@ export default function FeedCard({
           <Image
             className="feedPhoto"
             src={hero}
-            alt={`Pint at ${item.venueName}, shared by ${item.handle}`}
+            alt={`Pint at ${item.venueName}, shared by ${shownHandle}`}
             width={640}
             height={640}
             loading="lazy"
@@ -167,8 +171,8 @@ export default function FeedCard({
           </Link>
           <ShareBar
             url={`/p/${item.id}`}
-            title={`@${item.handle}'s pint at ${item.venueName}`}
-            text={`${item.handle} found a pint at ${item.venueName}${
+            title={`${shownHandle}'s pint at ${item.venueName}`}
+            text={`${shownHandle} found a pint at ${item.venueName}${
               typeof item.priceGbp === "number" ? ` — ${formatGbp(item.priceGbp)}` : ""
             }. Every pint has a story.`}
           />

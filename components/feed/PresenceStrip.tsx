@@ -12,6 +12,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { displayHandle } from "@/lib/handleDisplay";
+
 type PresenceDTO = {
   handle: string;
   venueId: string;
@@ -68,7 +70,7 @@ export default function PresenceStrip() {
           const ago = relativeTime(p.at);
           return (
             <li key={`${p.handle}-${p.venueId}`} className="presenceItem">
-              <span className="presenceHandle">@{p.handle}</span>
+              <span className="presenceHandle">{displayHandle(p.handle)}</span>
               <span className="presenceAt">at</span>
               <Link href={p.venueMapUrl} className="presenceVenue">
                 {p.venueName}

@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
+import { displayHandle } from "@/lib/handleDisplay";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 
 import "./permalink.css";
@@ -48,7 +49,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const price = formatGbp(drop.priceGbp);
   const priceBit = price ? ` — ${price}` : "";
-  const title = `@${drop.handle}'s pint at ${drop.venueName}${priceBit}`;
+  const title = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${priceBit}`;
   const description =
     drop.note ||
     (drop.drink
@@ -110,7 +111,7 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
   const hasPhoto = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
 
   // Share lockup: a nostalgic one-liner that carries the pint into a group chat.
-  const shareTitle = `@${drop.handle}'s pint at ${drop.venueName}${price ? ` — ${price}` : ""}`;
+  const shareTitle = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${price ? ` — ${price}` : ""}`;
   const shareText = price
     ? `Found a proper pint at ${drop.venueName} — ${price}. Every pint has a story.`
     : `Found a proper pint at ${drop.venueName}. Every pint has a story.`;
@@ -164,7 +165,7 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
 
         {/* Signature line: handle · era · date */}
         <div className="permalink__signature">
-          <span className="permalink__handle">@{drop.handle}</span>
+          <span className="permalink__handle">{displayHandle(drop.handle)}</span>
           {drop.era ? <span className="permalink__meta">· {drop.era}</span> : null}
           {date ? <span className="permalink__meta">· {date}</span> : null}
         </div>
