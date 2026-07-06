@@ -1,4 +1,193 @@
-# PUBMAXXING Stickiness And Durability PRD v2
+# PUBMAXXING Stickiness, Durability, And Map Expansion PRD v3
+
+## 2026-07-06 Opus Review Update
+
+This PRD has been updated after reviewing the latest Opus commits through `ea5e6c0` and visually checking the local app in browser at desktop and mobile sizes. The product has moved forward materially since v2.
+
+Shipped or substantially implemented since the previous plan:
+
+- Durable `/crawls/[slug]` story pages.
+- Standalone `/p/[id]` Pint Drop permalink pages with OG image support.
+- Pint Drop comments with actor-hashed write path and visible-only public reads.
+- Server-side venue-name index for feed/profile/permalink surfaces.
+- Durable reactions/follows/profile backend patterns.
+- Google sign-in scaffolding through Supabase Auth.
+- Social share bar for X, WhatsApp, native share, and copy link.
+- Map-first redesign with full-bleed MapLibre canvas, price clusters, POI layer, favorite-pint selector, and compact venue card.
+- Durable saved-pub API/store and profile saved-pub surfaces.
+- Feed defaulting to Latest so the first visit is not empty.
+- Friends feed wired to the follow graph.
+- Saved-only map filter.
+- Then vs Now cards on Discover.
+- Server-rendered `/borough` and `/borough/[slug]` discovery pages.
+- Profile editor and "claim your handle" flow.
+- New unit tests and read-only social-loop Playwright coverage.
+
+Review findings from the current build:
+
+- Good: lint, typecheck, Vitest, production build, and Playwright all pass.
+- Good: the feed now shows real pub names and links back to the map.
+- Good: the map-first redesign is a strong product improvement and feels much more distinctive.
+- Good: borough pages are useful shareable discovery surfaces.
+- Risk: in build mode, tapping a map pin still toggles that pub in/out of the crawl. Inspecting a pub should not mutate the route.
+- Risk: profile editing is still handle-trust based. The code documents this, but now that Google auth exists, this should be upgraded to authenticated ownership before any public launch.
+- Risk: mobile map has both top nav and bottom tab bar visible, and the venue card sits close to the tab bar. The next mobile pass should hide/condense top nav and use a true bottom sheet.
+- Risk: borough page titles include the brand in the page metadata while the root title template also appends the brand, producing duplicated browser titles.
+- Risk: `docs/ACTIVE_PLAN.md` is stale and still points to `cc_plan.md`.
+- Risk: several new/old components still carry inline styles. Some are acceptable in OG image routes, but app UI components should move recurring styles into CSS.
+- Risk: deployment docs still flag public storage URLs for hidden content. Private buckets/signed URLs remain a production-readiness requirement.
+
+The next package should not add another broad surface. It should make the map the live social centre of PUBMAXXING.
+
+## 2026-07-06 TfL And London API Addendum
+
+Gemini's broader API list is useful, but the next integration should be disciplined. The first external API worth implementing is TfL because it directly supports the pub-night loop: "Can I have one more pint and still catch the train?"
+
+Recommended Last Pint slice:
+
+1. Server-proxy TfL calls. Never call TfL directly from browser UI with credentials.
+2. Resolve existing static station POIs to TfL StopPoint IDs through StopPoint search.
+3. Cache station ID mappings for long periods and live arrivals/line status for roughly 30-60 seconds.
+4. Show nearby Tube, Elizabeth line, DLR, Overground, and rail options in the venue sheet.
+5. Let the user set a destination station/postcode/area for the current session.
+6. Calculate a leave-by time from live arrivals, pub-to-station walking estimate, and a buffer.
+7. Render the answer in PUBMAXXING language: Order one more, Half pint only, Settle up now, or Train risk.
+8. Treat destination as private and session-scoped unless the user explicitly saves it later.
+
+After TfL, use APIs only where they deepen the same loop:
+
+- postcodes.io for destination/borough lookup.
+- Wikidata and Historic England for Story mode provenance.
+- Overpass/OpenStreetMap for entrances, toilets, water points, and walking context.
+- Food Hygiene Rating Scheme for meal-capable pub stops.
+- London Datastore/GLA for borough and area metadata.
+- Air quality, events, and safety datasets only after the core map, story, and Last Pint flow feels solid.
+
+## Map Expansion PRD
+
+### Problem Statement
+
+The current map is finally close to the product's heart: full-screen, visual, price-aware, story-aware, and fun to explore. But it is still mostly a planner map. It needs to become a social, historical, and night-out map: a place where users can see where friends are, what pints are cheap tonight, what route fits their mood, what stories happened nearby, and what pubs are worth saving before they leave the house.
+
+### Solution
+
+Build the PUBMAXXING Live Story Map layer. This layer adds richer map modes and social overlays without replacing the existing map:
+
+1. Tonight mode: live Pint Drops, recent presence, and cheapest pints logged today.
+2. Story mode: Golden Days memories, landmarks connected to nearby pubs, and Landlord teasers.
+3. Friends mode: followed users, saved pubs, shared crawls, and invite status.
+4. Crawl mode: better route building, explicit pin inspect/add behavior, route cards, and mobile bottom sheet.
+5. Pint mode: favorite beer heatmap, price comparison, and Then vs Now by area.
+6. Progress mode: Pint Passport, badges, borough completion, and personal map memory.
+
+### User Stories
+
+1. As a map user, I want pin taps to inspect pubs without changing my crawl, so that I can explore safely.
+
+2. As a crawl builder, I want an explicit Add or Remove action in the venue sheet, so that route changes are intentional.
+
+3. As a mobile user, I want venue detail in a bottom sheet with tabs, so that the map remains usable while I inspect a pub.
+
+4. As a mobile user, I want the top navigation hidden or condensed when bottom tabs are visible, so that the map is not crowded.
+
+5. As a user going out tonight, I want a Tonight mode, so that I can see where recent Pint Drops and active pub energy are.
+
+6. As a user at a pub, I want an opt-in "I'm here" action, so that friends can see where the night is happening.
+
+7. As a privacy-conscious user, I want presence to expire automatically, so that I am not sharing stale location data.
+
+8. As a friend opening the map, I want to see who sent me a crawl or who is already nearby, so that the app feels social from the first tap.
+
+9. As a user choosing a drink, I want favorite-pint mode to show which pubs serve my pint and what it costs, so that I can plan around the drink I actually want.
+
+10. As a bargain hunter, I want a live cheapest-tonight overlay, so that recently logged cheap pints stand out on the map.
+
+11. As a history-driven user, I want Story mode to reveal heritage pubs, Golden Days memories, and nearby landmarks, so that the map teaches me London.
+
+12. As a user tapping a landmark, I want to see nearby pubs connected to that place, so that landmarks become crawl starters instead of isolated dots.
+
+13. As a Landlord user, I want map landmark/pub context to seed a grounded Landlord prompt, so that the AI answers from known facts rather than generic history.
+
+14. As a Londoner, I want borough boundary/area cards, so that the map feels organized around how people actually talk about nights out.
+
+15. As a crawler, I want a route quality card with distance, estimated time, total pint cost, cheap stops, story stops, and last-stop vibe, so that I can choose between routes quickly.
+
+16. As a crawler, I want route warnings for far-apart stops or straight-line estimates, so that the product is honest about walking.
+
+17. As a user planning with friends, I want to copy an invite link that opens the map with the crawl loaded, so that friends can join the plan.
+
+18. As a returning user, I want my saved pubs marked on the map with a distinctive saved glyph, so that my personal pub memory is visible.
+
+19. As a user building a personal archive, I want a Pint Passport layer showing pubs, boroughs, and beers I have logged, so that using the app feels collectible.
+
+20. As a Discover user, I want Then vs Now cards to link into the exact map area, so that editorial discovery leads back to exploration.
+
+21. As a demo viewer, I want the first map view to expose one clear next action, so that I am not overwhelmed by controls.
+
+22. As a maintainer, I want map overlays implemented as typed layers and stable DTOs, so that adding future layers does not bloat the main map component.
+
+### Implementation Decisions
+
+- Split map state into named overlay modes: Default, Tonight, Story, Friends, Crawl, Pint, and Progress.
+- Keep the existing full-bleed MapLibre canvas.
+- Fix build-mode pin behavior first: pin tap is inspect-only; route mutation happens only through explicit Add/Remove controls.
+- Add a mobile venue bottom sheet that replaces the current compact card on small screens.
+- Add map overlay metadata through typed DTOs instead of passing raw store rows directly to the canvas.
+- Treat presence as opt-in and short-lived. Store venue-level presence, not continuous location trails.
+- Connect landmarks to nearby heritage pubs and Landlord prompts. Landmarks should become crawl/story entry points.
+- Add a route quality card to the planner drawer with route stats and honest distance labeling.
+- Add saved-pub and friend overlays as optional layers, not default noise.
+- Add borough map links from `/borough/[slug]` and Discover cards.
+- Keep OG image routes inline-styled if necessary for `next/og`, but move app UI inline styles into CSS.
+- Update metadata titles to rely on the root title template instead of hardcoding `PUBMAXXING` twice.
+- Update `docs/ACTIVE_PLAN.md` to point at this v3 PRD.
+
+### Testing Decisions
+
+Test the map at the highest user-visible seam with Playwright:
+
+1. Open `/map` on desktop and verify map canvas or fallback renders.
+2. Click a pin in build mode and verify the route stop count does not change.
+3. Click Add to crawl in the venue sheet and verify the route stop count changes.
+4. Open `/map` on a 375px viewport and verify bottom nav does not overlap the venue sheet's primary actions.
+5. Toggle favorite-pint mode and verify non-serving pubs dim or filter correctly.
+6. Toggle saved-only mode and verify the map/list narrows to saved pubs.
+7. Open a borough page and click its map link; verify the map opens focused on that borough/query.
+8. Open a landmark/story marker and verify nearby pub/story context is shown.
+9. Toggle Tonight mode and verify recent Pint Drop or presence markers render without exposing precise location trails.
+
+Add unit tests for:
+
+- Overlay DTO normalization.
+- Presence expiry.
+- Landmark-to-nearby-pub matching.
+- Route quality stats.
+- Build-mode inspect-only behavior.
+- Borough-to-map link generation.
+- Metadata title generation for borough pages.
+
+### Out Of Scope
+
+- Native mobile app.
+- Real-time chat.
+- Payments or pub-owner dashboards.
+- Continuous user location tracking.
+- Complex ML recommendations.
+- Replacing MapLibre.
+- Production auth/RLS ownership enforcement beyond the profile-edit ownership ticket below.
+
+### Further Notes
+
+The map should now be treated as the product centre. Feed, Discover, Boroughs, Profiles, Pint Drops, and Crawls should all point back into the map with enough context to continue the user's journey.
+
+Immediate fix order:
+
+1. Fix build-mode pin tap mutation.
+2. Clean mobile map chrome and bottom sheet.
+3. Fix duplicate borough metadata titles.
+4. Update active docs.
+5. Add map overlay modes in this order: Story, Tonight, Friends, Progress.
+6. Upgrade profile editing from handle-trust to authenticated ownership once Supabase Auth provider config is confirmed.
 
 ## Problem Statement
 
