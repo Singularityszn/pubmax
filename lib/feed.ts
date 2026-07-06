@@ -5,6 +5,7 @@
 // whole feed is covered by __tests__/feed.test.ts.
 
 import type { Provenance } from "@/lib/curation";
+import { rankForYou, type ForYouContext } from "@/lib/forYou";
 import { normalizeHandle } from "@/lib/profiles";
 
 // The public read shape as it arrives over the wire from GET /api/pint-drops
@@ -115,6 +116,7 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
 
 export type FeedFilter =
   | "latest"
+  | "for-you"
   | "tonight"
   | "friends"
   | "nearby"
@@ -133,6 +135,7 @@ export type FeedFilterDef = {
 // Order matters — this is the on-screen chip order.
 export const FEED_FILTERS: FeedFilterDef[] = [
   { id: "latest", label: "Latest", demo: false },
+  { id: "for-you", label: "For You", demo: false },
   { id: "tonight", label: "Tonight", demo: false },
   { id: "friends", label: "Friends", demo: false },
   { id: "nearby", label: "Near Me", demo: true },
@@ -157,6 +160,11 @@ export type FeedFilterContext = {
   // authored by a handle in this set survive. Undefined/empty ⇒ friends is empty
   // (the page shows a "follow people" state) rather than leaking the whole feed.
   followingHandles?: Set<string>;
+  // Signal for the `for-you` lane (issue #36) — the deterministic ranking inputs
+  // (now, reaction counts, story-pub venue ids). Undefined ⇒ For You degrades to
+  // a recency-only ranking with `now` taken at call time, so the lane still works
+  // before reaction summaries have loaded. See lib/forYou.ts.
+  forYou?: ForYouContext;
 };
 
 /**
@@ -171,6 +179,9 @@ export type FeedFilterContext = {
  *                    (the viewer's follow graph), newest-first. With no set (or
  *                    an empty one) the lane is empty by design, so the page can
  *                    prompt the viewer to follow people rather than show all.
+ *  - `for-you`     — the SAME visible set, re-ordered by a deterministic
+ *                    recency×quality score (lib/forYou.ts). Never removes drops;
+ *                    a pure client-side re-rank over server-provided items.
  *
  * Demo-only filters (no per-drop signal in the public payload; best-effort so
  * the lane isn't empty in the prototype — documented as demo in FEED_FILTERS):
@@ -188,6 +199,15 @@ export function applyFeedFilter(
       // (unlike `tonight`, which is empty when nothing was logged in 24h), so a
       // first-time visitor never lands on an empty feed.
       return [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    case "for-you": {
+      // The For-You lane (issue #36): the SAME visible set, re-ordered by a
+      // deterministic recency×quality score (lib/forYou.ts) — no new API, no ML,
+      // no drops removed. With no forYou context (summaries not loaded yet) we
+      // still rank on recency alone, taking `now` at call time so the lane is
+      // never empty. Client-side ranking over server-provided items.
+      const forYouCtx: ForYouContext = ctx?.forYou ?? { now: Date.now() };
+      return rankForYou(items, forYouCtx);
+    }
     case "cheap":
       return items
         .filter((i) => typeof i.priceGbp === "number" && i.priceGbp <= CHEAP_MAX_GBP)
@@ -215,6 +235,65 @@ export function applyFeedFilter(
       // Demo lanes: no per-drop signal — pass the set through untouched.
       return items;
   }
+}
+
+// ── Bar-Tab composition (issue #36) ───────────────────────────────────────────
+
+// One entry in a venue's Bar-Tab grid — an IG-profile-style tile. A `photo`
+// tile leads with its hero image; a `receipt` tile is a mini typographic card
+// for a text-only drop, so the grid is never a gap. Both link to /p/[id].
+export type BarTabTile = {
+  id: string;
+  kind: "photo" | "receipt";
+  photoUrl: string | null;
+  priceGbp: number | null;
+  drink: string;
+  handle: string;
+  note: string;
+  createdAt: string;
+};
+
+export type BarTab = {
+  tileCount: number;
+  photoCount: number;
+  // Cheapest price across the visible drops (for the venue header stamp), or
+  // null when no visible drop carries a price.
+  cheapestGbp: number | null;
+  tiles: BarTabTile[];
+};
+
+/**
+ * Compose a venue's Bar-Tab grid from ALREADY-VISIBILITY-FILTERED FeedItems
+ * (the caller passes the output of the store's `listVisible(venueId)`, so the
+ * #29 visibility guarantees — no friends/legacy leak, anonymous shows the safe
+ * label — hold by construction; this function adds NO drops the caller didn't
+ * hand it). Newest-first, photo tiles + receipt tiles for text-only drops. Pure.
+ */
+export function buildBarTab(items: FeedItem[]): BarTab {
+  const ordered = [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const tiles: BarTabTile[] = ordered.map((item) => {
+    const photoUrl = item.photoUrls[0] ?? null;
+    return {
+      id: item.id,
+      kind: photoUrl ? "photo" : "receipt",
+      photoUrl,
+      priceGbp: item.priceGbp,
+      drink: item.drink,
+      handle: item.handle,
+      note: item.caption,
+      createdAt: item.createdAt,
+    };
+  });
+  const prices = ordered
+    .map((i) => i.priceGbp)
+    .filter((p): p is number => typeof p === "number" && Number.isFinite(p) && p > 0);
+  const cheapestGbp = prices.length ? Math.min(...prices) : null;
+  return {
+    tileCount: tiles.length,
+    photoCount: tiles.filter((t) => t.kind === "photo").length,
+    cheapestGbp,
+    tiles,
+  };
 }
 
 // ── Cursor pagination ─────────────────────────────────────────────────────────

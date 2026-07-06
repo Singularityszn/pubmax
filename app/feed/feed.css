@@ -137,6 +137,41 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pint) 22%, transparent);
 }
 
+/* "X spilling right now" chip (issue #37) — a small live counter beside the
+   label, derived from the last hour of drops. */
+.presenceSpilling {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--pint);
+  white-space: nowrap;
+}
+
+/* "N new pints — tap to show" live pill (issue #37). Sits above the list; a
+   subtle reveal affordance that never yanks the reader's scroll. */
+.feedNewPill {
+  align-self: center;
+  margin: 2px 0 -4px;
+  padding: 7px 16px;
+  border: 1px solid var(--brass, var(--line));
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--brass);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow, 0 8px 22px rgba(24, 34, 26, 0.06));
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.feedNewPill:hover {
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+}
+
+.feedNewPill:active {
+  transform: translateY(1px);
+}
+
 .presenceList {
   flex: 1 1 auto;
   display: flex;
@@ -492,6 +527,236 @@
   border-radius: 2px;
 }
 
+/* A cross-link to the venue's Bar Tab grid (issue #36), sat quietly after the
+   pub name on the text-receipt card. */
+.feedVenueBarTab {
+  color: var(--muted, #8a8577);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.feedVenueBarTab:hover {
+  color: var(--brass);
+  border-bottom-color: var(--brass);
+}
+
+.feedVenueBarTab:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Vertical 9:16 "Spill" card (issue #36) ──────────────────────────────────
+   The photo is the whole card, IG-Stories ratio, with everything overlaid on a
+   fixed dark scrim so text stays legible over an ARBITRARY photo in both themes. */
+.feedCardSpill {
+  /* The photo runs to the card edge — the overlaid content brings its own pad. */
+  overflow: hidden;
+}
+
+.feedSpill {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  /* Desktop guard: never let a single Spill dominate the viewport. */
+  max-height: 70vh;
+  background: #0c0b08;
+  overflow: hidden;
+}
+
+.feedSpillPhoto {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Provenance badge — top-left, always visible on the photo, verified-check idiom.
+   Sits on its own dark pill so it reads over any photo; the per-provenance colour
+   comes from the shared .feedProv-* classes (currentColor drives the glyph). */
+.feedSpillProv {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px 5px 8px;
+  border-radius: 999px;
+  background: rgba(12, 11, 8, 0.72);
+  backdrop-filter: blur(3px);
+  color: var(--brass-bright, #d8ab55);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+}
+
+/* On a photo the provenance colours must stay legible against the dark pill, so
+   they read brighter than the on-paper card variants. */
+.feedSpillProv.feedProv-contributor,
+.feedSpillProv.feedProv-sourced {
+  color: var(--brass-bright, #d8ab55);
+}
+
+.feedSpillProv.feedProv-anecdote {
+  color: #e7d8b4;
+  font-style: normal;
+}
+
+.feedSpillProv.feedProv-demo {
+  color: #cfc6b3;
+}
+
+.feedSpillProvGlyph {
+  flex: 0 0 auto;
+}
+
+.feedSpillProvLabel {
+  line-height: 1;
+}
+
+/* Price stamp — top-right pressed-ink signature, on the photo. */
+.feedSpillPrice {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  padding: 6px 13px;
+  border-radius: 10px;
+  background: var(--ink-deep, #1c231d);
+  color: var(--brass-bright, #d8ab55);
+  font-family: var(--font-garamond, var(--serif, Georgia), serif);
+  font-size: 1.16rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+}
+
+/* Bottom scrim — a FIXED dark gradient (never theme-mixed) so overlaid text is
+   legible over any photo in both themes. */
+.feedSpillScrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 56px 16px 16px;
+  color: #f3ecdc;
+  background: linear-gradient(
+    to top,
+    rgba(8, 7, 5, 0.92) 0%,
+    rgba(8, 7, 5, 0.7) 42%,
+    rgba(8, 7, 5, 0) 100%
+  );
+}
+
+.feedSpillWho {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.feedSpillAvatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--ink-deep, #1c231d);
+  color: var(--brass-bright, #d8ab55);
+  font-family: var(--font-garamond, var(--serif, Georgia), serif);
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 30%, transparent);
+}
+
+.feedSpillWhoText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.feedSpillHandle {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #fbf6ea;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feedSpillMeta {
+  font-size: 0.76rem;
+  color: #d9cfba;
+}
+
+.feedSpillVenueLink {
+  color: var(--brass-bright, #d8ab55);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.feedSpillVenueLink:hover {
+  border-bottom-color: var(--brass-bright, #d8ab55);
+}
+
+.feedSpillVenueLink:focus-visible {
+  outline: 2px solid var(--brass-bright, #d8ab55);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The passed-down note — serif, readable, over the scrim. Clamped so a long
+   note can't push the card, with the rest still on the permalink. */
+.feedSpillNote {
+  margin: 2px 0 0;
+  font-family: var(--font-garamond, var(--serif, Georgia), "Times New Roman", serif);
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: #f3ecdc;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feedSpillBarTab {
+  align-self: flex-start;
+  margin-top: 2px;
+  color: #e7d8b4;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(231, 216, 180, 0.4);
+}
+
+.feedSpillBarTab:hover {
+  color: var(--brass-bright, #d8ab55);
+  border-bottom-color: var(--brass-bright, #d8ab55);
+}
+
+.feedSpillBarTab:focus-visible {
+  outline: 2px solid var(--brass-bright, #d8ab55);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Reactions */
 .feedReactions {
   display: flex;
@@ -800,6 +1065,33 @@
 .commentItem:last-child {
   border-bottom: 0;
   padding-bottom: 0;
+}
+
+/* One-level threaded reply (issue #37): a single indent + a left rule so a
+   reply reads as hanging under its parent, no deeper nesting. */
+.commentItemReply {
+  margin-left: 18px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line-soft, var(--line));
+}
+
+.commentReplyToggle {
+  margin-top: 4px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--brick);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.commentReplyToggle:hover {
+  text-decoration: underline;
+}
+
+.commentReplyForm {
+  margin-top: 8px;
 }
 
 .commentHandle {

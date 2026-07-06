@@ -180,6 +180,9 @@ export default async function LedgerPage({ params }: PageProps) {
           <Link className="ledgerMapLink" href={venueMapUrl(id)}>
             Open on the map
           </Link>
+          <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(id)}`}>
+            See the bar tab
+          </Link>
           <ReadLedgerButton text={speechParts.join(" ")} />
           <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
         </div>

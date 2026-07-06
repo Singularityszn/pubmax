@@ -236,6 +236,39 @@ describe("applyFeedFilter", () => {
     });
   });
 
+  describe("for-you", () => {
+    const NOW = Date.parse("2026-07-06T20:00:00.000Z");
+
+    it("re-orders the SAME set (no drops removed) by recency×quality", () => {
+      const rich = item({
+        id: "rich",
+        photoUrls: ["p.jpg"],
+        caption: "My grandad drank here every Friday for forty years.",
+        createdAt: new Date(NOW).toISOString(),
+      });
+      const thin = item({ id: "thin", createdAt: new Date(NOW).toISOString() });
+      const result = applyFeedFilter([thin, rich], "for-you", { forYou: { now: NOW } });
+      // Same length (nothing filtered out), just re-ranked (rich first).
+      expect(result).toHaveLength(2);
+      expect(result.map((i) => i.id)).toEqual(["rich", "thin"]);
+    });
+
+    it("with no forYou context still ranks (recency-only, never empty)", () => {
+      const items = [item({ id: "a" }), item({ id: "b" })];
+      expect(applyFeedFilter(items, "for-you")).toHaveLength(2);
+    });
+
+    it("is deterministic for a fixed now", () => {
+      const items = [
+        item({ id: "a", createdAt: new Date(NOW - 3_600_000).toISOString() }),
+        item({ id: "b", photoUrls: ["p.jpg"], createdAt: new Date(NOW - 7_200_000).toISOString() }),
+      ];
+      const first = applyFeedFilter(items, "for-you", { forYou: { now: NOW } }).map((i) => i.id);
+      const second = applyFeedFilter(items, "for-you", { forYou: { now: NOW } }).map((i) => i.id);
+      expect(first).toEqual(second);
+    });
+  });
+
   it("the optional ctx never affects non-friends filters", () => {
     const items = [
       item({ id: "cheap-a", handle: "mabel", priceGbp: 4 }),
