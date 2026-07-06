@@ -9,7 +9,9 @@
 // Supabase when configured, process-memory otherwise (reactions are non-critical,
 // so there is no 503 — an unconfigured prod just gets per-instance counts).
 
+import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
+import { normalizeHandle } from "@/lib/profiles";
 import {
   isReactionKey,
   memoryReactionsStore,
@@ -78,6 +80,25 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const summary = await store().toggle(id, actorHash, reaction);
+    // Emit seam (best-effort, additive): when the client supplies its handle AND
+    // this toggle turned the reaction ON (mine now includes it), notify the drop's
+    // author. A reaction is otherwise attributed only to an opaque actor_hash, so
+    // with no handle there is no one to name — we just skip the notification.
+    // Never awaited for correctness — a notification failure must not fail the
+    // reaction toggle.
+    const actorHandle = normalizeHandle(readString(body.handle) ?? "");
+    if (actorHandle && summary.mine.includes(reaction)) {
+      void dropOwnerHandle(id).then((owner) => {
+        if (!owner) return;
+        return emitNotification({
+          recipientHandle: owner,
+          actorHandle,
+          kind: "reaction",
+          subjectRef: id,
+          subjectLabel: reaction,
+        });
+      });
+    }
     return Response.json({ summary }, { status: 200 });
   } catch (err) {
     if (err instanceof UnknownDropError) {

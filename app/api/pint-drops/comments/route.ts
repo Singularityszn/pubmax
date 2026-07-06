@@ -15,6 +15,7 @@
 // configured, process-memory otherwise.
 
 import { cleanComment, commentsStore } from "@/lib/commentsStore";
+import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -61,6 +62,20 @@ export async function POST(request: Request): Promise<Response> {
       handle: cleaned.handle,
       body: cleaned.body,
       actorHash,
+    });
+    // Emit seam (best-effort): notify the drop's author that someone commented.
+    // The owner handle is resolved server-side (never client-supplied); a miss
+    // (demo seed / unknown id / self-comment) simply doesn't emit. Never awaited
+    // for correctness — a notification failure must not fail the comment write.
+    void dropOwnerHandle(dropId).then((owner) => {
+      if (!owner) return;
+      return emitNotification({
+        recipientHandle: owner,
+        actorHandle: cleaned.handle,
+        kind: "comment",
+        subjectRef: dropId,
+        subjectLabel: cleaned.body.slice(0, 80),
+      });
     });
     return Response.json({ comment }, { status: 201 });
   } catch {

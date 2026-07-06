@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import CrawlStoryOwnerControls from "@/components/crawl/CrawlStoryOwnerControls";
 import ShareBar from "@/components/share/ShareBar";
 import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
 
@@ -105,6 +106,16 @@ export default async function CrawlStoryPage({ params }: PageProps) {
         <header className="storyHead">
           <p className="storyEyebrow">A London crawl</p>
           <h1 className="storyTitle">{story.title}</h1>
+          {/* Author attribution (story 35). Links to the author's public profile;
+              an anonymous story (no author_handle) shows nothing. */}
+          {story.authorHandle ? (
+            <p className="storyAuthor">
+              by{" "}
+              <Link href={`/u/${encodeURIComponent(story.authorHandle)}`} className="storyAuthorLink">
+                @{story.authorHandle}
+              </Link>
+            </p>
+          ) : null}
           {story.summary ? <p className="storyCaption">{story.summary}</p> : null}
           {story.vibeTags.length ? (
             <ul className="storyTags" aria-label="Crawl vibe tags">
@@ -162,6 +173,11 @@ export default async function CrawlStoryPage({ params }: PageProps) {
             Copy link
           </button>
         </div>
+
+        {/* Author-only edit/delete (story 35). Renders nothing for non-authors. */}
+        {story.authorHandle ? (
+          <CrawlStoryOwnerControls slug={slug} authorHandle={story.authorHandle} />
+        ) : null}
 
         {/* Share strip — the crawl spreads across X, WhatsApp, and group chats. */}
         <div className="storyShare">

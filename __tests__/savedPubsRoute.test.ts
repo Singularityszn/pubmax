@@ -102,10 +102,19 @@ describe("POST /api/saved-pubs (toggle)", () => {
     expect(saved[0].venueName).not.toContain("venue-doesnotexist");
   });
 
-  it("400s an unknown (off-allowlist) list type — never stored", async () => {
+  it("accepts a CUSTOM list name (story 33) — stored, not rejected", async () => {
+    // Custom lists are now allowed: any non-empty name is a valid list.
     const res = await post({ handle: "ale", venueId: REAL_VENUE_ID, listType: "Totally Made Up" });
+    expect(res.status).toBe(200);
+    const { saved } = await res.json();
+    expect(saved).toHaveLength(1);
+    expect(saved[0].listType).toBe("Totally Made Up");
+  });
+
+  it("400s a BLANK list name — a list still needs a name", async () => {
+    const res = await post({ handle: "ale", venueId: REAL_VENUE_ID, listType: "   " });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Unknown list type." });
+    expect(await res.json()).toEqual({ error: "A list name is required." });
 
     // Confirm nothing was stored under the handle.
     const check = await list("handle=ale");

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getVenueIndex } from "@/lib/venueIndex";
 import {
   __resetMemorySavedPubs,
+  isBuiltInListType,
   isListType,
   memorySavedPubsStore,
   savedPubsStore,
@@ -36,25 +37,45 @@ describe("savedPubsStore() — seam selection", () => {
   });
 });
 
-describe("isListType — allowlist trust boundary", () => {
-  it("accepts every canonical list type", () => {
-    for (const t of [
-      "Want to Visit",
-      "Cheap Pint",
-      "Coding Pint",
-      "Historic",
-      "Date Night",
-      "Crawl Stop",
-      "Local Legend",
-    ]) {
-      expect(isListType(t)).toBe(true);
-    }
+const BUILT_INS = [
+  "Want to Visit",
+  "Cheap Pint",
+  "Coding Pint",
+  "Historic",
+  "Date Night",
+  "Crawl Stop",
+  "Local Legend",
+];
+
+describe("isBuiltInListType — strict built-in allowlist", () => {
+  it("accepts every canonical built-in list type", () => {
+    for (const t of BUILT_INS) expect(isBuiltInListType(t)).toBe(true);
   });
 
-  it("rejects unknown / malformed list types", () => {
-    expect(isListType("Nonsense")).toBe(false);
-    expect(isListType("want to visit")).toBe(false); // case-sensitive
+  it("rejects custom / malformed values (built-ins only)", () => {
+    expect(isBuiltInListType("Nonsense")).toBe(false);
+    expect(isBuiltInListType("want to visit")).toBe(false); // case-sensitive
+    expect(isBuiltInListType("")).toBe(false);
+    expect(isBuiltInListType(null)).toBe(false);
+    expect(isBuiltInListType(42)).toBe(false);
+    expect(isBuiltInListType(undefined)).toBe(false);
+  });
+});
+
+describe("isListType — write gate (built-in OR custom, story 33)", () => {
+  it("accepts every built-in", () => {
+    for (const t of BUILT_INS) expect(isListType(t)).toBe(true);
+  });
+
+  it("accepts a CUSTOM non-empty name (custom lists are allowed now)", () => {
+    expect(isListType("My Secret Boozers")).toBe(true);
+    expect(isListType("weekend spots")).toBe(true);
+  });
+
+  it("rejects only what cleans down to empty / non-string", () => {
     expect(isListType("")).toBe(false);
+    expect(isListType("   ")).toBe(false);
+    expect(isListType("<>")).toBe(false); // strips to empty
     expect(isListType(null)).toBe(false);
     expect(isListType(42)).toBe(false);
     expect(isListType(undefined)).toBe(false);

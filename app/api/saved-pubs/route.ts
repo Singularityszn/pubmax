@@ -16,7 +16,13 @@
 
 import { normalizeHandle } from "@/lib/profiles";
 import { isLimited } from "@/lib/pintDrops";
-import { cleanNote, isListType, savedPubsStore } from "@/lib/savedPubsStore";
+import {
+  cleanListType,
+  cleanNote,
+  isListType,
+  savedListsStore,
+  savedPubsStore,
+} from "@/lib/savedPubsStore";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 
@@ -28,6 +34,14 @@ export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const handle = normalizeHandle(params.get("handle") ?? "");
   const actor = readString(params.get("actor"));
+
+  // ?lists=1 → the handle's custom list menu (story 33). Built-ins are known to
+  // the client; this returns only the handle's OWN custom lists. Fail-soft → [].
+  if (params.get("lists")) {
+    const lists = handle ? await savedListsStore().listCustom(handle) : [];
+    return Response.json({ lists }, { status: 200 });
+  }
+
   // Nothing to key on → an empty (but valid) list, so the page still renders.
   if (!handle && !actor) return Response.json({ saved: [] }, { status: 200 });
 
@@ -51,14 +65,27 @@ export async function POST(request: Request): Promise<Response> {
   const handle = normalizeHandle((body.handle as string) ?? "");
   if (!handle) return Response.json({ error: "Add a contributor handle." }, { status: 400 });
 
+  // createList action (story 33): register a custom list name for this handle so
+  // it appears in the pick-UI before it has any saves. Rate-limited like saves.
+  if (readString(body.action) === "createList") {
+    const name = cleanListType(body.name ?? body.listType);
+    if (!name) return Response.json({ error: "A list name is required." }, { status: 400 });
+    if (await isLimited(`lists:${handle}`, `lists:${hashIp(clientIp(request))}`)) {
+      return Response.json({ error: "Too many lists, slow down." }, { status: 429 });
+    }
+    const lists = await savedListsStore().createList(handle, name);
+    return Response.json({ lists }, { status: 200 });
+  }
+
   const venueId = (readString(body.venueId) ?? "").slice(0, MAX_VENUE_ID);
   if (!venueId) return Response.json({ error: "A venue is required." }, { status: 400 });
 
-  // Server-authoritative list-type allowlist — anything off the exact list is
-  // rejected here, never stored.
+  // The list type is now free text (story 33): the seven built-ins are the
+  // defaults, but a custom name is accepted too. isListType is the write gate —
+  // any value that cleans to a non-empty name is storable.
   const listType = body.listType;
   if (!isListType(listType)) {
-    return Response.json({ error: "Unknown list type." }, { status: 400 });
+    return Response.json({ error: "A list name is required." }, { status: 400 });
   }
 
   // Note is untrusted free text: strip HTML/control chars and cap length.

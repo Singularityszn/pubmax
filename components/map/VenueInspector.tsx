@@ -10,6 +10,7 @@ import { buildVenueClaims, type ClaimKind, type Provenance } from "@/lib/curatio
 import LandlordPanel from "@/components/LandlordPanel";
 import LastTrainCard from "./LastTrainCard";
 import PintDropComposer from "@/components/map/PintDropComposer";
+import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
@@ -258,6 +259,7 @@ export default function VenueInspector({
             {inCrawl ? "Remove from crawl" : "Add to crawl"}
           </button>
         ) : null}
+        <SaveToListControl venueId={venue.id} venueName={venue.name} />
         <div className="presenceHere">
           {presenceState === "here" ? (
             <p

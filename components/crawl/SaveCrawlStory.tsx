@@ -79,6 +79,13 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
     setSaveError("");
     setPermaLink("");
     try {
+      // Attribute the saved crawl to the viewer's self-asserted device handle
+      // (story 35), the same `pubmax_handle` the rest of the app writes. Absent
+      // for a signed-out viewer → the crawl is saved anonymously.
+      const authorHandle =
+        typeof window !== "undefined"
+          ? (window.localStorage.getItem("pubmax_handle") ?? "").trim()
+          : "";
       const res = await fetch("/api/crawls", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -87,6 +94,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
           summary: caption.trim(),
           visibility: "public",
           vibeTags: tags,
+          ...(authorHandle ? { authorHandle } : {}),
           stops: stops.map((stop) => ({
             venueId: stop.venueId,
             priceGbp: stop.priceGbp ?? null,

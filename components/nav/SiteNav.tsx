@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationBell from "@/components/nav/NotificationBell";
 import SignInButton from "@/components/auth/SignInButton";
 
 import "./siteNav.css";
@@ -110,6 +111,9 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
       </ul>
 
       <div className="siteNavActions">
+        {/* Notification bell (story 34) — unread-count badge + link to /activity.
+            Shows on mobile too (the compact bar keeps the bell + toggle + sign-in). */}
+        <NotificationBell />
         <ThemeToggle />
         <SignInButton />
       </div>

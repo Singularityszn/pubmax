@@ -8,10 +8,13 @@
 import {
   createCrawlStory,
   getCrawlStoryBySlug,
+  getStoryAuthor,
   cleanVisibility,
   type CreateCrawlStoryInput,
 } from "@/lib/crawlStoryStore";
+import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
+import { normalizeHandle } from "@/lib/profiles";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 const MAX_TITLE = 120;
@@ -19,6 +22,7 @@ const MAX_SUMMARY = 280;
 const MAX_NOTE = 160;
 const MAX_VENUE_ID = 80;
 const MAX_STOPS = 12;
+const MAX_HANDLE = 40;
 
 function readString(value: unknown, cap: number): string {
   return typeof value === "string" ? value.slice(0, cap).trim() : "";
@@ -86,11 +90,17 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Too many crawls saved, slow down." }, { status: 429 });
   }
 
+  // Author attribution (story 35): the self-asserted device handle. Optional —
+  // an anonymous save leaves it null. Cleaned + normalized before it reaches the
+  // store (which re-normalizes as defence in depth).
+  const authorHandle = normalizeHandle(readString(body.authorHandle ?? body.handle, MAX_HANDLE));
+
   const input: CreateCrawlStoryInput = {
     title,
     summary: readString(body.summary ?? body.caption, MAX_SUMMARY),
     visibility: cleanVisibility(body.visibility),
     vibeTags: readVibeTags(body.vibeTags),
+    ...(authorHandle ? { authorHandle } : {}),
     stops,
   };
 
@@ -98,6 +108,26 @@ export async function POST(request: Request): Promise<Response> {
   if (!result) {
     return Response.json({ error: "Could not save this crawl right now." }, { status: 503 });
   }
+
+  // crawl_save emit seam (story 34, best-effort): when a viewer saves a crawl that
+  // was ORIGINALLY authored by someone else (`savedFromSlug` points at the source
+  // story), notify that source author their crawl was saved. On a plain first-time
+  // save there is no source author, so nothing is emitted. Never awaited — a
+  // notification failure must not fail the crawl save.
+  const savedFromSlug = readString(body.savedFromSlug, 120);
+  if (savedFromSlug && authorHandle) {
+    void getStoryAuthor(savedFromSlug).then((sourceAuthor) => {
+      if (!sourceAuthor) return;
+      return emitNotification({
+        recipientHandle: sourceAuthor,
+        actorHandle: authorHandle,
+        kind: "crawl_save",
+        subjectRef: result.slug,
+        subjectLabel: title,
+      });
+    });
+  }
+
   return Response.json({ slug: result.slug }, { status: 201 });
 }
 

@@ -27,6 +27,17 @@ type ModeratorDrop = {
   reportedAt?: string;
 };
 
+// Moderator comment DTO as returned by GET /api/admin/comments?status=hidden.
+// Carries status + the drop it belongs to; never actor_hash.
+type ModeratorComment = {
+  id: string;
+  pintDropId: string;
+  handle: string;
+  body: string;
+  status: string;
+  createdAt: string;
+};
+
 const TOKEN_KEY = "pubmax_admin_token";
 
 function readStoredToken(): string {
@@ -49,6 +60,7 @@ export default function AdminPage() {
   const [token, setToken] = useState(readStoredToken);
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
   const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
+  const [comments, setComments] = useState<ModeratorComment[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -83,6 +95,21 @@ export default function AdminPage() {
           /* names stay unresolved; rows fall back to the venueId */
         }
       }
+      // Also load the hidden-comment queue (story 37) with the same token, in the
+      // same pass. Best-effort — a comments failure never blocks drop moderation.
+      try {
+        const cRes = await fetch("/api/admin/comments?status=hidden", {
+          headers: { "x-admin-token": t },
+        });
+        if (cRes.ok) {
+          const cBody = (await cRes.json()) as { comments: ModeratorComment[] };
+          setComments(cBody.comments ?? []);
+        } else {
+          setComments([]);
+        }
+      } catch {
+        setComments([]);
+      }
       if ((body.drops ?? []).length === 0) setMessage("No reported drops in the queue.");
     } catch {
       setDrops([]);
@@ -91,6 +118,37 @@ export default function AdminPage() {
       setLoading(false);
     }
   }, [token, venueNames.size]);
+
+  const decideComment = useCallback(
+    async (id: string, action: "restore" | "keep_hidden") => {
+      const t = token.trim();
+      setPendingId(id);
+      setMessage(null);
+      try {
+        const res = await fetch("/api/admin/comments", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-admin-token": t },
+          body: JSON.stringify({ action, id }),
+        });
+        if (res.status === 403) {
+          setMessage("Not authorised — check the admin token.");
+          return;
+        }
+        if (!res.ok) {
+          setMessage("Action failed — try again.");
+          return;
+        }
+        // Decided comments leave the hidden queue either way.
+        setComments((current) => current.filter((c) => c.id !== id));
+        setMessage(action === "restore" ? "Comment restored." : "Comment kept hidden.");
+      } catch {
+        setMessage("Could not reach the server.");
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [token],
+  );
 
   const decide = useCallback(
     async (id: string, action: "restore" | "keep_hidden") => {
@@ -224,6 +282,50 @@ export default function AdminPage() {
                   disabled={pendingId === d.id}
                 >
                   {pendingId === d.id ? "Working…" : "Keep hidden"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {/* ── Comment moderation queue (story 37) ─────────────────────────── */}
+      <h2 className="admin-section">Hidden comments</h2>
+      <p className="admin-sub">Review hidden Pint Drop comments. Restore the good, keep the rest hidden.</p>
+      {comments.length === 0 ? (
+        <div className="admin-empty">
+          <strong>No hidden comments</strong>
+          <span>Hidden or reported comments will appear here for review.</span>
+        </div>
+      ) : (
+        <div className="admin-list">
+          {comments.map((c) => (
+            <article className="admin-card" key={c.id}>
+              <div className="admin-card-head">
+                <span className="admin-handle">{c.handle}</span>
+                <span className="admin-report">{c.status}</span>
+              </div>
+              <p className="admin-note">{c.body}</p>
+              <div className="admin-meta">
+                <Link className="admin-venue-link" href={`/map?drop=${encodeURIComponent(c.pintDropId)}`}>
+                  View the Pint Drop
+                </Link>
+                <span>Posted: {new Date(c.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="admin-actions">
+                <button
+                  className="admin-btn admin-restore"
+                  onClick={() => decideComment(c.id, "restore")}
+                  disabled={pendingId === c.id}
+                >
+                  {pendingId === c.id ? "Working…" : "Restore"}
+                </button>
+                <button
+                  className="admin-btn admin-keep"
+                  onClick={() => decideComment(c.id, "keep_hidden")}
+                  disabled={pendingId === c.id}
+                >
+                  {pendingId === c.id ? "Working…" : "Keep hidden"}
                 </button>
               </div>
             </article>

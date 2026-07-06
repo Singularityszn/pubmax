@@ -12,6 +12,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { totalGbp, VIBE_TAGS, type CrawlStory } from "@/lib/crawlStory";
+import { normalizeHandle } from "@/lib/profiles";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
@@ -48,6 +49,11 @@ export type CreateCrawlStoryInput = {
   summary?: string;
   visibility?: StoryVisibility;
   vibeTags?: string[];
+  // The self-asserted device handle of the author (story 35). Optional — an
+  // anonymous save leaves it null. Attribution links to /u/[handle]; edit/delete
+  // are gated on this handle at the API seam. TRUE ownership enforcement lands
+  // when auth ownership merges (see the seam comment in app/api/crawls/route.ts).
+  authorHandle?: string;
   stops: Array<{
     venueId: string;
     note?: string;
@@ -74,6 +80,9 @@ export type DurableStory = {
   summary: string;
   visibility: StoryVisibility;
   vibeTags: string[];
+  // The author's self-asserted handle (normalized), or null for an anonymous
+  // story. The story page renders it as an attribution linking to /u/[handle].
+  authorHandle: string | null;
   stops: DurableStop[];
   totalGbp: number;
   createdAt: string;
@@ -182,6 +191,7 @@ type StoredStory = {
   summary: string;
   visibility: StoryVisibility;
   vibeTags: string[];
+  authorHandle: string | null;
   stops: Array<{ venueId: string; note?: string; priceGbp: number | null; position: number }>;
   createdAt: string;
 };
@@ -226,6 +236,7 @@ async function enrich(stored: StoredStory): Promise<DurableStory> {
     summary: stored.summary,
     visibility: stored.visibility,
     vibeTags: stored.vibeTags,
+    authorHandle: stored.authorHandle,
     stops,
     totalGbp: totalGbp(story),
     createdAt: stored.createdAt,
@@ -243,14 +254,16 @@ function admin() {
   return client;
 }
 
-// A stored story → the crawl_stories row. author_id stays NULL until a Supabase
+// A stored story → the crawl_stories row. `author_id` stays NULL until a Supabase
 // Auth link exists (a profile-linked author will go here — same reservation as
-// profiles.user_id in migration 0006). There is deliberately NO `handle` column
-// on crawl_stories, so nothing writes one here.
+// profiles.user_id in migration 0006). `author_handle` (migration 0010) carries
+// the self-asserted device-handle author today — attribution + the edit/delete
+// gate key until real auth ownership merges.
 function toStoryRow(story: StoredStory) {
   return {
     id: randomUUID(),
     author_id: null as string | null, // TODO: profile-linked author once auth lands
+    author_handle: story.authorHandle,
     title: story.title,
     slug: story.slug,
     summary: story.summary,
@@ -263,12 +276,14 @@ function toStoryRow(story: StoredStory) {
 }
 
 function fromStoryRow(row: Record<string, unknown>): Omit<StoredStory, "stops"> {
+  const author = normalizeHandle(String(row.author_handle ?? ""));
   return {
     slug: String(row.slug),
     title: String(row.title ?? ""),
     summary: String(row.summary ?? ""),
     visibility: cleanVisibility(row.visibility),
     vibeTags: [], // vibe tags are re-derived below; crawl_stories has no tags column
+    authorHandle: author || null,
     createdAt: String(row.created_at ?? new Date(0).toISOString()),
   };
 }
@@ -295,7 +310,7 @@ const MAX_SLUG_ATTEMPTS = 5;
  */
 export async function createCrawlStory(
   input: CreateCrawlStoryInput,
-): Promise<{ slug: string } | null> {
+): Promise<{ slug: string; authorHandle: string | null } | null> {
   const title = clampText(input.title, MAX_TITLE);
   if (!title) return null; // a story with no title has no name to slug or show
   const summary = clampText(input.summary, MAX_SUMMARY);
@@ -306,10 +321,11 @@ export async function createCrawlStory(
 
   const stopIds = stopsInput.map((s) => s.venueId);
   const createdAt = new Date().toISOString();
+  const authorHandle = normalizeHandle(input.authorHandle ?? "") || null;
 
   return isSupabaseConfigured()
-    ? createInSupabase({ title, summary, visibility, vibeTags, stopsInput, stopIds, createdAt })
-    : createInMemory({ title, summary, visibility, vibeTags, stopsInput, stopIds, createdAt });
+    ? createInSupabase({ title, summary, visibility, vibeTags, authorHandle, stopsInput, stopIds, createdAt })
+    : createInMemory({ title, summary, visibility, vibeTags, authorHandle, stopsInput, stopIds, createdAt });
 }
 
 type CreateParts = {
@@ -317,6 +333,7 @@ type CreateParts = {
   summary: string;
   visibility: StoryVisibility;
   vibeTags: string[];
+  authorHandle: string | null;
   stopsInput: Array<{ venueId: string; note?: string; priceGbp: number | null }>;
   stopIds: string[];
   createdAt: string;
@@ -329,6 +346,7 @@ function toStored(parts: CreateParts, slug: string): StoredStory {
     summary: parts.summary,
     visibility: parts.visibility,
     vibeTags: parts.vibeTags,
+    authorHandle: parts.authorHandle,
     stops: parts.stopsInput.map((stop, index) => ({
       venueId: stop.venueId,
       priceGbp: stop.priceGbp,
@@ -339,18 +357,18 @@ function toStored(parts: CreateParts, slug: string): StoredStory {
   };
 }
 
-function createInMemory(parts: CreateParts): { slug: string } | null {
+function createInMemory(parts: CreateParts): { slug: string; authorHandle: string | null } | null {
   for (let salt = 0; salt < MAX_SLUG_ATTEMPTS; salt += 1) {
     const slug = slugify(parts.title, parts.stopIds, salt);
     if (!memoryStories.has(slug)) {
       memoryStories.set(slug, toStored(parts, slug));
-      return { slug };
+      return { slug, authorHandle: parts.authorHandle };
     }
   }
   return null; // exhausted attempts — astronomically unlikely
 }
 
-async function createInSupabase(parts: CreateParts): Promise<{ slug: string } | null> {
+async function createInSupabase(parts: CreateParts): Promise<{ slug: string; authorHandle: string | null } | null> {
   try {
     for (let salt = 0; salt < MAX_SLUG_ATTEMPTS; salt += 1) {
       const slug = slugify(parts.title, parts.stopIds, salt);
@@ -378,7 +396,7 @@ async function createInSupabase(parts: CreateParts): Promise<{ slug: string } | 
         await admin().from(STORIES_TABLE).delete().eq("id", storyRow.id);
         throw new Error(stopsError.message);
       }
-      return { slug };
+      return { slug, authorHandle: parts.authorHandle };
     }
     return null; // exhausted salts
   } catch (err) {
@@ -446,4 +464,127 @@ async function getFromSupabase(slug: string): Promise<StoredStory | null> {
     );
     return null;
   }
+}
+
+// ── Authorship: attribution + edit/delete (story 35) ──────────────────────────
+//
+// AUTHORSHIP ENFORCEMENT SEAM. Today identity is a self-asserted device handle
+// (no auth), so `author_handle` is the ONLY thing an edit/delete can be gated on.
+// isAuthor(slug, handle) below is that gate; the API route (app/api/crawls/[slug])
+// rejects a mismatch with 403. This is a HONEST but WEAK gate — anyone can claim
+// any handle until auth ownership merges. When it does: add a recipient/author
+// user-id link and change isAuthor to compare auth.uid() ownership (the store
+// method signature stays the same, only the comparison hardens). Do NOT loosen
+// this to "anyone can edit" — the handle gate is the placeholder for real auth.
+
+/** The author handle registered on a story, or null (anonymous / unknown slug).
+ *  Reads a draft's author too (the gate must work before a story is published).
+ *  Never throws — a storage miss resolves to null. */
+export async function getStoryAuthor(slug: string): Promise<string | null> {
+  const key = typeof slug === "string" ? slug.trim() : "";
+  if (!key) return null;
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await admin()
+        .from(STORIES_TABLE)
+        .select("author_handle")
+        .eq("slug", key)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return null;
+      return normalizeHandle(String((data as { author_handle?: unknown }).author_handle ?? "")) || null;
+    } catch {
+      return null;
+    }
+  }
+  return memoryStories.get(key)?.authorHandle ?? null;
+}
+
+/** Is `handle` the author of `slug`? False for an anonymous story (no author to
+ *  match), an unknown slug, or a mismatch. THE edit/delete gate (see seam note). */
+export async function isAuthor(slug: string, handle: string): Promise<boolean> {
+  const claimant = normalizeHandle(handle ?? "");
+  if (!claimant) return false;
+  const author = await getStoryAuthor(slug);
+  return author !== null && author === claimant;
+}
+
+/** Delete a story (and its stops via ON DELETE CASCADE) IFF `handle` is the
+ *  author. Returns true when a row was removed; false on a not-author / unknown
+ *  slug. The route has already 403'd a non-author; this re-checks as defence in
+ *  depth so the store method is safe called directly. */
+export async function deleteCrawlStory(slug: string, handle: string): Promise<boolean> {
+  const key = typeof slug === "string" ? slug.trim() : "";
+  if (!key) return false;
+  if (!(await isAuthor(key, handle))) return false;
+  if (isSupabaseConfigured()) {
+    try {
+      const { error } = await admin().from(STORIES_TABLE).delete().eq("slug", key);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (err) {
+      console.error(
+        "[crawl-stories] could not delete story:",
+        err instanceof Error ? err.message : err,
+      );
+      return false;
+    }
+  }
+  return memoryStories.delete(key);
+}
+
+/** The patch an author may apply to a story's head fields. Stops are immutable
+ *  here (editing the route is a bigger operation left for later). */
+export type CrawlStoryPatch = {
+  title?: string;
+  summary?: string;
+  visibility?: StoryVisibility;
+};
+
+/** Update a story's head fields IFF `handle` is the author. Returns the fresh
+ *  DurableStory (or null on not-author / unknown slug / failure). */
+export async function updateCrawlStory(
+  slug: string,
+  handle: string,
+  patch: CrawlStoryPatch,
+): Promise<DurableStory | null> {
+  const key = typeof slug === "string" ? slug.trim() : "";
+  if (!key) return null;
+  if (!(await isAuthor(key, handle))) return null;
+
+  const next: Record<string, unknown> = {};
+  if (patch.title !== undefined) {
+    const title = clampText(patch.title, MAX_TITLE);
+    if (!title) return null; // a title can't be cleared
+    next.title = title;
+  }
+  if (patch.summary !== undefined) next.summary = clampText(patch.summary, MAX_SUMMARY);
+  if (patch.visibility !== undefined) next.visibility = cleanVisibility(patch.visibility);
+  if (Object.keys(next).length === 0) return getCrawlStoryBySlug(key);
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { error } = await admin()
+        .from(STORIES_TABLE)
+        .update({ ...next, updated_at: new Date().toISOString() })
+        .eq("slug", key);
+      if (error) throw new Error(error.message);
+    } catch (err) {
+      console.error(
+        "[crawl-stories] could not update story:",
+        err instanceof Error ? err.message : err,
+      );
+      return null;
+    }
+    return getCrawlStoryBySlug(key);
+  }
+
+  const stored = memoryStories.get(key);
+  if (!stored) return null;
+  if (typeof next.title === "string") stored.title = next.title;
+  if (typeof next.summary === "string") stored.summary = next.summary;
+  if (typeof next.visibility === "string") stored.visibility = next.visibility as StoryVisibility;
+  memoryStories.set(key, stored);
+  return getCrawlStoryBySlug(key);
 }

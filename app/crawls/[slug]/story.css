@@ -74,6 +74,29 @@
   line-height: 1.5;
 }
 
+/* Author attribution — a quiet by-line under the title (story 35). */
+.storyAuthor {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.storyAuthorLink {
+  color: var(--brass);
+  text-decoration: none;
+  font-weight: 600;
+}
+.storyAuthorLink:hover {
+  text-decoration: underline;
+}
+
+/* Author-only controls (delete). Sits under the primary actions. */
+.storyOwnerControls {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 /* Vibe tags as little brass stamps. */
 .storyTags {
   list-style: none;

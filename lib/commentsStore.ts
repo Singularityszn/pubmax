@@ -38,11 +38,29 @@ export type NewComment = {
   actorHash: string;
 };
 
+// The moderation view of a comment (admin only — story 37). Unlike CommentDTO
+// this carries the `status` + the drop it belongs to so the console can show the
+// review queue; it still NEVER carries actor_hash (that stays server-only).
+export type ModeratorCommentDTO = {
+  id: string;
+  pintDropId: string;
+  handle: string;
+  body: string;
+  status: "visible" | "hidden" | "pending";
+  createdAt: string;
+};
+
 export type CommentsStore = {
   /** Public read: visible-only, oldest-first, hard-capped. Never throws. */
   listComments(pintDropId: string): Promise<CommentDTO[]>;
   /** Create a visible comment; returns its public DTO. Throws on a store error. */
   addComment(input: NewComment): Promise<CommentDTO>;
+  /** Moderation queue: comments in a status (hidden/pending), newest-first.
+   *  Admin-only — carries status + drop id. Never throws (fail-soft to []). */
+  listForReview(status: "hidden" | "pending"): Promise<ModeratorCommentDTO[]>;
+  /** Moderator decision: set a comment's status (restore → visible, keep →
+   *  hidden). Returns false for an unknown id. Throws on a store error. */
+  moderate(id: string, status: "visible" | "hidden"): Promise<boolean>;
 };
 
 // ── Trust boundary ───────────────────────────────────────────────────────────
@@ -83,6 +101,21 @@ function admin() {
 // actor_hash and status never leave the server.
 function toDTO(row: { id: string; handle: string; body: string; created_at: string }): CommentDTO {
   return { id: row.id, handle: row.handle, body: row.body, createdAt: row.created_at };
+}
+
+// Map a raw row → the MODERATOR DTO. Carries status + drop id (admin needs them);
+// still never carries actor_hash.
+function toModeratorDTO(row: Record<string, unknown>): ModeratorCommentDTO {
+  const status = row.status;
+  return {
+    id: String(row.id),
+    pintDropId: String(row.pint_drop_id ?? ""),
+    handle: String(row.handle ?? ""),
+    body: String(row.body ?? ""),
+    status:
+      status === "hidden" || status === "pending" || status === "visible" ? status : "hidden",
+    createdAt: String(row.created_at ?? new Date(0).toISOString()),
+  };
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -130,6 +163,38 @@ export const supabaseCommentsStore: CommentsStore = {
       .single();
     if (error) throw new Error(error.message);
     return toDTO(data as { id: string; handle: string; body: string; created_at: string });
+  },
+
+  async listForReview(status) {
+    try {
+      const { data, error } = await admin()
+        .from(TABLE)
+        // Admin read: status + drop id ride along; actor_hash never does.
+        .select("id, pint_drop_id, handle, body, status, created_at")
+        .eq("status", status)
+        .order("created_at", { ascending: false })
+        .limit(MAX_COMMENTS);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row) =>
+        toModeratorDTO(row as Record<string, unknown>),
+      );
+    } catch (err) {
+      console.error(
+        "[comments] review list failed — returning empty queue:",
+        err instanceof Error ? err.message : err,
+      );
+      return [];
+    }
+  },
+
+  async moderate(id, status) {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
   },
 };
 
@@ -179,6 +244,37 @@ export const memoryCommentsStore: CommentsStore = {
     list.push(row);
     memoryRows.set(pintDropId, list);
     return toDTO(row);
+  },
+
+  async listForReview(status) {
+    const out: ModeratorCommentDTO[] = [];
+    for (const [pintDropId, rows] of memoryRows) {
+      for (const r of rows) {
+        if (r.status !== status) continue;
+        out.push({
+          id: r.id,
+          pintDropId,
+          handle: r.handle,
+          body: r.body,
+          status: r.status,
+          createdAt: r.created_at,
+        });
+      }
+    }
+    return out
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)) // newest-first
+      .slice(0, MAX_COMMENTS);
+  },
+
+  async moderate(id, status) {
+    for (const rows of memoryRows.values()) {
+      const hit = rows.find((r) => r.id === id);
+      if (hit) {
+        hit.status = status;
+        return true;
+      }
+    }
+    return false;
   },
 };
 

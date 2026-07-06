@@ -1,0 +1,92 @@
+/* Activity feed (story 34) — a quiet, readable list of social events. Reuses the
+   app's tokens; nothing bespoke beyond layout + the unread accent. */
+
+.activity {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 16px 96px;
+}
+
+.activityHead {
+  margin: 24px 0 16px;
+}
+.activityHead h1 {
+  margin: 0;
+  font-size: 28px;
+}
+.activitySub {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.activityLoading {
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 24px 0;
+}
+
+.activityList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.activityItem {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+/* Unread rows carry a brass left-edge accent so what's new reads at a glance. */
+.activityItem.isUnread {
+  border-left: 3px solid var(--brass);
+  background: var(--panel-raised);
+}
+
+.activityActor {
+  color: var(--brass);
+  font-weight: 700;
+  text-decoration: none;
+}
+.activityActor:hover {
+  text-decoration: underline;
+}
+
+.activityVerb {
+  color: var(--ink);
+}
+.activitySubject {
+  color: var(--ink-soft);
+}
+.activityTime {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.activityLink {
+  margin-left: 8px;
+  color: var(--brass);
+  font-size: 13px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.activityLink:hover {
+  text-decoration: underline;
+}
+
+.activityCta {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--brass);
+  color: var(--panel-raised);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
