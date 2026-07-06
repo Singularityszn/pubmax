@@ -1,0 +1,87 @@
+/* Mobile-first tab bar + "sheet" feel for the venue detail panel.
+   Scoped to elements *inside* .venueInspector only — we never restyle the
+   outer .venueInspector box (positioning/size stays owned by globals.css) so
+   there is no desktop layout regression. Uses the shared app tokens
+   (--brass, --ink, --line, --paper, --muted, --panel-raised, --radius-sm). */
+
+/* A short grabber bar gives the panel a bottom-sheet affordance on phones. */
+.venueSheetGrab {
+  display: block;
+  width: 38px;
+  height: 4px;
+  margin: 0 auto 10px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+/* Horizontally-scrollable tab strip with comfortable touch targets. */
+.venueTabs {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 2px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox — the strip scrolls, no visible bar */
+  border-bottom: 1px solid var(--line);
+}
+
+.venueTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.venueTab {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  /* Clear active-tab indicator: an underline that transitions in. */
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.venueTab:hover {
+  color: var(--ink);
+}
+
+.venueTab.active {
+  color: var(--ink);
+  background: var(--panel-raised);
+  border-color: var(--line);
+  border-bottom-color: var(--brass);
+}
+
+/* Visible keyboard focus on tabs. */
+.venueTab:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.venueTabPanel {
+  padding-top: 12px;
+}
+
+/* The address used to inherit its muted colour from `.venueInspector > p` in
+   globals.css; now that it lives inside a tab panel that selector no longer
+   matches, so we preserve the exact look here (no globals.css edit needed). */
+.venueAddress {
+  color: var(--muted);
+}
+
+/* Respect reduced-motion: none of the above motion is essential. */
+@media (prefers-reduced-motion: reduce) {
+  .venueTab {
+    transition: none;
+  }
+}
