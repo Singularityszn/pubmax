@@ -123,22 +123,31 @@ function subscribeInsert(
 
   // Switch to the polling fallback exactly once. Idempotent: repeated triggers
   // (watchdog + a later error) don't stack intervals.
+  //
+  // RE-ENTRANCY: removeChannel() → channel.unsubscribe() fires the subscribe
+  // status callback SYNCHRONOUSLY with "CLOSED", which lands right back here.
+  // So every guard (pollTimer, channel = null) must be settled BEFORE the
+  // removeChannel call — the original order (remove first, guards after) let
+  // the re-entrant call see both guards unset and recurse into removeChannel
+  // until "Maximum call stack size exceeded".
   function fallBackToPolling() {
     if (disposed || pollTimer) return;
     if (joinTimer) {
       clearTimeout(joinTimer);
       joinTimer = null;
     }
-    // Best-effort remove the dead channel; ignore any error.
-    if (channel) {
+    const dead = channel;
+    channel = null; // re-entry guard: the CLOSED callback sees no channel
+    if (poll) pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+    // Best-effort remove the dead channel; ignore any error. Do this LAST —
+    // see the re-entrancy note above.
+    if (dead) {
       try {
-        void supabase!.removeChannel(channel);
+        void supabase!.removeChannel(dead);
       } catch {
         /* already gone */
       }
-      channel = null;
     }
-    if (poll) pollTimer = setInterval(poll, POLL_INTERVAL_MS);
   }
 
   try {

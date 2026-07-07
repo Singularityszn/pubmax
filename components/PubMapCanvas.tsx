@@ -728,6 +728,18 @@ export default function PubMapCanvas({
     // the one intentionally tolerated lint warning for the app.
     // eslint-disable-next-line complexity
     const buildScene = () => {
+      // Stale-event guard. A style.load can arrive from a style that a rapid
+      // setStyle() just superseded (e.g. two theme flips inside one style-fetch
+      // window): the event fires from the OLD style object, but map.addLayer
+      // targets map.style — the NEW, not-yet-loaded one — and every mutation
+      // would throw "Style is not done loading". `_loaded` is the exact flag
+      // MapLibre's _checkLoaded() throws on (isStyleLoaded() is too strict here:
+      // it also waits for tiles/sprite, which are legitimately still in flight
+      // at style.load). Dropping the stale event is lossless — the new style's
+      // own style.load re-runs buildScene, and pendingUpdatesRef carries any
+      // queued data writes across to that build.
+      const currentStyle = map.style as unknown as { _loaded?: boolean } | undefined;
+      if (!currentStyle || currentStyle._loaded === false) return;
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
 
@@ -1257,8 +1269,6 @@ export default function PubMapCanvas({
 
       setMapReady(true);
     };
-    map.on("style.load", buildScene);
-
     // --- Basemap fallback: OpenFreeMap is community-run, so if the primary style
     // hasn't loaded within a timeout (or errors before first load), swap to
     // CARTO's keyless styles; if that also fails, surface the same graceful
@@ -1266,11 +1276,20 @@ export default function PubMapCanvas({
     let styleLoaded = false;
     let usingFallback = false;
     let hardFailTimer: ReturnType<typeof setTimeout> | undefined;
+    // ORDER MATTERS: this flag-setter must be registered BEFORE buildScene.
+    // MapLibre fires style validation/source problems as synchronous `error`
+    // events from inside mutation calls, so if buildScene ran first (flag still
+    // false) any such error would re-enter the error handler mid-build, call
+    // swapToBasemapFallback → setStyle, and synchronously replace map.style
+    // with a fresh UNLOADED style — every remaining addLayer in buildScene then
+    // throws "Style is not done loading". With the flag set first, the error
+    // handler knows the style did load and never swaps mid-build.
     map.on("style.load", () => {
       styleLoaded = true;
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
     });
+    map.on("style.load", buildScene);
     const swapToBasemapFallback = () => {
       if (styleLoaded || usingFallback) return;
       usingFallback = true;
