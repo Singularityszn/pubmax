@@ -115,6 +115,12 @@ const nextConfig = {
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  outputFileTracingIncludes: {
+    "/api/venue/*": [
+      "./data/generated/venue_detail_index.json",
+      "./data/generated/venue_details.jsonl",
+    ],
+  },
   turbopack: {
     root: projectRoot,
   },

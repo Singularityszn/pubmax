@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "coverage": "vitest run --coverage",
+    "prevalidate-data": "npm run build:slim",
     "validate-data": "node scripts/validate-data.mjs",
     "export:data": "python3 scripts/export_app_dataset_json.py",
     "build:slim": "node scripts/build_slim_index.mjs",

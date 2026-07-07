@@ -13,7 +13,9 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, "..", "public", "data");
+const ROOT_DIR = join(__dirname, "..");
+const DATA_DIR = join(ROOT_DIR, "public", "data");
+const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
 const DRINK_CATEGORIES = new Set([
   "beer",
@@ -58,6 +60,7 @@ const LAT_MAX = 51.72;
 // truncated. Fail hard so we never ship a gutted map.
 const PINT_ROW_FLOOR = 2500;
 const SLIM_VENUE_FLOOR = 900;
+const DETAIL_VENUE_FLOOR = 900;
 
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -99,6 +102,25 @@ function loadJson(name) {
   const path = join(DATA_DIR, name);
   const raw = readFileSync(path, "utf8");
   return JSON.parse(raw);
+}
+
+function expectedVenueGroupsFromPintRows(rows) {
+  const grouped = new Map();
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) continue;
+    const lat = Number(row.latitude);
+    const lng = Number(row.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !inLondon(lng, lat)) continue;
+    const key = venueGroupingKey(row);
+    const bucket = grouped.get(key);
+    if (bucket) bucket.push(row);
+    else grouped.set(key, [row]);
+  }
+  const byId = new Map();
+  for (const [key, prices] of grouped) {
+    byId.set(stableVenueIdFromKey(key), prices);
+  }
+  return byId;
 }
 
 // Collect errors per file so one broken row doesn't hide the rest. We cap the
@@ -425,6 +447,175 @@ function validateSlimVenues() {
   return { ok, count: slim.length };
 }
 
+// venue_detail_index.json + venue_details.jsonl — server-side lazy detail
+// artifacts generated beside venues_slim.json. The manifest points each venue
+// id to a byte range in the JSONL file, so /api/venue/[id] reads only one pub's
+// rows instead of parsing/grouping the full pint dataset on cold start.
+function validateVenueDetails() {
+  const name = "data/generated/venue_details.jsonl";
+  const manifestName = "data/generated/venue_detail_index.json";
+  const errs = makeCollector();
+  let rows;
+  try {
+    rows = loadJson("pint_prices_app_dataset.json");
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read full pint dataset for parity check (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  if (!Array.isArray(rows)) {
+    console.log(`FAIL ${name}: expected full pint dataset to be a top-level array`);
+    return { ok: false, count: 0 };
+  }
+
+  const manifestPath = join(GENERATED_DATA_DIR, "venue_detail_index.json");
+  const detailsPath = join(GENERATED_DATA_DIR, "venue_details.jsonl");
+  if (!existsSync(manifestPath) || !existsSync(detailsPath)) {
+    console.log(`FAIL ${name}: generated files are missing; run npm run build:slim`);
+    return { ok: false, count: 0 };
+  }
+
+  const expectedGroups = expectedVenueGroupsFromPintRows(rows);
+  const expectedIds = new Set(expectedGroups.keys());
+  const seenIds = new Set();
+  let manifest;
+  let details;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    details = readFileSync(detailsPath);
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse generated files (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  const venues = manifest?.venues;
+  const entries =
+    typeof venues === "object" && venues !== null
+      ? Object.entries(venues)
+      : [];
+
+  if (manifest?.version !== 1) {
+    errs.add(`${manifestName}: version must be 1`);
+  }
+  if (manifest?.detailsFile !== "venue_details.jsonl") {
+    errs.add(`${manifestName}: detailsFile must be "venue_details.jsonl"`);
+  }
+  if (manifest?.count !== entries.length) {
+    errs.add(`${manifestName}: count ${manifest?.count} does not match ${entries.length} manifest entries`);
+  }
+
+  if (entries.length < DETAIL_VENUE_FLOOR) {
+    errs.add(`venue count ${entries.length} is below the floor of ${DETAIL_VENUE_FLOOR} — detail artifact looks truncated`);
+  }
+  if (entries.length !== expectedIds.size) {
+    errs.add(`venue count ${entries.length} does not match rebuilt expected count ${expectedIds.size}`);
+  }
+
+  const spans = [];
+  entries.forEach(([id, entry], i) => {
+    const where = `entry ${i + 1} (${id})`;
+    if (typeof id !== "string" || id.length === 0) {
+      errs.add(`entry ${i + 1}: missing/empty id`);
+      return;
+    }
+    if (seenIds.has(id)) {
+      errs.add(`${where}: duplicate id`);
+    } else {
+      seenIds.add(id);
+    }
+    if (!expectedIds.has(id)) {
+      errs.add(`${where}: id is not present in rebuilt full-dataset index`);
+    }
+    if (typeof entry !== "object" || entry === null) {
+      errs.add(`${where}: manifest entry is not an object`);
+      return;
+    }
+    const { offset, length, rowCount } = entry;
+    if (
+      !Number.isSafeInteger(offset) ||
+      !Number.isSafeInteger(length) ||
+      !Number.isSafeInteger(rowCount) ||
+      offset < 0 ||
+      length <= 0 ||
+      rowCount <= 0
+    ) {
+      errs.add(`${where}: offset, length, and rowCount must be positive safe integers`);
+      return;
+    }
+    if (offset + length > details.length) {
+      errs.add(`${where}: byte range ${offset}-${offset + length} exceeds details file length ${details.length}`);
+      return;
+    }
+    spans.push({ id, start: offset, end: offset + length });
+    let artifact;
+    try {
+      artifact = JSON.parse(details.subarray(offset, offset + length).toString("utf8").trim());
+    } catch (e) {
+      errs.add(`${where}: invalid JSON detail row (${e.message})`);
+      return;
+    }
+    if (typeof artifact !== "object" || artifact === null) {
+      errs.add(`${where}: detail row is not an object`);
+      return;
+    }
+    if (artifact.id !== id) {
+      errs.add(`${where}: artifact id ${artifact.id} does not match manifest id`);
+      return;
+    }
+    if (!Array.isArray(artifact.rows) || artifact.rows.length === 0) {
+      errs.add(`${where}: rows must be a non-empty array`);
+      return;
+    }
+    if (artifact.rows.length !== rowCount) {
+      errs.add(`${where}: rowCount ${rowCount} does not match ${artifact.rows.length} detail rows`);
+    }
+    const expectedRows = expectedGroups.get(id);
+    if (expectedRows && artifact.rows.length !== expectedRows.length) {
+      errs.add(`${where}: row count ${artifact.rows.length} does not match rebuilt group ${expectedRows.length}`);
+    }
+    for (const [j, price] of artifact.rows.entries()) {
+      if (typeof price !== "object" || price === null) {
+        errs.add(`${where} row ${j}: not an object`);
+        continue;
+      }
+      const priceId = stableVenueIdFromKey(venueGroupingKey(price));
+      if (priceId !== id) {
+        errs.add(`${where} row ${j}: row groups to ${priceId}`);
+      }
+      if (expectedRows && JSON.stringify(price) !== JSON.stringify(expectedRows[j])) {
+        errs.add(`${where} row ${j}: row content does not match the source pint dataset`);
+      }
+    }
+  });
+
+  spans.sort((a, b) => a.start - b.start);
+  if (spans.length > 0 && spans[0].start !== 0) {
+    errs.add(`${manifestName}: byte ranges start at ${spans[0].start}, expected 0`);
+  }
+  for (let i = 1; i < spans.length; i += 1) {
+    if (spans[i].start < spans[i - 1].end) {
+      errs.add(`${manifestName}: byte range for ${spans[i].id} overlaps ${spans[i - 1].id}`);
+    } else if (spans[i].start > spans[i - 1].end) {
+      errs.add(`${manifestName}: byte range gap before ${spans[i].id}`);
+    }
+  }
+  if (spans.length > 0 && spans[spans.length - 1].end !== details.length) {
+    errs.add(`${manifestName}: byte ranges end at ${spans[spans.length - 1].end}, details file has ${details.length} bytes`);
+  }
+
+  const missing = Array.from(expectedIds).filter((id) => !seenIds.has(id));
+  for (const id of missing.slice(0, 20)) {
+    errs.add(`missing detail row for ${id}`);
+  }
+  if (missing.length > 20) {
+    errs.add(`...and ${missing.length - 20} more missing detail rows`);
+  }
+
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${entries.length} venues (floor ${DETAIL_VENUE_FLOOR}), ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: entries.length };
+}
+
 // drink_price_updates/*.json — permissible-source drink price update files
 // (E2 of docs/PRD_ALL_DRINKS.md). Mirrors lib/drinkPriceUpdates.ts
 // isValidDrinkPriceUpdate exactly: a shipped file with even one bad row fails
@@ -555,6 +746,7 @@ function main() {
     validateTflLines(),
     validatePintPrices(),
     validateSlimVenues(),
+    validateVenueDetails(),
     validateDrinkPriceUpdates(),
   ];
   const failed = results.filter((r) => !r.ok).length;

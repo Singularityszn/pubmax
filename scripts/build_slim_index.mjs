@@ -16,7 +16,7 @@
 // the ids this produces equals stableVenueIdFromKey(venueGroupingKey(...)) from
 // the real TS, so the mirror can never silently drift.
 
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +24,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
+const GENERATED_DIR = path.join(ROOT, "data", "generated");
+const DETAIL_INDEX_PATH = path.join(GENERATED_DIR, "venue_detail_index.json");
+const DETAIL_ROWS_PATH = path.join(GENERATED_DIR, "venue_details.jsonl");
 
 // Greater London bounding box — a safety net mirroring
 // scripts/export_app_dataset_json.py and scripts/validate-data.mjs. The export
@@ -94,29 +97,55 @@ async function main() {
   }
 
   const slim = [];
+  const detailLines = [];
+  const detailIndex = {
+    version: 1,
+    detailsFile: "venue_details.jsonl",
+    count: 0,
+    venues: {},
+  };
+  let detailOffset = 0;
   for (const [key, prices] of grouped) {
     const first = prices[0];
     const numericPrices = prices
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
     const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
+    const id = stableVenueIdFromKey(key);
 
     slim.push({
-      id: stableVenueIdFromKey(key),
+      id,
       name: String(first.pub_name),
       lat: Number(first.latitude),
       lng: Number(first.longitude),
       cheapestPrice,
       borough: String(first.primary_borough || ""),
     });
+
+    const detailLine = `${JSON.stringify({ id, rows: prices })}\n`;
+    const detailLength = Buffer.byteLength(detailLine);
+    detailIndex.venues[id] = {
+      offset: detailOffset,
+      length: detailLength,
+      rowCount: prices.length,
+    };
+    detailOffset += detailLength;
+    detailLines.push(detailLine);
   }
+  detailIndex.count = detailLines.length;
 
   // Compact JSON (no whitespace) — the map never reads this file by hand.
   const slimText = JSON.stringify(slim);
+  const detailText = detailLines.join("");
+  const detailIndexText = JSON.stringify(detailIndex);
+  await mkdir(GENERATED_DIR, { recursive: true });
   await writeFile(SLIM_PATH, slimText);
+  await writeFile(DETAIL_ROWS_PATH, detailText);
+  await writeFile(DETAIL_INDEX_PATH, detailIndexText);
 
   const rawBytes = Buffer.byteLength(rawText);
   const slimBytes = Buffer.byteLength(slimText);
+  const detailBytes = Buffer.byteLength(detailText);
   const kb = (bytes) => (bytes / 1024).toFixed(1);
   const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(2);
 
@@ -126,6 +155,9 @@ async function main() {
     `saved: ${mb(rawBytes - slimBytes)} MB   (slim is ${(100 - (slimBytes / rawBytes) * 100).toFixed(1)}% smaller)`,
   );
   console.log(`wrote: ${path.relative(ROOT, SLIM_PATH)}`);
+  console.log(`detail rows: ${slim.length} venues ${mb(detailBytes)} MB (${detailBytes} bytes)`);
+  console.log(`wrote: ${path.relative(ROOT, DETAIL_ROWS_PATH)}`);
+  console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
 }
 
 main().catch((err) => {
