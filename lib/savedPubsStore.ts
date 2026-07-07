@@ -389,3 +389,315 @@ export function savedListsStore(): SavedListsStore {
 export function __resetMemorySavedLists(): void {
   memoryLists.clear();
 }
+
+// ── Followable saved lists (IDEAS B3) ───────────────────────────────────────
+// A list follow is "viewer handle follows owner handle's named saved-pub list".
+// This deliberately follows the same temporary identity ceiling as profiles,
+// follows, crawl authorship, and saved pubs: handles are self-asserted until
+// full Supabase Auth ownership is enabled. The public read shape therefore
+// exposes only authored public content: owner handle, profile/list links, and
+// aggregate counts. Internal profile ids never leave the store.
+
+const LIST_FOLLOWS_TABLE = "saved_list_follows";
+
+export type SavedListFollowCounts = {
+  followers: number;
+  savedPubs: number;
+};
+
+export type FollowedSavedListDTO = {
+  ownerHandle: string;
+  ownerProfileUrl: string;
+  listType: ListType;
+  listUrl: string;
+  savedCount: number;
+  followerCount: number;
+  followedAt: string;
+};
+
+export type SavedListFollowsStore = {
+  /** Follow another handle's named list (idempotent). False for invalid/self follows. */
+  followList(followerHandle: string, ownerHandle: string, listType: ListType): Promise<boolean>;
+  /** Remove a followed-list edge (idempotent). */
+  unfollowList(followerHandle: string, ownerHandle: string, listType: ListType): Promise<boolean>;
+  /** Does follower currently follow ownerHandle's named list? */
+  isFollowingList(
+    followerHandle: string,
+    ownerHandle: string,
+    listType: ListType,
+  ): Promise<boolean>;
+  /** Public aggregate counts for one authored list. Reads are fail-soft. */
+  counts(ownerHandle: string, listType: ListType): Promise<SavedListFollowCounts>;
+  /** Lists followed by a handle, with author attribution and counts. Reads are fail-soft. */
+  listFollowedBy(followerHandle: string): Promise<FollowedSavedListDTO[]>;
+};
+
+function listFollowKey(followerHandle: string, ownerHandle: string, listType: string): string {
+  return `${followerHandle}>${ownerHandle}>${listType}`;
+}
+
+function isSelfListFollow(followerHandle: string, ownerHandle: string): boolean {
+  const follower = normalizeHandle(followerHandle);
+  const owner = normalizeHandle(ownerHandle);
+  return follower !== "" && follower === owner;
+}
+
+function listUrl(ownerHandle: string, listType: string): string {
+  return `/u/${encodeURIComponent(ownerHandle)}/lists/${encodeURIComponent(listType)}`;
+}
+
+function listSummary(
+  ownerHandle: string,
+  listType: string,
+  savedCount: number,
+  followerCount: number,
+  followedAt: string,
+): FollowedSavedListDTO {
+  return {
+    ownerHandle,
+    ownerProfileUrl: `/u/${encodeURIComponent(ownerHandle)}`,
+    listType,
+    listUrl: listUrl(ownerHandle, listType),
+    savedCount,
+    followerCount,
+    followedAt,
+  };
+}
+
+function uniqueViolation(error: { code?: string } | null): boolean {
+  return error?.code === "23505";
+}
+
+async function supabaseSavedCount(profileId: string, listType: string): Promise<number> {
+  const res = await admin()
+    .from(TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", profileId)
+    .eq("list_type", listType);
+  if (res.error) throw new Error(res.error.message);
+  return res.count ?? 0;
+}
+
+async function supabaseFollowerCount(profileId: string, listType: string): Promise<number> {
+  const res = await admin()
+    .from(LIST_FOLLOWS_TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("list_owner_profile_id", profileId)
+    .eq("list_name", listType);
+  if (res.error) throw new Error(res.error.message);
+  return res.count ?? 0;
+}
+
+export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
+  async followList(followerHandle, ownerHandle, rawListType) {
+    const follower = normalizeHandle(followerHandle);
+    const owner = normalizeHandle(ownerHandle);
+    const listType = cleanListType(rawListType);
+    if (!follower || !owner || !listType || isSelfListFollow(follower, owner)) return false;
+
+    const followerId = await profileIdForHandle(supabaseProfileStore, follower, true);
+    const ownerId = await profileIdForHandle(supabaseProfileStore, owner, true);
+    if (!followerId || !ownerId) return false;
+
+    const { error } = await admin().from(LIST_FOLLOWS_TABLE).insert({
+      follower_profile_id: followerId,
+      list_owner_profile_id: ownerId,
+      list_name: listType,
+    });
+    if (error && !uniqueViolation(error)) throw new Error(error.message);
+    return true;
+  },
+
+  async unfollowList(followerHandle, ownerHandle, rawListType) {
+    const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle, false);
+    const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle, false);
+    const listType = cleanListType(rawListType);
+    if (!followerId || !ownerId || !listType) return true;
+
+    const { error } = await admin()
+      .from(LIST_FOLLOWS_TABLE)
+      .delete()
+      .eq("follower_profile_id", followerId)
+      .eq("list_owner_profile_id", ownerId)
+      .eq("list_name", listType);
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
+  async isFollowingList(followerHandle, ownerHandle, rawListType) {
+    try {
+      const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle, false);
+      const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle, false);
+      const listType = cleanListType(rawListType);
+      if (!followerId || !ownerId || !listType) return false;
+      const { data, error } = await admin()
+        .from(LIST_FOLLOWS_TABLE)
+        .select("id")
+        .eq("follower_profile_id", followerId)
+        .eq("list_owner_profile_id", ownerId)
+        .eq("list_name", listType)
+        .limit(1);
+      if (error) throw new Error(error.message);
+      return (data ?? []).length > 0;
+    } catch {
+      return false;
+    }
+  },
+
+  async counts(ownerHandle, rawListType) {
+    try {
+      const ownerId = await profileIdForHandle(supabaseProfileStore, ownerHandle, false);
+      const listType = cleanListType(rawListType);
+      if (!ownerId || !listType) return { followers: 0, savedPubs: 0 };
+      const [followers, savedPubs] = await Promise.all([
+        supabaseFollowerCount(ownerId, listType),
+        supabaseSavedCount(ownerId, listType),
+      ]);
+      return { followers, savedPubs };
+    } catch {
+      return { followers: 0, savedPubs: 0 };
+    }
+  },
+
+  async listFollowedBy(followerHandle) {
+    try {
+      const followerId = await profileIdForHandle(supabaseProfileStore, followerHandle, false);
+      if (!followerId) return [];
+      const { data, error } = await admin()
+        .from(LIST_FOLLOWS_TABLE)
+        .select("list_owner_profile_id, list_name, created_at, owner:list_owner_profile_id ( handle )")
+        .eq("follower_profile_id", followerId)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+
+      const summaries: FollowedSavedListDTO[] = [];
+      for (const row of (data ?? []) as {
+        list_owner_profile_id?: unknown;
+        list_name?: unknown;
+        created_at?: unknown;
+        owner?: { handle?: unknown } | null;
+      }[]) {
+        const ownerId = typeof row.list_owner_profile_id === "string" ? row.list_owner_profile_id : "";
+        const owner = normalizeHandle(String(row.owner?.handle ?? ""));
+        const listType = cleanListType(row.list_name);
+        if (!ownerId || !owner || !listType) continue;
+        const [followerCount, savedCount] = await Promise.all([
+          supabaseFollowerCount(ownerId, listType),
+          supabaseSavedCount(ownerId, listType),
+        ]);
+        summaries.push(
+          listSummary(
+            owner,
+            listType,
+            savedCount,
+            followerCount,
+            typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
+          ),
+        );
+      }
+      return summaries;
+    } catch {
+      return [];
+    }
+  },
+};
+
+type MemoryListFollow = {
+  followerHandle: string;
+  ownerHandle: string;
+  listType: string;
+  followedAt: string;
+};
+
+const memoryListFollows = new Map<string, MemoryListFollow>();
+
+function memorySavedCount(ownerHandle: string, listType: string): number {
+  const partition = memoryRows.get(ownerKey(ownerHandle));
+  if (!partition) return 0;
+  let count = 0;
+  for (const row of partition.values()) {
+    if (row.listType === listType) count += 1;
+  }
+  return count;
+}
+
+function memoryFollowerCount(ownerHandle: string, listType: string): number {
+  let count = 0;
+  for (const row of memoryListFollows.values()) {
+    if (row.ownerHandle === ownerHandle && row.listType === listType) count += 1;
+  }
+  return count;
+}
+
+export const memorySavedListFollowsStore: SavedListFollowsStore = {
+  async followList(followerHandle, ownerHandle, rawListType) {
+    const follower = normalizeHandle(followerHandle);
+    const owner = normalizeHandle(ownerHandle);
+    const listType = cleanListType(rawListType);
+    if (!follower || !owner || !listType || isSelfListFollow(follower, owner)) return false;
+
+    const key = listFollowKey(follower, owner, listType);
+    if (!memoryListFollows.has(key)) {
+      memoryListFollows.set(key, {
+        followerHandle: follower,
+        ownerHandle: owner,
+        listType,
+        followedAt: new Date().toISOString(),
+      });
+    }
+    return true;
+  },
+
+  async unfollowList(followerHandle, ownerHandle, rawListType) {
+    const follower = normalizeHandle(followerHandle);
+    const owner = normalizeHandle(ownerHandle);
+    const listType = cleanListType(rawListType);
+    if (follower && owner && listType) {
+      memoryListFollows.delete(listFollowKey(follower, owner, listType));
+    }
+    return true;
+  },
+
+  async isFollowingList(followerHandle, ownerHandle, rawListType) {
+    const follower = normalizeHandle(followerHandle);
+    const owner = normalizeHandle(ownerHandle);
+    const listType = cleanListType(rawListType);
+    return Boolean(follower && owner && listType && memoryListFollows.has(listFollowKey(follower, owner, listType)));
+  },
+
+  async counts(ownerHandle, rawListType) {
+    const owner = normalizeHandle(ownerHandle);
+    const listType = cleanListType(rawListType);
+    if (!owner || !listType) return { followers: 0, savedPubs: 0 };
+    return {
+      followers: memoryFollowerCount(owner, listType),
+      savedPubs: memorySavedCount(owner, listType),
+    };
+  },
+
+  async listFollowedBy(followerHandle) {
+    const follower = normalizeHandle(followerHandle);
+    if (!follower) return [];
+    return [...memoryListFollows.values()]
+      .filter((row) => row.followerHandle === follower)
+      .sort((a, b) => b.followedAt.localeCompare(a.followedAt))
+      .map((row) =>
+        listSummary(
+          row.ownerHandle,
+          row.listType,
+          memorySavedCount(row.ownerHandle, row.listType),
+          memoryFollowerCount(row.ownerHandle, row.listType),
+          row.followedAt,
+        ),
+      );
+  },
+};
+
+export function savedListFollowsStore(): SavedListFollowsStore {
+  return isSupabaseConfigured() ? supabaseSavedListFollowsStore : memorySavedListFollowsStore;
+}
+
+/** Test-only: clear the in-memory saved-list follow edges between cases. */
+export function __resetMemorySavedListFollows(): void {
+  memoryListFollows.clear();
+}
