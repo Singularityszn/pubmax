@@ -1,19 +1,17 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 
 import {
   buildCrawlRoute,
   filterVenues,
-  groupVenuePrices,
   mergeVenueDrops,
   venueGroupingKey,
   type Filters,
   type Venue,
-  type VenuePrice,
 } from "@/lib/venues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
@@ -183,6 +181,61 @@ function readStoredBuiltIds(): string[] {
 // (not localStorage) keeps it a gentle, per-visit prompt.
 const ONBOARDING_DISMISSED_KEY = "pubmax_onboarding_dismissed";
 
+const DETAIL_STATUS_STYLE: CSSProperties = {
+  margin: "0 18px 10px",
+  padding: "10px 12px",
+  border: "1px solid rgba(211, 164, 74, 0.28)",
+  borderRadius: "8px",
+  background: "rgba(211, 164, 74, 0.1)",
+  color: "var(--ink)",
+  fontSize: "0.82rem",
+  fontWeight: 700,
+};
+
+const DETAIL_WARNING_STYLE: CSSProperties = {
+  ...DETAIL_STATUS_STYLE,
+  borderColor: "rgba(209, 99, 83, 0.34)",
+  background: "rgba(209, 99, 83, 0.12)",
+};
+
+type VenueDetailStatus = "idle" | "loading" | "ready" | "unavailable";
+
+type VenueDetailResponse = {
+  venue?: Venue;
+};
+
+function detailStatusFor(
+  selectedVenueId: string,
+  detailById: Map<string, Venue>,
+  detailStatusById: Map<string, VenueDetailStatus>,
+): VenueDetailStatus {
+  if (!selectedVenueId) return "idle";
+  if (detailById.has(selectedVenueId)) return "ready";
+  return detailStatusById.get(selectedVenueId) ?? "loading";
+}
+
+function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, Venue>): Venue[] {
+  return slimPins.map((pin) => detailById.get(pin.id) ?? pin);
+}
+
+function venueUpdateKey(venue: Venue): string {
+  const firstPrice = venue.prices[0];
+  return firstPrice ? venueGroupingKey(firstPrice) : venue.id;
+}
+
+function filterMapVenues(
+  venues: Venue[],
+  filters: Filters,
+  hasPintDrops: (venueId: string) => boolean,
+): Venue[] {
+  // Slim pins deliberately carry prices: [] so the full pint dataset stays off
+  // the initial map load. Treat "canonical only" as unknown/pass for those pins;
+  // otherwise the default filter would blank the entire fast map.
+  const hasSlimPins = venues.some((venue) => venue.prices.length === 0);
+  const effectiveFilters = hasSlimPins ? { ...filters, canonicalOnly: false } : filters;
+  return filterVenues(venues, effectiveFilters, hasPintDrops);
+}
+
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
   try {
@@ -211,12 +264,8 @@ export default function PubMap() {
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
   // If any of these are present, the arrival is intentional and we never onboard.
   const arrivedWithCrawlParams = useMemo(() => hasCrawlArrivalParams(currentSearch()), []);
-  const [rows, setRows] = useState<VenuePrice[]>([]);
-  // `loaded` flips true only when the FULL dataset fetch resolves — lets the UI
-  // tell a still-loading empty from a genuine zero-result, and gates every
-  // feature that needs full-Venue fields (filters, saved-only, crawl scoring,
-  // the onboarding overlay). Set in the fetch handler below (never in a bare
-  // effect: react-hooks/set-state-in-effect is an error).
+  // `loaded` means the slim map index has settled. The full price dataset is no
+  // longer fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
   // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
   // ~116 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
@@ -224,6 +273,10 @@ export default function PubMap() {
   // They carry only what pubsToGeoJSON needs (id/name/coords/cheapestPrice);
   // hasStory + prices degrade to inert defaults until hydration (see lib/slimPins).
   const [slimPins, setSlimPins] = useState<Venue[]>([]);
+  const [detailById, setDetailById] = useState<Map<string, Venue>>(() => new Map());
+  const [detailStatusById, setDetailStatusById] = useState<Map<string, VenueDetailStatus>>(
+    () => new Map(),
+  );
   const [selectedVenueId, setSelectedVenueId] = useState<string>(seed.selectedVenueId);
   const [filters, setFilters] = useState<Filters>(seed.filters);
   const [mode, setMode] = useState<CrawlMode>(seed.mode);
@@ -290,11 +343,9 @@ export default function PubMap() {
     onSheetDragEnd,
   } = useSheetDrag(dismissSheet);
 
-  // Issue #35 — stage 1: paint pins from the slim index first. This resolves in
-  // ~116 KB (or instantly from IndexedDB) so pins appear long before the full
-  // dataset. On success we drop a `pubmax:first-pins` performance mark — the
-  // perf-assertion signal the e2e reads. A slim failure is silent: the full
-  // dataset (stage 2) is the source of truth and still paints everything.
+  // Issue #35 — stage 1: paint pins from the slim index. This resolves in ~116 KB
+  // (or instantly from IndexedDB), and is the ONLY initial venue payload for the
+  // map. Full pub detail is fetched lazily via /api/venue/[id] when inspected.
   useEffect(() => {
     let cancelled = false;
     loadSlimVenues()
@@ -311,8 +362,11 @@ export default function PubMap() {
         }
       })
       .catch(() => {
-        // Slim fetch failed with no offline mirror — stage 2 below still loads
-        // the full dataset; the map just skips the optimistic first paint.
+        // Slim fetch failed with no offline mirror — render the honest empty
+        // state instead of falling back to the full 6 MB client payload.
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -320,30 +374,46 @@ export default function PubMap() {
   }, []);
 
   useEffect(() => {
-    // Reliability: abort a hung fetch after a timeout and guard the response so a
-    // slow/failed CDN degrades to the friendly empty state instead of freezing on
-    // the skeleton forever. `loaded` still flips on every settled path.
+    if (!selectedVenueId || detailById.has(selectedVenueId)) return;
+    let cancelled = false;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
-    fetch("/data/pint_prices_app_dataset.json", { signal: controller.signal })
+    fetch(`/api/venue/${encodeURIComponent(selectedVenueId)}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
       })
-      .then((data: VenuePrice[]) => setRows(Array.isArray(data) ? data : []))
+      .then((data: VenueDetailResponse) => {
+        if (cancelled) return;
+        if (data.venue?.id !== selectedVenueId) throw new Error("Bad venue detail payload");
+        setDetailById((current) => {
+          const next = new Map(current);
+          next.set(selectedVenueId, data.venue!);
+          return next;
+        });
+        setDetailStatusById((current) => {
+          const next = new Map(current);
+          next.delete(selectedVenueId);
+          return next;
+        });
+      })
       .catch(() => {
-        // Network / timeout / parse error — leave rows empty; the empty state
-        // (not a permanent skeleton) renders once `loaded` flips below.
+        if (cancelled) return;
+        setDetailStatusById((current) => {
+          const next = new Map(current);
+          next.set(selectedVenueId, "unavailable");
+          return next;
+        });
       })
       .finally(() => {
         clearTimeout(timeout);
-        setLoaded(true);
       });
     return () => {
+      cancelled = true;
       clearTimeout(timeout);
       controller.abort();
     };
-  }, []);
+  }, [selectedVenueId, detailById]);
 
   // Sourced price-refresh layer (issue #23): fetched 404-tolerantly; community
   // drops always outrank it inside mergePriceUpdates.
@@ -359,12 +429,10 @@ export default function PubMap() {
       });
   }, []);
 
-  const baseVenues = useMemo(() => groupVenuePrices(rows), [rows]);
+  const baseVenues = useMemo(() => mergeLazyDetailPins(slimPins, detailById), [slimPins, detailById]);
   const venues = useMemo<Venue[]>(
     () =>
-      mergePriceUpdates(mergeVenueDrops(baseVenues, dropsByVenueId), priceUpdates, (venue) =>
-        venueGroupingKey(venue.prices[0]),
-      ),
+      mergePriceUpdates(mergeVenueDrops(baseVenues, dropsByVenueId), priceUpdates, venueUpdateKey),
     [baseVenues, dropsByVenueId, priceUpdates],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
@@ -372,7 +440,7 @@ export default function PubMap() {
   // pint-drops). Favorite-pint re-prices inside PubMapCanvas and never changes
   // membership, so it isn't part of this set.
   const pipelineVenues = useMemo(
-    () => filterVenues(venues, filters, (id) => Boolean(venueSignals.get(id)?.hasPintDrops)),
+    () => filterMapVenues(venues, filters, (id) => Boolean(venueSignals.get(id)?.hasPintDrops)),
     [venues, filters, venueSignals],
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
@@ -382,15 +450,7 @@ export default function PubMap() {
     [pipelineVenues, savedOnly, savedIds],
   );
 
-  // Issue #35 — what the MAP CANVAS paints. Until the full dataset hydrates
-  // (`venues` empty), paint the optimistic slim pins directly, BYPASSING the
-  // filter/saved-only/scoring pipeline — slim pins lack the fields those read
-  // (amenities, curation, prices), so running them through filterVenues would
-  // wrongly narrow the first paint. The moment the real venues arrive, we swap
-  // to the fully-filtered set. Everything else in the UI (planner, inspector,
-  // crawl, saved-only, band, favorite-pint repricing) keeps reading the
-  // hydrated `filteredVenues`/`venues`, so no pre-hydration feature is faked.
-  const canvasVenues = venues.length === 0 ? slimPins : filteredVenues;
+  const canvasVenues = filteredVenues;
 
   const suggestedRoute = useMemo(
     () => buildCrawlRoute(filteredVenues, filters),
@@ -403,9 +463,10 @@ export default function PubMap() {
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
 
   const selectedVenue = useMemo(
-    () => venueById.get(selectedVenueId) ?? route[0],
+    () => (selectedVenueId ? venueById.get(selectedVenueId) : route[0]),
     [route, selectedVenueId, venueById],
   );
+  const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
 
   // Keep the URL in sync so "Copy link" shares the current crawl.
   useCrawlUrlSync(
@@ -606,7 +667,7 @@ export default function PubMap() {
     );
   }, [filteredVenues, filters.stopCount, selectVenue]);
 
-  const detailOpen = Boolean(selectedVenueId) && loaded;
+  const detailOpen = Boolean(selectedVenueId && selectedVenue);
 
   // §4.5: show the "Start with a story" onboarding overlay only on a clean first
   // paint — data loaded, nothing selected, suggest mode, no hand-built stops, no
@@ -883,17 +944,29 @@ export default function PubMap() {
           </button>
         </div>
         {detailOpen && selectedVenue ? (
-          <VenueInspector
-            venue={selectedVenue}
-            mode={mode}
-            inCrawl={builtIds.includes(selectedVenue.id)}
-            latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
-            onToggleStop={toggleBuiltStop}
-            pintDrops={pintDrops}
-            onGrabDragStart={onSheetDragStart}
-            onGrabDragMove={onSheetDragMove}
-            onGrabDragEnd={onSheetDragEnd}
-          />
+          <>
+            {selectedDetailStatus === "loading" ? (
+              <div style={DETAIL_STATUS_STYLE} role="status">
+                Loading full pub details…
+              </div>
+            ) : null}
+            {selectedDetailStatus === "unavailable" ? (
+              <div style={DETAIL_WARNING_STYLE} role="status">
+                Showing fast map details. Full pub notes are unavailable right now.
+              </div>
+            ) : null}
+            <VenueInspector
+              venue={selectedVenue}
+              mode={mode}
+              inCrawl={builtIds.includes(selectedVenue.id)}
+              latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
+              onToggleStop={toggleBuiltStop}
+              pintDrops={pintDrops}
+              onGrabDragStart={onSheetDragStart}
+              onGrabDragMove={onSheetDragMove}
+              onGrabDragEnd={onSheetDragEnd}
+            />
+          </>
         ) : null}
       </div>
     </main>

@@ -64,15 +64,26 @@ test("/map renders the MapLibre canvas with real size and never falls back", asy
 // ceiling (4s) well under the old full-dataset-only path.
 test("/map paints optimistic pins from the slim index quickly", async ({ page }) => {
   test.setTimeout(30_000);
+  const fullDatasetRequests: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path === "/data/pint_prices_app_dataset.json") {
+      fullDatasetRequests.push(request.url());
+    }
+  });
+
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
   // Wait until PubMap has set its first-pins mark. It's dropped in a client
   // effect after loadSlimVenues() resolves, so poll the Performance timeline.
-  await page.waitForFunction(
-    () => performance.getEntriesByName("pubmax:first-pins").length > 0,
-    { timeout: 15_000 },
-  );
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => performance.getEntriesByName("pubmax:first-pins")[0]?.startTime ?? 0),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
 
   const startTime = await page.evaluate(() => {
     const [mark] = performance.getEntriesByName("pubmax:first-pins");
@@ -80,7 +91,42 @@ test("/map paints optimistic pins from the slim index quickly", async ({ page })
   });
 
   // startTime is ms since navigation start — the time to the first optimistic
-  // pin paint. Generous CI ceiling; a regression to the full-dataset-first path
-  // would blow well past this.
-  expect(startTime).toBeLessThan(4000);
+  // pin paint. The network assertion below is the hard regression guard against
+  // reintroducing the full-dataset path; this ceiling stays CI-safe under
+  // SwiftShader and a cold production server.
+  expect(startTime).toBeLessThan(10000);
+  expect(fullDatasetRequests).toEqual([]);
+});
+
+test("/map lazy-loads full venue detail only when a pub is selected", async ({ page }) => {
+  test.setTimeout(30_000);
+  const fullDatasetRequests: string[] = [];
+  const venueDetailRequests: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path === "/data/pint_prices_app_dataset.json") {
+      fullDatasetRequests.push(request.url());
+    }
+    if (path.startsWith("/api/venue/")) {
+      venueDetailRequests.push(request.url());
+    }
+  });
+
+  const selectedVenueId = "venue-16pnwmm";
+  const response = await page.goto(`/map?sel=${selectedVenueId}`);
+  expect(response?.status()).toBe(200);
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => performance.getEntriesByName("pubmax:first-pins")[0]?.startTime ?? 0),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
+
+  await expect(page.getByRole("heading", { name: /Prospect of Whitby/i })).toBeVisible();
+  await expect
+    .poll(() => venueDetailRequests.filter((url) => url.includes(selectedVenueId)).length)
+    .toBeGreaterThan(0);
+  expect(fullDatasetRequests).toEqual([]);
 });
