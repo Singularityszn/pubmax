@@ -6,10 +6,10 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "prebuild": "npm run build:slim",
     "build": "next build",
-    "prestart": "node -e \"require('fs').existsSync('.next/BUILD_ID') || (console.error('\\n\\u2717 .next/BUILD_ID is missing \\u2014 there is no completed production build to serve.\\n  Run `npm run build` to completion first. In this shared worktree a concurrent `next dev`/`next build` can clobber .next mid-build and leave it partial (no BUILD_ID); if so, stop other Next processes, then rebuild.\\n'), process.exit(1))\"",
+    "prestart": "node -e \"const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\\n\\u2717 '+d+'/BUILD_ID is missing \\u2014 there is no completed production build to serve.\\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\\n'), process.exit(1))\"",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
