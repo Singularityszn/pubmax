@@ -1,14 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
   getVenueDetail,
   isVenueDetailId,
   resetVenueDetailCachesForTests,
+  setVenueDetailRowsFileForTests,
   venueFromDetailArtifact,
 } from "@/lib/venueDetailIndex";
 import {
@@ -39,7 +39,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
   resetVenueDetailCachesForTests();
 });
 
@@ -65,7 +64,7 @@ describe("venueDetailIndex", () => {
   });
 
   it("degrades to null when the detail rows file cannot be opened", async () => {
-    vi.spyOn(fs, "open").mockRejectedValueOnce(new Error("missing detail artifact"));
+    setVenueDetailRowsFileForTests(path.join(ROOT, "data", "generated", "missing-details.jsonl"));
     await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toBeNull();
   });
 

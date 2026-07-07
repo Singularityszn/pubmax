@@ -24,13 +24,14 @@ export type VenueDetailArtifact = {
 const GENERATED_DIR =
   process.env.PUBMAX_VENUE_DETAIL_DIR ?? path.join(process.cwd(), "data", "generated");
 const DETAIL_INDEX_FILE = path.join(GENERATED_DIR, "venue_detail_index.json");
-const DETAIL_ROWS_FILE = path.join(GENERATED_DIR, "venue_details.jsonl");
+const DEFAULT_DETAIL_ROWS_FILE = path.join(GENERATED_DIR, "venue_details.jsonl");
 const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
 
 const VENUE_ID_RE = /^venue-[a-z0-9]{1,12}$/;
 
 const cachedDetails = new Map<string, Venue>();
 let cachedManifest: VenueDetailManifest | null | undefined;
+let detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
 let fallbackIndex: Map<string, Venue> | null = null;
 
 export function isVenueDetailId(id: string): boolean {
@@ -81,7 +82,7 @@ async function readVenueFromArtifact(id: string): Promise<Venue | null | undefin
 
   let file: Awaited<ReturnType<typeof fs.open>> | null = null;
   try {
-    file = await fs.open(DETAIL_ROWS_FILE, "r");
+    file = await fs.open(detailRowsFile, "r");
     const buffer = Buffer.alloc(entry.length);
     const { bytesRead } = await file.read(buffer, 0, entry.length, entry.offset);
     if (bytesRead !== entry.length) return null;
@@ -127,5 +128,12 @@ export function resetVenueDetailCachesForTests(): void {
   if (process.env.NODE_ENV !== "test") return;
   cachedDetails.clear();
   cachedManifest = undefined;
+  detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
   fallbackIndex = null;
+}
+
+export function setVenueDetailRowsFileForTests(file: string): void {
+  if (process.env.NODE_ENV !== "test") return;
+  cachedDetails.clear();
+  detailRowsFile = file;
 }
