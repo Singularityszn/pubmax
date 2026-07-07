@@ -17,6 +17,10 @@ import {
   type FeedItem,
   type PintDropDTO,
 } from "@/lib/feed";
+import {
+  OPTIMISTIC_SPILL_EVENT,
+  readOptimisticSpills,
+} from "@/lib/optimisticSpillPost";
 import { normalizeHandle } from "@/lib/profiles";
 import { currentMode, MODE_DEFAULT_LANE } from "@/lib/viewMode";
 import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
@@ -37,6 +41,28 @@ type LoadState = "loading" | "ready" | "error";
 type SummaryMap = Record<string, ReactionSummary>;
 
 const EMPTY_SUMMARY: ReactionSummary = { counts: {}, mine: [] };
+
+function mergeLocalOptimisticItems(current: FeedItem[]): FeedItem[] {
+  if (typeof window === "undefined") return current;
+  const localItems = readOptimisticSpills(window.localStorage).map((entry) =>
+    normalizePintDrop(entry.drop),
+  );
+  if (localItems.length === 0) return current.filter((item) => !item.id.startsWith("optimistic-"));
+  const localIds = new Set(localItems.map((item) => item.id));
+  const localClientIds = new Set(
+    localItems
+      .map((item) => item.optimistic?.clientRequestId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0),
+  );
+  return [
+    ...localItems,
+    ...current.filter(
+      (item) =>
+        !localIds.has(item.id) &&
+        !(item.optimistic?.clientRequestId && localClientIds.has(item.optimistic.clientRequestId)),
+    ),
+  ];
+}
 
 // ── Demo-seed local fallback ──────────────────────────────────────────────────
 // Reactions on a persisted drop live in the durable backend. Demo/seed drops
@@ -152,7 +178,8 @@ export default function FeedPage() {
       .then(async (res) => {
         if (!res.ok) throw new Error(`Feed request failed: ${res.status}`);
         const data = (await res.json()) as { drops?: PintDropDTO[] };
-        return Array.isArray(data.drops) ? data.drops.map(normalizePintDrop) : [];
+        const normalized = Array.isArray(data.drops) ? data.drops.map(normalizePintDrop) : [];
+        return mergeLocalOptimisticItems(normalized);
       })
       .then((normalized) => {
         // Seed the live dedupe set with everything we loaded, so the first live
@@ -168,6 +195,26 @@ export default function FeedPage() {
         setStatus("error");
       });
     return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const applyLocal = () => {
+      const hasLocal = readOptimisticSpills(window.localStorage).length > 0;
+      setItems((current) => {
+        const merged = mergeLocalOptimisticItems(current);
+        for (const item of merged) knownIds.current.add(item.id);
+        return merged;
+      });
+      if (hasLocal) setStatus((state) => (state === "loading" ? "ready" : state));
+    };
+    void Promise.resolve().then(applyLocal);
+    window.addEventListener(OPTIMISTIC_SPILL_EVENT, applyLocal);
+    window.addEventListener("storage", applyLocal);
+    return () => {
+      window.removeEventListener(OPTIMISTIC_SPILL_EVENT, applyLocal);
+      window.removeEventListener("storage", applyLocal);
+    };
   }, []);
 
   // Live subscription (issue #37). A new-drop event is a SIGNAL ONLY — we never

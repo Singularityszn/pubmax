@@ -3,6 +3,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { getAnonId } from "@/lib/anonId";
+import type { PintDropDTO } from "@/lib/feed";
+import {
+  buildOptimisticSpillDrop,
+  emitOptimisticSpillChange,
+  failOptimisticSpill,
+  newOptimisticSpillClientId,
+  readOptimisticSpills,
+  reconcileOptimisticSpill,
+  shouldOptimisticallyAppearInFeed,
+  upsertOptimisticSpill,
+  writeOptimisticSpills,
+} from "@/lib/optimisticSpillPost";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
 
@@ -11,6 +23,7 @@ import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spi
 export type DropWithPhotos = PintDrop & {
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  optimistic?: PintDropDTO["optimistic"];
 };
 
 export type PhotoSlot = { file: File; previewUrl: string };
@@ -173,10 +186,90 @@ export function usePintDrops() {
     };
   }, [pintPhoto, venuePhoto]);
 
-  async function submitDrop(event: FormEvent, venueId: string) {
+  function updateOptimisticFeedStorage(
+    update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,
+  ) {
+    if (typeof window === "undefined") return;
+    const next = update(readOptimisticSpills(window.localStorage));
+    writeOptimisticSpills(window.localStorage, next);
+    emitOptimisticSpillChange();
+  }
+
+  async function submitDrop(event: FormEvent, venueId: string, options?: { venueName?: string }) {
     event.preventDefault();
     setSubmitting(true);
     setDropMsg(null);
+    const clientRequestId = newOptimisticSpillClientId();
+    const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
+    const optimisticDrop = buildOptimisticSpillDrop({
+      clientRequestId,
+      venueId,
+      venueName: options?.venueName,
+      handle,
+      priceGbp: dropForm.price,
+      drink: dropForm.drink,
+      passedDownNote,
+      era: dropForm.era,
+      visibility,
+      vibeTags,
+      pintPhotoUrl: pintPhoto?.previewUrl ?? null,
+      venuePhotoUrl: venuePhoto?.previewUrl ?? null,
+      createdAt: new Date().toISOString(),
+    });
+    const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
+    if (publishToFeed) {
+      updateOptimisticFeedStorage((current) => upsertOptimisticSpill(current, optimisticDrop));
+    }
+    const optimisticMapDrop: DropWithPhotos = {
+      id: optimisticDrop.id,
+      venueId,
+      handle: optimisticDrop.handle,
+      drink: optimisticDrop.drink,
+      priceGbp: optimisticDrop.priceGbp,
+      passedDownNote: optimisticDrop.passedDownNote,
+      era: optimisticDrop.era,
+      vibeTags: optimisticDrop.vibeTags as VibeTag[],
+      provenance: optimisticDrop.provenance,
+      status: "visible",
+      visibility,
+      createdAt: optimisticDrop.createdAt,
+      pintPhotoUrl: optimisticDrop.pintPhotoUrl,
+      venuePhotoUrl: optimisticDrop.venuePhotoUrl,
+      optimistic: optimisticDrop.optimistic,
+    };
+    setDropsByVenueId((current) => {
+      const next = new Map(current);
+      next.set(venueId, [optimisticMapDrop, ...(next.get(venueId) ?? [])]);
+      return next;
+    });
+
+    const markFailed = (message: string) => {
+      if (publishToFeed) {
+        updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
+      }
+      setDropsByVenueId((current) => {
+        const next = new Map(current);
+        next.set(
+          venueId,
+          (next.get(venueId) ?? []).map((drop) =>
+            drop.id === optimisticDrop.id
+              ? {
+                  ...drop,
+                  optimistic: {
+                    state: "failed",
+                    message,
+                    uploadProgress: null,
+                    canRetry: true,
+                    clientRequestId,
+                  },
+                }
+              : drop,
+          ),
+        );
+        return next;
+      });
+    };
+
     try {
       // multipart/form-data — do NOT set Content-Type, the browser adds the boundary.
       const body = new FormData();
@@ -188,7 +281,7 @@ export function usePintDrops() {
       // note as a structured suffix ("— with @sam, @priya") at submit time, so
       // every surface that renders passedDownNote gets it for free. See
       // lib/spill.ts for the exact format.
-      body.set("passedDownNote", appendWithSuffix(dropForm.note, dropForm.withWho));
+      body.set("passedDownNote", passedDownNote);
       body.set("era", dropForm.era);
       body.set("visibility", visibility);
       // Repeated field entries — the route also accepts one comma-separated
@@ -200,12 +293,27 @@ export function usePintDrops() {
       const response = await fetch("/api/pint-drops", { method: "POST", body });
       const data = await response.json();
       if (!response.ok) {
-        setDropMsg({ ok: false, text: data.error ?? "Could not save that drop." });
+        const message = data.error ?? "Could not save that drop.";
+        markFailed(message);
+        setDropMsg({ ok: false, text: message });
       } else {
+        const reconciledDrop = {
+          ...(data.drop as PintDropDTO),
+          venueName: options?.venueName,
+          venueMapUrl: `/map?sel=${encodeURIComponent(venueId)}`,
+        };
+        if (publishToFeed) {
+          updateOptimisticFeedStorage((current) =>
+            reconcileOptimisticSpill(current, clientRequestId, reconciledDrop),
+          );
+        }
         window.localStorage.setItem("pubmax_handle", handle.trim());
         setDropsByVenueId((current) => {
           const next = new Map(current);
-          next.set(venueId, [data.drop, ...(next.get(venueId) ?? [])]);
+          next.set(venueId, [
+            data.drop,
+            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
+          ]);
           return next;
         });
         resetComposer();
@@ -213,7 +321,9 @@ export function usePintDrops() {
         setDropMsg({ ok: true, text: "Cheers — your Pint Drop is live." });
       }
     } catch {
-      setDropMsg({ ok: false, text: "Network or storage error — try again." });
+      const message = "Network or storage error — try again.";
+      markFailed(message);
+      setDropMsg({ ok: false, text: message });
     } finally {
       setSubmitting(false);
     }

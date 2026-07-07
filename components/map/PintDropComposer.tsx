@@ -286,7 +286,10 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
   const showRest = !mobile || photoStepDone || hasAnyPhoto;
 
   return (
-    <form className="dropComposer spillComposer" onSubmit={(event) => submitDrop(event, venueId)}>
+    <form
+      className="dropComposer spillComposer"
+      onSubmit={(event) => submitDrop(event, venueId, { venueName })}
+    >
       {/* ── Camera-first step (mobile) ────────────────────────────────────────
           On a phone the very first thing the composer presents is the shot: a
           rear-camera capture, a flip to the front camera, or an explicit skip.
