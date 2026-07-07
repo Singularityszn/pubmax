@@ -565,7 +565,9 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
       if (!followerId) return [];
       const { data, error } = await admin()
         .from(LIST_FOLLOWS_TABLE)
-        .select("list_owner_profile_id, list_name, created_at, owner:list_owner_profile_id ( handle )")
+        .select(
+          "list_owner_profile_id, list_name, created_at, owner:profiles!saved_list_follows_list_owner_profile_id_fkey(handle)",
+        )
         .eq("follower_profile_id", followerId)
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
