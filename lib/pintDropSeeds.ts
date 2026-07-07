@@ -21,8 +21,15 @@ type SeedSpec = {
   priceGbp: number;
   passedDownNote: string;
   era: string;
-  createdAt: string;
+  minutesAgo: number;
 };
+
+const MINUTE_MS = 60_000;
+const DEMO_NOW_MS = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
+
+function demoCreatedAt(minutesAgo: number): string {
+  return new Date(DEMO_NOW_MS - minutesAgo * MINUTE_MS).toISOString();
+}
 
 const seeds: SeedSpec[] = [
   // Prospect of Whitby — 57 Wapping Wall (Tudor riverside)
@@ -35,7 +42,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "My old man swore the flagstone floor by the bar was laid when the watermen still drank here. Take your pint out to the terrace at low tide and listen — the river knocks on the wall like it wants letting in.",
     era: "Told since the 1960s",
-    createdAt: "2026-06-21T18:42:00.000Z",
+    minutesAgo: 18,
   },
   {
     id: "seed-prospect-2",
@@ -46,7 +53,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "Nan cleaned here in the fifties and said the pewter bar top was older than anyone who ever leaned on it. She tapped it twice for luck before closing, so I do too.",
     era: "Nan's shift, 1950s",
-    createdAt: "2026-06-09T20:15:00.000Z",
+    minutesAgo: 42,
   },
   // The Grapes — 76 Narrow St, Limehouse
   {
@@ -58,7 +65,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "Dad always took the window seat over the water and said Dickens put this room in a book before any of us were born. Order the bitter, watch the tide turn, say nothing.",
     era: "Dad's rule, 1980s",
-    createdAt: "2026-06-17T19:05:00.000Z",
+    minutesAgo: 68,
   },
   {
     id: "seed-grapes-2",
@@ -69,7 +76,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "Grandma said at a proper high tide the balcony feels like the deck of a barge. She was right — hold your glass with both hands the first time.",
     era: "High-tide advice",
-    createdAt: "2026-05-30T17:30:00.000Z",
+    minutesAgo: 95,
   },
   // The Dove — 19 Upper Mall, Hammersmith
   {
@@ -81,7 +88,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "Grandad rowed off the Mall and called the front snug the smallest bar in England long before the record people agreed. Two of you fit. Three is a friendship test.",
     era: "Rowing club lore",
-    createdAt: "2026-06-14T16:20:00.000Z",
+    minutesAgo: 127,
   },
   // The Lamb — 94 Lamb's Conduit St, Bloomsbury
   {
@@ -93,7 +100,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "Mum said her grandmother could order a port here without the saloon ever seeing her face — you swivel the etched snob screen and a whole century turns with it.",
     era: "Great-grandmother's trick",
-    createdAt: "2026-06-05T18:55:00.000Z",
+    minutesAgo: 163,
   },
   // The Old Pack Horse — 434 Chiswick High Rd
   {
@@ -105,7 +112,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "My grandfather drank here when the trams still ran up the High Road. Same green tiles outside, same corner seat inside — he said the brewery built it to outlast the lot of us, and so far it has.",
     era: "Since the trams",
-    createdAt: "2026-06-19T17:48:00.000Z",
+    minutesAgo: 201,
   },
   // The Sun Tavern — 441 Bethnal Green Rd
   {
@@ -117,7 +124,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "Grandad came in after his market shifts and always said the same thing: a small room keeps the talk honest. Ask about the Irish whiskey shelf and settle in.",
     era: "Market-day habit",
-    createdAt: "2026-05-24T21:10:00.000Z",
+    minutesAgo: 247,
   },
   // The Queens Arms — 11 Warwick Way, Pimlico
   {
@@ -129,7 +136,7 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "It says 1846 above the door, but for our family the date that matters is 1971 — my aunt's wedding party filled the back room and nobody went home before the bell.",
     era: "The wedding, 1971",
-    createdAt: "2026-06-11T19:33:00.000Z",
+    minutesAgo: 286,
   },
   // The Queens Head — 66 Acton St, WC1X
   {
@@ -141,12 +148,19 @@ const seeds: SeedSpec[] = [
     passedDownNote:
       "My father-in-law calls this his thinking pub — piano in the corner, a proper cellar, and the same quiet at five o'clock he remembers from forty years back.",
     era: "Forty years of five o'clocks",
-    createdAt: "2026-05-28T17:02:00.000Z",
+    minutesAgo: 312,
   },
 ];
 
 export const demoPintDrops: PintDrop[] = seeds.map((seed) => ({
-  ...seed,
+  id: seed.id,
+  venueId: seed.venueId,
+  handle: seed.handle,
+  drink: seed.drink,
+  priceGbp: seed.priceGbp,
+  passedDownNote: seed.passedDownNote,
+  era: seed.era,
+  createdAt: demoCreatedAt(seed.minutesAgo),
   provenance: "demo",
   status: "visible",
 }));

@@ -40,6 +40,19 @@ describe("demo Pint Drop seeds", () => {
     expect(new Set(demoPintDrops.map((d) => d.id)).size).toBe(demoPintDrops.length);
   });
 
+  it("stamps demo drops as tonight-fresh rather than weeks-old content", () => {
+    const now = Date.now();
+    const sixHoursMs = 6 * 60 * 60 * 1000;
+    const created = demoPintDrops.map((drop) => Date.parse(drop.createdAt));
+
+    for (const t of created) {
+      expect(Number.isFinite(t)).toBe(true);
+      expect(t).toBeLessThanOrEqual(now);
+      expect(now - t).toBeLessThanOrEqual(sixHoursMs);
+    }
+    expect([...created].sort((a, b) => b - a)).toEqual(created);
+  });
+
   it("seeds ride the single in-memory read path (no second render path)", () => {
     const all = listAllVisiblePintDrops();
     for (const drop of demoPintDrops) {
