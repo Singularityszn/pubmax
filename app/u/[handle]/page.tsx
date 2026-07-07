@@ -23,9 +23,11 @@ import {
 } from "@/lib/profiles";
 import type { ProfileRecord } from "@/lib/profileStore";
 import {
+  fetchFollowedListsForHandle,
   fetchSavedForHandle,
   groupDTOsByList,
   savedByList,
+  type FollowedSavedListDTO,
   type ListType,
   type SavedPub,
   type SavedPubDTO,
@@ -102,6 +104,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   // (savedByList) mapped into DTOs. Start empty so the server render and the
   // client's first (hydration) paint match, then fill in after mount.
   const [saved, setSaved] = useState<Partial<Record<ListType, SavedPubDTO[]>>>({});
+  const [followedLists, setFollowedLists] = useState<FollowedSavedListDTO[]>([]);
 
   // The viewer's own handle (localStorage `pubmax_handle`), read after mount so
   // the server render and hydration agree. Drives the follow button + whether
@@ -166,6 +169,21 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
       setSaved(durable ? groupDTOsByList(durable) : localSavedDTOs());
     }
     void loadSaved();
+    return () => controller.abort();
+  }, [routeHandle]);
+
+  // Followed saved lists are public social context for this handle's saved view:
+  // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
+  // matching the API contract, because followed lists are additive context.
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadFollowedLists() {
+      const lists = routeHandle
+        ? await fetchFollowedListsForHandle(routeHandle, controller.signal)
+        : [];
+      if (!controller.signal.aborted) setFollowedLists(lists);
+    }
+    void loadFollowedLists();
     return () => controller.abort();
   }, [routeHandle]);
 
@@ -446,7 +464,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               )}
             </section>
 
-            <SavedPubList groups={saved} />
+            <SavedPubList groups={saved} followedLists={followedLists} />
           </>
         )}
       </main>
