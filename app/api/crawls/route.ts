@@ -26,7 +26,17 @@ const MAX_STOPS = 12;
 const MAX_HANDLE = 40;
 
 function readString(value: unknown, cap: number): string {
-  return typeof value === "string" ? value.slice(0, cap).trim() : "";
+  if (typeof value !== "string") return "";
+  // Hold the same write-boundary invariant as lib/textClean.cleanText: strip angle
+  // brackets + control chars (so a stored crawl title/summary/note never carries raw
+  // markup), collapse whitespace, then cap. Defence-in-depth — every render path
+  // already escapes, but no untrusted `<>` should be persisted in the first place.
+  return value
+    .replace(/[<>]/g, "")
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, cap)
+    .trim();
 }
 
 // Coerce an untrusted stops array into the store's stop shape, clamped + capped.

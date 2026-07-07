@@ -14,7 +14,11 @@ const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 
 // Content-Security-Policy. Every directive below maps to a real app dependency
 // so everything else is locked down to 'self':
-//   - script-src: NO 'unsafe-eval', NO wildcard/CDN script origins. Our own
+//   - script-src: NO production 'unsafe-eval', NO wildcard/CDN script origins.
+//     Local `next dev` gets a dev-only 'unsafe-eval' allowance because React
+//     development tooling uses eval for call-stack reconstruction; production
+//     builds never receive it.
+//     Our own
 //     no-flash theme script is an EXTERNAL file (public/theme-init.js), so it is
 //     covered by 'self' with no per-build hash — see app/layout.tsx.
 //     'unsafe-inline' here is required ONLY by Next.js 16's own App-Router RSC
@@ -55,9 +59,14 @@ const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 //     worker-src 'self' ALSO covers the offline service worker (public/sw.js,
 //     issue #32); its fetch/caching targets (self + tiles.openfreemap.org) are
 //     already in connect-src, so no CSP loosening was needed for offline mode.
+const scriptSrc =
+  process.env.NODE_ENV === "development"
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co",
   "font-src 'self' data: https://tiles.openfreemap.org",
@@ -84,10 +93,28 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(self), geolocation=(self), microphone=(), payment=(), usb=()",
   },
+  // Isolate our top-level browsing context (defence-in-depth against cross-origin
+  // popup / XS-Leak attacks). Safe here: Google OAuth uses a redirect flow, not a
+  // window.opener popup, so COOP doesn't break sign-in.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
+
+// CORS policy (deliberate): we set NO `Access-Control-Allow-Origin` header. Vercel's
+// CDN attaches `Access-Control-Allow-Origin: *` to PUBLIC static/prerendered assets
+// only (HTML, /_next/static/*, /data/*.json) — that is safe: the content is already
+// world-readable and there is NO `Access-Control-Allow-Credentials` anywhere, so a
+// cross-origin credentialed read is impossible (and `* + credentials` is spec-illegal).
+// Our dynamic /api/* routes return no CORS headers, so cross-origin browser reads/writes
+// of app data are blocked. RULE: never add `Access-Control-Allow-Origin` or
+// `Access-Control-Allow-Credentials` to an /api/* route; if one ever truly needs CORS,
+// scope it per-route to trusted origins only (+ `Vary: Origin`).
+// __tests__/corsPolicy.test.ts enforces this.
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Don't advertise the framework/version on dynamic responses.
+  poweredByHeader: false,
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   turbopack: {
     root: projectRoot,
   },
