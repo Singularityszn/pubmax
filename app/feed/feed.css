@@ -1291,3 +1291,134 @@
 .feedSpillCheers {
   margin: 6px 0 2px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   E5 · Drink-colour language on the feed card ("every drink has a colour")
+   ----------------------------------------------------------------------------
+   Each drop derives a category from its free-text drink label (honestly — an
+   unrecognised drink gets NO stripe, NO asserted label; see FeedCard.tsx). When
+   resolved the card carries `--feed-cat` (a `var(--cat-*)` token that flips per
+   theme + Legacy Mode automatically), spent here as: a left accent stripe, a
+   colour-driven category glyph, a colour+glyph+label chip (the redundant
+   non-colour cue, WCAG 1.4.1), a category-tinted gradient edge under the Spill
+   scrim, and the Cheers active state. Colour is layered ADDITIVELY on the
+   ink/paper base — brass (the brand accent) is untouched; the category hue only
+   identifies the drink family. `--feed-cat` falls back to --brass. Tokens only.
+
+   Contrast: chip TEXT is mixed 22% toward --ink so every category clears WCAG AA
+   normal (≥4.5) as small bold text on its tinted pill in light/dark/legacy
+   (computed); the GLYPH + border keep the pure token hue. ════════════════════ */
+.feedCard {
+  --feed-cat: var(--brass);
+}
+
+/* Left accent stripe — category-coloured card edge, only when categoryResolved. */
+.feedCardCat {
+  position: relative;
+}
+.feedCardCat::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  z-index: 3;
+  background: var(--feed-cat);
+  border-top-left-radius: inherit;
+  border-bottom-left-radius: inherit;
+}
+
+/* Receipt (text-only card) — a faint category wash over the brass gradient, plus
+   the presiding glyph. Subtle so the price stays hero. */
+.feedCardCat .feedReceipt {
+  background:
+    radial-gradient(
+      120% 90% at 12% 0%,
+      color-mix(in srgb, var(--feed-cat) 14%, transparent) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--brass) 9%, var(--panel)) 0%,
+      var(--panel) 68%
+    );
+}
+
+.feedReceiptGlyph {
+  display: inline-flex;
+  margin-bottom: 2px;
+  opacity: 0.92;
+}
+
+/* Category chip on the text-only card — glyph (pure hue) + label (AA-safe text)
+   on a soft tinted pill. The label is the redundant non-colour cue. */
+.feedCatChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 11px 4px 9px;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--feed-cat) 78%, var(--ink));
+  background: color-mix(in srgb, var(--feed-cat) 12%, var(--panel-raised));
+  border: 1px solid color-mix(in srgb, var(--feed-cat) 40%, transparent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.feedCatChip svg {
+  color: var(--feed-cat);
+}
+.feedCatChipLabel {
+  line-height: 1;
+}
+
+/* ── Spill (9:16) category treatment ─────────────────────────────────────── */
+/* Category-tinted gradient hugging the bottom edge, UNDER the fixed dark scrim
+   (z-index 1) so it tints only the edge, never the text. */
+.feedSpillCatEdge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--feed-cat) 55%, transparent) 0%,
+    transparent 100%
+  );
+}
+
+/* Category chip over the scrim — reads on the dark gradient (brighter tinted
+   fill), glyph + label, between venue meta and note. The scrim is FIXED dark in
+   BOTH themes, so the hue is pushed toward white to stay legible on near-black. */
+.feedSpillCat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--feed-cat) 72%, #ffffff);
+  background: rgba(12, 11, 8, 0.5);
+  backdrop-filter: blur(2px);
+  border: 1px solid color-mix(in srgb, var(--feed-cat) 55%, transparent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.feedSpillCat svg {
+  color: color-mix(in srgb, var(--feed-cat) 72%, #ffffff);
+}
+.feedSpillCatLabel {
+  line-height: 1;
+}
+html:not([data-theme="dark"]) .feedSpillCat,
+html:not([data-theme="dark"]) .feedSpillCat svg {
+  color: color-mix(in srgb, var(--feed-cat) 82%, #ffffff);
+}

@@ -162,3 +162,26 @@
 .cheersBtnOnScrim.isCheered .cheersCount {
   background: color-mix(in srgb, var(--ink-deep, #0f1c16) 20%, transparent);
 }
+
+/* ── E5: category-tinted Cheers (opt-in via .cheersBtnCat) ─────────────────
+   When a drop's category is a confident read, the CheersButton inherits
+   `--feed-cat` (set on the enclosing .feedCard) so the ACTIVE state blooms in
+   the drink family's colour instead of plain brass. Resting state stays brass
+   (reads as a button first); only the cheered affirmation carries the hue, with
+   glyph + fill still shifting (never colour alone). */
+.cheersBtnCat.isCheered {
+  background: var(--feed-cat, var(--brass));
+  border-color: var(--feed-cat, var(--brass));
+  color: var(--paper);
+}
+.cheersBtnCat.isCheered:hover {
+  background: color-mix(in srgb, var(--feed-cat, var(--brass)) 88%, var(--ink-deep, #0f1c16));
+}
+.cheersBtnCat.isInking::after {
+  background: color-mix(in srgb, var(--feed-cat, var(--brass)) 45%, transparent);
+}
+.cheersBtnOnScrim.cheersBtnCat.isCheered {
+  background: color-mix(in srgb, var(--feed-cat, var(--brass)) 82%, #ffffff);
+  border-color: color-mix(in srgb, var(--feed-cat, var(--brass)) 82%, #ffffff);
+  color: var(--ink-deep, #0f1c16);
+}
