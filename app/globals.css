@@ -1137,7 +1137,10 @@ input[type="range"] {
 
 .poiToggleBtn.on {
   background: var(--ink-deep);
-  color: var(--paper);
+  /* Fixed-contrast token, NOT var(--paper): in dark theme --paper is itself
+     near-black, which rendered the active chip labels invisible on the
+     ink-deep fill. Cream-on-ink-deep clears AA in both themes. */
+  color: var(--color-on-inverse);
 }
 
 .poiSwatch {

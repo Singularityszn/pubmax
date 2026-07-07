@@ -180,6 +180,19 @@
   padding: 0 16px;
 }
 
+/* The topbar CTA is a solid ink-deep primary sitting inside .navLinks, so the
+   generic link colour (ink-soft — near-invisible on the dark fill) must never
+   win. Fixed-contrast token: cream on ink-deep clears AA in both themes. */
+.lp .navLinks a.topbarCta {
+  color: var(--color-on-inverse);
+}
+
+.lp .navLinks a.topbarCta:hover {
+  color: var(--color-on-inverse);
+  background: var(--ink-deep);
+  filter: brightness(1.18);
+}
+
 /* ── Section scaffolding ─────────────────────────────────────────────── */
 .lp main > section {
   padding-block: var(--lp-gap);
@@ -962,6 +975,20 @@
 
 .lp .ctaInner .btnPrimary:hover {
   filter: brightness(1.06);
+}
+
+/* Ghost button on the ink-deep band: the base ghost colours (ink text, line
+   border) vanish on the dark fill, so flip to the inverse-surface pairing —
+   cream text + a cream-mixed border, warming to brass-bright on hover. */
+.lp .ctaInner .btnGhost {
+  color: var(--color-on-inverse);
+  border-color: color-mix(in srgb, var(--color-on-inverse) 45%, transparent);
+}
+
+.lp .ctaInner .btnGhost:hover {
+  color: var(--brass-bright);
+  border-color: var(--brass-bright);
+  background: color-mix(in srgb, var(--brass-bright) 12%, transparent);
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────── */
