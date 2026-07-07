@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 import type { PassportData } from "@/lib/passport";
 
@@ -51,6 +52,7 @@ export default function PintPassport({ handle, displayName, data, isOwn }: PintP
     cheapestPintGbp,
     storyPosts,
     badges,
+    badgeEvents,
     isEmpty,
   } = data;
 
@@ -115,6 +117,32 @@ export default function PintPassport({ handle, displayName, data, isOwn }: PintP
           <span className="passportBoroughsLabel">Boroughs crossed:</span>{" "}
           {boroughs.join(" · ")}
         </p>
+      ) : null}
+
+      {badgeEvents.length ? (
+        <div className="passportQuestList" aria-label="Seasonal badge events">
+          {badgeEvents.map((progress) => (
+            <article key={progress.event.id} className="passportQuest">
+              <div>
+                <p className="passportQuestKicker">Seasonal quest</p>
+                <h3 className="passportQuestTitle">{progress.event.label}</h3>
+                <p className="passportQuestDescription">{progress.event.description}</p>
+              </div>
+              <div className="passportQuestProgress" aria-label={progress.label}>
+                <span className="passportQuestProgressText">{progress.label}</span>
+                <span
+                  className="passportQuestProgressBar"
+                  aria-hidden="true"
+                  style={
+                    {
+                      "--quest-progress": `${(progress.current / progress.target) * 100}%`,
+                    } as CSSProperties
+                  }
+                />
+              </div>
+            </article>
+          ))}
+        </div>
       ) : null}
 
       {badges.length ? (

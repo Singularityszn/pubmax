@@ -13,6 +13,11 @@ import {
   type Badge,
   type ProfileDrop,
 } from "@/lib/profiles";
+import {
+  computeBadgeEventProgress,
+  type BadgeEventProgress,
+  type BadgeEventProgressOptions,
+} from "@/lib/badgeEvents";
 
 // The distinct-drink signal. Drops carry an optional free-text `drink`
 // ("Guinness", "Neck Oil"…); we count DISTINCT non-empty drinks, case- and
@@ -51,6 +56,8 @@ export type PassportData = {
   storyPosts: number;
   /** EARNED badges only — the passport shows what you've done. */
   badges: Badge[];
+  /** Active opted-in seasonal quest progress, hidden when legacy mode is on. */
+  badgeEvents: BadgeEventProgress[];
   /** True when the handle has no activity at all — drives the first-run copy. */
   isEmpty: boolean;
 };
@@ -61,6 +68,7 @@ export type PassportData = {
 export type PassportCounts = {
   crawls?: number | null;
   storyPosts?: number | null;
+  badgeEvents?: BadgeEventProgressOptions;
 };
 
 function nonNegInt(value: number | null | undefined): number {
@@ -94,6 +102,12 @@ export function buildPassport(
   const crawls = nonNegInt(counts.crawls);
   const stats = profileStats(list, crawls);
   const earnedBadges = computeBadges(list, stats).filter((b) => b.earned);
+  const badgeEvents = counts.badgeEvents
+    ? computeBadgeEventProgress(list, counts.badgeEvents)
+    : [];
+  const earnedEventBadges = badgeEvents
+    .filter((progress) => progress.earned)
+    .map((progress) => progress.badge);
   const storyPosts = nonNegInt(counts.storyPosts);
 
   return {
@@ -104,7 +118,8 @@ export function buildPassport(
     pints: stats.pintsLogged,
     cheapestPintGbp: stats.cheapestPintGbp,
     storyPosts,
-    badges: earnedBadges,
+    badges: [...earnedBadges, ...earnedEventBadges],
+    badgeEvents,
     // "Empty" is the honest first-run signal: nothing logged, no crawls, no
     // stories. Follower/following counts don't count as activity here — a
     // passport is about what YOU did, so a fresh handle reads as empty.
