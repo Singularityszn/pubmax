@@ -15,6 +15,7 @@
 // Reads are fail-soft (the store returns an empty inbox on error) so an outage
 // never 500s the inbox. Sends are rate-limited per handle (~20/min).
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import { messagesStore } from "@/lib/messagesStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -29,9 +30,9 @@ const SEND_WINDOW_MS = 60_000;
 export async function GET(request: Request): Promise<Response> {
   const handle = normalizeHandle(new URL(request.url).searchParams.get("handle") ?? "");
   // Nothing to key on → an empty (but valid) inbox, so the page still renders.
-  if (!handle) return Response.json({ conversations: [] }, { status: 200 });
+  if (!handle) return jsonNoStore({ conversations: [] }, { status: 200 });
   const conversations = await messagesStore().listConversations(handle);
-  return Response.json({ conversations }, { status: 200 });
+  return jsonNoStore({ conversations }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -39,16 +40,16 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const action = readString(body.action);
   const handle = normalizeHandle(readString(body.handle) ?? "");
   const other = normalizeHandle(readString(body.other) ?? "");
-  if (!handle) return Response.json({ error: "Add your handle." }, { status: 400 });
-  if (!other) return Response.json({ error: "Add a recipient handle." }, { status: 400 });
+  if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
+  if (!other) return jsonNoStore({ error: "Add a recipient handle." }, { status: 400 });
   if (handle === other) {
-    return Response.json({ error: "You can't message yourself." }, { status: 400 });
+    return jsonNoStore({ error: "You can't message yourself." }, { status: 400 });
   }
 
   const store = messagesStore();
@@ -56,29 +57,29 @@ export async function POST(request: Request): Promise<Response> {
   if (action === "open") {
     const conversationId = await store.openConversation(handle, other);
     if (!conversationId) {
-      return Response.json({ error: "Couldn't open that conversation." }, { status: 503 });
+      return jsonNoStore({ error: "Couldn't open that conversation." }, { status: 503 });
     }
-    return Response.json({ conversationId }, { status: 200 });
+    return jsonNoStore({ conversationId }, { status: 200 });
   }
 
   if (action === "send") {
     // Rate-limit sends per handle + hashed IP (durable when configured).
     const key = `msg-send:${handle}:${hashIp(clientIp(request))}`;
     if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
-      return Response.json({ error: "Too many messages, slow down." }, { status: 429 });
+      return jsonNoStore({ error: "Too many messages, slow down." }, { status: 429 });
     }
     const messageBody = readString(body.body);
-    if (!messageBody) return Response.json({ error: "Write a message." }, { status: 400 });
+    if (!messageBody) return jsonNoStore({ error: "Write a message." }, { status: 400 });
     const conversationId = await store.openConversation(handle, other);
     if (!conversationId) {
-      return Response.json({ error: "Couldn't open that conversation." }, { status: 503 });
+      return jsonNoStore({ error: "Couldn't open that conversation." }, { status: 503 });
     }
     const message = await store.send(conversationId, handle, messageBody);
     if (!message) {
-      return Response.json({ error: "Couldn't send that message." }, { status: 400 });
+      return jsonNoStore({ error: "Couldn't send that message." }, { status: 400 });
     }
-    return Response.json({ message, conversationId }, { status: 201 });
+    return jsonNoStore({ message, conversationId }, { status: 201 });
   }
 
-  return Response.json({ error: "Unknown action." }, { status: 400 });
+  return jsonNoStore({ error: "Unknown action." }, { status: 400 });
 }

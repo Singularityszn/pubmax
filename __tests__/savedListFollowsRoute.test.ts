@@ -14,6 +14,10 @@ const URL_BASE = "http://localhost/api/saved-pubs/list-follows";
 
 let REAL_VENUE_ID = "";
 
+function expectNoStore(res: Response): void {
+  expect(res.headers.get("Cache-Control")).toBe("no-store");
+}
+
 beforeEach(async () => {
   vi.stubEnv("NODE_ENV", "test");
   delete process.env.SUPABASE_URL;
@@ -52,6 +56,7 @@ describe("GET /api/saved-pubs/list-follows", () => {
 
     const res = await get("follower=@Ken");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     const { followedLists } = await res.json();
     expect(followedLists).toHaveLength(1);
     expect(followedLists[0]).toMatchObject({
@@ -74,6 +79,7 @@ describe("GET /api/saved-pubs/list-follows", () => {
 
     const res = await get("follower=ken&owner=sam&listType=Date%20Night");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({
       following: true,
       counts: { followers: 1, savedPubs: 1 },
@@ -85,6 +91,7 @@ describe("POST /api/saved-pubs/list-follows", () => {
   it("follows then unfollows another handle's named list", async () => {
     const follow = await post({ follower: "Ken", owner: "Sam", listType: "Date Night" });
     expect(follow.status).toBe(200);
+    expectNoStore(follow);
     expect(await follow.json()).toEqual({
       following: true,
       counts: { followers: 1, savedPubs: 0 },
@@ -106,6 +113,7 @@ describe("POST /api/saved-pubs/list-follows", () => {
   it("rejects following your own list after handle normalization", async () => {
     const res = await post({ follower: "@Sam", owner: "sam", listType: "Date Night" });
     expect(res.status).toBe(400);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ error: "You can't follow your own list." });
   });
 

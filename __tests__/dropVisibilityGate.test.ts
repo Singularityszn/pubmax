@@ -24,6 +24,10 @@ import { __resetMemoryReactions } from "@/lib/reactionsStore";
 const COMMENTS_URL = "http://localhost/api/pint-drops/comments";
 const REACTIONS_URL = "http://localhost/api/pint-drops/reactions";
 
+function expectNoStore(res: Response): void {
+  expect(res.headers.get("Cache-Control")).toBe("no-store");
+}
+
 function makeDrop(overrides: Partial<PintDrop> = {}): PintDrop {
   return {
     id: "drop-visible",
@@ -99,6 +103,7 @@ describe("GET /api/pint-drops/comments — parent visibility gate (F3)", () => {
     seedComment("drop-visible", "still here");
     const res = await listComments("drop-visible");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     const { comments } = await res.json();
     expect(comments).toHaveLength(1);
     expect(comments[0].body).toBe("still here");
@@ -108,6 +113,7 @@ describe("GET /api/pint-drops/comments — parent visibility gate (F3)", () => {
     seedComment("drop-hidden", "should never leak");
     const res = await listComments("drop-hidden");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ comments: [] });
   });
 
@@ -142,6 +148,7 @@ describe("GET /api/pint-drops/reactions — parent visibility gate (F3)", () => 
 
     const res = await summaries(["drop-visible", "drop-hidden", "drop-legacy", "drop-friends", "drop-anon"]);
     expect(res.status).toBe(200);
+    expectNoStore(res);
     const { summaries: map } = await res.json();
     // Gated ids are simply ABSENT — the same shape as an id nobody asked for.
     expect(Object.keys(map).sort()).toEqual(["drop-anon", "drop-visible"]);
@@ -152,6 +159,7 @@ describe("GET /api/pint-drops/reactions — parent visibility gate (F3)", () => 
   it("returns an empty summaries map when every requested id is gated", async () => {
     const res = await summaries(["drop-hidden", "drop-legacy"]);
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ summaries: {} });
   });
 

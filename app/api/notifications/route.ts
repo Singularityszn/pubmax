@@ -13,6 +13,7 @@
 // notifications outage can never 500 the bell / activity page. Store choice is the
 // usual seam: Supabase when configured, process-memory otherwise.
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import { notificationsStore } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -22,9 +23,9 @@ import { readString } from "@/lib/textClean";
 export async function GET(request: Request): Promise<Response> {
   const handle = normalizeHandle(new URL(request.url).searchParams.get("handle") ?? "");
   // Nothing to key on → an empty (but valid) inbox, so the bell/page still renders.
-  if (!handle) return Response.json({ notifications: [], unread: 0 }, { status: 200 });
+  if (!handle) return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
   const inbox = await notificationsStore().list(handle);
-  return Response.json(inbox, { status: 200 });
+  return jsonNoStore(inbox, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -32,20 +33,20 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const handle = normalizeHandle(readString(body.handle) ?? "");
-  if (!handle) return Response.json({ error: "Add a handle." }, { status: 400 });
+  if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
 
   // Rate-limit mark-read per handle + hashed IP, like the app's other routes.
   const key = `notif-read:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return Response.json({ error: "Too many updates, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many updates, slow down." }, { status: 429 });
   }
 
   // Mark one (id present) or all (id absent) of the handle's notifications read.
   const id = readString(body.id);
   const inbox = await notificationsStore().markRead(handle, id);
-  return Response.json(inbox, { status: 200 });
+  return jsonNoStore(inbox, { status: 200 });
 }

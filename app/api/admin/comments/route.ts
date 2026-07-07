@@ -8,11 +8,12 @@
 // carries only { id, pintDropId, handle, body, status, createdAt }.
 
 import { isModerator } from "@/lib/adminAuth";
+import { jsonNoStore } from "@/lib/apiResponses";
 import { commentsStore } from "@/lib/commentsStore";
 import { readString } from "@/lib/textClean";
 
 function forbidden(): Response {
-  return Response.json({ error: "Not authorised." }, { status: 403 });
+  return jsonNoStore({ error: "Not authorised." }, { status: 403 });
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -21,7 +22,7 @@ export async function GET(request: Request): Promise<Response> {
   const queue = status === "pending" ? "pending" : "hidden";
   // listForReview is fail-soft (returns [] on any store error).
   const comments = await commentsStore().listForReview(queue);
-  return Response.json({ comments }, { status: 200 });
+  return jsonNoStore({ comments }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -30,23 +31,23 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const id = readString(body.id);
-  if (!id) return Response.json({ error: "Missing comment id." }, { status: 400 });
+  if (!id) return jsonNoStore({ error: "Missing comment id." }, { status: 400 });
 
   const action = readString(body.action);
   if (action !== "restore" && action !== "keep_hidden") {
-    return Response.json({ error: "Unknown action." }, { status: 400 });
+    return jsonNoStore({ error: "Unknown action." }, { status: 400 });
   }
 
   const status = action === "restore" ? "visible" : "hidden";
   try {
     const ok = await commentsStore().moderate(id, status);
-    if (!ok) return Response.json({ error: "Comment not found." }, { status: 404 });
-    return Response.json({ ok: true }, { status: 200 });
+    if (!ok) return jsonNoStore({ error: "Comment not found." }, { status: 404 });
+    return jsonNoStore({ ok: true }, { status: 200 });
   } catch {
-    return Response.json({ error: "Comment moderation is unavailable." }, { status: 503 });
+    return jsonNoStore({ error: "Comment moderation is unavailable." }, { status: 503 });
   }
 }

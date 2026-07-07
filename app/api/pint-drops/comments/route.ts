@@ -19,6 +19,7 @@
 // failure as "no comments". Store choice is the usual seam: Supabase when
 // configured, process-memory otherwise.
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsStore";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
@@ -28,7 +29,7 @@ import { readString } from "@/lib/textClean";
 
 export async function GET(request: Request): Promise<Response> {
   const dropId = new URL(request.url).searchParams.get("dropId");
-  if (!dropId) return Response.json({ comments: [] }, { status: 200 });
+  if (!dropId) return jsonNoStore({ comments: [] }, { status: 200 });
   // F3: parent-drop visibility gate. A hidden (moderated) or non-public
   // (friends/legacy) drop must not serve its thread to this unscoped GET —
   // there is no viewer identity to gate on (true viewer-scoped gating waits
@@ -36,11 +37,11 @@ export async function GET(request: Request): Promise<Response> {
   // with no comments (200, never 404) so the response is not an existence
   // oracle — matching how the feed silently omits these drops.
   const readable = await filterPubliclyReadableDropIds([dropId]);
-  if (readable.length === 0) return Response.json({ comments: [] }, { status: 200 });
+  if (readable.length === 0) return jsonNoStore({ comments: [] }, { status: 200 });
   // listComments is fail-soft (returns [] on any store error), so a comments
   // outage can never surface as a 500 that breaks the host feed.
   const comments = await commentsStore().listComments(dropId);
-  return Response.json({ comments }, { status: 200 });
+  return jsonNoStore({ comments }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -48,16 +49,16 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const dropId = readString(body.dropId);
-  if (!dropId) return Response.json({ error: "Missing pint drop id." }, { status: 400 });
+  if (!dropId) return jsonNoStore({ error: "Missing pint drop id." }, { status: 400 });
 
   // Server-authoritative validation — the client body is untrusted. Strips
   // HTML/control chars and caps length; rejects an empty/HTML-only body.
   const cleaned = cleanComment(body.handle, body.body);
-  if (!cleaned.ok) return Response.json({ error: cleaned.error }, { status: 400 });
+  if (!cleaned.ok) return jsonNoStore({ error: cleaned.error }, { status: 400 });
 
   // Optional parentId → this is a one-level reply. Empty/absent means top-level
   // (today's behaviour). The store validates existence/same-drop/top-level and
@@ -72,7 +73,7 @@ export async function POST(request: Request): Promise<Response> {
   // one drop can't be flooded; the durable key leads with the actor so one
   // device can't spam across drops. 429 when either budget is exhausted.
   if (await isLimited(`comment:${dropId}`, `comment:${actorHash}`)) {
-    return Response.json({ error: "Too many comments, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many comments, slow down." }, { status: 429 });
   }
 
   try {
@@ -97,15 +98,15 @@ export async function POST(request: Request): Promise<Response> {
         subjectLabel: cleaned.body.slice(0, 80),
       });
     });
-    return Response.json({ comment }, { status: 201 });
+    return jsonNoStore({ comment }, { status: 201 });
   } catch (err) {
     // An invalid reply parent is a CLIENT error (400), distinct from a store
     // outage (503) — an honest failure shape so the client can tell them apart.
     if (err instanceof InvalidParentError) {
-      return Response.json({ error: err.message }, { status: 400 });
+      return jsonNoStore({ error: err.message }, { status: 400 });
     }
     // A write failure is non-critical to the feed — the client treats it as
     // "comment didn't post" and keeps rendering the drop.
-    return Response.json({ error: "Comments are unavailable." }, { status: 503 });
+    return jsonNoStore({ error: "Comments are unavailable." }, { status: 503 });
   }
 }

@@ -3,6 +3,7 @@
 // this route does not pretend auth-backed ownership exists yet.
 
 import { isLimited } from "@/lib/pintDrops";
+import { jsonNoStore } from "@/lib/apiResponses";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   cleanListType,
@@ -34,18 +35,18 @@ export async function GET(request: Request): Promise<Response> {
         follower ? store().isFollowingList(follower, owner, listType) : Promise.resolve(false),
         store().counts(owner, listType),
       ]);
-      return Response.json({ following, counts }, { status: 200 });
+      return jsonNoStore({ following, counts }, { status: 200 });
     }
 
-    if (!follower) return Response.json({ followedLists: [] }, { status: 200 });
+    if (!follower) return jsonNoStore({ followedLists: [] }, { status: 200 });
     const followedLists = await store().listFollowedBy(follower);
-    return Response.json({ followedLists }, { status: 200 });
+    return jsonNoStore({ followedLists }, { status: 200 });
   } catch {
     // Fail-soft read: followed lists are additive social context, not a reason to
     // break the saved view/profile.
     return owner && listType
-      ? Response.json({ following: false, counts: { followers: 0, savedPubs: 0 } }, { status: 200 })
-      : Response.json({ followedLists: [] }, { status: 200 });
+      ? jsonNoStore({ following: false, counts: { followers: 0, savedPubs: 0 } }, { status: 200 })
+      : jsonNoStore({ followedLists: [] }, { status: 200 });
   }
 }
 
@@ -54,34 +55,34 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const follower = normalizeHandle(readString(body.follower) ?? "");
   if (!follower) {
-    return Response.json(
+    return jsonNoStore(
       { error: "Set a handle first — drop a pint to claim one." },
       { status: 400 },
     );
   }
 
   const owner = normalizeHandle(readString(body.owner) ?? "");
-  if (!owner) return Response.json({ error: "Missing list author." }, { status: 400 });
+  if (!owner) return jsonNoStore({ error: "Missing list author." }, { status: 400 });
 
   const listType = cleanListType(body.listType);
-  if (!listType) return Response.json({ error: "A list name is required." }, { status: 400 });
+  if (!listType) return jsonNoStore({ error: "A list name is required." }, { status: 400 });
 
   if (isSelfListFollow(follower, owner)) {
-    return Response.json({ error: "You can't follow your own list." }, { status: 400 });
+    return jsonNoStore({ error: "You can't follow your own list." }, { status: 400 });
   }
 
   const actorHash = hashIp(clientIp(request));
   if (await isLimited(`list-follow:${follower}`, `list-follow:${follower}:${actorHash}`)) {
-    return Response.json({ error: "Too many list follows, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many list follows, slow down." }, { status: 429 });
   }
 
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return Response.json({ error: "List follow storage is not configured." }, { status: 503 });
+    return jsonNoStore({ error: "List follow storage is not configured." }, { status: 503 });
   }
 
   const unfollow = readString(body.action) === "unfollow";
@@ -91,8 +92,8 @@ export async function POST(request: Request): Promise<Response> {
       ? !(await s.unfollowList(follower, owner, listType))
       : await s.followList(follower, owner, listType);
     const counts = await s.counts(owner, listType);
-    return Response.json({ following, counts }, { status: 200 });
+    return jsonNoStore({ following, counts }, { status: 200 });
   } catch {
-    return Response.json({ error: "List follow storage is unavailable." }, { status: 503 });
+    return jsonNoStore({ error: "List follow storage is unavailable." }, { status: 503 });
   }
 }

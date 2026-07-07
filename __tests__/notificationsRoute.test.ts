@@ -16,6 +16,10 @@ import { __resetMemoryNotifications, notificationsStore } from "@/lib/notificati
 
 const URL_BASE = "http://localhost/api/notifications";
 
+function expectNoStore(res: Response): void {
+  expect(res.headers.get("Cache-Control")).toBe("no-store");
+}
+
 function get(query?: string): Promise<Response> {
   return GET(new Request(query ? `${URL_BASE}?${query}` : URL_BASE));
 }
@@ -33,6 +37,7 @@ describe("GET /api/notifications", () => {
   it("returns an empty inbox for a missing handle (never 500)", async () => {
     const res = await get();
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ notifications: [], unread: 0 });
   });
 
@@ -45,6 +50,7 @@ describe("GET /api/notifications", () => {
       subjectRef: "d1",
     });
     const res = await get("handle=ken");
+    expectNoStore(res);
     const body = (await res.json()) as { notifications: unknown[]; unread: number };
     expect(body.notifications).toHaveLength(2);
     expect(body.unread).toBe(2);
@@ -61,6 +67,7 @@ describe("POST /api/notifications — mark read", () => {
     await notificationsStore().emit({ recipientHandle: "ken", actorHandle: "ale", kind: "follow" });
     const res = await post({ handle: "ken" });
     expect(res.status).toBe(200);
+    expectNoStore(res);
     const body = (await res.json()) as { unread: number };
     expect(body.unread).toBe(0);
   });

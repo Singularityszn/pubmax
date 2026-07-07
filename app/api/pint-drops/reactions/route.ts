@@ -9,6 +9,7 @@
 // Supabase when configured, process-memory otherwise (reactions are non-critical,
 // so there is no 503 — an unconfigured prod just gets per-instance counts).
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
@@ -42,7 +43,7 @@ export async function GET(request: Request): Promise<Response> {
     .map((s) => s.trim())
     .filter(Boolean)
     .slice(0, MAX_IDS);
-  if (ids.length === 0) return Response.json({ summaries: {} }, { status: 200 });
+  if (ids.length === 0) return jsonNoStore({ summaries: {} }, { status: 200 });
 
   const actorHash = hashActor(params.get("actor"));
   try {
@@ -54,14 +55,14 @@ export async function GET(request: Request): Promise<Response> {
     // how the feed silently omits these drops; never a 404 existence oracle.
     // The batched-summary contract for the surviving ids is unchanged.
     const readable = await filterPubliclyReadableDropIds(ids);
-    if (readable.length === 0) return Response.json({ summaries: {} }, { status: 200 });
-    return Response.json(
+    if (readable.length === 0) return jsonNoStore({ summaries: {} }, { status: 200 });
+    return jsonNoStore(
       { summaries: await store().summarize(readable, actorHash) },
       { status: 200 },
     );
   } catch {
     // Reactions are best-effort — an empty map keeps the feed rendering.
-    return Response.json({ summaries: {} }, { status: 200 });
+    return jsonNoStore({ summaries: {} }, { status: 200 });
   }
 }
 
@@ -70,14 +71,14 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const id = readString(body.id);
   const reaction = body.reaction;
-  if (!id) return Response.json({ error: "Missing pint drop id." }, { status: 400 });
+  if (!id) return jsonNoStore({ error: "Missing pint drop id." }, { status: 400 });
   if (!isReactionKey(reaction)) {
-    return Response.json({ error: "Unknown reaction." }, { status: 400 });
+    return jsonNoStore({ error: "Unknown reaction." }, { status: 400 });
   }
 
   const actorHash = hashActor(readString(body.actor));
@@ -88,7 +89,7 @@ export async function POST(request: Request): Promise<Response> {
   if (
     await isLimited(`reaction:${actorHash}`, `reaction:${actorHash}`, REACTION_LIMIT, REACTION_WINDOW_MS)
   ) {
-    return Response.json({ error: "Too many reactions, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many reactions, slow down." }, { status: 429 });
   }
 
   try {
@@ -112,12 +113,12 @@ export async function POST(request: Request): Promise<Response> {
         });
       });
     }
-    return Response.json({ summary }, { status: 200 });
+    return jsonNoStore({ summary }, { status: 200 });
   } catch (err) {
     if (err instanceof UnknownDropError) {
       // A demo/sample drop isn't persisted — tell the client to keep it local.
-      return Response.json({ error: "Pint drop not found." }, { status: 404 });
+      return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
     }
-    return Response.json({ error: "Reactions are unavailable." }, { status: 503 });
+    return jsonNoStore({ error: "Reactions are unavailable." }, { status: 503 });
   }
 }

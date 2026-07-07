@@ -14,6 +14,7 @@
 // signed-out/offline viewer (lib/savedPubs.ts), so this route only ever augments
 // the demo, never gates it.
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import { normalizeHandle } from "@/lib/profiles";
 import { isLimited } from "@/lib/pintDrops";
 import {
@@ -39,11 +40,11 @@ export async function GET(request: Request): Promise<Response> {
   // the client; this returns only the handle's OWN custom lists. Fail-soft → [].
   if (params.get("lists")) {
     const lists = handle ? await savedListsStore().listCustom(handle) : [];
-    return Response.json({ lists }, { status: 200 });
+    return jsonNoStore({ lists }, { status: 200 });
   }
 
   // Nothing to key on → an empty (but valid) list, so the page still renders.
-  if (!handle && !actor) return Response.json({ saved: [] }, { status: 200 });
+  if (!handle && !actor) return jsonNoStore({ saved: [] }, { status: 200 });
 
   // listSaved is fail-soft (returns [] on any store error), so a saved-pubs
   // outage can never surface as a 500 that breaks the profile page.
@@ -51,7 +52,7 @@ export async function GET(request: Request): Promise<Response> {
     handle: handle || undefined,
     actorHash: actor ? hashActor(actor) : undefined,
   });
-  return Response.json({ saved }, { status: 200 });
+  return jsonNoStore({ saved }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -59,33 +60,33 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const handle = normalizeHandle((body.handle as string) ?? "");
-  if (!handle) return Response.json({ error: "Add a contributor handle." }, { status: 400 });
+  if (!handle) return jsonNoStore({ error: "Add a contributor handle." }, { status: 400 });
 
   // createList action (story 33): register a custom list name for this handle so
   // it appears in the pick-UI before it has any saves. Rate-limited like saves.
   if (readString(body.action) === "createList") {
     const name = cleanListType(body.name ?? body.listType);
-    if (!name) return Response.json({ error: "A list name is required." }, { status: 400 });
+    if (!name) return jsonNoStore({ error: "A list name is required." }, { status: 400 });
     if (await isLimited(`lists:${handle}`, `lists:${hashIp(clientIp(request))}`)) {
-      return Response.json({ error: "Too many lists, slow down." }, { status: 429 });
+      return jsonNoStore({ error: "Too many lists, slow down." }, { status: 429 });
     }
     const lists = await savedListsStore().createList(handle, name);
-    return Response.json({ lists }, { status: 200 });
+    return jsonNoStore({ lists }, { status: 200 });
   }
 
   const venueId = (readString(body.venueId) ?? "").slice(0, MAX_VENUE_ID);
-  if (!venueId) return Response.json({ error: "A venue is required." }, { status: 400 });
+  if (!venueId) return jsonNoStore({ error: "A venue is required." }, { status: 400 });
 
   // The list type is now free text (story 33): the seven built-ins are the
   // defaults, but a custom name is accepted too. isListType is the write gate —
   // any value that cleans to a non-empty name is storable.
   const listType = body.listType;
   if (!isListType(listType)) {
-    return Response.json({ error: "A list name is required." }, { status: 400 });
+    return jsonNoStore({ error: "A list name is required." }, { status: 400 });
   }
 
   // Note is untrusted free text: strip HTML/control chars and cap length.
@@ -96,7 +97,7 @@ export async function POST(request: Request): Promise<Response> {
   // so one device can't spam across handles. 429 when either budget is exhausted.
   const actorHash = hashIp(clientIp(request));
   if (await isLimited(`saved:${handle}`, `saved:${actorHash}`)) {
-    return Response.json({ error: "Too many saves, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many saves, slow down." }, { status: 429 });
   }
 
   // toggleSaved is fail-soft: a store error returns the current list unchanged, so
@@ -107,5 +108,5 @@ export async function POST(request: Request): Promise<Response> {
     listType,
     ...(note ? { note } : {}),
   });
-  return Response.json({ saved }, { status: 200 });
+  return jsonNoStore({ saved }, { status: 200 });
 }

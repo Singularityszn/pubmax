@@ -36,6 +36,10 @@ import { __addMemoryCommentForTest, __resetMemoryComments } from "@/lib/comments
 
 const URL_BASE = "http://localhost/api/admin/comments";
 
+function expectNoStore(res: Response): void {
+  expect(res.headers.get("Cache-Control")).toBe("no-store");
+}
+
 function get(query?: string, headers?: Record<string, string>): Promise<Response> {
   return GET(new Request(query ? `${URL_BASE}?${query}` : URL_BASE, { headers }));
 }
@@ -65,6 +69,7 @@ describe("GET /api/admin/comments — hidden queue", () => {
     });
     const res = await get("status=hidden");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     const body = (await res.json()) as { comments: { body: string }[] };
     expect(body.comments).toHaveLength(1);
     expect(JSON.stringify(body.comments)).not.toContain("secret");
@@ -74,6 +79,7 @@ describe("GET /api/admin/comments — hidden queue", () => {
     vi.stubEnv("ADMIN_TOKEN", "the-real-token");
     const res = await get("status=hidden", { "x-admin-token": "wrong" });
     expect(res.status).toBe(403);
+    expectNoStore(res);
   });
 });
 
@@ -88,6 +94,7 @@ describe("POST /api/admin/comments — moderation", () => {
     const [target] = (await (await get("status=hidden")).json()).comments;
     const res = await post({ action: "restore", id: target.id });
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ ok: true });
   });
 

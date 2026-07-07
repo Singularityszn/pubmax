@@ -57,6 +57,7 @@ const LAT_MAX = 51.72;
 // A healthy pint dataset is ~3k rows; anything well below that means the export
 // truncated. Fail hard so we never ship a gutted map.
 const PINT_ROW_FLOOR = 2500;
+const SLIM_VENUE_FLOOR = 900;
 
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -66,6 +67,28 @@ function isFiniteNumber(value) {
 
 function inLondon(lng, lat) {
   return lng >= LON_MIN && lng <= LON_MAX && lat >= LAT_MIN && lat <= LAT_MAX;
+}
+
+function normaliseVenueKeyPart(value) {
+  return String(value).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function venueGroupingKey(row) {
+  return [
+    normaliseVenueKeyPart(row.pub_name),
+    normaliseVenueKeyPart(row.address),
+    Number(row.latitude).toFixed(5),
+    Number(row.longitude).toFixed(5),
+  ].join("|");
+}
+
+function stableVenueIdFromKey(key) {
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i += 1) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `venue-${(hash >>> 0).toString(36)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -278,6 +301,130 @@ function validatePintPrices() {
   return { ok, count };
 }
 
+// venues_slim.json — the map's first-paint artifact. It must stay byte-aligned
+// with the full pint dataset grouping/id seam; otherwise pins can render fast
+// but fail when opened for lazy detail. This validator rebuilds the expected
+// slim index from the full dataset using the same plain-JS mirror as
+// scripts/build_slim_index.mjs.
+function validateSlimVenues() {
+  const name = "public/data/venues_slim.json";
+  const errs = makeCollector();
+  let slim;
+  let rows;
+  try {
+    slim = loadJson("venues_slim.json");
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  try {
+    rows = loadJson("pint_prices_app_dataset.json");
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read full pint dataset for parity check (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  if (!Array.isArray(slim)) {
+    console.log(`FAIL ${name}: expected a top-level array`);
+    return { ok: false, count: 0 };
+  }
+  if (!Array.isArray(rows)) {
+    console.log(`FAIL ${name}: expected full pint dataset to be a top-level array`);
+    return { ok: false, count: 0 };
+  }
+
+  if (slim.length < SLIM_VENUE_FLOOR) {
+    errs.add(`venue count ${slim.length} is below the floor of ${SLIM_VENUE_FLOOR} — slim index looks truncated`);
+  }
+
+  const grouped = new Map();
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) continue;
+    const lat = Number(row.latitude);
+    const lng = Number(row.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !inLondon(lng, lat)) continue;
+    const key = venueGroupingKey(row);
+    const bucket = grouped.get(key);
+    if (bucket) bucket.push(row);
+    else grouped.set(key, [row]);
+  }
+
+  const expected = new Map();
+  for (const [key, prices] of grouped) {
+    const first = prices[0];
+    const numericPrices = prices
+      .map((p) => p.price_gbp)
+      .filter((p) => typeof p === "number" && Number.isFinite(p));
+    expected.set(stableVenueIdFromKey(key), {
+      name: String(first.pub_name),
+      lat: Number(first.latitude),
+      lng: Number(first.longitude),
+      cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
+      borough: String(first.primary_borough || ""),
+    });
+  }
+
+  if (slim.length !== expected.size) {
+    errs.add(`venue count ${slim.length} does not match rebuilt expected count ${expected.size}`);
+  }
+
+  const seenIds = new Set();
+  slim.forEach((row, i) => {
+    const where = `row ${i}`;
+    if (typeof row !== "object" || row === null) {
+      errs.add(`${where}: not an object`);
+      return;
+    }
+    const id = row.id;
+    if (typeof id !== "string" || id.length === 0) {
+      errs.add(`${where}: missing/empty id`);
+      return;
+    }
+    if (seenIds.has(id)) {
+      errs.add(`${where}: duplicate id "${id}"`);
+    } else {
+      seenIds.add(id);
+    }
+    if (typeof row.name !== "string" || row.name.length === 0) {
+      errs.add(`${where} (${id}): missing/empty name`);
+    }
+    if (!isFiniteNumber(row.lat) || !isFiniteNumber(row.lng)) {
+      errs.add(`${where} (${id}): lat/lng must be finite numbers`);
+    } else if (!inLondon(row.lng, row.lat)) {
+      errs.add(`${where} (${id}): [${row.lng}, ${row.lat}] outside Greater London bounds`);
+    }
+    if (row.cheapestPrice !== null && (!isFiniteNumber(row.cheapestPrice) || row.cheapestPrice < 0)) {
+      errs.add(`${where} (${id}): cheapestPrice must be a finite number >= 0 or null`);
+    }
+    if (typeof row.borough !== "string") {
+      errs.add(`${where} (${id}): borough must be a string`);
+    }
+
+    const exp = expected.get(id);
+    if (!exp) {
+      errs.add(`${where} (${id}): id is not present in rebuilt full-dataset index`);
+      return;
+    }
+    if (row.name !== exp.name) {
+      errs.add(`${where} (${id}): name "${row.name}" does not match full dataset "${exp.name}"`);
+    }
+    if (row.lat !== exp.lat || row.lng !== exp.lng) {
+      errs.add(`${where} (${id}): coordinates [${row.lng}, ${row.lat}] do not match full dataset [${exp.lng}, ${exp.lat}]`);
+    }
+    if (row.cheapestPrice !== exp.cheapestPrice) {
+      errs.add(`${where} (${id}): cheapestPrice ${row.cheapestPrice} does not match full dataset ${exp.cheapestPrice}`);
+    }
+    if (row.borough !== exp.borough) {
+      errs.add(`${where} (${id}): borough "${row.borough}" does not match full dataset "${exp.borough}"`);
+    }
+  });
+
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${slim.length} venues (floor ${SLIM_VENUE_FLOOR}), ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: slim.length };
+}
+
 // drink_price_updates/*.json — permissible-source drink price update files
 // (E2 of docs/PRD_ALL_DRINKS.md). Mirrors lib/drinkPriceUpdates.ts
 // isValidDrinkPriceUpdate exactly: a shipped file with even one bad row fails
@@ -403,7 +550,13 @@ function validateDrinkPriceUpdates() {
 
 function main() {
   console.log("Validating bundled datasets in public/data …\n");
-  const results = [validatePois(), validateTflLines(), validatePintPrices(), validateDrinkPriceUpdates()];
+  const results = [
+    validatePois(),
+    validateTflLines(),
+    validatePintPrices(),
+    validateSlimVenues(),
+    validateDrinkPriceUpdates(),
+  ];
   const failed = results.filter((r) => !r.ok).length;
 
   console.log("");
