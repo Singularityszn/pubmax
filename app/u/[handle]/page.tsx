@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import FollowButton from "@/components/profile/FollowButton";
+import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
 import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -343,12 +344,17 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
       Claim this handle
     </button>
   ) : isYouRoute ? null : (
-    <FollowButton
-      targetHandle={routeHandle}
-      followerHandle={myHandle}
-      initialFollowing={following}
-      onCountsChange={setCounts}
-    />
+    <>
+      <FollowButton
+        targetHandle={routeHandle}
+        followerHandle={myHandle}
+        initialFollowing={following}
+        onCountsChange={setCounts}
+      />
+      {/* E4: additive 1:1 messaging control. Only renders when the viewer has a
+          handle distinct from this profile (the button self-guards). */}
+      <ProfileMessageButton targetHandle={routeHandle} viewerHandle={myHandle} />
+    </>
   );
 
   return (

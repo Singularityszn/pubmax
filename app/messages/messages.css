@@ -1,0 +1,264 @@
+/* 1:1 messaging surfaces (PRD E4). Colours stay on the shared tokens (globals);
+   this file is layout + the bubble language only. */
+
+.messagesPage {
+  min-height: 100vh;
+  background: var(--paper);
+}
+
+.messagesMain {
+  max-width: 720px;
+  padding-block: 1.5rem 4rem;
+}
+
+.messagesHeading {
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 1.5rem;
+  color: var(--ink);
+  margin: 0 0 1rem;
+}
+
+.messagesCourtesyNote {
+  font-size: 0.8rem;
+  color: var(--muted);
+  border-left: 3px solid var(--line);
+  padding: 0.4rem 0.75rem;
+  margin: 0 0 1.25rem;
+}
+
+/* ── inbox: conversation list ─────────────────────────────────────────────── */
+.conversationList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.conversationItem {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--panel);
+}
+
+.conversationLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.conversationLink:hover {
+  background: var(--panel-raised);
+}
+
+.conversationBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversationHandle {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.conversationPreview {
+  font-size: 0.85rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversationUnread {
+  flex-shrink: 0;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--brass);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── thread ───────────────────────────────────────────────────────────────── */
+.threadHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.threadBackLink {
+  font-size: 0.85rem;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.threadWith {
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+
+.threadMessages {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.messageRow {
+  display: flex;
+}
+
+.messageRowMine {
+  justify-content: flex-end;
+}
+
+.messageBubble {
+  max-width: 78%;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* mine: right, category-brass tint */
+.messageBubbleMine {
+  background: color-mix(in srgb, var(--brass) 16%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
+  color: var(--ink);
+  border-bottom-right-radius: 0.25rem;
+}
+
+/* theirs: left, plain panel */
+.messageBubbleTheirs {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-bottom-left-radius: 0.25rem;
+}
+
+.messageMention {
+  color: var(--brass);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.messageMention:hover {
+  text-decoration: underline;
+}
+
+.messageMeta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.messageReportBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.messageReportBtn:hover {
+  color: var(--ink);
+}
+
+.messageFlagged {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── composer ─────────────────────────────────────────────────────────────── */
+.composer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+}
+
+.composerInput {
+  flex: 1;
+  resize: vertical;
+  min-height: 2.5rem;
+  max-height: 8rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.composerCount {
+  font-size: 0.72rem;
+  color: var(--muted);
+  align-self: center;
+}
+
+.composerCountOver {
+  color: #b3261e;
+}
+
+.composerSend {
+  padding: 0.5rem 1.1rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: var(--brass);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.composerSend:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.threadError {
+  font-size: 0.85rem;
+  color: #b3261e;
+  margin: 0.25rem 0;
+}
+
+/* ── the profile "Message" control ────────────────────────────────────────── */
+.profileMessageBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--brass);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--brass);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.profileMessageBtn:hover {
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+}
