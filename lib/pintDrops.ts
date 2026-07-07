@@ -1,40 +1,50 @@
+// SERVER-ONLY module. This is the storage-agnostic core of the Pint Drop domain:
+// the trust-boundary validation, the in-memory store, the durable rate limiter
+// (imports @/lib/supabase → node:crypto), and the visibility gating. It must
+// never be imported from a "use client" component — doing so drags the Supabase
+// admin client (and node:crypto) into the browser bundle and breaks the webpack
+// build. The BROWSER-SAFE surface (allowlists, labels, DTO shapes) lives in
+// lib/pintDropShared.ts and is re-exported below, so client code imports that
+// module and validation/UI can never drift. Same pattern as lib/reactionsStore.ts
+// (server) over lib/reactions.ts (browser-safe).
+
 import { randomUUID } from "crypto";
 
 import type { Provenance } from "@/lib/curation";
 import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
+import {
+  ANON_HANDLE_LABEL,
+  cleanVisibility,
+  DEFAULT_VISIBILITY,
+  VIBE_TAGS,
+  VISIBILITIES,
+  type PintDrop,
+  type PintDropInput,
+  type PintDropStatus,
+  type ValidationResult,
+  type VibeTag,
+  type ViewerContext,
+  type Visibility,
+} from "@/lib/pintDropShared";
 import { checkRateLimitDurable, isSupabaseConfigured } from "@/lib/supabase";
 
-// A Pint Drop is one object with optional parts: a price log, a passed-down
-// memory, or both. Photos are deferred to the Storage-backed adapter (see
-// lib/pintDropsStore) — the v1 seam persists the text/price payload only.
-export type PintDropInput = {
-  venueId: string;
-  handle: string;
-  drink?: string;
-  priceGbp?: number | null;
-  passedDownNote?: string;
-  era?: string;
-  vibeTags?: string[];
+// Re-export the browser-safe surface so existing importers (and tests) that pull
+// these from @/lib/pintDrops keep working — single source of truth in
+// lib/pintDropShared.ts, no drift.
+export {
+  ANON_HANDLE_LABEL,
+  cleanVisibility,
+  DEFAULT_VISIBILITY,
+  VIBE_TAGS,
+  VISIBILITIES,
+  type PintDrop,
+  type PintDropInput,
+  type PintDropStatus,
+  type ValidationResult,
+  type VibeTag,
+  type ViewerContext,
+  type Visibility,
 };
-
-// Server-authoritative vibe-tag allowlist (PRD §8 "quick tags"). The client
-// mirrors this list for UX, but the server is the trust boundary: anything not
-// on this exact list is dropped on the way in (see validatePintDrop). Kept as a
-// frozen array so the order is stable and it can't be mutated at runtime.
-export const VIBE_TAGS = [
-  "cheap",
-  "chaotic",
-  "quiet pint",
-  "old local",
-  "date night",
-  "coding pint",
-  "last train",
-  "riverside",
-  "hidden gem",
-  "first legal pint",
-] as const;
-
-export type VibeTag = (typeof VIBE_TAGS)[number];
 
 const VIBE_TAG_SET: ReadonlySet<string> = new Set(VIBE_TAGS);
 const MAX_VIBE_TAGS = 4;
@@ -58,74 +68,9 @@ export function cleanVibeTags(value: unknown): VibeTag[] {
   return out;
 }
 
-export type PintDropStatus = "visible" | "hidden" | "pending";
-
-// Per-drop visibility (issue #29, PRD § "The Spill"). Orthogonal to `status`
-// (moderation): a drop can be `visible`+`friends` (moderation-clean, follower-
-// gated) or `hidden`+`public` (reported). Default is `public` so every existing
-// row and any write that omits it keeps today's behaviour.
-//
-//   • public     — feed, map, leaderboards, ledger, permalink (today's default).
-//   • friends    — author + the author's FOLLOWERS only (see qualifiesForFriends).
-//   • legacy      — the family/heirloom lane: ledger + author ONLY; kept out of the
-//                  feed/map/leaderboard signals (see listLegacyForVenue).
-//   • anonymous  — shown publicly, handle WITHHELD in every DTO (ANON_HANDLE_LABEL);
-//                  the real handle is stored server-side for moderation/limits and
-//                  must never leak through a public read.
-export const VISIBILITIES = ["public", "friends", "legacy", "anonymous"] as const;
-export type Visibility = (typeof VISIBILITIES)[number];
-const VISIBILITY_SET: ReadonlySet<string> = new Set(VISIBILITIES);
-
-/** The default visibility for any drop that doesn't specify one — today's
- *  behaviour, and the DB column default, kept in lockstep here. */
-export const DEFAULT_VISIBILITY: Visibility = "public";
-
-/**
- * The withheld-handle label a public surface renders for an `anonymous` drop.
- * The store swaps the real handle for this in EVERY DTO — the real handle never
- * leaves the server for an anonymous drop. Kept as one constant so the feed,
- * permalink, ledger, and any future surface agree on the exact string.
- */
-export const ANON_HANDLE_LABEL = "a PUBMAXXER";
-
-/** Coerce an untrusted value to a Visibility, defaulting to `public`. Anything
- *  off the allowlist collapses to the safe default (never throws) — the write
- *  path is additive and forgiving, exactly like cleanVibeTags. */
-export function cleanVisibility(value: unknown): Visibility {
-  if (typeof value === "string" && VISIBILITY_SET.has(value)) return value as Visibility;
-  return DEFAULT_VISIBILITY;
-}
-
-export type PintDrop = {
-  id: string;
-  venueId: string;
-  handle: string;
-  drink: string;
-  priceGbp: number | null;
-  passedDownNote: string;
-  era: string;
-  // Optional so old rows / notes-only drops read fine without them. Always a
-  // server-filtered subset of VIBE_TAGS (never client-trusted) — public content.
-  vibeTags?: VibeTag[];
-  provenance: Provenance;
-  status: PintDropStatus;
-  // Per-drop visibility (issue #29). Optional on the type so old rows / demo
-  // seeds without the field read as the default `public` — normalise reads with
-  // visibilityOf() rather than touching this directly.
-  visibility?: Visibility;
-  createdAt: string;
-  // Moderation metadata — set once a drop is reported/reviewed. Optional so old
-  // rows and fresh drops read fine without them.
-  reportedAt?: string;
-  reportReason?: string;
-  reportCount?: number;
-  moderatedAt?: string;
-  moderatorNote?: string;
-};
-
-export type ValidationResult =
-  | { ok: true; value: PintDrop }
-  | { ok: false; error: string };
+// Visibility allowlist, default, the withheld-handle label, and cleanVisibility
+// now live in the browser-safe lib/pintDropShared.ts (imported + re-exported
+// above) so the composer can reuse them without pulling this server module.
 
 // Trust boundary. Never lazy here: the client is untrusted. Strip anything that
 // could be HTML/script, cap lengths, and clamp the price to a sane pub range.
@@ -286,23 +231,8 @@ export function visibilityOf(drop: Pick<PintDrop, "visibility">): Visibility {
   return drop.visibility ?? DEFAULT_VISIBILITY;
 }
 
-/**
- * The requester's identity for a friends-gated read. Self-asserted (no auth yet
- * — same courtesy-curtain trust boundary as lib/notifications.ts). `handle` is
- * the viewer's own handle; `followingHandles` is the set of NORMALISED handles
- * the viewer follows (its followees). A follower of an author is a viewer whose
- * `followingHandles` CONTAINS the author — i.e. the friends lane shows a drop to
- * the author's followers (see qualifiesForFriends).
- *
- * Both fields optional: an anonymous viewer (no handle / no follow set) sees only
- * public + anonymous drops.
- */
-export type ViewerContext = {
-  /** The viewer's own self-asserted handle (raw or normalised — normalised on use). */
-  handle?: string | null;
-  /** Normalised handles the viewer follows (its followees). */
-  followingHandles?: ReadonlySet<string>;
-};
+// ViewerContext (the friends-gating requester identity) now lives in the
+// browser-safe lib/pintDropShared.ts and is re-exported above.
 
 /**
  * Normalise a handle for viewer-identity + author matching, without importing the

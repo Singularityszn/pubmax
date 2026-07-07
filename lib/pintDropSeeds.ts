@@ -1,4 +1,4 @@
-import type { PintDrop } from "@/lib/pintDrops";
+import type { PintDrop } from "@/lib/pintDropShared";
 
 // Seeded demo Pint Drops for the curated heritage pubs (lib/curation.ts,
 // seeds/heritage.md). They exist so the community layer reads as alive on

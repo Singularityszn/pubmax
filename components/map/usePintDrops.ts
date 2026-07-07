@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
-import type { PintDrop, VibeTag } from "@/lib/pintDrops";
+import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base

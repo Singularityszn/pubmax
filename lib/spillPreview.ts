@@ -7,7 +7,7 @@
 //   2. Map the one-tap destination chips ("Add to Tonight / My Round / Family
 //      Table / Ledger") onto the EXISTING visibility semantics — no new backend.
 
-import { ANON_HANDLE_LABEL } from "@/lib/pintDrops";
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { type Provenance } from "@/lib/curation";
 import { displayHandle } from "@/lib/handleDisplay";
 import { appendWithSuffix, formatPriceGbp, type Visibility } from "@/lib/spill";

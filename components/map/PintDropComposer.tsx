@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 
-import { VIBE_TAGS } from "@/lib/pintDrops";
+import { VIBE_TAGS } from "@/lib/pintDropShared";
 import {
   QUICK_ADD_PRICES_GBP,
   VISIBILITIES,

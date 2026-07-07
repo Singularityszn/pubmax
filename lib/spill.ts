@@ -3,8 +3,8 @@
 // re-export of the visibility allowlist for composer-side validation reuse.
 // No React, no DOM — these are unit-testable in isolation.
 
-export { VISIBILITIES, DEFAULT_VISIBILITY, cleanVisibility } from "@/lib/pintDrops";
-export type { Visibility } from "@/lib/pintDrops";
+export { VISIBILITIES, DEFAULT_VISIBILITY, cleanVisibility } from "@/lib/pintDropShared";
+export type { Visibility } from "@/lib/pintDropShared";
 
 // ── Price stepper ───────────────────────────────────────────────────────────
 // Mirrors the server's MAX_PRICE clamp (lib/pintDrops.ts) on the low end (a
