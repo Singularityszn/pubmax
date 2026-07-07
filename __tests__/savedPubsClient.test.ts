@@ -41,4 +41,33 @@ describe("fetchFollowedListsForHandle", () => {
       { signal: undefined },
     );
   });
+
+  it("cleans followed-list names before rendering or regenerating links", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        followedLists: [
+          {
+            ownerHandle: "Sam",
+            listType: "  <b>Date\u0000Night</b>  ",
+            savedCount: 1,
+            followerCount: 2,
+            followedAt: "2026-07-07T12:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchFollowedListsForHandle("Ken")).resolves.toEqual([
+      {
+        ownerHandle: "sam",
+        ownerProfileUrl: "/u/sam",
+        listType: "bDate Night/b",
+        listUrl: "/u/sam/lists/bDate%20Night%2Fb",
+        savedCount: 1,
+        followerCount: 2,
+        followedAt: "2026-07-07T12:00:00.000Z",
+      },
+    ]);
+  });
 });
