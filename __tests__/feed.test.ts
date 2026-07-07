@@ -112,6 +112,34 @@ describe("normalizePintDrop", () => {
     const feedItem = normalizePintDrop(dto({ venueName: "   " }));
     expect(feedItem.venueName).toBe("A London pub");
   });
+
+  it("preserves optimistic posting metadata for honest pending Spill cards", () => {
+    const incoming = {
+      ...dto({
+        id: "optimistic-1",
+        pintPhotoUrl: "blob:http://localhost/pint-preview",
+        venuePhotoUrl: null,
+      }),
+      optimistic: {
+        state: "uploading" as const,
+        message: "Posting Spill — uploading photo",
+        uploadProgress: 0,
+        canRetry: false,
+        clientRequestId: "client-1",
+      },
+    };
+
+    const feedItem = normalizePintDrop(incoming);
+
+    expect((feedItem as { optimistic?: unknown }).optimistic).toEqual({
+      state: "uploading",
+      message: "Posting Spill — uploading photo",
+      uploadProgress: 0,
+      canRetry: false,
+      clientRequestId: "client-1",
+    });
+    expect(feedItem.photoUrls).toEqual(["blob:http://localhost/pint-preview"]);
+  });
 });
 
 describe("paginate", () => {

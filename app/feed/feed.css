@@ -305,6 +305,75 @@
   box-shadow: var(--shadow, 0 8px 22px rgba(24, 34, 26, 0.06));
 }
 
+.feedCard-pending,
+.feedCard-uploading {
+  border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+}
+
+.feedCard-failed {
+  border-color: color-mix(in srgb, var(--brick, #9c3d2e) 55%, var(--line));
+}
+
+.feedCardStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line-soft, var(--line));
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.feedCardStatus-failed {
+  background: color-mix(in srgb, var(--brick, #9c3d2e) 10%, var(--panel));
+}
+
+.feedCardStatusText {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.feedUploadProgress {
+  width: 76px;
+  height: 7px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.feedUploadProgress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brass);
+}
+
+.feedRetryPost {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.feedRetryPost:hover {
+  border-color: var(--brick, var(--brass));
+}
+
+.feedRetryPost:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 .feedCardHead {
   display: flex;
   align-items: center;

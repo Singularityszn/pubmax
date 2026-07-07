@@ -31,6 +31,15 @@ export type PintDropDTO = {
   // (or a demo seed for an id the dataset no longer carries) still normalises.
   venueName?: string;
   venueMapUrl?: string;
+  optimistic?: OptimisticSpillState;
+};
+
+export type OptimisticSpillState = {
+  state: "pending" | "uploading" | "failed";
+  message: string;
+  uploadProgress: number | null;
+  canRetry: boolean;
+  clientRequestId: string;
 };
 
 // A normalized feed item. `type` is a lane discriminant so the surface can grow
@@ -60,6 +69,7 @@ export type FeedItem = {
   provenance: Provenance;
   drink: string;
   era: string;
+  optimistic?: OptimisticSpillState;
 };
 
 // The friendly label shown when an id has no resolvable pub name — kept here so
@@ -71,6 +81,34 @@ export const VENUE_FALLBACK_LABEL = "A London pub";
 // can derive a link even for a payload that predates server enrichment.
 function mapUrlFor(venueId: string): string {
   return `/map?sel=${encodeURIComponent(venueId)}`;
+}
+
+function normalizeOptimistic(value: unknown): OptimisticSpillState | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Partial<OptimisticSpillState>;
+  if (raw.state !== "pending" && raw.state !== "uploading" && raw.state !== "failed") {
+    return undefined;
+  }
+  const message =
+    typeof raw.message === "string" && raw.message.trim().length > 0
+      ? raw.message
+      : raw.state === "failed"
+        ? "Spill failed to post."
+        : "Posting Spill.";
+  const uploadProgress =
+    typeof raw.uploadProgress === "number" && Number.isFinite(raw.uploadProgress)
+      ? Math.max(0, Math.min(100, raw.uploadProgress))
+      : null;
+  return {
+    state: raw.state,
+    message,
+    uploadProgress,
+    canRetry: raw.canRetry === true,
+    clientRequestId:
+      typeof raw.clientRequestId === "string" && raw.clientRequestId.length > 0
+        ? raw.clientRequestId
+        : "",
+  };
 }
 
 /**
@@ -94,7 +132,7 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
     typeof dto.venueMapUrl === "string" && dto.venueMapUrl.length > 0
       ? dto.venueMapUrl
       : mapUrlFor(dto.venueId);
-  return {
+  const item: FeedItem = {
     type: "pint_drop",
     id: dto.id,
     createdAt: dto.createdAt,
@@ -110,6 +148,9 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
     drink: dto.drink ?? "",
     era: dto.era ?? "",
   };
+  const optimistic = normalizeOptimistic(dto.optimistic);
+  if (optimistic) item.optimistic = optimistic;
+  return item;
 }
 
 // ── Filters ──────────────────────────────────────────────────────────────────

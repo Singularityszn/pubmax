@@ -7,7 +7,7 @@ import CheersButton from "@/components/feed/CheersButton";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
 import { computeChaosScore } from "@/lib/chaosScore";
-import type { FeedItem } from "@/lib/feed";
+import type { FeedItem, OptimisticSpillState } from "@/lib/feed";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import prefetchVenue from "@/lib/prefetchVenue";
@@ -37,14 +37,63 @@ const PROVENANCE_LABEL: Record<string, string> = {
   demo: "Sample",
 };
 
+function feedCardClassName(hero: string | undefined, optimistic?: OptimisticSpillState): string {
+  return [
+    "feedCard",
+    hero ? "feedCardSpill" : "",
+    optimistic ? `feedCard-${optimistic.state}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function FeedOptimisticStatus({
+  optimistic,
+  onRetryPost,
+}: {
+  optimistic?: OptimisticSpillState;
+  onRetryPost?: (clientRequestId: string) => void;
+}) {
+  if (!optimistic) return null;
+  const canRetry = optimistic.state === "failed" && optimistic.canRetry && onRetryPost;
+  return (
+    <div
+      className={`feedCardStatus feedCardStatus-${optimistic.state}`}
+      role={optimistic.state === "failed" ? "alert" : "status"}
+      aria-live={optimistic.state === "failed" ? "assertive" : "polite"}
+    >
+      <span className="feedCardStatusText">{optimistic.message}</span>
+      {optimistic.state === "uploading" && optimistic.uploadProgress !== null ? (
+        <span
+          className="feedUploadProgress"
+          aria-label={`Photo upload ${optimistic.uploadProgress}% complete`}
+        >
+          <span style={{ width: `${optimistic.uploadProgress}%` }} />
+        </span>
+      ) : null}
+      {canRetry ? (
+        <button
+          className="feedRetryPost"
+          type="button"
+          onClick={() => onRetryPost(optimistic.clientRequestId)}
+        >
+          Retry
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export default function FeedCard({
   item,
   summary,
   onToggleReaction,
+  onRetryPost,
 }: {
   item: FeedItem;
   summary: ReactionSummary;
   onToggleReaction: (dropId: string, reaction: ReactionKey) => void;
+  onRetryPost?: (clientRequestId: string) => void;
 }) {
   const hero = item.photoUrls[0];
   const initial = item.handle.trim().charAt(0).toUpperCase() || "?";
@@ -81,12 +130,15 @@ export default function FeedCard({
   const showChaosBadge = chaos.score >= 30;
 
   const provLabel = PROVENANCE_LABEL[item.provenance] ?? item.provenance;
+  const optimistic = item.optimistic;
+  const isOptimistic = Boolean(optimistic);
 
   return (
     <article
-      className={`feedCard${hero ? " feedCardSpill" : ""}`}
-      aria-label={`Pint drop from ${shownHandle}`}
+      className={feedCardClassName(hero, optimistic)}
+      aria-label={`${optimistic ? `${optimistic.message}. ` : ""}Pint drop from ${shownHandle}`}
     >
+      <FeedOptimisticStatus optimistic={optimistic} onRetryPost={onRetryPost} />
       {hero ? (
         // Vertical 9:16 full-bleed "Spill" card (issue #36): the photo IS the
         // card (IG-Stories ratio) with the handle, venue, note, price stamp and
@@ -147,21 +199,25 @@ export default function FeedCard({
             </div>
             {item.caption ? <p className="feedSpillNote">{item.caption}</p> : null}
             {/* A4 — primary one-tap Cheers, over the dark scrim (frosted variant). */}
-            <div className="feedSpillCheers">
-              <CheersButton
-                dropId={item.id}
-                count={cheersCount}
-                mine={cheeredByMe}
-                onToggle={onCheers}
-                className="cheersBtnOnScrim"
-              />
-            </div>
-            <Link
-              className="feedSpillBarTab"
-              href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
-            >
-              See the bar tab
-            </Link>
+            {!isOptimistic ? (
+              <>
+                <div className="feedSpillCheers">
+                  <CheersButton
+                    dropId={item.id}
+                    count={cheersCount}
+                    mine={cheeredByMe}
+                    onToggle={onCheers}
+                    className="cheersBtnOnScrim"
+                  />
+                </div>
+                <Link
+                  className="feedSpillBarTab"
+                  href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
+                >
+                  See the bar tab
+                </Link>
+              </>
+            ) : null}
           </div>
         </div>
       ) : (
@@ -249,7 +305,7 @@ export default function FeedCard({
         {/* A4 — the dominant primary ack, above the tucked-away chip row. On the
             9:16 Spill card this lives over the scrim instead (see above), so only
             the text-only receipt card mounts it here. */}
-        {!hero ? (
+        {!hero && !isOptimistic ? (
           <div className="feedCheers">
             <CheersButton
               dropId={item.id}
@@ -260,47 +316,51 @@ export default function FeedCard({
           </div>
         ) : null}
 
-        <div className="feedReactions" role="group" aria-label="React to this pint">
-          {REACTION_KEYS.map((key) => {
-            const meta = REACTION_META[key];
-            const on = mine.has(key);
-            const count = summary.counts[key] ?? 0;
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`feedReactBtn${on ? " isOn" : ""}`}
-                aria-pressed={on}
-                aria-label={count ? `${meta.label}, ${count}` : meta.label}
-                onClick={() => onToggleReaction(item.id, key)}
-              >
-                <span aria-hidden="true">{meta.emoji}</span>
-                <span className="feedReactLabel">{meta.label}</span>
-                {count > 0 ? <span className="feedReactCount">{count}</span> : null}
-              </button>
-            );
-          })}
-        </div>
+        {!isOptimistic ? (
+          <div className="feedReactions" role="group" aria-label="React to this pint">
+            {REACTION_KEYS.map((key) => {
+              const meta = REACTION_META[key];
+              const on = mine.has(key);
+              const count = summary.counts[key] ?? 0;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`feedReactBtn${on ? " isOn" : ""}`}
+                  aria-pressed={on}
+                  aria-label={count ? `${meta.label}, ${count}` : meta.label}
+                  onClick={() => onToggleReaction(item.id, key)}
+                >
+                  <span aria-hidden="true">{meta.emoji}</span>
+                  <span className="feedReactLabel">{meta.label}</span>
+                  {count > 0 ? <span className="feedReactCount">{count}</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
 
         {/* Every pint is its own shareable post: open the standalone permalink
             or fire it into X / WhatsApp / a group chat. */}
-        <div className="feedCardFooter">
-          <Link className="feedPermalink" href={`/p/${item.id}`}>
-            Open pint
-          </Link>
-          <ShareBar
-            url={`/p/${item.id}`}
-            title={`${shownHandle}'s pint at ${item.venueName}`}
-            text={`${shownHandle} found a pint at ${item.venueName}${
-              typeof item.priceGbp === "number" ? ` — ${formatGbp(item.priceGbp)}` : ""
-            }. Every pint has a story.`}
-          />
-        </div>
+        {!isOptimistic ? (
+          <div className="feedCardFooter">
+            <Link className="feedPermalink" href={`/p/${item.id}`}>
+              Open pint
+            </Link>
+            <ShareBar
+              url={`/p/${item.id}`}
+              title={`${shownHandle}'s pint at ${item.venueName}`}
+              text={`${shownHandle} found a pint at ${item.venueName}${
+                typeof item.priceGbp === "number" ? ` — ${formatGbp(item.priceGbp)}` : ""
+              }. Every pint has a story.`}
+            />
+          </div>
+        ) : null}
 
         {/* Comments continue the drop's story. Collapsed by default; the thread
             lazily mounts + fetches only when expanded. A comment API error stays
             inside CommentThread and never breaks feed rendering. */}
-        <CommentThread dropId={item.id} />
+        {!isOptimistic ? <CommentThread dropId={item.id} /> : null}
       </div>
     </article>
   );
