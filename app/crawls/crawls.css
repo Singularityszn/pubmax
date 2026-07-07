@@ -1,6 +1,7 @@
 /* Crawl Story poster. All selectors here are new + scoped to this page; the
    values lean on the existing design-system CSS vars so the poster inherits the
-   "printed guidebook" theme (brass accent, cream paper, serif headings). */
+   "printed guidebook" theme (brass accent, cream paper, display headings via
+   var(--serif) — the legacy alias that now resolves to Space Grotesk). */
 
 .crawlsShell {
   min-height: 100vh;
@@ -42,7 +43,7 @@
 
 .crawlEmpty h1 {
   margin: 0 0 14px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--serif);
   font-size: 30px;
   line-height: 1.15;
 }
@@ -95,7 +96,7 @@
 
 .curatedName {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--serif);
   font-size: 21px;
   line-height: 1.15;
   color: var(--ink);
@@ -171,7 +172,7 @@
 
 .crawlPosterHead h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--serif);
   font-size: 34px;
   line-height: 1.12;
 }
@@ -252,7 +253,7 @@
 
 .crawlStopPrice {
   flex: 0 0 auto;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--serif);
   font-size: 17px;
   font-weight: 700;
   color: var(--ink);
@@ -287,7 +288,7 @@
 }
 
 .crawlReceipt strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--serif);
   font-size: 28px;
   color: var(--brass);
 }
@@ -343,7 +344,7 @@
 .crawlFootnote {
   margin: 22px 0 0;
   text-align: center;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--serif);
   font-style: italic;
   color: var(--ink-soft);
 }
