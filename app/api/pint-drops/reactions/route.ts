@@ -10,6 +10,7 @@
 // so there is no 503 — an unconfigured prod just gets per-instance counts).
 
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
+import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -45,7 +46,19 @@ export async function GET(request: Request): Promise<Response> {
 
   const actorHash = hashActor(params.get("actor"));
   try {
-    return Response.json({ summaries: await store().summarize(ids, actorHash) }, { status: 200 });
+    // F3: parent-drop visibility gate. Hidden (moderated) and non-public
+    // (friends/legacy) drops are filtered OUT of the batch before summarising
+    // — ONE batched lookup for all requested ids, never per-id — so their
+    // reaction counts never leave the server. Gated ids are simply absent from
+    // the summaries map (the same shape as an id nobody requested), matching
+    // how the feed silently omits these drops; never a 404 existence oracle.
+    // The batched-summary contract for the surviving ids is unchanged.
+    const readable = await filterPubliclyReadableDropIds(ids);
+    if (readable.length === 0) return Response.json({ summaries: {} }, { status: 200 });
+    return Response.json(
+      { summaries: await store().summarize(readable, actorHash) },
+      { status: 200 },
+    );
   } catch {
     // Reactions are best-effort — an empty map keeps the feed rendering.
     return Response.json({ summaries: {} }, { status: 200 });

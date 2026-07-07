@@ -21,6 +21,7 @@
 
 import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsStore";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
+import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -28,6 +29,14 @@ import { readString } from "@/lib/textClean";
 export async function GET(request: Request): Promise<Response> {
   const dropId = new URL(request.url).searchParams.get("dropId");
   if (!dropId) return Response.json({ comments: [] }, { status: 200 });
+  // F3: parent-drop visibility gate. A hidden (moderated) or non-public
+  // (friends/legacy) drop must not serve its thread to this unscoped GET —
+  // there is no viewer identity to gate on (true viewer-scoped gating waits
+  // for Supabase Auth). A gated parent answers the SAME empty list as a drop
+  // with no comments (200, never 404) so the response is not an existence
+  // oracle — matching how the feed silently omits these drops.
+  const readable = await filterPubliclyReadableDropIds([dropId]);
+  if (readable.length === 0) return Response.json({ comments: [] }, { status: 200 });
   // listComments is fail-soft (returns [] on any store error), so a comments
   // outage can never surface as a 500 that breaks the host feed.
   const comments = await commentsStore().listComments(dropId);

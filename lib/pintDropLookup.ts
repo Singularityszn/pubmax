@@ -2,6 +2,8 @@ import {
   ANON_HANDLE_LABEL,
   canViewOnPublicSurface,
   cleanVisibility,
+  findPintDropsByIds,
+  isPubliclyReadableDrop,
   listAllVisiblePintDrops,
   visibilityOf,
   type PintDrop,
@@ -139,6 +141,98 @@ async function enrich(fields: EnrichFields, viewer?: ViewerContext): Promise<Pub
     venueName: venue?.name ?? "A London pub",
     venueMapUrl: venueMapUrl(fields.venueId),
   };
+}
+
+// ── F3: batched parent-drop visibility gate ─────────────────────────────────
+// The comments and reactions GETs are UNSCOPED public reads: they carry no
+// viewer identity, only drop ids. Before this gate, ANY dropId — including a
+// hidden (moderated) drop or a friends/legacy-visibility drop — would happily
+// return its comments and reaction counts. This helper answers, in ONE batched
+// query, which of the requested ids belong to drops fit for that read.
+
+// Same additive-rollout guard the pint-drops store uses for migration 0012:
+// match ONLY a missing-`visibility` column error (42703 undefined_column /
+// PGRST204 schema-cache miss naming the column) so the read can retry without
+// the column on a pre-0012 DB, where every row is effectively `public`.
+function isMissingVisibilityColumnError(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (code === "42703" || code === "PGRST204") && message.includes("visibility");
+}
+
+/**
+ * Filter a batch of drop ids down to the ones whose PARENT DROP is fit for an
+ * unscoped public read (visible + `public`/`anonymous` — see
+ * isPubliclyReadableDrop). One Supabase query for the whole batch (never
+ * per-id), then the in-memory store + demo seeds cover ids Supabase doesn't
+ * know. Order and duplicates of the input are preserved for the ids kept.
+ *
+ * Verdicts:
+ *   • resolved + publicly readable          → kept.
+ *   • resolved + hidden/friends/legacy      → dropped. Callers answer the SAME
+ *     empty shape as "no comments/reactions yet" (200, never 404), matching how
+ *     the feed silently omits these drops — no existence oracle.
+ *   • unresolvable id                       → kept. There is nothing to leak: a
+ *     gated drop always resolves (hidden rows stay in visit_reports / the
+ *     memory store), while an unknown id simply has no server-side children on
+ *     the Supabase path (child tables FK visit_reports) and keeps dev/demo
+ *     ergonomics on the memory path.
+ *   • Supabase lookup failure               → fail CLOSED (drop the whole
+ *     batch): a store outage must degrade to "no comments/reactions", never to
+ *     leaking a moderated drop's thread.
+ */
+export async function filterPubliclyReadableDropIds(ids: readonly string[]): Promise<string[]> {
+  const requested = ids.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean);
+  if (requested.length === 0) return [];
+  const unique = [...new Set(requested)];
+
+  // id → verdict for ids we could RESOLVE; unresolved ids stay absent (kept).
+  const verdicts = new Map<string, boolean>();
+
+  if (isSupabaseConfigured()) {
+    try {
+      const admin = getSupabaseAdmin();
+      if (!admin) return []; // configured-but-broken: fail closed, not open
+      const firstRead = await admin
+        .from("visit_reports")
+        .select("id,status,visibility")
+        .in("id", unique);
+      let data = (firstRead.data ?? null) as
+        | Array<{ id: unknown; status?: unknown; visibility?: unknown }>
+        | null;
+      let error = firstRead.error;
+      if (error && isMissingVisibilityColumnError(error)) {
+        // Pre-0012 DB: no visibility column means every row is `public`.
+        const fallbackRead = await admin.from("visit_reports").select("id,status").in("id", unique);
+        data = (fallbackRead.data ?? null) as
+          | Array<{ id: unknown; status?: unknown; visibility?: unknown }>
+          | null;
+        error = fallbackRead.error;
+      }
+      if (error) return []; // fail closed — see doc comment
+      for (const row of data ?? []) {
+        verdicts.set(String(row.id), isPubliclyReadableDrop({
+          status: String(row.status ?? "") as PintDrop["status"],
+          visibility: cleanVisibility(row.visibility),
+        }));
+      }
+    } catch {
+      return []; // fail closed — see doc comment
+    }
+  }
+
+  // Memory store + demo seeds resolve whatever Supabase didn't (all of it, on
+  // the memory backend). One batched pass, any status — hidden drops must
+  // resolve so they can be gated.
+  const unresolved = unique.filter((id) => !verdicts.has(id));
+  for (const [id, drop] of findPintDropsByIds(unresolved)) {
+    verdicts.set(id, isPubliclyReadableDrop(drop));
+  }
+
+  return requested.filter((id) => verdicts.get(id) !== false);
 }
 
 /**

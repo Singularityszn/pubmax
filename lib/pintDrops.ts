@@ -301,6 +301,45 @@ export function canViewOnPublicSurface(drop: PintDrop, viewer?: ViewerContext): 
   }
 }
 
+/**
+ * F3 (comments/reactions GET gating): is this drop fit for an UNSCOPED public
+ * read — an endpoint that carries NO viewer identity at all (the comments and
+ * reactions GETs)? Only a moderation-visible drop in the `public` or
+ * `anonymous` lane qualifies. `friends` and `legacy` need a viewer to gate on,
+ * and those endpoints have none (true viewer-scoped gating waits for Supabase
+ * Auth), so their child content stays server-side rather than leaking to
+ * anyone who guesses the drop id. Pure + exported so it is unit-testable and
+ * reused by the batched lookup in lib/pintDropLookup.ts.
+ */
+export function isPubliclyReadableDrop(
+  drop: Pick<PintDrop, "status" | "visibility">,
+): boolean {
+  if (drop.status !== "visible") return false;
+  const visibility = visibilityOf(drop as Pick<PintDrop, "visibility">);
+  return visibility === "public" || visibility === "anonymous";
+}
+
+/**
+ * Batched id → drop lookup across the in-memory store (ANY status — a hidden
+ * drop must be findable so its children can be gated) plus the demo seeds.
+ * One pass over the store regardless of how many ids are asked for, so the
+ * comments/reactions visibility gate never does per-id scans.
+ */
+export function findPintDropsByIds(ids: readonly string[]): Map<string, PintDrop> {
+  const wanted = new Set(ids);
+  const out = new Map<string, PintDrop>();
+  if (wanted.size === 0) return out;
+  for (const list of drops.values()) {
+    for (const d of list) {
+      if (wanted.has(d.id)) out.set(d.id, d);
+    }
+  }
+  for (const d of demoPintDrops) {
+    if (wanted.has(d.id) && !out.has(d.id)) out.set(d.id, d);
+  }
+  return out;
+}
+
 /** The in-memory legacy lane for one venue: legacy drops only, visible-only,
  *  newest-first (the ledger-only capability's memory backing). Author-gating on
  *  the ledger is a surface decision; this returns the venue's legacy drops so the
