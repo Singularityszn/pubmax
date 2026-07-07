@@ -1,17 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+  # GitHub-hosted Actions still fail before job allocation on this private
+  # repo (`startup_failure` with zero jobs — verified on push run 28893076008,
+  # 2026-07-07). Vercel is the automatic CI/CD gate; keep this workflow
+  # manual-only so every merge doesn't produce a red non-code failure.
+  # Re-enable push/pull_request triggers once runner allocation is fixed.
   workflow_dispatch:
 
 permissions:

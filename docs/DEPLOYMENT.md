@@ -57,9 +57,11 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 { "buildCommand": "npm run ci" }
 ```
 
-So **every Vercel deploy runs `npm run ci` = lint · typecheck · Vitest · Next build**. If any step fails, the deploy fails and production is never updated — this is the primary gate.
+So **every Vercel deploy runs `npm run ci` = validate data · lint · typecheck · coverage · Next build**. If any step fails, the deploy fails and production is never updated — this is the reliable automatic gate while GitHub-hosted Actions is unstable.
 
-GitHub Actions also runs the same quality gate in `.github/workflows/ci.yml`. It is intentionally boring:
+GitHub Actions is configured for `push`, `pull_request`, and `workflow_dispatch`, but GitHub-hosted runs are currently failing before job allocation on this private repo (`startup_failure` with zero jobs and no logs). That is a runner/account allocation problem, not a product-code problem. Keep the workflow definition boring and use Vercel as the enforced deploy gate until GitHub runner allocation is fixed.
+
+When GitHub Actions runner allocation is fixed, the existing triggers should start producing useful first-party checks. The workflow itself is intentionally boring:
 
 - `npm ci`
 - `npm run validate-data`
@@ -68,7 +70,7 @@ GitHub Actions also runs the same quality gate in `.github/workflows/ci.yml`. It
 - `npm run coverage` (fails if coverage drops below the vitest.config.ts thresholds)
 - `npm run build`
 
-The workflow supports `workflow_dispatch`, so it can be rerun manually from GitHub Actions after a flaky external integration or after repository settings change.
+The workflow supports `workflow_dispatch`, so it can be rerun manually from GitHub Actions after account/runners are fixed.
 
 ### Known GitHub check sources
 
@@ -76,10 +78,10 @@ The latest code-level gate is healthy locally and on Vercel. If GitHub shows red
 
 | Check source | What it means | Fix path |
 |---|---|---|
-| `CI / Verify and build` | First-party GitHub Actions workflow from `.github/workflows/ci.yml`. | Fix code or workflow, then rerun the workflow. |
-| `Vercel` | Vercel deployment gate. Runs `npm run ci` before deploy. | Fix code/build/env, then redeploy. |
+| `CI / Verify and build` | First-party GitHub Actions workflow from `.github/workflows/ci.yml`. Currently configured for push/PR/manual, but GitHub-hosted runs fail before job allocation. | If a run reports `startup_failure` with zero jobs, fix GitHub account/runners/settings rather than product code. |
+| `Vercel` | Automatic deployment gate. Runs `npm run ci` before deploy. | Fix code/build/env, then redeploy. |
 | `Supabase Preview` | Supabase GitHub integration. | If it says `Remote migration versions not found in local migrations directory`, sync migration history: pull/export the missing remote migrations or repair the Supabase migration table so remote and `supabase/migrations/` agree. Do not delete local migrations to make this pass. |
-| deleted `BuildFailed` workflow / GitHub Actions `startup_failure` | A stale deleted workflow record. GitHub shows no jobs and no logs. | It is not a code test failure. Ignore old runs; use the active `CI` workflow or manually dispatch it. If new pushes keep creating only `BuildFailed`, remove/reinstall the misconfigured integration that created it or contact GitHub support with the deleted workflow id. |
+| GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | It is not a code test failure. Use Vercel as the automatic gate until account/runners/settings are fixed. |
 | `Greptile Review` | External AI review/check app. | Treat as code-review signal, not a build gate. Address concrete findings in PR comments. |
 | `dbt Cloud`, `starslingdev`, other queued app suites | External GitHub Apps attached to the repo. | Disable unused apps or remove them from required checks; they are not part of PubMaxing's build unless explicitly configured. |
 
@@ -91,7 +93,7 @@ Before pushing a branch:
 2. Commit only product/docs changes, not local agent state such as `.agents/`, `.claude/`, `.mcp.json`, `.playwright-mcp/`, or skill inventory files.
 3. Push the branch.
 4. Check `gh run list --workflow CI --limit 5` and `gh pr checks <pr-number>` if a PR exists.
-5. Treat Vercel and first-party CI failures as blockers. Treat Supabase Preview and Greptile as separate integration/review queues.
+5. Treat Vercel failures as blockers. Treat GitHub Actions `startup_failure`, Supabase Preview, and Greptile as separate integration/review queues.
 
 ## Trust boundary: `x-forwarded-for`
 
