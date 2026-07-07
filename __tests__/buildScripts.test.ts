@@ -11,4 +11,8 @@ describe("build scripts", () => {
   it("regenerates the slim map payload before the production build", () => {
     expect(packageJson.scripts?.prebuild).toBe("npm run build:slim");
   });
+
+  it("regenerates generated map artifacts before data validation", () => {
+    expect(packageJson.scripts?.["prevalidate-data"]).toBe("npm run build:slim");
+  });
 });

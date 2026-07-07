@@ -15,6 +15,8 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `SUPABASE_URL` | Supabase project URL. |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Server-only** service-role key. Bypasses RLS — never expose to the client, never commit. |
 | `SUPABASE_STORAGE_BUCKET` | Storage bucket name for Pint Drop photos. Defaults to `pint-drops` if unset. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Public Supabase URL used by browser auth/realtime. Usually the same value as `SUPABASE_URL`. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public browser key for Supabase Auth/Realtime. Safe to expose; do **not** use the service-role key. |
 | `ADMIN_TOKEN` | Moderator auth for `/admin` and moderation APIs. Sent as the `x-admin-token` header. If unset, moderation is open **only** in dev/test (`NODE_ENV`) — always set it anywhere reachable, including preview deployments. |
 | `RATE_LIMIT_SALT` | Salt for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs). Defaults to a public constant in dev — set a secret in production so hashes aren't computable from public code. |
 
@@ -29,7 +31,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 
 ### 1. Run the migrations, in order
 
-Apply the SQL in `supabase/migrations/` **in numeric order** (each builds on the last):
+Apply every SQL file in `supabase/migrations/` **in filename timestamp order** (each builds on the last). Do not stop at `0004`; the social demo depends on the later migrations through `0020`.
 
 | File | What it creates |
 |---|---|
@@ -37,8 +39,17 @@ Apply the SQL in `supabase/migrations/` **in numeric order** (each builds on the
 | `0002_pub_heritage.sql` | `pub_heritage` facts table (one row per fact), keyed by `venue_key`; public read-only. |
 | `0003_rate_limits.sql` | `rate_limits` table + `check_rate_limit` RPC (atomic durable rate limiting). |
 | `0004_report_pint_drop.sql` | `report_pint_drop` RPC — atomic increment-stamp-hide so concurrent reports can't lose a count. |
+| `0005`-`0018` | Social layer, auth ownership, notifications, rounds, visibility, comments, realtime publication, drink rows, reports, and followable saved lists. |
+| `0019_messages.sql` | Durable conversations/messages with RLS denying raw public table access. |
+| `0020_ratings.sql` | Durable drink/pub ratings with raw row access denied; public reads go through aggregate API responses. |
 
 Run each via the Supabase SQL editor, or with the Supabase CLI (`supabase db push` / `supabase migration up`) pointed at the project.
+
+Quick post-migration smoke:
+
+- `POST /api/messages` with `{ "action": "send", "handle": "alice", "other": "bob", "body": "hello" }` returns `201`.
+- `POST /api/ratings` with `{ "kind": "venue", "venueId": "venue-16pnwmm", "handle": "alice", "rating": 5 }` returns `200`.
+- Anonymous REST reads of raw `conversations`, `messages`, `drink_ratings`, and `venue_ratings` should not expose rows.
 
 ### 2. Create the storage bucket
 

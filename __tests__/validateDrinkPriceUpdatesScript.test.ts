@@ -5,7 +5,7 @@
 // its logic.
 import { describe, it, expect, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -13,6 +13,8 @@ import { dirname, join } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const SCRIPT = join(ROOT, "scripts", "validate-data.mjs");
+const BUILD_SLIM_SCRIPT = join(ROOT, "scripts", "build_slim_index.mjs");
+const DETAIL_INDEX = join(ROOT, "data", "generated", "venue_detail_index.json");
 
 const tempDirs: string[] = [];
 
@@ -20,17 +22,30 @@ const tempDirs: string[] = [];
 // are needed too, since the script validates all of them in one run) plus a
 // drink_price_updates/ directory containing exactly the given file bodies.
 function setupScratch(files: Record<string, unknown>): string {
+  if (!existsSync(DETAIL_INDEX)) {
+    execFileSync("node", [BUILD_SLIM_SCRIPT], { cwd: ROOT });
+  }
   const scratchRoot = mkdtempSync(join(tmpdir(), "validate-data-test-"));
   tempDirs.push(scratchRoot);
   const scratchScripts = join(scratchRoot, "scripts");
   const scratchData = join(scratchRoot, "public", "data");
+  const scratchGeneratedData = join(scratchRoot, "data", "generated");
   mkdirSync(scratchScripts, { recursive: true });
   mkdirSync(scratchData, { recursive: true });
+  mkdirSync(scratchGeneratedData, { recursive: true });
   // Copy the real script (unmodified) and the real bundled datasets it also
   // validates, so the run reflects production data validation end-to-end.
   cpSync(SCRIPT, join(scratchScripts, "validate-data.mjs"));
-  for (const f of ["london_pois.json", "tfl_lines.json", "pint_prices_app_dataset.json", "venues_slim.json"]) {
+  for (const f of [
+    "london_pois.json",
+    "tfl_lines.json",
+    "pint_prices_app_dataset.json",
+    "venues_slim.json",
+  ]) {
     cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
+  }
+  for (const f of ["venue_detail_index.json", "venue_details.jsonl"]) {
+    cpSync(join(ROOT, "data", "generated", f), join(scratchGeneratedData, f));
   }
   const drinkDir = join(scratchData, "drink_price_updates");
   mkdirSync(drinkDir, { recursive: true });
@@ -194,6 +209,44 @@ describe("validate-data.mjs slim venue index validation", () => {
     const { code, stdout } = runValidate(scriptsDir);
     expect(code).toBe(1);
     expect(stdout).toContain("FAIL public/data/venues_slim.json");
+    expect(stdout).toContain("id is not present in rebuilt full-dataset index");
+  });
+});
+
+describe("validate-data.mjs venue detail row validation", () => {
+  it("validates the shipped lazy venue detail artifact against the full pint dataset", () => {
+    const scriptsDir = setupScratch({});
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).toBe(0);
+    expect(stdout).toContain("PASS data/generated/venue_details.jsonl");
+  });
+
+  it("FAILS when a detail row id does not match its grouped price rows", () => {
+    const scriptsDir = setupScratch({});
+    writeFileSync(
+      join(scriptsDir, "..", "data", "generated", "venue_detail_index.json"),
+      JSON.stringify({
+        version: 1,
+        detailsFile: "venue_details.jsonl",
+        count: 1,
+        venues: {
+          "venue-not-real": {
+            offset: 0,
+            length: Buffer.byteLength(`${JSON.stringify({ id: "venue-not-real", rows: [] })}\n`),
+            rowCount: 1,
+          },
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      join(scriptsDir, "..", "data", "generated", "venue_details.jsonl"),
+      `${JSON.stringify({ id: "venue-not-real", rows: [] })}\n`,
+      "utf8",
+    );
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).toBe(1);
+    expect(stdout).toContain("FAIL data/generated/venue_details.jsonl");
     expect(stdout).toContain("id is not present in rebuilt full-dataset index");
   });
 });
