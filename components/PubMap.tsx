@@ -26,6 +26,7 @@ import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag, sheetSnapTranslateYPx } from "@/components/map/useSheetDrag";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
+import type { SheetSnap } from "@/lib/sheetSnap";
 import {
   clearFavoritePint,
   getFavoritePint,
@@ -247,6 +248,45 @@ const DETAIL_WARNING_STYLE: CSSProperties = {
   borderColor: "rgba(209, 99, 83, 0.34)",
   background: "rgba(209, 99, 83, 0.12)",
 };
+
+type DetailDrawerA11yProps = {
+  "aria-hidden": boolean;
+  "aria-modal"?: true;
+  role?: "dialog";
+  "aria-label"?: string;
+};
+
+function detailDrawerClassName(
+  detailOpen: boolean,
+  sheetSnap: SheetSnap,
+  sheetDragY: number | null,
+): string {
+  return (
+    (detailOpen ? "mapDrawer right open" : "mapDrawer right") +
+    (detailOpen ? ` sheet-${sheetSnap}` : "") +
+    (sheetDragY !== null ? " sheet-dragging" : "")
+  );
+}
+
+function detailDrawerA11yProps(detailOpen: boolean, sheetSnap: SheetSnap): DetailDrawerA11yProps {
+  const fullSheetOpen = detailOpen && sheetSnap === "full";
+  if (!fullSheetOpen) return { "aria-hidden": !detailOpen };
+  return {
+    "aria-hidden": false,
+    "aria-modal": true,
+    role: "dialog",
+    "aria-label": "Pub detail",
+  };
+}
+
+function detailDrawerDragStyle(sheetSnap: SheetSnap, sheetDragY: number | null): CSSProperties | undefined {
+  if (sheetDragY === null) return undefined;
+  const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight;
+  return {
+    transform: `translateY(${Math.max(0, sheetSnapTranslateYPx(sheetSnap, viewportHeight) + sheetDragY)}px)`,
+    transition: "none",
+  };
+}
 
 type VenueDetailStatus = "idle" | "loading" | "ready" | "unavailable";
 
@@ -982,27 +1022,13 @@ export default function PubMap() {
           fire above the gesture breakpoint, and the extra classes/attrs are
           no-ops there (see venueSheet.css / globals.css .mapDrawer rules). */}
       <div
-        className={
-          (detailOpen ? "mapDrawer right open" : "mapDrawer right") +
-          (detailOpen ? ` sheet-${sheetSnap}` : "") +
-          (sheetDragY !== null ? " sheet-dragging" : "")
-        }
-        aria-hidden={!detailOpen}
+        className={detailDrawerClassName(detailOpen, sheetSnap, sheetDragY)}
         // The sheet only claims modal semantics at its "full" snap, where it
         // visually covers virtually the whole viewport (92vh) — at peek/half
         // enough of the map stays visible/reachable that a true modal trap
         // would be wrong (the user can still see and return to the map).
-        aria-modal={detailOpen && sheetSnap === "full" ? true : undefined}
-        role={detailOpen && sheetSnap === "full" ? "dialog" : undefined}
-        aria-label={detailOpen && sheetSnap === "full" ? "Pub detail" : undefined}
-        style={
-          sheetDragY !== null
-            ? {
-                transform: `translateY(${Math.max(0, sheetSnapTranslateYPx(sheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + sheetDragY)}px)`,
-                transition: "none",
-              }
-            : undefined
-        }
+        {...detailDrawerA11yProps(detailOpen, sheetSnap)}
+        style={detailDrawerDragStyle(sheetSnap, sheetDragY)}
       >
         <div
           className="mapDrawerHead sheetDragHandle"
