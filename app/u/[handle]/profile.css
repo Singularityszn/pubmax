@@ -475,6 +475,99 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Shareable saved-list detail ────────────────────────────────────── */
+.profilePage .listDetailHero {
+  display: grid;
+  gap: 18px;
+  padding: clamp(22px, 4vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+}
+
+.profilePage .listDetailTitleBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.profilePage .listDetailEyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profilePage .listDetailTitle {
+  margin: 0;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.02;
+}
+
+.profilePage .listDetailAuthor {
+  width: fit-content;
+  color: var(--brass);
+  font-weight: 700;
+}
+
+.profilePage .listDetailMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.profilePage .listDetailMeta span {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.profilePage .listFollowControl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.profilePage .followBtn {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--brass);
+  color: var(--paper);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profilePage .followBtn.isFollowing {
+  background: transparent;
+  color: var(--brass);
+}
+
+.profilePage .followBtn:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.profilePage .followError {
+  color: var(--danger, #b42318);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.profilePage .listDetailItems {
+  max-width: 760px;
+}
+
 /* ── Owner actions: edit toggle + claim ──────────────────────────────── */
 .profilePage .profileEditToggle,
 .profilePage .profileClaimBtn {
