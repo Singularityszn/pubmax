@@ -17,6 +17,7 @@ import TonightBoard from "@/components/discovery/TonightBoard";
 import EditorialCard, { type EditorialCardData } from "@/components/discovery/EditorialCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
+import TopRatedPubs from "@/components/ratings/TopRatedPubs";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import "./discover.css";
@@ -108,6 +109,10 @@ export default function DiscoverPage() {
   // priced drops in the trailing 24h. Empty until the drops land; if the drops
   // fetch fails it simply stays empty and the board shows its friendly note.
   const [tonight, setTonight] = useState<TonightEntry[]>([]);
+  // venue id → name, for the "Top rated pubs this month" section (E3): the
+  // ratings API returns venue ids; names come from the SAME dataset fetch the
+  // leaderboard already makes (no second dataset read).
+  const [venueNames, setVenueNames] = useState<Record<string, string>>({});
 
   // Fetch the public dataset and rank it. setState only fires in the async
   // handlers (never the effect body) — React 19 set-state-in-effect is an error.
@@ -121,6 +126,9 @@ export default function DiscoverPage() {
       .then(async (rows: VenuePrice[]) => {
         const venues: Venue[] = groupVenuePrices(Array.isArray(rows) ? rows : []);
         setEntries(cheapestPints(venues, 10));
+        setVenueNames(
+          Object.fromEntries(venues.map((venue) => [venue.id, venue.name])),
+        );
         setStatus("ready");
 
         // Best-effort community "now" prices. Wrapped so a failed/aborted drops
@@ -186,6 +194,17 @@ export default function DiscoverPage() {
           hours, cheapest first. Community-reported, not gospel.
         </p>
         <TonightBoard entries={tonight} />
+      </section>
+
+      <section className="discoverSection" aria-labelledby="topRated-title">
+        <h2 id="topRated-title" className="discoverSectionTitle">
+          Top rated pubs this month
+        </h2>
+        <p className="discoverSectionDek">
+          Ranked by the community&rsquo;s stars over the last thirty days. A pub
+          needs ten ratings to make the list — honest scores, no seeded numbers.
+        </p>
+        <TopRatedPubs venueNames={venueNames} />
       </section>
 
       <section className="discoverSection" aria-labelledby="cheap-title">

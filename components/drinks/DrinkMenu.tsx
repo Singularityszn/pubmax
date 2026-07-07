@@ -1,5 +1,6 @@
 import { categoryColor } from "@/lib/categoryColors";
 import { formatPrice } from "@/lib/venues";
+import DrinkRatingRow from "@/components/ratings/DrinkRatingRow";
 import {
   groupDrinksByCategory,
   type Drink,
@@ -26,18 +27,22 @@ import "./drinkMenu.css";
 // its raw source so a new permissible source (Wikidata, a chain site) is never
 // silently relabelled.
 function provenanceLabel(prov: DrinkProvenance): string {
-  if (prov.source === "seed") return "Demo";
+  if (isDemoProvenance(prov)) return "Demo";
   if (prov.source === "app-dataset") return "On record";
   return prov.source;
 }
 
+function isDemoProvenance(prov: DrinkProvenance): boolean {
+  return prov.source === "seed" || prov.source.toLowerCase().includes("demo");
+}
+
 function ProvChip({ prov }: { prov: DrinkProvenance }) {
   const label = provenanceLabel(prov);
-  const kind = prov.source === "seed" ? "demo" : "sourced";
+  const kind = isDemoProvenance(prov) ? "demo" : "sourced";
   return (
     <span
       className={`drinkProvChip ${kind}`}
-      title={`${label} · ${prov.licence}`}
+      title={`${prov.source} · ${prov.licence}`}
     >
       {label}
     </span>
@@ -55,7 +60,7 @@ function drinkMeta(drink: Drink): string {
   return parts.join(" · ");
 }
 
-function DrinkRow({ drink }: { drink: Drink }) {
+function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
   const meta = drinkMeta(drink);
   return (
     <li className="drinkRow">
@@ -65,6 +70,20 @@ function DrinkRow({ drink }: { drink: Drink }) {
         {drink.servingSize ? (
           <span className="drinkServing">{drink.servingSize}</span>
         ) : null}
+        {drink.alcoholType === "low-no" ? (
+          <span className="drinkLowNoChip">Low/no</span>
+        ) : null}
+        {/* Star rating (E3): the viewer's half-star vote + the community score
+            once past the 10-vote floor. Keyed by the stable drink id (see
+            migration 0020's drink_ref note); the whole menu's summaries arrive
+            in ONE batched GET. Stars inherit the section's category accent via
+            var(--cat-accent). */}
+        <DrinkRatingRow
+          drinkRef={drink.id}
+          drinkName={drink.name}
+          venueId={venueId}
+          accent="var(--cat-accent)"
+        />
       </div>
       <div className="drinkRowSide">
         <span className="drinkPrice ink-stamp">{formatPrice(drink.priceGbp)}</span>
@@ -78,10 +97,12 @@ function CategorySection({
   category,
   label,
   drinks,
+  venueId,
 }: {
   category: DrinkCategory;
   label: string;
   drinks: Drink[];
+  venueId?: string;
 }) {
   // Theme-aware category token (var(--cat-*), E5) — resolves to the right
   // light/dark/Legacy value via the cascade, so the menu's section colour tracks
@@ -105,7 +126,7 @@ function CategorySection({
       </h4>
       <ul className="drinkList">
         {drinks.map((drink) => (
-          <DrinkRow key={drink.id} drink={drink} />
+          <DrinkRow key={drink.id} drink={drink} venueId={venueId} />
         ))}
       </ul>
     </section>
@@ -116,9 +137,12 @@ export type DrinkMenuProps = {
   drinks: Drink[];
   /** Venue name, for the honest empty-state copy. */
   venueName?: string;
+  /** Venue id (E3): recorded alongside drink ratings when known. Optional —
+      a drink's rating key is its own stable id, so ratings work without it. */
+  venueId?: string;
 };
 
-export default function DrinkMenu({ drinks, venueName }: DrinkMenuProps) {
+export default function DrinkMenu({ drinks, venueName, venueId }: DrinkMenuProps) {
   const groups = groupDrinksByCategory(drinks);
 
   if (groups.length === 0) {
@@ -142,6 +166,7 @@ export default function DrinkMenu({ drinks, venueName }: DrinkMenuProps) {
           category={group.category}
           label={group.label}
           drinks={group.drinks}
+          venueId={venueId}
         />
       ))}
       <p className="drinkMenuFootnote">

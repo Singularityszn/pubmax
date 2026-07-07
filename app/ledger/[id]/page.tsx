@@ -2,13 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getVenueCuration } from "@/lib/curation";
-import { buildFamilyTableEntries, buildLedgerEntries, buildVenueClaims, ledgerClaimDrops } from "@/lib/ledger";
+import {
+  buildFamilyTableEntries,
+  buildLedgerEntries,
+  buildVenueClaims,
+  ledgerClaimDrops,
+  redactFamilyTableEntries,
+} from "@/lib/ledger";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
+import VenueRatingPanel from "@/components/ratings/VenueRatingPanel";
 
 import "./ledger.css";
 
@@ -132,17 +139,25 @@ export default async function LedgerPage({ params }: PageProps) {
   // call from listVisible above, never a filter over `drops`, so a legacy row
   // can never accidentally end up rendered in the public logbook above.
   const legacyDrops = await pintDropStoreFor().listLegacyForVenue(id);
-  const familyEntries = buildFamilyTableEntries(
-    legacyDrops.map((d) => ({
-      id: d.id,
-      handle: d.handle,
-      drink: d.drink,
-      priceGbp: d.priceGbp,
-      passedDownNote: d.passedDownNote,
-      era: d.era,
-      provenance: d.provenance,
-      createdAt: d.createdAt,
-    })),
+  // F4: this is a PUBLIC page, so legacy ("ledger-only") entries render
+  // REDACTED — initials-style handle, no price, no note body (see
+  // redactFamilyTableEntries in lib/ledger.ts). The table still shows its
+  // shape (how many stories, when, which era) so "kept for the family" reads
+  // as a real place, not an empty section. TRUE viewer-gating — the family
+  // actually reading the notes — waits for Supabase Auth (Epic D).
+  const familyEntries = redactFamilyTableEntries(
+    buildFamilyTableEntries(
+      legacyDrops.map((d) => ({
+        id: d.id,
+        handle: d.handle,
+        drink: d.drink,
+        priceGbp: d.priceGbp,
+        passedDownNote: d.passedDownNote,
+        era: d.era,
+        provenance: d.provenance,
+        createdAt: d.createdAt,
+      })),
+    ),
   );
   // The Ledger's own canonical link, for the share actions below. Relative,
   // like every other in-app link on this page (venueMapUrl) — the deployed
@@ -186,6 +201,11 @@ export default async function LedgerPage({ params }: PageProps) {
           <ReadLedgerButton text={speechParts.join(" ")} />
           <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
         </div>
+
+        {/* Pub rating (E3): community stars (shown past the 10-vote floor) +
+            the viewer's own half-star vote. A client sliver; the rest of the
+            page stays a server render. */}
+        <VenueRatingPanel venueId={id} venueName={venue.name} />
       </header>
 
       <p className="ledgerLaneNote">
@@ -284,15 +304,16 @@ export default async function LedgerPage({ params }: PageProps) {
                     ) : (
                       <span className="ledgerFamilyEntryDate">Undated</span>
                     )}
-                    <span className="ledgerFamilyEntryHandle">{entry.handle}</span>
+                    <span className="ledgerFamilyEntryHandle">
+                      {entry.handle}
+                      {entry.era ? <span className="ledgerClaimEra"> · {entry.era}</span> : null}
+                    </span>
                   </div>
-                  <p className="ledgerFamilyEntryNote">{entry.note}</p>
-                  {entry.priceLabel ? (
-                    <p className="ledgerFamilyEntryPrice">Paid {entry.priceLabel}</p>
-                  ) : null}
-                  <div className="ledgerFamilyEntryFoot">
-                    <ShareWithFamilyButton venueName={venue.name} note={entry.note} url={ledgerUrl} />
-                  </div>
+                  {/* F4: the note body and price never reach this public page —
+                      RedactedFamilyEntry omits them at the type level. */}
+                  <p className="ledgerFamilyEntryNote">
+                    A story kept for the family table.
+                  </p>
                 </article>
               </li>
             ))}
