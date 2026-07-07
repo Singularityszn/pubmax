@@ -77,6 +77,9 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireWater: false,
     requirePintDrops: false,
     requireHeritage: false,
+    requireStepFree: false,
+    requireAccessibleToilet: false,
+    requireSeatedService: false,
     canonicalOnly: false,
     ...overrides,
   };
