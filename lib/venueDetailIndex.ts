@@ -34,6 +34,14 @@ let cachedManifest: VenueDetailManifest | null | undefined;
 let detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
 let fallbackIndex: Map<string, Venue> | null = null;
 
+function isTestRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === "test" ||
+    Boolean(process.env.VITEST) ||
+    Boolean(process.env.VITEST_WORKER_ID)
+  );
+}
+
 export function isVenueDetailId(id: string): boolean {
   return VENUE_ID_RE.test(id);
 }
@@ -125,7 +133,7 @@ export async function getVenueDetail(id: string): Promise<Venue | null> {
 }
 
 export function resetVenueDetailCachesForTests(): void {
-  if (process.env.NODE_ENV !== "test") return;
+  if (!isTestRuntime()) return;
   cachedDetails.clear();
   cachedManifest = undefined;
   detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
@@ -133,7 +141,7 @@ export function resetVenueDetailCachesForTests(): void {
 }
 
 export function setVenueDetailRowsFileForTests(file: string): void {
-  if (process.env.NODE_ENV !== "test") return;
+  if (!isTestRuntime()) return;
   cachedDetails.clear();
   detailRowsFile = file;
 }
