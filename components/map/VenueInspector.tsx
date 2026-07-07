@@ -16,6 +16,7 @@ import LastTrainCard from "./LastTrainCard";
 import PintDropComposer from "@/components/map/PintDropComposer";
 import VenuePriceStory from "@/components/map/VenuePriceStory";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
+import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
@@ -359,6 +360,10 @@ export default function VenueInspector({
             </p>
           ) : null}
         </div>
+        {/* Quest chips (IDEAS B2-lite): the viewer's own "next badge" progress,
+            resolved from their self-asserted handle (localStorage pubmax_handle)
+            inside the component. No handle → renders nothing. */}
+        <NextBadgeChips />
       </div>
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}

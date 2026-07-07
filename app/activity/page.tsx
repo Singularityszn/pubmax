@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import SiteNav from "@/components/nav/SiteNav";
+import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
 
 import "./activity.css";
@@ -144,6 +145,10 @@ export default function ActivityPage(): React.JSX.Element {
         <header className="activityHead">
           <h1>Activity</h1>
           <p className="activitySub">Who followed you, reacted, commented, or saved your crawl.</p>
+          {/* Quest chips (IDEAS B2-lite): "next badge" progress for the claimed
+              handle. Renders nothing without a handle, so the signed-out empty
+              state below stays exactly as it is. */}
+          {handleReady && handle.trim() ? <NextBadgeChips handle={handle} /> : null}
         </header>
 
         {!handleReady || loading ? (

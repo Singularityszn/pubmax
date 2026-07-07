@@ -207,6 +207,80 @@ export function computeBadges(
   ];
 }
 
+// Progress toward one unearned badge — pure data for a "quest chip". `current`
+// and `target` are honest counts (a binary badge like Cheap Legend is a 0-of-1
+// action, not a fake percentage); `label` is ready-to-render honest copy.
+export type BadgeProgress = {
+  badge: Badge;
+  current: number;
+  target: number;
+  label: string;
+};
+
+// Forward-looking companion to computeBadges (IDEAS B2-lite quest chips): the
+// UNEARNED badges, nearest-first, each with progress toward its threshold.
+// Same inputs as computeBadges, pure and deterministic:
+//  • "nearest" = highest current/target completion; ties keep catalogue order.
+//  • Count badges (First Pint, Regular, Local Legend) report real pint counts.
+//  • Binary badges (Cheap Legend, Heritage Walker) are 0-of-1 with an action
+//    label — no invented percentages.
+//  • Zero stats → the full catalogue, all at zero (First Pint leads).
+//  • Everything earned → an empty array; the caller renders nothing.
+export function nextBadgeProgress(
+  drops: readonly ProfileDrop[] | null | undefined,
+  stats: ProfileStats,
+): BadgeProgress[] {
+  const pints =
+    typeof stats.pintsLogged === "number" && Number.isFinite(stats.pintsLogged) && stats.pintsLogged > 0
+      ? Math.floor(stats.pintsLogged)
+      : 0;
+
+  // Per-badge quest shape: the threshold plus honest copy for the chip.
+  const quests: Record<string, { current: number; target: number; label: string }> = {
+    "first-pint": {
+      current: Math.min(pints, 1),
+      target: 1,
+      label: "Log your first pint for First Pint",
+    },
+    "cheap-legend": {
+      current: 0, // unearned means the sub-£4 pint hasn't happened yet
+      target: 1,
+      label: "Find a pint under £4 for Cheap Legend",
+    },
+    "heritage-walker": {
+      current: 0, // unearned means no era / passed-down memory yet
+      target: 1,
+      label: "Log an era or passed-down memory for Heritage Walker",
+    },
+    regular: {
+      current: Math.min(pints, REGULAR_THRESHOLD),
+      target: REGULAR_THRESHOLD,
+      label: `${Math.min(pints, REGULAR_THRESHOLD)} of ${REGULAR_THRESHOLD} pints to Regular`,
+    },
+    "local-legend": {
+      current: Math.min(pints, LOCAL_LEGEND_THRESHOLD),
+      target: LOCAL_LEGEND_THRESHOLD,
+      label: `${Math.min(pints, LOCAL_LEGEND_THRESHOLD)} of ${LOCAL_LEGEND_THRESHOLD} pints to Local Legend`,
+    },
+  };
+
+  const progress = computeBadges(drops, stats)
+    .filter((badge) => !badge.earned)
+    .map((badge, index) => {
+      const quest = quests[badge.id] ?? { current: 0, target: 1, label: badge.description };
+      return { badge, index, ...quest };
+    });
+
+  // Nearest-first by completion ratio; catalogue order breaks ties so the
+  // result is stable and deterministic.
+  progress.sort((a, b) => {
+    const ratio = b.current / b.target - a.current / a.target;
+    return ratio !== 0 ? Math.sign(ratio) : a.index - b.index;
+  });
+
+  return progress.map(({ badge, current, target, label }) => ({ badge, current, target, label }));
+}
+
 // Synthesize a demo Profile for a handle from its drops. There is no stored
 // profile, so the display name comes from the handle and the bio is a light
 // summary derived from the stats. Callers pass the handle they already
