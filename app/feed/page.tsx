@@ -19,7 +19,13 @@ import {
 } from "@/lib/feed";
 import {
   OPTIMISTIC_SPILL_EVENT,
+  buildOptimisticSpillRetryFormData,
+  emitOptimisticSpillChange,
+  failOptimisticSpill,
+  markOptimisticSpillRetrying,
   readOptimisticSpills,
+  reconcileOptimisticSpill,
+  writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
 import { normalizeHandle } from "@/lib/profiles";
 import { currentMode, MODE_DEFAULT_LANE } from "@/lib/viewMode";
@@ -545,6 +551,61 @@ export default function FeedPage() {
     [actorId],
   );
 
+  const retryOptimisticPost = useCallback(async (clientRequestId: string) => {
+    if (typeof window === "undefined") return;
+    const writeLocalEntries = (entries: ReturnType<typeof readOptimisticSpills>) => {
+      writeOptimisticSpills(window.localStorage, entries);
+      emitOptimisticSpillChange();
+    };
+    const stored = readOptimisticSpills(window.localStorage);
+    const entry = stored.find((candidate) => candidate.clientRequestId === clientRequestId);
+    if (!entry?.retry) {
+      writeLocalEntries(
+        failOptimisticSpill(
+          stored,
+          clientRequestId,
+          "Retry details are no longer available — open the map and post it again.",
+        ),
+      );
+      return;
+    }
+
+    writeLocalEntries(markOptimisticSpillRetrying(stored, clientRequestId));
+
+    try {
+      const body = await buildOptimisticSpillRetryFormData(entry.retry);
+      const response = await fetch("/api/pint-drops", { method: "POST", body });
+      const data = (await response.json().catch(() => ({}))) as {
+        drop?: PintDropDTO;
+        error?: string;
+      };
+      if (!response.ok || !data.drop) {
+        throw new Error(data.error ?? "Could not save that Spill.");
+      }
+      const reconciledDrop: PintDropDTO = {
+        ...data.drop,
+        venueName: entry.retry.venueName,
+        venueMapUrl: `/map?sel=${encodeURIComponent(entry.retry.venueId)}`,
+      };
+      writeLocalEntries(
+        reconcileOptimisticSpill(
+          readOptimisticSpills(window.localStorage),
+          clientRequestId,
+          reconciledDrop,
+        ),
+      );
+      window.localStorage.setItem("pubmax_handle", entry.retry.handle.trim());
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message.trim()
+          ? err.message
+          : "Network or storage error — try again.";
+      writeLocalEntries(
+        failOptimisticSpill(readOptimisticSpills(window.localStorage), clientRequestId, message),
+      );
+    }
+  }, []);
+
   function onFilterChange(next: FeedFilter) {
     // The viewer chose a lane — from here on their choice is sticky and the
     // mode-default seeding above stands down.
@@ -630,6 +691,7 @@ export default function FeedPage() {
                 item={item}
                 summary={summaries[item.id] ?? EMPTY_SUMMARY}
                 onToggleReaction={toggleReaction}
+                onRetryPost={retryOptimisticPost}
               />
             ))}
           </div>

@@ -6,6 +6,7 @@ import { getAnonId } from "@/lib/anonId";
 import type { PintDropDTO } from "@/lib/feed";
 import {
   buildOptimisticSpillDrop,
+  buildOptimisticSpillRetryPayload,
   emitOptimisticSpillChange,
   failOptimisticSpill,
   newOptimisticSpillClientId,
@@ -201,7 +202,7 @@ export function usePintDrops() {
     setDropMsg(null);
     const clientRequestId = newOptimisticSpillClientId();
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
-    const optimisticDrop = buildOptimisticSpillDrop({
+    const optimisticInput = {
       clientRequestId,
       venueId,
       venueName: options?.venueName,
@@ -215,10 +216,17 @@ export function usePintDrops() {
       pintPhotoUrl: pintPhoto?.previewUrl ?? null,
       venuePhotoUrl: venuePhoto?.previewUrl ?? null,
       createdAt: new Date().toISOString(),
-    });
+    };
+    const optimisticDrop = buildOptimisticSpillDrop(optimisticInput);
     const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
     if (publishToFeed) {
-      updateOptimisticFeedStorage((current) => upsertOptimisticSpill(current, optimisticDrop));
+      updateOptimisticFeedStorage((current) =>
+        upsertOptimisticSpill(
+          current,
+          optimisticDrop,
+          buildOptimisticSpillRetryPayload(optimisticInput),
+        ),
+      );
     }
     const optimisticMapDrop: DropWithPhotos = {
       id: optimisticDrop.id,

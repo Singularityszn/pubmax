@@ -7,6 +7,7 @@ export const OPTIMISTIC_SPILL_EVENT = "pubmax:optimistic-spill-posts-changed";
 export type StoredOptimisticSpill = {
   clientRequestId: string;
   drop: PintDropDTO;
+  retry?: OptimisticSpillRetryPayload;
 };
 
 export type OptimisticSpillInput = {
@@ -25,7 +26,22 @@ export type OptimisticSpillInput = {
   createdAt: string;
 };
 
+export type OptimisticSpillRetryPayload = {
+  venueId: string;
+  venueName?: string;
+  handle: string;
+  priceGbp: string;
+  drink: string;
+  passedDownNote: string;
+  era: string;
+  visibility: Visibility;
+  vibeTags: string[];
+  pintPhotoUrl: string | null;
+  venuePhotoUrl: string | null;
+};
+
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type ResolvePhotoPreview = (url: string) => Promise<Blob>;
 
 function mapUrlFor(venueId: string): string {
   return `/map?sel=${encodeURIComponent(venueId)}`;
@@ -84,14 +100,33 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
   };
 }
 
+export function buildOptimisticSpillRetryPayload(
+  input: OptimisticSpillInput,
+): OptimisticSpillRetryPayload {
+  return {
+    venueId: input.venueId,
+    venueName: input.venueName,
+    handle: input.handle,
+    priceGbp: input.priceGbp,
+    drink: input.drink,
+    passedDownNote: input.passedDownNote,
+    era: input.era,
+    visibility: input.visibility,
+    vibeTags: input.vibeTags,
+    pintPhotoUrl: input.pintPhotoUrl,
+    venuePhotoUrl: input.venuePhotoUrl,
+  };
+}
+
 export function upsertOptimisticSpill(
   stored: StoredOptimisticSpill[],
   drop: PintDropDTO,
+  retry?: OptimisticSpillRetryPayload,
 ): StoredOptimisticSpill[] {
   const clientRequestId = drop.optimistic?.clientRequestId;
   if (!clientRequestId) return stored;
   const next = stored.filter((entry) => entry.clientRequestId !== clientRequestId);
-  return [{ clientRequestId, drop }, ...next];
+  return [{ clientRequestId, drop, ...(retry ? { retry } : {}) }, ...next];
 }
 
 export function reconcileOptimisticSpill(
@@ -111,7 +146,7 @@ export function failOptimisticSpill(
   return stored.map((entry) => {
     if (entry.clientRequestId !== clientRequestId) return entry;
     return {
-      clientRequestId,
+      ...entry,
       drop: {
         ...entry.drop,
         optimistic: {
@@ -124,6 +159,68 @@ export function failOptimisticSpill(
       },
     };
   });
+}
+
+export function markOptimisticSpillRetrying(
+  stored: StoredOptimisticSpill[],
+  clientRequestId: string,
+): StoredOptimisticSpill[] {
+  return stored.map((entry) => {
+    if (entry.clientRequestId !== clientRequestId) return entry;
+    const hasPhoto = Boolean(entry.drop.pintPhotoUrl || entry.drop.venuePhotoUrl);
+    return {
+      ...entry,
+      drop: {
+        ...entry.drop,
+        optimistic: {
+          state: hasPhoto ? "uploading" : "pending",
+          message: hasPhoto ? "Retrying Spill — uploading photo" : "Retrying Spill",
+          uploadProgress: hasPhoto ? 0 : null,
+          canRetry: false,
+          clientRequestId,
+        },
+      },
+    };
+  });
+}
+
+async function resolveBlobPreview(url: string): Promise<Blob> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Photo preview is no longer available — open the composer and attach it again.");
+  }
+  return response.blob();
+}
+
+async function appendRetryPhoto(
+  body: FormData,
+  field: "pint_photo" | "venue_photo",
+  url: string | null,
+  resolvePhotoPreview: ResolvePhotoPreview,
+) {
+  if (!url) return;
+  if (!url.startsWith("blob:")) return;
+  const blob = await resolvePhotoPreview(url);
+  const extension = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
+  body.set(field, blob, `${field}.${extension}`);
+}
+
+export async function buildOptimisticSpillRetryFormData(
+  payload: OptimisticSpillRetryPayload,
+  resolvePhotoPreview: ResolvePhotoPreview = resolveBlobPreview,
+): Promise<FormData> {
+  const body = new FormData();
+  body.set("venueId", payload.venueId);
+  body.set("handle", payload.handle);
+  body.set("drink", payload.drink);
+  body.set("priceGbp", payload.priceGbp);
+  body.set("passedDownNote", payload.passedDownNote);
+  body.set("era", payload.era);
+  body.set("visibility", payload.visibility);
+  for (const tag of payload.vibeTags) body.append("vibe_tags", tag);
+  await appendRetryPhoto(body, "pint_photo", payload.pintPhotoUrl, resolvePhotoPreview);
+  await appendRetryPhoto(body, "venue_photo", payload.venuePhotoUrl, resolvePhotoPreview);
+  return body;
 }
 
 export function mergeOptimisticSpillDrops(
