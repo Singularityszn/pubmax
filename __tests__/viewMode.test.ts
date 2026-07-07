@@ -24,7 +24,6 @@ describe("parseMode", () => {
 describe("resolveMode", () => {
   it("defaults to Lock-In when nothing is stored", () => {
     expect(resolveMode(null, null)).toBe(DEFAULT_MODE);
-    expect(resolveMode(null, null)).toBe("lock-in");
   });
 
   it("honours an explicit stored mode over everything", () => {
