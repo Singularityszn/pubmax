@@ -385,6 +385,28 @@ export default function VenueInspector({
               flow.
             </div>
           ) : null}
+          {composerOpen ? (
+            <PintDropComposer venueId={venue.id} state={pintDrops} venueName={venue.name} />
+          ) : (
+            <div className="logDropBar">
+              <button
+                className="logDropBtn"
+                onClick={() => setComposerOpen(true)}
+                aria-label={`Log a Pint Drop at ${venue.name}`}
+              >
+                <PlusCircle size={17} /> Log a Pint Drop
+              </button>
+              {dropMsg ? (
+                <span
+                  role={dropMsg.ok ? "status" : "alert"}
+                  className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
+                  style={{ display: "block", marginTop: "8px" }}
+                >
+                  {dropMsg.text}
+                </span>
+              ) : null}
+            </div>
+          )}
           {drops.length === 0 ? (
             <p className="description muted">
               No Pint Drops yet at {venue.name}. Be the first — log tonight&rsquo;s price or pass
@@ -487,29 +509,6 @@ export default function VenueInspector({
                   </article>
                 );
               })}
-            </div>
-          )}
-
-          {composerOpen ? (
-            <PintDropComposer venueId={venue.id} state={pintDrops} venueName={venue.name} />
-          ) : (
-            <div className="logDropBar">
-              <button
-                className="logDropBtn"
-                onClick={() => setComposerOpen(true)}
-                aria-label={`Log a Pint Drop at ${venue.name}`}
-              >
-                <PlusCircle size={17} /> Log a Pint Drop
-              </button>
-              {dropMsg ? (
-                <span
-                  role={dropMsg.ok ? "status" : "alert"}
-                  className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
-                  style={{ display: "block", marginTop: "8px" }}
-                >
-                  {dropMsg.text}
-                </span>
-              ) : null}
             </div>
           )}
         </section>

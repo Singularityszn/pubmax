@@ -636,6 +636,9 @@ export default function FeedPage() {
           Every pint logged in London tonight — prices, selfies, and the stories
           handed down over the bar.
         </p>
+        <Link href="/map?log=1" className="feedDropCta">
+          Drop a pint
+        </Link>
       </header>
 
       <PresenceStrip spillingNow={spillingNow} />
@@ -680,7 +683,7 @@ export default function FeedPage() {
           eyebrow="Quiet at the bar"
           title="No pints logged yet tonight."
           body="Be the first to drop one — snap your pint, log the price, pass down a story. The feed fills up as London drinks."
-          action={<Link href="/map">Find a pub and drop a pint</Link>}
+          action={<Link href="/map?log=1">Find a pub and drop a pint</Link>}
         />
       ) : (
         <>

@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 
@@ -57,6 +57,14 @@ function currentSearch(): string {
 // Module-level (pure) so the branch lives off PubMap's complexity budget.
 function hasCrawlArrivalParams(search: string): boolean {
   return /[?&](pubs|sel|style|mode|q)=/.test(search);
+}
+
+function hasLogIntent(search: string): boolean {
+  return /[?&]log=1(?:&|$)/.test(search);
+}
+
+function isMobileViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
 }
 
 // The planner (left drawer) starts open when a shared/restored crawl means the
@@ -164,6 +172,48 @@ function useLandmarkJourney(deps: {
   return { startCrawlFromPubs, askPubmaxxerAtPub };
 }
 
+function useLogIntent(deps: {
+  filteredVenueCount: number;
+  firstFilteredVenueId: string;
+  firstRouteId: string;
+  selectedVenueId: string;
+  selectVenue: (id: string) => void;
+  openComposerForLog: () => void;
+}) {
+  const {
+    filteredVenueCount,
+    firstFilteredVenueId,
+    firstRouteId,
+    selectedVenueId,
+    selectVenue,
+    openComposerForLog,
+  } = deps;
+  const handled = useRef(false);
+
+  useEffect(() => {
+    if (handled.current || !hasLogIntent(currentSearch()) || filteredVenueCount === 0) return;
+    const id = selectedVenueId || firstRouteId || firstFilteredVenueId;
+    if (!id) return;
+    handled.current = true;
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      selectVenue(id);
+      openComposerForLog();
+    });
+    return () => {
+      active = false;
+    };
+  }, [
+    filteredVenueCount,
+    firstFilteredVenueId,
+    firstRouteId,
+    openComposerForLog,
+    selectVenue,
+    selectedVenueId,
+  ]);
+}
+
 function readStoredBuiltIds(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -263,7 +313,10 @@ export default function PubMap() {
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
   // If any of these are present, the arrival is intentional and we never onboard.
-  const arrivedWithCrawlParams = useMemo(() => hasCrawlArrivalParams(currentSearch()), []);
+  const arrivedWithCrawlParams = useMemo(
+    () => hasCrawlArrivalParams(currentSearch()) || hasLogIntent(currentSearch()),
+    [],
+  );
   // `loaded` means the slim map index has settled. The full price dataset is no
   // longer fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
@@ -320,7 +373,8 @@ export default function PubMap() {
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   const pintDrops = usePintDrops();
-  const { dropsByVenueId, venueSignals, refreshVenueDrops, closeComposer } = pintDrops;
+  const { dropsByVenueId, venueSignals, refreshVenueDrops, closeComposer, setComposerOpen } =
+    pintDrops;
   // Live map pins (issue #37): refetch the drops layer on a new-drop signal (or
   // a 30s poll when realtime is unavailable). Self-contained, signal-only.
   useLiveDrops(pintDrops.refreshAllDrops);
@@ -499,6 +553,8 @@ export default function PubMap() {
 
   const selectVenue = useCallback(
     (id: string) => {
+      if (!id) return;
+      if (isMobileViewport()) setPlanningOpen(false);
       setSelectedVenueId(id);
       closeComposer();
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
@@ -535,6 +591,30 @@ export default function PubMap() {
       }
     }
   }, []);
+
+  const filteredVenueCount = filteredVenues.length;
+  const firstRouteId = route[0]?.id ?? "";
+  const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
+
+  const openComposerForLog = useCallback(() => {
+    setPlanningOpen(false);
+    setSheetSnap("full");
+    setSheetDragY(null);
+    dismissOnboarding();
+    setComposerOpen(true);
+  }, [dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
+
+  // Core-loop entry point: the mobile Log FAB links to /map?log=1. Once the
+  // fast venue list exists, turn that intent into the existing single composer
+  // path: pick the best visible pub, open its sheet, and open the composer.
+  useLogIntent({
+    filteredVenueCount,
+    firstFilteredVenueId,
+    firstRouteId,
+    selectedVenueId,
+    selectVenue,
+    openComposerForLog,
+  });
 
   // Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
   // the selected venue. The effect only adds/removes a DOM listener — the handler

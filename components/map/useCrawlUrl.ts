@@ -20,7 +20,11 @@ export function useCrawlUrlSync(state: CrawlUrlState): void {
     if (typeof window === "undefined") return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      const query = encodeCrawl(state);
+      const params = new URLSearchParams(encodeCrawl(state));
+      if (new URLSearchParams(window.location.search).get("log") === "1") {
+        params.set("log", "1");
+      }
+      const query = params.toString();
       const url = `${window.location.pathname}?${query}${window.location.hash}`;
       window.history.replaceState(window.history.state, "", url);
     }, DEBOUNCE_MS);

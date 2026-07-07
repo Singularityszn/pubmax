@@ -94,6 +94,30 @@
   line-height: 1.55;
 }
 
+.feedDropCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  margin-top: 16px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: var(--brass);
+  color: var(--ink-deep);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.feedDropCta:hover {
+  background: var(--brass-bright, var(--brass));
+}
+
+.feedDropCta:focus-visible {
+  outline: 2px solid var(--ink-deep);
+  outline-offset: 2px;
+}
+
 /* ── "Live tonight" presence strip (PRD §1.5 / §5.1 tonight loop) ───────────
    A compact horizontal band at the top of the feed showing who tapped "I'm
    here" recently. Renders nothing when empty (the component returns null), so
