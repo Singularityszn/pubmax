@@ -100,13 +100,25 @@ const nextConfig = {
       { source: "/:path*", headers: securityHeaders },
       {
         // The pub-price dataset is ~6 MB and effectively static between deploys.
-        // Cache it hard at CDN + browser so it isn't re-downloaded every visit;
-        // stale-while-revalidate keeps updates propagating without a hard block.
+        // These files live in public/ so their URLs are fixed and UNHASHED, and
+        // several fetch sites (PubMapCanvas tfl_lines, PubMap price_updates) live
+        // in files this change can't touch — so we CANNOT append a ?v= cache
+        // buster, which means `immutable` is unsafe (a returning browser could
+        // pin stale prices across a deploy with no way to bust it).
+        //
+        // Instead we lean on the CDN, which Vercel purges automatically on every
+        // deploy: s-maxage is pushed to a full year so the edge serves these from
+        // cache (near-instant TTFB) between deploys, while the browser max-age
+        // stays modest (1h) so a returning client still revalidates and picks up
+        // fresh data without a hard block. stale-while-revalidate widens the
+        // window in which a stale-but-instant response is served while a fresh
+        // copy is fetched in the background. Net: big edge-cache TTFB win, zero
+        // added staleness risk vs. the previous header.
         source: "/data/:path*",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+            value: "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800",
           },
         ],
       },
