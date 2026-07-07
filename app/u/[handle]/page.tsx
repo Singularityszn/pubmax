@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useSyncExternalStore } from "react";
 
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
@@ -12,9 +12,16 @@ import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SavedPubList from "@/components/profile/SavedPubList";
 import SiteNav from "@/components/nav/SiteNav";
+import { BADGE_EVENTS } from "@/lib/badgeEvents";
+import {
+  BADGE_EVENT_OPT_INS_STORAGE_KEY,
+  addBadgeEventOptIn,
+  parseBadgeEventOptIns,
+} from "@/lib/badgeEventOptIn";
 import { VENUE_FALLBACK_LABEL } from "@/lib/feed";
 import type { FollowCounts } from "@/lib/followStore";
 import { buildPassport } from "@/lib/passport";
+import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
 import {
   deriveProfileFromDrops,
   normalizeHandle,
@@ -33,6 +40,10 @@ import {
   type SavedPub,
   type SavedPubDTO,
 } from "@/lib/savedPubs";
+import {
+  currentMode,
+  modeEnablesLegacy,
+} from "@/lib/viewMode";
 
 import "./profile.css";
 
@@ -61,6 +72,62 @@ type PublicDrop = ProfileDrop & {
 };
 
 type LoadState = "loading" | "ready" | "error";
+
+const BADGE_EVENT_IDS = BADGE_EVENTS.map((event) => event.id);
+const BADGE_EVENT_OPT_IN_CHANGED = "pubmax-badge-event-opt-ins-changed";
+
+function subscribeBadgeEventOptIns(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(BADGE_EVENT_OPT_IN_CHANGED, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(BADGE_EVENT_OPT_IN_CHANGED, onChange);
+  };
+}
+
+function currentBadgeEventOptInRaw(): string {
+  try {
+    return localStorage.getItem(BADGE_EVENT_OPT_INS_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function subscribeLegacyMode(onChange: () => void): () => void {
+  const el = document.documentElement;
+  const mo = new MutationObserver(onChange);
+  mo.observe(el, { attributes: true, attributeFilter: ["data-mode", "data-legacy"] });
+  window.addEventListener("storage", onChange);
+  return () => {
+    mo.disconnect();
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function currentLegacyMode(): boolean {
+  if (typeof document !== "undefined" && document.documentElement.dataset.legacy === "1") {
+    return true;
+  }
+  try {
+    return modeEnablesLegacy(currentMode());
+  } catch {
+    return false;
+  }
+}
+
+function isEventActive(event: (typeof BADGE_EVENTS)[number], now: string): boolean {
+  const time = Date.parse(now);
+  const startsAt = Date.parse(event.startsAt);
+  const endsAt = Date.parse(event.endsAt);
+  return (
+    Number.isFinite(time) &&
+    Number.isFinite(startsAt) &&
+    Number.isFinite(endsAt) &&
+    startsAt < endsAt &&
+    time >= startsAt &&
+    time < endsAt
+  );
+}
 
 function formatGbp(value: number | null | undefined): string | null {
   return typeof value === "number" && Number.isFinite(value) ? `£${value.toFixed(2)}` : null;
@@ -97,6 +164,18 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
+  const storedBadgeEventOptInRaw = useSyncExternalStore(
+    subscribeBadgeEventOptIns,
+    currentBadgeEventOptInRaw,
+    () => "",
+  );
+  const legacyMode = useSyncExternalStore(subscribeLegacyMode, currentLegacyMode, () => true);
+  const [badgeEventOptInOverride, setBadgeEventOptInOverride] = useState<string | null>(null);
+  const [badgeEventsNow, setBadgeEventsNow] = useState(() => new Date().toISOString());
+  const badgeEventOptIns = parseBadgeEventOptIns(
+    badgeEventOptInOverride ?? storedBadgeEventOptInRaw,
+    BADGE_EVENT_IDS,
+  );
 
   const [drops, setDrops] = useState<PublicDrop[]>([]);
   const [state, setState] = useState<LoadState>("loading");
@@ -289,6 +368,14 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = myHandle !== "" && myHandle === routeHandle;
   const isAnonymous = myHandle === "";
+  const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
+  const joinedBadgeEventIds = new Set(badgeEventOptIns.optedInEventIds);
+  const joinableBadgeEvents =
+    passportIsOwn && !legacyMode
+      ? BADGE_EVENTS.filter(
+          (event) => isEventActive(event, badgeEventsNow) && !joinedBadgeEventIds.has(event.id),
+        )
+      : [];
 
   // Pint Passport data (story 29): aggregated from the same drops the page
   // already loaded, plus this handle's published crawl-story count from
@@ -299,8 +386,32 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const passport = buildPassport(drops as ProfileDrop[], {
     crawls: storyCount,
     storyPosts: storyCount,
+    badgeEvents: buildProfileBadgeEventOptions({
+      isOwnPassport: passportIsOwn,
+      legacyMode,
+      now: badgeEventsNow,
+      optIns: badgeEventOptIns,
+    }),
   });
-  const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
+
+  function joinBadgeEvent(eventId: string) {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const next = addBadgeEventOptIn(
+      badgeEventOptInOverride ?? currentBadgeEventOptInRaw(),
+      eventId,
+      now,
+      BADGE_EVENT_IDS,
+    );
+    try {
+      window.localStorage.setItem(BADGE_EVENT_OPT_INS_STORAGE_KEY, next.serialized);
+    } catch {
+      // Storage disabled/private mode — keep the opt-in for this mounted session.
+    }
+    setBadgeEventsNow(nowIso);
+    setBadgeEventOptInOverride(next.serialized);
+    window.dispatchEvent(new Event(BADGE_EVENT_OPT_IN_CHANGED));
+  }
 
   // Claim this handle: an anonymous visitor adopts the route handle as their own
   // demo identity (localStorage `pubmax_handle`) — the same identity that
@@ -395,6 +506,32 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               data={passport}
               isOwn={passportIsOwn}
             />
+
+            {joinableBadgeEvents.length ? (
+              <section className="passportQuestOptIn" aria-labelledby="questOptInHeading">
+                <div>
+                  <p className="passportQuestOptInKicker">Optional events</p>
+                  <h2 id="questOptInHeading" className="passportQuestOptInTitle">
+                    Seasonal badges
+                  </h2>
+                  <p className="passportQuestOptInCopy">
+                    Join only if you want them. Progress starts from the moment you join.
+                  </p>
+                </div>
+                <div className="passportQuestOptInActions">
+                  {joinableBadgeEvents.map((event) => (
+                    <button
+                      key={event.id}
+                      type="button"
+                      className="passportCta passportCtaPrimary"
+                      onClick={() => joinBadgeEvent(event.id)}
+                    >
+                      Join {event.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {isOwnProfile && editing ? (
               <ProfileEditor
