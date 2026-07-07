@@ -8,7 +8,7 @@ import {
   venueGroupingKey,
   type VenuePrice,
 } from "@/lib/venues";
-import type { SlimVenue } from "@/lib/venuesSlim";
+import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 
 // Guards the built public/data/venues_slim.json — the ~140 KB file the map
 // loads instead of the ~6 MB raw dataset (scripts/build_slim_index.mjs). The
@@ -19,6 +19,7 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 const ROOT = path.resolve(__dirname, "..");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
+const SLIM_KEYS = ["borough", "cheapestPrice", "id", "lat", "lng", "name"];
 
 const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as unknown;
 const rawRows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
@@ -53,9 +54,21 @@ function isSlimVenue(value: unknown): value is SlimVenue {
 }
 
 describe("venues_slim.json", () => {
+  it("is the payload URL used by the map loader", () => {
+    expect(SLIM_VENUES_PATH).toBe("/data/venues_slim.json");
+  });
+
   it("parses to a non-empty array", () => {
     expect(Array.isArray(slim)).toBe(true);
     expect((slim as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it("contains only the fields the map hydration path consumes", () => {
+    const rows = slim as Record<string, unknown>[];
+    const badKeySets = rows
+      .map((row) => Object.keys(row).sort())
+      .filter((keys) => JSON.stringify(keys) !== JSON.stringify(SLIM_KEYS));
+    expect(badKeySets).toEqual([]);
   });
 
   it("every row matches the SlimVenue shape", () => {

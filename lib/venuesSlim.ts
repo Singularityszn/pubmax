@@ -19,6 +19,7 @@
 import { offlineCache } from "@/lib/offlineCache";
 
 const OFFLINE_KEY = "venues_slim:v1";
+export const SLIM_VENUES_PATH = "/data/venues_slim.json";
 
 export type SlimVenue = {
   id: string;
@@ -74,7 +75,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
  */
 export async function loadSlimVenues(): Promise<SlimVenue[]> {
   try {
-    const response = await fetch("/data/venues_slim.json");
+    const response = await fetch(SLIM_VENUES_PATH);
     const data: unknown = await response.json();
     const rows = normalizeRows(data);
     if (rows.length > 0) void offlineCache.set(OFFLINE_KEY, rows);
