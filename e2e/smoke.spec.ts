@@ -35,21 +35,26 @@ test("landing / serves, shows hero + Example honesty label + a working /map CTA"
   expect(errors).toEqual([]);
 });
 
-test("landing hero headline renders the display serif at a deliberate (>=600) weight", async ({
+test("landing hero headline renders the display face at a deliberate (>=600) weight", async ({
   page,
 }) => {
-  // Regression guard for the "font looks thin" defect: Fraunces is a variable
-  // font, so a heading with no explicit font-weight falls to the 400 default and
-  // reads thin. The base h1/h2/h3 rules in globals.css set 600 — assert the
-  // computed weight so a future revert (e.g. a co-dev overwrite) fails loudly.
+  // Regression guard for the "font looks thin" defect: Space Grotesk is a
+  // variable font, so a heading with no explicit font-weight falls to the 400
+  // default and reads thin. The base h1/h2/h3 rules in globals.css set 600 —
+  // assert the computed weight so a future revert (e.g. a co-dev overwrite)
+  // fails loudly. Also assert the display face is actually wired: the computed
+  // family must name Space Grotesk (guards against --font-display losing its
+  // next/font wiring or --serif being repointed at a fallback stack).
   await page.goto("/");
   const hero = page.locator("#hero-title");
   await expect(hero).toBeVisible();
   await page.evaluate(() => (document as unknown as { fonts: FontFaceSet }).fonts.ready);
-  const weight = await hero.evaluate((el) =>
-    parseInt(getComputedStyle(el).fontWeight, 10),
-  );
+  const { weight, family } = await hero.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { weight: parseInt(cs.fontWeight, 10), family: cs.fontFamily };
+  });
   expect(weight).toBeGreaterThanOrEqual(600);
+  expect(family).toMatch(/Space Grotesk/i);
 });
 
 test("/map mounts the map region (canvas OR fallback)", async ({ page }) => {

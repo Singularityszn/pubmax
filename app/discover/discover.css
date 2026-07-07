@@ -16,10 +16,9 @@
 
 .discoverEyebrow {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--brass);
 }
 
@@ -87,9 +86,9 @@
 .leaderboard thead th {
   text-align: left;
   padding: 12px 14px;
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: var(--ink-soft);
   border-bottom: 1px solid var(--line);
   background: var(--panel-raised);
@@ -418,10 +417,9 @@
 
 .editorialEyebrow {
   margin: 0 0 8px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--brass);
 }
 

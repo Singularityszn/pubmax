@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
-import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
 import OfflineReady from "@/components/OfflineReady";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 
-// Type trio for the field-guide identity (see docs/DESIGN_SYSTEM.md):
-//  - display: Fraunces — a characterful, slightly inky serif (soft ink-trap
-//    details at "opsz" 72+) for brand + headlines. Distinct from the generic
-//    Playfair/cream-and-terracotta look; reads like hand-set guidebook type.
+// Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
+//  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
+//    large x-height, so capitals and lowercase sit close in size (little
+//    caps-contrast) and headlines read confident, current, and calm rather
+//    than shouty. This supersedes the earlier Fraunces "field-guide serif"
+//    thesis: the brand is now a modern display sans, not hand-set serif.
 //  - body: Inter — already the app's body face; formalised as a variable so
 //    every surface (not just `body`) can opt in without hardcoding a family.
 //  - data: JetBrains Mono — tabular, ticket/till-stamp character for prices,
@@ -18,19 +20,17 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 // All three are wired as CSS custom properties on <html> so globals.css/
 // theme.css and every component that already reads var(--serif) etc. pick
 // them up with zero per-component edits.
-const displaySerif = Fraunces({
+const displayFace = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  // Variable font: weight must stay "variable" for the opsz/SOFT axes to load.
-  // Weight is set per-rule in CSS (headings ~600) — the variable face carries the
-  // full 100–900 range, and font-optical-sizing:auto drives opsz from font-size.
-  axes: ["opsz", "SOFT"],
+  // Variable weight axis (300–700). Weight is set per-rule in CSS (headings
+  // 500–700 per the display-weight discipline); the variable face carries the
+  // full range, so no reflow between weights.
   weight: "variable",
-  style: ["normal", "italic"],
   // adjustFontFallback defaults ON: next/font emits a metric-matched
-  // "Fraunces Fallback" @font-face (size-adjust + ascent/descent/line-gap
-  // overrides) so the Palatino→Fraunces swap does not reflow. Kept explicit.
+  // "Space Grotesk Fallback" @font-face (size-adjust + ascent/descent/line-gap
+  // overrides) so the fallback→webfont swap does not reflow. Kept explicit.
   adjustFontFallback: true,
 });
 
@@ -95,7 +95,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${displaySerif.variable} ${bodySans.variable} ${dataMono.variable}`}
+      className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
     >
       <head>
         {/* Set theme before paint to avoid a flash of the wrong theme. Served

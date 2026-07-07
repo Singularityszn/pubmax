@@ -191,10 +191,9 @@
   gap: 8px;
   margin: 0 0 14px;
   color: var(--brass);
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .lp .eyebrow::before {
@@ -1009,10 +1008,9 @@
 .lp .footerCol h4 {
   margin: 0 0 10px;
   color: var(--ink-soft);
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .lp .footerCol a,

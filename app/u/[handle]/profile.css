@@ -256,10 +256,9 @@
 
 .profilePage .profileStat dt {
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .profilePage .profileStat dd {
@@ -764,10 +763,9 @@
 
 .profilePage .passportStatLabel {
   font-family: var(--font-body);
-  font-weight: 500;
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 0.74rem;
+  letter-spacing: 0.01em;
   color: var(--ink-soft);
 }
 

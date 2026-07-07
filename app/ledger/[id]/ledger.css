@@ -30,8 +30,7 @@
   color: var(--brass);
   font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .ledgerTitle {
@@ -208,8 +207,7 @@
 }
 
 .ledgerEntryPriceLabel {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.01em;
   font-size: 0.85rem;
 }
 

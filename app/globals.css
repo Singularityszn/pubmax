@@ -59,9 +59,12 @@
 
   /* — Type: display + body + data trio (wired via next/font in app/layout.tsx).
        Each var falls back to a system stack so the tokens degrade gracefully
-       if a font fails to load. --serif is kept as an alias: every existing
-       component reading var(--serif) now gets Fraunces for free. */
-  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+       if a font fails to load. Display is Space Grotesk — a modern geometric
+       grotesque with a big x-height (see docs/DESIGN_SYSTEM.md). --serif is
+       kept as a legacy alias so every component that already reads var(--serif)
+       picks up the new display face for free (the name is historical — it is a
+       sans now, not a serif — but renaming ~40 call-sites buys nothing). */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --serif: var(--font-display);
@@ -367,10 +370,9 @@ button {
 .eyebrow {
   margin: 0 0 4px;
   color: var(--brass);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 h1,
@@ -380,18 +382,17 @@ p {
   margin-top: 0;
 }
 
-/* Display face (Fraunces, variable) — explicit weight so headings read as
-   hand-set guidebook type, not the thin 400 default a variable font falls to
-   when no weight is set. SOFT axis pinned to 0 for crisp ink-traps; optical
-   sizing left to `auto` so opsz tracks font-size. Weight lives in the
+/* Display face (Space Grotesk, variable) — explicit weight so headings carry a
+   confident 600, not the light 400 default a variable font falls to when no
+   weight is set. Space Grotesk's big x-height keeps caps and lowercase close in
+   size, so headings read modern and calm rather than shouty. The negative
+   tracking tightens its geometric forms at display sizes. Weight lives in the
    `font-weight` property (never font-variation-settings, which would clobber
    the property and defeat per-element weight). */
 h1 {
   margin-bottom: 0;
   font-family: var(--serif);
   font-weight: 600;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
   font-size: 1.5rem;
   line-height: 1.12;
   letter-spacing: -0.01em;
@@ -401,18 +402,16 @@ h2 {
   margin-bottom: 0;
   font-family: var(--serif);
   font-weight: 600;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
   font-size: 1.24rem;
+  letter-spacing: -0.01em;
 }
 
 h3 {
   margin-bottom: 6px;
   font-family: var(--serif);
   font-weight: 600;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
   font-size: 1.16rem;
+  letter-spacing: -0.005em;
 }
 
 .searchBox {
@@ -450,10 +449,9 @@ h3 {
 .sectionTitle,
 .inspectorTitle {
   color: var(--ink-soft);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   margin-bottom: 12px;
 }
 
@@ -539,10 +537,9 @@ h3 {
 
 .featuredCount {
   flex: none;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--brass);
 }
 
@@ -915,10 +912,9 @@ input[type="range"] {
 .mapOnboardingCount {
   flex: none;
   color: var(--brass);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
 
 .mapOnboardingBlurb {
@@ -1176,9 +1172,8 @@ input[type="range"] {
 
 .poiLabelCard .poiKind {
   color: var(--muted);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
 }
 
 .poiLabelCard button {
@@ -1399,10 +1394,9 @@ input[type="range"] {
 }
 
 .bandPickerLabel {
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--muted);
 }
 
@@ -1574,10 +1568,9 @@ input[type="range"] {
 }
 
 .mapHeroCardHead span {
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--brass);
 }
 

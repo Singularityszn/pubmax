@@ -98,7 +98,7 @@ hex:
 
 | Role | Typeface | Variable | Why |
 |---|---|---|---|
-| Display | **Fraunces** (variable, `opsz`+`SOFT` axes) | `--font-display` (aliased by `--serif`) | A characterful, slightly inky serif with soft ink-trap detailing at larger optical sizes — it reads like hand-set guidebook type, not a generic high-contrast display serif. Open-licence, self-hosted via `next/font/google` (no external request, no layout shift). |
+| Display | **Space Grotesk** (variable weight, 300–700) | `--font-display` (aliased by `--serif`) | A modern geometric grotesque with a **very large x-height**, chosen for a Gen-Z-native voice. The big x-height keeps capitals and lowercase close in size, so there is little caps-contrast and headlines read confident and current rather than shouty. Its quirky terminals give it character without tipping into gimmick. This **supersedes the earlier Fraunces "field-guide serif"** thesis — the brand is now a display sans, not hand-set serif. Open-licence, self-hosted via `next/font/google` (no external request, no layout shift). |
 | Body | **Inter** | `--font-body` | Already the app's body face — kept deliberately. Inter is neutral and extremely legible at small UI sizes (panel copy, chip labels), which is exactly what a body face should be: carry the display face's personality without competing for it. |
 | Data | **JetBrains Mono** | `--font-data` | Prices, stats, route metrics. A monospace gives numerals a "stamped ticket / till receipt" character that Inter's tabular figures don't — it's a deliberate second texture, not just a bolder body font. Paired with `font-variant-numeric: tabular-nums` so columns of numbers align. |
 
@@ -109,7 +109,31 @@ picks them up automatically — no per-component font imports.
 
 `--serif` is kept as a permanent alias for `--font-display`: every existing
 `h1`/`h2`/`h3`/`.eyebrow`/card-title that already reads `var(--serif)` now
-renders in Fraunces with zero changes to those components.
+renders in Space Grotesk with zero changes to those components. The variable
+name is historical (it's a sans now, not a serif) — it's kept only so the swap
+touches one place, not ~40 call-sites.
+
+### Caps policy — stamps only
+
+Display type is set in **sentence case**, not all-caps. Eyebrows, section
+titles, stat labels, and column headers were previously `text-transform:
+uppercase` with wide tracking; that tracking existed to make all-caps legible,
+and the caps themselves fought Space Grotesk's low caps-contrast. They are now
+sentence case with tight tracking (~`0.01em`), sized up slightly to hold the
+hierarchy the tracking used to carry.
+
+**Uppercase is reserved for stamps** — small bordered/filled pill chips and
+badges that read as a pressed mark rather than prose. These keep their caps as
+a deliberate ink-stamp idiom:
+
+- provenance / era chips (`.provChip`, `.claimEra`, `.ledgerProvenance`)
+- honesty + demo badges (`.exampleTag`, `.demoDataNote span`, `.feedFilterDemo`)
+- pill kicker/badge chips (`.curatedBadge`, `.goldenKicker`, feed status chips)
+- the passport-stamp kicker (`.passportKicker`, set in the mono data face)
+
+If a label is plain text with letter-spacing (an eyebrow, a section title, a
+stat `dt`), it is sentence case. If it's a chip with a border/fill that reads
+as a stamp, it may keep caps.
 
 ### Type scale
 
@@ -129,9 +153,9 @@ renders in Fraunces with zero changes to those components.
 --leading-tight   1.12   display headlines
 --leading-snug    1.35   card copy
 --leading-normal  1.5    body paragraphs
---tracking-tight  -0.01em  large display type
---tracking-wide   0.05em   eyebrows/labels
---tracking-wider  0.08em   all-caps section titles
+--tracking-tight  -0.01em  large display type (Space Grotesk headlines)
+--tracking-wide   0.05em   legacy; sentence-case labels now use ~0.01em
+--tracking-wider  0.08em   legacy (all-caps titles are retired — see caps policy)
 ```
 
 Existing components keep their literal `font-size` values (this pass doesn't
