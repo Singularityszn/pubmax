@@ -17,6 +17,14 @@ import ThemeToggle from "@/components/ThemeToggle";
 import LegacyToggle from "@/components/LegacyToggle";
 import SignInButton from "@/components/auth/SignInButton";
 import PintDropStrip from "./PintDropStrip";
+import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
+import { categoryColor } from "@/lib/categoryColors";
+import {
+  categoryGradient,
+  rotateCategory,
+  wedgeCategory,
+  type WedgeKey,
+} from "@/lib/surfaceAccent";
 import "./landing.css";
 
 // One IntersectionObserver reveals sections as they enter view. The hidden
@@ -68,24 +76,33 @@ function useReveal() {
   return ref;
 }
 
-const wedge = [
+const wedge: {
+  icon: typeof Coins;
+  title: string;
+  body: string;
+  n: string;
+  wedgeKey: WedgeKey;
+}[] = [
   {
     icon: Coins,
     title: "Price",
     body: "Real observed pint prices, not guesses. Sort a night from the cheapest cellar in the borough to the ones worth paying for, and know the number before you order.",
     n: "01 — What it costs",
+    wedgeKey: "price",
   },
   {
     icon: Trees,
     title: "Setting",
     body: "By the water, a garden that catches the sun, or the right room on a wet Tuesday. Filter for the pub that fits the evening you actually want.",
     n: "02 — Where it sits",
+    wedgeKey: "setting",
   },
   {
     icon: BookOpen,
     title: "Story",
     body: "Listed buildings, coaching inns, the bar Dickens leaned on. Every pin carries the history on record — so a crawl reads like a walk through the city.",
     n: "03 — Who came before",
+    wedgeKey: "story",
   },
 ];
 
@@ -198,7 +215,7 @@ export default function LandingPage() {
                 </li>
               </ul>
             </div>
-            <figure className="heroFigure">
+            <figure className="heroFigure textured-panel">
               <ThamesHero />
               <figcaption className="figCaption">
                 A crawl along the river — four pins, four prices, one afternoon.
@@ -210,7 +227,11 @@ export default function LandingPage() {
 
         {/* ── The wedge ─────────────────────────────────────────── */}
         <section id="wedge" className="container" aria-labelledby="wedge-title">
-          <div className="sectionHead reveal">
+          <div
+            className="sectionHead reveal"
+            data-cat="setting"
+            style={{ ["--lp-cat" as string]: categoryColor(wedgeCategory("setting")) }}
+          >
             <p className="eyebrow">The wedge</p>
             <h2 id="wedge-title" className="lpSerif">
               Three questions every good pub answers.
@@ -222,16 +243,31 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="cardGrid">
-            {wedge.map(({ icon: Icon, title, body, n }) => (
-              <article className="wedgeCard reveal" key={title}>
-                <span className="wedgeIcon" aria-hidden="true">
-                  <Icon size={22} strokeWidth={1.5} />
-                </span>
-                <h3 className="lpSerif">{title}</h3>
-                <p>{body}</p>
-                <span className="wedgeNumber">{n}</span>
-              </article>
-            ))}
+            {wedge.map(({ icon: Icon, title, body, n, wedgeKey }) => {
+              const cat = wedgeCategory(wedgeKey);
+              return (
+                <article
+                  className="wedgeCard reveal"
+                  key={title}
+                  data-cat={cat}
+                  style={{ ["--lp-cat" as string]: categoryColor(cat) }}
+                >
+                  <span className="wedgeIcon" aria-hidden="true">
+                    <Icon size={22} strokeWidth={1.5} />
+                  </span>
+                  <div className="wedgeHeadRow">
+                    <h3 className="lpSerif">{title}</h3>
+                    {/* Redundant category cue: the glyph carries the drink
+                        family alongside the colour, never colour alone. */}
+                    <span className="wedgeGlyph">
+                      <DrinkGlyph category={cat} size={22} />
+                    </span>
+                  </div>
+                  <p>{body}</p>
+                  <span className="wedgeNumber">{n}</span>
+                </article>
+              );
+            })}
           </div>
         </section>
 
@@ -338,7 +374,11 @@ export default function LandingPage() {
           className="goldenSection container"
           aria-labelledby="golden-title"
         >
-          <div className="sectionHead reveal">
+          <div
+            className="sectionHead reveal"
+            data-cat="cocktail"
+            style={{ ["--lp-cat" as string]: categoryColor("cocktail") }}
+          >
             <p className="eyebrow">The golden days</p>
             <h2 id="golden-title" className="lpSerif">
               For the nights you half-remember, and the pubs you never forgot.
@@ -350,13 +390,27 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="goldenGrid">
-            {goldenDays.map((g) => (
-              <article className="goldenCard reveal" key={g.title}>
-                <span className="goldenKicker">{g.kicker}</span>
-                <h3 className="lpSerif">{g.title}</h3>
-                <p>{g.body}</p>
-              </article>
-            ))}
+            {goldenDays.map((g, i) => {
+              // Warm each nostalgia card with a different category from the
+              // rotation — the "one loud place" for colour. Colour is pure
+              // warmth here; the kicker + heading carry the meaning.
+              const cat = rotateCategory(i + 2);
+              return (
+                <article
+                  className="goldenCard reveal"
+                  key={g.title}
+                  data-cat={cat}
+                  style={{
+                    ["--lp-cat" as string]: categoryColor(cat),
+                    background: categoryGradient(cat),
+                  }}
+                >
+                  <span className="goldenKicker">{g.kicker}</span>
+                  <h3 className="lpSerif">{g.title}</h3>
+                  <p>{g.body}</p>
+                </article>
+              );
+            })}
           </div>
         </section>
 
@@ -387,7 +441,7 @@ export default function LandingPage() {
 
         {/* ── Final CTA band ────────────────────────────────────── */}
         <section className="ctaBand container" aria-labelledby="cta-title">
-          <div className="ctaInner reveal">
+          <div className="ctaInner reveal textured-panel">
             <h2 id="cta-title" className="lpSerif">
               Pick a borough. Plan the walk.
             </h2>

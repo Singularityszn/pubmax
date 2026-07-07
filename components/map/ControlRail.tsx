@@ -29,6 +29,10 @@ import {
 import type { CrawlStyle, Filters, Venue } from "@/lib/venues";
 
 import "./accessibilityFilters.css";
+// Map-scoped colour polish (D3): POI-toggle swatch rings + the documented,
+// unwired pin-by-category paint patch. Imported here (map chrome, non-hot) so
+// the rules load with the map without touching the codex-hot canvas.
+import "./mapColor.css";
 
 export type CrawlMode = "suggest" | "build";
 

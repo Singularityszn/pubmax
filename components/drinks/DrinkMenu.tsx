@@ -1,4 +1,4 @@
-import { CATEGORY_ACCENT } from "@/lib/categoryColors";
+import { categoryColor } from "@/lib/categoryColors";
 import { formatPrice } from "@/lib/venues";
 import {
   groupDrinksByCategory,
@@ -6,6 +6,7 @@ import {
   type DrinkCategory,
   type DrinkProvenance,
 } from "@/lib/drinks";
+import { DrinkGlyph } from "./DrinkGlyph";
 
 import "./drinkMenu.css";
 
@@ -82,18 +83,24 @@ function CategorySection({
   label: string;
   drinks: Drink[];
 }) {
-  const accent = CATEGORY_ACCENT[category];
+  // Theme-aware category token (var(--cat-*), E5) — resolves to the right
+  // light/dark/Legacy value via the cascade, so the menu's section colour tracks
+  // the theme instead of freezing the light-mode hex. drinkMenu.css owns HOW the
+  // accent is used (rule, dot, tint, header wash); this only supplies the value.
+  const accent = categoryColor(category);
   return (
     <section
       className="drinkCategory"
-      // The category accent is applied as a CSS custom property so drinkMenu.css
-      // owns HOW it's used (rule, dot, tint) — E5 can later swap the value for a
-      // token without the component changing.
       style={{ ["--cat-accent" as string]: accent }}
       aria-labelledby={`drink-cat-${category}`}
     >
       <h4 className="drinkCategoryTitle" id={`drink-cat-${category}`}>
-        <span className="drinkCategoryDot" aria-hidden="true" />
+        {/* Colour-driven category glyph — the family's mark leading its section,
+            richer than the bare dot. Decorative: the visible label carries the
+            meaning (never colour/icon alone). */}
+        <span className="drinkCategoryGlyph" aria-hidden="true">
+          <DrinkGlyph category={category} size={20} inheritColor />
+        </span>
         {label}
       </h4>
       <ul className="drinkList">

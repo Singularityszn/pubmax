@@ -3669,3 +3669,42 @@ html[data-legacy="1"] .textured-panel::before {
     }
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Design pass D1 — text-on-category-fill token (APPEND-ONLY)
+   ---------------------------------------------------------------------------
+   When a SOLID --cat-* fill is used as a background (a nav active pill, a chip),
+   the text on it must stay legible in every theme. But the category tokens are
+   TUNED AS TEXT/ICON on the panel, so they're mid-DARK in the light themes and
+   BRIGHT in the dark themes — the opposite text colour is needed on each:
+
+     · light + legacy-light  → --cat-* is dark  → CREAM text  (AA min 4.51 / 6.48)
+     · dark  + legacy-dark   → --cat-* is bright → INK-DEEP text (AA min 6.96 / 8.91)
+
+   `--cat-on-fill` encodes exactly that flip, mirroring how the design system's
+   --color-on-accent (cream) / --color-on-accent-strong (ink) split works for
+   solid brass. Consumers set `color: var(--cat-on-fill)` on any solid category
+   fill and get an AA-clearing pairing in all four theme×legacy combinations —
+   verified with computed WCAG ratios, not eyeballed. Nothing above is modified.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Light theme: cat tokens are dark → cream text clears AA (min 4.51). */
+  --cat-on-fill: #fdfaf2;
+}
+
+html[data-theme="dark"] {
+  /* Dark theme: cat tokens are bright → dark ink text clears AA (min 6.96). */
+  --cat-on-fill: var(--ink-deep);
+}
+
+/* Legacy Mode keeps the same per-theme direction — legacy-light cats are still
+   dark (cream, min 6.48), legacy-dark cats still bright (ink, min 8.91) — so the
+   :root / dark rules above already resolve correctly and need no legacy override.
+   (Left explicit for the reader; values match the base rules by design.) */
+html[data-legacy="1"] {
+  --cat-on-fill: #fdfaf2;
+}
+
+html[data-theme="dark"][data-legacy="1"] {
+  --cat-on-fill: var(--ink-deep);
+}

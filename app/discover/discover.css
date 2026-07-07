@@ -527,3 +527,56 @@
       transform 0.18s ease;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   E5 · Warmth + texture on Discover
+   ----------------------------------------------------------------------------
+   The leaderboard, tonight board and then-vs-now are all PINT (beer) data, so
+   the only honest category accent here is beer/brass — applied as a subtle
+   warm wash on the card frames, never a fabricated per-row category. The
+   "Explore by drink" grid is where the full 8-colour language lives (it names
+   real categories). Tokens only. ════════════════════════════════════════════ */
+
+/* Explore-by-drink block: let the showcase's own textured-panel breathe. */
+.discoverExplore {
+  margin-top: 4px;
+}
+
+/* Warm the pint boards with a whisper of the beer/brass accent + a hairline
+   top rule, so they read as "printed guide" panels rather than plain tables. */
+.leaderboard,
+.tonightBoard {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cat-beer, var(--brass)) 6%, var(--panel)) 0%,
+      var(--panel) 90px
+    );
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--cat-beer, var(--brass)) 8%, transparent);
+}
+
+/* Rank chips carry the beer hue — the pint boards' honest colour. */
+.leaderboardRankNum,
+.tonightRank {
+  border-color: color-mix(in srgb, var(--cat-beer, var(--brass)) 40%, var(--line));
+  background: color-mix(in srgb, var(--cat-beer, var(--brass)) 10%, var(--panel-raised));
+}
+
+/* Then-vs-now + editorial cards: a soft warm top-corner tint so the grid reads
+   as textured paper, not flat panels. Kept faint — the price stamps stay hero. */
+.tvnCard,
+.editorialCard {
+  background:
+    radial-gradient(
+      120% 80% at 0% 0%,
+      color-mix(in srgb, var(--brass) 7%, transparent) 0%,
+      transparent 58%
+    ),
+    var(--panel);
+}
+
+/* Section titles get a small brass tick so the eye can find the lanes quickly. */
+.discoverSectionTitle {
+  padding-left: 12px;
+  border-left: 3px solid color-mix(in srgb, var(--brass) 70%, transparent);
+}

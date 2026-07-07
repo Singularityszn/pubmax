@@ -1,0 +1,130 @@
+/* Map colour polish + documented pin-by-category patch (D3).
+   ---------------------------------------------------------------------------
+   Scoped, map-owned CSS so the D3 colour pass never edits app/globals.css
+   (D1 owns the .poiToggle/.poiSwatch base) or the codex-hot canvas paint.
+
+   This file is intentionally small: the honest, shippable map-colour change in
+   D3 is (a) the additive `--cat-*` read in PubMapCanvas.tsx's readTokens() (done
+   — see the `cat` field on Tokens), and (b) a subtle POI-toggle swatch ring so
+   the already-coloured category dots read crisply on the frosted toggle pill in
+   both themes. Colouring a PIN by drink category is documented below as a
+   ready-to-apply patch, NOT applied — because there is no honest data to drive
+   it yet (see "Why the pin paint is deferred").
+
+   To load: import "./mapColor.css" from a map-owned client component the
+   integrator controls (NOT VenueInspector.tsx). Until imported, none of the
+   rules below apply — the file is safe to land unwired. */
+
+/* ── POI-toggle swatch polish ────────────────────────────────────────────────
+   globals.css already fills each `.poiSwatch` with its category colour inline
+   (POI_CATEGORY_META[cat].color). On the frosted, translucent toggle pill a bare
+   9px dot can wash out against a busy basemap showing through; a hairline ring
+   in the panel colour lifts every swatch off the frost without changing its hue.
+   Additive: it only adds a box-shadow ring, never overrides the inline colour. */
+.poiToggle .poiSwatch {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
+}
+
+/* The "on" button already inverts to an ink-deep fill; give its active swatch a
+   touch more presence with a brighter ring so the enabled categories read at a
+   glance. */
+.poiToggleBtn.on .poiSwatch {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
+}
+
+/* Legacy Mode / forced-colors: drop the decorative rings so the swatches stay
+   flat, high-contrast chips. */
+html[data-legacy="1"] .poiToggle .poiSwatch,
+html[data-legacy="1"] .poiToggleBtn.on .poiSwatch {
+  box-shadow: none;
+}
+
+@media (forced-colors: active) {
+  .poiToggle .poiSwatch,
+  .poiToggleBtn.on .poiSwatch {
+    box-shadow: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DOCUMENTED PATCH — pin-by-category colouring (READY TO APPLY, NOT APPLIED)
+   ─────────────────────────────────────────────────────────────────────────────
+
+   Why the pin paint is deferred (honesty, per D3 brief + PRD guardrails):
+   The `pubs-point` fill in PubMapCanvas.tsx colours a pin by its cheapest-pint
+   PRICE BUCKET (pint/amber/brick/muted) — a real, sourced signal. The Venue
+   model (lib/venues.ts) carries NO "dominant drink category" field, so there is
+   nothing honest to map a category HUE onto. The rule is: only colour a pin by
+   category when the data actually carries a dominant category — never guess. So
+   this stays a patch until a `dominantCategory` (or similar) lands on Venue with
+   provenance.
+
+   The additive plumbing is already in place: readTokens() now returns
+   `tokens.cat` (a Record<DrinkCategory, string> resolved from the live `--cat-*`
+   vars), so the paint below can read a category colour from the same theme
+   source the venue sheet uses — no second palette, no re-hardcoded hexes.
+
+   ── Step 1 — carry the category into the pin GeoJSON (pubsToGeoJSON) ──
+   Add, ONLY when the field exists and is trustworthy (else omit — never default
+   to a category), inside the feature's `properties`:
+
+       // Honest dominant drink family, or absent. `hasCat` gates the paint so a
+       // venue without the signal keeps its price-bucket fill untouched.
+       ...(venue.dominantCategory
+         ? { category: venue.dominantCategory, hasCat: true }
+         : {}),
+
+   ── Step 2 — an OPT-IN toggle (mirrors favoritePint's "colour mode") ──
+   A boolean prop `colorByCategory` (default false) threaded from PubMap, so the
+   price-bucket colouring stays the default and category colour is a chosen lens,
+   exactly like the favourite-pint re-price. Read it into the paint below.
+
+   ── Step 3 — the guarded paint (drop-in replacement for the pubs-point
+      "circle-color") ──
+   Wrap the existing price-bucket match so it ONLY switches to category colour
+   when BOTH the toggle is on AND the feature honestly carries a category:
+
+       "circle-color": [
+         "case",
+         // category lens on AND this pin has an honest dominant family →
+         ["all", colorByCategory, ["coalesce", ["get", "hasCat"], false]],
+         [
+           "match",
+           ["get", "category"],
+           "beer", tokens.cat.beer,
+           "wine", tokens.cat.wine,
+           "whisky", tokens.cat.whisky,
+           "gin", tokens.cat.gin,
+           "vodka", tokens.cat.vodka,
+           "rum", tokens.cat.rum,
+           "cocktail", tokens.cat.cocktail,
+           "shot", tokens.cat.shot,
+           "other", tokens.cat.other,
+           tokens.muted,
+         ],
+         // otherwise: the UNCHANGED price-stamp bucket fill.
+         [
+           "match",
+           ["get", "bucket"],
+           0, tokens.pint,
+           1, tokens.amber,
+           2, tokens.brick,
+           tokens.muted,
+         ],
+       ],
+
+   ── Step 4 — redundant non-colour cue (WCAG 1.4.1) ──
+   In category-colour mode the legend must switch to naming the drink families
+   (the existing price legend already pairs each price hue with a label; keep
+   that pattern), and the pin's category is always available via its label/tap
+   card — so hue is never the sole carrier of meaning.
+
+   ── Guards this patch respects ──
+   - Purely a `circle-color` swap on an EXISTING layer/paint property → applied
+     via the same setPaintProperty path the price colouring uses; it goes through
+     applyToMap()/the style-loaded queue, so it can't race the setStyle swap or
+     re-introduce the "Style is not done loading" class of bug.
+   - buildScene re-reads tokens (incl. `tokens.cat`) on every style.load, so a
+     theme flip re-tints category pins for free.
+   - No new source, no new layer, no new re-entrancy — the lowest-risk shape for
+     a canvas change. */

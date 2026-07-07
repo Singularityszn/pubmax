@@ -17,7 +17,18 @@ import TonightBoard from "@/components/discovery/TonightBoard";
 import EditorialCard, { type EditorialCardData } from "@/components/discovery/EditorialCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
+import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
+import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import "./discover.css";
+
+// "Explore by drink" deep-link. The app has no drink-category venue filter yet
+// (feed lanes are latest/for-you/… and the map search doesn't seed from the URL),
+// so each category card links to the map's search param — the closest existing
+// seam — carrying the category label as the query. Honest: it opens the map with
+// that drink named, ready for the drink-filter wiring to consume the param.
+function exploreHref(category: DrinkCategory): string {
+  return `/map?q=${encodeURIComponent(categoryLabel(category))}`;
+}
 
 // Static editorial lanes. Real content, real links into the planner — the copy
 // is nostalgic/cultural but each card is a genuine anchor into /map or /crawls.
@@ -149,6 +160,22 @@ export default function DiscoverPage() {
           London pub culture.
         </p>
       </header>
+
+      <section className="discoverSection" aria-labelledby="explore-title">
+        <h2 id="explore-title" className="discoverSectionTitle">
+          Explore by drink
+        </h2>
+        <p className="discoverSectionDek">
+          Every drink has a colour. Pick a family and jump to the map with it in
+          hand — beer to the burgundy of a house red.
+        </p>
+        <CategoryShowcase
+          title=""
+          hrefFor={exploreHref}
+          cardHint="Open on the map"
+          className="discoverExplore"
+        />
+      </section>
 
       <section className="discoverSection" aria-labelledby="tonight-title">
         <h2 id="tonight-title" className="discoverSectionTitle">

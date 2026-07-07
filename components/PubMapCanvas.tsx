@@ -24,6 +24,11 @@ import {
   type PoiCategory,
 } from "@/lib/pois";
 import { MAP_ICON_SPECS, iconId, rasterize, type IconTokens } from "@/lib/mapIcons";
+import {
+  CATEGORY_COLORS,
+  categoryVar,
+  type DrinkCategory,
+} from "@/lib/categoryColors";
 import type { Venue } from "@/lib/venues";
 
 type VenueSignal = { hasPintDrops: boolean; latestContributorPrice: number | null };
@@ -111,6 +116,14 @@ type Tokens = {
   brassBright: string;
   river: string;
   riverBright: string;
+  // Drink-category accents (E5). ADDITIVE — resolves the live `--cat-*` vars
+  // (lib/categoryColors.ts) into the map's token object so a future
+  // pin-by-category paint tints a pin by a venue's dominant drink family from
+  // the SAME light/dark/legacy source the venue-sheet swatches use. Not wired
+  // into any live paint yet: the Venue model carries no honest dominant category
+  // (see the ready-to-apply patch in components/map/mapColor.css), and the
+  // honesty rule is never to colour a pin by a guessed category.
+  cat: Record<DrinkCategory, string>;
 };
 
 // Every map colour derives from the app's theme tokens so both modes
@@ -119,7 +132,17 @@ function readTokens(): Tokens {
   const styles = getComputedStyle(document.documentElement);
   const token = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
+  // Additive `--cat-*` read: one entry per drink family, resolved from the live
+  // computed vars (with the canonical light hex as a fallback) so map consumers
+  // never re-hardcode a category palette.
+  const cat = Object.fromEntries(
+    (Object.keys(CATEGORY_COLORS) as DrinkCategory[]).map((c) => [
+      c,
+      token(categoryVar(c), CATEGORY_COLORS[c].light),
+    ]),
+  ) as Record<DrinkCategory, string>;
   return {
+    cat,
     ink: token("--ink", "#1b2620"),
     inkDeep: token("--ink-deep", "#0f1c16"),
     paper: token("--paper", "#f4efe4"),

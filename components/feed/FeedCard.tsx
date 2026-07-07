@@ -4,9 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 
 import CheersButton from "@/components/feed/CheersButton";
+import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
+import { categoryColor } from "@/lib/categoryColors";
 import { computeChaosScore } from "@/lib/chaosScore";
+import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
+import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
 import type { FeedItem, OptimisticSpillState } from "@/lib/feed";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
@@ -37,14 +41,34 @@ const PROVENANCE_LABEL: Record<string, string> = {
   demo: "Sample",
 };
 
-function feedCardClassName(hero: string | undefined, optimistic?: OptimisticSpillState): string {
+function feedCardClassName(
+  hero: string | undefined,
+  optimistic: OptimisticSpillState | undefined,
+  hasCategory: boolean,
+): string {
   return [
     "feedCard",
     hero ? "feedCardSpill" : "",
+    // Only paint the coloured left accent stripe when we honestly know the
+    // category — an unknown drink falls back to the plain (brass-neutral) card.
+    hasCategory ? "feedCardCat" : "",
     optimistic ? `feedCard-${optimistic.state}` : "",
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+// The colour language, honestly derived. A FeedItem carries `drink` as free
+// text, never a category, so we classify it — and fall back to beer/brass when
+// the text gives no signal (drinkCategoryFromText returns null). `resolved`
+// tells the card whether the colour is a real read (paint the stripe + label)
+// or the honest beer fallback (glyph only, no asserted category label).
+function resolveCategory(drink: string): {
+  category: DrinkCategory;
+  resolved: boolean;
+} {
+  const hit = drinkCategoryFromText(drink);
+  return hit ? { category: hit, resolved: true } : { category: "beer", resolved: false };
 }
 
 function FeedOptimisticStatus({
@@ -133,9 +157,19 @@ export default function FeedCard({
   const optimistic = item.optimistic;
   const isOptimistic = Boolean(optimistic);
 
+  // E5 colour language — "every drink has a colour". Derived honestly from the
+  // free-text drink label; `resolved` is false when the text gave no signal (we
+  // then show the beer/brass glyph but assert NO category label). The category
+  // token flows to the card as a CSS var so the stripe, glyph, tinted scrim edge
+  // and the Cheers active state all read from one source.
+  const { category, resolved: categoryResolved } = resolveCategory(item.drink);
+  const catStyle = { ["--feed-cat" as string]: categoryColor(category) };
+  const catLabel = categoryLabel(category);
+
   return (
     <article
-      className={feedCardClassName(hero, optimistic)}
+      className={feedCardClassName(hero, optimistic, categoryResolved)}
+      style={catStyle}
       aria-label={`${optimistic ? `${optimistic.message}. ` : ""}Pint drop from ${shownHandle}`}
     >
       <FeedOptimisticStatus optimistic={optimistic} onRetryPost={onRetryPost} />
@@ -153,6 +187,12 @@ export default function FeedCard({
             loading="lazy"
             unoptimized
           />
+          {/* Category-tinted gradient edge — a colour whisper of the drink family
+              along the bottom edge, UNDER the fixed dark scrim so it never fights
+              text legibility. Only when the category is a real read. */}
+          {categoryResolved ? (
+            <span className="feedSpillCatEdge" aria-hidden="true" />
+          ) : null}
           {/* Provenance badge — top-left, ALWAYS visible on the photo, read like
               a verified checkmark (glyph + label): the X-style provenance
               prominence the brief calls for. */}
@@ -197,6 +237,15 @@ export default function FeedCard({
                 </span>
               </div>
             </div>
+            {/* Drink-category chip — colour + glyph + label (never colour alone,
+                WCAG 1.4.1). Only when the category is a confident read; an
+                unknown drink shows no fabricated family. */}
+            {categoryResolved ? (
+              <span className="feedSpillCat" title={`${catLabel} · ${item.drink}`}>
+                <DrinkGlyph category={category} size={16} inheritColor />
+                <span className="feedSpillCatLabel">{catLabel}</span>
+              </span>
+            ) : null}
             {item.caption ? <p className="feedSpillNote">{item.caption}</p> : null}
             {/* A4 — primary one-tap Cheers, over the dark scrim (frosted variant). */}
             {!isOptimistic ? (
@@ -207,7 +256,7 @@ export default function FeedCard({
                     count={cheersCount}
                     mine={cheeredByMe}
                     onToggle={onCheers}
-                    className="cheersBtnOnScrim"
+                    className={`cheersBtnOnScrim${categoryResolved ? " cheersBtnCat" : ""}`}
                   />
                 </div>
                 <Link
@@ -240,6 +289,11 @@ export default function FeedCard({
           </header>
 
           <div className="feedReceipt" role="img" aria-label="Pint drop receipt">
+            {/* Category glyph, colour-driven — the drink family's mark presiding
+                over the receipt. Honest fallback: beer/brass when unresolved. */}
+            <span className="feedReceiptGlyph" aria-hidden="true">
+              <DrinkGlyph category={category} size={34} />
+            </span>
             <span className="feedReceiptEyebrow">Pint Drop</span>
             {typeof item.priceGbp === "number" ? (
               <span className="feedReceiptPrice">{formatGbp(item.priceGbp)}</span>
@@ -253,6 +307,15 @@ export default function FeedCard({
       )}
 
       <div className="feedCardBody">
+        {/* Category chip — the redundant non-colour cue (glyph + label) that
+            accompanies the card's accent colour. Text-only card only; the Spill
+            card carries its own chip over the scrim. Resolved categories only. */}
+        {!hero && categoryResolved ? (
+          <span className="feedCatChip" title={`${catLabel} · ${item.drink}`}>
+            <DrinkGlyph category={category} size={16} inheritColor />
+            <span className="feedCatChipLabel">{catLabel}</span>
+          </span>
+        ) : null}
         {item.vibeTags.length > 0 || showChaosBadge ? (
           <ul className="feedVibes" aria-label="Vibe tags">
             {item.vibeTags.map((tag) => (
@@ -312,6 +375,7 @@ export default function FeedCard({
               count={cheersCount}
               mine={cheeredByMe}
               onToggle={onCheers}
+              className={categoryResolved ? "cheersBtnCat" : undefined}
             />
           </div>
         ) : null}

@@ -202,6 +202,74 @@
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Design pass D1 — category tint + polish (CSS-only; append-only)
+   ---------------------------------------------------------------------------
+   Drink-scoped nav links can tint their active state toward the page's drink
+   category instead of plain brass, so the nav speaks the same colour language
+   as the rest of the app. This is OPT-IN and progressive: a link only tints if
+   the nav component sets `data-cat="<category>"` on it (and a matching
+   `--nav-cat` custom property, or the fallback below resolves the token). With
+   no data-cat, every link keeps the brass active state above — unchanged.
+
+   The label text is always present, so the category is never encoded by colour
+   alone (WCAG 1.4.1); the tint is decoration on an already-labelled control.
+   All --cat-* tokens carry AA light/dark/Legacy values, and the active fill
+   pairs them with --ink-deep text (a dark, near-constant ink) which clears AA
+   on every category hue in each theme. ═══════════════════════════════════ */
+
+/* Resolve the per-link category token from its data-cat, so the CSS never has
+   to hardcode which link is which colour. */
+.siteNavLink[data-cat="beer"] {
+  --nav-cat: var(--cat-beer);
+}
+.siteNavLink[data-cat="wine"] {
+  --nav-cat: var(--cat-wine);
+}
+.siteNavLink[data-cat="whisky"] {
+  --nav-cat: var(--cat-whisky);
+}
+.siteNavLink[data-cat="gin"] {
+  --nav-cat: var(--cat-gin);
+}
+.siteNavLink[data-cat="vodka"] {
+  --nav-cat: var(--cat-vodka);
+}
+.siteNavLink[data-cat="rum"] {
+  --nav-cat: var(--cat-rum);
+}
+.siteNavLink[data-cat="cocktail"] {
+  --nav-cat: var(--cat-cocktail);
+}
+.siteNavLink[data-cat="shot"] {
+  --nav-cat: var(--cat-shot);
+}
+.siteNavLink[data-cat="other"] {
+  --nav-cat: var(--cat-other);
+}
+
+/* Drink-scoped hover: warm toward the category rather than brass. */
+.siteNavLink[data-cat]:hover {
+  background: color-mix(in srgb, var(--nav-cat, var(--brass)) 14%, transparent);
+}
+
+/* Drink-scoped active: the category fill, with the theme-aware on-fill text
+   token (--cat-on-fill: cream in light/legacy-light, ink-deep in dark/
+   legacy-dark) so the pairing clears AA in EVERY theme×legacy combination —
+   the cat tokens are dark in light themes (cream text) and bright in dark
+   themes (ink text). Falls back to the brass active state if --nav-cat unset. */
+.siteNavLink.isActive[data-cat] {
+  background: var(--nav-cat, var(--brass));
+  color: var(--cat-on-fill, var(--ink-deep));
+}
+
+/* Subtle polish on the brass active state: a faint inner lift so the active pill
+   reads as pressed-in rather than a flat block. Constant across themes. */
+.siteNavLink.isActive {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 2px rgba(24, 34, 26, 0.16);
+}
+
 /* Motion respect: drop the link hover/active transitions for reduced-motion. */
 @media (prefers-reduced-motion: reduce) {
   .siteNavLink {
