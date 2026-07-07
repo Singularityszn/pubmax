@@ -32,6 +32,12 @@ describe("SavedListDetail", () => {
     expect(html).toContain("The Test Arms");
     expect(html).toContain("Quiet corner table.");
     expect(html).toContain('href="/map?sel=venue-1"');
+    expect(html).toContain('aria-label="Share this"');
+    expect(html).toContain("Share");
+    expect(html).toContain(
+      "sam&#x27;s my locals saved list — 1 pub, 4 followers. Every pint has a story.",
+    );
+    expect(html).toContain("%2Fu%2Fsam%2Flists%2Fmy%2520locals");
   });
 
   it("shows a follow control only when a different viewer handle is supplied", () => {

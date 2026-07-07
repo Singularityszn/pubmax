@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import ShareBar from "@/components/share/ShareBar";
 import { normalizeHandle } from "@/lib/profiles";
 import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
 
@@ -42,6 +43,10 @@ function ownerProfileUrl(ownerHandle: string): string {
   return `/u/${encodeURIComponent(ownerHandle)}`;
 }
 
+function listUrl(ownerHandle: string, listType: string): string {
+  return `/u/${encodeURIComponent(ownerHandle)}/lists/${encodeURIComponent(listType)}`;
+}
+
 export default function SavedListDetail({
   ownerHandle,
   listType,
@@ -58,6 +63,12 @@ export default function SavedListDetail({
   const [error, setError] = useState<string | null>(null);
 
   const canFollow = viewer !== "" && viewer !== owner;
+  const shareUrl = listUrl(owner, listType);
+  const shareText = `${owner}'s ${listType} saved list — ${formatCount(
+    counts.savedPubs,
+    "pub",
+    "pubs",
+  )}, ${formatCount(counts.followers, "follower", "followers")}. Every pint has a story.`;
 
   useEffect(() => {
     if (viewerHandle) return;
@@ -191,6 +202,13 @@ export default function SavedListDetail({
             ) : null}
           </div>
         ) : null}
+        <div className="listDetailShare" aria-label={shareText}>
+          <ShareBar
+            url={shareUrl}
+            title={`${listType} by @${owner}`}
+            text={shareText}
+          />
+        </div>
       </section>
 
       <section className="savedSection" aria-labelledby="listPubsHeading">

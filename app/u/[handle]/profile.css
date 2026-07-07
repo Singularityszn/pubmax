@@ -536,6 +536,11 @@
   gap: 10px;
 }
 
+.profilePage .listDetailShare {
+  display: flex;
+  align-items: center;
+}
+
 .profilePage .followBtn {
   min-height: 44px;
   padding: 10px 16px;
