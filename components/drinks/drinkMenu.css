@@ -1,0 +1,162 @@
+/* The venue Menu (PRD E1) — drinks grouped by category, rendered inside the
+   Menu tab of .venueInspector. Scoped to .drinkMenu only; reuses the shared app
+   tokens (--brass, --ink, --ink-soft, --line, --panel-raised, --font-data,
+   --radius-sm) and the global .ink-stamp idiom for the price stamp. Each
+   category section pulls its accent from the inline `--cat-accent` custom
+   property set by DrinkMenu.tsx (value from lib/categoryColors.ts — E5's
+   canonical palette). Candle-lit field-guide feel, one accent per family. */
+
+.drinkMenu {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── Category section ──────────────────────────────────────────────────────── */
+.drinkCategory {
+  /* Fallback so a missing --cat-accent never renders a transparent rule. */
+  --cat-accent: var(--brass);
+}
+
+.drinkCategoryTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid var(--cat-accent);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.drinkCategoryDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cat-accent);
+  flex: 0 0 auto;
+}
+
+/* ── Drink rows ────────────────────────────────────────────────────────────── */
+.drinkList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drinkRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.drinkRowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drinkName {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.drinkMeta {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.drinkServing {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  opacity: 0.85;
+}
+
+.drinkRowSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+
+/* Brass price stamp — .ink-stamp (global) supplies the border/shadow/data face;
+   this only owns padding + size, matching the .priceStamp idiom. */
+.drinkPrice {
+  padding: 3px 8px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: var(--panel-raised);
+  white-space: nowrap;
+}
+
+/* ── Provenance chip ───────────────────────────────────────────────────────── */
+.drinkProvChip {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* A seeded demo pour is ALWAYS visibly distinct — never mistaken for a real
+   first-party price. Muted, dashed, so it reads as "example". */
+.drinkProvChip.demo {
+  border-style: dashed;
+  color: var(--ink-soft);
+  opacity: 0.9;
+}
+
+.drinkProvChip.sourced {
+  border-color: var(--cat-accent, var(--brass));
+  color: var(--ink);
+}
+
+/* ── Footnote ──────────────────────────────────────────────────────────────── */
+.drinkMenuFootnote {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────────── */
+.drinkMenuEmpty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drinkMenuEmptyTitle {
+  margin: 0;
+  font-family: var(--font-display, var(--font-body));
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.drinkMenuEmptyBody {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
