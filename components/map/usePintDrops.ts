@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
+import { getAnonId } from "@/lib/anonId";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
 
@@ -229,10 +230,16 @@ export function usePintDrops() {
     });
     setDropMsg({ ok: true, text: "Report received — that Pint Drop is hidden." });
     try {
+      // `actor` is the device's stable anon id (same attribution reactions and
+      // comments use) — the server hashes it into the per-actor report key, so
+      // devices behind a shared IP (pub wifi / NAT) stay distinct actors.
+      // Called from an event handler, so `window` exists; getAnonId() returns
+      // "" when storage is unavailable and the server degrades to its shared
+      // anon sentinel.
       await fetch("/api/pint-drops", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "report", id }),
+        body: JSON.stringify({ action: "report", id, actor: getAnonId() }),
       });
     } catch {
       // Swallow — the drop is already hidden locally; a failed report just

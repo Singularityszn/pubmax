@@ -114,8 +114,14 @@ export type PintDropStore = {
   listLegacyForVenue(venueId: string): Promise<PintDropDTO[]>;
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
   listForReview(status: "hidden" | "pending"): Promise<ModeratorDrop[]>;
-  /** Public report: record metadata; hides at REPORT_HIDE_THRESHOLD. False = unknown id. */
-  report(id: string, reason?: string): Promise<boolean>;
+  /**
+   * Public report: record metadata; hides at REPORT_HIDE_THRESHOLD. False =
+   * unknown id. `actorHash` is the salted per-actor hash (route hashActor) —
+   * a duplicate report by the same actor is an idempotent no-op (the counter
+   * is never bumped twice by one actor), durably enforced by the
+   * report_pint_drop_v2 RPC / pint_drop_reports unique pair.
+   */
+  report(id: string, reason: string | undefined, actorHash: string): Promise<boolean>;
   /** Moderator decision: set the final status and stamp the review. False = unknown id. */
   moderate(id: string, status: PintDropStatus, note?: string): Promise<boolean>;
 };
@@ -309,8 +315,8 @@ export const memoryPintDropStore: PintDropStore = {
   async listForReview(status) {
     return listByStatus(status).map(toModeratorDTO);
   },
-  async report(id, reason) {
-    return reportPintDrop(id, reason);
+  async report(id, reason, actorHash) {
+    return reportPintDrop(id, reason, actorHash);
   },
   async moderate(id, status, note) {
     return status === "visible" ? restorePintDrop(id, note) : keepHiddenPintDrop(id, note);
@@ -468,10 +474,27 @@ export const supabasePintDropStore: PintDropStore = {
     return (data ?? []).map(fromRow).map(toModeratorDTO);
   },
 
-  /** H4: ONE atomic RPC (migration 0004) increments the count, stamps the
-   *  report, and hides at REPORT_HIDE_THRESHOLD in a single UPDATE — two
-   *  concurrent reports can't lose an increment. Null data = unknown id. */
-  async report(id, reason) {
+  /** ONE atomic RPC (migration 0017) writes the per-actor report ledger
+   *  (pint_drop_reports, unique (pint_drop_id, actor_hash)) and increments /
+   *  stamps / hides visit_reports in a single statement — two concurrent
+   *  reports can't lose an increment, and a same-actor duplicate is an
+   *  idempotent no-op (the counter never moves twice for one actor). Null
+   *  data = unknown id. Until 0017 is applied, the v2 call errors and we fall
+   *  back to the 0004 RPC (windowed-limit-only semantics), then to the
+   *  non-atomic update if 0004 is missing too. */
+  async report(id, reason, actorHash) {
+    const { data: v2Data, error: v2Error } = await admin().rpc("report_pint_drop_v2", {
+      p_id: id,
+      p_actor_hash: actorHash,
+      p_reason: reason ?? null,
+      p_hide_threshold: REPORT_HIDE_THRESHOLD,
+    });
+    if (!v2Error) return v2Data !== null && v2Data !== undefined;
+    console.warn(
+      "[pint-drops] report_pint_drop_v2 RPC unavailable — falling back to report_pint_drop without per-actor uniqueness (apply migration 0017):",
+      v2Error.message,
+    );
+
     const { data, error } = await admin().rpc("report_pint_drop", {
       p_id: id,
       p_reason: reason ?? null,

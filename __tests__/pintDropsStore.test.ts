@@ -194,16 +194,19 @@ describe("deletePhotos", () => {
   });
 });
 
-// H4 / migration 0004: the atomic report_pint_drop RPC. The route maps a false
-// return to a 404, so the unknown-id path is a real contract, not a detail.
+// Migration 0017: the atomic, per-actor-unique report_pint_drop_v2 RPC. The
+// route maps a false return to a 404, so the unknown-id path is a real
+// contract, not a detail. (The 0004 v1 fallback path is pinned in
+// pintDrops.test.ts.)
 describe("supabasePintDropStore.report (atomic RPC)", () => {
-  it("passes the server-side hide threshold (one report can't hide content) and returns true on success", async () => {
+  it("passes the actor hash + server-side hide threshold (one report can't hide content) and returns true on success", async () => {
     rpcMock.mockClear();
     rpcMock.mockResolvedValueOnce({ data: 1, error: null });
-    const result = await supabasePintDropStore.report("d1", "spam");
+    const result = await supabasePintDropStore.report("d1", "spam", "hash-1");
     expect(result).toBe(true);
-    expect(rpcMock).toHaveBeenCalledWith("report_pint_drop", {
+    expect(rpcMock).toHaveBeenCalledWith("report_pint_drop_v2", {
       p_id: "d1",
+      p_actor_hash: "hash-1",
       p_reason: "spam",
       p_hide_threshold: REPORT_HIDE_THRESHOLD,
     });
@@ -212,7 +215,7 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
   it("returns false for an unknown id (null data → 404 upstream)", async () => {
     rpcMock.mockClear();
     rpcMock.mockResolvedValueOnce({ data: null, error: null });
-    expect(await supabasePintDropStore.report("nope")).toBe(false);
+    expect(await supabasePintDropStore.report("nope", undefined, "hash-1")).toBe(false);
   });
 });
 

@@ -210,16 +210,17 @@ export async function POST(request: Request): Promise<Response> {
   if (fields.action === "report") {
     const id = readString(fields.id);
     if (!id) return notFound();
-    // Rate-limit reports on two axes so neither a single actor nor a crowd can
-    // spam a drop's report counter:
+    // Rate-limit reports on two axes as FLOOD PROTECTION only:
     //   • per-drop  (`report:<id>`)                — caps total report volume;
     //   • per-actor (`report:<id>:<actorHash>`)    — the SAME actor gets EXACTLY
-    //     ONE report per drop per window. This is the correctness fix for H1:
-    //     the hide threshold is 2 (lib/pintDrops REPORT_HIDE_THRESHOLD), so a
-    //     per-actor budget above 1 let a single actor cross it alone (two POSTs
-    //     → hidden). Capping the per-actor budget at 1 means two DIFFERENT
-    //     actors are required to reach the threshold; a same-actor second report
-    //     on the same drop is rejected here before it touches the counter.
+    //     ONE report per drop per window, so a duplicate is rejected cheaply
+    //     here before it touches storage.
+    // DURABLE per-actor uniqueness now lives in the store/RPC layer
+    // (report_pint_drop_v2 + the pint_drop_reports unique (pint_drop_id,
+    // actor_hash) pair; the in-memory store mirrors it): a same-actor repeat
+    // that slips past this window (new window, limiter cold-start/outage) is an
+    // idempotent no-op in the store — the counter never moves twice for one
+    // actor, so REPORT_HIDE_THRESHOLD (2) still requires two DIFFERENT actors.
     // The actor is the same hashed anon id used by reactions/comments
     // (hashActor over the client `actor` field; a blank id hashes a shared
     // "anon" sentinel, matching the sitewide degradation). Falling back to the
@@ -242,7 +243,7 @@ export async function POST(request: Request): Promise<Response> {
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     try {
-      return (await store().report(id, readString(fields.reason))) ? ok() : notFound();
+      return (await store().report(id, readString(fields.reason), actorHash)) ? ok() : notFound();
     } catch (err) {
       log("error", "pint_drops.report_failed", {
         route: "POST /api/pint-drops",

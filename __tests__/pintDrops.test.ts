@@ -28,9 +28,13 @@ vi.mock("@/lib/pintDropsStore", async () => {
 //     (called at ROUTE IMPORT, before any beforeEach) never throws its FATAL
 //     even when NODE_ENV is baked to "production". The two 503/guard cases flip
 //     the corresponding flag explicitly rather than stubbing NODE_ENV.
-const { checkRateLimitDurable, supaGuard } = vi.hoisted(() => ({
+//   • getSupabaseAdmin — swappable via adminRef so the supabasePintDropStore
+//     report tests below can script rpc() responses without a network client.
+//     Defaults to null (= unconfigured), matching the real default in tests.
+const { checkRateLimitDurable, supaGuard, adminRef } = vi.hoisted(() => ({
   checkRateLimitDurable: vi.fn<(key: string) => Promise<boolean | null>>(),
   supaGuard: { configured: false, requiresStore: false },
+  adminRef: { client: null as unknown },
 }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -39,6 +43,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     checkRateLimitDurable,
     isSupabaseConfigured: () => supaGuard.configured,
     requiresSupabaseStore: () => supaGuard.requiresStore,
+    getSupabaseAdmin: () => adminRef.client,
   };
 });
 
@@ -54,7 +59,8 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/pint-drops/route";
-import { __resetPintDrops, validatePintDrop } from "@/lib/pintDrops";
+import { __resetPintDrops, reportPintDrop, validatePintDrop } from "@/lib/pintDrops";
+import { supabasePintDropStore } from "@/lib/pintDropsStore";
 
 const URL_BASE = "http://localhost/api/pint-drops";
 
@@ -123,6 +129,7 @@ beforeEach(() => {
   delete process.env.ADMIN_TOKEN;
   checkRateLimitDurable.mockReset();
   checkRateLimitDurable.mockResolvedValue(null);
+  adminRef.client = null;
 });
 
 afterAll(() => {
@@ -390,6 +397,113 @@ describe("moderation loop", () => {
     // in production — but the point is the 403 gate is cleared).
     const withToken = await modGet("hidden", "s3cret");
     expect(withToken.status).not.toBe(403);
+  });
+});
+
+describe("durable per-actor report uniqueness", () => {
+  it("same-actor repeat report across rate-limit windows is an idempotent no-op", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+
+    // Fake timers so we can jump PAST the 60s rate-limit window between the two
+    // same-actor reports — the exact gap the windowed limiter can't cover and
+    // the store-level ledger must (H1 across windows / limiter cold-start).
+    vi.useFakeTimers();
+    try {
+      const first = await report(drop.id, "wrong price", "device-a");
+      expect(first.status).toBe(200);
+
+      // New rate-limit window: the per-actor windowed budget has reset, so this
+      // duplicate reaches the store — which must treat it as an idempotent no-op.
+      vi.advanceTimersByTime(61_000);
+      const duplicate = await report(drop.id, "wrong price", "device-a");
+      expect(duplicate.status).toBe(200); // no-op, not an error
+
+      // Count stayed at 1 (below threshold) and the drop is still visible.
+      const listed = (await (await get(VENUE)).json()).drops as Array<{
+        id: string;
+        reportCount?: number;
+      }>;
+      expect(listed).toHaveLength(1);
+      expect(listed[0].reportCount).toBe(1);
+
+      // A DISTINCT actor's report is the second real one → threshold → hidden.
+      vi.advanceTimersByTime(61_000);
+      const second = await report(drop.id, undefined, "device-b");
+      expect(second.status).toBe(200);
+      expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("memory path: reportPintDrop twice with one actorHash counts once", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+
+    expect(reportPintDrop(drop.id, "spam", "hash-1")).toBe(true);
+    expect(reportPintDrop(drop.id, "spam", "hash-1")).toBe(true); // idempotent, still true
+
+    // One counted report → still visible with reportCount 1.
+    const listed = (await (await get(VENUE)).json()).drops as Array<{ reportCount?: number }>;
+    expect(listed).toHaveLength(1);
+    expect(listed[0].reportCount).toBe(1);
+
+    // A different actorHash is the second real report → hidden.
+    expect(reportPintDrop(drop.id, undefined, "hash-2")).toBe(true);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+  });
+});
+
+describe("supabasePintDropStore.report — v2 RPC seam", () => {
+  it("calls report_pint_drop_v2 with the actor hash", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
+    adminRef.client = { rpc };
+
+    const ok = await supabasePintDropStore.report("drop-1", "spam", "hash-abc");
+    expect(ok).toBe(true);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("report_pint_drop_v2", {
+      p_id: "drop-1",
+      p_actor_hash: "hash-abc",
+      p_reason: "spam",
+      p_hide_threshold: 2,
+    });
+  });
+
+  it("maps a null v2 result (unknown id) to false → route 404", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+    adminRef.client = { rpc };
+    expect(await supabasePintDropStore.report("nope", undefined, "hash-abc")).toBe(false);
+  });
+
+  it("falls back to report_pint_drop when the v2 RPC errors (migration 0017 not applied)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const rpc = vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: null,
+          error: { message: "function report_pint_drop_v2 does not exist" },
+        })
+        .mockResolvedValueOnce({ data: 1, error: null });
+      adminRef.client = { rpc };
+
+      const ok = await supabasePintDropStore.report("drop-1", "spam", "hash-abc");
+      expect(ok).toBe(true);
+      expect(rpc).toHaveBeenCalledTimes(2);
+      expect(rpc.mock.calls[0][0]).toBe("report_pint_drop_v2");
+      expect(rpc.mock.calls[1][0]).toBe("report_pint_drop");
+      // The v1 fallback carries no actor hash (0004's signature has none).
+      expect(rpc.mock.calls[1][1]).toEqual({
+        p_id: "drop-1",
+        p_reason: "spam",
+        p_hide_threshold: 2,
+      });
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 
