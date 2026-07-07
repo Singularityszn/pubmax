@@ -16,5 +16,17 @@
       "url": "https://data.example.gov.uk/pub-prices",
       "note": "PLACEHOLDER. Replace with a real open-licensed dataset (e.g. a council/OS/ONS open feed). Must carry an open licence permitting reuse."
     }
+  ],
+  "$drinkSourcesComment": "Allowlist of PERMISSIBLE first-party / open DRINK-menu price sources for scripts/refresh_drink_prices.mjs (E2 of docs/PRD_ALL_DRINKS.md). Same hard rule as `sources` above: a chain publishing ITS OWN pub menus (e.g. Wetherspoons' own site/app for its own pubs) is first-party and permissible. Competitor price aggregators, review sites (Vivino, Untappd, etc.) or any site whose ToS/robots.txt forbids automated access are NEVER permissible, no exceptions. `kind` must be one of first-party-chain | first-party-venue | open-data. Every entry must be `permissible: true` AND documented with a `licence` string; the refresh script refuses any source that is missing either.",
+  "drinkSources": [
+    {
+      "id": "wetherspoons-official",
+      "label": "J D Wetherspoon — official site (per-pub menus)",
+      "url": "https://www.jdwetherspoon.com/pubs",
+      "kind": "first-party-chain",
+      "licence": "All rights reserved — first-party publisher of its own pub menus/prices; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back.",
+      "permissible": true,
+      "notes": "STUB ONLY — see scripts/refresh_drink_prices.mjs fetchFromDrinkSource(). Wetherspoons publishes a per-pub menu (food + drinks with prices) on jdwetherspoon.com, and this chain is the flagship first-party permissible source named in the PRD. Before any real fetch/parse ships: (1) fetch and read https://www.jdwetherspoon.com/robots.txt and confirm the specific per-pub menu paths are not disallowed; (2) read the site's Terms of Use for any automated-access restriction and honour it (rate-limit, identify a contact UA, no login-walled pages); (3) pick a STABLE parse target — a single per-pub menu URL pattern whose markup/JSON is unlikely to change release-to-release — and pin a fixture/snapshot test to detect silent breakage; (4) never scrape at a rate that could be mistaken for abuse (cache aggressively, refresh at most daily, back off on non-200s); (5) stamp every row with this source's licence + url + an accurate observedAt, and drop (do not guess) any row that can't be attributed to a specific pub."
+    }
   ]
 }

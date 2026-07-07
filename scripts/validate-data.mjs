@@ -8,12 +8,24 @@
 //
 // Plain Node ESM — no build step, no deps. Run: node scripts/validate-data.mjs
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "public", "data");
+const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
+const DRINK_CATEGORIES = new Set([
+  "beer",
+  "wine",
+  "whisky",
+  "gin",
+  "vodka",
+  "rum",
+  "cocktail",
+  "shot",
+  "other",
+]);
 
 // ---------------------------------------------------------------------------
 // Shared rules (kept in sync with the app)
@@ -266,13 +278,132 @@ function validatePintPrices() {
   return { ok, count };
 }
 
+// drink_price_updates/*.json — permissible-source drink price update files
+// (E2 of docs/PRD_ALL_DRINKS.md). Mirrors lib/drinkPriceUpdates.ts
+// isValidDrinkPriceUpdate exactly: a shipped file with even one bad row fails
+// CI, because a bad row here means either a broken generator or (worse) an
+// un-attributed / stale-presented-as-live price slipping through.
+//
+// London-bounds are NOT checked here (drink rows carry no lat/lng of their
+// own — they key off venueKey, which is validated at merge time against the
+// venue dataset instead).
+function isHttpUrlLocal(v) {
+  if (typeof v !== "string" || v.length === 0) return false;
+  try {
+    const u = new URL(v);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function validateOneDrinkPriceUpdateFile(fileName) {
+  const name = `public/data/drink_price_updates/${fileName}`;
+  const errs = makeCollector();
+  let data;
+  try {
+    const raw = readFileSync(join(DRINK_PRICE_UPDATES_DIR, fileName), "utf8");
+    data = JSON.parse(raw);
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  const rows = Array.isArray(data)
+    ? data
+    : typeof data === "object" && data !== null && Array.isArray(data.updates)
+      ? data.updates
+      : null;
+
+  if (rows === null) {
+    console.log(`FAIL ${name}: expected a top-level array or a { updates: [...] } envelope`);
+    return { ok: false, count: 0 };
+  }
+
+  const now = Date.now();
+  rows.forEach((row, i) => {
+    const where = `row ${i}`;
+    if (typeof row !== "object" || row === null) {
+      errs.add(`${where}: not an object`);
+      return;
+    }
+    if (typeof row.venueKey !== "string" || row.venueKey.length === 0) {
+      errs.add(`${where}: missing/empty venueKey`);
+    }
+    if (typeof row.drinkName !== "string" || row.drinkName.length === 0) {
+      errs.add(`${where}: missing/empty drinkName`);
+    }
+    if (typeof row.category !== "string" || row.category.length === 0) {
+      errs.add(`${where}: missing/empty category`);
+    } else if (!DRINK_CATEGORIES.has(row.category)) {
+      errs.add(`${where}: invalid category "${row.category}"`);
+    }
+    if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) {
+      errs.add(`${where}: priceGbp must be a finite number >= 0 (got ${JSON.stringify(row.priceGbp)})`);
+    }
+    const source = row.source;
+    if (typeof source !== "object" || source === null) {
+      errs.add(`${where}: missing source`);
+    } else {
+      if (typeof source.label !== "string" || source.label.length === 0) {
+        errs.add(`${where}: missing/empty source.label`);
+      }
+      if (!isHttpUrlLocal(source.url)) {
+        errs.add(`${where}: source.url "${source.url}" is not an absolute http(s) URL`);
+      }
+      // Governance: every fact carries {source, licence, observedAt} — a
+      // permissible source is documented with a licence string.
+      if (typeof source.licence !== "string" || source.licence.length === 0) {
+        errs.add(`${where}: missing/empty source.licence`);
+      }
+    }
+    if (typeof row.observedAt !== "string" || row.observedAt.length === 0) {
+      errs.add(`${where}: missing/empty observedAt`);
+    } else {
+      const ms = Date.parse(row.observedAt);
+      if (!Number.isFinite(ms)) {
+        errs.add(`${where}: observedAt "${row.observedAt}" is not a valid ISO timestamp`);
+      } else if (ms > now) {
+        // Never present stale as live — but also never a fabricated FUTURE
+        // observation. A price cannot be "observed" before it happened.
+        errs.add(`${where}: observedAt "${row.observedAt}" is in the future`);
+      }
+    }
+  });
+
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: rows.length };
+}
+
+// Validates every *.json file in public/data/drink_price_updates/ (if the
+// directory exists at all — it's optional until E2's refresh script has
+// written a real file). Absence of the directory is NOT a failure; a bad file
+// inside it IS.
+function validateDrinkPriceUpdates() {
+  if (!existsSync(DRINK_PRICE_UPDATES_DIR)) {
+    console.log("SKIP public/data/drink_price_updates/: directory does not exist");
+    return { ok: true, count: 0 };
+  }
+  const files = readdirSync(DRINK_PRICE_UPDATES_DIR).filter((f) => f.endsWith(".json"));
+  if (files.length === 0) {
+    console.log("SKIP public/data/drink_price_updates/: no .json files present");
+    return { ok: true, count: 0 };
+  }
+  const results = files.map(validateOneDrinkPriceUpdateFile);
+  const ok = results.every((r) => r.ok);
+  const count = results.reduce((sum, r) => sum + r.count, 0);
+  return { ok, count };
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
 
 function main() {
   console.log("Validating bundled datasets in public/data …\n");
-  const results = [validatePois(), validateTflLines(), validatePintPrices()];
+  const results = [validatePois(), validateTflLines(), validatePintPrices(), validateDrinkPriceUpdates()];
   const failed = results.filter((r) => !r.ok).length;
 
   console.log("");

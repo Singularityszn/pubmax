@@ -19,6 +19,7 @@
     "export:data": "python3 scripts/export_app_dataset_json.py",
     "build:slim": "node scripts/build_slim_index.mjs",
     "refresh:prices": "node scripts/refresh_prices.mjs",
+    "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage",
     "ci": "npm run verify && npm run build",
