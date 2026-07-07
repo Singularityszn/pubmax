@@ -29,7 +29,9 @@ function errorResponse(error: RoundWriteError): Response {
     closed: { status: 409, message: "This Round has been called — it's closed." },
     invalid: { status: 400, message: "Check the details and try again." },
     forbidden: { status: 403, message: "You're not in this Round." },
-    error: { status: 500, message: "Something went wrong. Try again." },
+    // A store failure is a degraded dependency (503, fail-soft), not a bug (500)
+    // — the house contract every other write route uses (see pint-drops).
+    error: { status: 503, message: "Something went wrong. Try again." },
   };
   const { status, message } = map[error];
   return Response.json({ error: message }, { status });

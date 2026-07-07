@@ -1,11 +1,18 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Handler-level coverage for app/api/saved-pubs/route.ts. With the Supabase env
-// cleared the route selects the process-memory savedPubsStore, so every case is
-// deterministic and touches no network — but the DTO enrichment still resolves a
-// real venue NAME + map url through lib/venueIndex (the bundled dataset, read
-// from disk server-side). We pull one real (id, name) from that index up front
-// so the "venue names present in the DTO" assertion is exact, not brittle.
+// Handler-level coverage for app/api/saved-pubs/route.ts. The route selects the
+// process-memory savedPubsStore, pinned deterministically at the @/lib/supabase
+// seam (isSupabaseConfigured() === false) — NOT via a NODE_ENV stub, which Vite
+// bakes at transform time (a runtime stub is a silent no-op under a production
+// build; backend selection reads SUPABASE_*, never NODE_ENV). See
+// profileOwnershipRoute / pintDrops for the house pattern. The DTO enrichment
+// still resolves a real venue NAME + map url through lib/venueIndex (the bundled
+// dataset, read from disk server-side). We pull one real (id, name) from that
+// index up front so the "venue names present in the DTO" assertion is exact.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
 
 import { GET, POST } from "@/app/api/saved-pubs/route";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
@@ -34,14 +41,9 @@ function post(body: unknown, headers?: Record<string, string>): Promise<Response
 }
 
 beforeEach(() => {
-  vi.stubEnv("NODE_ENV", "test");
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemorySavedPubs();
-});
-
-afterAll(() => {
-  vi.unstubAllEnvs();
 });
 
 describe("GET /api/saved-pubs", () => {

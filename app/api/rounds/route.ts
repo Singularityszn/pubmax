@@ -32,7 +32,9 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await roundsStore().create({ title: body.title, createdByHandle: handle });
   if (!result.ok) {
-    const status = result.error === "invalid" ? 400 : 500;
+    // A store failure is a degraded dependency (503, fail-soft), not a bug (500)
+    // — the house contract every other write route uses (see pint-drops).
+    const status = result.error === "invalid" ? 400 : 503;
     return Response.json({ error: "Could not start the Round." }, { status });
   }
   return Response.json(result.state, { status: 201 });

@@ -1,7 +1,15 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Handler-level coverage for app/api/crawls/[slug]/route.ts — author-gated
-// edit/delete (story 35). In-memory path (Supabase env cleared).
+// edit/delete (story 35). In-memory path pinned at the @/lib/supabase seam
+// (isSupabaseConfigured() === false) — NOT via a NODE_ENV stub, which Vite bakes
+// at transform time (a runtime stub is a silent no-op under a production build;
+// backend selection reads SUPABASE_*, never NODE_ENV). See profileOwnershipRoute /
+// pintDrops for the house pattern.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
 
 import { DELETE, GET, PATCH } from "@/app/api/crawls/[slug]/route";
 import { __resetCrawlStories, createCrawlStory } from "@/lib/crawlStoryStore";
@@ -23,14 +31,9 @@ function params(slug: string) {
 }
 
 beforeEach(() => {
-  vi.stubEnv("NODE_ENV", "test");
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetCrawlStories();
-});
-
-afterAll(() => {
-  vi.unstubAllEnvs();
 });
 
 describe("PATCH /api/crawls/[slug]", () => {

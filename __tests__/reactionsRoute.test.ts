@@ -1,15 +1,22 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Handler-level coverage for app/api/pint-drops/reactions/route.ts. The route
-// talks to the ReactionsStore seam only; with SUPABASE_URL/SERVICE_ROLE_KEY
-// cleared it selects the process-memory store, so every case here is
-// deterministic and hits no network. We mock nothing in lib/supabase — clearing
-// the env is enough to force isSupabaseConfigured() === false.
+// talks to the ReactionsStore seam only; we pin the process-memory store
+// deterministically by mocking isSupabaseConfigured() === false at the
+// @/lib/supabase seam — NOT by stubbing NODE_ENV, which Vite bakes at transform
+// time (a runtime stub is a silent no-op under a production build; backend
+// selection reads SUPABASE_* here, never NODE_ENV). See profileOwnershipRoute /
+// pintDrops for the house pattern.
 //
 // Note on the memory store: memoryReactionsStore keeps a module-level Set that
 // has no FK, so it NEVER raises UnknownDropError (any id is reactable in dev).
 // To exercise the 404 UnknownDropError contract we drive the SUPABASE path with
 // a stubbed store whose toggle throws UnknownDropError — see that describe block.
+const { supaGuard } = vi.hoisted(() => ({ supaGuard: { configured: false } }));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => supaGuard.configured };
+});
 
 import { GET, POST } from "@/app/api/pint-drops/reactions/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -26,7 +33,9 @@ function toggle(body: unknown): Promise<Response> {
 }
 
 beforeEach(() => {
-  vi.stubEnv("NODE_ENV", "test");
+  // Pin the memory store via the mocked seam (isSupabaseConfigured() === false);
+  // the Supabase-path block below flips supaGuard.configured true for its cases.
+  supaGuard.configured = false;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryReactions();
@@ -34,10 +43,6 @@ beforeEach(() => {
   // in-memory rate window every route shares). Reset it between cases so one
   // test's toggles never bleed into another's budget.
   __resetPintDrops();
-});
-
-afterAll(() => {
-  vi.unstubAllEnvs();
 });
 
 describe("GET /api/pint-drops/reactions (batched summaries)", () => {
@@ -164,6 +169,9 @@ describe("POST /api/pint-drops/reactions (toggle)", () => {
 describe("POST reaction — store error contracts (Supabase path)", () => {
   beforeEach(() => {
     vi.resetModules();
+    // This block drives the Supabase (FK-backed) store: flip the mocked guard so
+    // isSupabaseConfigured() === true and the route selects supabaseReactionsStore.
+    supaGuard.configured = true;
     process.env.SUPABASE_URL = "https://stub.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "stub-key";
   });

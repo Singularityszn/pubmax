@@ -1,11 +1,18 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Handler-level coverage for app/api/pint-drops/comments/route.ts. With the
-// Supabase env cleared the route selects the process-memory commentsStore, so
-// every case is deterministic and touches no network. The route derives an
-// actor_hash from the request IP (never the client) for rate-limiting; the
-// public CommentDTO exposes ONLY { id, handle, body, createdAt } — no
+// Handler-level coverage for app/api/pint-drops/comments/route.ts. The route
+// selects the process-memory commentsStore, pinned deterministically at the
+// @/lib/supabase seam (isSupabaseConfigured() === false) — NOT via a NODE_ENV
+// stub, which Vite bakes at transform time (a runtime stub is a silent no-op
+// under a production build; backend selection reads SUPABASE_*, never NODE_ENV).
+// See profileOwnershipRoute / pintDrops for the house pattern. The route derives
+// an actor_hash from the request IP (never the client) for rate-limiting; the
+// public CommentDTO exposes ONLY { id, handle, body, createdAt, parentId } — no
 // actor_hash, no status — which we assert on the returned bodies.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
 
 import { GET, POST } from "@/app/api/pint-drops/comments/route";
 import {
@@ -27,14 +34,9 @@ function post(body: unknown, headers?: Record<string, string>): Promise<Response
 }
 
 beforeEach(() => {
-  vi.stubEnv("NODE_ENV", "test");
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryComments();
-});
-
-afterAll(() => {
-  vi.unstubAllEnvs();
 });
 
 describe("GET /api/pint-drops/comments", () => {

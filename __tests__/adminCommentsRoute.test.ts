@@ -1,9 +1,35 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Handler-level coverage for app/api/admin/comments/route.ts (story 37). With
-// Supabase env cleared the route uses the in-memory commentsStore, and with
-// ADMIN_TOKEN unset the moderator gate opens in the test runner (see
-// lib/adminAuth.ts) — so the queue + moderation actions are deterministic.
+// Handler-level coverage for app/api/admin/comments/route.ts (story 37). Two
+// seams are mocked so the suite is deterministic under a PRODUCTION build too
+// (Vercel CI presets NODE_ENV=production, and Vite bakes process.env.NODE_ENV at
+// transform time — so runtime vi.stubEnv on it is a silent no-op; the trap
+// profileOwnershipRoute.test.ts documents):
+//   • @/lib/supabase isSupabaseConfigured() === false pins the in-memory
+//     commentsStore (backend selection reads SUPABASE_*, never NODE_ENV).
+//   • @/lib/adminAuth isModerator() — the REAL gate reads process.env.NODE_ENV to
+//     open when ADMIN_TOKEN is unset (dev/test only). Under a prod build that read
+//     would DENY every "gate open" case (403 instead of 200/400/404). We replace
+//     ONLY that NODE_ENV branch with a controllable `devGate` flag (default open),
+//     preserving the real constant-time token compare so the "wrong token → 403"
+//     case still exercises the genuine auth path.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
+
+const { devGate } = vi.hoisted(() => ({ devGate: { open: true } }));
+vi.mock("@/lib/adminAuth", () => ({
+  isModerator: (request: Request): boolean => {
+    const expected = process.env.ADMIN_TOKEN;
+    const provided = request.headers.get("x-admin-token") ?? undefined;
+    // No configured token → gate is open in dev/test (here: the devGate flag,
+    // driven deterministically rather than via NODE_ENV).
+    if (!expected) return devGate.open;
+    if (!provided) return false;
+    return provided === expected;
+  },
+}));
 
 import { GET, POST } from "@/app/api/admin/comments/route";
 import { __addMemoryCommentForTest, __resetMemoryComments } from "@/lib/commentsStore";
@@ -18,10 +44,10 @@ function post(body: unknown, headers?: Record<string, string>): Promise<Response
 }
 
 beforeEach(() => {
-  vi.stubEnv("NODE_ENV", "test");
+  devGate.open = true; // no ADMIN_TOKEN → gate open (see the mock above)
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  delete process.env.ADMIN_TOKEN; // gate opens in test
+  delete process.env.ADMIN_TOKEN;
   __resetMemoryComments();
 });
 

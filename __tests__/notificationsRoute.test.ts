@@ -1,8 +1,15 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Handler-level coverage for app/api/notifications/route.ts. With Supabase env
-// cleared the route selects the in-memory notifications store, so every case is
-// deterministic and touches no network.
+// Handler-level coverage for app/api/notifications/route.ts. The route selects
+// the in-memory notifications store, pinned deterministically at the
+// @/lib/supabase seam (isSupabaseConfigured() === false) — NOT via a NODE_ENV
+// stub, which Vite bakes at transform time (a runtime stub is a silent no-op
+// under a production build; backend selection reads SUPABASE_*, never NODE_ENV).
+// See profileOwnershipRoute / pintDrops for the house pattern.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
 
 import { GET, POST } from "@/app/api/notifications/route";
 import { __resetMemoryNotifications, notificationsStore } from "@/lib/notificationsStore";
@@ -17,14 +24,9 @@ function post(body: unknown): Promise<Response> {
 }
 
 beforeEach(() => {
-  vi.stubEnv("NODE_ENV", "test");
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryNotifications();
-});
-
-afterAll(() => {
-  vi.unstubAllEnvs();
 });
 
 describe("GET /api/notifications", () => {

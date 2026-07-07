@@ -1,8 +1,41 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Handler-level coverage for the Round routes. With Supabase env cleared the routes
-// select the in-memory Round store, so every case is deterministic and touches no
-// network.
+// Handler-level coverage for the Round routes. Backend selection is the
+// roundsStore() seam (Supabase when configured, memory otherwise). We pin the
+// in-memory store deterministically by mocking isSupabaseConfigured() === false
+// at the @/lib/supabase seam — NOT by stubbing NODE_ENV, which Vite bakes at
+// transform time (a runtime stub is a silent no-op under a production build;
+// see profileOwnershipRoute.test.ts / pintDrops.test.ts for the house pattern).
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
+
+// The store-outage (503) cases script a write failure at the store seam. Keep the
+// real module (memory store, validation, __resetMemoryRounds); a per-test hook can
+// override create()/join() to return the store-failure variant. When null (the
+// default), each delegates to the real memory store so every other case is
+// unchanged.
+const { createOverride, joinOverride } = vi.hoisted(() => ({
+  createOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
+  joinOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
+}));
+vi.mock("@/lib/roundsStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/roundsStore")>();
+  return {
+    ...actual,
+    roundsStore: () => {
+      const store = actual.roundsStore();
+      return {
+        ...store,
+        create: (...args: Parameters<typeof store.create>) =>
+          createOverride.fn ? createOverride.fn(...args) : store.create(...args),
+        join: (...args: Parameters<typeof store.join>) =>
+          joinOverride.fn ? joinOverride.fn(...args) : store.join(...args),
+      };
+    },
+  };
+});
 
 import { POST as CREATE } from "@/app/api/rounds/route";
 import { GET, POST } from "@/app/api/rounds/[code]/route";
@@ -37,17 +70,13 @@ async function newRound(handle = "ken"): Promise<RoundState> {
 }
 
 beforeEach(() => {
-  vi.stubEnv("NODE_ENV", "test");
-  delete process.env.SUPABASE_URL;
-  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryRounds();
   // Clear the shared in-memory rate-limit window so per-handle create/action
   // budgets don't leak across cases (the limiter keys on handle + hashed IP).
   __resetPintDrops();
-});
-
-afterAll(() => {
-  vi.unstubAllEnvs();
+  // Default: store methods delegate to the real memory store (see the mock above).
+  createOverride.fn = null;
+  joinOverride.fn = null;
 });
 
 describe("POST /api/rounds — create", () => {
@@ -67,6 +96,16 @@ describe("POST /api/rounds — create", () => {
   it("rejects a malformed body (400)", async () => {
     const res = await CREATE(new Request(CREATE_URL, { method: "POST", body: "not json" }));
     expect(res.status).toBe(400);
+  });
+
+  it("503s when the durable store fails to write the Round (degraded dependency, not a bug)", async () => {
+    // A store-write failure ("error") is a degraded dependency, so the route
+    // must fail soft with 503 (the house contract every other write route uses
+    // — see pint-drops) rather than 500, which reads as an application bug.
+    createOverride.fn = async () => ({ ok: false, error: "error" as const });
+    const res = await create({ handle: "ken", title: "Big night" });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Could not start the Round." });
   });
 });
 
@@ -140,6 +179,17 @@ describe("POST /api/rounds/[code] — actions", () => {
     await action(round.code, { action: "join", handle: "ale" });
     const res = await action(round.code, { action: "close", handle: "ale" });
     expect(res.status).toBe(403);
+  });
+
+  it("503s when a store write fails on an action (degraded dependency, not a bug)", async () => {
+    const { round } = await newRound("ken");
+    // Force the store's join() to report a write failure — the route must map the
+    // "error" write-error to 503 (fail-soft), matching every other write route,
+    // not 500. The 4xx action outcomes (403/404/409/400) are unchanged.
+    joinOverride.fn = async () => ({ ok: false, error: "error" as const });
+    const res = await action(round.code, { action: "join", handle: "ale" });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Something went wrong. Try again." });
   });
 
   it("close by the creator, then addStop is 409 (closed)", async () => {

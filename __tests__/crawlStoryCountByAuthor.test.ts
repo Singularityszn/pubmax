@@ -1,8 +1,16 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Published crawl-story count by author — the number the Pint Passport shows for
 // a handle on /u/[handle]. Covers both the store helper and the GET ?author=
-// route branch. In-memory path (Supabase env cleared) so it runs offline.
+// route branch. In-memory path pinned at the @/lib/supabase seam
+// (isSupabaseConfigured() === false) — NOT via a NODE_ENV stub, which Vite bakes
+// at transform time (a runtime stub is a silent no-op under a production build;
+// backend selection reads SUPABASE_*, never NODE_ENV). See profileOwnershipRoute /
+// pintDrops for the house pattern.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
 
 import { GET } from "@/app/api/crawls/route";
 import {
@@ -25,14 +33,9 @@ async function makeStory(authorHandle?: string, title = "The Loop"): Promise<str
 }
 
 beforeEach(() => {
-  vi.stubEnv("NODE_ENV", "test");
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetCrawlStories();
-});
-
-afterAll(() => {
-  vi.unstubAllEnvs();
 });
 
 describe("countStoriesByAuthor", () => {
