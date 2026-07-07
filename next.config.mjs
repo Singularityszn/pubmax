@@ -43,6 +43,14 @@ const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 //     tiles.basemaps.cartocdn.com. MapLibre fetches ALL of these via fetch(), so
 //     both hosts must be in connect-src or the fallback is CSP-blocked and users
 //     hit the "Map tiles unavailable" screen on any transient OpenFreeMap blip.
+//     connect-src ALSO explicitly lists `wss://*.supabase.co`: the `https://` entry
+//     covers the REST/auth/storage fetch() calls, but Supabase Realtime
+//     (lib/realtime.ts) opens a WEBSOCKET to wss://<project-ref>.supabase.co/realtime/...,
+//     and browsers treat `wss:` as a distinct scheme from `https:` for CSP
+//     connect-src matching — an `https://*.supabase.co` entry does NOT authorize
+//     a `wss://` connection. Without this, the socket is silently blocked and
+//     lib/realtime.ts falls back to polling. Scoped to the Supabase wildcard only
+//     (no blanket `wss:`).
 //   - worker-src/child-src blob:: MapLibre spins up its tile workers from blobs.
 //     worker-src 'self' ALSO covers the offline service worker (public/sw.js,
 //     issue #32); its fetch/caching targets (self + tiles.openfreemap.org) are
@@ -53,7 +61,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co",
   "font-src 'self' data: https://tiles.openfreemap.org",
-  "connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co",
+  "connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co",
   "worker-src 'self' blob:",
   "child-src blob:",
   "frame-ancestors 'none'",

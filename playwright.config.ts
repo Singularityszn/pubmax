@@ -47,7 +47,10 @@ export default defineConfig({
       // --enable-unsafe-swiftshader is required in recent Chromium to permit the
       // software rasterizer for WebGL after the "unsafe SwiftShader" gating.
       name: "chromium-gl",
-      testMatch: "**/map-gl.spec.ts",
+      // GL-requiring specs: map-gl asserts the canvas paints; map-console-health
+      // asserts the scene stays error-free across repeated navigation. Both need
+      // a real WebGL2 context (SwiftShader), so both run here.
+      testMatch: ["**/map-gl.spec.ts", "**/map-console-health.spec.ts"],
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
