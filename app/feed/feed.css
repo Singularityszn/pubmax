@@ -1210,3 +1210,15 @@
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* ── A4: primary one-tap Cheers placement ─────────────────────────────────
+   The CheersButton owns its own look (components/feed/cheersButton.css); these
+   wrappers just position it. On the text-only card it sits above the chip row
+   with a little breathing space; on the Spill scrim it sits below the note,
+   above the bar-tab link. */
+.feedCheers {
+  margin: 2px 0 4px;
+}
+.feedSpillCheers {
+  margin: 6px 0 2px;
+}

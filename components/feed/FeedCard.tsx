@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import CheersButton from "@/components/feed/CheersButton";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
 import { computeChaosScore } from "@/lib/chaosScore";
@@ -48,6 +49,14 @@ export default function FeedCard({
   const initial = item.handle.trim().charAt(0).toUpperCase() || "?";
   const ago = relativeTime(item.createdAt);
   const mine = new Set(summary.mine);
+  // A4 — the primary one-tap "Cheers" kudos reuses the existing "cheers"
+  // reaction key (no schema/key change): its count + whether the viewer cheered
+  // are read off the same durable summary the chip row uses, so the big button
+  // and the tucked-away chip stay in lockstep. onToggleReaction owns the network
+  // round-trip + rollback; CheersButton just adds the instant optimistic flip.
+  const cheersCount = summary.counts.cheers ?? 0;
+  const cheeredByMe = mine.has("cheers");
+  const onCheers = (dropId: string) => onToggleReaction(dropId, "cheers");
   // One normalized "@handle" used everywhere this card names the author, so a
   // seed handle that already carries a leading "@" can't render as "@@".
   const shownHandle = displayHandle(item.handle);
@@ -132,6 +141,16 @@ export default function FeedCard({
               </div>
             </div>
             {item.caption ? <p className="feedSpillNote">{item.caption}</p> : null}
+            {/* A4 — primary one-tap Cheers, over the dark scrim (frosted variant). */}
+            <div className="feedSpillCheers">
+              <CheersButton
+                dropId={item.id}
+                count={cheersCount}
+                mine={cheeredByMe}
+                onToggle={onCheers}
+                className="cheersBtnOnScrim"
+              />
+            </div>
             <Link
               className="feedSpillBarTab"
               href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
@@ -216,6 +235,20 @@ export default function FeedCard({
               See the bar tab
             </Link>
           </p>
+        ) : null}
+
+        {/* A4 — the dominant primary ack, above the tucked-away chip row. On the
+            9:16 Spill card this lives over the scrim instead (see above), so only
+            the text-only receipt card mounts it here. */}
+        {!hero ? (
+          <div className="feedCheers">
+            <CheersButton
+              dropId={item.id}
+              count={cheersCount}
+              mine={cheeredByMe}
+              onToggle={onCheers}
+            />
+          </div>
         ) : null}
 
         <div className="feedReactions" role="group" aria-label="React to this pint">

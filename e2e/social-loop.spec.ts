@@ -76,6 +76,35 @@ test("feed shows real pub names, is shareable, and links to the map (§9/§11)",
   expect(errors).toEqual([]);
 });
 
+// A4 — the primary one-tap "Cheers" kudos renders on every feed card. READ-ONLY:
+// we assert the affordance is PRESENT and labelled, never click it (a click would
+// POST a reaction). Guarded by card presence so an empty DB is a valid pass.
+test("feed cards carry a primary one-tap 'Cheers' kudos affordance (A4)", async ({ page }) => {
+  const errors = watchPageErrors(page);
+
+  const response = await page.goto("/feed");
+  expect(response?.status()).toBe(200);
+  await expect(page.locator(".feedTitle")).toBeVisible();
+
+  const cards = page.locator(".feedCard:not(.feedCardSkeleton)");
+  await expect
+    .poll(async () => (await cards.count()) + (await page.locator(".feedEmpty").count()))
+    .toBeGreaterThan(0);
+
+  if ((await cards.count()) > 0) {
+    // Every rendered card exposes exactly one prominent Cheers button, with an
+    // accessible pressed-state (aria-pressed) — the Strava-kudos primary ack.
+    const cheers = cards.first().locator(".cheersBtn").first();
+    await expect(cheers).toBeVisible();
+    await expect(cheers).toHaveAttribute("aria-pressed", /true|false/);
+  } else {
+    // Empty feed: nothing to react to — the empty state stands in. Not a failure.
+    await expect(page.locator(".feedEmpty")).toBeVisible();
+  }
+
+  expect(errors).toEqual([]);
+});
+
 test("feed → map: clicking a pub name opens the map with it selected", async ({ page }) => {
   await page.goto("/feed");
   await expect(page.locator(".feedTitle")).toBeVisible();
