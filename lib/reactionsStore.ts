@@ -12,23 +12,24 @@
 // in that table, so a reaction on a seed raises a foreign-key violation. That is
 // surfaced as UnknownDropError → the route answers 404 and the client keeps its
 // local-only toggle for sample cards.
+//
+// SERVER-ONLY: this module imports @/lib/supabase (admin client, node:crypto).
+// Do NOT import it from a "use client" component — import the browser-safe
+// constants/types from @/lib/reactions instead. (The repo has no `server-only`
+// package installed, so this comment is the guard.)
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-// The canonical reaction allowlist — imported by the feed card so the UI chips
-// and the server validation can never drift. Values are stored verbatim in the
-// `reaction` text column.
-export const REACTION_KEYS = ["cheers", "bargain", "chaos", "proper", "legendary"] as const;
-export type ReactionKey = (typeof REACTION_KEYS)[number];
-
-const REACTION_SET = new Set<string>(REACTION_KEYS);
-export function isReactionKey(value: unknown): value is ReactionKey {
-  return typeof value === "string" && REACTION_SET.has(value);
-}
-
-// Per-drop summary: a count for each reaction that has any, plus the subset the
-// asking actor has themselves selected (drives the "on" state of each chip).
-export type ReactionSummary = { counts: Partial<Record<ReactionKey, number>>; mine: ReactionKey[] };
+// Canonical allowlist + DTO shapes live in the browser-safe module and are
+// re-exported here so server callers (route, tests) keep one import site and the
+// UI ↔ validation source of truth can never drift.
+export {
+  REACTION_KEYS,
+  isReactionKey,
+  type ReactionKey,
+  type ReactionSummary,
+} from "@/lib/reactions";
+import { isReactionKey, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 
 export type ReactionsStore = {
   /** Toggle one reaction for an actor on a drop; returns the drop's fresh summary. */

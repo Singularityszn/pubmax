@@ -8,7 +8,7 @@ import ShareBar from "@/components/share/ShareBar";
 import { computeChaosScore } from "@/lib/chaosScore";
 import type { FeedItem } from "@/lib/feed";
 import { displayHandle } from "@/lib/handleDisplay";
-import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactionsStore";
+import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
 // canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
