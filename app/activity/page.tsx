@@ -72,12 +72,32 @@ function timeAgo(iso: string): string {
 }
 
 export default function ActivityPage(): React.JSX.Element {
-  const [handle] = useState(readHandle);
+  // Read the handle after mount (not a lazy initialiser) so the server render and
+  // hydration agree — reading localStorage during the first client render diverges
+  // from the server's empty string and trips a hydration mismatch. `handleReady`
+  // guards the empty-state flash until that post-mount read settles.
+  const [handle, setHandle] = useState("");
+  const [handleReady, setHandleReady] = useState(false);
   const [items, setItems] = useState<NotificationDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      setHandle(readHandle());
+      setHandleReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const load = useCallback(async () => {
+    // Wait for the post-mount handle read before deciding anything — otherwise the
+    // initial empty handle would flip loading off and flash the empty state.
+    if (!handleReady) return;
     const h = handle.trim();
     if (!h) {
       setLoading(false);
@@ -105,7 +125,7 @@ export default function ActivityPage(): React.JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [handle]);
+  }, [handle, handleReady]);
 
   useEffect(() => {
     // Defer through a promise callback so setState (inside load) never runs
@@ -122,7 +142,11 @@ export default function ActivityPage(): React.JSX.Element {
         <p className="activitySub">Who followed you, reacted, commented, or saved your crawl.</p>
       </header>
 
-      {!handle.trim() ? (
+      {!handleReady || loading ? (
+        <p className="activityLoading" role="status">
+          Loading your activity…
+        </p>
+      ) : !handle.trim() ? (
         <EmptyState
           eyebrow="Activity"
           title="Claim a handle to see your activity"
@@ -133,10 +157,6 @@ export default function ActivityPage(): React.JSX.Element {
             </Link>
           }
         />
-      ) : loading ? (
-        <p className="activityLoading" role="status">
-          Loading your activity…
-        </p>
       ) : failed ? (
         <EmptyState
           title="Couldn't load your activity"

@@ -23,10 +23,25 @@ function readHandle(): string {
 }
 
 export default function NotificationBell(): React.JSX.Element {
-  // Lazy initialiser reads localStorage on first client render — no effect.
-  const [handle] = useState(readHandle);
+  // Read the handle after mount (not a lazy initialiser) so the server render and
+  // hydration agree — a lazy initialiser reads localStorage on the first client
+  // render only, diverging from the server's empty string and tripping a
+  // hydration mismatch. Mirrors the feed's `pubmax_handle` idiom.
+  const [handle, setHandle] = useState("");
   const [unread, setUnread] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Post-hydration handle read (see above). setState runs inside the async step,
+  // not the synchronous effect body (react-hooks/set-state-in-effect).
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) setHandle(readHandle());
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     const h = handle.trim();
