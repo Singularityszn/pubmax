@@ -1,5 +1,5 @@
 import { buildVenueClaims, type ClaimDrop, type Provenance, type VenueClaim } from "@/lib/curation";
-import { displayHandle } from "@/lib/handleDisplay";
+import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
 // voice-friendly logbook rendering of a venue's Pint Drops — "the story of
@@ -122,6 +122,64 @@ export type FamilyTableEntry = LedgerEntry;
  */
 export function buildFamilyTableEntries(drops: LedgerSourceDrop[]): FamilyTableEntry[] {
   return composeEntries(drops);
+}
+
+// ── F4: public-page redaction for the Family Table ─────────────────────────
+// /ledger/[id] is a PUBLIC page, but legacy ("ledger-only") drops are the
+// family lane — before this, the page rendered their full handle, price, and
+// note body to anyone with the URL, which made "Legacy" visibility a label,
+// not a promise. Until Supabase Auth exists there is no viewer to gate on, so
+// the honest posture is REDACTION: the public page shows that a family entry
+// exists (date, era, an initials-style attribution) and nothing more. TRUE
+// viewer-gating — the family actually reading the note — waits for Supabase
+// Auth (Epic D); this is deliberately a redaction seam, not a gate.
+
+/** The fallback attribution when a handle is empty/unresolvable. */
+export const REDACTED_ANON_LABEL = "A regular";
+
+/**
+ * Redact a handle to a deterministic initials-style form:
+ *   "@karan_m"       → "K. M."
+ *   "wapping_wall_ted" → "W. W. T."
+ *   "@alebrarian"    → "A."
+ * One uppercase initial per underscore-separated segment of the normalized
+ * handle. Deterministic (same handle → same initials), never round-trippable
+ * back to the handle, and tasteful enough to keep the human feel of the table.
+ * Empty/unknown handles → REDACTED_ANON_LABEL.
+ */
+export function redactHandle(raw: string | null | undefined): string {
+  const bare = handleOnly(raw); // normalized, no "@"; "anon" fallback for empty
+  if (!raw || bare === "anon") return REDACTED_ANON_LABEL;
+  const initials = bare
+    .split("_")
+    .filter(Boolean)
+    .map((part) => `${part[0].toUpperCase()}.`)
+    .join(" ");
+  return initials || REDACTED_ANON_LABEL;
+}
+
+// The redacted public shape: `note` and `priceLabel` are OMITTED from the type
+// (not just nulled) so a render site holding a RedactedFamilyEntry *cannot*
+// reach the private fields — the compiler enforces the redaction. Era and
+// provenance stay: they drive the venue-level colour/label, not identity.
+export type RedactedFamilyEntry = Omit<FamilyTableEntry, "handle" | "note" | "priceLabel"> & {
+  /** Initials-style attribution (redactHandle), never the full handle. */
+  handle: string;
+};
+
+/**
+ * Redact Family Table entries for the PUBLIC ledger page: initials-style
+ * handle, price and note body dropped entirely. Order and count are preserved
+ * — the public page still shows the table's shape (how many stories, when),
+ * just not their contents. Pure, so it is unit-testable with plain fixtures.
+ */
+export function redactFamilyTableEntries(entries: FamilyTableEntry[]): RedactedFamilyEntry[] {
+  return entries.map((entry) => {
+    const { note: _note, priceLabel: _price, ...safe } = entry;
+    void _note;
+    void _price;
+    return { ...safe, handle: redactHandle(entry.handle) };
+  });
 }
 
 // ── One-tap share-with-family (issue #27) ─────────────────────────────────

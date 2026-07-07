@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import "./readLedgerButton.css";
 
@@ -21,12 +21,21 @@ type ReadLedgerButtonProps = {
 };
 
 export default function ReadLedgerButton({ text }: ReadLedgerButtonProps) {
-  // Lazily feature-detect once. Only reachable in the browser (this is a
-  // client component); on the server useState's initializer never runs.
-  const [supported] = useState(
-    () => typeof window !== "undefined" && "speechSynthesis" in window,
-  );
+  // Hydrate as "unsupported" (matching the server's null render), then enable
+  // after mount if the browser has speechSynthesis. This avoids a text mismatch
+  // on server-rendered Ledger pages.
+  const [supported, setSupported] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) setSupported("speechSynthesis" in window);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleRead = useCallback(() => {
     if (!supported || !text.trim()) return;
