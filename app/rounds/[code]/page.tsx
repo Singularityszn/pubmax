@@ -8,6 +8,12 @@ import EmptyState from "@/components/EmptyState";
 import SiteNav from "@/components/nav/SiteNav";
 import { normalizeHandle } from "@/lib/profiles";
 import { isValidRoundCode, normalizeRoundCode, type RoundState } from "@/lib/rounds";
+import {
+  currentStop,
+  crewHereSummary,
+  roundPresence,
+  type PresenceDTO,
+} from "@/lib/roundPresence";
 import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import type { Venue } from "@/lib/venues";
@@ -45,6 +51,10 @@ export default function RoundPage({ params }: { params: Promise<{ code: string }
   const [state, setState] = useState<RoundState | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [myHandle, setMyHandle] = useState<string>("");
+  // Presence rows at the Round's CURRENT stop — the "your crew is here" overlay
+  // (B6). Fetched from the EXISTING GET /api/presence?venueId=…; the intersection
+  // with members happens in the pure lib/roundPresence lens. Fail-soft to [].
+  const [presence, setPresence] = useState<PresenceDTO[]>([]);
 
   // Read the viewer's own handle after mount (the server can't know localStorage),
   // mirroring the feed / profile pages so the whole social layer shares one handle.
@@ -102,6 +112,55 @@ export default function RoundPage({ params }: { params: Promise<{ code: string }
     };
   }, [isOpen, refetch]);
 
+  // The current stop's venue id — presence is only ever surfaced for where the
+  // crew is now. Recomputed from the polled state; null when there's no stop yet.
+  const currentStopVenueId = useMemo(
+    () => (state ? (currentStop(state.stops)?.venueId ?? null) : null),
+    [state],
+  );
+
+  // Poll presence at the current stop alongside the Round poll (same cadence, the
+  // repo's live-ness-by-polling convention — the Round page already polls, there's
+  // no realtime channel wired here to reuse). Fail-soft: a miss keeps the last
+  // rows; a 404/venue change resets. Only while the Round is open with a stop.
+  const refetchPresence = useCallback(async () => {
+    if (!currentStopVenueId) return;
+    try {
+      const res = await fetch(`/api/presence?venueId=${encodeURIComponent(currentStopVenueId)}`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { presence?: PresenceDTO[] };
+        setPresence(Array.isArray(data.presence) ? data.presence : []);
+      }
+    } catch {
+      // Network blip — keep the last-known presence rather than blanking it.
+    }
+  }, [currentStopVenueId]);
+
+  useEffect(() => {
+    let active = true;
+    // Not open, or no stop yet → clear presence and don't arm a poll. Defer the
+    // state update out of the synchronous effect body for React 19's lint rule.
+    if (!isOpen || !currentStopVenueId) {
+      void Promise.resolve().then(() => {
+        if (active) setPresence([]);
+      });
+      return () => {
+        active = false;
+      };
+    }
+    void Promise.resolve().then(() => refetchPresence());
+    const id = window.setInterval(() => void refetchPresence(), POLL_MS);
+    const onFocus = () => void refetchPresence();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      active = false;
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [isOpen, currentStopVenueId, refetchPresence]);
+
   const amMember = useMemo(
     () => (state && myHandle ? state.members.some((m) => m.handle === myHandle) : false),
     [state, myHandle],
@@ -142,6 +201,7 @@ export default function RoundPage({ params }: { params: Promise<{ code: string }
         state={state}
         myHandle={myHandle}
         amMember={amMember}
+        presence={presence}
         onChange={setState}
       />
     </main>
@@ -152,16 +212,28 @@ function RoundBoard({
   state,
   myHandle,
   amMember,
+  presence,
   onChange,
 }: {
   state: RoundState;
   myHandle: string;
   amMember: boolean;
+  presence: PresenceDTO[];
   onChange: (next: RoundState) => void;
 }): React.JSX.Element {
   const { round, members, stops } = state;
   const closed = round.closedAt != null;
   const isCreator = myHandle !== "" && round.createdByHandle === myHandle;
+
+  // The "your crew is here" overlay (B6): the pure intersection of members ×
+  // presence at the current stop. Recomputed as either the polled Round state or
+  // the polled presence rows change. A closed Round shows no live presence (the
+  // crawl is over — no honest "here now" claim to make).
+  const crewHere = useMemo(
+    () => (closed ? null : roundPresence(members, stops, presence)),
+    [closed, members, stops, presence],
+  );
+  const crewLine = crewHere ? crewHereSummary(crewHere) : null;
 
   const [copied, setCopied] = useState(false);
   async function copyCode() {
@@ -189,6 +261,12 @@ function RoundBoard({
         <p className="roundStatus" role="status">
           {closed ? "This Round has been called — it's closed." : `${members.length} out · still going`}
         </p>
+        {crewLine ? (
+          <p className="roundCrewHere" role="status">
+            <span className="roundHereDot" aria-hidden="true" />
+            {crewLine}
+          </p>
+        ) : null}
       </header>
 
       <section className="roundMembers" aria-label="Who's in the Round">
@@ -196,12 +274,18 @@ function RoundBoard({
           <Users size={16} aria-hidden="true" /> Who&apos;s out
         </h2>
         <ul className="roundMemberList">
-          {members.map((m) => (
-            <li key={m.handle} className="roundMemberChip">
-              <Link href={`/u/${m.handle}`}>@{m.handle}</Link>
-              {m.handle === round.createdByHandle ? <span className="roundHostTag">host</span> : null}
-            </li>
-          ))}
+          {members.map((m) => {
+            const here = crewHere ? crewHere.presentHandles.has(normalizeHandle(m.handle)) : false;
+            return (
+              <li key={m.handle} className={`roundMemberChip${here ? " roundMemberChipHere" : ""}`}>
+                {here ? (
+                  <span className="roundHereDot" title="Here now — self-shared, ephemeral" aria-label="here now" />
+                ) : null}
+                <Link href={`/u/${m.handle}`}>@{m.handle}</Link>
+                {m.handle === round.createdByHandle ? <span className="roundHostTag">host</span> : null}
+              </li>
+            );
+          })}
         </ul>
       </section>
 

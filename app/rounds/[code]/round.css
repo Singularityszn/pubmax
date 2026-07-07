@@ -151,6 +151,67 @@
   font-weight: 700;
 }
 
+/* --- "your crew is here" — group presence at the current stop (B6) ---------- */
+/* Candle-lit: a warm brass ember, not a hard green "online" dot. The claim is
+   self-shared + ephemeral, so the language stays soft and never overstated. */
+
+.roundCrewHere {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--brass) 8%, var(--color-surface));
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The ember: a small brass dot with a soft candle-glow halo. Reused inline in
+   member rows and in the banner. */
+.roundHereDot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brass);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--brass) 22%, transparent),
+    0 0 8px 1px color-mix(in srgb, var(--brass) 45%, transparent);
+  animation: roundHerePulse 2.6s ease-in-out infinite;
+}
+
+/* A member row for someone here-now warms subtly to match the ember. */
+.roundMemberChipHere {
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  background: color-mix(in srgb, var(--brass) 10%, var(--color-surface));
+}
+
+@keyframes roundHerePulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--brass) 22%, transparent),
+      0 0 8px 1px color-mix(in srgb, var(--brass) 45%, transparent);
+  }
+  50% {
+    opacity: 0.72;
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--brass) 14%, transparent),
+      0 0 5px 1px color-mix(in srgb, var(--brass) 28%, transparent);
+  }
+}
+
+/* Honour reduced-motion: the ember stays lit, just doesn't breathe. */
+@media (prefers-reduced-motion: reduce) {
+  .roundHereDot {
+    animation: none;
+  }
+}
+
 /* --- the self-building route ----------------------------------------------- */
 
 .roundStops {
