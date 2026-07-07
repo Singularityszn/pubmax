@@ -10,6 +10,7 @@ import { computeChaosScore } from "@/lib/chaosScore";
 import type { FeedItem } from "@/lib/feed";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
+import prefetchVenue from "@/lib/prefetchVenue";
 import { relativeTime } from "@/lib/relativeTime";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
@@ -128,7 +129,11 @@ export default function FeedCard({
               <div className="feedSpillWhoText">
                 <span className="feedSpillHandle">{shownHandle}</span>
                 <span className="feedSpillMeta">
-                  <Link className="feedSpillVenueLink" href={item.venueMapUrl}>
+                  <Link
+                    className="feedSpillVenueLink"
+                    href={item.venueMapUrl}
+                    onPointerEnter={() => prefetchVenue(item.venueId)}
+                  >
                     {item.venueName}
                   </Link>
                   {ago ? (
@@ -225,7 +230,11 @@ export default function FeedCard({
           <p className="feedVenue">
             {item.drink ? <span className="feedDrink">{item.drink}</span> : null}
             <span className="feedVenueAt">at</span>
-            <Link className="feedVenueLink" href={item.venueMapUrl}>
+            <Link
+              className="feedVenueLink"
+              href={item.venueMapUrl}
+              onPointerEnter={() => prefetchVenue(item.venueId)}
+            >
               {item.venueName}
             </Link>
             <Link

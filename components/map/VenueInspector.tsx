@@ -459,7 +459,7 @@ export default function VenueInspector({
           )}
 
           {composerOpen ? (
-            <PintDropComposer venueId={venue.id} state={pintDrops} />
+            <PintDropComposer venueId={venue.id} state={pintDrops} venueName={venue.name} />
           ) : (
             <div className="logDropBar">
               <button

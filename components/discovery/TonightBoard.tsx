@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import prefetchVenue from "@/lib/prefetchVenue";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 import { formatPrice } from "@/lib/venues";
@@ -44,7 +45,12 @@ export default function TonightBoard({
             <span className="srOnly">Rank {entry.rank}</span>
 
             <span className="tonightMain">
-              <Link href={href} className="tonightPub">
+              <Link
+                href={href}
+                className="tonightPub"
+                onPointerEnter={() => prefetchVenue(entry.venueId)}
+                onTouchStart={() => prefetchVenue(entry.venueId)}
+              >
                 {entry.venueName}
               </Link>
               <span className="tonightMeta">
