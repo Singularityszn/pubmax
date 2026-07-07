@@ -3489,3 +3489,136 @@ html[data-legacy="1"] *::after {
     right: 58px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Epic E5 — Category colour & drink-imagery identity (APPEND-ONLY)
+   ---------------------------------------------------------------------------
+   NEW section. Nothing above this line is modified. This adds:
+     1. per-drink-category colour tokens (--cat-*), light + dark + Legacy
+     2. a subtle paper/linen `.textured-panel` utility
+   These are ADDITIVE accents on top of the brass base — brass is still the one
+   brand accent. Category colours identify a drink family (like the semantic
+   --pint/--amber/--river hues), not a licence to "add colour" anywhere.
+
+   Source of truth for JS consumers is lib/categoryColors.ts — keep the two in
+   sync. Values are tuned to pass WCAG contrast on the recessed panel
+   (--panel: #fbf8f0 light / #171712 dark). See docs/DESIGN_SYSTEM.md →
+   "Category colour & drink imagery" for the adoption guide + contrast table.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* — Light theme (default). beer == brass on purpose (one identity with the
+     map's cheapest-pint hue). All others clear 4.5:1 on #fbf8f0. */
+:root {
+  --cat-beer: #9a6a24; /* brass — 4.44 (AA-large / glyph) */
+  --cat-wine: #8a2846; /* burgundy — 8.00 */
+  --cat-whisky: #985a12; /* amber — 5.20 */
+  --cat-gin: #0f7a72; /* botanical teal — 4.89 */
+  --cat-vodka: #2f6f8f; /* ice-blue — 5.22 */
+  --cat-rum: #8a4a24; /* mahogany — 6.41 */
+  --cat-cocktail: #b5493a; /* sunset — 4.97 */
+  --cat-shot: #6a3fb0; /* electric — 6.71 */
+  --cat-other: #5c5347; /* neutral bark — 7.11 */
+}
+
+/* — Dark theme: brightened so each clears AA on the charcoal panel (#171712). */
+html[data-theme="dark"] {
+  --cat-beer: #d3a44a; /* 7.86 */
+  --cat-wine: #e07a97; /* 6.34 */
+  --cat-whisky: #e0a34e; /* 8.15 */
+  --cat-gin: #4fc9bd; /* 8.92 */
+  --cat-vodka: #7ec4e0; /* 9.30 */
+  --cat-rum: #cd8a5a; /* 6.32 */
+  --cat-cocktail: #ef8a6a; /* 7.29 */
+  --cat-shot: #b28ae8; /* 6.59 */
+  --cat-other: #a89e8c; /* 6.79 */
+}
+
+/* — Legacy Mode: darker (light) / brighter (dark) high-contrast overrides,
+     mirroring how the rest of Legacy Mode tightens contrast within whichever
+     theme is active. Keyed on the same html[data-legacy="1"] flag. */
+html[data-legacy="1"] {
+  --cat-beer: #7a5417;
+  --cat-wine: #701d38;
+  --cat-whisky: #7a4708;
+  --cat-gin: #0a5d57;
+  --cat-vodka: #245672;
+  --cat-rum: #6e3915;
+  --cat-cocktail: #93362a;
+  --cat-shot: #522d90;
+  --cat-other: #463f34;
+}
+
+html[data-theme="dark"][data-legacy="1"] {
+  --cat-beer: #e6bd63;
+  --cat-wine: #f296ac;
+  --cat-whisky: #f0b866;
+  --cat-gin: #6fdccf;
+  --cat-vodka: #9dd6ee;
+  --cat-rum: #e0a074;
+  --cat-cocktail: #ffa484;
+  --cat-shot: #c8a6f2;
+  --cat-other: #c2b8a4;
+}
+
+/* — Paper/linen texture utility. A tiny, tiled, brass-tinted noise/weave laid
+     over a surface at very low opacity — texture, not noise. Static (no
+     animation → reduced-motion irrelevant). Apply to NEW surfaces you own;
+     do NOT retrofit onto existing panels. The texture sits in a ::before so
+     the panel's own background/border/content are untouched, and it never
+     intercepts pointer events. */
+.textured-panel {
+  position: relative;
+  isolation: isolate;
+}
+
+.textured-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.textured-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  /* Two faint diagonal weaves + a soft brass wash = linen. Kept ~4% so it
+     reads as tactile grain, never as pattern. */
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--brass) 5%, transparent) 0,
+      color-mix(in srgb, var(--brass) 5%, transparent) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--ink) 4%, transparent) 0,
+      color-mix(in srgb, var(--ink) 4%, transparent) 1px,
+      transparent 1px,
+      transparent 5px
+    );
+  opacity: 0.6;
+  mix-blend-mode: multiply;
+}
+
+/* On the dark theme, multiply would darken toward black and vanish — screen
+     the weave up instead so the linen stays legible as warm grain. */
+html[data-theme="dark"] .textured-panel::before {
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+
+/* Legacy Mode / forced-contrast users: drop the texture entirely so it never
+     competes with text legibility. */
+html[data-legacy="1"] .textured-panel::before {
+  display: none;
+}
+
+@media (forced-colors: active) {
+  .textured-panel::before {
+    display: none;
+  }
+}

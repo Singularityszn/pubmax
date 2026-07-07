@@ -333,3 +333,100 @@ its text should not flip dark.
   point.
 - Don't hardcode a hex value in a component that already has a token for that
   role; if no token fits, propose one here first.
+
+## Category colour & drink imagery (Epic E5)
+
+The "site looks plain" fix, held to the same token discipline — **additive
+colour, not a repaint**. Brass is still the one brand accent; the category
+colours identify a *drink family* the way `--pint`/`--amber`/`--river` are
+semantic hues, not a licence to paint any surface. If you're not showing a
+drink category, don't reach for a `--cat-*` token.
+
+### Category colour tokens
+
+One accent per drink category, defined as CSS custom properties in the E5
+append-only block at the end of `app/globals.css`, mirrored in
+`lib/categoryColors.ts` (the source of truth for TS consumers). Each has an
+explicit light + dark value, hand-tuned to pass **WCAG contrast as text/icon
+on the recessed panel** (`--panel`: `#fbf8f0` light / `#171712` dark):
+
+| Token | Light | ratio | Dark | ratio | Hue |
+|---|---|---|---|---|---|
+| `--cat-beer` | `#9a6a24` | 4.44\* | `#d3a44a` | 7.86 | brass (== the base accent) |
+| `--cat-wine` | `#8a2846` | 8.00 | `#e07a97` | 6.34 | burgundy |
+| `--cat-whisky` | `#985a12` | 5.20 | `#e0a34e` | 8.15 | amber |
+| `--cat-gin` | `#0f7a72` | 4.89 | `#4fc9bd` | 8.92 | botanical teal |
+| `--cat-vodka` | `#2f6f8f` | 5.22 | `#7ec4e0` | 9.30 | ice-blue |
+| `--cat-rum` | `#8a4a24` | 6.41 | `#cd8a5a` | 6.32 | mahogany |
+| `--cat-cocktail` | `#b5493a` | 4.97 | `#ef8a6a` | 7.29 | sunset |
+| `--cat-shot` | `#6a3fb0` | 6.71 | `#b28ae8` | 6.59 | electric violet |
+| `--cat-other` | `#5c5347` | 7.11 | `#a89e8c` | 6.79 | neutral bark |
+
+\* beer is pinned to the brass accent (one identity with the map's
+cheapest-pint hue), so it's AA-large / icon (3:1) rather than AA-normal. Use it
+as a glyph or large accent, not small body text.
+
+**Legacy Mode** gets a darker (light theme) / brighter (dark theme)
+high-contrast set via the `html[data-legacy="1"]` overrides in the same block —
+the tokens flip automatically, no consumer changes.
+
+### Drink imagery — licence-safe, our IP
+
+Per-category glyphs are **original SVG line-art** authored for this repo
+(`components/drinks/icons/*.tsx`): a pint glass, wine glass, whisky tumbler, gin
+balloon, rum snifter, vodka shooter, cocktail coupe, shot glass, and a generic
+bottle for `other`. They stroke with `currentColor` on a shared 32×32 viewBox,
+so they stay crisp from 16px to 128px and take the category colour from
+whatever sets `color`.
+
+**Licence rule for any future raster imagery:** do NOT scrape or embed
+copyrighted photos. Any bitmap must be **CC0 / public-domain**, credited in the
+provenance the same way drink prices are (source + licence + observedAt). Until
+then, the SVG glyphs are the drink imagery — they're ours, so there's no licence
+risk.
+
+### How to opt in (adoption guide)
+
+Other surfaces stay opt-in — this pass ships the *system*, glyphs, and a
+showcase; it does not recolour existing feed/map/ledger panels (that's
+codex-collision territory).
+
+1. **A single category glyph, correctly themed:**
+
+   ```tsx
+   import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
+   <DrinkGlyph category="wine" size={40} title="Wine" />   // labelled
+   <DrinkGlyph category="gin" />                            // decorative
+   ```
+
+   `DrinkGlyph` colours itself from `var(--cat-*)` (light/dark/Legacy all
+   handled). Pass `inheritColor` to draw in the parent's `currentColor` instead
+   (e.g. inside a mono chip that already sets the colour).
+
+2. **A category accent in CSS** — reference the token, never a literal hex:
+
+   ```css
+   .menuSection[data-category="whisky"] .sectionRule { color: var(--cat-whisky); }
+   ```
+
+   Or from TS via `categoryColor("whisky")` → `"var(--cat-whisky)"`.
+
+3. **The whole palette at a glance** — drop the showcase on a menu header /
+   discover surface:
+
+   ```tsx
+   import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
+   <CategoryShowcase title="Every drink, every colour" />
+   ```
+
+4. **Paper/linen texture** — add the `.textured-panel` class to a NEW surface
+   you own (a card, a header). It lays a ~4% brass-tinted linen weave in a
+   `::before` (multiply in light, screen in dark), never intercepts pointer
+   events, and self-disables under Legacy Mode / forced-colors. Keep it subtle —
+   texture, not noise — and do **not** retrofit it onto existing panels codex may
+   be editing.
+
+**Don't:** don't recolour prices, statuses, or heritage markers with a
+`--cat-*` token (those own `--amber`/`--pint`/`--river`); don't apply a category
+colour to something that isn't a drink category; don't add a second texture
+pattern or bump the linen opacity into "pattern" territory.

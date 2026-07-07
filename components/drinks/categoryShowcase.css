@@ -1,0 +1,61 @@
+/* CategoryShowcase (Epic E5) — owned by the E5 identity pass. Reads only E5 +
+   base tokens; no literal palette hexes. `.textured-panel` (the paper/linen
+   utility) lives in the appended section of app/globals.css. */
+
+.catShowcase {
+  border: 1px solid var(--color-border, var(--line));
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: var(--space-5, 20px);
+  box-shadow: var(--shadow-sm, var(--shadow));
+}
+
+.catShowcase__title {
+  margin: 0 0 var(--space-4, 16px);
+  font-family: var(--serif);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight, -0.01em);
+  color: var(--ink);
+}
+
+.catShowcase__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--space-3, 12px);
+}
+
+.catShowcase__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+}
+
+/* The swatch: a soft tinted disc carrying the category colour, with the glyph
+   drawn in the same hue (currentColor). `color` is set inline per category. */
+.catShowcase__swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  /* very light wash of the category colour behind the line-art glyph */
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border: 1.5px solid color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.catShowcase__label {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
