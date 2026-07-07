@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import SiteNav from "@/components/nav/SiteNav";
 import SavedListDetail from "@/components/profile/SavedListDetail";
 import { normalizeHandle } from "@/lib/profiles";
@@ -18,6 +20,10 @@ type PageParams = {
   listType: string;
 };
 
+type PageProps = {
+  params: Promise<PageParams>;
+};
+
 function decodeParam(value: string): string {
   try {
     return decodeURIComponent(value);
@@ -26,7 +32,73 @@ function decodeParam(value: string): string {
   }
 }
 
-export default async function SavedListPage({ params }: { params: Promise<PageParams> }) {
+function savedListPath(ownerHandle: string, listType: string): string {
+  return `/u/${encodeURIComponent(ownerHandle)}/lists/${encodeURIComponent(listType)}`;
+}
+
+function listCardHref(ownerHandle: string, listType: string, counts: SavedListFollowCounts): string {
+  const params = new URLSearchParams();
+  params.set("owner", ownerHandle);
+  params.set("list", listType);
+  params.set("pubs", String(counts.savedPubs));
+  params.set("followers", String(counts.followers));
+  return `/api/list-card?${params.toString()}`;
+}
+
+function plural(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { handle, listType: rawListType } = await params;
+  const ownerHandle = normalizeHandle(handle);
+  const listType = cleanListType(decodeParam(rawListType));
+
+  if (!ownerHandle || !listType) {
+    return {
+      title: "Saved list",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const saved = await savedPubsStore().listSaved({ handle: ownerHandle });
+  const pubs = saved.filter((pub) => pub.listType === listType);
+  const listCounts = await savedListFollowsStore().counts(ownerHandle, listType);
+  const counts = { ...listCounts, savedPubs: pubs.length };
+  const title = `@${ownerHandle}'s ${listType}`;
+  const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXXING — ${plural(
+    counts.savedPubs,
+    "pub",
+  )}, ${plural(counts.followers, "follower")}.`;
+  const cardUrl = listCardHref(ownerHandle, listType, counts);
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: savedListPath(ownerHandle, listType),
+      images: [
+        {
+          url: cardUrl,
+          width: 1200,
+          height: 630,
+          alt: `${title} saved list`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [cardUrl],
+    },
+  };
+}
+
+export default async function SavedListPage({ params }: PageProps) {
   const { handle, listType: rawListType } = await params;
   const ownerHandle = normalizeHandle(handle);
   const listType = cleanListType(decodeParam(rawListType));
