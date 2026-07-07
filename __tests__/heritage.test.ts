@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -259,9 +259,18 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
 describe("schema key alignment (venue_key)", () => {
   const read = (rel: string) =>
     readFileSync(path.join(process.cwd(), rel), "utf8");
+  // Migration files carry a remote-ledger timestamp prefix
+  // (`<version>_NNNN_name.sql`) so the Supabase preview-branch check matches
+  // them. Resolve by the stable `NNNN_name` suffix instead of a fixed prefix.
+  const readMigration = (suffix: string) => {
+    const dir = path.join(process.cwd(), "supabase/migrations");
+    const file = readdirSync(dir).find((f) => f.endsWith(`_${suffix}.sql`));
+    if (!file) throw new Error(`migration *_${suffix}.sql not found`);
+    return readFileSync(path.join(dir, file), "utf8");
+  };
 
   it("migration, writer, and retrieval all use venue_key", () => {
-    const migration = read("supabase/migrations/0002_pub_heritage.sql");
+    const migration = readMigration("0002_pub_heritage");
     const writer = read("scripts/enrich_heritage.mjs");
     const retrieval = read("lib/heritage.ts");
 

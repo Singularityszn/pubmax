@@ -23,7 +23,7 @@
 //     under the anon key (RLS/grants correctly keep catalog access off the
 //     anon role), so this script cannot verify publication membership itself.
 //     If you need that guarantee, run migration 0014
-//     (supabase/migrations/0014_realtime_publication.sql) — it is idempotent,
+//     (supabase/migrations/*_0014_realtime_publication.sql) — it is idempotent,
 //     so re-running it is always safe — or check
 //     `select * from pg_publication_tables where pubname = 'supabase_realtime'`
 //     directly with a privileged connection.
