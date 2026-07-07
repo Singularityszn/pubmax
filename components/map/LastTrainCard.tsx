@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { LastPintDecisionKind, LastTrainResult } from "@/lib/tfl";
+import type { LastPintDecision, LastPintDecisionKind, LastTrainResult } from "@/lib/tfl";
 
 type LastTrainCardProps = {
   lat: number;
@@ -28,6 +28,13 @@ type LastTrainCardProps = {
   // instead of just rendering a plain list. Backward-compatible — VenueInspector
   // (owned by another wave) doesn't pass this today and doesn't need to.
   onSelectVenue?: (venueId: string) => void;
+  // Optional: lifts the live Last Pint decision up to the orchestrator so the
+  // Pints tab can stamp each drop with an honest "before/after the last train"
+  // badge (IDEAS A5). This card KEEPS ownership of the fetch — it just publishes
+  // the resolved decision (or null while loading / on TfL failure). Because the
+  // fetch only fires from this card's effect, the decision is unknown until the
+  // user opens the Getting-home tab; no badges render before then, by design.
+  onDecision?: (decision: LastPintDecision | null) => void;
 };
 
 type LoadState =
@@ -77,7 +84,13 @@ function formatLeaveBy(iso: string | null): string | null {
   }).format(d);
 }
 
-export default function LastTrainCard({ lat, lng, venueName, onSelectVenue }: LastTrainCardProps) {
+export default function LastTrainCard({
+  lat,
+  lng,
+  venueName,
+  onSelectVenue,
+  onDecision,
+}: LastTrainCardProps) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
   useEffect(() => {
@@ -102,6 +115,17 @@ export default function LastTrainCard({ lat, lng, venueName, onSelectVenue }: La
   }, [lat, lng]);
 
   const decision = state.status === "ready" ? state.data.decision : undefined;
+
+  // Publish the resolved decision up to the orchestrator (if it asked). This is
+  // a parent callback, not local setState, so it's allowed in an effect — and it
+  // must run in an effect so it fires after render/commit, never mid-render. It
+  // re-runs whenever the decision changes (venue switch, refetch) or clears to
+  // null while loading / on TfL failure, so the parent's badges stay in sync
+  // with what THIS card actually knows.
+  useEffect(() => {
+    onDecision?.(decision ?? null);
+  }, [decision, onDecision]);
+
   const leaveBy = decision ? formatLeaveBy(decision.leaveByIso) : null;
   // Provenance honesty (H5): "Live from TfL" may only be claimed when at least
   // one line's departures are genuinely live Arrivals. A station that resolved

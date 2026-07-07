@@ -20,6 +20,8 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
 import { venueMenuForInspector } from "@/lib/venueMenu";
+import { lastTrainBadge } from "@/lib/lastTrainBadge";
+import type { LastPintDecision } from "@/lib/tfl";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
@@ -130,6 +132,23 @@ export default function VenueInspector({
   if (tabVenueId !== venue.id) {
     setTabVenueId(venue.id);
     setTab(DEFAULT_TAB);
+  }
+
+  // The venue's live Last Pint decision, lifted up from LastTrainCard so the
+  // Pints tab can stamp each drop with an honest transport-context badge (IDEAS
+  // A5). HONESTY CONSTRAINT: this stays null until the user opens the
+  // Getting-home tab and LastTrainCard's fetch resolves — the decision simply
+  // doesn't exist before then. So if they never open that tab, no badges render.
+  // That's correct: a badge without a live decision behind it would be a guess.
+  // LastTrainCard still owns the fetch; it only publishes the result via the
+  // onDecision callback below. Reset on venue change (same adjust-state-during-
+  // render pattern as tab/presence — never an effect) so a stale decision from
+  // the previous pub can't leak onto this one's drops.
+  const [lastTrainDecision, setLastTrainDecision] = useState<LastPintDecision | null>(null);
+  const [decisionVenueId, setDecisionVenueId] = useState(venue.id);
+  if (decisionVenueId !== venue.id) {
+    setDecisionVenueId(venue.id);
+    setLastTrainDecision(null);
   }
 
   // Refs to the tab buttons so arrow keys can move focus as selection moves
@@ -375,6 +394,14 @@ export default function VenueInspector({
             <div className="dropList">
               {drops.map((drop) => {
                 const hasPhotos = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
+                // Honest transport-context stamp (IDEAS A5): null unless the
+                // Getting-home tab has loaded a live decision AND the timestamps
+                // back a claim — see lib/lastTrainBadge.ts. No decision → no badge.
+                const trainBadge = lastTrainBadge(
+                  drop.createdAt,
+                  lastTrainDecision?.leaveByIso,
+                  lastTrainDecision?.decision,
+                );
                 return (
                   <article
                     key={drop.id}
@@ -440,6 +467,11 @@ export default function VenueInspector({
                     <div className="dropFoot">
                       <small>
                         {[drop.drink, drop.era].filter(Boolean).join(" · ") || "Visit report"}
+                        {trainBadge ? (
+                          <span className="trainBadge" data-tone={trainBadge.tone}>
+                            {trainBadge.label}
+                          </span>
+                        ) : null}
                       </small>
                       {drop.provenance !== "demo" ? (
                         <button
@@ -568,7 +600,12 @@ export default function VenueInspector({
         className="venueTabPanel"
         hidden={tab !== "getting-home"}
       >
-        <LastTrainCard lat={venue.latitude} lng={venue.longitude} venueName={venue.name} />
+        <LastTrainCard
+          lat={venue.latitude}
+          lng={venue.longitude}
+          venueName={venue.name}
+          onDecision={setLastTrainDecision}
+        />
       </div>
     </section>
   );
