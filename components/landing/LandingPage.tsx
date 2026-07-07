@@ -299,7 +299,7 @@ export default function LandingPage() {
               <div className="chatBar">
                 <MessageSquareText size={17} strokeWidth={1.5} aria-hidden="true" />
                 The PUBMAXXER — Ye Olde Cheshire Cheese
-                <span className="exampleTag">Example</span>
+                <span className="exampleTag">Demo</span>
               </div>
               <div className="chatBody">
                 <p className="chatQuestion">Who used to drink here?</p>
@@ -337,7 +337,7 @@ export default function LandingPage() {
                   <p>{d.note}</p>
                   <div className="dropMeta">
                     <small>{d.when}</small>
-                    <span className="exampleTag">Example</span>
+                    <span className="exampleTag">Demo</span>
                   </div>
                 </article>
               ))}

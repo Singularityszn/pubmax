@@ -11,7 +11,7 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
-test("landing / serves, shows hero + Example honesty label + a working /map CTA", async ({
+test("landing / serves, shows hero + Demo honesty label + a working /map CTA", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -22,8 +22,9 @@ test("landing / serves, shows hero + Example honesty label + a working /map CTA"
   // Hero headline (stable id in components/landing/LandingPage.tsx).
   await expect(page.locator("#hero-title")).toContainText("Bring back");
 
-  // Honesty guarantee: sample cards are labelled "Example".
-  await expect(page.getByText("Example").first()).toBeVisible();
+  // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
+  // provenance vocabulary — see lib/provenanceLabels.ts).
+  await expect(page.getByText("Demo").first()).toBeVisible();
 
   // A working CTA to the planner. There are several "Open the map" links; take
   // the first and assert it points at /map, then that following it lands there.

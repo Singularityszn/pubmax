@@ -257,7 +257,7 @@ export default async function LedgerPage({ params }: PageProps) {
                     <span
                       className={`ledgerProvenance ledgerProvenance--${entry.provenance}`}
                     >
-                      {entry.provenance === "demo" ? "Seeded example" : entry.handle}
+                      {entry.provenance === "demo" ? "Demo" : entry.handle}
                     </span>
                   </div>
                   <p className="ledgerEntryNote">{entry.note}</p>

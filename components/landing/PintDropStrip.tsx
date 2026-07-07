@@ -8,7 +8,7 @@ import { HandCoins } from "lucide-react";
 // and renders a horizontal scrollable rail of cards.
 //
 // Failure is silent by design: if the fetch throws, aborts, times out, or
-// returns a non-OK / malformed body, we render NOTHING. The static "Example"
+// returns a non-OK / malformed body, we render NOTHING. The static "Demo"
 // drops already on the landing stand in as the fallback, so a broken feed can
 // never leave a blank or broken band on the page.
 
@@ -32,11 +32,13 @@ const MAX_CARDS = 8;
 const NOTE_LIMIT = 90;
 
 // Human labels for the provenance chip; anything unexpected renders nothing.
+// Kept local (this file deliberately imports nothing from lib) but the words
+// mirror lib/provenanceLabels.ts — seeded content always reads "Demo".
 const PROVENANCE_LABEL: Record<PublicDrop["provenance"], string> = {
   contributor: "Contributor",
   sourced: "Sourced",
   anecdote: "Anecdote",
-  demo: "Sample",
+  demo: "Demo",
 };
 
 function formatPrice(price: number | null): string {

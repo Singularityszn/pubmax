@@ -9,6 +9,8 @@
 
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { type Provenance } from "@/lib/curation";
+// Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
+import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { displayHandle } from "@/lib/handleDisplay";
 import { appendWithSuffix, formatPriceGbp, type Visibility } from "@/lib/spill";
 
@@ -159,12 +161,6 @@ export type SpillPreviewModel = {
   hasPhoto: boolean;
 };
 
-const PROVENANCE_LABEL: Record<Provenance, string> = {
-  sourced: "Sourced",
-  contributor: "Contributor",
-  anecdote: "Anecdote",
-  demo: "Sample",
-};
 
 /** Parse a raw price string into a number, or null when blank/unparseable. */
 function parsePrice(raw: string): number | null {

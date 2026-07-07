@@ -15,6 +15,8 @@ import type { FeedItem, OptimisticSpillState } from "@/lib/feed";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import prefetchVenue from "@/lib/prefetchVenue";
+// Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
+import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
@@ -34,12 +36,6 @@ function formatGbp(price: number): string {
   return `£${price.toFixed(2)}`;
 }
 
-const PROVENANCE_LABEL: Record<string, string> = {
-  sourced: "Sourced",
-  contributor: "Contributor",
-  anecdote: "Anecdote",
-  demo: "Sample",
-};
 
 function feedCardClassName(
   hero: string | undefined,

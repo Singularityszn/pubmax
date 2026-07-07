@@ -2,6 +2,7 @@ import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 
 import { formatPrice, type Venue } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
+import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import {
   computeVenuePriceStory,
   type VenuePriceStamp,
@@ -21,13 +22,6 @@ import "./venuePriceStory.css";
 // contributor / anecdote / demo) so a seeded demo price can never masquerade as
 // real community data. When the venue has no price story at all, an honest
 // empty state renders instead of an empty frame.
-
-const PROVENANCE_LABEL: Record<Provenance, string> = {
-  sourced: "Sourced",
-  contributor: "Contributor",
-  anecdote: "Anecdote",
-  demo: "Demo",
-};
 
 function ProvChip({ provenance }: { provenance: Provenance }) {
   return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
