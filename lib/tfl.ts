@@ -67,6 +67,30 @@ export function dayTypeForDate(d: Date): DayType {
   }
 }
 
+// The hour (London local, 0-23) before which "tonight" still belongs to the
+// PREVIOUS calendar day's service. TfL encodes the tail of a service day with
+// hours that roll past 24 on the PRIOR day's schedule (a 00:28 last train is
+// {hour:24} on the Friday timetable, not a Saturday entry), so the whole
+// early-morning window before the last Night-Tube-ish service must resolve
+// against yesterday's day-type. 4am comfortably clears the latest service
+// (~02:57 Night Tube) with margin.
+export const SERVICE_DAY_ROLLBACK_HOUR = 4;
+
+// The service DAY-TYPE for "now in London". Between midnight and
+// SERVICE_DAY_ROLLBACK_HOUR the still-running trains belong to the previous
+// calendar day's service (see above), so we roll the date back a day before
+// reading its weekday. From ~04:00 onward it's just today's day-type.
+//   Sat 00:15  → "fri"  (Friday's late service is still running)
+//   Sat 21:00  → "sat"  (normal evening, unchanged)
+export function serviceDayTypeForDate(d: Date): DayType {
+  if (d.getHours() < SERVICE_DAY_ROLLBACK_HOUR) {
+    const prev = new Date(d.getTime());
+    prev.setDate(prev.getDate() - 1);
+    return dayTypeForDate(prev);
+  }
+  return dayTypeForDate(d);
+}
+
 // Does a TfL schedule name (e.g. "Monday - Thursday", "Saturday (also Good Friday)")
 // match the given day-type? Case-insensitive substring logic on the weekday words —
 // TfL is inconsistent about phrasing, so we look for the day name(s) rather than an
@@ -183,6 +207,39 @@ const WALKING_KMH = 4.8;
 export function walkMinutesForKm(distanceKm: number): number {
   if (!Number.isFinite(distanceKm) || distanceKm <= 0) return 0;
   return Math.round((distanceKm / WALKING_KMH) * 60);
+}
+
+// Minutes from now until a last train departs, off ACTUAL clock time rather than
+// a static "past midnight" flag. Both inputs are minutes-since-London-midnight of
+// the current service window: `departureMinutes` is the train's wall-clock rank
+// (a 00:28 train after midnight has already rolled to hour<24, so pass its rank
+// as `clockMinutes` and set `pastMidnight` from formatLastJourney), `nowMinutes`
+// is now's rank.
+//
+// The wrap is decided by NOW, not the timetable:
+//   • A departure whose rank is >= now is later today   → minutes = dep - now.
+//   • A past-midnight departure (hour>=24 in TfL's data) sits in the small hours;
+//     when we're still in the evening (now late) it's genuinely tomorrow-early,
+//     so add a day. When we're ALREADY past midnight (now small), it's today and
+//     may have already gone — do NOT add a day.
+//   • A same-service departure earlier than now has already left → negative
+//     minutes (the caller reads that as departed/withdrawn), NOT +1440.
+//
+// The old bug: keying the +1440 off the entry's `pastMidnight` flag meant a
+// 00:30 train, checked at 00:45, reported ~24h left instead of "gone 15m ago".
+export function minutesUntilDeparture(
+  clockMinutes: number,
+  pastMidnight: boolean,
+  nowMinutes: number,
+): number {
+  let mins = clockMinutes - nowMinutes;
+  // Only wrap a past-midnight departure forward a day when NOW is still in the
+  // evening (before the early-hours window it lands in). Once now itself is in
+  // the small hours, that departure is today — a negative result means it's gone.
+  if (pastMidnight && nowMinutes >= SERVICE_DAY_ROLLBACK_HOUR * 60) {
+    mins += 24 * 60;
+  }
+  return mins;
 }
 
 export type LastPintDecisionInput = {

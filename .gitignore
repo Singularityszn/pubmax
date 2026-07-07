@@ -20,6 +20,7 @@ scratch-*.mjs
 
 # Local agent / skill / MCP tooling — never part of the app, machine-specific
 .agents/
+.cursor/
 .claude/
 .mcp.json
 .playwright-mcp/
@@ -27,3 +28,4 @@ skills-lock.json
 skill_disabled.md
 skill_in_pub.md
 skills_used_global.md
+docs/research/*.output

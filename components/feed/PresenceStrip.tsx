@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { displayHandle } from "@/lib/handleDisplay";
+import { relativeTime } from "@/lib/relativeTime";
 
 type PresenceDTO = {
   handle: string;
@@ -21,19 +22,6 @@ type PresenceDTO = {
   venueMapUrl: string;
   at: string;
 };
-
-// Whole-number "n ago" — the same rounding the feed cards use, off a stable
-// timestamp so there's no live ticking / hydration surprise. This strip only
-// mounts client-side (after fetch), so a rough label is fine.
-function relativeTime(at: string): string {
-  const then = Date.parse(at);
-  if (!Number.isFinite(then)) return "";
-  const mins = Math.floor((Date.now() - then) / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  return `${hrs}h ago`;
-}
 
 // `spillingNow` (issue #37): a derived count of drops logged in the last hour,
 // passed in by the host (the feed already read the filtered pint-drops list, so

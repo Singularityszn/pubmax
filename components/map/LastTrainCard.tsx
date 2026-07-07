@@ -103,6 +103,12 @@ export default function LastTrainCard({ lat, lng, venueName, onSelectVenue }: La
 
   const decision = state.status === "ready" ? state.data.decision : undefined;
   const leaveBy = decision ? formatLeaveBy(decision.leaveByIso) : null;
+  // Provenance honesty (H5): "Live from TfL" may only be claimed when at least
+  // one line's departures are genuinely live Arrivals. A station that resolved
+  // on timetable fallback (or with no live vehicle in service) shows scheduled
+  // times, not live ones — say so rather than over-claiming a live feed.
+  const anyLiveDepartures =
+    state.status === "ready" && (state.data.departures ?? []).some((d) => d.live);
 
   return (
     <section aria-label="Last Pint" style={styles.card}>
@@ -201,7 +207,11 @@ export default function LastTrainCard({ lat, lng, venueName, onSelectVenue }: La
         </div>
       ) : null}
 
-      {state.status === "ready" ? <p style={styles.provenance}>Live from TfL.</p> : null}
+      {state.status === "ready" ? (
+        <p style={styles.provenance}>
+          {anyLiveDepartures ? "Live from TfL." : "Scheduled times from TfL — not a live feed."}
+        </p>
+      ) : null}
     </section>
   );
 }

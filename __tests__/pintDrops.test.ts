@@ -67,11 +67,20 @@ function get(venueId?: string): Promise<Response> {
   return GET(new Request(url));
 }
 
-function report(id: string, reason?: string): Promise<Response> {
+// A report carries an optional `actor` (the hashed-anon device id). The per-actor
+// budget is 1 report per drop per window (H1), so distinct actors are REQUIRED to
+// reach REPORT_HIDE_THRESHOLD (2). Callers that want two reports to both land must
+// pass two DIFFERENT actor values.
+function report(id: string, reason?: string, actor?: string): Promise<Response> {
   return POST(
     new Request(URL_BASE, {
       method: "POST",
-      body: JSON.stringify({ action: "report", id, ...(reason ? { reason } : {}) }),
+      body: JSON.stringify({
+        action: "report",
+        id,
+        ...(reason ? { reason } : {}),
+        ...(actor ? { actor } : {}),
+      }),
     }),
   );
 }
@@ -228,7 +237,7 @@ describe("validatePintDrop — vibe tags (server-authoritative allowlist)", () =
 });
 
 describe("GET + moderation", () => {
-  it("lists a created drop, then hides it after report threshold", async () => {
+  it("lists a created drop, then hides it after report threshold (two DISTINCT actors)", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
 
@@ -236,15 +245,15 @@ describe("GET + moderation", () => {
     expect(listed.status).toBe(200);
     expect((await listed.json()).drops).toHaveLength(1);
 
-    const reported = await POST(
-      new Request(URL_BASE, { method: "POST", body: JSON.stringify({ action: "report", id: drop.id }) }),
-    );
+    // First actor reports.
+    const reported = await report(drop.id, undefined, "device-a");
     expect(reported.status).toBe(200);
 
     const afterFirstReport = await get(VENUE);
     expect((await afterFirstReport.json()).drops).toHaveLength(1);
 
-    const secondReport = await report(drop.id);
+    // A DIFFERENT actor reports → threshold (2) reached → hidden.
+    const secondReport = await report(drop.id, undefined, "device-b");
     expect(secondReport.status).toBe(200);
 
     const afterThreshold = await get(VENUE);
@@ -290,13 +299,13 @@ describe("moderation loop", () => {
   it("records reportedAt + reportCount and hides at report threshold", async () => {
     const id = await createDrop();
 
-    const res = await report(id, "wrong price");
+    const res = await report(id, "wrong price", "device-a");
     expect(res.status).toBe(200);
 
     // First report records metadata but does not let one actor take down content.
     expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
 
-    const hidden = await report(id);
+    const hidden = await report(id, undefined, "device-b");
     expect(hidden.status).toBe(200);
 
     // Gone from the public list after the threshold.
@@ -313,8 +322,8 @@ describe("moderation loop", () => {
 
   it("restores a reported drop back to the public list", async () => {
     const id = await createDrop();
-    await report(id);
-    await report(id);
+    await report(id, undefined, "device-a");
+    await report(id, undefined, "device-b");
 
     const restored = await modAction("restore", id);
     expect(restored.status).toBe(200);
@@ -326,8 +335,8 @@ describe("moderation loop", () => {
 
   it("keeps a drop hidden after keep_hidden", async () => {
     const id = await createDrop();
-    await report(id);
-    await report(id);
+    await report(id, undefined, "device-a");
+    await report(id, undefined, "device-b");
 
     const kept = await modAction("keep_hidden", id);
     expect(kept.status).toBe(200);

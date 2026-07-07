@@ -44,10 +44,11 @@
 
 import {
   computeLastPintDecision,
-  dayTypeForDate,
   formatLastJourney,
   lineColour,
   matchesDayType,
+  minutesUntilDeparture,
+  serviceDayTypeForDate,
   walkMinutesForKm,
   type DayType,
   type LastTrain,
@@ -464,7 +465,11 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const now = londonNow();
-  const dayType = dayTypeForDate(now);
+  // Service-day rollback (C1): between midnight and ~04:00 the still-running
+  // trains belong to the PREVIOUS calendar day's service (TfL encodes them as
+  // hour>=24 on the prior day's schedule). Resolve the timetable against that
+  // service day-type, not the raw weekday, or we drop the real last train.
+  const dayType = serviceDayTypeForDate(now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   // 2) Unique serving lines, capped, resolved concurrently.
@@ -520,12 +525,15 @@ export async function GET(request: Request): Promise<Response> {
   const walkMinutesEstimate = walkMinutesForKm(walkKm);
 
   // Minutes until the last train that matters: the LATEST across all resolved
-  // lines (any one of them gets the drinker home), measured from "now".
+  // lines (any one of them gets the drinker home), measured from "now" by ACTUAL
+  // clock time (C2). minutesUntilDeparture wraps a past-midnight train forward
+  // only while we're still in the evening — a train that has already left tonight
+  // reads negative (departed/withdrawn), never ~24h ahead.
   let minutesUntilLastTrain: number | null = null;
   for (const t of trains) {
     const [h, m] = t.clock.split(":").map(Number);
-    let mins = h * 60 + m - nowMinutes;
-    if (t.pastMidnight || mins < -60) mins += 24 * 60; // past-midnight trains are "tomorrow"
+    const clockMinutes = h * 60 + m;
+    const mins = minutesUntilDeparture(clockMinutes, t.pastMidnight, nowMinutes);
     if (minutesUntilLastTrain === null || mins > minutesUntilLastTrain) minutesUntilLastTrain = mins;
   }
 
@@ -537,6 +545,11 @@ export async function GET(request: Request): Promise<Response> {
     disruptionOnNeededLine: lineIds.some((id) => disruption.affectedLineIds.has(id)),
     disruptionSummary: disruption.summary,
     destinationLabel,
+    // `live` here means "TfL was reachable" (drives live_data_unavailable), and
+    // it is — we resolved a station and a last-train time. The card's "Live from
+    // TfL" provenance label is a SEPARATE, honest signal driven by whether any
+    // departures are genuinely live Arrivals (anyLiveDepartures), carried on the
+    // response's `departures[].live` and read by the card (H5).
     live: true,
     now: new Date(),
   });

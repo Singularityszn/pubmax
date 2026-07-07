@@ -309,7 +309,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               }}
             >
               <div style={{ width: 40, height: 2, background: BRASS, marginRight: 16 }} />
-              pubmaxing.app
+              pubmaxxing.com
             </div>
           </div>
         </div>

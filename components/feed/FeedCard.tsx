@@ -9,6 +9,7 @@ import { computeChaosScore } from "@/lib/chaosScore";
 import type { FeedItem } from "@/lib/feed";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
+import { relativeTime } from "@/lib/relativeTime";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
 // canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
@@ -25,25 +26,6 @@ const REACTION_META: Record<ReactionKey, { label: string; emoji: string }> = {
 
 function formatGbp(price: number): string {
   return `£${price.toFixed(2)}`;
-}
-
-// Whole-number "n ago" relative time. Server and first client render must agree,
-// so this is only ever called in render off a stable createdAt; roughness (no
-// live ticking) is fine for a feed timestamp and avoids a hydration mismatch.
-function relativeTime(createdAt: string): string {
-  const then = Date.parse(createdAt);
-  if (!Number.isFinite(then)) return "";
-  const diffMs = Date.now() - then;
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `${weeks}w ago`;
-  return new Date(then).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 }
 
 const PROVENANCE_LABEL: Record<string, string> = {

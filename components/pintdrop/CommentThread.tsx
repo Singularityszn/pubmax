@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { displayHandle } from "@/lib/handleDisplay";
 import { subscribeToComments } from "@/lib/realtime";
+import { relativeTime } from "@/lib/relativeTime";
 
 // The comment thread under a Pint Drop — where a drop's story continues after
 // the night (cc_plan2 §4), now with one-level THREADED replies (issue #37) and
@@ -56,21 +57,6 @@ function writeStoredHandle(handle: string): void {
     // Storage full / denied — best-effort persistence; the in-memory value the
     // user typed still drives this session.
   }
-}
-
-// Whole-number "n ago" relative time — matches the feed card's format. Only ever
-// called in render off a stable createdAt.
-function relativeTime(createdAt: string): string {
-  const then = Date.parse(createdAt);
-  if (!Number.isFinite(then)) return "";
-  const mins = Math.floor((Date.now() - then) / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(then).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 }
 
 export default function CommentThread({ dropId }: { dropId: string }) {

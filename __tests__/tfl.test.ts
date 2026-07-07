@@ -4,6 +4,8 @@ import {
   LINE_COLOURS,
   lineColour,
   dayTypeForDate,
+  serviceDayTypeForDate,
+  minutesUntilDeparture,
   matchesDayType,
   formatLastJourney,
   computeLastPintDecision,
@@ -274,5 +276,60 @@ describe("computeLastPintDecision", () => {
     const result = computeLastPintDecision({ ...baseInput, minutesUntilLastTrain: 60 });
     expect(result.destinationLabel).toBeNull();
     expect(result.live).toBe(true);
+  });
+});
+
+// --- C1: service-day rollback (00:00–04:00 belongs to the previous day) -------
+// serviceDayTypeForDate reads LOCAL hours (mirroring lib route's londonNow()),
+// so we build Dates with the local-time constructor for determinism across CI TZ.
+describe("serviceDayTypeForDate — before ~04:00 resolves to the previous service day", () => {
+  it("00:15 Saturday picks Friday's late service (the still-running trains)", () => {
+    // 2026-07-11 is a Saturday; 00:15 local is still Friday night's service.
+    const sat0015 = new Date(2026, 6, 11, 0, 15);
+    expect(dayTypeForDate(sat0015)).toBe("sat"); // raw weekday would be wrong
+    expect(serviceDayTypeForDate(sat0015)).toBe("fri"); // rolled back correctly
+  });
+
+  it("a normal Saturday evening is unchanged (still 'sat')", () => {
+    const sat2100 = new Date(2026, 6, 11, 21, 0);
+    expect(serviceDayTypeForDate(sat2100)).toBe("sat");
+  });
+
+  it("just before 04:00 still rolls back, at/after 04:00 does not", () => {
+    // Sunday 2026-07-12: 03:59 is still Saturday's service, 04:00 is Sunday's.
+    expect(serviceDayTypeForDate(new Date(2026, 6, 12, 3, 59))).toBe("sat");
+    expect(serviceDayTypeForDate(new Date(2026, 6, 12, 4, 0))).toBe("sun");
+  });
+
+  it("rolls a Sunday 00:30 back to Saturday", () => {
+    expect(serviceDayTypeForDate(new Date(2026, 6, 12, 0, 30))).toBe("sat");
+  });
+});
+
+// --- C2: minutes-until-departure keyed on ACTUAL now, not a static flag -------
+describe("minutesUntilDeparture — wrap decided by now, not the timetable flag", () => {
+  it("a 00:30 past-midnight train, checked at 00:45, reads as DEPARTED (negative), not ~24h", () => {
+    // now = 00:45 (45 min after midnight), departure = 00:30 (30), pastMidnight=true.
+    const mins = minutesUntilDeparture(30, true, 45);
+    expect(mins).toBe(-15); // gone 15 minutes ago — NOT +1425
+    expect(mins).toBeLessThan(0);
+  });
+
+  it("a 00:30 past-midnight train, checked in the evening at 23:00, is ~1.5h away", () => {
+    // now = 23:00 (1380), departure rank 30, pastMidnight=true -> wraps forward a day.
+    const mins = minutesUntilDeparture(30, true, 23 * 60);
+    expect(mins).toBe(30 + 24 * 60 - 23 * 60); // 90 minutes
+    expect(mins).toBe(90);
+  });
+
+  it("a normal evening train later tonight is a simple positive delta (unchanged)", () => {
+    // now = 22:00 (1320), departure 23:42 (1422), not past midnight.
+    const mins = minutesUntilDeparture(23 * 60 + 42, false, 22 * 60);
+    expect(mins).toBe(102);
+  });
+
+  it("an evening train that already left tonight reads negative (not wrapped forward)", () => {
+    // now = 22:30, departure 22:00, same service, not past midnight.
+    expect(minutesUntilDeparture(22 * 60, false, 22 * 60 + 30)).toBe(-30);
   });
 });

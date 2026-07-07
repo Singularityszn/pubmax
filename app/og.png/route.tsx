@@ -223,7 +223,7 @@ export async function GET() {
                 marginRight: 18,
               }}
             />
-            pubmaxing.app
+            pubmaxxing.com
           </div>
         </div>
       </div>

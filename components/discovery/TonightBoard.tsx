@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { displayHandle } from "@/lib/handleDisplay";
+import { relativeTime } from "@/lib/relativeTime";
 import { formatPrice } from "@/lib/venues";
 import type { TonightEntry } from "@/lib/leaderboard";
 
@@ -17,23 +18,6 @@ type TonightBoardProps = {
   caption?: string;
 };
 
-// Whole-number "n ago" relative time — matches the feed card's format. Every
-// tonight entry is inside 24h so this only ever lands in the just-now/m/h band,
-// but the fuller ladder is kept so a clock skew can't produce a broken label.
-// Called only in render off a stable createdAt (no live ticking) so server and
-// first client render agree — no hydration mismatch.
-function relativeTime(createdAt: string): string {
-  const then = Date.parse(createdAt);
-  if (!Number.isFinite(then)) return "";
-  const diffMs = Date.now() - then;
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
 
 export default function TonightBoard({
   entries,

@@ -213,16 +213,29 @@ export async function POST(request: Request): Promise<Response> {
     // Rate-limit reports on two axes so neither a single actor nor a crowd can
     // spam a drop's report counter:
     //   • per-drop  (`report:<id>`)                — caps total report volume;
-    //   • per-actor (`report:<id>:<actorHash>`)    — the SAME actor can't
-    //     report the SAME drop repeatedly (audit gap: was per-drop only).
+    //   • per-actor (`report:<id>:<actorHash>`)    — the SAME actor gets EXACTLY
+    //     ONE report per drop per window. This is the correctness fix for H1:
+    //     the hide threshold is 2 (lib/pintDrops REPORT_HIDE_THRESHOLD), so a
+    //     per-actor budget above 1 let a single actor cross it alone (two POSTs
+    //     → hidden). Capping the per-actor budget at 1 means two DIFFERENT
+    //     actors are required to reach the threshold; a same-actor second report
+    //     on the same drop is rejected here before it touches the counter.
     // The actor is the same hashed anon id used by reactions/comments
     // (hashActor over the client `actor` field; a blank id hashes a shared
     // "anon" sentinel, matching the sitewide degradation). Falling back to the
     // hashed IP keeps a per-actor cap even when no actor id is supplied.
     const actorHash = hashActor(readString(fields.actor) || `ip:${hashIp(clientIp(request))}`);
+    // Per-actor-per-drop budget of 1: limit=1 means the first report passes and
+    // any second within the window is rejected (isLimited returns true when the
+    // window's hit count EXCEEDS the limit).
+    const REPORT_PER_ACTOR_LIMIT = 1;
     if (
       (await isLimited(`report:${id}`, `report:${id}`)) ||
-      (await isLimited(`report:${id}:${actorHash}`, `report:${id}:${actorHash}`))
+      (await isLimited(
+        `report:${id}:${actorHash}`,
+        `report:${id}:${actorHash}`,
+        REPORT_PER_ACTOR_LIMIT,
+      ))
     ) {
       return Response.json({ error: "Too many reports, slow down." }, { status: 429 });
     }

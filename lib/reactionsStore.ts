@@ -59,6 +59,14 @@ function isForeignKeyViolation(error: { code?: string } | null): boolean {
   return error?.code === "23503";
 }
 
+// A concurrent double-insert of the same (drop, actor, reaction) trips the
+// unique constraint (Postgres 23505). It is NOT an error for a toggle: it means
+// the actor's reaction already exists, so we treat it as idempotent success and
+// recompute the summary rather than surfacing a spurious 503.
+function isUniqueViolation(error: { code?: string } | null): boolean {
+  return error?.code === "23505";
+}
+
 // Fold raw (reaction, actor_hash) rows for a single drop into a summary.
 function summarizeRows(
   rows: { reaction: string; actor_hash: string }[],
@@ -103,7 +111,11 @@ export const supabaseReactionsStore: ReactionsStore = {
         // A reaction on a drop that isn't in visit_reports (demo seed) — tell the
         // caller so it can 404 rather than 500.
         if (isForeignKeyViolation(error)) throw new UnknownDropError(dropId);
-        throw new Error(error.message);
+        // Concurrent double-insert lost the unique race (23505): the row now
+        // exists, which is exactly the state a toggle-on wanted. Treat as
+        // idempotent success and fall through to recompute the summary — never a
+        // spurious 503 (H3).
+        if (!isUniqueViolation(error)) throw new Error(error.message);
       }
     }
 
