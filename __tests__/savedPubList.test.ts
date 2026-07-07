@@ -9,6 +9,7 @@ describe("SavedPubList", () => {
   it("renders custom saved-pub groups instead of only the built-in list names", () => {
     const html = renderToStaticMarkup(
       createElement(SavedPubList, {
+        ownerHandle: "sam",
         groups: {
           "my locals": [
             {
@@ -24,6 +25,7 @@ describe("SavedPubList", () => {
     );
 
     expect(html).toContain("my locals");
+    expect(html).toContain('href="/u/sam/lists/my%20locals"');
     expect(html).toContain("The Test Arms");
     expect(html).toContain('href="/map?sel=venue-1"');
   });

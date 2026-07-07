@@ -464,7 +464,11 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               )}
             </section>
 
-            <SavedPubList groups={saved} followedLists={followedLists} />
+            <SavedPubList
+              ownerHandle={isYouRoute ? myHandle : routeHandle}
+              groups={saved}
+              followedLists={followedLists}
+            />
           </>
         )}
       </main>

@@ -387,6 +387,14 @@
   font-size: 1.2rem;
 }
 
+.profilePage .savedListNameLink {
+  color: inherit;
+}
+
+.profilePage .savedListNameLink:hover {
+  color: var(--accent);
+}
+
 .profilePage .savedListCount {
   color: var(--muted);
   font-size: 0.8rem;

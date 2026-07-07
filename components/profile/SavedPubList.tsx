@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import EmptyState from "@/components/EmptyState";
+import { normalizeHandle } from "@/lib/profiles";
 import {
   LIST_TYPES,
   type FollowedSavedListDTO,
@@ -17,6 +18,7 @@ import {
 // each list heading. Lists with no pubs are skipped; a fully-empty state shows a
 // friendly hint.
 type SavedPubListProps = {
+  ownerHandle?: string;
   groups: Partial<Record<ListType, SavedPubDTO[]>>;
   followedLists?: FollowedSavedListDTO[];
 };
@@ -25,7 +27,12 @@ function formatCount(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-export default function SavedPubList({ groups, followedLists = [] }: SavedPubListProps) {
+export default function SavedPubList({
+  ownerHandle,
+  groups,
+  followedLists = [],
+}: SavedPubListProps) {
+  const owner = normalizeHandle(ownerHandle);
   // Render built-ins in canonical order, then any custom list names the handle has
   // actually used. Custom lists are first-class B3 list names, not filtered out.
   const builtIns = LIST_TYPES.filter((t) => (groups[t]?.length ?? 0) > 0);
@@ -66,7 +73,16 @@ export default function SavedPubList({ groups, followedLists = [] }: SavedPubLis
             return (
               <div className="savedList" key={listType}>
                 <h3 className="savedListName">
-                  {listType}
+                  {owner ? (
+                    <Link
+                      className="savedListNameLink"
+                      href={`/u/${encodeURIComponent(owner)}/lists/${encodeURIComponent(listType)}`}
+                    >
+                      {listType}
+                    </Link>
+                  ) : (
+                    listType
+                  )}
                   <span className="savedListCount" aria-hidden="true">
                     {" "}
                     · {pubs.length}
