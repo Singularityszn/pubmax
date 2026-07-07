@@ -738,6 +738,16 @@ export default function PubMapCanvas({
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     mapRef.current = map;
 
+    // The upstream OpenFreeMap styles reference sprite images we never render
+    // at our zoom/layers (liberty's "wood-pattern"), and MapLibre warns on
+    // every miss. Feed any missing id a 1x1 transparent pixel so the console
+    // stays quiet without shipping the real texture.
+    map.on("styleimagemissing", (event: { id: string }) => {
+      if (!map.hasImage(event.id)) {
+        map.addImage(event.id, { width: 1, height: 1, data: new Uint8Array(4) });
+      }
+    });
+
     // Rebuilds the whole scene from theme tokens. Runs on first load and after
     // every theme-driven setStyle (style.load fires for both).
     //
@@ -775,6 +785,15 @@ export default function PubMapCanvas({
       const addLayerOnce = (...args: Parameters<typeof map.addLayer>) => {
         if (!map.getLayer(args[0].id)) map.addLayer(...args);
       };
+
+      // Label font for OUR symbol layers. Glyphs come from the active style's
+      // glyph server, and OpenFreeMap serves ONLY the Noto Sans stack — any
+      // other name (the old "Open Sans Semibold, Arial Unicode MS Bold") 404s
+      // every glyph range and drops to slow client-side rendering. Noto Sans
+      // has no Semibold, so Bold is the closest weight. The CARTO fallback
+      // style's glyph server has no Noto Sans Bold; Montserrat Medium is its
+      // closest served weight.
+      const textFont = [usingFallback ? "Montserrat Medium" : "Noto Sans Bold"];
 
       // --- Sky + fog: horizon depth in both moods.
       map.setSky({
@@ -888,7 +907,7 @@ export default function PubMapCanvas({
           "symbol-placement": "line",
           "symbol-spacing": 420,
           "text-field": ["get", "line"],
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-font": textFont,
           "text-size": 9.5,
           "text-letter-spacing": 0.02,
           visibility: tubeVisibility,
@@ -926,7 +945,7 @@ export default function PubMapCanvas({
           "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.5, 13, 0.82, 16, 1],
           "icon-allow-overlap": true,
           "text-field": ["get", "name"],
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-font": textFont,
           "text-size": 10.5,
           "text-letter-spacing": 0.04,
           "text-offset": [0, 1.4],
@@ -984,7 +1003,7 @@ export default function PubMapCanvas({
         filter: poiFilter(poiHiddenRef.current, TRANSPORT_CATEGORIES),
         layout: {
           "text-field": ["get", "name"],
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-font": textFont,
           "text-size": 10,
           "text-offset": [0, 1.1],
           "text-anchor": "top",
@@ -1018,7 +1037,7 @@ export default function PubMapCanvas({
         filter: poiFilter(poiHiddenRef.current, AMBIENT_CATEGORIES),
         layout: {
           "text-field": ["get", "name"],
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-font": textFont,
           "text-size": 10,
           "text-offset": [0, 0.9],
           "text-anchor": "top",
@@ -1232,7 +1251,7 @@ export default function PubMapCanvas({
         filter: ["has", "point_count"],
         layout: {
           "text-field": ["get", "point_count_abbreviated"],
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-font": textFont,
           "text-size": ["step", ["get", "point_count"], 12, 25, 13, 100, 15],
           "text-letter-spacing": 0.02,
         },
@@ -1264,7 +1283,7 @@ export default function PubMapCanvas({
         source: "route-stops",
         layout: {
           "text-field": ["get", "label"],
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-font": textFont,
           "text-size": 13,
           "text-allow-overlap": true,
         },
