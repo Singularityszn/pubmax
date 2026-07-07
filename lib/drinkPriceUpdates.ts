@@ -19,7 +19,13 @@
 // instead of poisoning the drinks layer.
 
 import type { Provenance } from "@/lib/curation";
-import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import {
+  alcoholTypeForDrink,
+  isDrinkCategory,
+  type Drink,
+  type DrinkCategory,
+  type DrinkProvenance,
+} from "@/lib/drinks";
 
 // One attributed drink-price observation from a permissible source. `venueKey`
 // is the canonical grouping key (lib/venues.ts venueGroupingKey) so an update
@@ -30,6 +36,11 @@ export type DrinkPriceUpdate = {
   drinkName: string;
   category: DrinkCategory;
   priceGbp: number;
+  producer?: string;
+  abv?: number;
+  style?: string;
+  region?: string;
+  servingSize?: string;
   source: { label: string; url: string; licence: string };
   observedAt: string; // ISO-8601
 };
@@ -71,6 +82,14 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function isValidOptionalString(value: unknown): boolean {
+  return value === undefined || isNonEmptyString(value);
+}
+
+function isValidOptionalAbv(value: unknown): boolean {
+  return value === undefined || (isFiniteNumber(value) && value >= 0 && value <= 100);
+}
+
 // http(s) URL guard — a first-party source must be a real link the UI can
 // attribute to. Rejects anything that isn't an absolute http(s) URL.
 function isHttpUrl(value: unknown): value is string {
@@ -102,6 +121,11 @@ export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()
   // A price must be a finite, non-negative number. 0 is allowed (free-drink
   // promo) but a negative price is nonsense.
   if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) return false;
+  if (!isValidOptionalString(row.producer)) return false;
+  if (!isValidOptionalAbv(row.abv)) return false;
+  if (!isValidOptionalString(row.style)) return false;
+  if (!isValidOptionalString(row.region)) return false;
+  if (!isValidOptionalString(row.servingSize)) return false;
   const source = row.source;
   if (typeof source !== "object" || source === null) return false;
   const src = source as Record<string, unknown>;
@@ -119,6 +143,80 @@ export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()
 // two rows for the same venue + drink + category collapse to the newest.
 function rowKey(venueKey: string, drinkName: string, category: string): string {
   return `${venueKey}\u0000${drinkName.toLowerCase()}\u0000${category.toLowerCase()}`;
+}
+
+function updateProvenance(update: DrinkPriceUpdate): DrinkProvenance {
+  return {
+    source: update.source.label,
+    licence: update.source.licence,
+    observedAt: update.observedAt,
+  };
+}
+
+function stableDrinkId(update: DrinkPriceUpdate): string {
+  const input = `${update.venueKey}\u0000${update.category}\u0000${update.drinkName}`;
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `drink-${(hash >>> 0).toString(36)}`;
+}
+
+export function drinkFromPriceUpdate(update: DrinkPriceUpdate): Drink {
+  return {
+    id: stableDrinkId(update),
+    category: update.category,
+    name: update.drinkName,
+    producer: update.producer,
+    abv: update.abv,
+    alcoholType: alcoholTypeForDrink({ name: update.drinkName, abv: update.abv }),
+    style: update.style,
+    region: update.region,
+    servingSize: update.servingSize,
+    priceGbp: update.priceGbp,
+    provenance: updateProvenance(update),
+  };
+}
+
+export function applyDrinkPriceUpdatesToMenu(
+  venueKey: string,
+  existingDrinks: Drink[],
+  updates: DrinkPriceUpdate[],
+): Drink[] {
+  const scoped = updates.filter((update) => update.venueKey === venueKey);
+  if (scoped.length === 0) return existingDrinks;
+  const byKey = new Map(
+    scoped.map((update) => [rowKey(update.venueKey, update.drinkName, update.category), update] as const),
+  );
+  const used = new Set<string>();
+
+  const merged = existingDrinks.map((drink) => {
+    const key = rowKey(venueKey, drink.name, drink.category);
+    const update = byKey.get(key);
+    if (!update) return drink;
+    used.add(key);
+    return {
+      ...drink,
+      priceGbp: update.priceGbp,
+      provenance: updateProvenance(update),
+      producer: update.producer ?? drink.producer,
+      abv: update.abv ?? drink.abv,
+      alcoholType: alcoholTypeForDrink({
+        name: update.drinkName,
+        abv: update.abv ?? drink.abv,
+      }),
+      style: update.style ?? drink.style,
+      region: update.region ?? drink.region,
+      servingSize: update.servingSize ?? drink.servingSize,
+    };
+  });
+
+  for (const update of scoped) {
+    const key = rowKey(update.venueKey, update.drinkName, update.category);
+    if (!used.has(key)) merged.push(drinkFromPriceUpdate(update));
+  }
+  return merged;
 }
 
 // Parse a raw drink_price_updates file body → clean DrinkPriceUpdate[]. Accepts

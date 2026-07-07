@@ -39,6 +39,16 @@ function fabricatedPrice(id: string, name: string, priceGbp: number | null): Ven
   } as VenuePrice;
 }
 
+function prospectPrice(id: string, name: string, priceGbp: number | null): VenuePrice {
+  return {
+    ...fabricatedPrice(id, name, priceGbp),
+    pub_name: "Prospect of Whitby",
+    address: "57 Wapping Wall, E1W 3SH",
+    latitude: 51.5071,
+    longitude: -0.0511255,
+  };
+}
+
 describe("venueMenuForInspector", () => {
   it("returns beer first then seeded non-beer drinks for a seeded venue", () => {
     const prices = [
@@ -77,5 +87,24 @@ describe("venueMenuForInspector", () => {
     const menu = venueMenuForInspector({ id: "venue-not-seeded", prices });
 
     expect(menu).toEqual([]);
+  });
+
+  it("applies demo drink-price overlays to the real Prospect menu", () => {
+    const menu = venueMenuForInspector({
+      id: SEEDED_VENUE_ID,
+      prices: [prospectPrice("p1", "Amstel", 6.1)],
+    });
+
+    const luckySaint = menu.find((drink) => drink.name === "Lucky Saint 0.5%");
+    expect(luckySaint).toBeDefined();
+    expect(luckySaint!.category).toBe("beer");
+    expect(luckySaint!.priceGbp).toBe(4.6);
+    expect(luckySaint!.alcoholType).toBe("low-no");
+    expect(luckySaint!.provenance.source).toBe("PUBMAXXING demo menu fixture");
+
+    const oldFashioned = menu.find((drink) => drink.name === "Wapping Old Fashioned");
+    expect(oldFashioned).toBeDefined();
+    expect(oldFashioned!.priceGbp).toBe(10.95);
+    expect(oldFashioned!.provenance.source).toBe("PUBMAXXING demo menu fixture");
   });
 });

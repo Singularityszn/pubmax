@@ -38,6 +38,15 @@ describe("venueDrinkMenu", () => {
     expect(menu.find((d) => d.id === "s1")!.provenance.source).toBe("seed");
   });
 
+  it("marks low/no legacy pint rows from conservative name matching", () => {
+    const menu = venueDrinkMenu(
+      "v1",
+      [{ app_price_id: "na1", pint_name: "Lucky Saint 0.5%", price_gbp: 4.6 }],
+      () => [],
+    );
+    expect(menu[0].alcoholType).toBe("low-no");
+  });
+
   it("returns only beer when a venue has no seeded menu", () => {
     const menu = venueDrinkMenu("v1", PRICES, () => []);
     expect(menu.every((d) => d.category === "beer")).toBe(true);

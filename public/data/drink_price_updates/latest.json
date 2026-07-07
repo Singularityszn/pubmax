@@ -1,6 +1,53 @@
 {
-  "$comment": "EXAMPLE drink-price-update file. Shipped EMPTY on purpose: real prices may only be added from verified PERMISSIBLE first-party sources (see data/price_sources.json drinkSources), and the flagship source (Wetherspoons) is currently a documented STUB — no live network fetch/parse has been implemented or verified against robots.txt/ToS. Presenting an unverified price as live would violate governance ('never present stale as live'). The refresh script (scripts/refresh_drink_prices.mjs) writes real files of this exact shape once a real per-source parser lands.",
+  "$comment": "DEMO drink-price-update file. Real prices may only be added from verified PERMISSIBLE first-party sources (see data/price_sources.json drinkSources). These rows are first-party PUBMAXXING demo fixtures for UI coverage and are labelled as demo in the menu, never live venue prices. The refresh script (scripts/refresh_drink_prices.mjs) writes real files of this exact shape once a real per-source parser lands.",
   "version": 1,
   "generatedAt": "2026-07-07T00:00:00.000Z",
-  "updates": []
+  "updates": [
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Lucky Saint 0.5%",
+      "category": "beer",
+      "priceGbp": 4.6,
+      "producer": "Lucky Saint",
+      "abv": 0.5,
+      "style": "Low-alcohol lager",
+      "servingSize": "330ml bottle",
+      "source": {
+        "label": "PUBMAXXING demo menu fixture",
+        "url": "https://pubmaxx.vercel.app/data/drink_price_updates/latest.json",
+        "licence": "First-party demo fixture for UI coverage; not a live venue price."
+      },
+      "observedAt": "2026-07-06T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Elderflower Spritz 0.0",
+      "category": "cocktail",
+      "priceGbp": 5.2,
+      "abv": 0,
+      "style": "Alcohol-free spritz",
+      "servingSize": "highball",
+      "source": {
+        "label": "PUBMAXXING demo menu fixture",
+        "url": "https://pubmaxx.vercel.app/data/drink_price_updates/latest.json",
+        "licence": "First-party demo fixture for UI coverage; not a live venue price."
+      },
+      "observedAt": "2026-07-06T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Wapping Old Fashioned",
+      "category": "cocktail",
+      "priceGbp": 10.95,
+      "abv": 32,
+      "style": "Bourbon, bitters, orange",
+      "servingSize": "single",
+      "source": {
+        "label": "PUBMAXXING demo menu fixture",
+        "url": "https://pubmaxx.vercel.app/data/drink_price_updates/latest.json",
+        "licence": "First-party demo fixture for UI coverage; not a live venue price."
+      },
+      "observedAt": "2026-07-06T12:00:00.000Z"
+    }
+  ]
 }

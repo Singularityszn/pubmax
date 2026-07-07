@@ -1,3 +1,5 @@
+import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
+
 // The all-drinks data model (PRD E1 — "extend, do not fork"). A venue today
 // carries `prices: VenuePrice[]` — cheapest-pint beer rows. This module
 // generalises that to a `Drink` across every category (wine, whisky, gin,
@@ -42,6 +44,8 @@ export type DrinkProvenance = {
   observedAt: string;
 };
 
+export type AlcoholType = "alcoholic" | "low-no" | "unknown";
+
 // A rating rollup for a drink. Deliberately optional and minimal here — the
 // full Bayesian/percentile aggregation is E3 (lib/ratings.ts). E1 only needs a
 // place to hang a summary so the menu can show a star line when one exists;
@@ -62,6 +66,7 @@ export type Drink = {
   // Alcohol by volume, percent (e.g. 4.5). Optional — honestly unknown when
   // absent, never defaulted to 0.
   abv?: number;
+  alcoholType?: AlcoholType;
   style?: string;
   region?: string;
   // Free-text serving size ("pint", "175ml glass", "25ml", "double") — kept a
@@ -104,6 +109,16 @@ export function isDrinkCategory(value: unknown): value is DrinkCategory {
 
 export function categoryLabel(category: DrinkCategory): string {
   return CATEGORY_META[category].label;
+}
+
+export function alcoholTypeForDrink(input: {
+  name: string;
+  abv?: number;
+}): AlcoholType {
+  if (typeof input.abv === "number" && Number.isFinite(input.abv)) {
+    return input.abv <= 0.5 ? "low-no" : "alcoholic";
+  }
+  return isNonAlcoholicDrink(input.name) ? "low-no" : "unknown";
 }
 
 // ── Grouping ─────────────────────────────────────────────────────────────────
@@ -168,6 +183,7 @@ export function legacyPricesToDrinks(
       category: "beer",
       name: price.pint_name || "Pint",
       servingSize: "pint",
+      alcoholType: alcoholTypeForDrink({ name: price.pint_name || "Pint" }),
       priceGbp: price.price_gbp,
       provenance: {
         source: "app-dataset",

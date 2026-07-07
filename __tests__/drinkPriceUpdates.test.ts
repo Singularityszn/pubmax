@@ -3,10 +3,13 @@ import {
   isValidDrinkPriceUpdate,
   parseDrinkPriceUpdates,
   mergeDrinkPriceUpdates,
+  drinkFromPriceUpdate,
+  applyDrinkPriceUpdatesToMenu,
   DRINK_PRICE_UPDATE_PROVENANCE,
   type DrinkPriceUpdate,
   type DrinkMenuRow,
 } from "@/lib/drinkPriceUpdates";
+import type { Drink } from "@/lib/drinks";
 
 const NOW = Date.parse("2026-07-07T12:00:00.000Z");
 
@@ -61,6 +64,16 @@ describe("isValidDrinkPriceUpdate", () => {
     expect(isValidDrinkPriceUpdate(makeUpdate({ priceGbp: -1 }), NOW)).toBe(false);
     expect(isValidDrinkPriceUpdate({ ...makeUpdate(), priceGbp: NaN }, NOW)).toBe(false);
     expect(isValidDrinkPriceUpdate({ ...makeUpdate(), priceGbp: Infinity }, NOW)).toBe(false);
+  });
+
+  it("rejects malformed optional metadata", () => {
+    expect(isValidDrinkPriceUpdate(makeUpdate({ producer: "Adnams", abv: 0.5 }), NOW)).toBe(true);
+    expect(isValidDrinkPriceUpdate({ ...makeUpdate(), producer: "" }, NOW)).toBe(false);
+    expect(isValidDrinkPriceUpdate({ ...makeUpdate(), style: "" }, NOW)).toBe(false);
+    expect(isValidDrinkPriceUpdate({ ...makeUpdate(), region: "" }, NOW)).toBe(false);
+    expect(isValidDrinkPriceUpdate({ ...makeUpdate(), servingSize: "" }, NOW)).toBe(false);
+    expect(isValidDrinkPriceUpdate({ ...makeUpdate(), abv: -0.1 }, NOW)).toBe(false);
+    expect(isValidDrinkPriceUpdate({ ...makeUpdate(), abv: 101 }, NOW)).toBe(false);
   });
 
   it("requires a labelled, http(s), LICENCED source (governance: source+licence+observedAt)", () => {
@@ -242,5 +255,74 @@ describe("mergeDrinkPriceUpdates precedence", () => {
     const row: ExtendedRow = { ...makeRow(), drinkId: "abc123" };
     const [merged] = mergeDrinkPriceUpdates([row], [makeUpdate()], keyFor);
     expect(merged.drinkId).toBe("abc123");
+  });
+});
+
+describe("drink menu materialisation from updates", () => {
+  function makeDrink(overrides: Partial<Drink> = {}): Drink {
+    return {
+      id: "drink-doom-bar",
+      category: "beer",
+      name: "Doom Bar",
+      priceGbp: 6.5,
+      servingSize: "pint",
+      provenance: {
+        source: "app-dataset",
+        licence: "first-party",
+        observedAt: "2026-07-01T12:00:00.000Z",
+      },
+      ...overrides,
+    };
+  }
+
+  it("turns an update into a stable Drink with provenance and low/no classification", () => {
+    const drink = drinkFromPriceUpdate(
+      makeUpdate({
+        drinkName: "Lucky Saint 0.5%",
+        priceGbp: 4.6,
+        producer: "Lucky Saint",
+        abv: 0.5,
+        style: "Low-alcohol lager",
+        servingSize: "330ml bottle",
+      }),
+    );
+
+    expect(drink.id).toMatch(/^drink-/);
+    expect(drink.name).toBe("Lucky Saint 0.5%");
+    expect(drink.priceGbp).toBe(4.6);
+    expect(drink.alcoholType).toBe("low-no");
+    expect(drink.provenance).toEqual({
+      source: "J D Wetherspoon — official site",
+      licence: "All rights reserved — first-party publisher, attributed use only.",
+      observedAt: "2026-07-01T00:00:00.000Z",
+    });
+  });
+
+  it("updates matching menu drinks and appends new drinks for the same venue", () => {
+    const venueKey = "the test arms|1 test street|51.50000|-0.10000";
+    const menu = applyDrinkPriceUpdatesToMenu(
+      venueKey,
+      [makeDrink()],
+      [
+        makeUpdate({ drinkName: "Doom Bar", priceGbp: 4.99 }),
+        makeUpdate({
+          drinkName: "Lucky Saint 0.5%",
+          priceGbp: 4.6,
+          producer: "Lucky Saint",
+          abv: 0.5,
+        }),
+        makeUpdate({
+          venueKey: "elsewhere|1 test street|51.50000|-0.10000",
+          drinkName: "Ignored",
+          priceGbp: 1,
+        }),
+      ],
+    );
+
+    expect(menu).toHaveLength(2);
+    expect(menu.find((d) => d.name === "Doom Bar")!.priceGbp).toBe(4.99);
+    expect(menu.find((d) => d.name === "Doom Bar")!.id).toBe("drink-doom-bar");
+    expect(menu.find((d) => d.name === "Lucky Saint 0.5%")!.alcoholType).toBe("low-no");
+    expect(menu.some((d) => d.name === "Ignored")).toBe(false);
   });
 });

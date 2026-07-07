@@ -1,4 +1,4 @@
-import type { Drink, DrinkCategory } from "@/lib/drinks";
+import { alcoholTypeForDrink, type Drink, type DrinkCategory } from "@/lib/drinks";
 
 // Seeded demo drink menus for the curated heritage pubs (see lib/curation.ts +
 // lib/pintDropSeeds.ts for the venue keys/ids). They exist so a venue's Menu
@@ -331,6 +331,7 @@ export const demoDrinks: Drink[] = seeds.map((seed) => ({
   name: seed.name,
   producer: seed.producer,
   abv: seed.abv,
+  alcoholType: alcoholTypeForDrink({ name: seed.name, abv: seed.abv }),
   style: seed.style,
   region: seed.region,
   servingSize: seed.servingSize,

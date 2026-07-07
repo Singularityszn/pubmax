@@ -59,14 +59,16 @@ A bare top-level array (`[ {…update…}, … ]`) is also accepted by the loade
   always wins over a sourced update — this layer only fills in absent a live
   community signal.
 
-## Why this example is empty
+## Why this file contains demo rows
 
 The flagship permissible source named in the PRD — Wetherspoons' own site — is
 currently a **documented stub** in `scripts/refresh_drink_prices.mjs`
 (`fetchFromDrinkSource`): no live network fetch/parse has shipped because doing
 so responsibly requires first confirming robots.txt/ToS allow it and pinning a
 stable per-pub parse target (see the `notes` field on the `wetherspoons-official`
-entry in `data/price_sources.json`). Rather than ship an unverified (and
-therefore governance-violating) price, this example file ships with
-`"updates": []`. A scheduled run of the refresh script is a safe no-op until a
-real parser lands.
+entry in `data/price_sources.json`).
+
+`latest.json` therefore contains only first-party **PUBMAXXING demo fixture**
+rows for menu UI coverage. They are labelled as demo in the app and must not be
+presented as live venue prices. A scheduled run of the refresh script remains a
+safe no-op until a real parser lands.
