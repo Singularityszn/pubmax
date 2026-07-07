@@ -78,6 +78,19 @@ export function toLedgerEntry(drop: LedgerSourceDrop): LedgerEntry {
   };
 }
 
+// The shared body behind both public builders below: map every drop to an
+// entry, drop the ones with nothing to show (no note and no price → empty
+// note), newest first. Kept private and un-exported on purpose — the two named
+// exports exist precisely so a call site commits to WHICH list it's building
+// (public logbook vs. legacy family lane); routing everyone through one public
+// function would defeat that guard. See buildFamilyTableEntries' note.
+function composeEntries(drops: LedgerSourceDrop[]): LedgerEntry[] {
+  return drops
+    .map(toLedgerEntry)
+    .filter((entry) => entry.note.length > 0)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 /**
  * Compose the full ledger: every drop with something to show (a note or a
  * price), newest first. Pure — no IO, no clock reads — so it is unit-testable
@@ -86,10 +99,7 @@ export function toLedgerEntry(drop: LedgerSourceDrop): LedgerEntry {
  * claim never renders.
  */
 export function buildLedgerEntries(drops: LedgerSourceDrop[]): LedgerEntry[] {
-  return drops
-    .map(toLedgerEntry)
-    .filter((entry) => entry.note.length > 0)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return composeEntries(drops);
 }
 
 // ── The Family Table (issue #27) ──────────────────────────────────────────
@@ -111,10 +121,7 @@ export type FamilyTableEntry = LedgerEntry;
  * public list in here and call it "the family table".
  */
 export function buildFamilyTableEntries(drops: LedgerSourceDrop[]): FamilyTableEntry[] {
-  return drops
-    .map(toLedgerEntry)
-    .filter((entry) => entry.note.length > 0)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return composeEntries(drops);
 }
 
 // ── One-tap share-with-family (issue #27) ─────────────────────────────────
