@@ -3622,3 +3622,50 @@ html[data-legacy="1"] .textured-panel::before {
     display: none;
   }
 }
+
+/* ── View Transitions (IDEAS B4) ─────────────────────────────────────────────
+   Tasteful, SHORT crossfade between map ↔ feed ↔ venue and every other
+   App-Router route swap. Enabled by experimental.viewTransition in
+   next.config.mjs, which wraps each client navigation in the browser's
+   startViewTransition(): the browser snapshots the old page and the new page
+   into the ::view-transition-old/new pseudo-elements, and these rules simply
+   crossfade between them. No shared-element choreography (no viewTransitionName
+   anywhere) — the whole-page snapshot fades, which sidesteps the WebGL-canvas
+   snapshot jank called out in B4 (the map canvas is inside the fading snapshot,
+   never a persisted named element).
+
+   Progressive enhancement, three ways: (1) browsers without the View
+   Transitions API never create these pseudo-elements, so navigation stays
+   exactly today's instant swap; (2) the whole block is inside a
+   prefers-reduced-motion: no-preference guard, so reduced-motion users get no
+   animation; (3) durations reach for the shared motion tokens
+   (--duration-base 0.15s / --ease-out), keeping it inside the DESIGN_SYSTEM
+   motion language rather than inlining fresh numbers. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    /* Crossfade only — no slide/scale. Kept ~150ms per the B4 brief. */
+    animation-duration: var(--duration-base);
+    animation-timing-function: var(--ease-out);
+  }
+
+  ::view-transition-old(root) {
+    animation-name: pubmax-vt-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: pubmax-vt-fade-in;
+  }
+
+  @keyframes pubmax-vt-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes pubmax-vt-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+}

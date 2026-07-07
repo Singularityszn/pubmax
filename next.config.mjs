@@ -91,6 +91,19 @@ const nextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  experimental: {
+    // IDEAS B4 — View Transitions between map ↔ feed ↔ venue. In Next 16 this
+    // flag makes App Router route navigations activate the browser's
+    // View Transitions API automatically (each Link navigation is wrapped in
+    // startViewTransition), so a root-level `::view-transition-old/new`
+    // crossfade in globals.css animates page swaps with ZERO per-element
+    // shared-element choreography (no <ViewTransition> wrappers, no
+    // viewTransitionName). Pure progressive enhancement: browsers without the
+    // View Transitions API ignore the pseudo-elements and React falls back to
+    // today's instant swap; prefers-reduced-motion users get no animation via
+    // the media guard on those rules. See app/globals.css "View Transitions".
+    viewTransition: true,
+  },
   env: {
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,

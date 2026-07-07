@@ -108,6 +108,44 @@ export default function RootLayout({
             out for this one intentional case. */}
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="/theme-init.js" />
+        {/* IDEAS B5 — Speculation Rules: declaratively prerender the LIKELY next
+            page while the user browses the explore-London loop, so tapping
+            through borough/discover surfaces is instant. Conservative by design:
+              - eagerness "moderate" (hover/pointerdown intent) for prerender, so
+                the browser only spends bandwidth/compute on links the user is
+                actually about to click — avoids the over-prerendering + early
+                analytics/side-effect risk flagged in B5.
+              - candidates are href-prefix scoped to same-origin, GET-only,
+                static-ish surfaces: /borough/* (borough chapters), /crawls,
+                /discover. EXPLICITLY excludes /map (heavy WebGL — a prerendered
+                MapLibre canvas is wasteful and janky) and every route with side
+                effects (auth, composer, /api).
+            This is a JSON data block, NOT executable JavaScript: the browser
+            parses it as speculation rules, never runs it. CSP: it is governed by
+            script-src, and our policy already allows 'unsafe-inline' there (see
+            next.config.mjs), so no CSP change is needed. Unsupported browsers
+            ignore an unknown script type entirely → pure progressive
+            enhancement, zero behaviour change where it isn't understood. */}
+        <script
+          type="speculationrules"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              prerender: [
+                {
+                  source: "list",
+                  urls: ["/crawls", "/discover"],
+                  eagerness: "moderate",
+                },
+                {
+                  where: {
+                    href_matches: "/borough/*",
+                  },
+                  eagerness: "moderate",
+                },
+              ],
+            }),
+          }}
+        />
       </head>
       <body>
         {/* AuthProvider is additive: it establishes identity for signed-in users
