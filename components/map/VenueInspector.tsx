@@ -18,6 +18,8 @@ import VenuePriceStory from "@/components/map/VenuePriceStory";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import DrinkMenu from "@/components/drinks/DrinkMenu";
+import { venueMenuForInspector } from "@/lib/venueMenu";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
@@ -26,11 +28,12 @@ import "./accessibilityFilters.css";
 // sections (most PUBMAXXERs are on a phone while travelling). Pints is the
 // primary tab. "getting-home" is a placeholder slot the orchestrator fills with
 // a transport card built by another agent — we only render its mount point here.
-type TabKey = "overview" | "pints" | "story" | "ask" | "getting-home";
+type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-home";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "pints", label: "Pints" },
+  { key: "menu", label: "Menu" },
   { key: "story", label: "Story" },
   { key: "ask", label: "Ask" },
   { key: "getting-home", label: "Getting home" },
@@ -134,6 +137,7 @@ export default function VenueInspector({
   const tabRefs = useRef<Record<TabKey, HTMLButtonElement | null>>({
     overview: null,
     pints: null,
+    menu: null,
     story: null,
     ask: null,
     "getting-home": null,
@@ -184,6 +188,10 @@ export default function VenueInspector({
   // facets render nothing — never a "No" — per the provenance-honesty rule.
   const accessChips = accessibilityChipLabels(venue);
   const quietHours = quietHoursLabel(venue);
+
+  // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
+  // drinks) — see lib/venueMenu.ts for the composition seam.
+  const menuDrinks = useMemo(() => venueMenuForInspector(venue), [venue]);
 
   return (
     <section className="venueInspector">
@@ -473,6 +481,17 @@ export default function VenueInspector({
             </div>
           )}
         </section>
+      </div>
+
+      {/* Menu — the full drink list beyond pints (wine, whisky, gin, cocktails…). */}
+      <div
+        role="tabpanel"
+        id="venuePanel-menu"
+        aria-labelledby="venueTab-menu"
+        className="venueTabPanel"
+        hidden={tab !== "menu"}
+      >
+        <DrinkMenu drinks={menuDrinks} venueName={venue.name} />
       </div>
 
       {/* Story — description / heritage note + provenance-stamped claims. */}

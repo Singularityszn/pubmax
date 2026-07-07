@@ -105,13 +105,13 @@ test.describe("map / story bands (#15)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Venue sheet tabs (components/map/VenueInspector.tsx). Five tabs (Overview,
-// Pints, Story, Ask, Getting home) behind role="tablist"/role="tab", with
+// Venue sheet tabs (components/map/VenueInspector.tsx). Six tabs (Overview,
+// Pints, Menu, Story, Ask, Getting home) behind role="tablist"/role="tab", with
 // roving-tabindex arrow-key navigation per the APG tabs pattern. Deep-link
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
 // never depends on a canvas pin click.
 test.describe("map / venue sheet tabs", () => {
-  test("all five tabs render; each switches its panel; Pints shows the price block", async ({
+  test("all six tabs render; each switches its panel; Pints shows the price block", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -122,9 +122,9 @@ test.describe("map / venue sheet tabs", () => {
     const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
     await expect(tablist).toBeVisible();
 
-    const expectedTabs = ["Overview", "Pints", "Story", "Ask", "Getting home"];
+    const expectedTabs = ["Overview", "Pints", "Menu", "Story", "Ask", "Getting home"];
     const tabs = tablist.getByRole("tab");
-    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveCount(6);
     for (const label of expectedTabs) {
       await expect(tablist.getByRole("tab", { name: label, exact: true })).toBeVisible();
     }
@@ -140,7 +140,7 @@ test.describe("map / venue sheet tabs", () => {
 
     // Switch to every other tab by click; assert its panel becomes visible and
     // the others are hidden (aria-selected flips, hidden attr flips).
-    for (const label of ["Overview", "Story", "Ask", "Getting home"]) {
+    for (const label of ["Overview", "Menu", "Story", "Ask", "Getting home"]) {
       const tab = tablist.getByRole("tab", { name: label, exact: true });
       await tab.click();
       await expect(tab).toHaveAttribute("aria-selected", "true");
@@ -159,13 +159,13 @@ test.describe("map / venue sheet tabs", () => {
     await expect(pintsTab).toHaveAttribute("aria-selected", "true");
     await pintsTab.focus();
 
-    // ArrowRight from Pints (index 1) moves to Story (index 2) and moves focus
+    // ArrowRight from Pints (index 1) moves to Menu (index 2) and moves focus
     // with it (roving tabindex — VenueInspector's selectTab calls .focus()).
     await page.keyboard.press("ArrowRight");
-    const storyTab = tablist.getByRole("tab", { name: "Story", exact: true });
-    await expect(storyTab).toHaveAttribute("aria-selected", "true");
-    await expect(storyTab).toBeFocused();
-    await expect(page.locator("#venuePanel-story")).toBeVisible();
+    const menuTab = tablist.getByRole("tab", { name: "Menu", exact: true });
+    await expect(menuTab).toHaveAttribute("aria-selected", "true");
+    await expect(menuTab).toBeFocused();
+    await expect(page.locator("#venuePanel-menu")).toBeVisible();
 
     // ArrowLeft moves back to Pints.
     await page.keyboard.press("ArrowLeft");
