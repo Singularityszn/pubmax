@@ -22,14 +22,15 @@ export default defineConfig({
       // surfaces where a regression actually breaks the app. UI components are
       // excluded; they're covered by the Playwright E2E suite instead.
       include: ["lib/**", "app/api/**"],
-      // Regression gate, not a target. Thresholds are floored to the nearest 5%
-      // below the current numbers so CI stays green today (measured: lines
-      // 69.96%, functions 74.75%, statements 66.86%). Ratchet up over time as
-      // coverage improves — the point is to PREVENT a drop, not to chase 100%.
+      // Regression gate, not a target. Thresholds sit ~2% under the measured
+      // numbers so CI stays green today (2026-07-07: lines 74.03%, functions
+      // 77.43%, statements 71.04% — up from 69.96/74.75/66.86 at first gate).
+      // RATCHET RULE: thresholds only ever rise; re-floor them after each wave
+      // that lands fully-tested pure libs. The point is to PREVENT a drop.
       thresholds: {
-        lines: 65,
-        functions: 70,
-        statements: 65,
+        lines: 72,
+        functions: 75,
+        statements: 69,
       },
     },
   },
