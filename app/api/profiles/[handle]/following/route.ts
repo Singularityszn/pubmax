@@ -7,6 +7,7 @@
 // handle or a backend hiccup degrades to an empty list so the feed still renders
 // (the Friends lane just falls through to its "follow people" empty state).
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import { normalizeHandle } from "@/lib/profiles";
 import { memoryFollowStore, supabaseFollowStore, type FollowStore } from "@/lib/followStore";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -22,14 +23,14 @@ export async function GET(
   const handle = normalizeHandle((await params).handle);
   // An empty handle has no follow graph — return the empty list, not a 400, so
   // the feed's fetch has one uniform shape to read.
-  if (!handle) return Response.json({ following: [] }, { status: 200 });
+  if (!handle) return jsonNoStore({ following: [] }, { status: 200 });
 
   try {
     const following = await store().listFollowing(handle);
-    return Response.json({ following }, { status: 200 });
+    return jsonNoStore({ following }, { status: 200 });
   } catch {
     // Fail-soft: a backend error must not break the feed. The Friends lane will
     // simply show its "follow people" empty state.
-    return Response.json({ following: [] }, { status: 200 });
+    return jsonNoStore({ following: [] }, { status: 200 });
   }
 }

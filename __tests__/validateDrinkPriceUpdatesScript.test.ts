@@ -29,7 +29,7 @@ function setupScratch(files: Record<string, unknown>): string {
   // Copy the real script (unmodified) and the real bundled datasets it also
   // validates, so the run reflects production data validation end-to-end.
   cpSync(SCRIPT, join(scratchScripts, "validate-data.mjs"));
-  for (const f of ["london_pois.json", "tfl_lines.json", "pint_prices_app_dataset.json"]) {
+  for (const f of ["london_pois.json", "tfl_lines.json", "pint_prices_app_dataset.json", "venues_slim.json"]) {
     cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
   }
   const drinkDir = join(scratchData, "drink_price_updates");
@@ -164,5 +164,36 @@ describe("validate-data.mjs drink-price-update extension", () => {
     const { code, stdout } = runValidate(scriptsDir);
     expect(code).toBe(1);
     expect(stdout).toContain("could not read/parse");
+  });
+});
+
+describe("validate-data.mjs slim venue index validation", () => {
+  it("validates the shipped slim venue artifact against the full pint dataset", () => {
+    const scriptsDir = setupScratch({});
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).toBe(0);
+    expect(stdout).toContain("PASS public/data/venues_slim.json");
+  });
+
+  it("FAILS when the slim index does not match the full dataset ids", () => {
+    const scriptsDir = setupScratch({});
+    writeFileSync(
+      join(scriptsDir, "..", "public", "data", "venues_slim.json"),
+      JSON.stringify([
+        {
+          id: "venue-not-real",
+          name: "Imaginary Arms",
+          lat: 51.5,
+          lng: -0.1,
+          cheapestPrice: 5,
+          borough: "Camden",
+        },
+      ]),
+      "utf8",
+    );
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).toBe(1);
+    expect(stdout).toContain("FAIL public/data/venues_slim.json");
+    expect(stdout).toContain("id is not present in rebuilt full-dataset index");
   });
 });

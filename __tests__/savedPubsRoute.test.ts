@@ -23,6 +23,10 @@ const URL_BASE = "http://localhost/api/saved-pubs";
 let REAL_VENUE_ID = "";
 let REAL_VENUE_NAME = "";
 
+function expectNoStore(res: Response): void {
+  expect(res.headers.get("Cache-Control")).toBe("no-store");
+}
+
 beforeAll(async () => {
   const index = await getVenueIndex();
   const [id, ref] = [...index.entries()][0];
@@ -50,12 +54,14 @@ describe("GET /api/saved-pubs", () => {
   it("returns an empty list when neither handle nor actor is given", async () => {
     const res = await list("");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ saved: [] });
   });
 
   it("returns an empty list for a handle that has saved nothing", async () => {
     const res = await list("handle=nobody");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ saved: [] });
   });
 
@@ -63,6 +69,7 @@ describe("GET /api/saved-pubs", () => {
     await post({ handle: "Ale", venueId: REAL_VENUE_ID, listType: "Cheap Pint" });
     // Handle is normalized ("Ale" → "ale"), so either casing reads the same list.
     const res = await list("handle=ale");
+    expectNoStore(res);
     const { saved } = await res.json();
     expect(saved).toHaveLength(1);
     expect(saved[0].venueId).toBe(REAL_VENUE_ID);
@@ -82,6 +89,7 @@ describe("POST /api/saved-pubs (toggle)", () => {
   it("toggles a save ON then OFF for the same (handle, venue, list)", async () => {
     const on = await post({ handle: "ale", venueId: REAL_VENUE_ID, listType: "Want to Visit" });
     expect(on.status).toBe(200);
+    expectNoStore(on);
     expect((await on.json()).saved).toHaveLength(1);
 
     const off = await post({ handle: "ale", venueId: REAL_VENUE_ID, listType: "Want to Visit" });

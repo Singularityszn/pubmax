@@ -12,6 +12,7 @@
 // cryptographic privacy — see app/api/messages/route.ts + migration 0019.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import { messagesStore } from "@/lib/messagesStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -26,14 +27,14 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   const handle = normalizeHandle(new URL(request.url).searchParams.get("handle") ?? "");
-  if (!handle) return Response.json({ error: "Add your handle." }, { status: 400 });
+  if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
 
   const messages = await messagesStore().listMessages(id, handle);
   // null = not a participant (or unknown conversation) → 404, never a leak.
   if (messages === null) {
-    return Response.json({ error: "Conversation not found." }, { status: 404 });
+    return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
   }
-  return Response.json({ messages }, { status: 200 });
+  return jsonNoStore({ messages }, { status: 200 });
 }
 
 export async function POST(request: Request, { params }: Ctx): Promise<Response> {
@@ -42,43 +43,43 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const action = readString(body.action);
   const handle = normalizeHandle(readString(body.handle) ?? "");
-  if (!handle) return Response.json({ error: "Add your handle." }, { status: 400 });
+  if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
 
   const store = messagesStore();
 
   if (action === "report") {
     const messageId = readString(body.messageId);
-    if (!messageId) return Response.json({ error: "Missing message id." }, { status: 400 });
+    if (!messageId) return jsonNoStore({ error: "Missing message id." }, { status: 400 });
     // Gate the report on participation too: only someone in the conversation can
     // flag its messages. A non-participant read returns null → 404.
     const thread = await store.listMessages(id, handle);
     if (thread === null) {
-      return Response.json({ error: "Conversation not found." }, { status: 404 });
+      return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
     }
     const flagged = await store.report(id, messageId, handle);
-    return Response.json({ flagged }, { status: 200 });
+    return jsonNoStore({ flagged }, { status: 200 });
   }
 
   if (action === "send") {
     const key = `msg-send:${handle}:${hashIp(clientIp(request))}`;
     if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
-      return Response.json({ error: "Too many messages, slow down." }, { status: 429 });
+      return jsonNoStore({ error: "Too many messages, slow down." }, { status: 429 });
     }
     const messageBody = readString(body.body);
-    if (!messageBody) return Response.json({ error: "Write a message." }, { status: 400 });
+    if (!messageBody) return jsonNoStore({ error: "Write a message." }, { status: 400 });
     // store.send re-runs the participant check on the conversation, so a
     // non-participant sender is rejected (null → 404) without a separate lookup.
     const message = await store.send(id, handle, messageBody);
     if (!message) {
-      return Response.json({ error: "Conversation not found." }, { status: 404 });
+      return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
     }
-    return Response.json({ message }, { status: 201 });
+    return jsonNoStore({ message }, { status: 201 });
   }
 
-  return Response.json({ error: "Unknown action." }, { status: 400 });
+  return jsonNoStore({ error: "Unknown action." }, { status: 400 });
 }

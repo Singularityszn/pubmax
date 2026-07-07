@@ -23,6 +23,10 @@ import { __resetMemoryProfiles } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/profiles";
 
+function expectNoStore(res: Response): void {
+  expect(res.headers.get("Cache-Control")).toBe("no-store");
+}
+
 // The route's second arg is `{ params: Promise<{ handle }> }` (Next 15 async
 // params). Build a real resolved Promise so we exercise the exact signature.
 function following(handle: string): Promise<Response> {
@@ -44,6 +48,7 @@ describe("GET /api/profiles/[handle]/following", () => {
 
     const res = await following("ken");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     const body = await res.json();
     // Order isn't part of the contract — compare as a set.
     expect(new Set(body.following)).toEqual(new Set(["sam", "lee"]));
@@ -57,12 +62,14 @@ describe("GET /api/profiles/[handle]/following", () => {
 
     const res = await following("ken");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ following: [] });
   });
 
   it("returns { following: [] } for an unknown handle with no profile at all", async () => {
     const res = await following("ghost");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ following: [] });
   });
 

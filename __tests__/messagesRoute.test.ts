@@ -17,6 +17,10 @@ import { __resetMemoryMessages } from "@/lib/messagesStore";
 
 const BASE = "http://localhost/api/messages";
 
+function expectNoStore(res: Response): void {
+  expect(res.headers.get("Cache-Control")).toBe("no-store");
+}
+
 function getInbox(query?: string): Promise<Response> {
   return GET_INBOX(new Request(query ? `${BASE}?${query}` : BASE));
 }
@@ -43,6 +47,7 @@ describe("GET /api/messages — inbox", () => {
   it("returns an empty inbox for a missing handle (never 500)", async () => {
     const res = await getInbox();
     expect(res.status).toBe(200);
+    expectNoStore(res);
     expect(await res.json()).toEqual({ conversations: [] });
   });
 });
@@ -69,6 +74,7 @@ describe("POST /api/messages — open + send validation", () => {
   it("send opens-if-needed, stores the message (201), and rejects a blank body", async () => {
     const sent = await postInbox({ action: "send", handle: "ken", other: "sam", body: "hi sam" });
     expect(sent.status).toBe(201);
+    expectNoStore(sent);
     const payload = await sent.json();
     expect(payload.message.body).toBe("hi sam");
 
@@ -91,6 +97,7 @@ describe("GET /api/messages/[id] — participant gating (the leak test)", () => 
     const id = await seed();
     const res = await getThread(id, "handle=sam");
     expect(res.status).toBe(200);
+    expectNoStore(res);
     const body = await res.json();
     expect(body.messages.map((m: { body: string }) => m.body)).toEqual(["secret"]);
   });
@@ -99,6 +106,7 @@ describe("GET /api/messages/[id] — participant gating (the leak test)", () => 
     const id = await seed();
     const res = await getThread(id, "handle=mallory");
     expect(res.status).toBe(404);
+    expectNoStore(res);
     expect(await res.json()).not.toHaveProperty("messages");
   });
 
@@ -131,6 +139,7 @@ describe("POST /api/messages/[id] — send + report gating", () => {
 
     const ok = await postThread(id, { action: "report", handle: "sam", messageId });
     expect(ok.status).toBe(200);
+    expectNoStore(ok);
     expect((await ok.json()).flagged).toBe(true);
 
     const leak = await postThread(id, { action: "report", handle: "mallory", messageId });
