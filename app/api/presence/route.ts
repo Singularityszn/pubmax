@@ -12,7 +12,7 @@
 // the "Live tonight" strip degrades to nothing rather than a broken band.
 
 import { isLimited } from "@/lib/pintDrops";
-import { markPresence, recentPresence } from "@/lib/presenceStore";
+import { markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 
 function readString(value: unknown): string {
@@ -53,10 +53,11 @@ export async function POST(request: Request): Promise<Response> {
 
 export async function GET(request: Request): Promise<Response> {
   const venueId = new URL(request.url).searchParams.get("venueId") ?? undefined;
-  // recentPresence is itself fail-soft (returns [] on any error), so the reader
-  // never 500s — but keep a belt-and-braces guard so a surprise still 200s empty.
+  // recentPresenceWithAmbient is itself fail-soft (returns [] on any error) and
+  // appends the deterministic demo layer ONLY when Supabase is absent, so the
+  // reader never 500s — but keep a belt-and-braces guard so a surprise 200s empty.
   try {
-    const presence = await recentPresence(venueId || undefined);
+    const presence = await recentPresenceWithAmbient(venueId || undefined);
     return Response.json({ presence }, { status: 200 });
   } catch {
     return Response.json({ presence: [] }, { status: 200 });

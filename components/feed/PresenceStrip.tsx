@@ -21,6 +21,9 @@ type PresenceDTO = {
   venueName: string;
   venueMapUrl: string;
   at: string;
+  // Set ONLY on seeded ambient demo rows (lib/ambientPresence) — real taps never
+  // carry it. Rendered as the shared honest "Demo" chip, matching feed/drinks.
+  provenance?: "demo";
 };
 
 // `spillingNow` (issue #37): a derived count of drops logged in the last hour,
@@ -75,6 +78,11 @@ export default function PresenceStrip({ spillingNow = 0 }: { spillingNow?: numbe
                 {p.venueName}
               </Link>
               {ago ? <span className="presenceAgo">· {ago}</span> : null}
+              {p.provenance === "demo" ? (
+                <span className="presenceDemoChip" title="Seeded example presence">
+                  Demo
+                </span>
+              ) : null}
             </li>
           );
         })}

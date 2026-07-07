@@ -15,10 +15,13 @@ export type PresenceInput = {
 
 // The PUBLIC presence shape. NO actor_hash — it never leaves the server. The
 // venue is surfaced as a human name + a map link, never the raw id.
+// `provenance` is set ONLY on seeded ambient demo rows (lib/ambientPresence) so
+// the strip can render the shared Demo chip — real taps never carry it.
 export type PresenceDTO = {
   handle: string;
   venueId: string;
   venueName: string;
   venueMapUrl: string;
   at: string;
+  provenance?: "demo";
 };

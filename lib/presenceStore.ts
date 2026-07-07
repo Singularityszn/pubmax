@@ -13,6 +13,7 @@
 // fail-soft: an outage yields [] so the "Live tonight" strip degrades to nothing
 // rather than a broken band.
 
+import { ambientPresenceRows } from "@/lib/ambientPresence";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { PRESENCE_TTL_MS, type PresenceDTO, type PresenceInput } from "@/lib/presence";
@@ -193,6 +194,42 @@ export async function recentPresence(
       err instanceof Error ? err.message : err,
     );
     return [];
+  }
+}
+
+/**
+ * Recent presence PLUS the deterministic ambient DEMO layer (PRD next-wave P2)
+ * — the read the public route serves. Two hard rules:
+ *
+ * - Supabase configured → REAL presence only, byte-for-byte recentPresence().
+ *   Ambient demo rows never mix into (or override) live data.
+ * - Fallback (memory/demo) → real in-process taps first, then ambient rows from
+ *   lib/ambientPresence (time-of-day curve, seeded PRNG), each tagged
+ *   provenance:"demo" so the strip renders the honest Demo chip. A real tap at
+ *   the same (handle, venue) wins over its ambient twin. Capped at MAX_PRESENCE.
+ */
+export async function recentPresenceWithAmbient(
+  venueId?: string,
+  now = Date.now(),
+): Promise<PresenceDTO[]> {
+  const real = await recentPresence(venueId, now);
+  if (isSupabaseConfigured()) return real;
+
+  try {
+    const scoped = venueId ? clean(venueId, MAX_VENUE_ID) : undefined;
+    const seen = new Set(real.map((row) => `${row.handle}|${row.venueId}`));
+    const ambient = (await enrich(ambientPresenceRows(new Date(now), scoped)))
+      .filter((row) => !seen.has(`${row.handle}|${row.venueId}`))
+      .map((row): PresenceDTO => ({ ...row, provenance: "demo" }));
+    return [...real, ...ambient].slice(0, MAX_PRESENCE);
+  } catch (err) {
+    // Fail-soft like every other presence read: an ambient hiccup must never
+    // break the real rows.
+    console.warn(
+      "[presence] ambient layer failed (real rows only):",
+      err instanceof Error ? err.message : err,
+    );
+    return real;
   }
 }
 

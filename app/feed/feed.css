@@ -251,6 +251,22 @@
   font-size: 0.8rem;
 }
 
+/* Honest provenance chip on seeded ambient presence rows (lib/ambientPresence)
+   — the shared dashed/muted Demo idiom (docs/DESIGN_SYSTEM.md, matches
+   .drinkProvChip.demo), so demo liveliness never masquerades as a real tap. */
+.presenceDemoChip {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 1px 7px;
+  border: 1px dashed var(--muted, #8a8577);
+  border-radius: 999px;
+  color: var(--muted, #8a8577);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 /* ── Filter chips ─────────────────────────────────────────────────────── */
 .feedFilters {
   width: 100%;
