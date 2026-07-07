@@ -1,10 +1,17 @@
 /* Activity feed (story 34) — a quiet, readable list of social events. Reuses the
    app's tokens; nothing bespoke beyond layout + the unread accent. */
 
+/* Full-width shell: the nav renders here at natural width (never inside the
+   640px column, which wrapped its link row into overlapping lines); the shell
+   owns the page gutters + bottom clearance so the column stays flush with it. */
+.activityShell {
+  margin: 0 auto;
+  padding: 20px 16px 96px;
+}
+
 .activity {
   max-width: 640px;
   margin: 0 auto;
-  padding: 0 16px 96px;
 }
 
 .activityHead {

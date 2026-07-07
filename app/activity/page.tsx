@@ -134,68 +134,75 @@ export default function ActivityPage(): React.JSX.Element {
   }, [load]);
 
   return (
-    <main className="activity">
+    // The nav lives OUTSIDE the 640px-capped <main> (same shape as the other
+    // pages' full-width shells) — nesting it inside the narrow column wrapped
+    // the link row into three overlapping lines on desktop.
+    <div className="activityShell">
       <SiteNav />
 
-      <header className="activityHead">
-        <h1>Activity</h1>
-        <p className="activitySub">Who followed you, reacted, commented, or saved your crawl.</p>
-      </header>
+      <main className="activity">
+        <header className="activityHead">
+          <h1>Activity</h1>
+          <p className="activitySub">Who followed you, reacted, commented, or saved your crawl.</p>
+        </header>
 
-      {!handleReady || loading ? (
-        <p className="activityLoading" role="status">
-          Loading your activity…
-        </p>
-      ) : !handle.trim() ? (
-        <EmptyState
-          eyebrow="Activity"
-          title="Claim a handle to see your activity"
-          body="Drop a pint to set a handle — then follows, reactions, comments, and crawl saves show up here."
-          action={
-            <Link href="/map" className="activityCta">
-              Open the map
-            </Link>
-          }
-        />
-      ) : failed ? (
-        <EmptyState
-          title="Couldn't load your activity"
-          body="Something went wrong reaching the server. Try again in a moment."
-          role="alert"
-        />
-      ) : items.length === 0 ? (
-        <EmptyState
-          eyebrow="Activity"
-          title="Nothing yet"
-          body="When people follow you, react to your Pint Drops, comment, or save your crawls, it shows up here."
-          action={
-            <Link href="/feed" className="activityCta">
-              Browse the feed
-            </Link>
-          }
-        />
-      ) : (
-        <ul className="activityList">
-          {items.map((n) => {
-            const href = subjectHref(n);
-            return (
-              <li key={n.id} className={n.read ? "activityItem" : "activityItem isUnread"}>
-                <Link href={`/u/${encodeURIComponent(n.actorHandle)}`} className="activityActor">
-                  @{n.actorHandle}
-                </Link>{" "}
-                <span className="activityVerb">{verb(n.kind)}</span>
-                {n.subjectLabel ? <span className="activitySubject"> — {n.subjectLabel}</span> : null}
-                <span className="activityTime"> · {timeAgo(n.createdAt)}</span>
-                {href ? (
-                  <Link href={href} className="activityLink">
-                    View
-                  </Link>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </main>
+        {!handleReady || loading ? (
+          <p className="activityLoading" role="status">
+            Loading your activity…
+          </p>
+        ) : !handle.trim() ? (
+          <EmptyState
+            eyebrow="Activity"
+            title="Claim a handle to see your activity"
+            body="Drop a pint to set a handle — then follows, reactions, comments, and crawl saves show up here."
+            action={
+              <Link href="/map?log=1" className="activityCta">
+                Drop a pint
+              </Link>
+            }
+          />
+        ) : failed ? (
+          <EmptyState
+            title="Couldn't load your activity"
+            body="Something went wrong reaching the server. Try again in a moment."
+            role="alert"
+          />
+        ) : items.length === 0 ? (
+          <EmptyState
+            eyebrow="Activity"
+            title="Nothing yet"
+            body="When people follow you, react to your Pint Drops, comment, or save your crawls, it shows up here."
+            action={
+              <Link href="/feed" className="activityCta">
+                Browse the feed
+              </Link>
+            }
+          />
+        ) : (
+          <ul className="activityList">
+            {items.map((n) => {
+              const href = subjectHref(n);
+              return (
+                <li key={n.id} className={n.read ? "activityItem" : "activityItem isUnread"}>
+                  <Link href={`/u/${encodeURIComponent(n.actorHandle)}`} className="activityActor">
+                    @{n.actorHandle}
+                  </Link>{" "}
+                  <span className="activityVerb">{verb(n.kind)}</span>
+                  {n.subjectLabel ? (
+                    <span className="activitySubject"> — {n.subjectLabel}</span>
+                  ) : null}
+                  <span className="activityTime"> · {timeAgo(n.createdAt)}</span>
+                  {href ? (
+                    <Link href={href} className="activityLink">
+                      View
+                    </Link>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </main>
+    </div>
   );
 }
