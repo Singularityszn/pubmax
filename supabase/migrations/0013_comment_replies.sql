@@ -41,35 +41,15 @@ create index if not exists pint_drop_comments_parent_created_idx
   on public.pint_drop_comments (parent_id, created_at asc);
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- REALTIME PUBLICATION — the integrator/user must run these (no MCP this
--- session, so this migration ships the SQL but does NOT apply it).
+-- REALTIME PUBLICATION — moved to 0014_realtime_publication.sql.
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Supabase Realtime only emits `postgres_changes` for tables that belong to the
 -- `supabase_realtime` publication. lib/realtime.ts subscribes to INSERTs on
 -- `pint_drop_comments` (live replies) and `visit_reports` (live drop pins/feed);
 -- until these tables are added to the publication, no realtime events fire and
--- the client silently uses its polling fallback. Run once, in the SQL editor /
--- via CLI, wrapped so re-running is safe:
---
---   do $$
---   begin
---     if not exists (
---       select 1 from pg_publication_tables
---       where pubname = 'supabase_realtime'
---         and schemaname = 'public' and tablename = 'pint_drop_comments'
---     ) then
---       alter publication supabase_realtime add table public.pint_drop_comments;
---     end if;
---     if not exists (
---       select 1 from pg_publication_tables
---       where pubname = 'supabase_realtime'
---         and schemaname = 'public' and tablename = 'visit_reports'
---     ) then
---       alter publication supabase_realtime add table public.visit_reports;
---     end if;
---   end $$;
---
--- Privacy note: adding these tables to the publication does NOT widen what a
--- reader sees. The raw INSERT row is never rendered — lib/realtime.ts treats
--- events as bare signals and refetches through the visibility-filtered read
--- paths (#29). RLS still governs any direct client read.
+-- the client silently uses its polling fallback. That ALTER PUBLICATION SQL now
+-- lives in its own runnable, idempotent migration file — see
+-- supabase/migrations/0014_realtime_publication.sql — instead of a comment here,
+-- so it can actually be applied (`supabase db push` / SQL editor) and re-run
+-- safely. See that file for the guarded DO blocks and the privacy note on why
+-- publication membership doesn't widen what a reader sees.
