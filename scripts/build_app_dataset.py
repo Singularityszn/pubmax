@@ -181,9 +181,18 @@ def main() -> None:
                 "boroughs_raw_embedded_non_anomaly": join_unique(non_anomaly_raw["borough"]),
                 "boroughs_raw_embedded_site_anomaly": "|".join(anomaly_hits),
                 "boroughs_all_sources": join_unique(group["borough"]),
+                # NEVER let an ANOMALY_BOROUGHS value become primary: the site
+                # glitch tagged hundreds of pubs under Havering/Hillingdon/
+                # Redbridge, and the old last-resort `group["borough"]` fallback
+                # resurrected exactly those values (593 rows all labelled
+                # "Havering" — the F7 borough-join bug). Rows with no trusted
+                # source stay blank here; export_app_dataset_json.py assigns
+                # the true borough geometrically from lat/lng.
                 "primary_borough": first_nonblank(visible["borough"])
                 or first_nonblank(non_anomaly_raw["borough"])
-                or first_nonblank(group["borough"]),
+                or first_nonblank(
+                    group.loc[~group["borough"].isin(list(ANOMALY_BOROUGHS)), "borough"]
+                ),
                 "rank_visible_borough": first_nonblank(visible["rank"]),
                 "estimated_average_price_text": first_nonblank(
                     visible["estimated_average_price_text"]
