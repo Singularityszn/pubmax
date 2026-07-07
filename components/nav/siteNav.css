@@ -195,10 +195,21 @@
 
   .siteNavBrand {
     font-size: 0.98rem;
-    /* Never let a long wordmark push the actions off-screen. */
+    /* Never let a long wordmark push the actions off-screen. The desktop rule
+       pins the brand (flex: 0 0 auto); here it must be allowed to SHRINK, or
+       the actions cluster (bell + mode switch + toggles) slides over the
+       wordmark at 390px. flex-shrink + min-width:0 lets it give way first and
+       the ellipsis keeps whatever fits legible ("PUBMA…"), never overlapped. */
+    flex: 0 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* The actions cluster holds its shape — the brand is the only flexible part
+     of the compact bar, so the controls never compress or wrap. */
+  .siteNavActions {
+    flex: 0 0 auto;
   }
 }
 

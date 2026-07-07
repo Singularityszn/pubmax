@@ -23,6 +23,9 @@
   font-size: var(--text-2xs, 0.78rem);
   letter-spacing: 0.02em;
   line-height: 1.2;
+  /* A compressed nav must never wrap "Lock-In" onto two lines inside its own
+     pill — the segment holds one line and the bar flexes around it. */
+  white-space: nowrap;
   color: var(--ink-soft);
   background: transparent;
   border-radius: calc(var(--radius-sm, 8px) - 2px);
