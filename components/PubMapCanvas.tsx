@@ -485,6 +485,32 @@ export default function PubMapCanvas({
   // buildScene reads this on every (re)build so a theme swap keeps the toggles.
   const poiHiddenRef = useRef(poiHidden);
 
+  // Style-load gate. Every source/layer mutation (setData, setFilter,
+  // setPaintProperty, setLayoutProperty) throws "Style is not done loading" if
+  // it lands while a style is mid-load — the initial load, or the theme
+  // setStyle({diff:false}) swap window, during which `mapReady` is still true.
+  // The data effects fire on their own React cadence (slim→full venues, live
+  // drops, selection, filters), so any can arrive in that window. `applyToMap`
+  // runs the mutation now when the style is loaded, else queues it (keyed, so a
+  // rapid churn collapses to the latest write) to flush on the next style.load.
+  // This is the honest fix for the race: no update is dropped, none races the
+  // swap. buildScene re-seeds SOURCES from the data refs on style.load, so the
+  // queue only needs to carry post-build mutations (filters/paint/visibility)
+  // and any setData that raced an in-flight swap.
+  const pendingUpdatesRef = useRef<Map<string, (map: maplibregl.Map) => void>>(new Map());
+  const applyToMap = useCallback(
+    (key: string, fn: (map: maplibregl.Map) => void) => {
+      const map = mapRef.current;
+      if (!map) return;
+      if (map.isStyleLoaded()) {
+        fn(map);
+      } else {
+        pendingUpdatesRef.current.set(key, fn);
+      }
+    },
+    [],
+  );
+
   // Orbit state: the loop only drifts the bearing when now > holdUntil, so any
   // interaction or programmatic camera move simply pushes the hold forward —
   // the orbit never fights an easeTo.
@@ -691,6 +717,16 @@ export default function PubMapCanvas({
 
     // Rebuilds the whole scene from theme tokens. Runs on first load and after
     // every theme-driven setStyle (style.load fires for both).
+    //
+    // This is a long, linear scene assembler: it declares each MapLibre
+    // source/layer once, in order, so the whole 3-D map reads top-to-bottom in
+    // one place. Its cyclomatic complexity (37) is above the 35 budget, but the
+    // branches are all independent `getSource`/`getLayer` "add once" guards over
+    // shared closure state (`map`, `tokens`, `dark`, `addLayerOnce`). Splitting
+    // them into helpers would thread that state through several signatures and
+    // fracture the single readable pass without reducing real risk, so this is
+    // the one intentionally tolerated lint warning for the app.
+    // eslint-disable-next-line complexity
     const buildScene = () => {
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
@@ -1201,6 +1237,24 @@ export default function PubMapCanvas({
         paint: { "text-color": dark ? tokens.ink : tokens.paper },
       });
 
+      // Flush any mutations that arrived while the style was mid-load (initial
+      // load or a theme swap). buildScene has just re-seeded every source/layer
+      // from the data refs, so these queued fns (filters, paint, visibility,
+      // raced setData) apply cleanly on top. Keyed map = only the latest write
+      // per target replayed. Run inside a try so one bad fn can't abort the rest.
+      if (pendingUpdatesRef.current.size > 0) {
+        const pending = pendingUpdatesRef.current;
+        pendingUpdatesRef.current = new Map();
+        for (const fn of pending.values()) {
+          try {
+            fn(map);
+          } catch {
+            // A layer/source a queued fn targets may not exist in this style
+            // build (e.g. toggled away); skip it rather than abort the flush.
+          }
+        }
+      }
+
       setMapReady(true);
     };
     map.on("style.load", buildScene);
@@ -1436,10 +1490,12 @@ export default function PubMapCanvas({
   useEffect(() => {
     pubsDataRef.current = pubsToGeoJSON(venues, venueSignals, favoritePint);
     if (!mapReady) return;
-    (mapRef.current?.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
-      pubsDataRef.current,
-    );
-  }, [venues, venueSignals, favoritePint, mapReady]);
+    applyToMap("pubs:data", (map) => {
+      (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
+        pubsDataRef.current,
+      );
+    });
+  }, [venues, venueSignals, favoritePint, mapReady, applyToMap]);
 
   // POIs load once (client fetch) and feed the "pois" source.
   useEffect(() => {
@@ -1448,9 +1504,11 @@ export default function PubMapCanvas({
       .then((pois) => {
         if (cancelled) return;
         poisDataRef.current = poisToGeoJSON(pois);
-        (mapRef.current?.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
-          poisDataRef.current,
-        );
+        applyToMap("pois:data", (map) => {
+          (map.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
+            poisDataRef.current,
+          );
+        });
       })
       .catch(() => {
         // ponytail: POIs are ambient garnish — a fetch failure just leaves the
@@ -1459,56 +1517,58 @@ export default function PubMapCanvas({
     return () => {
       cancelled = true;
     };
-  }, [mapReady]);
+  }, [mapReady, applyToMap]);
 
   // POI category toggles → layer filters (kept in a ref for theme rebuilds).
   // Transport layers filter by category+rank; ambient dots by category only.
   useEffect(() => {
     poiHiddenRef.current = poiHidden;
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-    const ambient = poiFilter(poiHidden, AMBIENT_CATEGORIES);
-    const transportAll = poiFilter(poiHidden, TRANSPORT_CATEGORIES);
-    const setFilter = (layer: string, filter: maplibregl.FilterSpecification) => {
-      if (map.getLayer(layer)) map.setFilter(layer, filter);
-    };
-    setFilter("pois-dot", ambient);
-    setFilter("pois-label", ambient);
-    setFilter("pois-transport-major", transportFilter(poiHidden, true));
-    setFilter("pois-transport-minor", transportFilter(poiHidden, false));
-    setFilter("pois-transport-label", transportAll);
-    // The coloured tube-line network toggles with the Tube roundels.
-    const tubeVisibility = poiHidden.tube ? "none" : "visible";
-    for (const layer of ["tube-lines-casing", "tube-lines-color", "tube-lines-label"]) {
-      if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
-    }
-  }, [poiHidden, mapReady]);
+    if (!mapReady) return;
+    applyToMap("pois:filters", (map) => {
+      const ambient = poiFilter(poiHidden, AMBIENT_CATEGORIES);
+      const transportAll = poiFilter(poiHidden, TRANSPORT_CATEGORIES);
+      const setFilter = (layer: string, filter: maplibregl.FilterSpecification) => {
+        if (map.getLayer(layer)) map.setFilter(layer, filter);
+      };
+      setFilter("pois-dot", ambient);
+      setFilter("pois-label", ambient);
+      setFilter("pois-transport-major", transportFilter(poiHidden, true));
+      setFilter("pois-transport-minor", transportFilter(poiHidden, false));
+      setFilter("pois-transport-label", transportAll);
+      // The coloured tube-line network toggles with the Tube roundels.
+      const tubeVisibility = poiHidden.tube ? "none" : "visible";
+      for (const layer of ["tube-lines-casing", "tube-lines-color", "tube-lines-label"]) {
+        if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
+      }
+    });
+  }, [poiHidden, mapReady, applyToMap]);
 
   // Route + selection ring → sources/filter.
   useEffect(() => {
     routeLineRef.current = routeToLine(route);
     routeStopsRef.current = routeToStops(route);
     selectedIdRef.current = selectedVenueId;
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-    (map.getSource("route-line") as maplibregl.GeoJSONSource | undefined)?.setData(
-      routeLineRef.current,
-    );
-    (map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
-      routeStopsRef.current,
-    );
-    const selectedFilter: maplibregl.FilterSpecification = [
-      "==",
-      ["get", "id"],
-      selectedVenueId,
-    ];
-    if (map.getLayer("pubs-selected-glow")) {
-      map.setFilter("pubs-selected-glow", selectedFilter);
-    }
-    if (map.getLayer("pubs-selected")) {
-      map.setFilter("pubs-selected", selectedFilter);
-    }
-  }, [route, selectedVenueId, mapReady]);
+    if (!mapReady) return;
+    applyToMap("route:data+selection", (map) => {
+      (map.getSource("route-line") as maplibregl.GeoJSONSource | undefined)?.setData(
+        routeLineRef.current,
+      );
+      (map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
+        routeStopsRef.current,
+      );
+      const selectedFilter: maplibregl.FilterSpecification = [
+        "==",
+        ["get", "id"],
+        selectedIdRef.current,
+      ];
+      if (map.getLayer("pubs-selected-glow")) {
+        map.setFilter("pubs-selected-glow", selectedFilter);
+      }
+      if (map.getLayer("pubs-selected")) {
+        map.setFilter("pubs-selected", selectedFilter);
+      }
+    });
+  }, [route, selectedVenueId, mapReady, applyToMap]);
 
   // Shared fit logic: the route effect and the Recenter control both call this
   // so the framing behaviour stays identical. Reads the live route from a ref
@@ -1593,29 +1653,32 @@ export default function PubMapCanvas({
     bandCorridorRef.current = bandCorridorGeoJSON(activeBand);
     bandMemberIdsRef.current = bandMembers.map((m) => m.venue.id);
     if (bandColour) bandColorRef.current = bandColour;
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
+    if (!mapReady) return;
+    // Debounced via rAF so a rapid filter churn doesn't thrash setPaintProperty.
+    // If the style is mid-swap when the frame fires, applyToMap queues the write
+    // to flush on the next style.load rather than dropping it.
     const raf = requestAnimationFrame(() => {
-      if (!map.isStyleLoaded()) return;
-      (map.getSource("band-corridor") as maplibregl.GeoJSONSource | undefined)?.setData(
-        bandCorridorRef.current,
-      );
-      if (map.getLayer("band-members-halo")) {
-        map.setFilter("band-members-halo", [
-          "all",
-          ["!", ["has", "point_count"]],
-          ["in", ["get", "id"], ["literal", bandMemberIdsRef.current]],
-        ]);
-        if (bandColour) {
-          map.setPaintProperty("band-members-halo", "circle-stroke-color", bandColour);
+      applyToMap("band:corridor+halo", (map) => {
+        (map.getSource("band-corridor") as maplibregl.GeoJSONSource | undefined)?.setData(
+          bandCorridorRef.current,
+        );
+        if (map.getLayer("band-members-halo")) {
+          map.setFilter("band-members-halo", [
+            "all",
+            ["!", ["has", "point_count"]],
+            ["in", ["get", "id"], ["literal", bandMemberIdsRef.current]],
+          ]);
+          if (bandColour) {
+            map.setPaintProperty("band-members-halo", "circle-stroke-color", bandColour);
+          }
         }
-      }
-      if (map.getLayer("band-corridor") && bandColour) {
-        map.setPaintProperty("band-corridor", "line-color", bandColour);
-      }
+        if (map.getLayer("band-corridor") && bandColour) {
+          map.setPaintProperty("band-corridor", "line-color", bandColour);
+        }
+      });
     });
     return () => cancelAnimationFrame(raf);
-  }, [activeBand, bandMembers, bandColour, mapReady]);
+  }, [activeBand, bandMembers, bandColour, mapReady, applyToMap]);
 
   // H5: a tapped landmark surfaces its nearest story pubs (straight-line
   // distance — no routing, per PRD scope), wiring the history layer into the

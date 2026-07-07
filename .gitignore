@@ -14,6 +14,10 @@ playwright-report/
 coverage/
 e2e/screenshots/
 
+# macOS Finder metadata + local co-dev scratch probes — never part of the app.
+.DS_Store
+scratch-*.mjs
+
 # Local agent / skill / MCP tooling — never part of the app, machine-specific
 .agents/
 .claude/

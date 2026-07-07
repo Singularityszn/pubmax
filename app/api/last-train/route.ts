@@ -50,7 +50,6 @@ import {
   matchesDayType,
   walkMinutesForKm,
   type DayType,
-  type LastPintDecision,
   type LastTrain,
   type LastTrainResult,
   type NearestPub,

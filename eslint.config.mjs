@@ -11,6 +11,11 @@ const eslintConfig = [
       "coverage/**",
       "public/data/**",
       "data/**",
+      // Generated verification artifacts — never hand-authored source.
+      "test-results/**",
+      "playwright-report/**",
+      // Local co-dev scratch probes (also gitignored); not part of the app.
+      "scratch-*.mjs",
     ],
   },
   ...nextVitals,

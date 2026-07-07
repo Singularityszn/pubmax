@@ -11,7 +11,7 @@
         : "light";
     }
     document.documentElement.dataset.theme = t;
-  } catch (e) {}
+  } catch {}
 
   // Legacy Mode: larger type / higher contrast / stronger focus rings / forced
   // reduced motion, for older and low-vision users (issue #28). Same no-flash
@@ -23,7 +23,7 @@
     if (legacy === "1") {
       document.documentElement.dataset.legacy = "1";
     }
-  } catch (e) {}
+  } catch {}
 
   // View Mode (Lock-In / Ledger): a view layer over one data stream. Applied
   // no-flash before paint like the flags above. Ledger IS the heritage view, so
@@ -39,5 +39,5 @@
     if (mode === "ledger") {
       document.documentElement.dataset.legacy = "1";
     }
-  } catch (e) {}
+  } catch {}
 })();

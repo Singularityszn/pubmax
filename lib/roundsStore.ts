@@ -23,8 +23,6 @@ import {
   cleanNewStop,
   generateRoundCode,
   normalizeRoundCode,
-  type NewRound,
-  type NewStop,
   type RoundDTO,
   type RoundMemberDTO,
   type RoundState,
