@@ -6,6 +6,11 @@ Date: 2026-07-08
 > see [`PRD_PLACE_DRINK_FOOD_NEXT_WAVE_2026-07-08.md`](./PRD_PLACE_DRINK_FOOD_NEXT_WAVE_2026-07-08.md)
 > for Hungry CTA, Place story deep-links, Feed Last Train stamps, slim
 > brand/cuisine hints, story crawl packs, and durable admin import notes.
+>
+> **Stickiness wave (Wave G):** see
+> [`PRD_STICKINESS_MEMORY_WAVE_2026-07-08.md`](./PRD_STICKINESS_MEMORY_WAVE_2026-07-08.md)
+> for Last Train at compose time, crawl-complete memory prompt, Place story
+> deep-link onboarding, and For You friends boost.
 
 ## Problem Statement
 
