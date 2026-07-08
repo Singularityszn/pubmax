@@ -485,6 +485,11 @@ export default function PubMap() {
   const [planningOpen, setPlanningOpen] = useState<boolean>(() =>
     shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch()),
   );
+  // Belt-and-braces: drink-shape arrivals must stay on the clean map even if a
+  // later sync/effect would otherwise open the planner (e.g. style= in URL).
+  useEffect(() => {
+    if (isDrinkShapeArrival(currentSearch())) setPlanningOpen(false);
+  }, []);
   // Explicit route mapping: a suggested crawl can exist without drawing on the
   // clean first map. Once the user chooses "Map route" (or a curated/nearby
   // crawl), keep the line visible even if the mobile planner closes.

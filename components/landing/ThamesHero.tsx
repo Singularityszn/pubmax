@@ -34,7 +34,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£4.20",
     left: "14%",
     top: "26%",
-    href: "/map?drink=beer&style=cheapest",
+    href: "/map?drink=beer",
   },
   {
     id: "mayflower",
@@ -43,7 +43,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£5.10",
     left: "36%",
     top: "64%",
-    href: "/map?drink=gin&style=balanced",
+    href: "/map?drink=gin",
   },
   {
     id: "cheese",
@@ -52,7 +52,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£4.60",
     left: "68%",
     top: "28%",
-    href: "/map?drink=whisky&style=heritage",
+    href: "/map?drink=whisky",
   },
   {
     id: "prospect",
@@ -61,7 +61,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£5.40",
     left: "82%",
     top: "68%",
-    href: "/map?drink=wine&style=dateNight",
+    href: "/map?drink=wine",
   },
   {
     id: "spritz",
@@ -70,7 +70,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£7.50",
     left: "52%",
     top: "16%",
-    href: "/map?drink=cocktail&cocktails=1",
+    href: "/map?drink=cocktail",
   },
   {
     id: "rum",
@@ -79,7 +79,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£5.80",
     left: "18%",
     top: "78%",
-    href: "/map?drink=rum&style=balanced",
+    href: "/map?drink=rum",
   },
 ];
 
