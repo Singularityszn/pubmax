@@ -68,6 +68,11 @@ type PubMapCanvasProps = {
   venueSignals?: Map<string, VenueSignal>;
   /** Canonical beer id (lib/beers). When set, pins re-price to it; non-serving pubs dim. */
   favoritePint?: string | null;
+  /**
+   * Active drink-lens category (Wave F1). Non-beer lenses prefer that category's
+   * glyph; pin prices stay on the beer/pint path — never fake brand pricing.
+   */
+  drinkCategory?: string | null;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
   /** Issue #15 story bands — active band id ("" = none), synced to the URL by PubMap. */
@@ -240,24 +245,36 @@ function pubsToGeoJSON(
   venues: Venue[],
   venueSignals: Map<string, VenueSignal>,
   favoritePint: string | null,
+  drinkCategory: string | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: venues.map((venue) => {
       const signals = venueSignals.get(venue.id);
-      // With a favorite pint chosen, price the pin by THAT beer; pubs that
-      // don't serve it get serves=false → the paint dims them out.
+      // Beer favorite-pint path only: re-price + dim non-servers. Non-beer
+      // drink/brand lenses filter via filterVenues — never invent brand prices.
       const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
       const serves = !favoritePint || beerPrice !== null;
       const price = favoritePint
         ? beerPrice
         : signals?.latestContributorPrice ?? venue.cheapestPrice;
       const bucket = priceBucket(price);
-      const drinkKind = drinkPinKindFromCategories(
-        venue.filterHints?.drinkCategories,
-        Boolean(venue.amenities.cocktails) ||
-          Boolean(venue.filterHints?.amenities.cocktails),
-      );
+      // Prefer the active non-beer lens for the glyph so gin/wine/etc. read
+      // honestly on the map; otherwise fall back to venue hint categories.
+      const lens = drinkCategory?.trim().toLowerCase() ?? "";
+      const drinkKind =
+        lens && lens !== "beer" && lens !== "other"
+          ? drinkPinKindFromCategories(
+              [lens],
+              lens === "cocktail" ||
+                Boolean(venue.amenities.cocktails) ||
+                Boolean(venue.filterHints?.amenities.cocktails),
+            )
+          : drinkPinKindFromCategories(
+              venue.filterHints?.drinkCategories,
+              Boolean(venue.amenities.cocktails) ||
+                Boolean(venue.filterHints?.amenities.cocktails),
+            );
       return {
         type: "Feature" as const,
         properties: {
@@ -476,6 +493,7 @@ export default function PubMapCanvas({
   onVenuePrefetch,
   venueSignals = new Map(),
   favoritePint = null,
+  drinkCategory = null,
   onLandmarkSelect,
   activeBandId = "",
   onBandChange,
@@ -1703,14 +1721,19 @@ export default function PubMapCanvas({
   // Pubs data → source. Rebuilds when the favorite pint changes so the price
   // buckets + serves flags re-derive against that beer.
   useEffect(() => {
-    pubsDataRef.current = pubsToGeoJSON(venues, venueSignals, favoritePint);
+    pubsDataRef.current = pubsToGeoJSON(
+      venues,
+      venueSignals,
+      favoritePint,
+      drinkCategory,
+    );
     if (!mapReady) return;
     applyToMap("pubs:data", (map) => {
       (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
         pubsDataRef.current,
       );
     });
-  }, [venues, venueSignals, favoritePint, mapReady, applyToMap]);
+  }, [venues, venueSignals, favoritePint, drinkCategory, mapReady, applyToMap]);
 
   // POIs load once (client fetch) and feed the "pois" source.
   useEffect(() => {

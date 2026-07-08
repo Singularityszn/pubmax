@@ -108,6 +108,12 @@ export type PintDrop = {
   reportCount?: number;
   moderatedAt?: string;
   moderatorNote?: string;
+  /**
+   * Optional Last Train context captured when the Spill was posted (Wave F0).
+   * Honest leave-by + decision kind for feed/venue stamps — never invent these.
+   */
+  leaveByIso?: string | null;
+  lastTrainDecision?: string | null;
 };
 
 export type ValidationResult =

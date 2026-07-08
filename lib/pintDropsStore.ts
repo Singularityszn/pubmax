@@ -265,6 +265,8 @@ export function toDTO(drop: PersistableDrop): PintDropDTO {
   // additive (absent, not []) so the public JSON shape stays backward-compatible.
   if (drop.vibeTags && drop.vibeTags.length) dto.vibeTags = drop.vibeTags;
   if (visible && (drop.reportCount ?? 0) > 0) dto.reportCount = drop.reportCount;
+  if (drop.leaveByIso) dto.leaveByIso = drop.leaveByIso;
+  if (drop.lastTrainDecision) dto.lastTrainDecision = drop.lastTrainDecision;
   return dto;
 }
 

@@ -31,4 +31,4 @@ skills-lock.json
 skill_disabled.md
 skill_in_pub.md
 skills_used_global.md
-docs/research/*.output
+.data/

@@ -22,6 +22,9 @@ type SeedSpec = {
   passedDownNote: string;
   era: string;
   minutesAgo: number;
+  /** Optional honest Last Train context for feed stamps (Wave F0). */
+  leaveByIso?: string;
+  lastTrainDecision?: string;
 };
 
 const MINUTE_MS = 60_000;
@@ -43,6 +46,9 @@ const seeds: SeedSpec[] = [
       "My old man swore the flagstone floor by the bar was laid when the watermen still drank here. Take your pint out to the terrace at low tide and listen — the river knocks on the wall like it wants letting in.",
     era: "Told since the 1960s",
     minutesAgo: 18,
+    // Demo Last Train stamp: posted with time to spare (leave-by ~30 min after post).
+    leaveByIso: new Date(DEMO_NOW_MS - 18 * MINUTE_MS + 30 * MINUTE_MS).toISOString(),
+    lastTrainDecision: "order_one_more",
   },
   {
     id: "seed-prospect-2",
@@ -66,6 +72,9 @@ const seeds: SeedSpec[] = [
       "Dad always took the window seat over the water and said Dickens put this room in a book before any of us were born. Order the bitter, watch the tide turn, say nothing.",
     era: "Dad's rule, 1980s",
     minutesAgo: 68,
+    // Posted after leave-by — honest "after the last train" stamp for demos.
+    leaveByIso: new Date(DEMO_NOW_MS - 68 * MINUTE_MS - 15 * MINUTE_MS).toISOString(),
+    lastTrainDecision: "train_risk",
   },
   {
     id: "seed-grapes-2",
@@ -186,6 +195,8 @@ export const demoPintDrops: PintDrop[] = seeds.map((seed) => ({
   createdAt: demoCreatedAt(seed.minutesAgo),
   provenance: "demo",
   status: "visible",
+  ...(seed.leaveByIso ? { leaveByIso: seed.leaveByIso } : {}),
+  ...(seed.lastTrainDecision ? { lastTrainDecision: seed.lastTrainDecision } : {}),
 }));
 
 /** Seeds for one venue — appended after organic drops in the read paths. */

@@ -805,3 +805,67 @@
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
+
+/* Hungry lane (Wave F0) — food filter CTA + cuisine chips. */
+.discoverHungryRow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.discoverHungryCta {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--amber, var(--brass)) 40%, var(--line));
+  background: color-mix(in srgb, var(--amber, var(--brass)) 12%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.discoverHungryCta:hover {
+  background: color-mix(in srgb, var(--amber, var(--brass)) 18%, var(--panel-raised));
+}
+
+.discoverHungryCta:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.discoverCuisineChips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.discoverCuisineChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  text-transform: capitalize;
+}
+
+.discoverCuisineChip:hover {
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  color: var(--ink);
+}
+
+.discoverCuisineChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}

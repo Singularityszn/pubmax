@@ -641,6 +641,43 @@ html[data-legacy="1"] .venueTabPanel::before {
   color: var(--ink-soft);
 }
 
+.venueTabPanel .placeStoryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.venueTabPanel .placeStoryWalk {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--brass) 36%, var(--line));
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+}
+
+.venueTabPanel .placeStoryWalk:hover {
+  background: color-mix(in srgb, var(--brass) 16%, var(--panel));
+}
+
+.venueTabPanel .placeStoryCrawl {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.venueTabPanel .placeStoryCrawl:hover {
+  text-decoration: underline;
+}
+
 .venueTabPanel .placeStorySource {
   display: inline-flex;
   align-items: center;
