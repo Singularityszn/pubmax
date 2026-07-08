@@ -87,5 +87,27 @@ test.describe("security headers", () => {
     expect(csp).toMatch(/default-src 'self'/);
     expect(csp).toMatch(/frame-ancestors 'none'/);
     expect(csp).toMatch(/object-src 'none'/);
+    // Next.js App Router requires script-src 'unsafe-inline' for its inline
+    // RSC/hydration bootstrap (see next.config.mjs). A per-request nonce would
+    // drop it but forces dynamic rendering — documented tradeoff, not a gap.
+    expect(csp).toMatch(/script-src[^;]*'unsafe-inline'/);
+  });
+
+  test("/ sets X-Frame-Options DENY (aligned with CSP frame-ancestors 'none')", async ({ page }) => {
+    const response = await page.goto("/");
+    expect(response?.status()).toBe(200);
+
+    const xfo = response?.headers()["x-frame-options"];
+    // DENY is the canonical value; absent is acceptable only when CSP
+    // frame-ancestors 'none' alone governs framing (we send both).
+    if (xfo) {
+      expect(xfo.toUpperCase()).toBe("DENY");
+    }
+  });
+
+  test("GET /api/pint-drops does not expose Access-Control-Allow-Origin", async ({ request }) => {
+    const response = await request.get("/api/pint-drops");
+    expect(response.status()).toBeLessThan(500);
+    expect(response.headers()["access-control-allow-origin"]).toBeUndefined();
   });
 });

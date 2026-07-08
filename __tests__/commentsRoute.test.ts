@@ -20,8 +20,13 @@ import {
   __addMemoryCommentForTest,
   __resetMemoryComments,
 } from "@/lib/commentsStore";
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/pint-drops/comments";
+
+function expectNoStore(res: Response): void {
+  expect(res.headers.get("Cache-Control")).toBe("no-store");
+}
 
 function list(dropId?: string): Promise<Response> {
   const url = dropId ? `${URL_BASE}?dropId=${encodeURIComponent(dropId)}` : URL_BASE;
@@ -38,6 +43,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryComments();
+  __resetMemoryProfiles();
 });
 
 describe("GET /api/pint-drops/comments", () => {
@@ -183,5 +189,15 @@ describe("POST /api/pint-drops/comments", () => {
     expect(Object.keys(comments[0]).sort()).toEqual(["body", "createdAt", "handle", "id", "parentId"].sort());
     expect(blob).not.toMatch(/actor_?hash/i);
     expect(blob).not.toMatch(/"status"/);
+  });
+
+  it("403s when the commenter handle is linked and the caller is anonymous", async () => {
+    await memoryProfileStore.linkUser("ken", "user-abc");
+    const res = await post({ dropId: "drop-1", handle: "ken", body: "forged" });
+    expect(res.status).toBe(403);
+    expectNoStore(res);
+    expect(await res.json()).toMatchObject({
+      error: "This handle belongs to a signed-in account. Sign in as its owner to continue.",
+    });
   });
 });

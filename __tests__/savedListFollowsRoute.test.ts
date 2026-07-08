@@ -1,10 +1,14 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
 
 import { GET, POST } from "@/app/api/saved-pubs/list-follows/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 import {
   __resetMemorySavedListFollows,
   __resetMemorySavedPubs,
@@ -150,5 +154,15 @@ describe("POST /api/saved-pubs/list-follows", () => {
     }
     expect(last!.status).toBe(429);
     expect(await last!.json()).toEqual({ error: "Too many list follows, slow down." });
+  });
+
+  it("403s when the follower handle is linked and the caller is anonymous", async () => {
+    await memoryProfileStore.linkUser("ken", "user-abc");
+    const res = await post({ follower: "ken", owner: "sam", listType: "Date Night" });
+    expect(res.status).toBe(403);
+    expectNoStore(res);
+    expect(await res.json()).toMatchObject({
+      error: "This handle belongs to a signed-in account. Sign in as its owner to continue.",
+    });
   });
 });

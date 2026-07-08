@@ -3,8 +3,8 @@
 //   POST { action, id }           → { ok: true }   action ∈ restore | keep_hidden
 //
 // Same review-action shape as the Pint Drop queue (restore → visible, keep_hidden
-// → hidden). Reuses the admin token gate AS-IS (x-admin-token header; see
-// lib/adminAuth.ts). A comment's actor_hash is NEVER exposed — the moderator DTO
+// → hidden). Reuses the admin gate (x-admin-token header OR httpOnly session
+// cookie; see lib/adminAuth.ts). A comment's actor_hash is NEVER exposed — the moderator DTO
 // carries only { id, pintDropId, handle, body, status, createdAt }.
 
 import { isModerator } from "@/lib/adminAuth";

@@ -14,6 +14,7 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { DELETE, GET, PATCH } from "@/app/api/crawls/[slug]/route";
 import { __resetCrawlStories, createCrawlStory } from "@/lib/crawlStoryStore";
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/crawls";
 
@@ -35,6 +36,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetCrawlStories();
+  __resetMemoryProfiles();
 });
 
 describe("PATCH /api/crawls/[slug]", () => {
@@ -62,6 +64,16 @@ describe("PATCH /api/crawls/[slug]", () => {
   it("403s a missing handle", async () => {
     const slug = await makeStory("ken");
     const req = new Request(`${URL_BASE}/${slug}`, { method: "PATCH", body: JSON.stringify({}) });
+    expect((await PATCH(req, params(slug))).status).toBe(403);
+  });
+
+  it("403s when the author handle is linked and the caller is anonymous", async () => {
+    const slug = await makeStory("ken");
+    await memoryProfileStore.linkUser("ken", "user-abc");
+    const req = new Request(`${URL_BASE}/${slug}`, {
+      method: "PATCH",
+      body: JSON.stringify({ handle: "ken", title: "Hijack" }),
+    });
     expect((await PATCH(req, params(slug))).status).toBe(403);
   });
 });
