@@ -98,42 +98,57 @@ function shortText(value, limit = 320) {
   return trimmed.length > limit ? `${trimmed.slice(0, limit - 1)}…` : trimmed;
 }
 
-function assertHttpUrl(value, label) {
+function parseHttpUrl(value, label, { rowCritical = false } = {}) {
   const url = nonEmpty(value);
-  if (!url) return undefined;
+  if (!url) {
+    if (rowCritical) {
+      console.warn(`[pubmaxxing-seed] ${label} is missing; skipping row`);
+    }
+    return { ok: !rowCritical, url: undefined };
+  }
   try {
     const parsed = new URL(url);
     if (!["http:", "https:"].includes(parsed.protocol)) {
-      throw new Error(`${label} is not http(s): ${url}`);
+      throw new Error(`protocol ${parsed.protocol} is not http(s)`);
     }
-    return parsed.toString();
+    return { ok: true, url: parsed.toString() };
   } catch (error) {
-    throw new Error(`${label} is not a valid URL: ${url} (${error.message})`);
+    console.warn(
+      `[pubmaxxing-seed] ${label} is not a valid http(s) URL; ${
+        rowCritical ? "skipping row" : "omitting value"
+      }: ${url} (${error.message})`,
+    );
+    return { ok: false, url: undefined };
   }
 }
 
-function optionalHttpUrl(value) {
-  const url = nonEmpty(value);
-  if (!url) return undefined;
-  try {
-    const parsed = new URL(url);
-    if (!["http:", "https:"].includes(parsed.protocol)) return undefined;
-    return parsed.toString();
-  } catch {
-    return undefined;
-  }
+function optionalHttpUrl(value, label) {
+  return parseHttpUrl(value, label).url;
+}
+
+function rowCriticalHttpUrl(value, label) {
+  return parseHttpUrl(value, label, { rowCritical: true });
+}
+
+function compactMap(records, mapper) {
+  const mapped = [];
+  records.forEach((record, index) => {
+    const row = mapper(record, index);
+    if (row) mapped.push(row);
+  });
+  return mapped;
 }
 
 function build() {
   const source = JSON.parse(readFileSync(join(SOURCE_DIR, "source.json"), "utf8"));
-  const beverages = csvRecords("london_pub_all_beverages_expanded.csv").map((row) => ({
+  const beverages = csvRecords("london_pub_all_beverages_expanded.csv").map((row, index) => ({
     priceId: nonEmpty(row.price_id),
     pubId: nonEmpty(row.pub_id),
     pubName: nonEmpty(row.pub_name),
     rank: numberOrNull(row.rank),
     chainName: nonEmpty(row.chain_name),
     area: nonEmpty(row.area),
-    sourceUrl: assertHttpUrl(row.source_url, "beverage source_url"),
+    sourceUrl: optionalHttpUrl(row.source_url, `beverage source_url row ${index + 2}`),
     sourceType: nonEmpty(row.source_type),
     menuPageTitle: nonEmpty(row.menu_page_title),
     category: nonEmpty(row.beverage_category),
@@ -155,7 +170,7 @@ function build() {
     parseConfidence: numberOrNull(row.parse_confidence),
   }));
 
-  const pubs = csvRecords("london_pubs_expanded.csv").map((row) => ({
+  const pubs = csvRecords("london_pubs_expanded.csv").map((row, index) => ({
     pubId: nonEmpty(row.pub_id),
     name: nonEmpty(row.pub_name),
     rank: numberOrNull(row.rank),
@@ -166,52 +181,66 @@ function build() {
     reviewCount: numberOrNull(row.review_count),
     priceTier: nonEmpty(row.price_tier),
     venueTags: nonEmpty(row.venue_tags),
-    venueUrl: assertHttpUrl(row.venue_url, "pub venue_url"),
-    menuUrl: assertHttpUrl(row.menu_url, "pub menu_url"),
+    venueUrl: optionalHttpUrl(row.venue_url, `pub venue_url row ${index + 2}`),
+    menuUrl: optionalHttpUrl(row.menu_url, `pub menu_url row ${index + 2}`),
     discoverySourceName: nonEmpty(row.discovery_source_name),
-    discoverySourceUrl: optionalHttpUrl(row.discovery_source_url),
+    discoverySourceUrl: optionalHttpUrl(row.discovery_source_url, `pub discovery_source_url row ${index + 2}`),
+    // Keep the raw non-empty reference string; discoverySourceUrl is the normalized URL form.
     discoverySourceRef: nonEmpty(row.discovery_source_url),
     discoveredAt: nonEmpty(row.discovered_at),
     notes: nonEmpty(row.notes),
   }));
 
-  const historySeeds = csvRecords("london_pub_history_seed.csv").map((row) => ({
-    pubId: nonEmpty(row.pub_id),
-    pubName: nonEmpty(row.pub_name),
-    area: nonEmpty(row.area),
-    sourceTitle: nonEmpty(row.source_title),
-    sourceUrl: assertHttpUrl(row.source_url, "history source_url"),
-    sourceDescription: shortText(row.source_description),
-    sourcePosition: numberOrNull(row.source_position),
-    observedAt: nonEmpty(row.observed_at),
-    kgSubject: nonEmpty(row.kg_subject),
-    kgPredicate: nonEmpty(row.kg_predicate),
-    kgObject: assertHttpUrl(row.kg_object, "history kg_object"),
-    confidence: nonEmpty(row.confidence),
-    notes: nonEmpty(row.notes),
-  }));
+  const historySeeds = compactMap(csvRecords("london_pub_history_seed.csv"), (row, index) => {
+    const sourceUrl = rowCriticalHttpUrl(row.source_url, `history source_url row ${index + 2}`);
+    const kgObject = rowCriticalHttpUrl(row.kg_object, `history kg_object row ${index + 2}`);
+    if (!sourceUrl.ok || !kgObject.ok) return undefined;
+    return {
+      pubId: nonEmpty(row.pub_id),
+      pubName: nonEmpty(row.pub_name),
+      area: nonEmpty(row.area),
+      sourceTitle: nonEmpty(row.source_title),
+      sourceUrl: sourceUrl.url,
+      sourceDescription: shortText(row.source_description),
+      sourcePosition: numberOrNull(row.source_position),
+      observedAt: nonEmpty(row.observed_at),
+      kgSubject: nonEmpty(row.kg_subject),
+      kgPredicate: nonEmpty(row.kg_predicate),
+      kgObject: kgObject.url,
+      confidence: nonEmpty(row.confidence),
+      notes: nonEmpty(row.notes),
+    };
+  });
 
-  const discountMentions = [
+  const discountMentionRecords = [
     ...csvRecords("london_pub_discount_mentions.csv").map((row) => ({ ...row, sourceFile: "london_pub_discount_mentions.csv" })),
     ...csvRecords("area-expansion/london_pub_discount_mentions.csv").map((row) => ({
       ...row,
       sourceFile: "area-expansion/london_pub_discount_mentions.csv",
     })),
-  ].map((row) => ({
-    pubId: nonEmpty(row.pub_id),
-    pubName: nonEmpty(row.pub_name),
-    rank: numberOrNull(row.rank),
-    sourceUrl: assertHttpUrl(row.source_url, "discount source_url"),
-    discountType: nonEmpty(row.discount_type),
-    discountDesc: shortText(row.discount_desc),
-    discountDays: nonEmpty(row.discount_days),
-    discountTimeRange: nonEmpty(row.discount_time_range),
-    sourceObservedAt: nonEmpty(row.source_observed_at),
-    sourceFile: row.sourceFile,
-  }));
+  ];
+  const discountMentions = compactMap(discountMentionRecords, (row, index) => {
+    const sourceUrl = rowCriticalHttpUrl(row.source_url, `discount source_url row ${index + 2}`);
+    if (!sourceUrl.ok) return undefined;
+    return {
+      pubId: nonEmpty(row.pub_id),
+      pubName: nonEmpty(row.pub_name),
+      rank: numberOrNull(row.rank),
+      sourceUrl: sourceUrl.url,
+      discountType: nonEmpty(row.discount_type),
+      discountDesc: shortText(row.discount_desc),
+      discountDays: nonEmpty(row.discount_days),
+      discountTimeRange: nonEmpty(row.discount_time_range),
+      sourceObservedAt: nonEmpty(row.source_observed_at),
+      sourceFile: row.sourceFile,
+    };
+  });
 
   const alcoholicRows = beverages.filter((row) => row.isAlcoholic === true).length;
   const nonAlcoholicRows = beverages.filter((row) => row.isAlcoholic === false).length;
+  const unknownAlcoholicRows = beverages.filter(
+    (row) => row.isAlcoholic !== true && row.isAlcoholic !== false,
+  ).length;
   const uniquePubIds = new Set([
     ...pubs.map((row) => row.pubId),
     ...beverages.map((row) => row.pubId),
@@ -219,13 +248,14 @@ function build() {
 
   const snapshot = {
     version: 1,
-    generatedAt: source.importedAt,
+    sourceImportedAt: source.importedAt,
     source,
     summary: {
       pubs: pubs.length,
       beverageRows: beverages.length,
       alcoholicRows,
       nonAlcoholicRows,
+      unknownAlcoholicRows,
       historySeeds: historySeeds.length,
       discountMentions: discountMentions.length,
       uniquePubIds: uniquePubIds.size,

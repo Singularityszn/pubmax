@@ -15,6 +15,7 @@
   --feed-gold-wash: color-mix(in srgb, var(--amber) 12%, var(--panel-raised));
   --feed-shadow: 0 18px 45px rgba(44, 30, 62, 0.1),
     0 8px 18px color-mix(in srgb, var(--brass) 8%, transparent);
+
   min-height: 100vh;
   background:
     linear-gradient(105deg, transparent 0 16%, color-mix(in srgb, var(--river) 7%, transparent) 16% 17%, transparent 17% 100%),
@@ -1092,8 +1093,29 @@
      card clear of the fixed bottom tab bar (body already carries the inset;
      this is breathing room above it). */
   .feedShell {
-    padding: 18px 12px 40px;
+    padding: 18px 12px calc(132px + env(safe-area-inset-bottom, 0px));
     gap: 18px;
+  }
+
+  .feedFilters {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 2px 6px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .feedFilterChip {
+    flex: 0 0 auto;
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
+
+  .feedCardFooter .shareBar {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
   }
 }
 

@@ -351,7 +351,7 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                     type="file"
                     accept="image/*"
                     capture="environment"
-                    aria-label="Snap or upload a pint photo"
+                    aria-label="Snap the pour: snap or upload a pint photo"
                     onChange={(event) =>
                       pickPhoto("pint", event.target.files?.[0], event.target)
                     }
@@ -363,10 +363,11 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                   <SmilePlus size={18} />
                   <span>Flip — you at the bar</span>
                   <input
+                    ref={venueInputRef}
                     type="file"
                     accept="image/*"
                     capture="user"
-                    aria-label="Snap or upload a selfie at the bar"
+                    aria-label="Flip — you at the bar: snap or upload a selfie"
                     onChange={(event) =>
                       pickPhoto("venue", event.target.files?.[0], event.target)
                     }
@@ -654,7 +655,7 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                       ref={pintInputRef}
                       type="file"
                       accept="image/*"
-                      aria-label="Snap or upload a pint photo"
+                      aria-label="Your pint: Snap or upload"
                       onChange={(event) =>
                         pickPhoto("pint", event.target.files?.[0], event.target)
                       }
@@ -691,7 +692,7 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                       ref={venueInputRef}
                       type="file"
                       accept="image/*"
-                      aria-label="Snap or upload a selfie at the bar"
+                      aria-label="You at the bar: Cheeky selfie"
                       onChange={(event) =>
                         pickPhoto("venue", event.target.files?.[0], event.target)
                       }

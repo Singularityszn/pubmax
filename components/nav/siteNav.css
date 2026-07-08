@@ -1,12 +1,10 @@
 /* Shared app-wide top navigation (SiteNav).
    Token-driven so it flips light/dark for free and reads over both the paper
-   pages and the dark map shell. Two variants live here:
-     · Desktop (>640px): a full nav bar — wordmark, the link row with an active
-       state, then the theme toggle + sign-in on the right.
-     · Mobile (≤640px): a COMPACT bar — wordmark + theme toggle + sign-in only.
-       The full link row is display:none because the app renders a fixed bottom
-       tab bar (MobileTabBar) at this width. Nothing may horizontally overflow at
-       390px, so the compact bar is the entire mobile story.
+   pages and the dark map shell. Three density bands live here:
+     · Wide desktop: full link row plus utilities.
+     · Laptop/tablet: keep primary links, tighten spacing, and drop nonessential
+       utility chrome so the bar stays one row.
+     · Phone (≤640px): a compact bar, because MobileTabBar owns primary nav.
    These use their OWN classes (siteNavBar / siteNavLinks / …) — independent of
    the old .siteNav / .appNav globals, which may be cleaned up separately. */
 
@@ -79,9 +77,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  /* Wrap rather than overflow if a very narrow desktop window can't fit the
-     whole row — the bar grows in height, it never scrolls sideways. */
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .siteNavItem {
@@ -122,10 +118,7 @@
 /* ── Right-side actions (theme toggle + sign-in) ───────────────────────── */
 .siteNavActions {
   display: flex;
-  /* Allow this cluster to shrink (not just the sign-in button inside it) so
-     the compact mobile bar — wordmark + toggle + sign-in only — never forces
-     a horizontal overflow at 390px. */
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
@@ -169,6 +162,48 @@
   font-weight: 700;
   line-height: 16px;
   text-align: center;
+}
+
+/* Laptop/tablet density: keep navigation usable but avoid two-row pills that
+   collide with map/search chrome. Primary route links stay visible; ambient
+   utilities collapse away until phone bottom navigation takes over. */
+@media (max-width: 1180px) {
+  .siteNavBar {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .siteNavLink {
+    min-height: 38px;
+    padding: 0 9px;
+    font-size: 0.78rem;
+  }
+
+  .siteNavActions {
+    gap: 6px;
+  }
+
+  .viewModeSwitch,
+  .legacyToggle,
+  .siteNavBar .authUser {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .siteNavBrand {
+    font-size: 0.94rem;
+  }
+
+  .siteNavLink {
+    padding: 0 7px;
+    font-size: 0.74rem;
+  }
+
+  .siteNavBell {
+    width: 32px;
+    height: 32px;
+  }
 }
 
 /* ── Mobile: the COMPACT bar (the overflow fix) ────────────────────────── */

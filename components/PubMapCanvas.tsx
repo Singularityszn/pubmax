@@ -35,6 +35,7 @@ import { directVenueImageUrl } from "@/lib/venueImages";
 type VenueSignal = { hasPintDrops: boolean; latestContributorPrice: number | null };
 type HoveredVenue = { id: string; name: string; x: number; y: number };
 type VenueDetailResponse = { venue?: Venue | null };
+type FailedHoverImage = { venueId: string; url: string };
 
 type PubMapCanvasProps = {
   venues: Venue[];
@@ -86,6 +87,13 @@ const LONDON_VIEW = {
 
 const ORBIT_DEG_PER_SEC = 0.7; // gentle drift — a full turn in ~8.5 minutes
 const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
+const HOVER_DETAIL_CACHE_LIMIT = 24;
+const HOVER_CARD_VIEWPORT_GUTTER_PX = 16;
+const HOVER_CARD_WIDTH_PX = 292;
+const HOVER_CARD_HEIGHT_PX = 120;
+const HOVER_CARD_MIN_TOP_PX = 84;
+const HOVER_CARD_X_OFFSET_PX = 18;
+const HOVER_CARD_Y_OFFSET_PX = -30;
 
 // Classic "marching ants" dash cycle for the brass route line.
 const DASH_SEQ: number[][] = [
@@ -174,6 +182,32 @@ function priceBucket(price: number | null): number {
   if (price <= 5.5) return 0;
   if (price <= 7) return 1;
   return 2;
+}
+
+function withBoundedHoverDetailCache(
+  details: Map<string, Venue | null>,
+  id: string,
+  venue: Venue | null,
+): Map<string, Venue | null> {
+  const next = new Map(details);
+  next.delete(id);
+  next.set(id, venue);
+  while (next.size > HOVER_DETAIL_CACHE_LIMIT) {
+    const oldestId = next.keys().next().value;
+    if (oldestId === undefined) break;
+    next.delete(oldestId);
+  }
+  return next;
+}
+
+function hoverImageUrlFor(
+  hoverDetail: Venue | null | undefined,
+  failedImage: FailedHoverImage | null,
+  hoveredVenueId: string | null,
+): string {
+  const src = directVenueImageUrl(hoverDetail?.imageUrl ?? "");
+  if (failedImage?.venueId === hoveredVenueId && failedImage.url === src) return "";
+  return src;
 }
 
 function pubsToGeoJSON(
@@ -448,9 +482,12 @@ export default function PubMapCanvas({
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(null);
   const [heroDismissed, setHeroDismissed] = useState(false);
   const [hoveredVenue, setHoveredVenue] = useState<HoveredVenue | null>(null);
+  const hoveredVenueId = hoveredVenue?.id ?? null;
   const [hoverDetails, setHoverDetails] = useState<Map<string, Venue | null>>(
     () => new Map(),
   );
+  const hoverDetailsRef = useRef(hoverDetails);
+  const [failedHoverImage, setFailedHoverImage] = useState<FailedHoverImage | null>(null);
   // POI layer visibility — default all-on so "everything is there" on load,
   // but each category is togglable and zoom-gated so it never clutters.
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>({
@@ -471,6 +508,11 @@ export default function PubMapCanvas({
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
   const hoverDetailLoadingRef = useRef<Set<string>>(new Set());
+  const rememberHoverDetail = useCallback((id: string, venue: Venue | null) => {
+    const next = withBoundedHoverDetailCache(hoverDetailsRef.current, id, venue);
+    hoverDetailsRef.current = next;
+    setHoverDetails(next);
+  }, []);
   useEffect(() => {
     onVenueClickRef.current = onVenueClick;
     onRouteStopClickRef.current = onRouteStopClick;
@@ -569,10 +611,10 @@ export default function PubMapCanvas({
   }, []);
 
   useEffect(() => {
-    if (!hoveredVenue) return;
-    const { id } = hoveredVenue;
+    if (!hoveredVenueId) return;
+    const id = hoveredVenueId;
     if (
-      hoverDetails.has(id) ||
+      hoverDetailsRef.current.has(id) ||
       hoverDetailLoadingRef.current.has(id)
     ) {
       return;
@@ -589,19 +631,11 @@ export default function PubMapCanvas({
         return payload.venue ?? null;
       })
       .then((venue) => {
-        setHoverDetails((details) => {
-          const next = new Map(details);
-          next.set(id, venue);
-          return next;
-        });
+        rememberHoverDetail(id, venue);
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setHoverDetails((details) => {
-          const next = new Map(details);
-          next.set(id, null);
-          return next;
-        });
+        rememberHoverDetail(id, null);
       })
       .finally(() => {
         window.clearTimeout(timeout);
@@ -612,7 +646,7 @@ export default function PubMapCanvas({
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [hoverDetails, hoveredVenue]);
+  }, [hoveredVenueId, rememberHoverDetail]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -1832,14 +1866,14 @@ export default function PubMapCanvas({
   }, [venues, venueSignals]);
 
   const hoverDetail = useMemo(
-    () => (hoveredVenue ? hoverDetails.get(hoveredVenue.id) : undefined),
-    [hoverDetails, hoveredVenue],
+    () => (hoveredVenueId ? hoverDetails.get(hoveredVenueId) : undefined),
+    [hoverDetails, hoveredVenueId],
   );
-  const hoverImageUrl = directVenueImageUrl(hoverDetail?.imageUrl ?? "");
+  const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
   const hoverCardStyle = hoveredVenue
     ? {
-        left: `min(${hoveredVenue.x + 18}px, calc(100vw - 316px))`,
-        top: Math.max(84, hoveredVenue.y - 30),
+        left: `clamp(${HOVER_CARD_VIEWPORT_GUTTER_PX}px, ${hoveredVenue.x + HOVER_CARD_X_OFFSET_PX}px, calc(100vw - ${HOVER_CARD_WIDTH_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
+        top: `clamp(${HOVER_CARD_MIN_TOP_PX}px, ${hoveredVenue.y + HOVER_CARD_Y_OFFSET_PX}px, calc(100vh - ${HOVER_CARD_HEIGHT_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
       }
     : undefined;
 
@@ -2025,11 +2059,21 @@ export default function PubMapCanvas({
         </aside>
       ) : null}
       {hoveredVenue ? (
-        <aside className="venueHoverCard" style={hoverCardStyle} aria-live="polite">
+        <aside className="venueHoverCard" style={hoverCardStyle} aria-hidden="true">
           {hoverImageUrl ? (
             <figure className="venueHoverPhoto">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={hoverImageUrl} alt="" loading="lazy" decoding="async" />
+              <img
+                src={hoverImageUrl}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={() => {
+                  if (hoveredVenueId) {
+                    setFailedHoverImage({ venueId: hoveredVenueId, url: hoverImageUrl });
+                  }
+                }}
+              />
             </figure>
           ) : (
             <div className="venueHoverPhotoFallback" aria-hidden="true">

@@ -197,7 +197,6 @@
 body {
   margin: 0;
   background: var(--gradient-party);
-  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -264,6 +263,8 @@ button {
    drawers that slide in over it (see .mapDrawer). No grid — the map is never
    boxed into a column. */
 .appShell {
+  --map-top-clearance: 92px;
+  --mobile-tab-clearance: calc(78px + env(safe-area-inset-bottom, 0px));
   height: 100vh;
   position: relative;
   overflow: hidden;
@@ -656,7 +657,7 @@ input[type="range"] {
 /* ── Map-first overlays: floating toolbar + sliding drawers ─────────────────*/
 .mapToolbar {
   position: absolute;
-  top: 62px;
+  top: var(--map-top-clearance);
   left: 50%;
   transform: translateX(-50%);
   z-index: 520;
@@ -731,7 +732,7 @@ input[type="range"] {
 
 .mapDrawer {
   position: absolute;
-  top: 0;
+  top: var(--map-top-clearance);
   bottom: 0;
   z-index: 500;
   width: 376px;
@@ -811,13 +812,16 @@ input[type="range"] {
    (control rail hidden) it's the primary onboarding, so it fills more of the
    viewport and pins to the bottom for thumb reach. */
 .mapOnboarding {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 600;
+  z-index: 1300;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding:
+    calc(18px + env(safe-area-inset-top, 0px))
+    16px
+    calc(18px + env(safe-area-inset-bottom, 0px));
 }
 
 .mapOnboardingScrim {
@@ -1063,7 +1067,7 @@ input[type="range"] {
   aspect-ratio: 1;
   border: 2px solid rgba(255, 255, 255, 0.78);
   border-radius: 50%;
-  box-shadow: 0 0 0 7px color-mix(in srgb, currentColor 18%, transparent);
+  box-shadow: 0 0 0 7px color-mix(in srgb, currentcolor 18%, transparent);
   color: var(--pint);
   animation: mapSkeletonPulse 1.55s ease-in-out infinite;
 }
@@ -2276,7 +2280,7 @@ input[type="range"] {
   width: 7px;
   aspect-ratio: 1;
   border-radius: 999px;
-  background: currentColor;
+  background: currentcolor;
 }
 
 .provChip.sourced {
@@ -3512,7 +3516,7 @@ button:disabled {
      the sides, so they're thumb-reachable and never crowd a narrow screen. */
   .mapDrawer {
     top: auto;
-    bottom: 0;
+    bottom: var(--mobile-tab-clearance);
     left: 0;
     right: 0;
     width: 100%;
@@ -3521,12 +3525,12 @@ button:disabled {
     border: 0;
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -10px 30px rgba(15, 28, 22, 0.28);
-    transform: translateY(100%);
+    transform: translateY(calc(100% + var(--mobile-tab-clearance)));
   }
 
   .mapDrawer.left,
   .mapDrawer.right {
-    transform: translateY(100%);
+    transform: translateY(calc(100% + var(--mobile-tab-clearance)));
   }
 
   .mapDrawer.left.open,
@@ -3536,7 +3540,7 @@ button:disabled {
 
   /* Toolbar hugs the top under the nav; wrap + full width on a phone. */
   .mapToolbar {
-    top: 54px;
+    top: calc(82px + env(safe-area-inset-top, 0px));
     left: 10px;
     right: 10px;
     max-width: none;
@@ -3544,6 +3548,12 @@ button:disabled {
     flex-wrap: wrap;
     justify-content: center;
     border-radius: 16px;
+  }
+
+  .appShell.onboarding-open .mapToolbar,
+  .appShell.onboarding-open .mapLegend {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .mapToolbarSearch input {
@@ -3650,6 +3660,7 @@ button:disabled {
 
   /* Legend wraps to two rows on the narrowest phones without clipping. */
   .mapLegend {
+    bottom: calc(var(--mobile-tab-clearance) + 10px);
     gap: 8px 12px;
     padding: 8px 10px;
     font-size: 0.74rem;

@@ -4,18 +4,47 @@
    the "/" route and not loaded here). */
 
 .discoverPage {
-  max-width: 960px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 28px 20px 80px;
+  padding: 32px 20px 80px;
   color: var(--ink);
 }
 
 .discoverHead {
-  margin: 32px 0 8px;
+  position: relative;
+  overflow: hidden;
+  margin: 28px 0 10px;
+  padding: 28px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--panel-raised));
+  border-radius: 24px;
+  background: var(--panel-raised);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--ink) 9%, transparent);
+}
+
+.discoverHead::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(112deg, transparent 0 76%, color-mix(in srgb, var(--river) 8%, transparent) 76% 77%, transparent 77%),
+    linear-gradient(0deg, color-mix(in srgb, var(--brass) 4%, transparent), transparent 58%);
+}
+
+.discoverHead > * {
+  position: relative;
+  z-index: 1;
 }
 
 .discoverEyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
   margin: 0 0 10px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--brass) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -36,23 +65,29 @@
   max-width: 60ch;
   color: var(--ink-soft);
   line-height: 1.6;
-  font-size: 17px;
+  font-size: 18px;
+  text-wrap: pretty;
 }
 
 .discoverSection {
   margin-top: 48px;
+  scroll-margin-top: 24px;
 }
 
 .discoverSectionTitle {
   margin: 0 0 4px;
+  padding-left: 12px;
+  border-left: 3px solid var(--brass);
   font-family: var(--font-garamond, var(--serif));
   font-size: 24px;
   font-weight: 700;
   color: var(--ink);
+  text-wrap: balance;
 }
 
 .discoverSectionDek {
   margin: 0 0 18px;
+  max-width: 68ch;
   color: var(--ink-soft);
   font-size: 14px;
 }
@@ -60,15 +95,17 @@
 .discoverEmpty {
   margin: 0;
   padding: 20px;
-  border: 1px dashed var(--line);
+  border: 1px solid color-mix(in srgb, var(--river) 28%, var(--line));
   border-radius: 10px;
   color: var(--ink-soft);
-  background: var(--panel);
+  background: var(--panel-raised);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
   font-size: 15px;
 }
 
 .discoverEmpty a {
-  color: var(--brass);
+  color: var(--river);
+  font-weight: 700;
   text-decoration: underline;
 }
 
@@ -77,10 +114,16 @@
 .leaderboard {
   width: 100%;
   border-collapse: collapse;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cat-beer, var(--brass)) 6%, var(--panel)) 0%,
+      var(--panel) 90px
+    );
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
   border-radius: 18px;
   overflow: hidden;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .leaderboard thead th {
@@ -90,12 +133,18 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--ink-soft);
-  border-bottom: 1px solid var(--line);
-  background: var(--panel-raised);
+  border-bottom: 1px solid color-mix(in srgb, var(--river) 22%, var(--line));
+  background: color-mix(in srgb, var(--river) 6%, var(--panel-raised));
 }
 
 .leaderboard tbody tr {
   border-bottom: 1px solid var(--line);
+  transition: background-color 0.16s ease, border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.leaderboard tbody tr:hover {
+  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
 }
 
 .leaderboard tbody tr:last-child {
@@ -122,8 +171,9 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--panel-raised);
-  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  border: 1px solid color-mix(in srgb, var(--brass) 44%, var(--line));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 85%, transparent);
   font-weight: 700;
   font-size: 13px;
   color: var(--brass);
@@ -160,6 +210,8 @@
   padding: 4px 9px;
   border-radius: 999px;
   border: 1.5px solid var(--brass);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-inset-press, inset 0 1px 2px rgba(22, 18, 42, 0.16));
   color: var(--brass);
   font-weight: 700;
   font-size: 13px;
@@ -176,10 +228,16 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cat-beer, var(--brass)) 6%, var(--panel)) 0%,
+      var(--panel) 90px
+    );
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
   border-radius: 18px;
   overflow: hidden;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .tonightRow {
@@ -188,6 +246,12 @@
   gap: 12px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--line);
+  transition: background-color 0.16s ease, border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.tonightRow:hover {
+  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
 }
 
 .tonightRow:last-child {
@@ -202,8 +266,9 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--panel-raised);
-  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  border: 1px solid color-mix(in srgb, var(--brass) 44%, var(--line));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 85%, transparent);
   font-weight: 700;
   font-size: 13px;
   color: var(--brass);
@@ -285,15 +350,22 @@
   flex-direction: column;
   gap: 12px;
   padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      120% 80% at 0% 0%,
+      color-mix(in srgb, var(--brass) 7%, transparent) 0%,
+      transparent 58%
+    ),
+    var(--panel-raised);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .tvnCard:hover {
-  border-color: var(--brass);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--brass) 12%, transparent);
+  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
 }
 
 .tvnName {
@@ -360,6 +432,8 @@
 .tvnStampNow {
   color: var(--brass);
   border-color: var(--brass);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-inset-press, inset 0 1px 2px rgba(22, 18, 42, 0.16));
   transform: rotate(1.5deg);
 }
 
@@ -410,9 +484,16 @@
   display: flex;
   flex-direction: column;
   padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      120% 80% at 0% 0%,
+      color-mix(in srgb, var(--brass) 7%, transparent) 0%,
+      transparent 58%
+    ),
+    var(--panel-raised);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .editorialEyebrow {
@@ -443,15 +524,23 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  width: fit-content;
   min-height: 32px;
-  color: var(--brass);
+  padding: 7px 11px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
   font-weight: 600;
   font-size: 14px;
   text-decoration: none;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+  transition: filter 0.16s ease, transform 0.16s ease;
 }
 
 .editorialLink:hover {
-  text-decoration: underline;
+  filter: brightness(1.06);
+  text-decoration: none;
 }
 
 .editorialLink:focus-visible {
@@ -465,8 +554,8 @@
 }
 
 .editorialCard:hover {
-  border-color: var(--brass);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--brass) 12%, transparent);
+  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
 }
 
 .discoverEmpty a:focus-visible,
@@ -495,7 +584,7 @@
    so the pub name and its price stamp stay legible on a 375px screen. */
 @media (max-width: 560px) {
   .discoverPage {
-    padding: 20px 14px 72px;
+    padding: 20px 14px calc(142px + env(safe-area-inset-bottom, 0px));
   }
 
   .discoverSection {
@@ -542,112 +631,8 @@
   margin-top: 4px;
 }
 
-/* Warm the pint boards with a whisper of the beer/brass accent + a hairline
-   top rule, so they read as "printed guide" panels rather than plain tables. */
-.leaderboard,
-.tonightBoard {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--cat-beer, var(--brass)) 6%, var(--panel)) 0%,
-      var(--panel) 90px
-    );
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--cat-beer, var(--brass)) 8%, transparent);
-}
-
-/* Rank chips carry the beer hue — the pint boards' honest colour. */
-.leaderboardRankNum,
-.tonightRank {
-  border-color: color-mix(in srgb, var(--cat-beer, var(--brass)) 40%, var(--line));
-  background: color-mix(in srgb, var(--cat-beer, var(--brass)) 10%, var(--panel-raised));
-}
-
-/* Then-vs-now + editorial cards: a soft warm top-corner tint so the grid reads
-   as textured paper, not flat panels. Kept faint — the price stamps stay hero. */
-.tvnCard,
-.editorialCard {
-  background:
-    radial-gradient(
-      120% 80% at 0% 0%,
-      color-mix(in srgb, var(--brass) 7%, transparent) 0%,
-      transparent 58%
-    ),
-    var(--panel);
-}
-
-/* Section titles get a small brass tick so the eye can find the lanes quickly. */
-.discoverSectionTitle {
-  padding-left: 12px;
-  border-left: 3px solid color-mix(in srgb, var(--brass) 70%, transparent);
-}
-
 /* ── Focused visual polish: bright listing surfaces + coral/blue accents ── */
-.discoverPage {
-  max-width: 1080px;
-  padding-top: 32px;
-}
-
-.discoverHead {
-  position: relative;
-  overflow: hidden;
-  margin: 28px 0 10px;
-  padding: 28px;
-  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--panel-raised));
-  border-radius: 24px;
-  background: var(--panel-raised);
-  box-shadow: 0 18px 42px color-mix(in srgb, var(--ink) 9%, transparent);
-}
-
-.discoverHead::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(112deg, transparent 0 76%, color-mix(in srgb, var(--river) 8%, transparent) 76% 77%, transparent 77%),
-    linear-gradient(0deg, color-mix(in srgb, var(--brass) 4%, transparent), transparent 58%);
-}
-
-.discoverHead > * {
-  position: relative;
-  z-index: 1;
-}
-
-.discoverEyebrow {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 4px 10px;
-  border: 1px solid color-mix(in srgb, var(--brass) 28%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
-  color: var(--brass);
-}
-
-.discoverLede {
-  font-size: 18px;
-  text-wrap: pretty;
-}
-
-.discoverSection {
-  scroll-margin-top: 24px;
-}
-
-.discoverSectionTitle {
-  border-left-color: var(--brass);
-  text-wrap: balance;
-}
-
-.discoverSectionDek {
-  max-width: 68ch;
-}
-
 .discoverExplore.catShowcase,
-.leaderboard,
-.tonightBoard,
-.discoverEmpty,
-.tvnCard,
-.editorialCard,
 .topRatedItem {
   border-color: color-mix(in srgb, var(--line) 74%, var(--panel-raised));
   background-color: var(--panel-raised);
@@ -669,28 +654,12 @@
   color: var(--river);
 }
 
-.leaderboard thead th {
-  border-bottom-color: color-mix(in srgb, var(--river) 22%, var(--line));
-  background: color-mix(in srgb, var(--river) 6%, var(--panel-raised));
-}
-
-.leaderboard tbody tr,
-.tonightRow,
 .topRatedItem {
   transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.leaderboard tbody tr:hover,
-.tonightRow:hover,
 .topRatedItem:hover {
   background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
-}
-
-.leaderboardRankNum,
-.tonightRank {
-  border-color: color-mix(in srgb, var(--brass) 44%, var(--line));
-  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 85%, transparent);
 }
 
 .topRatedRank {
@@ -701,50 +670,6 @@
   border: 1px solid color-mix(in srgb, var(--brass) 36%, var(--line));
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
-}
-
-.priceStamp,
-.tvnStampNow {
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-inset-press, inset 0 1px 2px rgba(22, 18, 42, 0.16));
-}
-
-.tvnCard,
-.editorialCard {
-  border-radius: 18px;
-}
-
-.tvnCard:hover,
-.editorialCard:hover {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
-}
-
-.editorialLink {
-  width: fit-content;
-  padding: 7px 11px;
-  border: 1px solid var(--brass);
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
-  text-decoration: none;
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
-  transition: filter 0.16s ease, transform 0.16s ease;
-}
-
-.editorialLink:hover {
-  filter: brightness(1.06);
-  text-decoration: none;
-}
-
-.discoverEmpty {
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--river) 28%, var(--line));
-}
-
-.discoverEmpty a {
-  color: var(--river);
-  font-weight: 700;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -763,5 +688,32 @@
 
   .discoverLede {
     font-size: 16px;
+  }
+
+  .discoverExplore.catShowcase {
+    padding: 12px;
+  }
+
+  .discoverExplore .catShowcase__grid {
+    gap: 8px;
+  }
+
+  .discoverExplore .catShowcase__link {
+    min-height: 48px;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .discoverExplore .catShowcase__swatch {
+    width: 32px;
+    height: 32px;
+  }
+
+  .discoverExplore .catShowcase__label {
+    font-size: 0.98rem;
+  }
+
+  .discoverExplore .catShowcase__hint {
+    display: none;
   }
 }

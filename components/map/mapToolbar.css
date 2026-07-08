@@ -13,7 +13,7 @@
      floating chrome from ever fighting the expanded sheet for space, and
      both slide right back the moment the sheet drops to half/peek. */
   .appShell.sheet-full .mapToolbar {
-    transform: translate(-50%, -120%);
+    transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
     transition: transform 0.2s ease, opacity 0.2s ease;
@@ -24,6 +24,18 @@
     opacity: 0;
     pointer-events: none;
     transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  .appShell.onboarding-open .mapToolbar {
+    transform: translateY(-120%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .appShell.onboarding-open .mapLegend {
+    transform: translateY(120%);
+    opacity: 0;
+    pointer-events: none;
   }
 
   .mapToolbar,

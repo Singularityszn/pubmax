@@ -156,7 +156,7 @@
 }
 
 .priceChip {
-  min-height: 38px;
+  min-height: 44px;
   padding: 6px 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -474,7 +474,7 @@
 }
 
 .destinationChip {
-  min-height: 40px;
+  min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -548,7 +548,7 @@
 }
 
 .generationChip {
-  min-height: 40px;
+  min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;

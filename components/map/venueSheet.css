@@ -90,23 +90,33 @@
 }
 
 .venueTabPanel {
-  padding-top: 12px;
+  position: relative;
+  isolation: isolate;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--panel-raised));
+  border-radius: 16px;
+  background: var(--panel-raised);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--ink) 9%, transparent);
 }
 
 .venueBaselinePhoto {
   position: relative;
   aspect-ratio: 12 / 7;
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--pint) 10%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--river) 28%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--river) 7%, var(--panel));
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .venueBaselinePhoto img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.24s ease;
 }
 
 /* The address used to inherit its muted colour from `.venueInspector > p` in
@@ -185,26 +195,12 @@
   }
 }
 
-/* ── Primary-action tab-bar clearance (user story 15) ────────────────────────
-   The mobile bottom tab bar (components/nav/mobileNav.css) is ~78px tall plus
-   env(safe-area-inset-bottom), fixed to the viewport bottom. The sheet sits
-   above it (higher z-index) at every snap point, so the tab bar can never
-   visually cover the sheet — but without this padding the sheet's own primary
-   CTA could still render flush with the very bottom edge, right where the tab
-   bar sits, leaving no visual separation and risking a mis-tap between the
-   two fixed-position layers. Reserve room for the tab bar's height on every
-   scrollable, primary-CTA-bearing tab panel inside the sheet. */
+/* ── Primary-action sheet clearance (user story 15) ──────────────────────────
+   The sheet itself now sits above the fixed mobile tab bar, so internal panels
+   only need a modest breathing buffer at the sheet edge. */
 @media (max-width: 640px) {
-  .venueTabPanel {
-    padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px) + 12px);
-  }
-
-  /* The Pints tab's sticky log bar (globals.css `.logDropBar`, sticky at
-     `bottom: 8px` under ≤1050px) needs its own clearance since it pins to the
-     BOTTOM of the scroll container, not the natural document flow the panel
-     padding above covers. */
   .logDropBar {
-    bottom: calc(78px + env(safe-area-inset-bottom, 0px) + 8px) !important;
+    bottom: 8px !important;
   }
 }
 
@@ -214,13 +210,15 @@
    user's font size instead of clipping. */
 @media (max-width: 640px) {
   .venueTabs {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     max-height: none;
+    scroll-snap-type: x proximity;
   }
 
   .venueTab {
     min-height: 2.75rem;
     height: auto;
+    scroll-snap-align: start;
   }
 }
 
@@ -274,11 +272,6 @@
    this block — the shared utility centralises the ::before + z-index lift +
    Legacy/forced-colors opt-out. Kept scoped here only while the component is
    off-limits. */
-.venueTabPanel {
-  position: relative;
-  isolation: isolate;
-}
-
 .venueTabPanel > * {
   position: relative;
   z-index: 1;
@@ -290,6 +283,7 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  border-radius: inherit;
   background-image:
     repeating-linear-gradient(
       45deg,
@@ -390,27 +384,6 @@ html[data-legacy="1"] .venueTabPanel::before {
   outline-color: var(--river);
 }
 
-.venueTabPanel {
-  margin-top: 12px;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--panel-raised));
-  border-radius: 16px;
-  background: var(--panel-raised);
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--ink) 9%, transparent);
-}
-
-.venueTabPanel::before {
-  border-radius: inherit;
-}
-
-.venueBaselinePhoto {
-  margin: 0 0 14px;
-  border-color: color-mix(in srgb, var(--river) 28%, var(--line));
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--river) 7%, var(--panel));
-  box-shadow: 0 14px 30px color-mix(in srgb, var(--ink) 12%, transparent);
-}
-
 .venueBaselinePhoto::after {
   content: "";
   position: absolute;
@@ -421,11 +394,6 @@ html[data-legacy="1"] .venueTabPanel::before {
     transparent 56%,
     color-mix(in srgb, var(--ink-deep) 28%, transparent) 100%
   );
-}
-
-.venueBaselinePhoto img {
-  display: block;
-  transition: transform 0.24s ease;
 }
 
 .venueAddress {
@@ -549,6 +517,6 @@ html[data-legacy="1"] .venueTabPanel::before {
   }
 
   .venueTabPanel {
-    padding: 12px 12px calc(78px + env(safe-area-inset-bottom, 0px) + 12px);
+    padding: 12px 12px 24px;
   }
 }

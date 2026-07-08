@@ -5,7 +5,7 @@
 // its logic.
 import { describe, it, expect, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -67,6 +67,41 @@ function runValidate(scriptsDir: string): { code: number; stdout: string } {
     const e = err as { status: number; stdout: string };
     return { code: e.status, stdout: e.stdout };
   }
+}
+
+function writePubmaxxingSnapshotWithAlcoholBuckets(
+  scriptsDir: string,
+  counts: { alcoholic: number; nonAlcoholic: number; unknown: number },
+) {
+  const snapshotPath = join(scriptsDir, "..", "public", "data", "pubmaxxing_seed_snapshot.json");
+  const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+  const template = snapshot.beverages[0];
+  if (!template) throw new Error("pubmaxxing fixture must contain at least one beverage row");
+  snapshot.beverages = [
+    ...Array.from({ length: counts.alcoholic }, (_, i) => ({
+      ...template,
+      priceId: `test-alcoholic-${i}`,
+      isAlcoholic: true,
+    })),
+    ...Array.from({ length: counts.nonAlcoholic }, (_, i) => ({
+      ...template,
+      priceId: `test-non-alcoholic-${i}`,
+      isAlcoholic: false,
+    })),
+    ...Array.from({ length: counts.unknown }, (_, i) => ({
+      ...template,
+      priceId: `test-unknown-${i}`,
+      isAlcoholic: null,
+    })),
+  ];
+  snapshot.summary = {
+    ...snapshot.summary,
+    beverageRows: snapshot.beverages.length,
+    alcoholicRows: counts.alcoholic,
+    nonAlcoholicRows: counts.nonAlcoholic,
+    unknownAlcoholicRows: counts.unknown,
+  };
+  writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
 }
 
 afterEach(() => {
@@ -211,6 +246,36 @@ describe("validate-data.mjs slim venue index validation", () => {
     expect(code).toBe(1);
     expect(stdout).toContain("FAIL public/data/venues_slim.json");
     expect(stdout).toContain("id is not present in rebuilt full-dataset index");
+  });
+});
+
+describe("validate-data.mjs pubmaxxing seed validation", () => {
+  it("allows a small unclassified isAlcoholic bucket without rejecting a healthy beverage import", () => {
+    const scriptsDir = setupScratch({});
+    writePubmaxxingSnapshotWithAlcoholBuckets(scriptsDir, {
+      alcoholic: 1250,
+      nonAlcoholic: 100,
+      unknown: 50,
+    });
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(0);
+    expect(stdout).toContain("PASS public/data/pubmaxxing_seed_snapshot.json");
+  });
+
+  it("FAILS when the unclassified isAlcoholic bucket is too large", () => {
+    const scriptsDir = setupScratch({});
+    writePubmaxxingSnapshotWithAlcoholBuckets(scriptsDir, {
+      alcoholic: 1250,
+      nonAlcoholic: 100,
+      unknown: 151,
+    });
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("unknown isAlcoholic rows 151 above ceiling");
   });
 });
 

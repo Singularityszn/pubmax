@@ -4,6 +4,8 @@ import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
+import "@/components/map/venueSheet.css";
+import "@/components/map/spillComposer.css";
 
 import {
   buildCrawlRoute,
@@ -774,7 +776,9 @@ export default function PubMap() {
         // lets the map's floating controls (toolbar/legend) get out of the
         // way while the mobile sheet is at its most-expanded snap, per the
         // thumb-reach control pass (GH #17 user story 17).
-        "appShell dark" + (detailOpen && sheetSnap === "full" ? " sheet-full" : "")
+        "appShell dark" +
+        (detailOpen && sheetSnap === "full" ? " sheet-full" : "") +
+        (showOnboarding ? " onboarding-open" : "")
       }
     >
       <SiteNav active="map" />

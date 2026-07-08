@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Beer,
@@ -16,7 +17,6 @@ import ThamesHero from "./ThamesHero";
 import ThemeToggle from "@/components/ThemeToggle";
 import LegacyToggle from "@/components/LegacyToggle";
 import SignInButton from "@/components/auth/SignInButton";
-import PintDropStrip from "./PintDropStrip";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import { categoryColor } from "@/lib/categoryColors";
 import {
@@ -26,6 +26,35 @@ import {
   type WedgeKey,
 } from "@/lib/surfaceAccent";
 import "./landing.css";
+
+function PintDropStripLoading() {
+  return (
+    <div className="dropStrip" aria-hidden="true">
+      <div className="dropStripHead">
+        <p className="eyebrow">
+          <HandCoins size={15} strokeWidth={1.5} aria-hidden="true" />
+          Fresh from the taps
+        </p>
+        <span className="dropStripHint">Newest community drops -&gt;</span>
+      </div>
+      <div className="dropStripRail">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div className="dropStripCard dropStripCardSkeleton" key={i}>
+            <span className="skelLine skelLineTop" />
+            <span className="skelLine" />
+            <span className="skelLine" />
+            <span className="skelLine skelLineShort" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
+  ssr: false,
+  loading: PintDropStripLoading,
+});
 
 // One IntersectionObserver reveals sections as they enter view. The hidden
 // initial state is CSS-gated behind the .jsEnhanced class this effect adds to
@@ -217,6 +246,12 @@ export default function LandingPage() {
             </div>
             <figure className="heroFigure textured-panel">
               <ThamesHero />
+              <div className="crawlTicket" aria-hidden="true">
+                <span className="ticketLabel">Tonight&apos;s crawl</span>
+                <strong>River four-stop</strong>
+                <span>The Dove -&gt; Mayflower -&gt; Cheshire Cheese</span>
+                <span className="ticketPrice">from £19.30</span>
+              </div>
               <figcaption className="figCaption">
                 A crawl along the river — four pins, four prices, one afternoon.
                 Figures shown are illustrative.

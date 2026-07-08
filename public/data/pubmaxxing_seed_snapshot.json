@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-07",
+  "sourceImportedAt": "2026-07-07",
   "source": {
     "sourceRepo": "https://github.com/karanmrn/pubmaxxing",
     "sourceCommit": "6eafc34",
@@ -12,6 +12,7 @@
     "beverageRows": 1487,
     "alcoholicRows": 1337,
     "nonAlcoholicRows": 150,
+    "unknownAlcoholicRows": 0,
     "historySeeds": 70,
     "discountMentions": 402,
     "uniquePubIds": 155
