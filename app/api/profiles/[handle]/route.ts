@@ -223,16 +223,16 @@ export async function DELETE(
 ): Promise<Response> {
   const handle = normalizeHandle((await params).handle);
   if (!handle) {
-    return Response.json({ error: "Missing handle." }, { status: 400 });
+    return jsonNoStore({ error: "Missing handle." }, { status: 400 });
   }
 
   const key = `profile-delete:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(handle, key)) {
-    return Response.json({ error: "Too many edits, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many edits, slow down." }, { status: 429 });
   }
 
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return Response.json({ error: "Profile storage is not configured." }, { status: 503 });
+    return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
   }
 
   const caller = await callerUserId(request);
@@ -241,21 +241,21 @@ export async function DELETE(
     const store = profileStore();
     const existing = await store.getByHandle(handle);
     if (!existing) {
-      return Response.json({ error: "Profile not found." }, { status: 404 });
+      return jsonNoStore({ error: "Profile not found." }, { status: 404 });
     }
 
     const decision = decideProfileWrite(existing.userId, caller);
     if (!decision.allowed) {
-      return Response.json(
+      return jsonNoStore(
         { error: "This handle belongs to a signed-in account. Sign in as its owner to delete it." },
         { status: decision.status },
       );
     }
 
     const profile = await store.softDelete(handle);
-    return Response.json({ profile: toPublicProfile(profile) }, { status: 200 });
+    return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });
   } catch {
-    return Response.json({ error: "Profile storage is unavailable." }, { status: 503 });
+    return jsonNoStore({ error: "Profile storage is unavailable." }, { status: 503 });
   }
 }
 
