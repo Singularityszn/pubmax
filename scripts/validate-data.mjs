@@ -809,6 +809,9 @@ function validatePubmaxxingSeed() {
   const unknownAlcoholicRows = beverages.filter(
     (row) => row?.isAlcoholic !== true && row?.isAlcoholic !== false,
   ).length;
+  if (data.summary?.unknownAlcoholicRows !== unknownAlcoholicRows) {
+    errs.add(`summary.unknownAlcoholicRows must equal computed unknown row count ${unknownAlcoholicRows}`);
+  }
   if (alcoholicRows < PUBMAXXING_ALCOHOLIC_ROW_FLOOR) {
     errs.add(`alcoholic rows ${alcoholicRows} below floor ${PUBMAXXING_ALCOHOLIC_ROW_FLOOR}`);
   }

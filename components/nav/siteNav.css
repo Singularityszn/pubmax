@@ -82,6 +82,8 @@
 
 .siteNavItem {
   display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .siteNavLink {
@@ -95,6 +97,10 @@
   font-size: 0.84rem;
   font-weight: 600;
   text-decoration: none;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   transition: color 0.16s ease, background 0.16s ease;
 }
@@ -181,12 +187,6 @@
 
   .siteNavActions {
     gap: 6px;
-  }
-
-  .viewModeSwitch,
-  .legacyToggle,
-  .siteNavBar .authUser {
-    display: none;
   }
 }
 

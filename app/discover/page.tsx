@@ -187,6 +187,7 @@ export default function DiscoverPage() {
           hrefFor={exploreHref}
           cardHint="Choose this"
           className="discoverExplore"
+          extraItemsPosition="start"
           extraItems={
             <li
               className="catShowcase__item discoverLowNoItem"

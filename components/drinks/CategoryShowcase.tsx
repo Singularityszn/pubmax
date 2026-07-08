@@ -33,6 +33,8 @@ export interface CategoryShowcaseProps {
   cardHint?: string;
   /** Optional extra cards rendered in the same grid, e.g. Low/No alcohol. */
   extraItems?: ReactNode;
+  /** Whether extra cards appear before or after the canonical drink categories. */
+  extraItemsPosition?: "start" | "end";
 }
 
 export function CategoryShowcase({
@@ -42,6 +44,7 @@ export function CategoryShowcase({
   hrefFor,
   cardHint,
   extraItems,
+  extraItemsPosition = "end",
 }: CategoryShowcaseProps) {
   const explore = Boolean(hrefFor);
   const size = glyphSize ?? (explore ? 34 : 28);
@@ -55,6 +58,7 @@ export function CategoryShowcase({
     >
       {title ? <h3 className="catShowcase__title">{title}</h3> : null}
       <ul className="catShowcase__grid">
+        {extraItemsPosition === "start" ? extraItems : null}
         {DRINK_CATEGORIES.map((category) => {
           const label = CATEGORY_META[category].label;
           const inner = (
@@ -101,7 +105,7 @@ export function CategoryShowcase({
             </li>
           );
         })}
-        {extraItems}
+        {extraItemsPosition === "end" ? extraItems : null}
       </ul>
     </section>
   );

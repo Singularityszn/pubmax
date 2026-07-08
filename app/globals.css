@@ -3512,6 +3512,10 @@ button:disabled {
    own scroll. Pure CSS — no JS to drag/collapse, so the sheets simply live in
    the page scroll with a grab-handle affordance. */
 @media (max-width: 768px) {
+  .appShell {
+    --map-top-clearance: calc(82px + env(safe-area-inset-top, 0px));
+  }
+
   /* Map stays full-bleed; drawers slide UP as bottom sheets instead of in from
      the sides, so they're thumb-reachable and never crowd a narrow screen. */
   .mapDrawer {
@@ -3540,7 +3544,7 @@ button:disabled {
 
   /* Toolbar hugs the top under the nav; wrap + full width on a phone. */
   .mapToolbar {
-    top: calc(82px + env(safe-area-inset-top, 0px));
+    top: var(--map-top-clearance);
     left: 10px;
     right: 10px;
     max-width: none;

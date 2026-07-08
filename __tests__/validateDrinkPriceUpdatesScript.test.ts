@@ -250,6 +250,19 @@ describe("validate-data.mjs slim venue index validation", () => {
 });
 
 describe("validate-data.mjs pubmaxxing seed validation", () => {
+  it("FAILS when a beverage row uses an invalid isAlcoholic value", () => {
+    const scriptsDir = setupScratch({});
+    const snapshotPath = join(scriptsDir, "..", "public", "data", "pubmaxxing_seed_snapshot.json");
+    const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+    snapshot.beverages[0] = { ...snapshot.beverages[0], isAlcoholic: "maybe" };
+    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("isAlcoholic must be boolean, null, or omitted");
+  });
+
   it("allows a small unclassified isAlcoholic bucket without rejecting a healthy beverage import", () => {
     const scriptsDir = setupScratch({});
     writePubmaxxingSnapshotWithAlcoholBuckets(scriptsDir, {
