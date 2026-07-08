@@ -2,7 +2,7 @@
 // for a single id, loaded server-side so it never rides in the client bundle.
 //
 // This is the lazy other half of the SLIM-INDEX split: the map fetches
-// /data/venues_slim.json (~140 KB) on load to draw pins, then calls THIS route
+// /data/venues_slim.json (~400 KB) on load to draw pins, then calls THIS route
 // only when a pub is opened. The heavy ~6 MB dataset stays on the server; a
 // visitor downloads full detail for at most the handful of venues they open.
 //

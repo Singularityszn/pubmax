@@ -4,10 +4,14 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  filterVenues,
   stableVenueIdFromKey,
   venueGroupingKey,
+  groupVenuePrices,
+  type Filters,
   type VenuePrice,
 } from "@/lib/venues";
+import { slimVenueToPin } from "@/lib/slimPins";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
@@ -23,6 +27,9 @@ const SLIM_KEYS = ["borough", "cheapestPrice", "filterHints", "id", "lat", "lng"
 
 const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as unknown;
 const rawRows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
+const fullVenuesById = new Map(
+  groupVenuePrices(rawRows).map((venue) => [venue.id, venue]),
+);
 
 // The source dataset is London-*centred* but not London-*bounded*: ~19% of rows
 // carry coords well outside Greater London (mis-geocoded entries the raw feed
@@ -63,6 +70,43 @@ function isSlimVenue(value: unknown): value is SlimVenue {
     typeof curation?.hasStory === "boolean" &&
     typeof hints?.canonical === "boolean"
   );
+}
+
+function makeFilters(overrides: Partial<Filters> = {}): Filters {
+  return {
+    query: "",
+    maxPrice: 100,
+    crawlStyle: "balanced",
+    stopCount: 4,
+    routeWindow: 90,
+    requireBeerGarden: false,
+    requireNonAlcoholic: false,
+    requireLiveSports: false,
+    requireFood: false,
+    requireCocktails: false,
+    requireWater: false,
+    requireHeritage: false,
+    requirePintDrops: false,
+    canonicalOnly: false,
+    requireStepFree: false,
+    requireAccessibleToilet: false,
+    requireSeatedService: false,
+    ...overrides,
+  };
+}
+
+function matchingIdsFromSlim(filters: Filters): string[] {
+  return (slim as SlimVenue[])
+    .filter((venue) => filterVenues([slimVenueToPin(venue)], filters).length > 0)
+    .map((venue) => venue.id)
+    .sort();
+}
+
+function matchingIdsFromFull(filters: Filters): string[] {
+  return Array.from(fullVenuesById.values())
+    .filter((venue) => filterVenues([venue], filters).length > 0)
+    .map((venue) => venue.id)
+    .sort();
 }
 
 describe("venues_slim.json", () => {
@@ -132,6 +176,17 @@ describe("venues_slim.json", () => {
     expect(rows.some((row) => row.filterHints?.searchText.includes("wine"))).toBe(true);
     expect(rows.some((row) => row.filterHints?.amenities.cocktails)).toBe(true);
     expect(rows.some((row) => row.filterHints?.amenities.nonAlcoholic)).toBe(true);
+  });
+
+  it.each([
+    ["wine query", makeFilters({ query: "wine" })],
+    ["cocktail filter", makeFilters({ requireCocktails: true })],
+    ["low/no filter", makeFilters({ requireNonAlcoholic: true })],
+    ["water filter", makeFilters({ requireWater: true })],
+    ["heritage filter", makeFilters({ requireHeritage: true })],
+    ["canonical filter", makeFilters({ canonicalOnly: true })],
+  ])("matches hydrated filtering for %s", (_label, filters) => {
+    expect(matchingIdsFromSlim(filters)).toEqual(matchingIdsFromFull(filters));
   });
 
   it("slim ids equal the canonical stableVenueIdFromKey(venueGroupingKey(...))", () => {

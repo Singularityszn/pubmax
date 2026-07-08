@@ -23,12 +23,6 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
-const PUBMAXXING_SEED_PATH = path.join(
-  ROOT,
-  "public",
-  "data",
-  "pubmaxxing_seed_snapshot.json",
-);
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const GENERATED_DIR = path.join(ROOT, "data", "generated");
 const DETAIL_INDEX_PATH = path.join(GENERATED_DIR, "venue_detail_index.json");
@@ -141,99 +135,31 @@ const HERITAGE_TERMS = [
   "since 16",
 ];
 
-function normaliseSeedName(value) {
-  return String(value ?? "")
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/^the\s+/, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .replace(/\s+/g, " ");
+// Mirrors the curated names in lib/curation.ts. Keep this compact: the slim
+// artifact only needs the derived filter booleans, not the display copy.
+const CURATED_VENUES = {
+  "prospect of whitby": { nearWater: true, hasHeritage: true },
+  "the grapes": { nearWater: true, hasHeritage: true },
+  "the dove": { nearWater: true, hasHeritage: true },
+  "the old pack horse": { hasHeritage: true },
+  "the lamb": { hasHeritage: true },
+  "the sun tavern": { hasHeritage: true },
+  "the queens head": { hasHeritage: true },
+  "the queens arms": { hasHeritage: true },
+};
+
+function normaliseVenueName(value) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function addSeedTerms(target, beverage) {
-  const category = String(beverage.category ?? "").trim().toLowerCase();
-  if (category === "wine") target.add("wine");
-  if (category === "cocktails") {
-    target.add("cocktail");
-    target.add("cocktails");
-  }
-  if (category === "non-alcoholic") {
-    target.add("low no");
-    target.add("low/no");
-    target.add("non alcoholic");
-    target.add("alcohol free");
-  }
-  if (category === "beer & cider") {
-    target.add("beer");
-    target.add("cider");
-  }
-
-  const name = String(beverage.name ?? "").toLowerCase();
-  if (/whisk(e)?y|bourbon|scotch/.test(name)) target.add("whisky");
-  if (/\bgin\b/.test(name)) target.add("gin");
-  if (/vodka/.test(name)) target.add("vodka");
-  if (/\brum\b/.test(name)) target.add("rum");
-  if (/\bshots?\b|shooter/.test(name)) target.add("shot");
-}
-
-async function loadPubmaxxingSeedHints() {
-  try {
-    const seedText = await readFile(PUBMAXXING_SEED_PATH, "utf8");
-    const seed = JSON.parse(seedText);
-    const beverages = Array.isArray(seed?.beverages) ? seed.beverages : [];
-    const hints = new Map();
-    for (const beverage of beverages) {
-      const key = normaliseSeedName(beverage.pubName);
-      if (!key) continue;
-      const current = hints.get(key) ?? {
-        terms: new Set(),
-        cocktails: false,
-        nonAlcoholic: false,
-      };
-      addSeedTerms(current.terms, beverage);
-      const category = String(beverage.category ?? "").trim().toLowerCase();
-      if (category === "cocktails") current.cocktails = true;
-      if (category === "non-alcoholic") current.nonAlcoholic = true;
-      hints.set(key, current);
-    }
-    return hints;
-  } catch {
-    return new Map();
-  }
-}
-
-function seedHintsForVenue(seedHints, pubName) {
-  const venueKey = normaliseSeedName(pubName);
-  if (!venueKey) return undefined;
-  const exact = seedHints.get(venueKey);
-  if (exact) return exact;
-  for (const [seedKey, hints] of seedHints) {
-    if (
-      (seedKey.length > 6 && venueKey.includes(seedKey)) ||
-      (venueKey.length > 6 && seedKey.includes(venueKey))
-    ) {
-      return hints;
-    }
-  }
-  return undefined;
-}
-
-function buildFilterHints(prices, seedHints) {
-  const first = prices[0];
-  const seedTerms = seedHints?.terms ?? new Set();
-  const searchParts = new Set(
-    [
-      first.pub_name,
-      first.address,
-      first.primary_borough,
-      first.boroughs_visible,
-      ...prices.map((price) => price.pint_name),
-      ...seedTerms,
-    ]
-      .map((part) => String(part ?? "").trim().toLowerCase())
-      .filter(Boolean),
-  );
+function buildCurationHints(prices) {
+  const sortedPrices = [...prices].sort((a, b) => {
+    const left = a.price_gbp ?? Number.POSITIVE_INFINITY;
+    const right = b.price_gbp ?? Number.POSITIVE_INFINITY;
+    return left - right;
+  });
+  const first = sortedPrices[0] ?? prices[0];
+  const explicit = CURATED_VENUES[normaliseVenueName(first.pub_name)] ?? {};
   const haystack = [
     first.pub_name,
     first.address,
@@ -242,24 +168,40 @@ function buildFilterHints(prices, seedHints) {
   ]
     .join(" ")
     .toLowerCase();
+  const inferredHeritage =
+    explicit.hasHeritage !== true && HERITAGE_TERMS.some((term) => haystack.includes(term));
+
+  return {
+    nearWater: explicit.nearWater ?? WATER_TERMS.some((term) => haystack.includes(term)),
+    hasStory: explicit.hasHeritage === true || inferredHeritage,
+  };
+}
+
+function buildFilterHints(prices) {
+  const first = prices[0];
+  const searchParts = new Set(
+    [
+      first.pub_name,
+      first.address,
+      first.primary_borough,
+      first.boroughs_visible,
+      ...prices.map((price) => price.pint_name),
+    ]
+      .map((part) => String(part ?? "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const curation = buildCurationHints(prices);
 
   return {
     searchText: Array.from(searchParts).join(" "),
     amenities: {
       food: prices.some((price) => truthyFlag(price.food)),
-      cocktails:
-        prices.some((price) => truthyFlag(price.cocktails)) ||
-        seedHints?.cocktails === true,
+      cocktails: prices.some((price) => truthyFlag(price.cocktails)),
       beerGarden: prices.some((price) => truthyFlag(price.beer_garden)),
       liveSports: prices.some((price) => truthyFlag(price.live_sports)),
-      nonAlcoholic:
-        prices.some((price) => isNonAlcoholicDrinkName(price.pint_name)) ||
-        seedHints?.nonAlcoholic === true,
+      nonAlcoholic: prices.some((price) => isNonAlcoholicDrinkName(price.pint_name)),
     },
-    curation: {
-      nearWater: WATER_TERMS.some((term) => haystack.includes(term)),
-      hasStory: HERITAGE_TERMS.some((term) => haystack.includes(term)),
-    },
+    curation,
     canonical: prices.some((price) => price.is_clean_canonical_app_row === true),
   };
 }
@@ -268,7 +210,6 @@ function buildFilterHints(prices, seedHints) {
 
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
-  const seedHintsByName = await loadPubmaxxingSeedHints();
   const rows = JSON.parse(rawText);
   if (!Array.isArray(rows)) {
     throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
@@ -320,7 +261,7 @@ async function main() {
       lng: Number(first.longitude),
       cheapestPrice,
       borough: String(first.primary_borough || ""),
-      filterHints: buildFilterHints(prices, seedHintsForVenue(seedHintsByName, first.pub_name)),
+      filterHints: buildFilterHints(prices),
     });
 
     const detailLine = `${JSON.stringify({ id, rows: prices })}\n`;
