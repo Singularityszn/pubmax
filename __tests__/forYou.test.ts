@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { FeedItem } from "@/lib/feed";
 import {
+  FRIENDS_BONUS,
   MIN_NOTE_CHARS,
   PHOTO_BONUS,
   QUALITY_BASE,
@@ -11,6 +12,7 @@ import {
   rankForYou,
   recencyFactor,
 } from "@/lib/forYou";
+import { normalizeHandle } from "@/lib/profiles";
 
 // A fixed "now" so every recency assertion is deterministic — the whole point
 // of the now-param convention: no test ever reaches for Date.now().
@@ -174,5 +176,75 @@ describe("forYouScore + rankForYou", () => {
     const first = rankForYou(items, { now: NOW }).map((i) => i.id);
     const second = rankForYou(items, { now: NOW }).map((i) => i.id);
     expect(first).toEqual(second);
+  });
+});
+
+// Wave G4 — friends boost: modest quality nudge for followed authors when the
+// viewer has a non-empty follow set. Never removes non-friends; empty set is a
+// no-op (identical to pre-G4 ranking).
+describe("Wave G4 friends boost", () => {
+  it("ranks an otherwise-equal friend above a non-friend", () => {
+    const friend = item({ id: "friend", handle: "mabel", createdAt: at(0) });
+    const stranger = item({ id: "stranger", handle: "ken", createdAt: at(0) });
+    const followingHandles = new Set([normalizeHandle("mabel")]);
+    expect(
+      rankForYou([stranger, friend], { now: NOW, followingHandles }).map((i) => i.id),
+    ).toEqual(["friend", "stranger"]);
+  });
+
+  it("adds exactly FRIENDS_BONUS to quality for a followed author", () => {
+    const followingHandles = new Set(["mabel"]);
+    const friend = item({ handle: "mabel" });
+    const stranger = item({ handle: "ken" });
+    expect(qualityFactor(friend, { now: NOW, followingHandles })).toBe(
+      QUALITY_BASE + FRIENDS_BONUS,
+    );
+    expect(qualityFactor(stranger, { now: NOW, followingHandles })).toBe(QUALITY_BASE);
+  });
+
+  it("empty following set leaves ranking unchanged (pre-G4 behaviour)", () => {
+    const a = item({ id: "aaa", handle: "mabel", createdAt: at(0) });
+    const b = item({ id: "bbb", handle: "ken", createdAt: at(0) });
+    const without = rankForYou([b, a], { now: NOW }).map((i) => i.id);
+    const withEmpty = rankForYou([b, a], {
+      now: NOW,
+      followingHandles: new Set(),
+    }).map((i) => i.id);
+    expect(withEmpty).toEqual(without);
+    // Equal quality → stable id tie-break, not friends order.
+    expect(withEmpty).toEqual(["aaa", "bbb"]);
+  });
+
+  it("undefined followingHandles is a no-op (same as empty)", () => {
+    const a = item({ id: "aaa", handle: "mabel", createdAt: at(0) });
+    const b = item({ id: "bbb", handle: "ken", createdAt: at(0) });
+    expect(rankForYou([b, a], { now: NOW }).map((i) => i.id)).toEqual(
+      rankForYou([b, a], { now: NOW, followingHandles: undefined }).map((i) => i.id),
+    );
+  });
+
+  it("normalizes @@handles so @@Mabel matches a normalized following set", () => {
+    const friend = item({ id: "friend", handle: "@@Mabel", createdAt: at(0) });
+    const stranger = item({ id: "stranger", handle: "ken", createdAt: at(0) });
+    // Following set stores normalized handles (same as Friends lane / profiles).
+    const followingHandles = new Set([normalizeHandle("@@Mabel")]);
+    expect(followingHandles.has("mabel")).toBe(true);
+    expect(
+      rankForYou([stranger, friend], { now: NOW, followingHandles }).map((i) => i.id),
+    ).toEqual(["friend", "stranger"]);
+    expect(qualityFactor(friend, { now: NOW, followingHandles })).toBe(
+      QUALITY_BASE + FRIENDS_BONUS,
+    );
+  });
+
+  it("does not remove non-friends — only reorders", () => {
+    const friend = item({ id: "friend", handle: "mabel", createdAt: at(0) });
+    const stranger = item({ id: "stranger", handle: "ken", createdAt: at(0) });
+    const ranked = rankForYou([stranger, friend], {
+      now: NOW,
+      followingHandles: new Set(["mabel"]),
+    });
+    expect(ranked).toHaveLength(2);
+    expect(ranked.map((i) => i.id).sort()).toEqual(["friend", "stranger"]);
   });
 });

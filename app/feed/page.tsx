@@ -390,7 +390,13 @@ export default function FeedPage() {
     () =>
       applyFeedFilter(items, filter, {
         followingHandles: followingHandles ?? undefined,
-        forYou: { now: forYouNow, reactionCounts },
+        // Wave G4: same follow set as Friends — modest For You boost for
+        // followed authors when the set is non-empty (never a hard filter).
+        forYou: {
+          now: forYouNow,
+          reactionCounts,
+          followingHandles: followingHandles ?? undefined,
+        },
       }),
     [items, filter, followingHandles, forYouNow, reactionCounts],
   );

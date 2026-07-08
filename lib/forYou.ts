@@ -1,16 +1,20 @@
-// The "For You" ranking (issue #36, PRD § "The For-You map"). A pure,
-// deterministic score over already-normalised FeedItems — NO ML, no network,
-// no Date.now() reached for implicitly. Every time input flows through a `now`
-// parameter so the whole thing is unit-testable with fixed timestamps (the same
-// convention the rest of the repo's date-dependent logic follows).
+// The "For You" ranking (issue #36, PRD § "The For-You map"; Wave G4 friends
+// boost). A pure, deterministic score over already-normalised FeedItems — NO ML,
+// no network, no Date.now() reached for implicitly. Every time input flows
+// through a `now` parameter so the whole thing is unit-testable with fixed
+// timestamps (the same convention the rest of the repo's date-dependent logic
+// follows).
 //
 // The score is a product of a recency-decay factor and a bounded quality
 // factor, so a fresh-but-thin drop and a rich-but-stale drop both settle into a
 // sensible middle — the feed rewards a recent drop that ALSO carries a photo, a
-// real story, reactions, and a curated ("story-pub") venue. Ties fall back to
-// newest-first so the order is total and stable.
+// real story, reactions, and a curated ("story-pub") venue. When the viewer has
+// a non-empty follow set, authors in that set get a modest quality nudge
+// (FRIENDS_BONUS) without removing anyone else. Ties fall back to newest-first
+// so the order is total and stable.
 
 import type { FeedItem } from "@/lib/feed";
+import { normalizeHandle } from "@/lib/profiles";
 
 // A reaction-count lookup keyed by drop id. The feed already batch-loads
 // reaction summaries client-side; the caller folds those counts to a single
@@ -31,6 +35,11 @@ export type ForYouContext = {
   reactionCounts?: ReactionCounts;
   // Curated "story pub" venue ids. Optional; missing ⇒ no venue bonus.
   storyVenueIds?: StoryVenueSet;
+  // Normalized handles the viewer follows (Wave G4). When non-empty, Spills
+  // whose author is in this set get a modest quality boost — friends surface
+  // sooner without removing anyone else. Undefined/empty ⇒ no friends boost
+  // (identical to pre-G4 ranking). Same set the Friends lane filters on.
+  followingHandles?: ReadonlySet<string>;
 };
 
 // ── Tunables (documented so the test can assert against them) ─────────────────
@@ -46,6 +55,11 @@ export const QUALITY_BASE = 1;
 export const PHOTO_BONUS = 0.6; // has at least one photo (the hero of a Spill)
 export const NOTE_BONUS = 0.5; // has a passed-down note of real substance
 export const STORY_VENUE_BONUS = 0.3; // dropped at a curated "story pub"
+// Friends (Wave G4): modest quality nudge when the author is in the viewer's
+// follow set. Sized below photo/note so a rich stranger still beats a thin
+// friend at equal recency, but enough to lift an otherwise-equal friend above
+// a non-friend. Empty/absent followingHandles ⇒ no boost (pre-G4 behaviour).
+export const FRIENDS_BONUS = 0.35;
 // Reactions: diminishing returns via log, capped, so one loud drop can't run
 // away with the lane.
 export const REACTION_WEIGHT = 0.25;
@@ -72,12 +86,22 @@ export function recencyFactor(item: FeedItem, now: number): number {
 }
 
 /** Bounded quality multiplier: base + photo + substantial-note + story-venue +
- *  (capped, diminishing) reaction bonus. Never depends on `now`. */
+ *  friends (Wave G4) + (capped, diminishing) reaction bonus. Never depends on
+ *  `now`. Friends membership uses normalizeHandle so @@Handle and handle match
+ *  the same normalized following set the Friends lane uses. */
 export function qualityFactor(item: FeedItem, ctx: ForYouContext): number {
   let q = QUALITY_BASE;
   if (item.photoUrls.length > 0) q += PHOTO_BONUS;
   if (item.caption.trim().length >= MIN_NOTE_CHARS) q += NOTE_BONUS;
   if (ctx.storyVenueIds?.has(item.venueId)) q += STORY_VENUE_BONUS;
+
+  // Wave G4: modest friends gravity. Only when the follow set is non-empty —
+  // never a gate; non-friends stay in the ranked set, just without the nudge.
+  const following = ctx.followingHandles;
+  if (following && following.size > 0) {
+    const author = normalizeHandle(item.handle);
+    if (author && following.has(author)) q += FRIENDS_BONUS;
+  }
 
   const reactions = Math.max(0, ctx.reactionCounts?.[item.id] ?? 0);
   if (reactions > 0) {
