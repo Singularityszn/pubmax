@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 
+import PriceBadge from "@/components/PriceBadge";
 import { formatPrice } from "@/lib/venues";
 import type { ThenVsNowItem } from "@/lib/thenVsNow";
 
 // A single "Then vs Now" price card: the pub name (linked into /map?sel=…), a
-// "Then" baseline stamp from the dataset next to a "Now" community stamp, and
-// the delta between them (↑ rust for dearer, ↓ sober-green for cheaper). Purely
+// compact baseline price next to the freshest community price, and the delta
+// between them (↑ rust for dearer, ↓ sober-green for cheaper). Purely
 // presentational and prop-driven — the /discover page computes the item and owns
 // the fetch. The "Now" price is community-reported, so it is labelled honestly
 // (not authoritative).
@@ -48,17 +49,19 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
         </Link>
       </h3>
 
-      <div className="tvnStamps">
-        <div className="tvnStampGroup">
-          <span className="tvnStampLabel">Then</span>
-          <span className="tvnStamp tvnStampThen">{formatPrice(item.thenGbp)}</span>
+      <div className="tvnCompareRow">
+        <div className="tvnPriceGroup">
+          <span className="tvnPriceLabel">Then</span>
+          <PriceBadge variant="baseline">{formatPrice(item.thenGbp)}</PriceBadge>
         </div>
         <span className="tvnArrow" aria-hidden="true">
           →
         </span>
-        <div className="tvnStampGroup">
-          <span className="tvnStampLabel">Now</span>
-          <span className="tvnStamp tvnStampNow">{formatPrice(item.nowGbp)}</span>
+        <div className="tvnPriceGroup">
+          <span className="tvnPriceLabel">Now</span>
+          <PriceBadge variant={dir === "up" ? "increase" : "current"}>
+            {formatPrice(item.nowGbp)}
+          </PriceBadge>
         </div>
       </div>
 
@@ -71,8 +74,6 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
         </span>
         <span className="srOnly">{movementLabel}</span>
       </p>
-
-      <p className="tvnFootnote">Then = dataset baseline · Now = community-reported</p>
     </article>
   );
 }

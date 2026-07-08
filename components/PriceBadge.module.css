@@ -1,0 +1,53 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-inline-size: 4.45rem;
+  min-block-size: 1.75rem;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-raised);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 86%, transparent);
+  color: var(--ink);
+  font-family: var(--font-data, var(--font-body));
+  font-size: 0.84rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: right;
+  white-space: nowrap;
+  transform: none;
+}
+
+.baseline {
+  border-color: color-mix(in srgb, var(--line) 86%, var(--ink-soft));
+  background: color-mix(in srgb, var(--panel-raised) 92%, var(--paper));
+  color: var(--ink-soft);
+}
+
+.current {
+  border-color: color-mix(in srgb, var(--brass) 58%, var(--line));
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  color: var(--brass);
+}
+
+.cheap {
+  border-color: color-mix(in srgb, var(--pint) 48%, var(--line));
+  background: color-mix(in srgb, var(--pint) 10%, var(--panel-raised));
+  color: color-mix(in srgb, var(--pint) 72%, var(--ink));
+}
+
+.increase {
+  border-color: color-mix(in srgb, var(--brick) 54%, var(--line));
+  background: color-mix(in srgb, var(--brick) 9%, var(--panel-raised));
+  color: var(--brick);
+}
+
+.neutral {
+  border-color: color-mix(in srgb, var(--line) 82%, var(--panel-raised));
+  background: var(--panel-raised);
+  color: var(--ink);
+}

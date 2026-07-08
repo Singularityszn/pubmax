@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import PriceBadge from "@/components/PriceBadge";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
@@ -11,7 +12,7 @@ import type { TonightEntry } from "@/lib/leaderboard";
 // presentational and prop-driven: the /discover page computes the entries from
 // the community drops it already fetches and owns the data lifecycle. Each row
 // is one venue's cheapest reported pint: the rank, the pub (linked into
-// /map?sel=…), the £ price stamp, the reporter's @handle, and a rough relative
+// /map?sel=…), the stable £ price badge, the reporter's @handle, and a rough relative
 // time. Prices are community-reported — labelled honestly, not authoritative.
 
 type TonightBoardProps = {
@@ -72,7 +73,9 @@ export default function TonightBoard({
               </span>
             </span>
 
-            <span className="priceStamp tonightPrice">{formatPrice(entry.priceGbp)}</span>
+            <PriceBadge variant="cheap" className="tonightPrice">
+              {formatPrice(entry.priceGbp)}
+            </PriceBadge>
           </li>
         );
       })}

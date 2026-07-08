@@ -312,6 +312,9 @@ export default function DiscoverPage() {
           Today&rsquo;s community-reported pint against the baseline price on
           record — the biggest movers first. Community numbers, not gospel.
         </p>
+        <p className="discoverSectionNote">
+          Then = dataset baseline. Now = latest community report.
+        </p>
         {status === "idle" ? (
           <p className="discoverEmpty" role="status">
             Price comparisons load when you reach the rankings.

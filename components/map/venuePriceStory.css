@@ -1,8 +1,8 @@
 /* The Golden Thread — per-venue price story block, rendered inside the Pints tab
    of .venueInspector. Scoped to .venuePriceStory only; reuses the shared app
    tokens (--brass, --ink, --ink-soft, --line, --panel-raised, --pint, --brick,
-   --amber, --font-data, --radius-sm) and the global .provChip / .ink-stamp
-   idioms. Candle-lit field-guide feel: pressed brass stamps, muted rules. */
+   --amber, --font-data, --radius-sm) and the global .provChip idiom. Data
+   prices are stable badges; the field-guide feel comes from muted rules. */
 
 .venuePriceStory {
   margin-top: 16px;
@@ -23,8 +23,8 @@
   border: 0;
 }
 
-/* Then → Now stamp pair. */
-.vpsStamps {
+/* Then → Now price pair. */
+.vpsPricePair {
   display: flex;
   align-items: flex-end;
   gap: 10px;
@@ -32,14 +32,14 @@
   margin: 10px 0 4px;
 }
 
-.vpsStamp {
+.vpsPriceGroup {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 5px;
 }
 
-.vpsStampLabel {
+.vpsPriceLabel {
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -47,22 +47,18 @@
   color: var(--ink-soft);
 }
 
-/* .ink-stamp (global) supplies the pressed brass frame + mono numerals; these
-   rules only add the price-story sizing and the then/now colour split. */
-.vpsStampValue {
+.vpsPriceValue {
   padding: 4px 10px;
   font-size: 1rem;
+  min-inline-size: 4.9rem;
 }
 
-.vpsStampThen {
-  color: var(--ink-soft);
-  border-color: var(--line);
-  transform: rotate(-1.5deg);
+.vpsPriceThen {
+  transform: none;
 }
 
-.vpsStampNow {
-  color: var(--brass);
-  transform: rotate(1.5deg);
+.vpsPriceNow {
+  transform: none;
 }
 
 .vpsArrow {

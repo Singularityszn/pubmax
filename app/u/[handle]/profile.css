@@ -772,15 +772,15 @@
 }
 
 /* ── Pint Passport (user stories 29–30) ─────────────────────────────────────
-   A collectible field-guide "passport page": brass-hairline card, pressed stat
-   stamps (.ink-stamp from globals.css), a signature tilted seal. First-run and
-   populated states share this block — zeros just read as an empty page to fill.
+   A collectible field-guide "passport page": brass-hairline card, clean metric
+   cards, and one signature tilted seal. First-run and populated states share
+   this block — zeros just read as an empty page to fill.
    All colour from tokens so it flips light/dark. Scoped under .profilePage. */
 .profilePage .pintPassport {
   margin: 0 0 28px;
   padding: 22px 22px 24px;
-  border: 1.5px solid var(--brass);
-  border-radius: var(--radius-md, 12px);
+  border: 1px solid color-mix(in srgb, var(--brass) 44%, var(--line));
+  border-radius: 16px;
   background:
     linear-gradient(180deg, var(--surface-tint-brass), var(--panel-raised));
   box-shadow: var(--shadow-1, 0 1px 2px rgba(0, 0, 0, 0.08));
@@ -822,6 +822,7 @@
 .profilePage .passportSeal {
   flex: none;
   padding: 8px 12px;
+  border-radius: 6px;
   font-size: 0.68rem;
   letter-spacing: 0.12em;
   color: var(--brass);
@@ -892,7 +893,7 @@
   outline-offset: 2px;
 }
 
-/* Stat grid — pressed stamps. Auto-fit so it reflows 4→3→2 across widths. */
+/* Stat grid — calm metric cards. Auto-fit so it reflows 4→3→2 across widths. */
 .profilePage .passportGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -904,12 +905,18 @@
   flex-direction: column;
   gap: 3px;
   padding: 12px 12px 10px;
-  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 78%, var(--panel-raised));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-raised) 90%, var(--paper));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 86%, transparent);
 }
 
 .profilePage .passportStatValue {
+  font-family: var(--font-data, var(--font-body));
   font-size: 1.35rem;
+  font-weight: 800;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 
@@ -942,10 +949,13 @@
 }
 
 .profilePage .passportBadge {
-  padding: 5px 11px;
+  padding: 6px 11px;
+  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+  border-radius: 999px;
   font-size: 0.8rem;
+  font-weight: 700;
   color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 7%, transparent);
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
 }
 
 @media (max-width: 560px) {

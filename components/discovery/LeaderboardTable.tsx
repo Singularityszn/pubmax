@@ -1,10 +1,11 @@
+import PriceBadge from "@/components/PriceBadge";
 import { formatPrice } from "@/lib/venues";
 import type { LeaderboardEntry } from "@/lib/leaderboard";
 
 // Presentational, prop-driven leaderboard. A real semantic <table> (scoped
 // column headers, a caption for screen readers) so the ranking reads correctly
-// out of context. The price is rendered as a "stamp" — a small pressed badge —
-// but stays plain text for assistive tech.
+// out of context. The price uses the shared stable data badge: tabular numerals,
+// fixed width, no stamp tilt.
 
 type LeaderboardTableProps = {
   entries: LeaderboardEntry[];
@@ -57,7 +58,7 @@ export default function LeaderboardTable({
             </th>
             <td className="leaderboardArea">{entry.area}</td>
             <td className="leaderboardPriceHead">
-              <span className="priceStamp">{formatPrice(entry.venue.cheapestPrice)}</span>
+              <PriceBadge variant="cheap">{formatPrice(entry.venue.cheapestPrice)}</PriceBadge>
             </td>
           </tr>
         ))}

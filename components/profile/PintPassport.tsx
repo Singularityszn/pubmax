@@ -11,9 +11,9 @@ import type { PassportData } from "@/lib/passport";
 // empty state (story 30): when `data.isEmpty`, the stat faces read zero and a
 // "start your passport" call-to-action block is shown instead of a bare card.
 //
-// Design: uses the shared .ink-stamp utilities (globals.css) for the stamped
-// aesthetic — a brass-hairline "passport" with pressed stat stamps. All colour /
-// spacing comes from existing tokens via passport.css.
+// Design: keeps one stamped identity seal, while stats and badges stay calm and
+// aligned so the passport reads like a field-guide page instead of a sheet of
+// rubber stamps. All colour / spacing comes from existing tokens via profile.css.
 
 type PintPassportProps = {
   // The @handle this passport belongs to (already normalized), for the header.
@@ -30,11 +30,9 @@ function formatGbp(value: number | null): string {
   return value == null ? "—" : `£${value.toFixed(2)}`;
 }
 
-// One stamped stat cell. `stamp` opts into the brass-hairline ink treatment so
-// the number reads as pressed into the page, not merely printed.
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="passportStat ink-stamp">
+    <div className="passportStat">
       <span className="passportStatValue">{value}</span>
       <span className="passportStatLabel">{label}</span>
     </div>
@@ -122,7 +120,7 @@ export default function PintPassport({ handle, displayName, data, isOwn }: PintP
           {badges.map((badge) => (
             <li
               key={badge.id}
-              className="passportBadge ink-stamp ink-stamp--flat"
+              className="passportBadge"
               title={`${badge.label} — ${badge.description}`}
             >
               {badge.label}

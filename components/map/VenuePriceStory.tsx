@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 
+import PriceBadge from "@/components/PriceBadge";
 import { formatPrice, type Venue } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
@@ -34,9 +35,8 @@ function direction(deltaGbp: number): "up" | "down" | "flat" {
   return "flat";
 }
 
-// The two price stamps drawn as proportional bars in the brass field-guide
-// style — the taller bar is the dearer pint, so the movement reads at a glance
-// before any number is parsed. Pure SVG/CSS, no chart dependency.
+// The two price values are also drawn as proportional bars — the longer bar is
+// the dearer pint, so the movement reads at a glance before any number is parsed.
 function StoryBars({ baseline, now }: { baseline: VenuePriceStamp; now: VenuePriceStamp }) {
   const max = Math.max(baseline.gbp, now.gbp, 0.01);
   const thenPct = Math.max(6, Math.round((baseline.gbp / max) * 100));
@@ -97,15 +97,15 @@ export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) 
       </div>
 
       {/* Then vs Now: the baseline on record against the freshest community
-          price. Each stamp keeps its own provenance badge. */}
+          price. Data prices use stable badges; provenance keeps its own chip. */}
       {baseline || now ? (
-        <div className="vpsStamps">
+        <div className="vpsPricePair">
           {baseline ? (
-            <div className="vpsStamp">
-              <span className="vpsStampLabel">{baseline.label}</span>
-              <span className="vpsStampValue vpsStampThen ink-stamp">
+            <div className="vpsPriceGroup">
+              <span className="vpsPriceLabel">{baseline.label}</span>
+              <PriceBadge variant="baseline" className="vpsPriceValue vpsPriceThen">
                 {formatPrice(baseline.gbp)}
-              </span>
+              </PriceBadge>
               <ProvChip provenance={baseline.provenance} />
             </div>
           ) : null}
@@ -115,9 +115,14 @@ export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) 
             </span>
           ) : null}
           {now ? (
-            <div className="vpsStamp">
-              <span className="vpsStampLabel">{now.label}</span>
-              <span className="vpsStampValue vpsStampNow ink-stamp">{formatPrice(now.gbp)}</span>
+            <div className="vpsPriceGroup">
+              <span className="vpsPriceLabel">{now.label}</span>
+              <PriceBadge
+                variant={dir === "up" ? "increase" : "current"}
+                className="vpsPriceValue vpsPriceNow"
+              >
+                {formatPrice(now.gbp)}
+              </PriceBadge>
               <ProvChip provenance={now.provenance} />
             </div>
           ) : null}
