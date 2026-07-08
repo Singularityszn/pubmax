@@ -10,7 +10,8 @@
 
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { callerUserId } from "@/lib/authServer";
+import { decideProfileWrite, gateHandleAction } from "@/lib/profileOwnership";
 import {
   profileStore,
   type ProfilePatch,
