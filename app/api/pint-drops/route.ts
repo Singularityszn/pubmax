@@ -4,13 +4,13 @@ import { createHash, timingSafeEqual } from "node:crypto";
 //
 // One PintDropStore interface, two implementations (lib/pintDropsStore):
 // Supabase (visit_reports + Storage) when env keys exist, process-memory
-// otherwise. store() below is the ONLY place the backend is chosen (M4 / PRD
+// otherwise. pintDropsStore() below is the ONLY place the backend is chosen (M4 / PRD
 // P2.7); every handler talks to the interface. Validation/provenance/rate-limit
 // run before either backend. When Supabase is configured it is the source of
 // truth: backend failures return a 503 instead of acknowledging data that
 // would only live in process memory.
 
-import { memoryFollowStore, supabaseFollowStore } from "@/lib/followStore";
+import { followStore } from "@/lib/followStore";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { log } from "@/lib/log";
 import {
@@ -21,14 +21,13 @@ import {
   type ViewerContext,
 } from "@/lib/pintDrops";
 import {
-  memoryPintDropStore,
-  supabasePintDropStore,
+  pintDropsStore,
   type PintDropPhotos,
-  type PintDropStore,
 } from "@/lib/pintDropsStore";
-import { memoryProfileStore, supabaseProfileStore } from "@/lib/profileStore";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { clientIp, hashActor, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
@@ -39,20 +38,13 @@ import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 // the in-memory store is the intended dev/demo backend.
 assertServerEnv();
 
-// The single backend selection point. Read per request — env is stubbed per
-// test and the check is a cheap env lookup.
-function store(): PintDropStore {
-  return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
-}
-
 // A pint drop is also the moment a handle first "exists" socially, so we lazily
 // create its profile row (foundation for follows / saved lists / a public
 // /u/[handle]). Best-effort and non-blocking: a profile hiccup must never fail
 // an otherwise-good drop, so failures are logged, not thrown.
 async function ensureProfileForHandle(handle: string): Promise<void> {
   try {
-    const profiles = isSupabaseConfigured() ? supabaseProfileStore : memoryProfileStore;
-    await profiles.ensure(handle);
+    await profileStore().ensure(handle);
   } catch (err) {
     console.warn(
       "[pint-drops] could not ensure profile for handle (drop still saved):",
@@ -91,9 +83,8 @@ async function withVenueNames<T extends { venueId: string }>(
 async function resolveViewer(rawHandle: string | null): Promise<ViewerContext | undefined> {
   const handle = normalizeViewerHandle(rawHandle);
   if (!handle) return undefined;
-  const follows = isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
   try {
-    const following = await follows.listFollowing(handle);
+    const following = await followStore().listFollowing(handle);
     return { handle, followingHandles: new Set(following.map(normalizeViewerHandle).filter(Boolean)) };
   } catch (err) {
     log("warn", "pint_drops.viewer_follow_lookup_failed", {
@@ -244,7 +235,7 @@ export async function POST(request: Request): Promise<Response> {
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     try {
-      return (await store().report(id, readString(fields.reason), actorHash)) ? ok() : notFound();
+      return (await pintDropsStore().report(id, readString(fields.reason), actorHash)) ? ok() : notFound();
     } catch (err) {
       log("error", "pint_drops.report_failed", {
         route: "POST /api/pint-drops",
@@ -265,7 +256,7 @@ export async function POST(request: Request): Promise<Response> {
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     try {
-      return (await store().moderate(id, status, readString(fields.note))) ? ok() : notFound();
+      return (await pintDropsStore().moderate(id, status, readString(fields.note))) ? ok() : notFound();
     } catch (err) {
       log("error", "pint_drops.moderate_failed", {
         route: "POST /api/pint-drops",
@@ -281,6 +272,13 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: result.error }, { status: 400 });
   }
 
+  // Linked handles can only drop as their signed-in owner. Unlinked handles keep
+  // the anonymous demo path.
+  const ownership = await gateHandleAction(request, result.value.handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
+
   // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
   // keyed on handle alone, exactly as before.
   const submitKey = `drop:${result.value.handle.toLowerCase()}:${hashIp(clientIp(request))}`;
@@ -292,7 +290,7 @@ export async function POST(request: Request): Promise<Response> {
   if (unavailable) return unavailable;
 
   try {
-    const drop = await store().create(result.value, photos);
+    const drop = await pintDropsStore().create(result.value, photos);
     // Fire-and-forget: the profile bootstrap must never delay or fail the drop
     // response (an awaited Supabase upsert here blocks every submission and hangs
     // unmocked tests). It never rejects — the inner try/catch swallows failures.
@@ -326,7 +324,7 @@ export async function GET(request: Request): Promise<Response> {
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     try {
-      return jsonNoStore({ drops: await store().listForReview(status) }, { status: 200 });
+      return jsonNoStore({ drops: await pintDropsStore().listForReview(status) }, { status: 200 });
     } catch (err) {
       log("error", "pint_drops.list_review_failed", {
         route: "GET /api/pint-drops",
@@ -349,7 +347,7 @@ export async function GET(request: Request): Promise<Response> {
   if (unavailable) return unavailable;
   try {
     const viewer = await resolveViewer(params.get("viewer") ?? params.get("handle"));
-    const drops = await store().listVisible(params.get("venueId") ?? undefined, viewer);
+    const drops = await pintDropsStore().listVisible(params.get("venueId") ?? undefined, viewer);
     return jsonNoStore({ drops: await withVenueNames(drops) }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {

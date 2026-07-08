@@ -13,7 +13,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { totalGbp, VIBE_TAGS, type CrawlStory } from "@/lib/crawlStory";
 import { normalizeHandle } from "@/lib/profiles";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -249,9 +249,7 @@ const STORIES_TABLE = "crawl_stories";
 const STOPS_TABLE = "crawl_story_stops";
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 // A stored story → the crawl_stories row. `author_id` stays NULL until a Supabase

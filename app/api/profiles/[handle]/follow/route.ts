@@ -8,12 +8,12 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
-import { isSelfFollow, memoryFollowStore, supabaseFollowStore, type FollowStore } from "@/lib/followStore";
+import { followStore, isSelfFollow } from "@/lib/followStore";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
 
-function store(): FollowStore {
-  return isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
-}
+assertServerEnv();
 
 function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
@@ -44,6 +44,11 @@ export async function POST(
     return jsonNoStore({ error: "You can't follow yourself." }, { status: 400 });
   }
 
+  const ownership = await gateHandleAction(request, follower);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
+
   // Rate-limit per follower + hashed IP so the follow graph can't be spammed.
   const key = `follow:${follower}:${hashIp(clientIp(request))}`;
   if (await isLimited(follower, key)) {
@@ -56,7 +61,7 @@ export async function POST(
 
   const unfollow = readString(body.action) === "unfollow";
   try {
-    const s = store();
+    const s = followStore();
     const following = unfollow
       ? !(await s.unfollow(follower, target))
       : await s.follow(follower, target);

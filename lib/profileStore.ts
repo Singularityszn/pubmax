@@ -12,7 +12,7 @@
 // only path that changes existing columns.
 
 import { normalizeHandle } from "@/lib/profiles";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
 
 export type ProfileRecord = {
@@ -118,9 +118,7 @@ export type ProfileStore = {
 const TABLE = "profiles";
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 // profiles (snake_case) <-> ProfileRecord (camelCase). One place so a column
@@ -341,6 +339,11 @@ export const memoryProfileStore: ProfileStore = {
     return next;
   },
 };
+
+/** The single backend selection point (mirrors commentsStore / roundsStore). */
+export function profileStore(): ProfileStore {
+  return isSupabaseConfigured() ? supabaseProfileStore : memoryProfileStore;
+}
 
 /** Test-only: clear the in-memory profile map between cases. */
 export function __resetMemoryProfiles(): void {

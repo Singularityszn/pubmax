@@ -10,6 +10,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false };
 });
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/notifications/route";
 import { __resetMemoryNotifications, notificationsStore } from "@/lib/notificationsStore";

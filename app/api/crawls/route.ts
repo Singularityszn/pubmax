@@ -13,10 +13,15 @@ import {
   cleanVisibility,
   type CreateCrawlStoryInput,
 } from "@/lib/crawlStoryStore";
+import { jsonNoStore } from "@/lib/apiResponses";
 import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+
+assertServerEnv();
 
 const MAX_TITLE = 120;
 const MAX_SUMMARY = 280;
@@ -78,33 +83,40 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
   if (!body || typeof body !== "object") {
-    return Response.json({ error: "Missing submission body." }, { status: 400 });
+    return jsonNoStore({ error: "Missing submission body." }, { status: 400 });
   }
 
   const title = readString(body.title, MAX_TITLE);
   if (!title) {
-    return Response.json({ error: "A crawl title is required." }, { status: 400 });
+    return jsonNoStore({ error: "A crawl title is required." }, { status: 400 });
   }
 
   const stops = readStops(body.stops);
   if (stops.length === 0) {
-    return Response.json({ error: "A crawl needs at least one stop." }, { status: 400 });
+    return jsonNoStore({ error: "A crawl needs at least one stop." }, { status: 400 });
   }
 
   // Rate-limit by hashed IP (no handle on a crawl story). Durable when Supabase
   // is configured, in-memory fallback otherwise — fail-open, mirroring pint-drops.
   const ipKey = hashIp(clientIp(request));
   if (await isLimited(`crawl:${ipKey}`, `crawl:${ipKey}`)) {
-    return Response.json({ error: "Too many crawls saved, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many crawls saved, slow down." }, { status: 429 });
   }
 
   // Author attribution (story 35): the self-asserted device handle. Optional —
   // an anonymous save leaves it null. Cleaned + normalized before it reaches the
   // store (which re-normalizes as defence in depth).
   const authorHandle = normalizeHandle(readString(body.authorHandle ?? body.handle, MAX_HANDLE));
+
+  if (authorHandle) {
+    const ownership = await gateHandleAction(request, authorHandle);
+    if (!ownership.allowed) {
+      return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    }
+  }
 
   const input: CreateCrawlStoryInput = {
     title,
@@ -117,7 +129,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await createCrawlStory(input);
   if (!result) {
-    return Response.json({ error: "Could not save this crawl right now." }, { status: 503 });
+    return jsonNoStore({ error: "Could not save this crawl right now." }, { status: 503 });
   }
 
   // crawl_save emit seam (story 34, best-effort): when a viewer saves a crawl that
@@ -139,7 +151,7 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  return Response.json({ slug: result.slug }, { status: 201 });
+  return jsonNoStore({ slug: result.slug }, { status: 201 });
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -153,16 +165,16 @@ export async function GET(request: Request): Promise<Response> {
   if (author !== null) {
     const handle = normalizeHandle(readString(author, MAX_HANDLE));
     const count = handle ? await countStoriesByAuthor(handle) : 0;
-    return Response.json({ handle, count }, { status: 200 });
+    return jsonNoStore({ handle, count }, { status: 200 });
   }
 
   const slug = params.get("slug");
   if (!slug) {
-    return Response.json({ error: "A slug is required." }, { status: 400 });
+    return jsonNoStore({ error: "A slug is required." }, { status: 400 });
   }
   const story = await getCrawlStoryBySlug(slug);
   if (!story) {
-    return Response.json({ error: "Crawl story not found." }, { status: 404 });
+    return jsonNoStore({ error: "Crawl story not found." }, { status: 404 });
   }
-  return Response.json({ story }, { status: 200 });
+  return jsonNoStore({ story }, { status: 200 });
 }

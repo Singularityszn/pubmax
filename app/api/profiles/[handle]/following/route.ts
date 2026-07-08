@@ -9,12 +9,7 @@
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { normalizeHandle } from "@/lib/profiles";
-import { memoryFollowStore, supabaseFollowStore, type FollowStore } from "@/lib/followStore";
-import { isSupabaseConfigured } from "@/lib/supabase";
-
-function store(): FollowStore {
-  return isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
-}
+import { followStore } from "@/lib/followStore";
 
 export async function GET(
   _request: Request,
@@ -26,7 +21,7 @@ export async function GET(
   if (!handle) return jsonNoStore({ following: [] }, { status: 200 });
 
   try {
-    const following = await store().listFollowing(handle);
+    const following = await followStore().listFollowing(handle);
     return jsonNoStore({ following }, { status: 200 });
   } catch {
     // Fail-soft: a backend error must not break the feed. The Friends lane will

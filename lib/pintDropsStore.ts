@@ -38,7 +38,7 @@ function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
   const tags = cleanVibeTags(value);
   return tags.length ? tags : undefined;
 }
-import { getSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
 const TABLE = "visit_reports";
 
@@ -158,9 +158,7 @@ export function validatePhoto(type: string, size: number): string | null {
 export const magicBytesOk = magicBytesOkPure;
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 // visit_reports (snake_case) <-> PintDrop (camelCase). Kept in one place so a
@@ -567,6 +565,12 @@ const JPEG_QUALITY = 80;
  * fall back to uploading the raw (EXIF-bearing) bytes, which would defeat the
  * whole point of stripping.
  */
+/** The single backend selection point (mirrors the other stores). */
+export function pintDropsStore(): PintDropStore {
+  return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
+}
+
+
 async function normalizeImage(input: Uint8Array): Promise<Buffer> {
   return sharp(input)
     // Apply the EXIF orientation to the pixels, THEN let sharp drop the EXIF

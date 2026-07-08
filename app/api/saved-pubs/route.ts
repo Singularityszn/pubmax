@@ -16,7 +16,9 @@
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
 import { isLimited } from "@/lib/pintDrops";
+import { assertServerEnv } from "@/lib/serverEnv";
 import {
   cleanListType,
   cleanNote,
@@ -26,6 +28,8 @@ import {
 } from "@/lib/savedPubsStore";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 // venue ids are content-hashed (e.g. "venue-1ufn31x"); cap and trim, never trust
 // the raw client length.
@@ -65,6 +69,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const handle = normalizeHandle((body.handle as string) ?? "");
   if (!handle) return jsonNoStore({ error: "Add a contributor handle." }, { status: 400 });
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
 
   // createList action (story 33): register a custom list name for this handle so
   // it appears in the pick-UI before it has any saves. Rate-limited like saves.

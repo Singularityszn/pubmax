@@ -29,7 +29,7 @@ import {
   type RoundStopDTO,
 } from "@/lib/rounds";
 import { normalizeHandle } from "@/lib/profiles";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 // How many times to retry a code collision before giving up. A 6-char code over a
 // 28-symbol alphabet collides so rarely that one retry would do; a handful is
@@ -72,9 +72,7 @@ const MEMBERS = "round_members";
 const STOPS = "round_stops";
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 // ── Row → DTO mappers (Supabase) ─────────────────────────────────────────────

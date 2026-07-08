@@ -29,8 +29,12 @@ import { ratingsStore } from "@/lib/ratingsStore";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 // Bound untrusted keys/batches so one request can't carry an unbounded load.
 const MAX_REF_LENGTH = 200;
@@ -61,6 +65,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const handle = normalizeHandle(readString(body.handle) ?? "");
   if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
 
   const rating = parseRating(body.rating);
   if (rating === null) {

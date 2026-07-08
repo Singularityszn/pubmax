@@ -11,6 +11,7 @@
 //
 // Identity prefers a verified Supabase Auth JWT (linked profile handle) when
 // present; otherwise the self-asserted handle (anonymous/demo dual-backend).
+// Linked-handle ownership is then enforced via gateHandleAction.
 // See app/api/messages/route.ts + lib/messageAuth.ts + migration 0019.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -18,8 +19,12 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
 import { isLimited } from "@/lib/pintDrops";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 const SEND_LIMIT = 20;
 const SEND_WINDOW_MS = 60_000;
@@ -31,6 +36,12 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
   const handle = await resolveMessageHandle(request, asserted);
   if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    // Preserve leak-proof semantics: linked non-owner looks like "not found".
+    return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+  }
 
   const messages = await messagesStore().listMessages(id, handle);
   // null = not a participant (or unknown conversation) → 404, never a leak.
@@ -52,6 +63,11 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   const action = readString(body.action);
   const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
   if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+  }
 
   const store = messagesStore();
 

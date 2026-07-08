@@ -10,6 +10,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false };
 });
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 // The store-outage (503) cases script a write failure at the store seam. Keep the
 // real module (memory store, validation, __resetMemoryRounds); a per-test hook can

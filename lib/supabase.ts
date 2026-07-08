@@ -15,6 +15,17 @@ export function getSupabaseAdmin(): SupabaseClient | null {
   return cached;
 }
 
+/**
+ * Shared admin client for store implementations. Throws when Supabase is not
+ * configured so a mis-selected durable backend fails loudly instead of NPE-ing
+ * on a null client. Prefer this over each store's private `admin()` helper.
+ */
+export function requireSupabaseAdmin(): SupabaseClient {
+  const client = getSupabaseAdmin();
+  if (!client) throw new Error("Supabase not configured.");
+  return client;
+}
+
 export function isSupabaseConfigured(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }

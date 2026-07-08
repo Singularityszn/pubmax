@@ -1,7 +1,8 @@
 // "I'm here tonight" presence (PRD §1.5 / §5.1 — the tonight loop). ONE seam,
 // TWO backends: Supabase (public.pub_presence, migration 0007) when env keys
 // exist, process-memory otherwise — the same Supabase-or-memory pattern as
-// lib/reactionsStore / lib/pintDropsStore, chosen per call via isSupabaseConfigured.
+// lib/reactionsStore / lib/pintDropsStore, chosen at ONE factory
+// (presenceStore()).
 //
 // A presence row is opt-in and ephemeral: the viewer taps "I'm here" at a
 // selected venue, we mark ONE row per (actor, venue) and auto-expire it (~2h).
@@ -14,7 +15,7 @@
 // rather than a broken band.
 
 import { ambientPresenceRows } from "@/lib/ambientPresence";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { requireSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { PRESENCE_TTL_MS, type PresenceDTO, type PresenceInput } from "@/lib/presence";
 
@@ -46,11 +47,10 @@ function clean(value: unknown, cap: number): string {
     .slice(0, cap);
 }
 
-function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
-}
+export type PresenceStore = {
+  mark(input: PresenceInput, now?: number): Promise<void>;
+  recent(venueId?: string, now?: number): Promise<PresenceDTO[]>;
+};
 
 // Enrich a raw (handle, venueId, at) row into a public DTO with the pub name +
 // map link. Batched against the one memoized venue index (a single Map read per
@@ -112,32 +112,50 @@ function memoryRecent(
   live.sort((a, b) => b.expiresAt - a.expiresAt);
   return live
     .slice(0, MAX_PRESENCE)
-    .map((row) => ({ handle: row.handle, venueId: row.venueId, at: new Date(row.expiresAt - PRESENCE_TTL_MS).toISOString() }));
+    .map((row) => ({
+      handle: row.handle,
+      venueId: row.venueId,
+      at: new Date(row.expiresAt - PRESENCE_TTL_MS).toISOString(),
+    }));
 }
 
-// ── Public API ───────────────────────────────────────────────────────────────
+export const memoryPresenceStore: PresenceStore = {
+  async mark(input, now = Date.now()) {
+    memoryMark(input, now);
+  },
+  async recent(venueId, now = Date.now()) {
+    const scoped = venueId ? clean(venueId, MAX_VENUE_ID) : undefined;
+    try {
+      return await enrich(memoryRecent(scoped, now));
+    } catch (err) {
+      console.warn(
+        "[presence] read failed (strip degrades to empty):",
+        err instanceof Error ? err.message : err,
+      );
+      return [];
+    }
+  },
+};
 
-/**
- * Mark the viewer present at a venue. UPSERT on (actor_hash, venue_id): sets the
- * handle, stamps created_at=now, expires_at=now+2h — a re-mark REFRESHES the
- * existing row (never a second row). Supabase when configured, memory otherwise.
- * The `now` clock is injectable so the memory path is deterministically testable.
- * Fail-soft: never throws to the caller (a presence hiccup must not fail the tap).
- */
-export async function markPresence(input: PresenceInput, now = Date.now()): Promise<void> {
-  const handle = clean(input.handle, MAX_HANDLE);
-  const venueId = clean(input.venueId, MAX_VENUE_ID);
-  if (!handle || !venueId || !input.actorHash) return;
-
-  if (isSupabaseConfigured()) {
+export const supabasePresenceStore: PresenceStore = {
+  async mark(input, now = Date.now()) {
+    const handle = clean(input.handle, MAX_HANDLE);
+    const venueId = clean(input.venueId, MAX_VENUE_ID);
+    if (!handle || !venueId || !input.actorHash) return;
     try {
       const at = new Date(now).toISOString();
       const expiresAt = new Date(now + PRESENCE_TTL_MS).toISOString();
       // onConflict on the (actor_hash, venue_id) unique index → refresh in place.
-      const { error } = await admin()
+      const { error } = await requireSupabaseAdmin()
         .from(TABLE)
         .upsert(
-          { handle, venue_id: venueId, actor_hash: input.actorHash, created_at: at, expires_at: expiresAt },
+          {
+            handle,
+            venue_id: venueId,
+            actor_hash: input.actorHash,
+            created_at: at,
+            expires_at: expiresAt,
+          },
           { onConflict: "actor_hash,venue_id" },
         );
       if (error) throw new Error(error.message);
@@ -149,29 +167,14 @@ export async function markPresence(input: PresenceInput, now = Date.now()): Prom
         err instanceof Error ? err.message : err,
       );
     }
-    return;
-  }
+  },
 
-  memoryMark(input, now);
-}
-
-/**
- * Recent, non-expired presence — newest-first, capped, optionally scoped to one
- * venue. Each row is enriched with the pub NAME + a "/map?sel=…" link; the public
- * DTO carries NO actor_hash. Fail-soft: any error (or an unconfigured/unreadable
- * backend) resolves to [] so the "Live tonight" strip degrades to nothing.
- */
-export async function recentPresence(
-  venueId?: string,
-  now = Date.now(),
-): Promise<PresenceDTO[]> {
-  const scoped = venueId ? clean(venueId, MAX_VENUE_ID) : undefined;
-
-  try {
-    if (isSupabaseConfigured()) {
+  async recent(venueId, now = Date.now()) {
+    const scoped = venueId ? clean(venueId, MAX_VENUE_ID) : undefined;
+    try {
       // Public read: non-expired only (mirrors the RLS `expires_at > now()`),
       // newest-first by created_at, capped.
-      let query = admin()
+      let query = requireSupabaseAdmin()
         .from(TABLE)
         .select("handle, venue_id, created_at")
         .gt("expires_at", new Date(now).toISOString())
@@ -184,17 +187,46 @@ export async function recentPresence(
         (row) => ({ handle: row.handle, venueId: row.venue_id, at: row.created_at }),
       );
       return await enrich(rows);
+    } catch (err) {
+      // Fail-soft: the strip renders nothing rather than a broken band.
+      console.warn(
+        "[presence] read failed (strip degrades to empty):",
+        err instanceof Error ? err.message : err,
+      );
+      return [];
     }
+  },
+};
 
-    return await enrich(memoryRecent(scoped, now));
-  } catch (err) {
-    // Fail-soft: the strip renders nothing rather than a broken band.
-    console.warn(
-      "[presence] read failed (strip degrades to empty):",
-      err instanceof Error ? err.message : err,
-    );
-    return [];
-  }
+/** The single backend selection point (mirrors the other stores). */
+export function presenceStore(): PresenceStore {
+  return isSupabaseConfigured() ? supabasePresenceStore : memoryPresenceStore;
+}
+
+// ── Compatibility wrappers (route + tests keep calling these) ────────────────
+
+/**
+ * Mark the viewer present at a venue. UPSERT on (actor_hash, venue_id): sets the
+ * handle, stamps created_at=now, expires_at=now+2h — a re-mark REFRESHES the
+ * existing row (never a second row). Supabase when configured, memory otherwise.
+ * The `now` clock is injectable so the memory path is deterministically testable.
+ * Fail-soft: never throws to the caller (a presence hiccup must not fail the tap).
+ */
+export async function markPresence(input: PresenceInput, now = Date.now()): Promise<void> {
+  await presenceStore().mark(input, now);
+}
+
+/**
+ * Recent, non-expired presence — newest-first, capped, optionally scoped to one
+ * venue. Each row is enriched with the pub NAME + a "/map?sel=…" link; the public
+ * DTO carries NO actor_hash. Fail-soft: any error (or an unconfigured/unreadable
+ * backend) resolves to [] so the "Live tonight" strip degrades to nothing.
+ */
+export async function recentPresence(
+  venueId?: string,
+  now = Date.now(),
+): Promise<PresenceDTO[]> {
+  return presenceStore().recent(venueId, now);
 }
 
 /**

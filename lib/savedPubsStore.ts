@@ -21,7 +21,7 @@
 
 import { normalizeHandle } from "@/lib/profiles";
 import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { cleanText } from "@/lib/textClean";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
@@ -142,9 +142,7 @@ async function enrich(rows: SavedRow[]): Promise<SavedPubDTO[]> {
 const TABLE = "saved_pubs";
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 // Resolve a handle to its profile id, bootstrapping a row on first save (mirrors

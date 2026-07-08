@@ -33,7 +33,7 @@ import {
   TOP_RATED_WINDOW_DAYS,
 } from "@/lib/ratings";
 import { normalizeHandle } from "@/lib/profiles";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 export { isRatingKind, type RatingKind } from "@/lib/ratings";
 
@@ -70,9 +70,7 @@ const TOP_SCAN_ROWS = 5000;
 const memoryFallbackWarnings = new Set<string>();
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 function errorMessage(err: unknown): string {

@@ -1,12 +1,12 @@
-// Profile ownership decision — pure, backend-free (user story 31).
+// Profile ownership decision — pure helpers + shared route gate (user story 31).
 //
 // THE MODEL (as actually enforced in this codebase): all profile writes go
 // through the service-role admin client, which bypasses RLS. So RLS is not the
 // gate for the app's own writes — the gate is this server-side decision at the
-// API seam (app/api/profiles/[handle]/route.ts). Given the handle being written
-// and (a) whether that handle's stored profile is already LINKED to an auth user
-// and (b) the caller's VERIFIED auth uid (from a validated JWT, or null when the
-// request is anonymous), decide whether the write may proceed.
+// API seam. Given the handle being written and (a) whether that handle's stored
+// profile is already LINKED to an auth user and (b) the caller's VERIFIED auth
+// uid (from a validated JWT, or null when the request is anonymous), decide
+// whether the write may proceed.
 //
 // Rules:
 //   • Unlinked handle (rowUserId == null): allowed for ANYONE — this preserves
@@ -16,13 +16,17 @@
 //     authenticated AND their uid matches. A non-owner — anonymous OR a different
 //     signed-in user — is rejected. This is the security win: once a handle is
 //     claimed by an account, it can't be hijacked by a self-asserted handle.
-//
-// Pure so it unit-tests with no DB/JWT: the route resolves the two inputs
-// (rowUserId from the store, callerUserId from verifying the token) and asks.
+
+import { callerUserId } from "@/lib/authServer";
+import { profileStore } from "@/lib/profileStore";
 
 export type OwnershipDecision =
   | { allowed: true; reason: "unlinked" | "owner" }
   | { allowed: false; reason: "not-owner"; status: 403 };
+
+export type HandleActionGate =
+  | { allowed: true; callerUserId: string | null; handle: string }
+  | { allowed: false; status: number; error: string };
 
 /**
  * Decide whether a caller may write to `handle`'s profile.
@@ -64,4 +68,62 @@ export function shouldLinkUser(
   const caller = typeof callerUserId === "string" && callerUserId ? callerUserId : null;
   if (!caller) return false; // anonymous → nothing to link
   return linkedTo !== caller; // link when unlinked, or (defensively) mismatched-but-allowed
+}
+
+/**
+ * Shared ownership gate for handle-keyed private/destructive API routes.
+ *
+ * Resolves the caller's verified JWT identity, looks up whether `handle` is
+ * already linked to a `profiles.user_id`, and applies {@link decideProfileWrite}.
+ * On the first authenticated touch of a still-unlinked handle, stamps the link
+ * (account migration) so subsequent anonymous claims of that handle fail closed.
+ *
+ * Unlinked handles keep the demo path (anyone may act). Linked handles require
+ * the matching signed-in owner. Fail-closed on store errors so an outage cannot
+ * open a linked handle to anonymous writes.
+ */
+export async function gateHandleAction(
+  request: Request,
+  handle: string,
+): Promise<HandleActionGate> {
+  const key = typeof handle === "string" ? handle.trim() : "";
+  if (!key) {
+    return {
+      allowed: false,
+      status: 400,
+      error: "Add a handle.",
+    };
+  }
+
+  const caller = await callerUserId(request);
+
+  try {
+    const store = profileStore();
+    // Prefer a read-only lookup so a private GET (inbox, notifications) does not
+    // invent a profile row. Fall back to ensure() only when we are about to
+    // link — that path is write-intent and needs a row to stamp.
+    const existing = await store.getByHandle(key);
+    const rowUserId = existing?.userId ?? null;
+    const decision = decideProfileWrite(rowUserId, caller);
+    if (!decision.allowed) {
+      return {
+        allowed: false,
+        status: decision.status,
+        error:
+          "This handle belongs to a signed-in account. Sign in as its owner to continue.",
+      };
+    }
+
+    if (shouldLinkUser(rowUserId, caller) && caller) {
+      await store.linkUser(key, caller);
+    }
+
+    return { allowed: true, callerUserId: caller, handle: key };
+  } catch {
+    return {
+      allowed: false,
+      status: 503,
+      error: "Profile storage is unavailable.",
+    };
+  }
 }

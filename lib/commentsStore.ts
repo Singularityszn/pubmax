@@ -17,7 +17,7 @@
 // hiccup can never break feed rendering (the feed treats "no comments" and "the
 // comments service is down" identically — the story just isn't shown).
 
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { cleanText } from "@/lib/textClean";
 
 // The only shape a reader ever sees. Deliberately minimal: no actor_hash, no
@@ -147,9 +147,7 @@ export function threadOrder(comments: CommentDTO[]): CommentDTO[] {
 }
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 // Map a raw DB row to the public DTO — the single choke point that guarantees

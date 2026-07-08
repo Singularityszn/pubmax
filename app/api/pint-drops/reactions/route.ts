@@ -16,17 +16,11 @@ import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   isReactionKey,
-  memoryReactionsStore,
-  supabaseReactionsStore,
+  reactionsStore,
   UnknownDropError,
-  type ReactionsStore,
 } from "@/lib/reactionsStore";
-import { hashActor, isSupabaseConfigured } from "@/lib/supabase";
+import { hashActor } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-
-function store(): ReactionsStore {
-  return isSupabaseConfigured() ? supabaseReactionsStore : memoryReactionsStore;
-}
 
 // Cap how many drops one feed page can summarise in a single request.
 const MAX_IDS = 100;
@@ -57,7 +51,7 @@ export async function GET(request: Request): Promise<Response> {
     const readable = await filterPubliclyReadableDropIds(ids);
     if (readable.length === 0) return jsonNoStore({ summaries: {} }, { status: 200 });
     return jsonNoStore(
-      { summaries: await store().summarize(readable, actorHash) },
+      { summaries: await reactionsStore().summarize(readable, actorHash) },
       { status: 200 },
     );
   } catch {
@@ -93,7 +87,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const summary = await store().toggle(id, actorHash, reaction);
+    const summary = await reactionsStore().toggle(id, actorHash, reaction);
     // Emit seam (best-effort, additive): when the client supplies its handle AND
     // this toggle turned the reaction ON (mine now includes it), notify the drop's
     // author. A reaction is otherwise attributed only to an opaque actor_hash, so
@@ -119,6 +113,7 @@ export async function POST(request: Request): Promise<Response> {
       // A demo/sample drop isn't persisted — tell the client to keep it local.
       return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
     }
+    console.error("[reactions] POST failed:", err instanceof Error ? err.stack || err.message : err);
     return jsonNoStore({ error: "Reactions are unavailable." }, { status: 503 });
   }
 }
