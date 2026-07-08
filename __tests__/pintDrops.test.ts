@@ -268,6 +268,66 @@ describe("validatePintDrop — vibe tags (server-authoritative allowlist)", () =
   });
 });
 
+describe("validatePintDrop — Last Train compose fields (Wave G1)", () => {
+  const base = { venueId: VENUE, handle: "ale", priceGbp: 4.2 };
+  const leaveBy = "2026-07-08T23:30:00.000Z";
+
+  it("persists leaveByIso + lastTrainDecision when the decision is live", () => {
+    const result = validatePintDrop({
+      ...base,
+      leaveByIso: leaveBy,
+      lastTrainDecision: "order_one_more",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.leaveByIso).toBe(leaveBy);
+      expect(result.value.lastTrainDecision).toBe("order_one_more");
+    }
+  });
+
+  it("omits fields when TfL was unreachable (live_data_unavailable)", () => {
+    const result = validatePintDrop({
+      ...base,
+      leaveByIso: leaveBy,
+      lastTrainDecision: "live_data_unavailable",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).not.toHaveProperty("leaveByIso");
+      expect(result.value).not.toHaveProperty("lastTrainDecision");
+    }
+  });
+
+  it("omits fields when leaveByIso is missing", () => {
+    const result = validatePintDrop({
+      ...base,
+      lastTrainDecision: "train_risk",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).not.toHaveProperty("leaveByIso");
+      expect(result.value).not.toHaveProperty("lastTrainDecision");
+    }
+  });
+
+  it("threads live fields through the route into the returned DTO", async () => {
+    const res = await POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({
+          ...base,
+          leaveByIso: leaveBy,
+          lastTrainDecision: "half_pint_only",
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const { drop } = await res.json();
+    expect(drop.leaveByIso).toBe(leaveBy);
+    expect(drop.lastTrainDecision).toBe("half_pint_only");
+  });
+});
+
 describe("GET + moderation", () => {
   it("lists a created drop, then hides it after report threshold (two DISTINCT actors)", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });

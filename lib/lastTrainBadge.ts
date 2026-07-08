@@ -48,6 +48,39 @@ const LIVE_DECISION_KINDS: ReadonlySet<LastPintDecisionKind> = new Set([
   "train_risk",
 ]);
 
+/** True when `kind` is a genuine live Last Pint verdict (not TfL-down / unknown). */
+export function isLiveLastTrainDecision(
+  kind: LastPintDecisionKind | string | null | undefined,
+): kind is LastPintDecisionKind {
+  return typeof kind === "string" && LIVE_DECISION_KINDS.has(kind as LastPintDecisionKind);
+}
+
+/**
+ * Fields to stamp onto a Spill create payload when a LIVE Last Pint decision is
+ * on screen (Wave G1). Returns null when TfL was down, leave-by is missing, or
+ * there is no decision — never invent transport context at compose time.
+ */
+export type LastTrainComposeFields = {
+  leaveByIso: string;
+  lastTrainDecision: LastPintDecisionKind;
+};
+
+export function lastTrainComposeFields(
+  decision:
+    | { decision: LastPintDecisionKind; leaveByIso: string | null }
+    | null
+    | undefined,
+): LastTrainComposeFields | null {
+  if (!decision) return null;
+  if (!isLiveLastTrainDecision(decision.decision)) return null;
+  if (typeof decision.leaveByIso !== "string" || decision.leaveByIso === "") return null;
+  if (Number.isNaN(Date.parse(decision.leaveByIso))) return null;
+  return {
+    leaveByIso: decision.leaveByIso,
+    lastTrainDecision: decision.decision,
+  };
+}
+
 // Parse an ISO instant to epoch millis, or null if it's missing/unparseable.
 // Never throws — a bad timestamp degrades to "no badge", never a crash.
 function toMillis(iso: string | null | undefined): number | null {
@@ -73,7 +106,7 @@ export function lastTrainBadge(
   decision: LastPintDecisionKind | null | undefined,
 ): LastTrainBadge | null {
   // No live decision → nothing honest to say.
-  if (!decision || !LIVE_DECISION_KINDS.has(decision)) return null;
+  if (!isLiveLastTrainDecision(decision)) return null;
 
   const postedAt = toMillis(dropCreatedAt);
   const leaveBy = toMillis(leaveByIso);

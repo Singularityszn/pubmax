@@ -17,6 +17,7 @@ import {
   CalendarPlus,
   TrainFront,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { crawlSummary, formatPrice, type Filters, type Venue } from "@/lib/venues";
@@ -38,12 +39,14 @@ import {
 } from "@/lib/crawlUrl";
 import { buildCrawlIcs, icsFilename } from "@/lib/icsExport";
 import {
+  acknowledgeCrawlCompletion,
   isComplete,
   markCrawlComplete,
   readCrawl,
   startCrawl,
   type CrawlProgressEntry,
 } from "@/lib/crawlCompletion";
+import { curatedCrawlById } from "@/lib/curatedCrawls";
 import "@/components/map/routePanel.css";
 
 // ponytail: cap the keyboard picker render; search narrows the rest.
@@ -171,18 +174,43 @@ export default function RoutePanel({
   // Loop 2 crawl-completion stickiness — localStorage only. Key off crawlId when
   // present, else a stable title slug so hand-built routes still track.
   const progressKey = (crawlId || crawlTitle).trim();
+  const placeStoryBandId = crawlId
+    ? curatedCrawlById(crawlId)?.placeStoryBandId
+    : undefined;
   const [crawlProgress, setCrawlProgress] = useState<CrawlProgressEntry | null>(null);
+  // Wave G2: one-shot celebration after 100% — claimed via acknowledgeCrawlCompletion.
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  function applyCompletionAck(entry: CrawlProgressEntry | null) {
+    setCrawlProgress(entry);
+    if (!progressKey || !isComplete(entry)) {
+      setShowCelebration(false);
+      return;
+    }
+    const ack = acknowledgeCrawlCompletion(progressKey, { placeStoryBandId });
+    setShowCelebration(ack.celebrate);
+  }
+
   useEffect(() => {
     let active = true;
     async function hydrate() {
       const entry = progressKey && route.length >= 2 ? readCrawl(progressKey) : null;
-      if (active) setCrawlProgress(entry);
+      if (!active) return;
+      setCrawlProgress(entry);
+      // Remount with an already-complete crawl: credit quest if needed, but only
+      // celebrate when the one-shot flag is still unset.
+      if (progressKey && isComplete(entry)) {
+        const ack = acknowledgeCrawlCompletion(progressKey, { placeStoryBandId });
+        if (active) setShowCelebration(ack.celebrate);
+      } else if (active) {
+        setShowCelebration(false);
+      }
     }
     void hydrate();
     return () => {
       active = false;
     };
-  }, [progressKey, route.length]);
+  }, [progressKey, route.length, placeStoryBandId]);
 
   function handleStartCrawl() {
     if (!progressKey || route.length < 2) return;
@@ -191,6 +219,7 @@ export default function RoutePanel({
       route.map((v) => v.id),
     );
     setCrawlProgress(entry);
+    setShowCelebration(false);
   }
 
   function handleMarkComplete() {
@@ -203,10 +232,15 @@ export default function RoutePanel({
       );
     }
     const entry = markCrawlComplete(progressKey);
-    setCrawlProgress(entry);
+    applyCompletionAck(entry);
   }
 
   const crawlDone = isComplete(crawlProgress);
+  const dropHref =
+    route.length > 0
+      ? `/map?log=1&sel=${encodeURIComponent(route[route.length - 1]!.id)}`
+      : "/map?log=1";
+  const shareHref = "/crawls";
 
   function addToCalendar() {
     const crawl = {
@@ -422,6 +456,38 @@ export default function RoutePanel({
               </button>
             </>
           )}
+          {showCelebration ? (
+            <div
+              className="crawlCelebration"
+              role="status"
+              data-testid="crawl-celebration"
+            >
+              <p className="crawlCelebrationTitle">You walked it</p>
+              <p className="crawlCelebrationCopy">
+                {placeStoryBandId
+                  ? "Place story complete — drop a memory, share the route, or stamp your passport."
+                  : "Crawl complete — drop a memory, share the route, or stamp your passport."}
+              </p>
+              <div className="crawlCelebrationActions">
+                <Link className="crawlCelebrationLink" href={dropHref}>
+                  Drop a pint
+                </Link>
+                <Link className="crawlCelebrationLink" href={shareHref}>
+                  Share crawl
+                </Link>
+                <Link className="crawlCelebrationLink" href="/u/you">
+                  View passport
+                </Link>
+              </div>
+              <button
+                type="button"
+                className="crawlCelebrationDismiss"
+                onClick={() => setShowCelebration(false)}
+              >
+                Not now
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
