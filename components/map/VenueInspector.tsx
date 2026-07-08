@@ -656,8 +656,8 @@ export default function VenueInspector({
           <p className="placeStoriesLead">What should I know about this place?</p>
           {placeStories.length === 0 ? (
             <p className="description muted">
-              No Place stories pass through {venue.name} yet — open a corridor on
-              the map to walk a sourced stretch of the city.
+              No Place stories pass through {venue.name} yet — open Place stories
+              on the map, or ask the PUBMAXXER.
             </p>
           ) : (
             <div className="placeStoryList">

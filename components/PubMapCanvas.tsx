@@ -29,7 +29,21 @@ import {
   type Poi,
   type PoiCategory,
 } from "@/lib/pois";
-import { MAP_ICON_SPECS, iconId, rasterize, type IconTokens } from "@/lib/mapIcons";
+import {
+  MAP_ICON_SPECS,
+  drinkPinIconKey,
+  drinkPinKindFromCategories,
+  iconId,
+  rasterize,
+  type IconTokens,
+} from "@/lib/mapIcons";
+import {
+  POI_TOGGLE_GROUPS,
+  defaultPoiHidden,
+  isPoiGroupOn,
+  isTransitNetworkVisible,
+  togglePoiGroup,
+} from "@/lib/poiToggleGroups";
 import {
   CATEGORY_COLORS,
   categoryVar,
@@ -85,11 +99,11 @@ const FALLBACK_STYLES = {
 } as const;
 const STYLE_LOAD_TIMEOUT_MS = 8000;
 
-// PRD camera: pitched, slightly rotated London (londonszn uses 42/-12).
+// Wider first view so more of Greater London reads at a glance (Wave B).
 const LONDON_VIEW = {
   center: [-0.118, 51.512] as [number, number],
-  zoom: 10.5,
-  pitch: 45,
+  zoom: 10.1,
+  pitch: 48,
   bearing: -15,
 };
 const LONDON_BOUNDS: [[number, number], [number, number]] = [
@@ -238,15 +252,23 @@ function pubsToGeoJSON(
       const price = favoritePint
         ? beerPrice
         : signals?.latestContributorPrice ?? venue.cheapestPrice;
+      const bucket = priceBucket(price);
+      const drinkKind = drinkPinKindFromCategories(
+        venue.filterHints?.drinkCategories,
+        Boolean(venue.amenities.cocktails) ||
+          Boolean(venue.filterHints?.amenities.cocktails),
+      );
       return {
         type: "Feature" as const,
         properties: {
           id: venue.id,
           name: venue.name,
-          bucket: priceBucket(price),
+          bucket,
           story: venue.hasStory,
           drops: Boolean(signals?.hasPintDrops),
           serves,
+          drinkKind,
+          icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
       };
@@ -276,18 +298,6 @@ function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
   };
 }
 
-const POI_CATEGORIES: PoiCategory[] = [
-  "tube",
-  "rail",
-  "bus",
-  "river",
-  "park",
-  "garden",
-  "market",
-  "historic",
-  "viewpoint",
-  "sight",
-];
 // Ambient categories render as soft coloured dots; transport (TRANSPORT_CATEGORIES)
 // render as their real TfL / National Rail symbol on separate layers.
 const AMBIENT_CATEGORIES: readonly PoiCategory[] = [
@@ -501,20 +511,10 @@ export default function PubMapCanvas({
   );
   const hoverDetailsRef = useRef(hoverDetails);
   const [failedHoverImage, setFailedHoverImage] = useState<FailedHoverImage | null>(null);
-  // POI layer visibility — default all-on so "everything is there" on load,
-  // but each category is togglable and zoom-gated so it never clutters.
-  const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>({
-    tube: false,
-    rail: false,
-    bus: false,
-    river: false,
-    park: false,
-    garden: false,
-    market: false,
-    historic: false,
-    viewpoint: false,
-    sight: false,
-  });
+  // POI layer visibility — Transit + Parks + Sights on by default; denser
+  // ambient categories stay off until the viewer opts in (Wave A chrome).
+  const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(defaultPoiHidden);
+  const [placeStoriesOpen, setPlaceStoriesOpen] = useState(false);
   const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
 
   const onVenueClickRef = useRef(onVenueClick);
@@ -928,20 +928,22 @@ export default function PubMapCanvas({
             type: "fill-extrusion",
             source: buildingLayer.source as string,
             "source-layer": "building",
-            minzoom: 13,
+            minzoom: 12.5,
             paint: {
-              "fill-extrusion-color": dark ? tokens.panelRaised : tokens.line,
+              "fill-extrusion-color": dark
+                ? withAlpha(tokens.panelRaised, 0.92)
+                : withAlpha(tokens.line, 0.95),
               "fill-extrusion-height": [
                 "interpolate",
                 ["linear"],
                 ["zoom"],
-                13,
+                12.5,
                 0,
-                14.2,
-                ["coalesce", ["get", "render_height"], ["get", "height"], 12],
+                14,
+                ["*", ["coalesce", ["get", "render_height"], ["get", "height"], 14], 1.08],
               ],
               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-              "fill-extrusion-opacity": dark ? 0.55 : 0.4,
+              "fill-extrusion-opacity": dark ? 0.72 : 0.58,
             },
           },
           firstSymbolId,
@@ -961,9 +963,11 @@ export default function PubMapCanvas({
           attribution: "Rail lines © TfL / OpenStreetMap contributors (ODbL)",
         });
       }
-      const tubeVisibility: "none" | "visible" = poiHiddenRef.current.tube
-        ? "none"
-        : "visible";
+      const tubeVisibility: "none" | "visible" = isTransitNetworkVisible(
+        poiHiddenRef.current,
+      )
+        ? "visible"
+        : "none";
       addLayerOnce({
         id: "tube-lines-casing",
         type: "line",
@@ -1030,6 +1034,10 @@ export default function PubMapCanvas({
         brassBright: tokens.brassBright,
         river: tokens.river,
         riverBright: tokens.riverBright,
+        pint: tokens.pint,
+        amber: tokens.amber,
+        brick: tokens.brick,
+        muted: tokens.muted,
       };
       registerMapIcons(map, iconTokens);
 
@@ -1252,46 +1260,26 @@ export default function PubMapCanvas({
       });
       addLayerOnce({
         id: "pubs-point",
-        type: "circle",
+        type: "symbol",
         source: "pubs",
         filter: ["!", ["has", "point_count"]],
-        paint: {
-          // Price-stamp fill: pint / amber / brick / muted by bucket.
-          "circle-color": [
-            "match",
-            ["get", "bucket"],
-            0,
-            tokens.pint,
-            1,
-            tokens.amber,
-            2,
-            tokens.brick,
-            tokens.muted,
-          ],
-          // Radius eases up with zoom; story pubs sit a touch larger so
-          // heritage carries physical weight, not just a stroke.
-          "circle-radius": [
+        layout: {
+          "icon-image": ["get", "icon"],
+          "icon-size": [
             "interpolate",
             ["linear"],
             ["zoom"],
-            11,
-            ["case", ["get", "story"], 5.5, 4.5],
+            10,
+            ["case", ["get", "story"], 0.55, 0.48],
             15,
-            ["case", ["get", "story"], 9.5, 8],
+            ["case", ["get", "story"], 0.92, 0.82],
           ],
-          // Brass stroke marks a story pub; others get a thin theme-aware edge
-          // so the fill stays crisp on both positron and dark-matter.
-          "circle-stroke-color": [
-            "case",
-            ["get", "story"],
-            tokens.brass,
-            dark ? tokens.inkDeep : tokens.paper,
-          ],
-          "circle-stroke-width": ["case", ["get", "story"], 2, 1.1],
-          // serves=false only when a favorite pint is chosen and this pub
-          // doesn't pour it — dim it right down so the beer's map reads clearly.
-          "circle-stroke-opacity": ["case", ["get", "serves"], 0.95, 0.22],
-          "circle-opacity": ["case", ["get", "serves"], 0.95, 0.16],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-padding": 2,
+        },
+        paint: {
+          "icon-opacity": ["case", ["get", "serves"], 0.98, 0.22],
         },
       });
       // Selected pin: a confident double brass ring — a soft outer wash plus a
@@ -1762,8 +1750,8 @@ export default function PubMapCanvas({
       setFilter("pois-transport-major", transportFilter(poiHidden, true));
       setFilter("pois-transport-minor", transportFilter(poiHidden, false));
       setFilter("pois-transport-label", transportAll);
-      // The coloured tube-line network toggles with the Tube roundels.
-      const tubeVisibility = poiHidden.tube ? "none" : "visible";
+      // The coloured tube-line network toggles with Transit (tube OR rail).
+      const tubeVisibility = isTransitNetworkVisible(poiHidden) ? "visible" : "none";
       for (const layer of ["tube-lines-casing", "tube-lines-color", "tube-lines-label"]) {
         if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
       }
@@ -2178,59 +2166,71 @@ export default function PubMapCanvas({
           </button>
         </aside>
       ) : null}
-      {/* POI category toggles — everything's on by default; tap to hide a kind. */}
+      {/* POI category toggles — Transit merges Tube+Rail; denser layers opt-in. */}
       <div className="poiToggle" role="group" aria-label="Points of interest">
-        {POI_CATEGORIES.map((category) => (
-          <button
-            key={category}
-            type="button"
-            className={poiHidden[category] ? "poiToggleBtn" : "poiToggleBtn on"}
-            aria-pressed={!poiHidden[category]}
-            onClick={() =>
-              setPoiHidden((hidden) => ({ ...hidden, [category]: !hidden[category] }))
-            }
-          >
-            <span
-              className="poiSwatch"
-              style={{ background: POI_CATEGORY_META[category].color }}
-            />
-            {POI_CATEGORY_META[category].label}
-          </button>
-        ))}
+        {POI_TOGGLE_GROUPS.map((group) => {
+          const on = isPoiGroupOn(poiHidden, group);
+          return (
+            <button
+              key={group.id}
+              type="button"
+              className={on ? "poiToggleBtn on" : "poiToggleBtn"}
+              aria-pressed={on}
+              onClick={() => setPoiHidden((hidden) => togglePoiGroup(hidden, group))}
+            >
+              <span className="poiSwatch" style={{ background: group.color }} />
+              {group.label}
+            </button>
+          );
+        })}
       </div>
-      {/* Issue #15 story bands — a small picker (map overlay, toolbar-consistent).
-          Tapping a band tints its corridor + haloes member pubs; tapping the
-          active band again clears it. Honest fallback when a band has no pubs
-          visible under the current filters. */}
+      {/* Place stories — off by default; open to emphasise heritage corridors. */}
       {onBandChange ? (
-        <div className="bandPicker" role="group" aria-label="Story bands">
-          <span className="bandPickerLabel">Story bands</span>
-          <div className="bandPickerRow">
-            {STORY_BANDS.map((band) => (
-              <button
-                key={band.id}
-                type="button"
-                className={activeBandId === band.id ? "bandBtn on" : "bandBtn"}
-                aria-pressed={activeBandId === band.id}
-                title={band.copy}
-                onClick={() => onBandChange(activeBandId === band.id ? "" : band.id)}
-              >
-                {band.title}
-              </button>
-            ))}
-          </div>
-          {activeBand ? (
-            <div className="bandActiveCard">
-              <p className="bandActiveCopy">{activeBand.copy}</p>
-              <p className="bandActiveMeta">
-                {bandMembers.length > 0
-                  ? `${bandMembers.length} story pub${bandMembers.length === 1 ? "" : "s"} on this band`
-                  : "No pubs on this band under the current filters — widen them to see its stops."}
-              </p>
-              <a href={activeBand.sources[0].url} target="_blank" rel="noreferrer">
-                Source: {activeBand.sources[0].label}
-                <ExternalLink size={11} />
-              </a>
+        <div className="placeStoriesControl">
+          <button
+            type="button"
+            className={placeStoriesOpen ? "placeStoriesToggle on" : "placeStoriesToggle"}
+            aria-pressed={placeStoriesOpen}
+            aria-expanded={placeStoriesOpen}
+            onClick={() => {
+              const next = !placeStoriesOpen;
+              setPlaceStoriesOpen(next);
+              if (!next && activeBandId) onBandChange("");
+            }}
+          >
+            Place stories
+          </button>
+          {placeStoriesOpen ? (
+            <div className="bandPicker" role="group" aria-label="Place stories">
+              <span className="bandPickerLabel">Around London</span>
+              <div className="bandPickerRow">
+                {STORY_BANDS.map((band) => (
+                  <button
+                    key={band.id}
+                    type="button"
+                    className={activeBandId === band.id ? "bandBtn on" : "bandBtn"}
+                    aria-pressed={activeBandId === band.id}
+                    title={band.copy}
+                    onClick={() => onBandChange(activeBandId === band.id ? "" : band.id)}
+                  >
+                    {band.title}
+                  </button>
+                ))}
+              </div>
+              {activeBand ? (
+                <div className="bandActiveCard">
+                  <p className="bandActiveCopy">{activeBand.copy}</p>
+                  <p className="bandActiveMeta">
+                    {bandMembers.length > 0
+                      ? `${bandMembers.length} story pub${bandMembers.length === 1 ? "" : "s"} on this corridor`
+                      : "No pubs on this corridor under the current filters — widen them to see its stops."}
+                  </p>
+                  <a href={activeBand.sources[0].url} target="_blank" rel="noreferrer">
+                    Source: {activeBand.sources[0].label}
+                    <ExternalLink size={11} />
+                  </a>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
