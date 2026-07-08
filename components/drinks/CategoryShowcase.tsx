@@ -17,7 +17,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { DrinkGlyph } from "./DrinkGlyph";
 import "./categoryShowcase.css";
 
-type CategoryShowcaseExtraItem = ReactElement<LiHTMLAttributes<HTMLLIElement>, "li">;
+export type CategoryShowcaseExtraItem = ReactElement<LiHTMLAttributes<HTMLLIElement>, "li">;
 
 export interface CategoryShowcaseProps {
   /** Optional heading; omit to render just the swatch grid. */
