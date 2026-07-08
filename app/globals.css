@@ -3532,11 +3532,6 @@ button:disabled {
     transform: translateY(calc(100% + var(--mobile-tab-clearance)));
   }
 
-  .mapDrawer.left,
-  .mapDrawer.right {
-    transform: translateY(calc(100% + var(--mobile-tab-clearance)));
-  }
-
   .mapDrawer.left.open,
   .mapDrawer.right.open {
     transform: translateY(0);

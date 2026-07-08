@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { LiHTMLAttributes, ReactElement } from "react";
 
 // CategoryShowcase — the flagship of the E5 colour system. Two modes off one
 // component:
@@ -17,6 +17,8 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { DrinkGlyph } from "./DrinkGlyph";
 import "./categoryShowcase.css";
 
+type CategoryShowcaseExtraItem = ReactElement<LiHTMLAttributes<HTMLLIElement>, "li">;
+
 export interface CategoryShowcaseProps {
   /** Optional heading; omit to render just the swatch grid. */
   title?: string;
@@ -31,8 +33,8 @@ export interface CategoryShowcaseProps {
   hrefFor?: (category: DrinkCategory) => string;
   /** Optional sub-label under each category (explore mode), e.g. "Find a pub". */
   cardHint?: string;
-  /** Optional extra cards rendered in the same grid, e.g. Low/No alcohol. */
-  extraItems?: ReactNode;
+  /** Optional extra <li> cards rendered in the same grid, e.g. Low/No alcohol. */
+  extraItems?: CategoryShowcaseExtraItem | CategoryShowcaseExtraItem[];
   /** Whether extra cards appear before or after the canonical drink categories. */
   extraItemsPosition?: "start" | "end";
 }

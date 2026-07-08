@@ -105,7 +105,9 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
                 href={link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
+                aria-label={link.label}
                 data-cat={link.accent}
+                title={link.label}
               >
                 {link.label}
               </Link>
