@@ -3,7 +3,7 @@ import { test, expect, type Page, type Route } from "@playwright/test";
 import type { LastPintDecisionKind, LastTrainResult } from "../lib/tfl";
 
 // "Last Pint" card (components/map/LastTrainCard.tsx, app/api/last-train/route.ts,
-// user stories 19-24). The card lives in the venue sheet's "Getting home" tab
+// user stories 19-24). The card lives in the venue sheet's "Last train" tab
 // and fetches /api/last-train?lat=..&lng=.. client-side. We mock that one route
 // per decision state via Playwright's route interception so every pub-voice
 // state is exercised deterministically — real TfL/network timing never has to
@@ -160,7 +160,7 @@ const DECISION_COPY: Record<LastPintDecisionKind, string> = {
 async function openGettingHomeTab(page: Page): Promise<void> {
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
-  await page.getByRole("tab", { name: "Getting home", exact: true }).click();
+  await page.getByRole("tab", { name: "Last train", exact: true }).click();
   await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
 }
 

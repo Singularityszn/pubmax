@@ -110,7 +110,7 @@ test("venue Story tab renders the heritage story: copy, and credited source when
 });
 
 // ---------------------------------------------------------------------------
-// The venue sheet exposes a "Getting home" (Last Pint) affordance AND, in build
+// The venue sheet exposes a "Last train" affordance AND, in build
 // mode, an add-to-crawl control — the "start a crawl here" journey entry the
 // landmark card promotes. We assert the crawl entry is reachable from the sheet
 // (build mode via ?mode=build) without the canvas: the Overview "Add to crawl"
@@ -129,7 +129,7 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
 
-  // The sheet opens on the Pints tab; Overview carries the journey entry from
+  // The sheet opens on the Drops tab; Overview carries the journey entry from
   // this pub, so switch to it the way a user would — via its tab.
   await page.locator("#venueTab-overview").click();
   const overviewPanel = page.locator("#venuePanel-overview");

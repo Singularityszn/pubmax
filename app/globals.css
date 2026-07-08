@@ -264,6 +264,7 @@ button {
    boxed into a column. */
 .appShell {
   --map-top-clearance: 92px;
+  --map-overlay-top: 108px;
   --mobile-tab-clearance: calc(78px + env(safe-area-inset-bottom, 0px));
   height: 100vh;
   position: relative;
@@ -652,6 +653,42 @@ input[type="range"] {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+.mapRecenterBtn {
+  position: absolute;
+  top: var(--map-overlay-top);
+  right: 10px;
+  z-index: 455;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--brass);
+  box-shadow: var(--shadow);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mapRecenterBtn:not(:disabled):hover {
+  background: var(--brass);
+  color: var(--paper);
+}
+
+.mapRecenterBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brass-bright);
+}
+
+.mapRecenterBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 /* ── Map-first overlays: floating toolbar + sliding drawers ─────────────────*/
@@ -1376,7 +1413,7 @@ input[type="range"] {
 /* Tapped-POI name — a light label, not the sourced landmark card. */
 .poiLabelCard {
   position: absolute;
-  top: 108px;
+  top: var(--map-overlay-top);
   left: 50%;
   transform: translateX(-50%);
   z-index: 460;
@@ -3514,6 +3551,7 @@ button:disabled {
 @media (max-width: 768px) {
   .appShell {
     --map-top-clearance: calc(82px + env(safe-area-inset-top, 0px));
+    --map-overlay-top: calc(var(--map-top-clearance) + 86px);
   }
 
   /* Map stays full-bleed; drawers slide UP as bottom sheets instead of in from
@@ -3587,13 +3625,27 @@ button:disabled {
   }
 
   .landmarkCard {
-    top: 12px;
+    top: var(--map-overlay-top);
     left: 12px;
   }
 
   .mapHeroCard {
-    bottom: 64px; /* clear the recentred legend */
+    bottom: calc(var(--mobile-tab-clearance) + 10px);
     left: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .mapLegend {
+    bottom: calc(var(--mobile-tab-clearance) + 10px);
+  }
+
+  .poiToggle {
+    bottom: calc(var(--mobile-tab-clearance) + 14px);
+  }
+
+  .bandPicker {
+    bottom: calc(var(--mobile-tab-clearance) + 58px);
   }
 }
 

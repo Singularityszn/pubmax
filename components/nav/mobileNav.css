@@ -22,8 +22,8 @@
     left: 0;
     right: 0;
     bottom: 0;
-    /* Above map panels/legend, below modals & the sticky landing topbar CTA. */
-    z-index: 90;
+    /* Above map chrome; below modal/dialog layers. */
+    z-index: 700;
     background: linear-gradient(
       to top,
       color-mix(in srgb, var(--paper) 86%, transparent),

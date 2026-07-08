@@ -1933,42 +1933,6 @@ export default function PubMapCanvas({
         disabled={!canRecenter}
         aria-label="Recenter route"
         title="Recenter route"
-        style={{
-          position: "absolute",
-          top: 108,
-          right: 10,
-          zIndex: 455,
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 9px",
-          border: "1px solid var(--brass)",
-          borderRadius: "var(--radius-sm)",
-          background: "var(--panel-raised)",
-          color: "var(--brass)",
-          font: "inherit",
-          fontSize: "0.72rem",
-          fontWeight: 600,
-          lineHeight: 1,
-          boxShadow: "var(--shadow)",
-          cursor: canRecenter ? "pointer" : "not-allowed",
-          opacity: canRecenter ? 1 : 0.5,
-          outline: "none",
-        }}
-        onMouseEnter={(event) => {
-          if (canRecenter) event.currentTarget.style.background = "var(--brass)";
-          if (canRecenter) event.currentTarget.style.color = "var(--paper)";
-        }}
-        onMouseLeave={(event) => {
-          event.currentTarget.style.background = "var(--panel-raised)";
-          event.currentTarget.style.color = "var(--brass)";
-        }}
-        onFocus={(event) => {
-          event.currentTarget.style.boxShadow = "0 0 0 2px var(--brass-bright)";
-        }}
-        onBlur={(event) => {
-          event.currentTarget.style.boxShadow = "var(--shadow)";
-        }}
       >
         <Crosshair size={14} aria-hidden />
         Recenter
