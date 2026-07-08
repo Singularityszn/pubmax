@@ -2,16 +2,11 @@
 
 import dynamic from "next/dynamic";
 
+import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
+
 const PubMap = dynamic(() => import("./PubMap"), {
   ssr: false,
-  loading: () => (
-    <main className="loadingShell">
-      <div>
-        <p className="eyebrow">PUBMAXXING</p>
-        <h1>Loading London pub map...</h1>
-      </div>
-    </main>
-  ),
+  loading: () => <MapLoadingSkeleton />,
 });
 
 export default function PubMaxingShell() {

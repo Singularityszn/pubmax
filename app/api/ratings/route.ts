@@ -26,6 +26,7 @@ import {
   type RatingSummary,
 } from "@/lib/ratings";
 import { ratingsStore } from "@/lib/ratingsStore";
+import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -46,24 +47,24 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const kind = body.kind;
   if (!isRatingKind(kind)) {
-    return Response.json({ error: "kind must be \"drink\" or \"venue\"." }, { status: 400 });
+    return jsonNoStore({ error: "kind must be \"drink\" or \"venue\"." }, { status: 400 });
   }
 
   // For a venue, the venue id IS the ref — accept either field.
   const ref = cleanRef(body.ref) ?? (kind === "venue" ? cleanRef(body.venueId) : null);
-  if (!ref) return Response.json({ error: "Add a ref to rate." }, { status: 400 });
+  if (!ref) return jsonNoStore({ error: "Add a ref to rate." }, { status: 400 });
 
   const handle = normalizeHandle(readString(body.handle) ?? "");
-  if (!handle) return Response.json({ error: "Add a handle." }, { status: 400 });
+  if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
 
   const rating = parseRating(body.rating);
   if (rating === null) {
-    return Response.json(
+    return jsonNoStore(
       { error: "Pick 1–5 stars, in half-star steps." },
       { status: 400 },
     );
@@ -72,7 +73,7 @@ export async function POST(request: Request): Promise<Response> {
   // Rate-limit per handle + hashed IP, like the app's other write routes.
   const key = `rating:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return Response.json({ error: "Too many ratings, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many ratings, slow down." }, { status: 429 });
   }
 
   try {
@@ -83,7 +84,7 @@ export async function POST(request: Request): Promise<Response> {
       handle,
       rating,
     });
-    return Response.json({ ref, summary }, { status: 200 });
+    return jsonNoStore({ ref, summary }, { status: 200 });
   } catch (err) {
     // A vote that can't be stored is an honest 503 (retryable), never a
     // silent success and never a 500 (the input was fine; storage wasn't).
@@ -91,7 +92,7 @@ export async function POST(request: Request): Promise<Response> {
       "[ratings] rate failed:",
       err instanceof Error ? err.message : err,
     );
-    return Response.json(
+    return jsonNoStore(
       { error: "Ratings storage is unavailable — try again shortly." },
       { status: 503 },
     );
@@ -102,7 +103,7 @@ export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const kind = params.get("kind");
   if (!isRatingKind(kind)) {
-    return Response.json({ error: "kind must be \"drink\" or \"venue\"." }, { status: 400 });
+    return jsonNoStore({ error: "kind must be \"drink\" or \"venue\"." }, { status: 400 });
   }
 
   // Top-rated list mode (the discover page's "Top rated pubs this month").
@@ -113,7 +114,7 @@ export async function GET(request: Request): Promise<Response> {
         ? Math.min(rawLimit, MAX_TOP_LIMIT)
         : 10;
     const top = await ratingsStore().top(kind as RatingKind, { limit });
-    return Response.json({ top }, { status: 200 });
+    return jsonNoStore({ top }, { status: 200 });
   }
 
   // Batch summary mode. No refs → an empty (but valid) map, never an error.
@@ -124,5 +125,5 @@ export async function GET(request: Request): Promise<Response> {
     .slice(0, MAX_BATCH_REFS);
   const summaries: Record<string, RatingSummary> =
     refs.length > 0 ? await ratingsStore().summaryFor(kind as RatingKind, refs) : {};
-  return Response.json({ summaries }, { status: 200 });
+  return jsonNoStore({ summaries }, { status: 200 });
 }

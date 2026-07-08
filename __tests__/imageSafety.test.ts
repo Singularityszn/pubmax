@@ -144,6 +144,26 @@ function buildWebp(extraChunks: Uint8Array[] = []): Uint8Array {
   return concat(ascii("RIFF"), u32le(body.length), body);
 }
 
+function buildExtendedWebp(chunks: Uint8Array[]): Uint8Array {
+  const body = concat(ascii("WEBP"), ...chunks);
+  return concat(ascii("RIFF"), u32le(body.length), body);
+}
+
+function vp8xChunk(flags: number): Uint8Array {
+  return webpChunk("VP8X", bytes(flags, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x00));
+}
+
+function webpChunkPayload(bytes: Uint8Array, type: string): Uint8Array | null {
+  let i = 12;
+  while (i + 8 <= bytes.length) {
+    const chunkType = String.fromCharCode(bytes[i]!, bytes[i + 1]!, bytes[i + 2]!, bytes[i + 3]!);
+    const size = bytes[i + 4]! | (bytes[i + 5]! << 8) | (bytes[i + 6]! << 16) | (bytes[i + 7]! << 24);
+    if (chunkType === type) return bytes.slice(i + 8, i + 8 + size);
+    i += 8 + size + (size % 2);
+  }
+  return null;
+}
+
 // ── detectImageKind / magicBytesOk ───────────────────────────────────────────
 
 describe("detectImageKind", () => {
@@ -355,6 +375,26 @@ describe("stripWebpMetadata", () => {
     const xmpChunk = webpChunk("XMP ", ascii("<x:xmpmeta>gps here</x:xmpmeta>"));
     const withXmp = buildWebp([xmpChunk]);
     const cleaned = stripWebpMetadata(withXmp);
+    expect(Buffer.from(cleaned).toString("latin1")).not.toContain("gps here");
+  });
+
+  it("clears VP8X EXIF and XMP flags when the corresponding chunks are stripped", () => {
+    const exifFlag = 0b00001000;
+    const xmpFlag = 0b00000100;
+    const withMetadata = buildExtendedWebp([
+      vp8xChunk(exifFlag | xmpFlag),
+      webpChunk("VP8 ", bytes(0x30, 0x01, 0x00, 0x9d, 0x01, 0x2a, 0x04, 0x00, 0x04, 0x00)),
+      webpChunk("EXIF", ascii("FAKE-EXIF-GPS-DATA")),
+      webpChunk("XMP ", ascii("<x:xmpmeta>gps here</x:xmpmeta>")),
+    ]);
+
+    const cleaned = stripWebpMetadata(withMetadata);
+    const vp8x = webpChunkPayload(cleaned, "VP8X");
+
+    expect(vp8x).not.toBeNull();
+    expect(vp8x![0]! & exifFlag).toBe(0);
+    expect(vp8x![0]! & xmpFlag).toBe(0);
+    expect(Buffer.from(cleaned).toString("latin1")).not.toContain("FAKE-EXIF-GPS-DATA");
     expect(Buffer.from(cleaned).toString("latin1")).not.toContain("gps here");
   });
 

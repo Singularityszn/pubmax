@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Camera,
   ImagePlus,
@@ -50,6 +50,12 @@ const VISIBILITY_COPY: Record<Visibility, { label: string; helper: string }> = {
   legacy: { label: "Legacy", helper: "Kept for the pub's Ledger, off the feed." },
   anonymous: { label: "Anonymous", helper: "Posted as a PUBMAXXER — your handle is hidden." },
 };
+
+const GENERATION_PRESETS = [
+  { label: "Tonight", value: "Tonight" },
+  { label: "Old memory", value: "Old memory" },
+  { label: "Family story", value: "Family story" },
+] as const;
 
 // The optional client seam for "is a Round open right now?". No client-side
 // active-Round state ships yet (rounds are URL-bound + server-centric), so we
@@ -108,6 +114,12 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
   } = state;
 
   const maxTagsReached = vibeTags.length >= 4;
+  const handleId = useId();
+  const priceInputId = useId();
+  const drinkInputId = useId();
+  const noteInputId = useId();
+  const withWhoInputId = useId();
+  const eraInputId = useId();
 
   // Camera-first (PRD priority 2): on a mobile-class viewport the photo/camera
   // step is presented FIRST as a full step; the writer either shoots (or picks)
@@ -296,15 +308,21 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
           Desktop renders the classic inline photo pair lower down instead. */}
       {mobile ? (
         <div className="spillCameraStep" data-testid="spill-camera-step">
-          <span className="spillStepEyebrow">Start with the shot</span>
+          <div className="spillCameraHeader">
+            <span className="spillStepEyebrow">Start with the shot</span>
+            <span className="spillCameraHint">9:16 Spill preview</span>
+          </div>
           {pintPhoto ? (
-            <div className="spillCameraShot">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={pintPhoto.previewUrl}
-                alt="Preview of your pint photo"
-                decoding="async"
-              />
+            <div className="spillCaptureRail hasShot">
+              <div className="spillCameraShot">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={pintPhoto.previewUrl}
+                  alt="Preview of your pint photo"
+                  decoding="async"
+                />
+                <span className="spillShotStamp">Shot ready</span>
+              </div>
               <button
                 type="button"
                 className="photoRemove"
@@ -315,36 +333,46 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
               </button>
             </div>
           ) : (
-            <div className="spillCameraActions">
+            <div className="spillCaptureRail">
+              <div className="spillCameraFrame" aria-hidden="true">
+                <span className="spillCameraLens">
+                  <Camera size={30} />
+                </span>
+                <span className="spillShotStamp">Rear camera first</span>
+              </div>
+              <div className="spillCameraActions">
               {/* Rear camera first — the pour is the hero. `capture="environment"`
                   opens the rear camera on mobile; on desktop it's a file pick. */}
-              <label className="spillCameraBtn primary">
-                <Camera size={22} />
-                <span>Snap the pour</span>
-                <input
-                  ref={pintInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(event) =>
-                    pickPhoto("pint", event.target.files?.[0], event.target)
-                  }
-                />
-              </label>
+                <label className="spillCameraBtn primary">
+                  <Camera size={22} />
+                  <span>Snap the pour</span>
+                  <input
+                    ref={pintInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    aria-label="Snap or upload a pint photo"
+                    onChange={(event) =>
+                      pickPhoto("pint", event.target.files?.[0], event.target)
+                    }
+                  />
+                </label>
               {/* Flip to the front camera for a bar selfie. Stored in the venue
                   slot so provenance/photo semantics are unchanged. */}
-              <label className="spillCameraBtn">
-                <SmilePlus size={18} />
-                <span>Flip — you at the bar</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  onChange={(event) =>
-                    pickPhoto("venue", event.target.files?.[0], event.target)
-                  }
-                />
-              </label>
+                <label className="spillCameraBtn">
+                  <SmilePlus size={18} />
+                  <span>Flip — you at the bar</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    aria-label="Snap or upload a selfie at the bar"
+                    onChange={(event) =>
+                      pickPhoto("venue", event.target.files?.[0], event.target)
+                    }
+                  />
+                </label>
+              </div>
             </div>
           )}
           {!showRest ? (
@@ -363,13 +391,16 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
           resolved (shot taken or skipped); always shown on desktop. */}
       {showRest ? (
         <>
-          <input
-            value={handle}
-            onChange={(event) => setHandle(event.target.value)}
-            placeholder="Your handle (e.g. @thirsty_ted)"
-            aria-label="Contributor handle"
-            required
-          />
+          <label className="spillTextField" htmlFor={handleId}>
+            <span className="spillFieldLabel">Handle</span>
+            <input
+              id={handleId}
+              value={handle}
+              onChange={(event) => setHandle(event.target.value)}
+              placeholder="@thirsty_ted"
+              required
+            />
+          </label>
 
           {/* ── One-tap destinations (PRD priority 2) ──────────────────────────
               Shortcuts onto EXISTING visibility semantics. My Round is disabled
@@ -404,7 +435,9 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
           </fieldset>
 
           <div className="priceField">
-            <span className="priceFieldLabel">What did it cost?</span>
+            <label className="priceFieldLabel" htmlFor={priceInputId}>
+              What did it cost?
+            </label>
             <div className="priceStepper">
               <button
                 type="button"
@@ -415,11 +448,11 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                 <Minus size={15} />
               </button>
               <input
+                id={priceInputId}
                 value={dropForm.price}
                 onChange={(event) => setDropForm({ ...dropForm, price: event.target.value })}
                 placeholder="£"
                 inputMode="decimal"
-                aria-label="What did the pint cost, in pounds"
               />
               <button
                 type="button"
@@ -440,9 +473,10 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                   <button
                     key={price}
                     type="button"
-                    className={selected ? "priceChip selected" : "priceChip"}
+                    className={selected ? "priceChip stampChip selected" : "priceChip stampChip"}
                     onClick={() => setDropForm({ ...dropForm, price: label })}
                     title={isLastKnown ? "This pub's last logged price" : undefined}
+                    aria-pressed={selected}
                   >
                     £{label}
                     {isLastKnown ? <span className="priceChipTag">last</span> : null}
@@ -452,20 +486,29 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
             </div>
           </div>
 
-          <input
-            value={dropForm.drink}
-            onChange={(event) => setDropForm({ ...dropForm, drink: event.target.value })}
-            placeholder="Drink"
-            aria-label="Drink name"
-          />
+          <label className="spillTextField" htmlFor={drinkInputId}>
+            <span className="spillFieldLabel">Drink</span>
+            <input
+              id={drinkInputId}
+              value={dropForm.drink}
+              onChange={(event) => setDropForm({ ...dropForm, drink: event.target.value })}
+              placeholder="Pint, half, soda, guest ale"
+            />
+          </label>
 
           <div className="noteField">
+            <div className="spillFieldHeader">
+              <label className="spillFieldLabel" htmlFor={noteInputId}>
+                Story
+              </label>
+              <span className="voiceAffordance">Type or talk it in</span>
+            </div>
             <div className="noteFieldRow">
               <textarea
+                id={noteInputId}
                 value={dropForm.note}
                 onChange={(event) => setDropForm({ ...dropForm, note: event.target.value })}
                 placeholder="What happened?"
-                aria-label="What happened"
               />
               {speechSupported ? (
                 <button
@@ -486,19 +529,44 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
             ) : null}
           </div>
 
-          <input
-            value={dropForm.withWho}
-            onChange={(event) => setDropForm({ ...dropForm, withWho: event.target.value })}
-            placeholder="Who were you with? (e.g. @sam, @priya, or names)"
-            aria-label="Who were you with"
-          />
+          <label className="spillTextField" htmlFor={withWhoInputId}>
+            <span className="spillFieldLabel">With</span>
+            <input
+              id={withWhoInputId}
+              value={dropForm.withWho}
+              onChange={(event) => setDropForm({ ...dropForm, withWho: event.target.value })}
+              placeholder="@sam, @priya, or names"
+            />
+          </label>
 
-          <input
-            value={dropForm.era}
-            onChange={(event) => setDropForm({ ...dropForm, era: event.target.value })}
-            placeholder="An old memory, or tonight?"
-            aria-label="An old memory, or tonight"
-          />
+          <fieldset className="generationField">
+            <legend>When is this from?</legend>
+            <div className="generationRow" role="group" aria-label="Generation mode">
+              {GENERATION_PRESETS.map((preset) => {
+                const selected = dropForm.era === preset.value;
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    className={selected ? "generationChip selected" : "generationChip"}
+                    aria-pressed={selected}
+                    onClick={() => setDropForm({ ...dropForm, era: preset.value })}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="visuallyHidden" htmlFor={eraInputId}>
+              Custom generation or memory label
+            </label>
+            <input
+              id={eraInputId}
+              value={dropForm.era}
+              onChange={(event) => setDropForm({ ...dropForm, era: event.target.value })}
+              placeholder="Or write your own: 1998, first date, dad's local"
+            />
+          </fieldset>
 
           <fieldset className="vibeTagField">
             <legend>The vibe</legend>
@@ -552,7 +620,11 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
           {/* Desktop photo pair — the classic inline slots. Skipped on mobile,
               where the camera-first step above already owns the photo. */}
           {!mobile ? (
-            <div className="photoRow instaPintRow">
+            <div className="photoRow instaPintRow spillDesktopCapture">
+              <div className="spillCaptureIntro">
+                <span className="spillFieldLabel">Capture</span>
+                <span>Shot first, story second</span>
+              </div>
               <div className="photoField">
                 {pintPhoto ? (
                   <div className="photoPreview">
@@ -582,6 +654,7 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                       ref={pintInputRef}
                       type="file"
                       accept="image/*"
+                      aria-label="Snap or upload a pint photo"
                       onChange={(event) =>
                         pickPhoto("pint", event.target.files?.[0], event.target)
                       }
@@ -618,6 +691,7 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                       ref={venueInputRef}
                       type="file"
                       accept="image/*"
+                      aria-label="Snap or upload a selfie at the bar"
                       onChange={(event) =>
                         pickPhoto("venue", event.target.files?.[0], event.target)
                       }
@@ -650,9 +724,12 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                   <span>Your shot lands here</span>
                 </div>
               )}
-              <span className={`spillPreviewProv feedProv-${preview.provenance}`}>
-                {preview.provenanceLabel}
-              </span>
+              <div className="spillPreviewStamps">
+                <span className={`spillPreviewProv feedProv-${preview.provenance}`}>
+                  {preview.provenanceLabel}
+                </span>
+                <span className="spillPreviewVisibility">{VISIBILITY_COPY[visibility].label}</span>
+              </div>
               {preview.priceLabel ? (
                 <span className="spillPreviewPrice">{preview.priceLabel}</span>
               ) : null}

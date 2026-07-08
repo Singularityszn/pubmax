@@ -23,6 +23,7 @@ import DrinkMenu from "@/components/drinks/DrinkMenu";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
+import { directVenueImageUrl } from "@/lib/venueImages";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
@@ -212,6 +213,7 @@ export default function VenueInspector({
   // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
   // drinks) — see lib/venueMenu.ts for the composition seam.
   const menuDrinks = useMemo(() => venueMenuForInspector(venue), [venue]);
+  const venueImageUrl = directVenueImageUrl(venue.imageUrl);
 
   return (
     <section className="venueInspector">
@@ -267,6 +269,18 @@ export default function VenueInspector({
         className="venueTabPanel"
         hidden={tab !== "overview"}
       >
+        {venueImageUrl ? (
+          <figure className="venueBaselinePhoto">
+            <Image
+              src={venueImageUrl}
+              alt={`${venue.name} exterior or bar photo`}
+              width={720}
+              height={420}
+              loading="lazy"
+              unoptimized
+            />
+          </figure>
+        ) : null}
         <p className="venueAddress">{venue.address}</p>
         <div className="amenityRow">
           <Amenity active={Boolean(venue.curation.nearWater)} label="water" />

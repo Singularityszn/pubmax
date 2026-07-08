@@ -789,13 +789,26 @@ export default function PubMap() {
             retires even while the full dataset is still hydrating in the
             background. */}
         {slimPins.length === 0 && !loaded ? (
-          <div className="mapLoading" aria-live="polite">
-            <span aria-hidden="true" className="mapLoadingDots">
-              <i style={{ background: "var(--pint)" }} />
-              <i style={{ background: "var(--amber)" }} />
-              <i style={{ background: "var(--brick)" }} />
-            </span>
-            Pouring London&rsquo;s pubs…
+          <div
+            className="mapLoading"
+            role="status"
+            aria-busy="true"
+            aria-live="polite"
+            aria-label="Checking cached pins, then pouring London's pubs onto the map."
+          >
+            <div className="mapLoadingScene" aria-hidden="true">
+              <span className="mapLoadingStreet mapLoadingStreet--one" />
+              <span className="mapLoadingStreet mapLoadingStreet--two" />
+              <span className="mapLoadingRiver" />
+              <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--one" />
+              <span className="mapLoadingPin mapLoadingPin--amber mapLoadingPin--two" />
+              <span className="mapLoadingPin mapLoadingPin--brick mapLoadingPin--three" />
+              <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
+            </div>
+            <div className="mapLoadingCopy">
+              <span className="mapLoadingEyebrow">Cached pins</span>
+              <span>Pouring London&rsquo;s pubs onto the map.</span>
+            </div>
           </div>
         ) : null}
         <PubMapCanvas

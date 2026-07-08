@@ -29,9 +29,12 @@ import {
   categoryVar,
   type DrinkCategory,
 } from "@/lib/categoryColors";
-import type { Venue } from "@/lib/venues";
+import { formatPrice, type Venue } from "@/lib/venues";
+import { directVenueImageUrl } from "@/lib/venueImages";
 
 type VenueSignal = { hasPintDrops: boolean; latestContributorPrice: number | null };
+type HoveredVenue = { id: string; name: string; x: number; y: number };
+type VenueDetailResponse = { venue?: Venue | null };
 
 type PubMapCanvasProps = {
   venues: Venue[];
@@ -444,6 +447,10 @@ export default function PubMapCanvas({
   const [initAttempt, setInitAttempt] = useState(0);
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(null);
   const [heroDismissed, setHeroDismissed] = useState(false);
+  const [hoveredVenue, setHoveredVenue] = useState<HoveredVenue | null>(null);
+  const [hoverDetails, setHoverDetails] = useState<Map<string, Venue | null>>(
+    () => new Map(),
+  );
   // POI layer visibility — default all-on so "everything is there" on load,
   // but each category is togglable and zoom-gated so it never clutters.
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>({
@@ -463,6 +470,7 @@ export default function PubMapCanvas({
   const onVenueClickRef = useRef(onVenueClick);
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
+  const hoverDetailLoadingRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     onVenueClickRef.current = onVenueClick;
     onRouteStopClickRef.current = onRouteStopClick;
@@ -541,6 +549,7 @@ export default function PubMapCanvas({
   const reducedRef = useRef(false);
   const blurredRef = useRef(false);
   const themeRef = useRef<"dark" | "light">("dark");
+  const hoverCapableRef = useRef(false);
 
   // Cinematic camera move that suspends the orbit for its duration + resume gap.
   const cinematic = useCallback((options: maplibregl.EaseToOptions) => {
@@ -560,9 +569,56 @@ export default function PubMapCanvas({
   }, []);
 
   useEffect(() => {
+    if (!hoveredVenue) return;
+    const { id } = hoveredVenue;
+    if (
+      hoverDetails.has(id) ||
+      hoverDetailLoadingRef.current.has(id)
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    hoverDetailLoadingRef.current.add(id);
+
+    fetch(`/api/venue/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const payload = (await response.json()) as VenueDetailResponse;
+        return payload.venue ?? null;
+      })
+      .then((venue) => {
+        setHoverDetails((details) => {
+          const next = new Map(details);
+          next.set(id, venue);
+          return next;
+        });
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setHoverDetails((details) => {
+          const next = new Map(details);
+          next.set(id, null);
+          return next;
+        });
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+        hoverDetailLoadingRef.current.delete(id);
+      });
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [hoverDetails, hoveredVenue]);
+
+  useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     themeRef.current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
     const onReducedChange = () => {
@@ -1383,6 +1439,7 @@ export default function PubMapCanvas({
       const id = event.features?.[0]?.properties?.id;
       if (typeof id !== "string") return;
       selectLandmark(null); // the camera leaves the landmark; its card goes too
+      setHoveredVenue(null);
       onVenueClickRef.current(id);
     });
     map.on("click", "route-stops", (event) => {
@@ -1426,6 +1483,17 @@ export default function PubMapCanvas({
     for (const layer of ["pois-dot", "pois-transport-major", "pois-transport-minor"]) {
       map.on("click", layer, onPoiClick);
     }
+    const onPubHover = (event: maplibregl.MapLayerMouseEvent) => {
+      if (!hoverCapableRef.current) return;
+      const props = event.features?.[0]?.properties;
+      const id = props?.id;
+      const name = props?.name;
+      if (typeof id !== "string" || typeof name !== "string") return;
+      setHoveredVenue({ id, name, x: event.point.x, y: event.point.y });
+    };
+    map.on("mouseenter", "pubs-point", onPubHover);
+    map.on("mousemove", "pubs-point", onPubHover);
+    map.on("mouseleave", "pubs-point", () => setHoveredVenue(null));
     for (const layer of [
       "pubs-point",
       "clusters",
@@ -1763,6 +1831,18 @@ export default function PubMapCanvas({
     return candidates.reduce((best, venue) => (score(venue) > score(best) ? venue : best));
   }, [venues, venueSignals]);
 
+  const hoverDetail = useMemo(
+    () => (hoveredVenue ? hoverDetails.get(hoveredVenue.id) : undefined),
+    [hoverDetails, hoveredVenue],
+  );
+  const hoverImageUrl = directVenueImageUrl(hoverDetail?.imageUrl ?? "");
+  const hoverCardStyle = hoveredVenue
+    ? {
+        left: `min(${hoveredVenue.x + 18}px, calc(100vw - 316px))`,
+        top: Math.max(84, hoveredVenue.y - 30),
+      }
+    : undefined;
+
   if (mapError) {
     // Heading + body vary by cause so we never cry "needs WebGL" at a browser
     // that has it. Only the confirmed-dead-probe case makes that claim (and
@@ -1942,6 +2022,36 @@ export default function PubMapCanvas({
               ))}
             </div>
           ) : null}
+        </aside>
+      ) : null}
+      {hoveredVenue ? (
+        <aside className="venueHoverCard" style={hoverCardStyle} aria-live="polite">
+          {hoverImageUrl ? (
+            <figure className="venueHoverPhoto">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={hoverImageUrl} alt="" loading="lazy" decoding="async" />
+            </figure>
+          ) : (
+            <div className="venueHoverPhotoFallback" aria-hidden="true">
+              <span>{hoveredVenue.name.slice(0, 1).toUpperCase()}</span>
+            </div>
+          )}
+          <div className="venueHoverBody">
+            <span className="venueHoverEyebrow">
+              {hoverDetail === undefined
+                ? "Loading pub picture"
+                : hoverDetail
+                  ? "Pub preview"
+                  : "Fast map preview"}
+            </span>
+            <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
+            <span>
+              {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
+              {hoverDetail?.cheapestPrice !== null && hoverDetail?.cheapestPrice !== undefined
+                ? `${formatPrice(hoverDetail.cheapestPrice)} cheapest pint`
+                : "Tap for full pub detail"}
+            </span>
+          </div>
         </aside>
       ) : null}
       {heroVenue && !heroDismissed ? (

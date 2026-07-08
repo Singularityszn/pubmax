@@ -93,6 +93,22 @@
   padding-top: 12px;
 }
 
+.venueBaselinePhoto {
+  position: relative;
+  aspect-ratio: 12 / 7;
+  margin: 0 0 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--pint) 10%, var(--panel));
+}
+
+.venueBaselinePhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* The address used to inherit its muted colour from `.venueInspector > p` in
    globals.css; now that it lives inside a tab panel that selector no longer
    matches, so we preserve the exact look here (no globals.css edit needed). */
@@ -170,7 +186,7 @@
 }
 
 /* ── Primary-action tab-bar clearance (user story 15) ────────────────────────
-   The mobile bottom tab bar (components/nav/mobileNav.css) is ~62px tall plus
+   The mobile bottom tab bar (components/nav/mobileNav.css) is ~78px tall plus
    env(safe-area-inset-bottom), fixed to the viewport bottom. The sheet sits
    above it (higher z-index) at every snap point, so the tab bar can never
    visually cover the sheet — but without this padding the sheet's own primary
@@ -180,7 +196,7 @@
    scrollable, primary-CTA-bearing tab panel inside the sheet. */
 @media (max-width: 640px) {
   .venueTabPanel {
-    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 12px);
+    padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px) + 12px);
   }
 
   /* The Pints tab's sticky log bar (globals.css `.logDropBar`, sticky at
@@ -188,7 +204,7 @@
      BOTTOM of the scroll container, not the natural document flow the panel
      padding above covers. */
   .logDropBar {
-    bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 8px) !important;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px) + 8px) !important;
   }
 }
 
@@ -231,9 +247,9 @@
 }
 
 .trainBadge[data-tone="safe"] {
-  color: var(--brass, #9a6a24);
-  background: color-mix(in srgb, var(--brass, #9a6a24) 12%, transparent);
-  border-color: color-mix(in srgb, var(--brass, #9a6a24) 32%, transparent);
+  color: var(--brass, #ff5a5f);
+  background: color-mix(in srgb, var(--brass, #ff5a5f) 12%, transparent);
+  border-color: color-mix(in srgb, var(--brass, #ff5a5f) 32%, transparent);
 }
 
 .trainBadge[data-tone="risk"] {
@@ -305,5 +321,234 @@ html[data-legacy="1"] .venueTabPanel::before {
 @media (forced-colors: active) {
   .venueTabPanel::before {
     display: none;
+  }
+}
+
+/* ── Focused visual polish: brighter sheet, stronger listings, clear accents ── */
+.venueSheetGrabZone {
+  margin: -2px 0 8px;
+}
+
+.venueSheetGrab {
+  width: 44px;
+  background: color-mix(in srgb, var(--river) 34%, var(--line));
+}
+
+.venueTabs {
+  gap: 4px;
+  margin: 12px 0 10px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--river) 24%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--river) 5%, var(--panel-raised));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
+}
+
+.venueTab {
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink-soft);
+  border-bottom: 0;
+  transition:
+    background-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.venueTab:hover,
+.venueTab:not(.active):hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+}
+
+.venueTab.active {
+  border-color: transparent;
+  border-bottom-color: transparent;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 24%, transparent);
+}
+
+.venueTab[aria-controls="venuePanel-getting-home"]:not(.active) {
+  color: var(--river);
+}
+
+.venueTab[aria-controls="venuePanel-getting-home"]:hover {
+  background: color-mix(in srgb, var(--river) 10%, var(--panel-raised));
+}
+
+.venueTab[aria-controls="venuePanel-getting-home"].active {
+  background: linear-gradient(135deg, var(--river), var(--river-bright));
+  color: var(--color-on-photo);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--river) 24%, transparent);
+}
+
+.venueTab[aria-controls="venuePanel-getting-home"]:focus-visible {
+  outline-color: var(--river);
+}
+
+.venueTabPanel {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--panel-raised));
+  border-radius: 16px;
+  background: var(--panel-raised);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--ink) 9%, transparent);
+}
+
+.venueTabPanel::before {
+  border-radius: inherit;
+}
+
+.venueBaselinePhoto {
+  margin: 0 0 14px;
+  border-color: color-mix(in srgb, var(--river) 28%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--river) 7%, var(--panel));
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.venueBaselinePhoto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 56%,
+    color-mix(in srgb, var(--ink-deep) 28%, transparent) 100%
+  );
+}
+
+.venueBaselinePhoto img {
+  display: block;
+  transition: transform 0.24s ease;
+}
+
+.venueAddress {
+  margin-bottom: 12px;
+  color: var(--ink-soft);
+}
+
+.venueTabPanel .amenity,
+.venueTabPanel .accessibilityChip {
+  background: var(--panel-raised);
+}
+
+.venueTabPanel .contributorPrice {
+  border-color: color-mix(in srgb, var(--pint) 34%, var(--line));
+  background: color-mix(in srgb, var(--pint) 8%, var(--panel-raised));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
+}
+
+.venueTabPanel .addStopBtn,
+.venueTabPanel .logDropBtn,
+.venueTabPanel .saveToListCreate,
+.venueTabPanel .dropComposer button[type="submit"],
+.venueTabPanel .landlordForm button {
+  border-color: var(--brass);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 24%, transparent);
+}
+
+.venueTabPanel .saveToListToggle,
+.venueTabPanel .composerToggle {
+  border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+  color: var(--brass);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
+}
+
+.venueTabPanel .saveToListToggle:hover,
+.venueTabPanel .composerToggle:hover {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+}
+
+.venueTabPanel .dropList {
+  gap: 12px;
+}
+
+.venueTabPanel .dropCard,
+.venueTabPanel .claimCard,
+.venueTabPanel .saveToList,
+.venueTabPanel .priceList {
+  border-color: color-mix(in srgb, var(--line) 74%, var(--panel-raised));
+  background: var(--panel-raised);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.venueTabPanel .dropCard,
+.venueTabPanel .claimCard {
+  border-radius: 14px;
+}
+
+.venueTabPanel .dropCard:hover,
+.venueTabPanel .claimCard:hover {
+  border-color: color-mix(in srgb, var(--brass) 54%, var(--line));
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.venueTabPanel .instaFrame {
+  gap: 3px;
+  border-color: color-mix(in srgb, var(--river) 20%, var(--line));
+  background: color-mix(in srgb, var(--river) 18%, var(--line));
+}
+
+.venueTabPanel .instaShot figcaption {
+  background: color-mix(in srgb, var(--ink-deep) 72%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.venueTabPanel .dropCard .dropPrice {
+  color: var(--pint);
+}
+
+#venuePanel-getting-home {
+  border-color: color-mix(in srgb, var(--river) 30%, var(--line));
+  background:
+    radial-gradient(
+      280px 150px at 100% 0%,
+      color-mix(in srgb, var(--river) 9%, transparent),
+      transparent 70%
+    ),
+    var(--panel-raised);
+}
+
+#venuePanel-getting-home > section[aria-label="Last Pint"] {
+  --line: color-mix(in srgb, var(--river) 36%, var(--line-soft));
+  --panel-raised: color-mix(in srgb, var(--river) 7%, var(--paper));
+
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--river) 14%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .venueTab:hover {
+    transform: translateY(-1px);
+  }
+
+  .venueBaselinePhoto:hover img {
+    transform: scale(1.025);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .venueTab,
+  .venueBaselinePhoto img {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .venueTabs {
+    border-radius: 16px;
+  }
+
+  .venueTabPanel {
+    padding: 12px 12px calc(78px + env(safe-area-inset-bottom, 0px) + 12px);
   }
 }

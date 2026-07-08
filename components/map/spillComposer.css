@@ -40,8 +40,8 @@
 }
 
 .visibilityOption {
-  min-height: 34px;
-  padding: 6px 6px;
+  min-height: 44px;
+  padding: 8px 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
@@ -90,9 +90,28 @@
   gap: 6px;
 }
 
+.spillTextField {
+  display: grid;
+  gap: 5px;
+}
+
+.spillFieldHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.spillFieldLabel,
 .priceFieldLabel {
   color: var(--ink-soft);
   font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.voiceAffordance {
+  color: var(--muted);
+  font-size: 0.72rem;
   font-weight: 700;
 }
 
@@ -111,8 +130,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  min-height: 34px;
+  min-width: 44px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
@@ -137,8 +156,8 @@
 }
 
 .priceChip {
-  min-height: 30px;
-  padding: 4px 10px;
+  min-height: 38px;
+  padding: 6px 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-raised);
@@ -167,7 +186,7 @@
 /* ── Voice-to-text mic button ──────────────────────────────────────────── */
 .noteField {
   display: grid;
-  gap: 4px;
+  gap: 5px;
 }
 
 .noteFieldRow {
@@ -181,8 +200,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   margin-top: 2px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -229,6 +248,13 @@
    tokens as the rest of the composer; the buttons are generous thumb targets. */
 .spillCameraStep {
   display: grid;
+  gap: 12px;
+}
+
+.spillCameraHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 10px;
 }
 
@@ -238,6 +264,75 @@
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.spillCameraHint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.spillCaptureRail {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(120px, 0.82fr) 1fr;
+  gap: 10px;
+  align-items: stretch;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--brass) 42%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-raised) 88%, var(--brass) 12%);
+}
+
+.spillCaptureRail.hasShot {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  background: #0c0b08;
+}
+
+.spillCameraFrame {
+  position: relative;
+  min-height: 176px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(176, 129, 58, 0.42);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.035) 0,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px,
+      transparent 32px
+    ),
+    #0c0b08;
+  overflow: hidden;
+}
+
+.spillCameraLens {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--brass-bright, #d8ab55);
+}
+
+.spillShotStamp {
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid rgba(216, 171, 85, 0.42);
+  border-radius: 999px;
+  background: rgba(12, 11, 8, 0.78);
+  color: var(--brass-bright, #d8ab55);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -251,7 +346,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 52px;
+  min-height: 54px;
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -271,7 +366,7 @@
 }
 
 .spillCameraBtn.primary {
-  min-height: 88px;
+  min-height: 74px;
   flex-direction: column;
   gap: 6px;
   border-color: var(--brass);
@@ -295,23 +390,26 @@
   overflow: hidden;
   border: 1px solid var(--line);
   background: #0c0b08;
+  aspect-ratio: 9 / 16;
 }
 
 .spillCameraShot img {
   display: block;
   width: 100%;
-  max-height: 46vh;
+  height: 100%;
+  max-height: 52vh;
   object-fit: cover;
 }
 
-.spillCameraShot .photoRemove {
+.spillCaptureRail .photoRemove {
   position: absolute;
   top: 8px;
   right: 8px;
+  min-height: 34px;
 }
 
 .spillSkipPhoto {
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 12px;
   border: 1px dashed var(--line);
   border-radius: var(--radius-sm);
@@ -336,7 +434,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 34px;
+  min-height: 44px;
   padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -376,8 +474,8 @@
 }
 
 .destinationChip {
-  min-height: 34px;
-  padding: 6px 12px;
+  min-height: 40px;
+  padding: 7px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-raised);
@@ -428,6 +526,78 @@
   text-transform: uppercase;
 }
 
+.generationField {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.generationField legend {
+  padding: 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.generationRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.generationChip {
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.generationChip:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.generationChip.selected {
+  border-color: var(--brass);
+  background: rgba(176, 129, 58, 0.14);
+  color: var(--brass);
+}
+
+.generationChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.spillDesktopCapture {
+  grid-template-columns: 1fr 1fr;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--brass) 36%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-raised) 90%, var(--brass) 10%);
+}
+
+.spillCaptureIntro {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.spillComposer button[type="submit"] {
+  min-height: 44px;
+}
+
 /* ── Instant preview card (PRD priority 2) ────────────────────────────────────
    A live client-only render that mirrors the final 9:16 feedSpill treatment
    (components/feed/FeedCard.tsx + app/feed/feed.css). The scrim + text colours
@@ -470,7 +640,13 @@
   gap: 8px;
   color: #8f8875;
   background:
-    radial-gradient(120% 90% at 50% 12%, rgba(176, 129, 58, 0.14), transparent 60%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(216, 171, 85, 0.06) 0,
+      rgba(216, 171, 85, 0.06) 1px,
+      transparent 1px,
+      transparent 42px
+    ),
     #12100c;
   font-size: 0.78rem;
   font-weight: 600;
@@ -478,11 +654,19 @@
   padding: 0 16px;
 }
 
-.spillPreviewProv {
+.spillPreviewStamps {
   position: absolute;
   top: 10px;
   left: 10px;
   z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: calc(100% - 92px);
+}
+
+.spillPreviewProv,
+.spillPreviewVisibility {
   display: inline-flex;
   align-items: center;
   padding: 4px 9px;
@@ -494,6 +678,11 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+}
+
+.spillPreviewVisibility {
+  color: #d9cfba;
+  box-shadow: inset 0 0 0 1px rgba(217, 207, 186, 0.28);
 }
 
 .spillPreviewProv.feedProv-anecdote {
@@ -612,4 +801,26 @@ html[data-legacy="1"] .spillPreviewCard {
 html[data-legacy="1"] .spillPreviewNote {
   -webkit-line-clamp: 5;
   line-clamp: 5;
+}
+
+@media (max-width: 640px) {
+  .spillCaptureRail {
+    grid-template-columns: 1fr;
+  }
+
+  .spillCameraFrame {
+    min-height: 216px;
+  }
+
+  .spillPreviewCard {
+    max-width: min(100%, 310px);
+  }
+
+  .spillFieldHeader,
+  .spillCameraHeader,
+  .spillCaptureIntro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
 }

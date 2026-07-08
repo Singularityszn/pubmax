@@ -8,11 +8,15 @@ const packageJson = JSON.parse(
 ) as { scripts?: Record<string, string> };
 
 describe("build scripts", () => {
-  it("regenerates the slim map payload before the production build", () => {
-    expect(packageJson.scripts?.prebuild).toBe("npm run build:slim");
+  it("regenerates bundled data artifacts before the production build", () => {
+    expect(packageJson.scripts?.prebuild).toBe(
+      "npm run build:slim && npm run build:pubmaxxing-seed",
+    );
   });
 
-  it("regenerates generated map artifacts before data validation", () => {
-    expect(packageJson.scripts?.["prevalidate-data"]).toBe("npm run build:slim");
+  it("regenerates bundled data artifacts before data validation", () => {
+    expect(packageJson.scripts?.["prevalidate-data"]).toBe(
+      "npm run build:slim && npm run build:pubmaxxing-seed",
+    );
   });
 });

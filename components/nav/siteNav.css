@@ -19,13 +19,15 @@
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: 8px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm, 8px);
-  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  padding: 9px 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, var(--brass) 18%);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 96%, transparent), color-mix(in srgb, var(--surface-tint-river) 62%, transparent)),
+    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  box-shadow: 0 16px 36px rgba(44, 30, 62, 0.12), 0 5px 14px rgba(255, 90, 95, 0.05);
+  backdrop-filter: blur(14px) saturate(1.06);
+  -webkit-backdrop-filter: blur(14px) saturate(1.06);
 }
 
 /* Map variant: the shell is overflow-hidden + full-bleed, so the bar floats
@@ -59,7 +61,7 @@
 }
 
 .siteNavBrand:hover {
-  color: var(--brass);
+  color: var(--river);
 }
 
 .siteNavBrand:focus-visible {
@@ -92,7 +94,7 @@
   /* 44px target height. */
   min-height: 44px;
   padding: 0 12px;
-  border-radius: 7px;
+  border-radius: 999px;
   color: var(--ink-soft);
   font-size: 0.84rem;
   font-weight: 600;
@@ -103,7 +105,7 @@
 
 .siteNavLink:hover {
   color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
 }
 
 .siteNavLink:focus-visible {
@@ -112,8 +114,9 @@
 }
 
 .siteNavLink.isActive {
-  color: var(--ink-deep);
-  background: var(--brass);
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
 /* ── Right-side actions (theme toggle + sign-in) ───────────────────────── */
@@ -139,13 +142,13 @@
   width: 34px;
   height: 34px;
   flex: 0 0 auto;
-  border-radius: 8px;
+  border-radius: 999px;
   color: var(--ink-soft);
   text-decoration: none;
 }
 .siteNavBell:hover {
   color: var(--ink);
-  background: var(--panel-raised);
+  background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
 }
 .siteNavBell:focus-visible {
   outline: 2px solid var(--brass);
@@ -160,7 +163,7 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: var(--brass);
+  background: linear-gradient(135deg, var(--brass), var(--pink, var(--brass)));
   color: var(--panel-raised);
   font-size: 10px;
   font-weight: 700;
@@ -193,6 +196,10 @@
     transform: none;
   }
 
+  .siteNavBarFloating .siteNavBrand {
+    display: none;
+  }
+
   .siteNavBrand {
     font-size: 0.98rem;
     /* Never let a long wordmark push the actions off-screen. The desktop rule
@@ -210,6 +217,19 @@
      of the compact bar, so the controls never compress or wrap. */
   .siteNavActions {
     flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  .siteNavBarFloating .authSignIn {
+    width: 36px;
+    height: 36px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .siteNavBarFloating .authSignInLabelFull,
+  .siteNavBarFloating .authSignInLabelShort {
+    display: none;
   }
 }
 

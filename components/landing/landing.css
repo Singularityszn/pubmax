@@ -1,20 +1,28 @@
-/* PUBMAXXING landing page — editorial field-guide styling.
+/* PUBMAXXING landing page — vivid London pub-crawl styling.
    All colour comes from tokens in globals.css so this flips light/dark for free.
    Scoped under .lp so nothing leaks into the /map app shell. */
 
 .lp {
   --lp-measure: 1180px;
   --lp-gap: clamp(72px, 11vw, 148px);
-  background: var(--paper);
+  background: var(--gradient-party);
   color: var(--ink);
   font-family: var(--font-geist, Inter), ui-sans-serif, system-ui, sans-serif;
-  /* faint dotted guidebook texture */
-  background-image: radial-gradient(
-    color-mix(in srgb, var(--brass) 6%, transparent) 1px,
-    transparent 1px
-  );
-  background-size: 24px 24px;
+  background-attachment: fixed;
   overflow-x: hidden;
+}
+
+.lp::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, color-mix(in srgb, var(--river) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(0deg, color-mix(in srgb, var(--brass) 6%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
 }
 
 .lp *,
@@ -42,9 +50,9 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--brass) 30%);
 }
 
 .lp .topbarInner {
@@ -68,9 +76,10 @@
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  background: var(--ink-deep);
-  color: var(--brass-bright);
-  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--brass), var(--river));
+  color: var(--color-on-accent);
+  border-radius: 14px;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 24%, transparent);
 }
 
 .lp .wordmark .wordmarkText {
@@ -114,7 +123,7 @@
 
 .lp .navLinks a:hover {
   color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 8%, transparent);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
 }
 
 .lp .navLinks a:not(.topbarCta):hover::after,
@@ -136,7 +145,7 @@
   gap: 8px;
   min-height: 44px;
   padding: 0 20px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-size: 0.94rem;
   font-weight: 600;
   text-decoration: none;
@@ -153,9 +162,9 @@
 }
 
 .lp .btnPrimary {
-  background: var(--ink-deep);
-  color: #fdfaf2;
-  box-shadow: var(--shadow);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--brass) 30%, transparent);
 }
 
 /* Non-motion feedback stays available to everyone (incl. reduced-motion). */
@@ -164,15 +173,15 @@
 }
 
 .lp .btnGhost {
-  background: transparent;
+  background: color-mix(in srgb, var(--panel-raised) 72%, transparent);
   color: var(--ink);
-  border-color: var(--line);
+  border-color: color-mix(in srgb, var(--line) 70%, var(--river) 30%);
 }
 
 .lp .btnGhost:hover {
   border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 6%, transparent);
-  color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
 }
 
 .lp .topbar .btn {
@@ -189,7 +198,7 @@
 
 .lp .navLinks a.topbarCta:hover {
   color: var(--color-on-inverse);
-  background: var(--ink-deep);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   filter: brightness(1.18);
 }
 
@@ -243,6 +252,19 @@
 /* ── Hero ────────────────────────────────────────────────────────────── */
 .lp .hero {
   padding-top: clamp(48px, 7vw, 84px);
+  position: relative;
+}
+
+.lp .hero::before {
+  content: "";
+  position: absolute;
+  inset: 20px clamp(16px, 4vw, 42px) auto;
+  height: min(34vw, 420px);
+  z-index: -1;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(104deg, transparent 0 18%, color-mix(in srgb, var(--brass) 9%, transparent) 18% 19%, transparent 19% 100%),
+    linear-gradient(156deg, transparent 0 62%, color-mix(in srgb, var(--river) 8%, transparent) 62% 63%, transparent 63% 100%);
 }
 
 .lp .heroGrid {
@@ -266,13 +288,14 @@
 .lp .heroCopy h1 em {
   font-style: italic;
   color: var(--brass);
+  text-shadow: 0 10px 30px color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
 /* Nostalgic subhead directly under the H1 — italic serif, warm, not SaaS. */
 .lp .heroTagline {
   max-width: 34ch;
   margin: -8px 0 20px;
-  color: var(--brass);
+  color: var(--river);
   font-size: clamp(1.24rem, 2.4vw, 1.6rem);
   font-style: italic;
   line-height: 1.28;
@@ -298,13 +321,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .lp .statChip {
   padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brass) 8%, var(--panel-raised)), var(--panel-raised));
   transition: border-color 0.18s ease, background 0.18s ease,
     transform 0.18s ease;
 }
@@ -335,10 +362,12 @@
 .lp .heroFigure {
   position: relative;
   padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow);
+  border: 1px solid color-mix(in srgb, var(--line) 64%, var(--river) 36%);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--river) 10%, var(--panel-raised)), color-mix(in srgb, var(--brass) 7%, var(--panel-raised))),
+    var(--panel-raised);
+  box-shadow: 0 24px 58px rgba(44, 30, 62, 0.16), 0 10px 30px rgba(40, 100, 216, 0.1);
 }
 
 .lp .thamesHero {
@@ -376,17 +405,19 @@
   flex-direction: column;
   gap: 12px;
   padding: 26px 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--lp-cat, var(--brass)) 24%);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--lp-cat, var(--brass)) 12%, var(--panel-raised)), var(--panel-raised) 62%),
+    var(--panel-raised);
   transition: border-color 0.18s ease, transform 0.18s ease,
     box-shadow 0.18s ease;
 }
 
 /* Warm-up (border + shadow) for everyone; the lift is gated below. */
 .lp .wedgeCard:hover {
-  border-color: var(--brass);
-  box-shadow: 0 14px 30px rgba(154, 106, 36, 0.14);
+  border-color: color-mix(in srgb, var(--lp-cat, var(--brass)) 56%, var(--line));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--lp-cat, var(--brass)) 18%, transparent);
 }
 
 .lp .wedgeIcon {
@@ -394,10 +425,10 @@
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--panel-raised);
-  color: var(--brass);
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--lp-cat, var(--brass)) 36%, var(--line));
+  background: color-mix(in srgb, var(--lp-cat, var(--brass)) 15%, var(--panel-raised));
+  color: var(--lp-cat, var(--brass));
 }
 
 .lp .wedgeCard h3 {
