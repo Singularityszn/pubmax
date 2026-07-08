@@ -966,12 +966,12 @@ input[type="range"] {
 @media (max-width: 640px) {
   .mapOnboarding {
     align-items: flex-end;
-    padding: 12px;
+    padding: 12px 12px calc(90px + env(safe-area-inset-bottom, 0px));
   }
 
   .mapOnboardingCard {
     width: 100%;
-    max-height: calc(100% - 76px);
+    max-height: calc(100% - 116px - env(safe-area-inset-bottom, 0px));
     padding: 20px 18px 16px;
   }
 }
@@ -987,8 +987,13 @@ input[type="range"] {
   padding: clamp(18px, 4vw, 34px);
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(47, 111, 143, 0.16), transparent 28% 72%, rgba(154, 106, 36, 0.14)),
-    rgba(15, 28, 22, 0.46);
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--river) 16%, transparent),
+      transparent 28% 72%,
+      color-mix(in srgb, var(--brass) 14%, transparent)
+    ),
+    color-mix(in srgb, var(--ink-deep) 46%, transparent);
   backdrop-filter: blur(2px) saturate(0.9);
   color: var(--color-on-inverse);
 }
@@ -1012,7 +1017,12 @@ input[type="range"] {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, transparent 0 42%, rgba(154, 106, 36, 0.1) 42% 44%, transparent 44%);
+  background: linear-gradient(
+    135deg,
+    transparent 0 42%,
+    color-mix(in srgb, var(--brass) 10%, transparent) 42% 44%,
+    transparent 44%
+  );
 }
 
 .mapLoadingStreet,

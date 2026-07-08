@@ -201,16 +201,27 @@
   }
 
   .siteNavBrand {
-    font-size: 0.98rem;
-    /* Never let a long wordmark push the actions off-screen. The desktop rule
-       pins the brand (flex: 0 0 auto); here it must be allowed to SHRINK, or
-       the actions cluster (bell + mode switch + toggles) slides over the
-       wordmark at 390px. flex-shrink + min-width:0 lets it give way first and
-       the ellipsis keeps whatever fits legible ("PUBMA…"), never overlapped. */
-    flex: 0 1 auto;
-    min-width: 0;
+    /* The full wordmark cannot share a 390px header with auth, mode, theme and
+       alerts. Use an intentional compact mark instead of a clipped "PUBM". */
+    flex: 0 0 42px;
+    width: 42px;
+    height: 36px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--brass), var(--river));
+    color: var(--color-on-accent);
+    font-size: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 18%, transparent);
+  }
+
+  .siteNavBrand::before {
+    content: "PX";
+    font-family: var(--font-data, system-ui, sans-serif);
+    font-size: 0.82rem;
+    font-weight: 900;
+    letter-spacing: 0;
   }
 
   /* The actions cluster holds its shape — the brand is the only flexible part
@@ -220,15 +231,7 @@
     gap: 6px;
   }
 
-  .siteNavBarFloating .authSignIn {
-    width: 36px;
-    height: 36px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .siteNavBarFloating .authSignInLabelFull,
-  .siteNavBarFloating .authSignInLabelShort {
+  .siteNavBar .authUser {
     display: none;
   }
 }
