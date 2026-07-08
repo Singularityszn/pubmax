@@ -6,6 +6,8 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 // 400 (honest client-error shape, not a 503), and the public DTO still exposes
 // only { id, handle, body, createdAt, parentId }.
 
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+
 import { POST } from "@/app/api/pint-drops/comments/route";
 import { __resetMemoryComments } from "@/lib/commentsStore";
 
