@@ -534,7 +534,8 @@ export default function PubMapCanvas({
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(defaultPoiHidden);
   // Open when a band is already active (e.g. `?band=` deep link) so the corridor
   // picker matches the URL; otherwise stay closed until the viewer opts in.
-  const [placeStoriesOpen, setPlaceStoriesOpen] = useState(() => Boolean(activeBandId));
+  const [placeStoriesManualOpen, setPlaceStoriesManualOpen] = useState(false);
+  const placeStoriesOpen = Boolean(activeBandId) || placeStoriesManualOpen;
   const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
 
   const onVenueClickRef = useRef(onVenueClick);
@@ -553,12 +554,6 @@ export default function PubMapCanvas({
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
   }, [onVenueClick, onRouteStopClick, onVenuePrefetch, onLandmarkSelect]);
-
-  // G3 / deep link: keep the Place stories control open while a band is active
-  // so the corridor picker matches `?band=` (and chip "Walk this story").
-  useEffect(() => {
-    if (activeBandId) setPlaceStoriesOpen(true);
-  }, [activeBandId]);
 
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
@@ -2224,9 +2219,11 @@ export default function PubMapCanvas({
             aria-pressed={placeStoriesOpen}
             aria-expanded={placeStoriesOpen}
             onClick={() => {
-              const next = !placeStoriesOpen;
-              setPlaceStoriesOpen(next);
-              if (!next && activeBandId) onBandChange("");
+              if (activeBandId) {
+                onBandChange("");
+                return;
+              }
+              setPlaceStoriesManualOpen((open) => !open);
             }}
           >
             Place stories

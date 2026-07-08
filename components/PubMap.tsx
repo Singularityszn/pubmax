@@ -802,18 +802,6 @@ export default function PubMap() {
     }
   }, [activeBandId]);
 
-  // When the active band changes (URL sync / picker), honour a prior session dismiss.
-  useEffect(() => {
-    if (!activeBandId) return;
-    if (!readBandChipDismissed(activeBandId)) return;
-    setDismissedBandIds((prev) => {
-      if (prev.has(activeBandId)) return prev;
-      const next = new Set(prev);
-      next.add(activeBandId);
-      return next;
-    });
-  }, [activeBandId]);
-
   const filteredVenueCount = filteredVenues.length;
   const firstRouteId = route[0]?.id ?? "";
   const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
@@ -1035,7 +1023,8 @@ export default function PubMap() {
     loaded,
     activeBandId,
     bandResolved: Boolean(activeBand),
-    chipDismissed: dismissedBandIds.has(activeBandId),
+    chipDismissed:
+      dismissedBandIds.has(activeBandId) || readBandChipDismissed(activeBandId),
   });
   // §4.5: show the "Start with a story" onboarding overlay only on a clean first
   // paint — and never while the band deep-link chip is showing (G3 priority).
