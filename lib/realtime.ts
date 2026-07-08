@@ -86,6 +86,8 @@ const POLL_INTERVAL_MS = 30_000;
 type SubscribeOptions = {
   /** Invoked on the fallback interval when realtime is unavailable/broken. */
   poll?: LiveSignal;
+  /** When false, skip opening a channel (e.g. the drop is visibility-gated). */
+  enabled?: boolean;
 };
 
 // Core subscription primitive. Opens ONE channel bound to a single INSERT event
@@ -102,6 +104,7 @@ function subscribeInsert(
   onSignal: LiveSignal,
   options: SubscribeOptions | undefined,
 ): Unsubscribe {
+  if (options?.enabled === false) return () => {};
   const poll = options?.poll;
 
   // No browser client (no public env, or SSR) → realtime is impossible. Degrade

@@ -14,15 +14,35 @@ import {
 import {
   __resetMemoryNotifications,
   emitNotification,
+  filterDropLinkedNotifications,
   memoryNotificationsStore,
   notificationsStore,
 } from "@/lib/notificationsStore";
+import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryNotifications();
+  __resetPintDrops();
 });
+
+function makeDrop(overrides: Partial<PintDrop> = {}): PintDrop {
+  return {
+    id: "drop-visible",
+    venueId: "venue-1",
+    handle: "@ken",
+    drink: "Bitter",
+    priceGbp: 5.2,
+    passedDownNote: "A note",
+    era: "",
+    provenance: "contributor",
+    status: "visible",
+    visibility: "public",
+    createdAt: "2026-07-07T12:00:00.000Z",
+    ...overrides,
+  };
+}
 
 describe("notificationsStore() — seam selection", () => {
   it("selects the in-memory store when Supabase env is absent", () => {
@@ -148,5 +168,90 @@ describe("best-effort contract — a failure never breaks the parent write", () 
       kind: "follow",
     });
     expect(wrote).toBe(false);
+  });
+});
+
+describe("parent-drop visibility gate — drop-linked notifications", () => {
+  beforeEach(() => {
+    addPintDrop(makeDrop({ id: "drop-public", handle: "@ken" }));
+    addPintDrop(makeDrop({ id: "drop-hidden", handle: "@ken", status: "hidden" }));
+    addPintDrop(makeDrop({ id: "drop-legacy", handle: "@ken", visibility: "legacy" }));
+    addPintDrop(makeDrop({ id: "drop-friends", handle: "@ken", visibility: "friends" }));
+  });
+
+  it("filterDropLinkedNotifications keeps follow/crawl rows and public-drop signals", () => {
+    const resolved = new Map<string, PintDrop>([
+      ["drop-public", makeDrop({ id: "drop-public", handle: "@ken" })],
+      ["drop-hidden", makeDrop({ id: "drop-hidden", handle: "@ken", status: "hidden" })],
+    ]);
+    const dtos = [
+      {
+        id: "n1",
+        actorHandle: "ale",
+        kind: "follow" as const,
+        createdAt: "2026-07-07T12:00:00.000Z",
+        read: false,
+      },
+      {
+        id: "n2",
+        actorHandle: "sam",
+        kind: "comment" as const,
+        subjectRef: "drop-public",
+        createdAt: "2026-07-07T12:01:00.000Z",
+        read: false,
+      },
+      {
+        id: "n3",
+        actorHandle: "sam",
+        kind: "reaction" as const,
+        subjectRef: "drop-hidden",
+        createdAt: "2026-07-07T12:02:00.000Z",
+        read: false,
+      },
+    ];
+    const kept = filterDropLinkedNotifications(dtos, resolved, "ken");
+    expect(kept.map((n) => n.id)).toEqual(["n1", "n2"]);
+  });
+
+  it("list omits notifications for hidden drops but keeps owner-visible friends/legacy", async () => {
+    const store = notificationsStore();
+    await store.emit({
+      recipientHandle: "ken",
+      actorHandle: "ale",
+      kind: "comment",
+      subjectRef: "drop-hidden",
+    });
+    await store.emit({
+      recipientHandle: "ken",
+      actorHandle: "sam",
+      kind: "reaction",
+      subjectRef: "drop-legacy",
+    });
+    await store.emit({
+      recipientHandle: "ken",
+      actorHandle: "jo",
+      kind: "comment",
+      subjectRef: "drop-friends",
+    });
+    await store.emit({
+      recipientHandle: "ken",
+      actorHandle: "ale",
+      kind: "follow",
+    });
+
+    const inbox = await store.list("ken");
+    expect(inbox.notifications.map((n) => n.kind)).toEqual(["follow", "comment", "reaction"]);
+    expect(inbox.notifications.some((n) => n.subjectRef === "drop-hidden")).toBe(false);
+  });
+
+  it("emit returns false for a hidden drop's notification (never stored)", async () => {
+    const wrote = await memoryNotificationsStore.emit({
+      recipientHandle: "ken",
+      actorHandle: "ale",
+      kind: "comment",
+      subjectRef: "drop-hidden",
+    });
+    expect(wrote).toBe(false);
+    expect((await memoryNotificationsStore.list("ken")).notifications).toHaveLength(0);
   });
 });
