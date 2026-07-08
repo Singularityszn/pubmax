@@ -37,6 +37,13 @@ import {
   type AltCrawlStyle,
 } from "@/lib/crawlUrl";
 import { buildCrawlIcs, icsFilename } from "@/lib/icsExport";
+import {
+  isComplete,
+  markCrawlComplete,
+  readCrawl,
+  startCrawl,
+  type CrawlProgressEntry,
+} from "@/lib/crawlCompletion";
 import "@/components/map/routePanel.css";
 
 // ponytail: cap the keyboard picker render; search narrows the rest.
@@ -160,6 +167,46 @@ export default function RoutePanel({
   const stopNoun = altStyleStopNoun[altStyle];
   const crawlTitle =
     mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
+
+  // Loop 2 crawl-completion stickiness — localStorage only. Key off crawlId when
+  // present, else a stable title slug so hand-built routes still track.
+  const progressKey = (crawlId || crawlTitle).trim();
+  const [crawlProgress, setCrawlProgress] = useState<CrawlProgressEntry | null>(null);
+  useEffect(() => {
+    let active = true;
+    async function hydrate() {
+      const entry = progressKey && route.length >= 2 ? readCrawl(progressKey) : null;
+      if (active) setCrawlProgress(entry);
+    }
+    void hydrate();
+    return () => {
+      active = false;
+    };
+  }, [progressKey, route.length]);
+
+  function handleStartCrawl() {
+    if (!progressKey || route.length < 2) return;
+    const entry = startCrawl(
+      progressKey,
+      route.map((v) => v.id),
+    );
+    setCrawlProgress(entry);
+  }
+
+  function handleMarkComplete() {
+    if (!progressKey) return;
+    // Ensure there's an entry to complete (start if the walker skipped "Start").
+    if (!readCrawl(progressKey)) {
+      startCrawl(
+        progressKey,
+        route.map((v) => v.id),
+      );
+    }
+    const entry = markCrawlComplete(progressKey);
+    setCrawlProgress(entry);
+  }
+
+  const crawlDone = isComplete(crawlProgress);
 
   function addToCalendar() {
     const crawl = {
@@ -351,6 +398,31 @@ export default function RoutePanel({
           <TrainFront size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
           Check last train at final stop
         </button>
+      ) : null}
+
+      {route.length >= 2 ? (
+        <div className="crawlProgressRow" data-testid="crawl-progress">
+          {!crawlProgress ? (
+            <button type="button" className="addStopBtn" onClick={handleStartCrawl}>
+              <Footprints size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+              Start this crawl
+            </button>
+          ) : crawlDone ? (
+            <p className="crawlProgressDone" role="status">
+              Crawl complete — {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
+            </p>
+          ) : (
+            <>
+              <p className="crawlProgressStatus" role="status">
+                Walking · {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
+              </p>
+              <button type="button" className="addStopBtn" onClick={handleMarkComplete}>
+                <Check size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+                Mark complete
+              </button>
+            </>
+          )}
+        </div>
       ) : null}
 
       {route.length >= 2 ? (

@@ -1382,6 +1382,43 @@
 .feedCardFooter .shareBar {
   margin-left: auto;
 }
+
+/* Loop 2: compact Map / Drop / Pub action row — full-width on its own line so
+   it doesn't fight the permalink + share strip, with 44px touch targets. */
+.feedCardActions {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+.feedCardAction {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--brass);
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
+  border-radius: var(--radius-sm, 6px);
+  background: color-mix(in srgb, var(--brass) 8%, transparent);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.feedCardAction:hover {
+  background: color-mix(in srgb, var(--brass) 16%, transparent);
+  border-color: var(--brass);
+}
+.feedCardAction:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 .feedPermalink {
   display: inline-flex;
   align-items: center;

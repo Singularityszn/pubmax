@@ -38,3 +38,7 @@
   font-weight: 700;
   color: var(--brass);
 }
+
+.questChipWalked {
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+}

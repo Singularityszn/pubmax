@@ -7,6 +7,7 @@ import { use, useEffect, useState } from "react";
 
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
+import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -395,6 +396,14 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               data={passport}
               isOwn={passportIsOwn}
             />
+
+            {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
+                NextBadgeChips fetches public drops and filters by handle — works
+                for any profile with drops; renders nothing when empty. Own
+                profile also surfaces local "Crawls walked" from crawlCompletion. */}
+            {routeHandle && routeHandle !== YOU_SENTINEL ? (
+              <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
+            ) : null}
 
             {isOwnProfile && editing ? (
               <ProfileEditor
