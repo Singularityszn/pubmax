@@ -8,6 +8,8 @@ import {
   bandMemberIds,
   bandById,
   bandAnchors,
+  bandsForVenue,
+  venueInBand,
   type StoryBand,
 } from "@/lib/storyBands";
 import { landmarks } from "@/lib/landmarks";
@@ -99,5 +101,36 @@ describe("bandMemberPubs matching", () => {
     expect(bandById("nope")).toBeUndefined();
     expect(bandById(null)).toBeUndefined();
     expect(bandById("")).toBeUndefined();
+  });
+});
+
+describe("bandsForVenue membership (place stories)", () => {
+  const bigBen = landmarks.find((l) => l.id === "big-ben")!;
+
+  it("includes bands whose anchors are within radius of the venue", () => {
+    const [lng, lat] = bigBen.coordinates;
+    const venue = { id: "near-westminster", latitude: lat, longitude: lng };
+    const bands = bandsForVenue(venue);
+    const ids = bands.map((b) => b.id);
+    expect(ids).toContain("royal-civic");
+    expect(venueInBand(bandById("royal-civic")!, venue)).toBe(true);
+  });
+
+  it("returns [] for a venue far from every corridor", () => {
+    const venue = { id: "far", latitude: 51.7, longitude: 0.25 };
+    expect(bandsForVenue(venue)).toEqual([]);
+    expect(venueInBand(bandById("royal-civic")!, venue)).toBe(false);
+  });
+
+  it("sorts membership nearest-corridor first", () => {
+    // Tower Bridge sits on both river-history and thames-industrial; the
+    // nearer corridor should come first when distances differ.
+    const towerBridge = landmarks.find((l) => l.id === "tower-bridge")!;
+    const [lng, lat] = towerBridge.coordinates;
+    const bands = bandsForVenue({ id: "at-bridge", latitude: lat, longitude: lng });
+    expect(bands.length).toBeGreaterThanOrEqual(1);
+    expect(bands.map((b) => b.id)).toEqual(
+      expect.arrayContaining(["river-history", "thames-industrial"]),
+    );
   });
 });

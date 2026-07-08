@@ -480,9 +480,14 @@ export default function PubMap() {
   const [routeMapped, setRouteMapped] = useState<boolean>(seed.builtIds.length >= 2);
   // Favorite pint: re-prices the map to one beer. Persisted per-device; the
   // guard mirrors readStoredBuiltIds so SSR and hydration read the same source.
-  const [favoritePint, setFavoritePintState] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : getFavoritePint(),
-  );
+  // A beer brand deep-link (`?drink=beer&brand=guinness`) seeds the same path.
+  const [favoritePint, setFavoritePintState] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (seed.filters.drinkCategory === "beer" && seed.filters.drinkBrand) {
+      return seed.filters.drinkBrand;
+    }
+    return getFavoritePint();
+  });
   // "Show saved only": a viewer convenience that narrows the map + list to pubs
   // this device has saved. The toggle lives here (ControlRail renders it); the
   // saved-id set is read lazily and re-read on each toggle so a just-saved pub
@@ -1068,6 +1073,18 @@ export default function PubMap() {
           onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
+          drinkCategory={filters.drinkCategory}
+          drinkBrand={filters.drinkBrand}
+          onDrinkLensChange={({ drinkCategory, drinkBrand }) =>
+            setFilters((current) => ({
+              ...current,
+              drinkCategory,
+              drinkBrand,
+              // Keep cocktail amenity in sync with the drink lens.
+              requireCocktails:
+                drinkCategory === "cocktail" ? true : drinkCategory ? false : current.requireCocktails,
+            }))
+          }
           planningOpen={planningOpen}
           onTogglePlanning={() => setPlanningOpen((open) => !open)}
         />

@@ -6,14 +6,18 @@ import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 
 import "./mapToolbar.css";
 
-// The only chrome on the clean, full-bleed map: search, favorite-pint picker,
-// and a "Plan a crawl" toggle. Everything else (filters, route, venue detail)
-// lives in drawers that slide in only when the user acts.
+// The only chrome on the clean, full-bleed map: search, drink lens (category →
+// brand / favorite pint), and a "Plan a crawl" toggle. Everything else
+// (filters, route, venue detail) lives in drawers that slide in only when the
+// user acts.
 type MapToolbarProps = {
   query: string;
   onQueryChange: (query: string) => void;
   favoritePint: string | null;
   onFavoritePintChange: (beerId: string | null) => void;
+  drinkCategory: string;
+  drinkBrand: string;
+  onDrinkLensChange: (next: { drinkCategory: string; drinkBrand: string }) => void;
   planningOpen: boolean;
   onTogglePlanning: () => void;
 };
@@ -23,6 +27,9 @@ export default function MapToolbar({
   onQueryChange,
   favoritePint,
   onFavoritePintChange,
+  drinkCategory,
+  drinkBrand,
+  onDrinkLensChange,
   planningOpen,
   onTogglePlanning,
 }: MapToolbarProps) {
@@ -50,7 +57,13 @@ export default function MapToolbar({
         ) : null}
       </div>
 
-      <FavoritePintPicker value={favoritePint} onChange={onFavoritePintChange} />
+      <FavoritePintPicker
+        value={favoritePint}
+        onChange={onFavoritePintChange}
+        drinkCategory={drinkCategory}
+        drinkBrand={drinkBrand}
+        onDrinkLensChange={onDrinkLensChange}
+      />
 
       <button
         type="button"

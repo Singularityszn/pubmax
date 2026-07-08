@@ -272,3 +272,56 @@ export function bandById(id: string | null | undefined): StoryBand | undefined {
   if (!id) return undefined;
   return STORY_BANDS.find((band) => band.id === id);
 }
+
+// --- Place-story membership (Wave D) ---------------------------------------
+//
+// "Does this venue sit on a place-story corridor?" — proximity to any band
+// anchor within that band's radiusKm. Unlike bandMemberPubs (which only
+// highlights *story* pubs for the map halo), this answers the Lore-tab
+// question for any open venue: which Place stories pass through here.
+// Pure + deterministic; unit-tested in __tests__/storyBands.test.ts.
+
+export type VenueBandPoint = {
+  id: string;
+  latitude: number;
+  longitude: number;
+};
+
+/** Straight-line distance (km) from a venue to the nearest anchor of a band. */
+export function venueDistanceToBand(band: StoryBand, venue: VenueBandPoint): number | null {
+  const anchors = bandAnchors(band);
+  if (anchors.length === 0) return null;
+  const point: [number, number] = [venue.longitude, venue.latitude];
+  let nearest = Infinity;
+  for (const anchor of anchors) {
+    const km = haversineKm(anchor.coordinates, point);
+    if (km < nearest) nearest = km;
+  }
+  return Number.isFinite(nearest) ? nearest : null;
+}
+
+/** True when the venue sits within the band's radius of any anchor. */
+export function venueInBand(band: StoryBand, venue: VenueBandPoint): boolean {
+  const km = venueDistanceToBand(band, venue);
+  return km !== null && km <= band.radiusKm;
+}
+
+/**
+ * Place stories (bands) this venue belongs to, nearest-first.
+ * Accepts a venue id + coordinates (or a full Venue). The id is unused for
+ * matching today — membership is geographic — but kept so callers can pass
+ * `bandsForVenue(venue)` / `bandsForVenue({ id, latitude, longitude })`.
+ */
+export function bandsForVenue(
+  venue: VenueBandPoint,
+  bands: StoryBand[] = STORY_BANDS,
+): StoryBand[] {
+  return bands
+    .map((band) => {
+      const km = venueDistanceToBand(band, venue);
+      return km === null ? null : { band, km };
+    })
+    .filter((row): row is { band: StoryBand; km: number } => row !== null && row.km <= row.band.radiusKm)
+    .sort((a, b) => a.km - b.km)
+    .map((row) => row.band);
+}

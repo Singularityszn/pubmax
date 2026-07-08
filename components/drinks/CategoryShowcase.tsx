@@ -8,6 +8,9 @@ import type { LiHTMLAttributes, ReactElement } from "react";
 //   · explore mode (`hrefFor` provided) — a REAL "Explore by drink" grid of
 //     tappable category cards (colour + glyph + label), each a deep-link into a
 //     filtered view.
+// When `onCategoryActivate` is also provided (Discover brand chips), cards
+// select the category first so brand chips can appear; the category-only map
+// link lives in the parent brand panel.
 // Consumes only OWNED assets: DrinkGlyph (our IP SVGs) + the `--cat-*` tokens,
 // on a `.textured-panel` paper/linen surface. Correct in light, dark AND Legacy
 // Mode with no per-theme code — everything flips via the cascade. The glyph +
@@ -28,7 +31,8 @@ export interface CategoryShowcaseProps {
   /**
    * When provided, each category renders as a tappable card linking to this
    * href — turning the legend into a real "Explore by drink" grid. Omit for the
-   * static legend.
+   * static legend. Ignored for navigation when `onCategoryActivate` is set
+   * (parent shows brand chips + the category-only map link).
    */
   hrefFor?: (category: DrinkCategory) => string;
   /** Optional sub-label under each category (explore mode), e.g. "Find a pub". */
@@ -37,6 +41,10 @@ export interface CategoryShowcaseProps {
   extraItems?: CategoryShowcaseExtraItem | CategoryShowcaseExtraItem[];
   /** Whether extra cards appear before or after the canonical drink categories. */
   extraItemsPosition?: "start" | "end";
+  /** When set, category cards select first (brand-chip flow) instead of navigating. */
+  onCategoryActivate?: (category: DrinkCategory) => void;
+  /** Currently selected category for the brand-chip flow. */
+  activeCategory?: DrinkCategory | null;
 }
 
 export function CategoryShowcase({
@@ -47,8 +55,10 @@ export function CategoryShowcase({
   cardHint,
   extraItems,
   extraItemsPosition = "end",
+  onCategoryActivate,
+  activeCategory = null,
 }: CategoryShowcaseProps) {
-  const explore = Boolean(hrefFor);
+  const explore = Boolean(hrefFor) || Boolean(onCategoryActivate);
   const size = glyphSize ?? (explore ? 34 : 28);
 
   return (
@@ -63,6 +73,7 @@ export function CategoryShowcase({
         {extraItemsPosition === "start" ? extraItems : null}
         {DRINK_CATEGORIES.map((category) => {
           const label = CATEGORY_META[category].label;
+          const isActive = activeCategory === category;
           const inner = (
             <>
               <span
@@ -83,7 +94,7 @@ export function CategoryShowcase({
           return (
             <li
               key={category}
-              className="catShowcase__item"
+              className={`catShowcase__item${isActive ? " catShowcase__item--active" : ""}`}
               // The category token drives the card's tint/border in explore mode
               // (CSS reads --cat via currentColor on the swatch; here we also
               // expose it to the card frame).
@@ -93,7 +104,17 @@ export function CategoryShowcase({
                   : undefined
               }
             >
-              {explore && hrefFor ? (
+              {onCategoryActivate ? (
+                <button
+                  type="button"
+                  className="catShowcase__link"
+                  aria-label={`Choose ${label}`}
+                  aria-pressed={isActive}
+                  onClick={() => onCategoryActivate(category)}
+                >
+                  {inner}
+                </button>
+              ) : explore && hrefFor ? (
                 <Link
                   className="catShowcase__link"
                   href={hrefFor(category)}

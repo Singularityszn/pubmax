@@ -4,6 +4,9 @@ import {
   MAP_ICON_SPECS,
   LANDMARK_ICON_KEYS,
   TFL_ICON_KEYS,
+  DRINK_ICON_KEYS,
+  drinkPinIconKey,
+  drinkPinKindFromCategories,
   iconId,
   type IconSpec,
   type IconTokens,
@@ -42,6 +45,10 @@ const TOKENS: IconTokens = {
   brassBright: "#e0a637",
   river: "#3a5a78",
   riverBright: "#5a9fd0",
+  pint: "#2f8f5b",
+  amber: "#d99f45",
+  brick: "#d16353",
+  muted: "#6b726a",
 };
 
 // A count of the drawing operations we care about, so a test can assert a given
@@ -131,7 +138,7 @@ describe("MAP_ICON_SPECS registry", () => {
 
   it("every spec has a valid namespace, a draw function, and a positive size", () => {
     for (const spec of MAP_ICON_SPECS) {
-      expect(["lm", "tfl"], `${spec.key} ns`).toContain(spec.ns);
+      expect(["lm", "tfl", "drink"], `${spec.key} ns`).toContain(spec.ns);
       expect(typeof spec.draw, `${spec.key} draw`).toBe("function");
       expect(spec.size, `${spec.key} size`).toBeGreaterThan(0);
       expect(typeof spec.key, `${spec.key} key type`).toBe("string");
@@ -158,6 +165,15 @@ describe("derived key lists", () => {
     expect([...TFL_ICON_KEYS]).toEqual(fromSpecs);
   });
 
+  it("DRINK_ICON_KEYS covers every kind × price bucket", () => {
+    expect(DRINK_ICON_KEYS).toHaveLength(16);
+    expect(DRINK_ICON_KEYS).toContain(drinkPinIconKey("pint", 0));
+    expect(DRINK_ICON_KEYS).toContain(drinkPinIconKey("cocktail", 2));
+    expect(drinkPinKindFromCategories(["vodka"], false)).toBe("spirits");
+    expect(drinkPinKindFromCategories([], true)).toBe("cocktail");
+    expect(drinkPinKindFromCategories(["wine"], false)).toBe("wine");
+  });
+
   it("contains every required landmark key", () => {
     for (const key of REQUIRED_LANDMARK_KEYS) {
       expect(LANDMARK_ICON_KEYS, `landmark ${key}`).toContain(key);
@@ -182,6 +198,7 @@ describe("iconId", () => {
   it("namespaces a key with a colon", () => {
     expect(iconId("lm", "clock-tower")).toBe("lm:clock-tower");
     expect(iconId("tfl", "underground")).toBe("tfl:underground");
+    expect(iconId("drink", "pint-0")).toBe("drink:pint-0");
   });
 });
 

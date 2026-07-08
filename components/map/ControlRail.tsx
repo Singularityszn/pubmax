@@ -64,6 +64,8 @@ export const initialFilters: Filters = {
   requireStepFree: false,
   requireAccessibleToilet: false,
   requireSeatedService: false,
+  drinkCategory: "",
+  drinkBrand: "",
 };
 
 type ControlRailProps = {
@@ -387,7 +389,7 @@ export default function ControlRail({
             checked={filters.requireFood}
             onChange={(event) => onFiltersChange({ ...filters, requireFood: event.target.checked })}
           />
-          Food
+          Serves food
         </label>
         <label>
           <input

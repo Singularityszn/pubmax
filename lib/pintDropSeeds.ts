@@ -150,6 +150,29 @@ const seeds: SeedSpec[] = [
     era: "Forty years of five o'clocks",
     minutesAgo: 312,
   },
+  // Demo place-story blurbs (Wave E) — same heritage venues, still provenance: demo.
+  {
+    id: "seed-prospect-place-1",
+    venueId: "venue-16pnwmm",
+    handle: "@wapping_demo",
+    drink: "London Pride",
+    priceGbp: 6.3,
+    passedDownNote:
+      "Demo note: this stretch of Wapping Wall sits on the Thames-side industrial Place story — watermen's stairs, warehouse walls, and the tide still knocking. (Seeded demo, not a live report.)",
+    era: "Place story demo",
+    minutesAgo: 340,
+  },
+  {
+    id: "seed-dove-place-1",
+    venueId: "venue-1p5ftm3",
+    handle: "@mall_demo",
+    drink: "Asahi",
+    priceGbp: 7.0,
+    passedDownNote:
+      "Demo note: Upper Mall is a quiet river-history stop — smallest bar, biggest tide view. (Seeded demo, not a live report.)",
+    era: "Place story demo",
+    minutesAgo: 355,
+  },
 ];
 
 export const demoPintDrops: PintDrop[] = seeds.map((seed) => ({

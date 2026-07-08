@@ -24,13 +24,18 @@ export type IconTokens = {
   brassBright: string; // bright accent
   river: string; // muted blue
   riverBright: string; // bright blue
+  /** Price-band fills for drink pins (optional — landmarks/TfL ignore these). */
+  pint?: string;
+  amber?: string;
+  brick?: string;
+  muted?: string;
 };
 
-export type IconNamespace = "lm" | "tfl";
+export type IconNamespace = "lm" | "tfl" | "drink";
 
 export type IconSpec = {
-  key: string; // e.g. "clock-tower", "underground"
-  ns: IconNamespace; // "lm" for landmark pictograms, "tfl" for transport symbols
+  key: string; // e.g. "clock-tower", "underground", "pint-0"
+  ns: IconNamespace; // "lm" | "tfl" | "drink"
   size: number; // intended CSS px of the icon box (e.g. 30)
   // Draw into a size×size box in CSS-pixel coordinates (the caller applies the
   // pixelRatio scale before calling draw, so draw uses 0..size coords).
@@ -647,6 +652,146 @@ function drawRiver(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 }
 
 // ---------------------------------------------------------------------------
+// Drink glyphs (ns: "drink") — colourful pub pins. Key shape: `{kind}-{bucket}`
+// where kind is pint|wine|cocktail|spirits and bucket is 0|1|2|3 (price band).
+// The pad fill is the price colour; the silhouette is cream so the city reads
+// as a night out, not only a heatmap.
+// ---------------------------------------------------------------------------
+
+export type DrinkPinKind = "pint" | "wine" | "cocktail" | "spirits";
+
+function priceFill(t: IconTokens, bucket: number): string {
+  if (bucket === 0) return t.pint ?? t.brass;
+  if (bucket === 1) return t.amber ?? t.brassBright;
+  if (bucket === 2) return t.brick ?? "#d16353";
+  return t.muted ?? t.ink;
+}
+
+function drawDrinkPad(
+  ctx: CanvasRenderingContext2D,
+  t: IconTokens,
+  fill: string,
+): void {
+  const r = BOX * 0.46;
+  const cx = BOX / 2;
+  const cy = BOX / 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.lineWidth = STROKE * 1.1;
+  ctx.strokeStyle = t.paper;
+  ctx.stroke();
+}
+
+function drawPintSilhouette(ctx: CanvasRenderingContext2D, ink: string): void {
+  const cx = BOX / 2;
+  ctx.fillStyle = ink;
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.12, BOX * 0.28);
+  ctx.lineTo(cx + BOX * 0.12, BOX * 0.28);
+  ctx.lineTo(cx + BOX * 0.1, BOX * 0.72);
+  ctx.lineTo(cx - BOX * 0.1, BOX * 0.72);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillRect(cx + BOX * 0.1, BOX * 0.38, BOX * 0.08, BOX * 0.18);
+}
+
+function drawWineSilhouette(ctx: CanvasRenderingContext2D, ink: string): void {
+  const cx = BOX / 2;
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
+  ctx.lineWidth = STROKE * 1.4;
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.12, BOX * 0.3);
+  ctx.quadraticCurveTo(cx, BOX * 0.55, cx, BOX * 0.62);
+  ctx.quadraticCurveTo(cx, BOX * 0.55, cx + BOX * 0.12, BOX * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx, BOX * 0.62);
+  ctx.lineTo(cx, BOX * 0.74);
+  ctx.moveTo(cx - BOX * 0.08, BOX * 0.74);
+  ctx.lineTo(cx + BOX * 0.08, BOX * 0.74);
+  ctx.stroke();
+}
+
+function drawCocktailSilhouette(ctx: CanvasRenderingContext2D, ink: string): void {
+  const cx = BOX / 2;
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
+  ctx.lineWidth = STROKE * 1.4;
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.14, BOX * 0.3);
+  ctx.lineTo(cx + BOX * 0.14, BOX * 0.3);
+  ctx.lineTo(cx, BOX * 0.55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx, BOX * 0.55);
+  ctx.lineTo(cx, BOX * 0.72);
+  ctx.moveTo(cx - BOX * 0.08, BOX * 0.72);
+  ctx.lineTo(cx + BOX * 0.08, BOX * 0.72);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx + BOX * 0.1, BOX * 0.26, BOX * 0.035, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawSpiritsSilhouette(ctx: CanvasRenderingContext2D, ink: string): void {
+  const cx = BOX / 2;
+  ctx.fillStyle = ink;
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.06, BOX * 0.26);
+  ctx.lineTo(cx + BOX * 0.06, BOX * 0.26);
+  ctx.lineTo(cx + BOX * 0.08, BOX * 0.34);
+  ctx.lineTo(cx + BOX * 0.1, BOX * 0.7);
+  ctx.lineTo(cx - BOX * 0.1, BOX * 0.7);
+  ctx.lineTo(cx - BOX * 0.08, BOX * 0.34);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillRect(cx - BOX * 0.035, BOX * 0.2, BOX * 0.07, BOX * 0.08);
+}
+
+function makeDrinkDraw(kind: DrinkPinKind, bucket: number) {
+  return (ctx: CanvasRenderingContext2D, t: IconTokens) => {
+    drawDrinkPad(ctx, t, priceFill(t, bucket));
+    const ink = t.paper;
+    if (kind === "pint") drawPintSilhouette(ctx, ink);
+    else if (kind === "wine") drawWineSilhouette(ctx, ink);
+    else if (kind === "cocktail") drawCocktailSilhouette(ctx, ink);
+    else drawSpiritsSilhouette(ctx, ink);
+  };
+}
+
+const DRINK_KINDS: DrinkPinKind[] = ["pint", "wine", "cocktail", "spirits"];
+const DRINK_BUCKETS = [0, 1, 2, 3] as const;
+
+export function drinkPinIconKey(kind: DrinkPinKind, bucket: number): string {
+  const b = bucket >= 0 && bucket <= 3 ? bucket : 3;
+  return `${kind}-${b}`;
+}
+
+export function drinkPinKindFromCategories(
+  categories: readonly string[] | undefined,
+  cocktailsAmenity: boolean,
+): DrinkPinKind {
+  const cats = new Set((categories ?? []).map((c) => c.toLowerCase()));
+  if (cats.has("cocktail") || cocktailsAmenity) return "cocktail";
+  if (cats.has("wine")) return "wine";
+  if (
+    cats.has("whisky") ||
+    cats.has("gin") ||
+    cats.has("vodka") ||
+    cats.has("rum") ||
+    cats.has("shot")
+  ) {
+    return "spirits";
+  }
+  return "pint";
+}
+
+// ---------------------------------------------------------------------------
 // The registry. `MAP_ICON_SPECS` is the single ordered list the caller iterates
 // to register every icon via `map.addImage(iconId(ns, key), rasterize(spec, …))`.
 // ---------------------------------------------------------------------------
@@ -670,6 +815,17 @@ export const MAP_ICON_SPECS: IconSpec[] = [
   { key: "rail", ns: "tfl", size: BOX, draw: drawRail },
   { key: "bus", ns: "tfl", size: BOX, draw: drawBus },
   { key: "river", ns: "tfl", size: BOX, draw: drawRiver },
+  // Drink pins — one raster per kind × price bucket.
+  ...DRINK_KINDS.flatMap((kind) =>
+    DRINK_BUCKETS.map(
+      (bucket): IconSpec => ({
+        key: drinkPinIconKey(kind, bucket),
+        ns: "drink",
+        size: BOX,
+        draw: makeDrinkDraw(kind, bucket),
+      }),
+    ),
+  ),
 ];
 
 // Namespaced id used as the MapLibre image name: iconId("lm","clock-tower") →
@@ -686,6 +842,10 @@ export const LANDMARK_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
 
 export const TFL_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
   (s) => s.ns === "tfl",
+).map((s) => s.key);
+
+export const DRINK_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
+  (s) => s.ns === "drink",
 ).map((s) => s.key);
 
 // Rasterize a spec to ImageData for `map.addImage(...)`. BROWSER-ONLY: it creates

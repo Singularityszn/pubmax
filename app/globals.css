@@ -1760,10 +1760,43 @@ input[type="range"] {
 
 /* Issue #15: story-band picker — a map overlay in the toolbar idiom (pill row,
    frosted panel), sat above the POI toggles at bottom-right. */
-.bandPicker {
+.placeStoriesControl {
   position: absolute;
   right: 10px;
   bottom: 58px;
+  z-index: 456;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: min(300px, calc(100vw - 24px));
+}
+
+.placeStoriesToggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.placeStoriesToggle.on {
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  color: var(--brass);
+}
+
+.bandPicker {
+  position: relative;
+  right: auto;
+  bottom: auto;
   z-index: 456;
   display: flex;
   flex-direction: column;
@@ -3918,7 +3951,9 @@ button:disabled {
   .appShell.planning-open .mapLegend,
   .appShell.planning-open .mappedRouteChip,
   .appShell.planning-open .poiToggle,
-  .appShell.planning-open .bandPicker {
+  .appShell.planning-open .bandPicker,
+  .appShell.planning-open .placeStoriesControl,
+  .appShell.detail-open .placeStoriesControl {
     opacity: 0;
     pointer-events: none;
     transform: translateY(8px);
@@ -3960,7 +3995,7 @@ button:disabled {
     padding: 4px 9px;
   }
 
-  .bandPicker {
+  .placeStoriesControl {
     bottom: calc(
       var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance) + var(--map-mobile-legend-clearance) + 44px
     );
@@ -3976,6 +4011,7 @@ button:disabled {
   .poiToggle,
   .poiLabelCard,
   .bandPicker,
+  .placeStoriesControl,
   .mapLegend,
   .mapHeroCard {
     backdrop-filter: none;
@@ -3986,6 +4022,7 @@ button:disabled {
   .mapRecenterBtn,
   .poiToggle,
   .bandPicker,
+  .placeStoriesControl,
   .mapLegend,
   .mapHeroCard {
     background: var(--panel-raised);

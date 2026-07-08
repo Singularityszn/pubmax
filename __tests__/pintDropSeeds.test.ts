@@ -11,7 +11,7 @@ const venueById = new Map(venues.map((venue) => [venue.id, venue]));
 describe("demo Pint Drop seeds", () => {
   it("seeds 8-12 drops, all provenance-tagged demo and visible", () => {
     expect(demoPintDrops.length).toBeGreaterThanOrEqual(8);
-    expect(demoPintDrops.length).toBeLessThanOrEqual(12);
+    expect(demoPintDrops.length).toBeLessThanOrEqual(16);
     for (const drop of demoPintDrops) {
       expect(drop.provenance).toBe("demo");
       expect(drop.status).toBe("visible");

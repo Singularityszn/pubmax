@@ -81,6 +81,8 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireAccessibleToilet: false,
     requireSeatedService: false,
     canonicalOnly: false,
+    drinkCategory: "",
+    drinkBrand: "",
     ...overrides,
   };
 }
@@ -215,6 +217,69 @@ describe("filterVenues", () => {
     expect(filterVenues([slim], makeFilters({ requireHeritage: true }))).toHaveLength(1);
     expect(filterVenues([slim], makeFilters({ canonicalOnly: true }))).toHaveLength(1);
     expect(filterVenues([slim], makeFilters({ query: "vodka" }))).toHaveLength(0);
+  });
+
+  it("matches drinkCategory / drinkBrand via hints and search text", () => {
+    const [base] = groupVenuePrices([makeRow({ pub_name: "The Spirit Arms", price_gbp: 5 })]);
+    const ginVenue = {
+      ...base,
+      prices: [],
+      cheapestPint: "",
+      amenities: { ...base.amenities, cocktails: false },
+      filterHints: {
+        searchText: "the spirit arms sipsmith gin",
+        amenities: {
+          food: false,
+          cocktails: false,
+          beerGarden: false,
+          liveSports: false,
+          nonAlcoholic: false,
+        },
+        curation: { nearWater: false, hasStory: false },
+        canonical: true,
+        drinkCategories: ["gin"],
+        drinkBrands: ["sipsmith"],
+      },
+    };
+    const beerOnly = {
+      ...base,
+      id: "venue-beer-only",
+      prices: [],
+      cheapestPint: "",
+      amenities: { ...base.amenities, cocktails: false },
+      filterHints: {
+        searchText: "lager pint guinness",
+        amenities: {
+          food: false,
+          cocktails: false,
+          beerGarden: false,
+          liveSports: false,
+          nonAlcoholic: false,
+        },
+        curation: { nearWater: false, hasStory: false },
+        canonical: true,
+        drinkCategories: ["beer"],
+        drinkBrands: ["guinness"],
+      },
+    };
+
+    expect(filterVenues([ginVenue], makeFilters({ drinkCategory: "gin" }))).toHaveLength(1);
+    expect(filterVenues([beerOnly], makeFilters({ drinkCategory: "gin" }))).toHaveLength(0);
+    expect(
+      filterVenues([ginVenue], makeFilters({ drinkCategory: "gin", drinkBrand: "sipsmith" })),
+    ).toHaveLength(1);
+    expect(
+      filterVenues([ginVenue], makeFilters({ drinkCategory: "gin", drinkBrand: "tanqueray" })),
+    ).toHaveLength(0);
+    expect(filterVenues([beerOnly], makeFilters({ drinkBrand: "guinness" }))).toHaveLength(1);
+  });
+
+  it("treats cocktail amenity as a drinkCategory=cocktail match", () => {
+    const [venue] = groupVenuePrices([
+      makeRow({ pub_name: "Cocktail Corner", cocktails: "yes", price_gbp: 6 }),
+    ]);
+    expect(filterVenues([venue], makeFilters({ drinkCategory: "cocktail" }))).toHaveLength(1);
+    expect(filterVenues([venue], makeFilters({ drinkCategory: "vodka" }))).toHaveLength(0);
   });
 });
 

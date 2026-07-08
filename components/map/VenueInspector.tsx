@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Flag, MapPin, PlusCircle, Quote, Waves } from "lucide-react";
+import { BookOpen, ExternalLink, Flag, MapPin, PlusCircle, Quote, Waves } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { COMMUNITY_PRICE_NOTE, formatFreshness, formatPrice, type Venue } from "@/lib/venues";
@@ -24,6 +24,9 @@ import { venueMenuForInspector } from "@/lib/venueMenu";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
 import { directVenueImageUrl } from "@/lib/venueImages";
+import { bandsForVenue } from "@/lib/storyBands";
+import { nearestLandmarks } from "@/lib/landmarks";
+import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
@@ -223,6 +226,25 @@ export default function VenueInspector({
   const menuDrinks = useMemo(() => venueMenuForInspector(venue), [venue]);
   const venueImageUrl = directVenueImageUrl(venue.imageUrl);
 
+  // Place stories (Wave D): which curated corridors pass through this venue,
+  // plus nearby landmark names for the Lore "Around here" section.
+  const placeStories = useMemo(() => bandsForVenue(venue), [venue]);
+  const aroundHere = useMemo(
+    () => nearestLandmarks([venue.longitude, venue.latitude], 3, 0.75),
+    [venue.latitude, venue.longitude],
+  );
+  // Soft cuisine chips (Wave E) — curated id map ∪ searchText keywords.
+  const cuisineTags = useMemo(
+    () =>
+      cuisineTagsForVenue({
+        id: venue.id,
+        name: venue.name,
+        searchText: venue.filterHints?.searchText,
+        hintTags: venue.filterHints?.cuisineTags,
+      }),
+    [venue.id, venue.name, venue.filterHints?.searchText, venue.filterHints?.cuisineTags],
+  );
+
   return (
     <section className="venueInspector">
       {/* The grab handle is the primary drag surface on mobile — a generous
@@ -301,10 +323,31 @@ export default function VenueInspector({
           <Amenity active={venue.amenities.beerGarden} label="garden" />
           <Amenity active={venue.amenities.nonAlcoholic} label="0.0" />
           <Amenity active={venue.amenities.liveSports} label="sports" />
-          <Amenity active={venue.amenities.food} label="food" />
+          <Amenity active={venue.amenities.food} label="Serves food" />
           <Amenity active={venue.amenities.cocktails} label="cocktails" />
           <Amenity active={venue.amenities.pubQuiz} label="quiz" />
         </div>
+        {venue.amenities.food || cuisineTags.length > 0 ? (
+          <div className="cuisineRow" aria-label="Food and cuisine">
+            {venue.amenities.food ? (
+              <p className="cuisineServes">
+                <strong>Serves food</strong>
+                {cuisineTags.length === 0
+                  ? " — plates available; check the board for tonight’s kitchen."
+                  : null}
+              </p>
+            ) : null}
+            {cuisineTags.length > 0 ? (
+              <div className="cuisineTags">
+                {cuisineTags.map((tag) => (
+                  <span key={tag} className="cuisineChip">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {/* Accessibility — only publicly-confirmed facts, shown as chips. A pub
             with no confirmed access facts shows nothing here (never a "No"). */}
         {accessChips.length > 0 ? (
@@ -602,6 +645,59 @@ export default function VenueInspector({
             ))}
           </div>
         ) : null}
+
+        {/* Place stories / Around here (Wave D) — user-facing copy uses
+            "Place stories", never internal corridor jargon. */}
+        <section className="placeStories" aria-labelledby="place-stories-title">
+          <div className="inspectorTitle">
+            <BookOpen size={16} />
+            <span id="place-stories-title">Place stories</span>
+          </div>
+          <p className="placeStoriesLead">What should I know about this place?</p>
+          {placeStories.length === 0 ? (
+            <p className="description muted">
+              No Place stories pass through {venue.name} yet — open Place stories
+              on the map, or ask the PUBMAXXER.
+            </p>
+          ) : (
+            <div className="placeStoryList">
+              {placeStories.map((band) => {
+                const source = band.sources[0];
+                return (
+                  <article key={band.id} className="placeStoryCard">
+                    <h4 className="placeStoryTitle">{band.title}</h4>
+                    <p className="placeStoryCopy">{band.copy}</p>
+                    {source ? (
+                      <a
+                        className="placeStorySource"
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {source.label}
+                        <ExternalLink size={13} />
+                      </a>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          {aroundHere.length > 0 ? (
+            <div className="aroundHere">
+              <p className="aroundHereLabel">Around here</p>
+              <ul className="aroundHereList">
+                {aroundHere.map(({ landmark, km }) => (
+                  <li key={landmark.id}>
+                    <span>{landmark.name}</span>
+                    <small>{km < 0.1 ? "<100 m" : `${km.toFixed(1)} km`}</small>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+
         <div className="priceList">
           {venue.prices.slice(0, 6).map((price) => (
             <div key={price.app_price_id}>

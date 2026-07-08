@@ -504,3 +504,23 @@ export function nearestStoryPubs(
     .sort((a, b) => a.km - b.km)
     .slice(0, limit);
 }
+
+// Inverse of nearestStoryPubs: given a point (usually a venue), list the
+// nearest curated landmarks within `maxKm`. Used by the Lore "Around here"
+// place-stories section — names only, no history dump.
+export type NearbyLandmark = { landmark: Landmark; km: number };
+
+export function nearestLandmarks(
+  coordinates: [number, number],
+  limit = 3,
+  maxKm = 0.75,
+): NearbyLandmark[] {
+  return landmarks
+    .map((landmark) => ({
+      landmark,
+      km: haversineKm(landmark.coordinates, coordinates),
+    }))
+    .filter((row) => row.km <= maxKm)
+    .sort((a, b) => a.km - b.km)
+    .slice(0, limit);
+}

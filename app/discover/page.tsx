@@ -19,18 +19,22 @@ import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
 import TopRatedPubs from "@/components/ratings/TopRatedPubs";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
-import type { DrinkCategory } from "@/lib/drinks";
+import {
+  brandsForCategory,
+  categoryHasBrandCoverage,
+} from "@/lib/drinkBrands";
+import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
 import "./discover.css";
 
 // "Explore by drink" → /map deep-link. decodeCrawl (lib/crawlUrl) maps these:
-//   cocktail → requireCocktails (amenity flag; fully filterable)
-//   wine → soft text query "Wine"
-//   beer / spirits / shot / other → open map with ?drink= only (no fake filters)
+//   cocktail → requireCocktails + drinkCategory
+//   wine / spirits / beer → drinkCategory (+ optional brand)
 // low-no uses LOW_NO_HREF below (requireNonAlcoholic + mocktail alt).
-function exploreHref(category: DrinkCategory): string {
+function exploreHref(category: DrinkCategory, brandId?: string): string {
   const params = new URLSearchParams({ drink: category });
   if (category === "cocktail") params.set("cocktails", "1");
+  if (brandId) params.set("brand", brandId);
   return `/map?${params.toString()}`;
 }
 
@@ -120,7 +124,9 @@ export default function DiscoverPage() {
   // ratings API returns venue ids; names come from the SAME dataset fetch the
   // leaderboard already makes (no second dataset read).
   const [venueNames, setVenueNames] = useState<Record<string, string>>({});
+  const [activeDrink, setActiveDrink] = useState<DrinkCategory | null>(null);
   const analysisRef = useRef<HTMLElement | null>(null);
+  const brandPanelRef = useRef<HTMLDivElement | null>(null);
 
   // Defer the 5.9MB public dataset until the data-heavy sections are near the
   // viewport. The route shell and drink categories can paint without competing
@@ -176,6 +182,14 @@ export default function DiscoverPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!activeDrink || !brandPanelRef.current) return;
+    brandPanelRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [activeDrink]);
+
+  const activeBrands = activeDrink ? brandsForCategory(activeDrink) : [];
+  const activeLabel = activeDrink ? CATEGORY_META[activeDrink].label : "";
+
   return (
     <main className="discoverPage">
       <SiteNav active="discover" />
@@ -205,6 +219,8 @@ export default function DiscoverPage() {
           cardHint="Choose this"
           className="discoverExplore"
           extraItemsPosition="start"
+          onCategoryActivate={setActiveDrink}
+          activeCategory={activeDrink}
           extraItems={
             <li
               className="catShowcase__item discoverLowNoItem"
@@ -230,6 +246,48 @@ export default function DiscoverPage() {
             </li>
           }
         />
+
+        {activeDrink ? (
+          <div
+            ref={brandPanelRef}
+            className="discoverBrandPanel"
+            aria-labelledby="discover-brand-title"
+          >
+            <div className="discoverBrandHead">
+              <h3 id="discover-brand-title" className="discoverBrandTitle">
+                {activeLabel} brands
+              </h3>
+              <Link className="discoverBrandAll" href={exploreHref(activeDrink)}>
+                Any {activeLabel.toLowerCase()} on the map
+              </Link>
+            </div>
+            {categoryHasBrandCoverage(activeDrink) ? (
+              <>
+                <p className="discoverBrandDek">
+                  Jump straight to a label — coverage is still thin outside beer,
+                  so some brands may show few pins until menus fill in.
+                </p>
+                <ul className="discoverBrandChips">
+                  {activeBrands.map((brand) => (
+                    <li key={brand.id}>
+                      <Link
+                        className="discoverBrandChip"
+                        href={exploreHref(activeDrink, brand.id)}
+                      >
+                        {brand.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="discoverBrandEmpty" role="status">
+                We don&rsquo;t have curated {activeLabel.toLowerCase()} brands yet —
+                open the map for the whole category, or pick another drink family.
+              </p>
+            )}
+          </div>
+        ) : null}
       </section>
 
       <section
