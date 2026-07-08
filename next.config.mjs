@@ -68,7 +68,7 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   scriptSrc,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co",
+  "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud https://www.jdwetherspoon.com https://live.staticflickr.com https://whatpub-new.s3.eu-west-1.amazonaws.com https://media-cdn.tripadvisor.com https://images.squarespace-cdn.com https://images.cdn.inapub.co.uk https://www.greeneking.co.uk https://encrypted-tbn0.gstatic.com https://static.wixstatic.com",
   "font-src 'self' data: https://tiles.openfreemap.org",
   "connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co",
   "worker-src 'self' blob:",

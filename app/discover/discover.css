@@ -79,7 +79,7 @@
   border-collapse: collapse;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 18px;
   overflow: hidden;
 }
 
@@ -158,7 +158,7 @@
 .priceStamp {
   display: inline-block;
   padding: 4px 9px;
-  border-radius: 6px;
+  border-radius: 999px;
   border: 1.5px solid var(--brass);
   color: var(--brass);
   font-weight: 700;
@@ -178,7 +178,7 @@
   padding: 0;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 18px;
   overflow: hidden;
 }
 
@@ -344,7 +344,7 @@
 .tvnStamp {
   display: inline-block;
   padding: 4px 9px;
-  border-radius: 6px;
+  border-radius: 999px;
   border: 1.5px solid var(--line);
   font-weight: 700;
   font-size: 14px;
@@ -579,4 +579,189 @@
 .discoverSectionTitle {
   padding-left: 12px;
   border-left: 3px solid color-mix(in srgb, var(--brass) 70%, transparent);
+}
+
+/* ── Focused visual polish: bright listing surfaces + coral/blue accents ── */
+.discoverPage {
+  max-width: 1080px;
+  padding-top: 32px;
+}
+
+.discoverHead {
+  position: relative;
+  overflow: hidden;
+  margin: 28px 0 10px;
+  padding: 28px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--panel-raised));
+  border-radius: 24px;
+  background: var(--panel-raised);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--ink) 9%, transparent);
+}
+
+.discoverHead::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(112deg, transparent 0 76%, color-mix(in srgb, var(--river) 8%, transparent) 76% 77%, transparent 77%),
+    linear-gradient(0deg, color-mix(in srgb, var(--brass) 4%, transparent), transparent 58%);
+}
+
+.discoverHead > * {
+  position: relative;
+  z-index: 1;
+}
+
+.discoverEyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--brass) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  color: var(--brass);
+}
+
+.discoverLede {
+  font-size: 18px;
+  text-wrap: pretty;
+}
+
+.discoverSection {
+  scroll-margin-top: 24px;
+}
+
+.discoverSectionTitle {
+  border-left-color: var(--brass);
+  text-wrap: balance;
+}
+
+.discoverSectionDek {
+  max-width: 68ch;
+}
+
+.discoverExplore.catShowcase,
+.leaderboard,
+.tonightBoard,
+.discoverEmpty,
+.tvnCard,
+.editorialCard,
+.topRatedItem {
+  border-color: color-mix(in srgb, var(--line) 74%, var(--panel-raised));
+  background-color: var(--panel-raised);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.discoverExplore.catShowcase {
+  background:
+    linear-gradient(128deg, transparent 0 70%, color-mix(in srgb, var(--river) 7%, transparent) 70% 71%, transparent 71%),
+    var(--panel-raised);
+}
+
+.discoverExplore .catShowcase__link {
+  background: var(--panel-raised);
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--cat, var(--brass)) 18%, transparent);
+}
+
+.discoverExplore .catShowcase__hint {
+  color: var(--river);
+}
+
+.leaderboard thead th {
+  border-bottom-color: color-mix(in srgb, var(--river) 22%, var(--line));
+  background: color-mix(in srgb, var(--river) 6%, var(--panel-raised));
+}
+
+.leaderboard tbody tr,
+.tonightRow,
+.topRatedItem {
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.leaderboard tbody tr:hover,
+.tonightRow:hover,
+.topRatedItem:hover {
+  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+}
+
+.leaderboardRankNum,
+.tonightRank {
+  border-color: color-mix(in srgb, var(--brass) 44%, var(--line));
+  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 85%, transparent);
+}
+
+.topRatedRank {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid color-mix(in srgb, var(--brass) 36%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+}
+
+.priceStamp,
+.tvnStampNow {
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-inset-press, inset 0 1px 2px rgba(22, 18, 42, 0.16));
+}
+
+.tvnCard,
+.editorialCard {
+  border-radius: 18px;
+}
+
+.tvnCard:hover,
+.editorialCard:hover {
+  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+}
+
+.editorialLink {
+  width: fit-content;
+  padding: 7px 11px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  text-decoration: none;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+
+.editorialLink:hover {
+  filter: brightness(1.06);
+  text-decoration: none;
+}
+
+.discoverEmpty {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--river) 28%, var(--line));
+}
+
+.discoverEmpty a {
+  color: var(--river);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .discoverExplore .catShowcase__link:hover,
+  .topRatedItem:hover,
+  .editorialLink:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 560px) {
+  .discoverHead {
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  .discoverLede {
+    font-size: 16px;
+  }
 }

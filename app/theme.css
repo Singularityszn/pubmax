@@ -1,6 +1,6 @@
-/* Dark theme: a candlelit pub at night — deep charcoal-greens, warm cream ink,
-   accents nudged lighter so they read against dark surfaces. Overrides the
-   same tokens :root sets in globals.css. Do NOT edit globals.css here. */
+/* Dark theme: London after last orders — neutral night surfaces, coral action,
+   lager gold and tube-blue accents. Overrides the same tokens :root sets in
+   globals.css. Do NOT edit globals.css here. */
 
 html:not([data-theme="dark"]) {
   color-scheme: light;
@@ -35,31 +35,36 @@ html:not([data-theme="dark"]) {
 html[data-theme="dark"] {
   color-scheme: dark;
 
-  --ink: #ece3d2; /* warm cream text on dark */
-  --ink-soft: #c4bca9;
-  --muted: #8f8875;
-  --line: #35362e; /* subtle light-on-dark divider */
-  --line-soft: #2a2b24;
-  --paper: #12100c; /* deep charcoal-green base */
-  --panel: #171712;
-  --panel-raised: #201f18; /* lifted surface */
-  --ink-deep: #0b0a07;
+  --ink: #fff4e8;
+  --ink-soft: #d8cfc2;
+  --muted: #9c9388;
+  --line: #413a34;
+  --line-soft: #302b27;
+  --paper: #14110f;
+  --panel: #1a1714;
+  --panel-raised: #241f1b;
+  --ink-deep: #090806;
 
-  --pint: #46b378; /* cheap pint / positive */
-  --amber: #d99f45; /* mid price / caution */
-  --brick: #d16353; /* expensive / destructive */
-  --brass: #d3a44a; /* route + writer + guidebook accent */
-  --brass-bright: #e6bd63; /* map marker */
-  --river: #4f9ec4; /* by-water + heritage */
-  --river-bright: #6fb9db;
+  --pint: #39d98a;
+  --amber: #ffc247;
+  --brick: #ff6b7a;
+  --brass: #ff6b7a;
+  --brass-bright: #ff9a62;
+  --river: #64b5ff;
+  --river-bright: #7dd3fc;
+  --spritz: #ffd166;
+  --neon: #5cff99;
+  --grape: #a78bfa;
+  --pink: #ff7ac8;
 
   /* Candle-glow: dark theme's shadow gets a faint warm brass bloom instead of
      a neutral drop shadow, so raised surfaces read as lit from within rather
      than merely "dark mode dim". Light theme's --shadow (globals.css) stays a
      cool paper-lift shadow by contrast — the day/night pairing is deliberate. */
-  --shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 24px rgba(211, 164, 74, 0.06);
-  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 10px rgba(211, 164, 74, 0.05);
-  --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(211, 164, 74, 0.12);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.55), 0 0 28px rgba(255, 138, 61, 0.08);
+  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.48), 0 0 14px rgba(255, 138, 61, 0.07);
+  --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 194, 71, 0.14);
+  --gradient-party: linear-gradient(135deg, var(--paper) 0%, #1b1714 48%, #101a1b 100%);
 }
 
 /* Theme toggle. Base = the inline/nav variant: a quiet brass-hover icon button

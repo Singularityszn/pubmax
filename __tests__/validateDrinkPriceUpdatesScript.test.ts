@@ -41,6 +41,7 @@ function setupScratch(files: Record<string, unknown>): string {
     "tfl_lines.json",
     "pint_prices_app_dataset.json",
     "venues_slim.json",
+    "pubmaxxing_seed_snapshot.json",
   ]) {
     cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
   }

@@ -1,18 +1,35 @@
-/* InstaPint feed — an image-first vertical stream. Scoped under .feedShell so
+/* PUBMAXXING feed — an image-first vertical stream. Scoped under .feedShell so
    nothing leaks into the app shell. Colour/spacing lean on the design-system
    tokens declared in globals.css (--brass, --ink, --ink-soft, --panel,
-   --panel-raised, --line, --paper) so the surface inherits the printed-guidebook
-   theme and flips light/dark for free. */
+   --panel-raised, --line, --paper) so the surface inherits the shared theme. */
 
 .feedShell {
+  --feed-max: 620px;
+  --feed-card-max: 520px;
+  --feed-glass: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  --feed-glass-solid: color-mix(in srgb, var(--panel-raised) 96%, var(--paper) 4%);
+  --feed-border: color-mix(in srgb, var(--line) 72%, var(--panel-raised) 28%);
+  --feed-coral-wash: color-mix(in srgb, var(--brass) 11%, var(--panel-raised));
+  --feed-blue-wash: color-mix(in srgb, var(--river) 9%, var(--panel-raised));
+  --feed-green-wash: color-mix(in srgb, var(--pint) 9%, var(--panel-raised));
+  --feed-gold-wash: color-mix(in srgb, var(--amber) 12%, var(--panel-raised));
+  --feed-shadow: 0 18px 45px rgba(44, 30, 62, 0.1),
+    0 8px 18px color-mix(in srgb, var(--brass) 8%, transparent);
   min-height: 100vh;
-  background: var(--paper);
+  background:
+    linear-gradient(105deg, transparent 0 16%, color-mix(in srgb, var(--river) 7%, transparent) 16% 17%, transparent 17% 100%),
+    linear-gradient(150deg, transparent 0 72%, color-mix(in srgb, var(--amber) 8%, transparent) 72% 73%, transparent 73% 100%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--paper) 86%, var(--panel-raised) 14%) 0,
+      var(--paper) 430px
+    );
   color: var(--ink);
-  padding: 20px 16px 72px;
+  padding: 22px 16px 82px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
+  gap: 20px;
 }
 
 .feedShell *,
@@ -24,18 +41,25 @@
 /* ── Nav ──────────────────────────────────────────────────────────────── */
 .feedNav {
   width: 100%;
-  max-width: 620px;
+  max-width: var(--feed-max);
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  padding: 6px;
+  border: 1px solid var(--feed-border);
+  border-radius: 999px;
+  background: var(--feed-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(44, 30, 62, 0.08);
 }
 
 .feedNav a {
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 999px;
   color: var(--ink-soft);
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 650;
   text-decoration: none;
   transition: color 0.18s ease, background 0.18s ease;
 }
@@ -48,6 +72,7 @@
 .feedNav a[aria-current="page"] {
   color: var(--brass);
   font-weight: 700;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
 }
 
 .feedNav a:focus-visible {
@@ -66,24 +91,33 @@
 /* ── Header ───────────────────────────────────────────────────────────── */
 .feedHeader {
   width: 100%;
-  max-width: 620px;
+  max-width: var(--feed-max);
+  padding: 2px 4px 4px;
   text-align: center;
 }
 
 .feedEyebrow {
-  margin: 0 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  margin: 0 0 10px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 22%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 9%, transparent);
   color: var(--brass);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
 }
 
 .feedTitle {
   margin: 0 0 10px;
-  font-family: var(--font-garamond, var(--serif, Georgia), "Times New Roman", serif);
-  font-size: clamp(2rem, 6vw, 2.9rem);
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-size: 2.65rem;
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .feedLede {
@@ -100,17 +134,18 @@
   justify-content: center;
   min-height: 42px;
   margin-top: 16px;
-  padding: 0 18px;
-  border-radius: 8px;
-  background: var(--brass);
-  color: var(--ink-deep);
+  padding: 0 20px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright, var(--brass)));
+  color: var(--color-on-accent, #fdfaf2);
   font-size: 0.92rem;
   font-weight: 700;
   text-decoration: none;
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--brass) 24%, transparent);
 }
 
 .feedDropCta:hover {
-  background: var(--brass-bright, var(--brass));
+  filter: brightness(1.04);
 }
 
 .feedDropCta:focus-visible {
@@ -125,15 +160,17 @@
    overflow so a busy night never wraps into a tall block. */
 .presenceStrip {
   width: 100%;
-  max-width: 620px;
+  max-width: var(--feed-max);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
+  padding: 10px 15px;
+  border: 1px solid var(--feed-border);
   border-radius: 999px;
-  background: var(--panel);
-  box-shadow: var(--shadow, 0 8px 22px rgba(24, 34, 26, 0.06));
+  background: var(--feed-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(44, 30, 62, 0.08);
   overflow: hidden;
 }
 
@@ -175,19 +212,19 @@
   align-self: center;
   margin: 2px 0 -4px;
   padding: 7px 16px;
-  border: 1px solid var(--brass, var(--line));
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--feed-border));
   border-radius: 999px;
-  background: var(--panel);
+  background: var(--feed-coral-wash);
   color: var(--brass);
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: var(--shadow, 0 8px 22px rgba(24, 34, 26, 0.06));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 14%, transparent);
   transition: transform 120ms ease, background 120ms ease;
 }
 
 .feedNewPill:hover {
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+  background: color-mix(in srgb, var(--brass) 15%, var(--panel-raised));
 }
 
 .feedNewPill:active {
@@ -229,7 +266,7 @@
 }
 
 .presenceVenue {
-  color: var(--brass);
+  color: var(--river);
   font-weight: 700;
   text-decoration: none;
   border-bottom: 1px solid transparent;
@@ -237,11 +274,11 @@
 }
 
 .presenceVenue:hover {
-  border-bottom-color: var(--brass);
+  border-bottom-color: var(--river);
 }
 
 .presenceVenue:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--river);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -270,7 +307,7 @@
 /* ── Filter chips ─────────────────────────────────────────────────────── */
 .feedFilters {
   width: 100%;
-  max-width: 620px;
+  max-width: var(--feed-max);
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -282,13 +319,14 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--feed-border);
   border-radius: 999px;
-  background: var(--panel);
+  background: var(--feed-glass);
   color: var(--ink-soft);
   font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
   transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
 }
 
@@ -298,12 +336,10 @@
 }
 
 .feedFilterChip.isActive {
-  background: var(--ink-deep, #1c231d);
-  border-color: var(--ink-deep, #1c231d);
-  /* Always-cream text: --ink-deep is a theme-stable dark surface in both
-     themes, so the label must stay light (a light token would flip to dark and
-     vanish here). This warm cream matches the button glyphs across the app. */
-  color: #fdfaf2;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright, var(--brass)));
+  border-color: var(--brass);
+  color: var(--color-on-accent, #fdfaf2);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 18%, transparent);
 }
 
 .feedFilterChip:focus-visible {
@@ -330,19 +366,21 @@
 /* ── The list ─────────────────────────────────────────────────────────── */
 .feedList {
   width: 100%;
-  max-width: 500px;
+  max-width: var(--feed-card-max);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
 }
 
 /* ── Card ─────────────────────────────────────────────────────────────── */
 .feedCard {
-  border: 1px solid var(--line);
-  border-radius: var(--radius, 16px);
-  background: var(--panel);
+  border: 1px solid var(--feed-border);
+  border-radius: 24px;
+  background: var(--feed-glass-solid);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   overflow: hidden;
-  box-shadow: var(--shadow, 0 8px 22px rgba(24, 34, 26, 0.06));
+  box-shadow: var(--feed-shadow);
 }
 
 .feedCard-pending,
@@ -360,7 +398,7 @@
   gap: 10px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line-soft, var(--line));
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+  background: var(--feed-coral-wash);
   color: var(--ink);
   font-size: 0.8rem;
   font-weight: 700;
@@ -388,16 +426,16 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--brass);
+  background: linear-gradient(90deg, var(--brass), var(--brass-bright, var(--brass)));
 }
 
 .feedRetryPost {
   flex: 0 0 auto;
   min-height: 32px;
   padding: 6px 11px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--feed-border);
   border-radius: 999px;
-  background: var(--panel-raised);
+  background: var(--feed-glass);
   color: var(--ink);
   font: inherit;
   font-size: 0.76rem;
@@ -418,7 +456,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 16px 12px;
+  padding: 15px 16px 12px;
 }
 
 .feedAvatar {
@@ -428,11 +466,12 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: var(--ink-deep, #1c231d);
-  color: var(--brass-bright, #d8ab55);
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright, #ff8a5c));
+  color: var(--color-on-accent, #fdfaf2);
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.05rem;
   font-weight: 700;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
 .feedWho {
@@ -458,9 +497,9 @@
 .feedProv {
   flex: 0 0 auto;
   padding: 3px 9px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--feed-border);
   border-radius: 999px;
-  background: var(--panel-raised);
+  background: var(--feed-glass);
   color: var(--muted, #8a8577);
   font-size: 0.6rem;
   font-weight: 700;
@@ -470,6 +509,7 @@
 
 .feedProv-contributor {
   border-color: color-mix(in srgb, var(--brass) 45%, transparent);
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
   color: var(--brass);
 }
 
@@ -482,7 +522,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1;
-  background: var(--panel-raised);
+  background: var(--feed-blue-wash);
   overflow: hidden;
 }
 
@@ -497,19 +537,21 @@
   position: absolute;
   right: 12px;
   bottom: 12px;
-  padding: 6px 13px;
-  border-radius: 10px;
-  background: var(--ink-deep, #1c231d);
-  color: var(--brass-bright, #d8ab55);
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
+  padding: 7px 13px;
+  border: 1px solid color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: color-mix(in srgb, var(--pint) 72%, var(--ink));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.16rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-  /* A hairline brass ring pressed inside the ink badge — the "stamp" edge. */
+  letter-spacing: 0;
   box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.28),
-    inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+    0 10px 24px rgba(22, 18, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.58);
 }
 
 /* Receipt fallback — a typographic card when there is no photo. */
@@ -521,11 +563,10 @@
   gap: 8px;
   aspect-ratio: 1.6;
   padding: 28px 20px;
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--brass) 9%, var(--panel)) 0%,
-    var(--panel) 68%
-  );
+  background:
+    linear-gradient(112deg, transparent 0 18%, color-mix(in srgb, var(--river) 9%, transparent) 18% 19%, transparent 19%),
+    linear-gradient(154deg, transparent 0 74%, color-mix(in srgb, var(--amber) 10%, transparent) 74% 75%, transparent 75%),
+    linear-gradient(160deg, var(--feed-coral-wash) 0%, var(--feed-glass-solid) 68%);
   text-align: center;
 }
 
@@ -537,12 +578,12 @@
 }
 
 .feedReceiptPrice {
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: clamp(2.2rem, 8vw, 3.2rem);
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-size: 3.05rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: var(--pint, var(--brass));
+  color: color-mix(in srgb, var(--pint) 76%, var(--ink));
 }
 
 .feedReceiptPriceMuted {
@@ -580,12 +621,27 @@
 
 .feedVibe {
   padding: 3px 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--feed-border);
   border-radius: 999px;
-  background: var(--panel-raised);
+  background: var(--feed-glass);
   color: var(--ink-soft);
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+.feedVibe:nth-child(3n + 1) {
+  border-color: color-mix(in srgb, var(--river) 24%, var(--feed-border));
+  background: var(--feed-blue-wash);
+}
+
+.feedVibe:nth-child(3n + 2) {
+  border-color: color-mix(in srgb, var(--pint) 24%, var(--feed-border));
+  background: var(--feed-green-wash);
+}
+
+.feedVibe:nth-child(3n) {
+  border-color: color-mix(in srgb, var(--amber) 28%, var(--feed-border));
+  background: var(--feed-gold-wash);
 }
 
 .feedCaption {
@@ -616,7 +672,7 @@
 
 /* The pub name — a link to the map (?sel). Never the raw venue id. */
 .feedVenueLink {
-  color: var(--brass);
+  color: var(--river);
   font-weight: 700;
   text-decoration: none;
   border-bottom: 1px solid transparent;
@@ -624,11 +680,11 @@
 }
 
 .feedVenueLink:hover {
-  border-bottom-color: var(--brass);
+  border-bottom-color: var(--river);
 }
 
 .feedVenueLink:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--river);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -643,12 +699,12 @@
 }
 
 .feedVenueBarTab:hover {
-  color: var(--brass);
-  border-bottom-color: var(--brass);
+  color: var(--amber);
+  border-bottom-color: var(--amber);
 }
 
 .feedVenueBarTab:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--amber);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -733,17 +789,20 @@
   top: 12px;
   right: 12px;
   z-index: 2;
-  padding: 6px 13px;
-  border-radius: 10px;
-  background: var(--ink-deep, #1c231d);
-  color: var(--brass-bright, #d8ab55);
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
+  padding: 7px 13px;
+  border: 1px solid color-mix(in srgb, #ffffff 38%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, #ffffff 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: color-mix(in srgb, var(--pint) 72%, var(--ink));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.16rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.35),
-    inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+    0 10px 24px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 /* Bottom scrim — a FIXED dark gradient (never theme-mixed) so overlaid text is
@@ -781,12 +840,12 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: var(--ink-deep, #1c231d);
-  color: var(--brass-bright, #d8ab55);
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright, #ff8a5c));
+  color: var(--color-on-accent, #fdfaf2);
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1rem;
   font-weight: 700;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 30%, transparent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
 .feedSpillWhoText {
@@ -810,18 +869,18 @@
 }
 
 .feedSpillVenueLink {
-  color: var(--brass-bright, #d8ab55);
+  color: var(--river-bright, #29b6f6);
   font-weight: 700;
   text-decoration: none;
   border-bottom: 1px solid transparent;
 }
 
 .feedSpillVenueLink:hover {
-  border-bottom-color: var(--brass-bright, #d8ab55);
+  border-bottom-color: var(--river-bright, #29b6f6);
 }
 
 .feedSpillVenueLink:focus-visible {
-  outline: 2px solid var(--brass-bright, #d8ab55);
+  outline: 2px solid var(--river-bright, #29b6f6);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -853,12 +912,12 @@
 }
 
 .feedSpillBarTab:hover {
-  color: var(--brass-bright, #d8ab55);
-  border-bottom-color: var(--brass-bright, #d8ab55);
+  color: var(--amber);
+  border-bottom-color: var(--amber);
 }
 
 .feedSpillBarTab:focus-visible {
-  outline: 2px solid var(--brass-bright, #d8ab55);
+  outline: 2px solid var(--amber);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -952,7 +1011,7 @@
   padding: 11px 22px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--panel);
+  background: var(--feed-glass-solid);
   color: var(--ink);
   font-size: 0.92rem;
   font-weight: 600;
@@ -1068,7 +1127,8 @@
 
   .feedCard:hover {
     transform: translateY(-2px);
-    box-shadow: 0 14px 30px rgba(24, 34, 26, 0.1);
+    box-shadow: 0 20px 46px rgba(44, 30, 62, 0.13),
+      0 10px 22px color-mix(in srgb, var(--brass) 10%, transparent);
   }
 
   .feedSkelAvatar,

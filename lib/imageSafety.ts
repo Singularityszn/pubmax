@@ -305,6 +305,8 @@ export function stripPngMetadata(bytes: Uint8Array): Uint8Array {
 // EXIF/XMP is passed through untouched (documented pass-through), matching
 // the issue's guidance to keep WebP simple or explicitly document the gap.
 const DROPPED_WEBP_CHUNK_TYPES = new Set(["EXIF", "XMP "]);
+const WEBP_VP8X_EXIF_FLAG = 0x08;
+const WEBP_VP8X_XMP_FLAG = 0x04;
 
 function readUint32LE(bytes: Uint8Array, offset: number): number {
   return (bytes[offset]! | (bytes[offset + 1]! << 8) | (bytes[offset + 2]! << 16) | (bytes[offset + 3]! << 24)) >>> 0;
@@ -357,6 +359,10 @@ export function stripWebpMetadata(bytes: Uint8Array): Uint8Array {
     return bytes;
   }
 
+  const removedExif = chunks.some((c) => c.type === "EXIF");
+  const removedXmp = chunks.some((c) => c.type === "XMP ");
+  const staleVp8xFlags =
+    (removedExif ? WEBP_VP8X_EXIF_FLAG : 0) | (removedXmp ? WEBP_VP8X_XMP_FLAG : 0);
   const keptChunks = chunks.filter((c) => !DROPPED_WEBP_CHUNK_TYPES.has(c.type));
   const bodyLength = keptChunks.reduce((sum, c) => sum + c.total, 0);
   const newRiffSize = 4 + bodyLength; // "WEBP" + chunks
@@ -372,7 +378,10 @@ export function stripWebpMetadata(bytes: Uint8Array): Uint8Array {
     0x50, // "WEBP"
   ];
   for (const c of keptChunks) {
-    for (let p = c.start; p < c.start + c.total; p++) out.push(bytes[p]!);
+    const vp8xFlagsOffset = c.type === "VP8X" ? c.start + 8 : -1;
+    for (let p = c.start; p < c.start + c.total; p++) {
+      out.push(p === vp8xFlagsOffset ? bytes[p]! & ~staleVp8xFlags : bytes[p]!);
+    }
   }
   return Uint8Array.from(out);
 }

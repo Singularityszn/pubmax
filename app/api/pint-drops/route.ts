@@ -11,6 +11,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 // would only live in process memory.
 
 import { memoryFollowStore, supabaseFollowStore } from "@/lib/followStore";
+import { jsonNoStore } from "@/lib/apiResponses";
 import { log } from "@/lib/log";
 import {
   isLimited,
@@ -110,20 +111,20 @@ const STORAGE_UNCONFIGURED_ERROR =
 
 function productionStorageUnavailable(): Response | null {
   return requiresSupabaseStore() && !isSupabaseConfigured()
-    ? Response.json({ error: STORAGE_UNCONFIGURED_ERROR }, { status: 503 })
+    ? jsonNoStore({ error: STORAGE_UNCONFIGURED_ERROR }, { status: 503 })
     : null;
 }
 
 function storageUnavailable(): Response {
-  return Response.json({ error: "Pint Drop storage is unavailable." }, { status: 503 });
+  return jsonNoStore({ error: "Pint Drop storage is unavailable." }, { status: 503 });
 }
 
 function notFound(): Response {
-  return Response.json({ error: "Pint Drop not found." }, { status: 404 });
+  return jsonNoStore({ error: "Pint Drop not found." }, { status: 404 });
 }
 
 function ok(): Response {
-  return Response.json({ ok: true }, { status: 200 });
+  return jsonNoStore({ ok: true }, { status: 200 });
 }
 
 // Constant-time token compare (M2): sha256 both sides so lengths always match,
@@ -152,7 +153,7 @@ function isModerator(request: Request): boolean {
 }
 
 function forbidden(): Response {
-  return Response.json({ error: "Not authorised." }, { status: 403 });
+  return jsonNoStore({ error: "Not authorised." }, { status: 403 });
 }
 
 // Parse either a JSON body or a multipart form. For multipart we pull the text
@@ -200,7 +201,7 @@ async function parseBody(
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
   const { fields, photos } = parsed;
 
@@ -238,7 +239,7 @@ export async function POST(request: Request): Promise<Response> {
         REPORT_PER_ACTOR_LIMIT,
       ))
     ) {
-      return Response.json({ error: "Too many reports, slow down." }, { status: 429 });
+      return jsonNoStore({ error: "Too many reports, slow down." }, { status: 429 });
     }
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
@@ -277,14 +278,14 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = validatePintDrop(fields);
   if (!result.ok) {
-    return Response.json({ error: result.error }, { status: 400 });
+    return jsonNoStore({ error: result.error }, { status: 400 });
   }
 
   // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
   // keyed on handle alone, exactly as before.
   const submitKey = `drop:${result.value.handle.toLowerCase()}:${hashIp(clientIp(request))}`;
   if (await isLimited(result.value.handle, submitKey)) {
-    return Response.json({ error: "Too many submissions, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many submissions, slow down." }, { status: 429 });
   }
 
   const unavailable = productionStorageUnavailable();
@@ -296,14 +297,14 @@ export async function POST(request: Request): Promise<Response> {
     // response (an awaited Supabase upsert here blocks every submission and hangs
     // unmocked tests). It never rejects — the inner try/catch swallows failures.
     void ensureProfileForHandle(result.value.handle);
-    return Response.json({ drop }, { status: 201 });
+    return jsonNoStore({ drop }, { status: 201 });
   } catch (err) {
     // An invalid photo is the user's fault — surface as 400. The store has
     // already cleaned up anything it uploaded (no orphans). We don't log this
     // as an error: it's expected client input, and the store already logged
     // any processing failure (§7.2) at its own boundary.
     if (err instanceof Error && err.message.startsWith("Photo must")) {
-      return Response.json({ error: err.message }, { status: 400 });
+      return jsonNoStore({ error: err.message }, { status: 400 });
     }
     // A genuine storage/insert failure — the user gets a 503. Log it (message
     // only) so the outage is observable instead of a silent 503.
@@ -325,7 +326,7 @@ export async function GET(request: Request): Promise<Response> {
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     try {
-      return Response.json({ drops: await store().listForReview(status) }, { status: 200 });
+      return jsonNoStore({ drops: await store().listForReview(status) }, { status: 200 });
     } catch (err) {
       log("error", "pint_drops.list_review_failed", {
         route: "GET /api/pint-drops",
@@ -349,7 +350,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const viewer = await resolveViewer(params.get("viewer") ?? params.get("handle"));
     const drops = await store().listVisible(params.get("venueId") ?? undefined, viewer);
-    return Response.json({ drops: await withVenueNames(drops) }, { status: 200 });
+    return jsonNoStore({ drops: await withVenueNames(drops) }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {
       route: "GET /api/pint-drops",

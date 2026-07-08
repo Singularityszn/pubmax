@@ -61,6 +61,11 @@ const LAT_MAX = 51.72;
 const PINT_ROW_FLOOR = 2500;
 const SLIM_VENUE_FLOOR = 900;
 const DETAIL_VENUE_FLOOR = 900;
+const PUBMAXXING_PUB_FLOOR = 150;
+const PUBMAXXING_BEVERAGE_ROW_FLOOR = 1400;
+const PUBMAXXING_HISTORY_SEED_FLOOR = 70;
+const PUBMAXXING_ALCOHOLIC_ROW_FLOOR = 1300;
+const PUBMAXXING_NON_ALCOHOLIC_ROW_FLOOR = 100;
 
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -735,6 +740,129 @@ function validateDrinkPriceUpdates() {
   return { ok, count };
 }
 
+function isHttpUrl(value) {
+  if (typeof value !== "string" || value.length === 0) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// pubmaxxing_seed_snapshot.json — compact Firecrawl handoff seed from the
+// sibling pubmaxxing repo. This data is not yet normalized into canonical live
+// venue ids; validate it as an external seed so the all-drinks/history source
+// import cannot silently disappear or truncate.
+function validatePubmaxxingSeed() {
+  const name = "public/data/pubmaxxing_seed_snapshot.json";
+  const errs = makeCollector();
+  let data;
+  try {
+    data = loadJson("pubmaxxing_seed_snapshot.json");
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    console.log(`FAIL ${name}: expected a top-level object`);
+    return { ok: false, count: 0 };
+  }
+
+  if (data.version !== 1) {
+    errs.add(`version must be 1 (got ${JSON.stringify(data.version)})`);
+  }
+  if (!data.source || !isHttpUrl(data.source.sourceRepo)) {
+    errs.add("source.sourceRepo must be an http(s) URL");
+  }
+  if (!data.source || typeof data.source.sourceCommit !== "string" || data.source.sourceCommit.length < 7) {
+    errs.add("source.sourceCommit must be a git commit-ish string");
+  }
+
+  const pubs = Array.isArray(data.pubs) ? data.pubs : [];
+  const beverages = Array.isArray(data.beverages) ? data.beverages : [];
+  const historySeeds = Array.isArray(data.historySeeds) ? data.historySeeds : [];
+  const discountMentions = Array.isArray(data.discountMentions) ? data.discountMentions : [];
+
+  if (pubs.length < PUBMAXXING_PUB_FLOOR) {
+    errs.add(`pub count ${pubs.length} is below floor ${PUBMAXXING_PUB_FLOOR}`);
+  }
+  if (beverages.length < PUBMAXXING_BEVERAGE_ROW_FLOOR) {
+    errs.add(`beverage row count ${beverages.length} is below floor ${PUBMAXXING_BEVERAGE_ROW_FLOOR}`);
+  }
+  if (historySeeds.length < PUBMAXXING_HISTORY_SEED_FLOOR) {
+    errs.add(`history seed count ${historySeeds.length} is below floor ${PUBMAXXING_HISTORY_SEED_FLOOR}`);
+  }
+
+  const alcoholicRows = beverages.filter((row) => row?.isAlcoholic === true).length;
+  const nonAlcoholicRows = beverages.filter((row) => row?.isAlcoholic === false).length;
+  if (alcoholicRows < PUBMAXXING_ALCOHOLIC_ROW_FLOOR) {
+    errs.add(`alcoholic rows ${alcoholicRows} below floor ${PUBMAXXING_ALCOHOLIC_ROW_FLOOR}`);
+  }
+  if (nonAlcoholicRows < PUBMAXXING_NON_ALCOHOLIC_ROW_FLOOR) {
+    errs.add(`non-alcoholic rows ${nonAlcoholicRows} below floor ${PUBMAXXING_NON_ALCOHOLIC_ROW_FLOOR}`);
+  }
+
+  pubs.forEach((row, i) => {
+    if (!row || typeof row.pubId !== "string" || row.pubId.length === 0) {
+      errs.add(`pub ${i}: missing pubId`);
+    }
+    if (!row || typeof row.name !== "string" || row.name.length === 0) {
+      errs.add(`pub ${i}: missing name`);
+    }
+    if (row?.venueUrl && !isHttpUrl(row.venueUrl)) {
+      errs.add(`pub ${i}: invalid venueUrl`);
+    }
+    if (row?.menuUrl && !isHttpUrl(row.menuUrl)) {
+      errs.add(`pub ${i}: invalid menuUrl`);
+    }
+  });
+
+  beverages.forEach((row, i) => {
+    if (!row || typeof row.pubId !== "string" || row.pubId.length === 0) {
+      errs.add(`beverage ${i}: missing pubId`);
+    }
+    if (!row || typeof row.name !== "string" || row.name.length === 0) {
+      errs.add(`beverage ${i}: missing name`);
+    }
+    if (!row || typeof row.category !== "string" || row.category.length === 0) {
+      errs.add(`beverage ${i}: missing category`);
+    }
+    if (row?.basePriceGbp !== null && !isFiniteNumber(row?.basePriceGbp)) {
+      errs.add(`beverage ${i}: basePriceGbp must be number or null`);
+    }
+    if (row?.sourceUrl && !isHttpUrl(row.sourceUrl)) {
+      errs.add(`beverage ${i}: invalid sourceUrl`);
+    }
+  });
+
+  historySeeds.forEach((row, i) => {
+    if (!row || typeof row.pubId !== "string" || row.pubId.length === 0) {
+      errs.add(`history ${i}: missing pubId`);
+    }
+    if (!row || !isHttpUrl(row.sourceUrl)) {
+      errs.add(`history ${i}: invalid sourceUrl`);
+    }
+  });
+
+  discountMentions.forEach((row, i) => {
+    if (!row || typeof row.pubId !== "string" || row.pubId.length === 0) {
+      errs.add(`discount ${i}: missing pubId`);
+    }
+    if (!row || !isHttpUrl(row.sourceUrl)) {
+      errs.add(`discount ${i}: invalid sourceUrl`);
+    }
+  });
+
+  const ok = errs.count === 0;
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${pubs.length} pubs, ${beverages.length} beverages, ${historySeeds.length} history seeds, ${discountMentions.length} discount mentions, ${errs.count} error(s)`,
+  );
+  if (!ok) errs.report();
+  return { ok, count: beverages.length };
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -748,6 +876,7 @@ function main() {
     validateSlimVenues(),
     validateVenueDetails(),
     validateDrinkPriceUpdates(),
+    validatePubmaxxingSeed(),
   ];
   const failed = results.filter((r) => !r.ok).length;
 
