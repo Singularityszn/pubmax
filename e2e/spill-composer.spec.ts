@@ -29,14 +29,14 @@ function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-// A known seed row from public/data/pint_prices_app_dataset.json ("Arnos Arms")
-// — the same stable id map-story.spec.ts deep-links to.
+// A known seed row from public/data/venues_slim.json ("Arnos Arms") — the same
+// stable id smoke.spec.ts deep-links to.
 const ARNOS_ARMS_ID = stableVenueIdFromKey(
   [
     normaliseVenueKeyPart("Arnos Arms"),
     normaliseVenueKeyPart("338 Bowes Road, Arnos Grove, London, N11 1AN"),
     (51.6162).toFixed(5),
-    (-0.1335).toFixed(5),
+    (-0.132117).toFixed(5),
   ].join("|"),
 );
 
@@ -52,31 +52,38 @@ async function openComposer(page: Page) {
 }
 
 test.describe("camera-first Spill composer", () => {
-  test("on a 390px viewport the camera step is presented FIRST", async ({ page }) => {
+  test("on a 390px viewport the camera action leads without blocking price fields", async ({
+    page,
+  }) => {
     const errors = watchPageErrors(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
     const { form } = await openComposer(page);
 
-    // The camera step renders, and it is the FIRST child of the form (camera-first).
+    // Venue context leads, then the compact camera action. Price/story controls
+    // are still visible without a mandatory camera skip.
     const cameraStep = form.locator('[data-testid="spill-camera-step"]');
+    await expect(form.locator(".spillComposerIntro")).toContainText("Arnos Arms");
     await expect(cameraStep).toBeVisible();
 
-    const firstChildIsCamera = await form.evaluate((el) => {
-      const first = el.firstElementChild;
-      return first?.getAttribute("data-testid") === "spill-camera-step";
+    const firstChildrenAreIntroThenCamera = await form.evaluate((el) => {
+      const children = Array.from(el.children).slice(0, 2);
+      return (
+        children[0]?.classList.contains("spillComposerIntro") === true &&
+        children[1]?.getAttribute("data-testid") === "spill-camera-step"
+      );
     });
-    expect(firstChildIsCamera).toBe(true);
+    expect(firstChildrenAreIntroThenCamera).toBe(true);
 
-    // Camera-first means the price/text fields are NOT shown until the photo step
-    // is resolved: the "Skip photo" affordance is present, and the price field is
-    // gated away behind it.
-    await expect(cameraStep.getByRole("button", { name: /skip photo/i })).toBeVisible();
-    await expect(page.getByRole("group", { name: /quick-add price/i })).toHaveCount(0);
-
-    // Tapping "skip photo" reveals the rest of the composer (price + destinations).
-    await cameraStep.getByRole("button", { name: /skip photo/i }).click();
-    await expect(page.getByRole("group", { name: /quick-add price/i })).toBeVisible();
+    // The photo affordance leads, but it no longer blocks the fast price/story
+    // path: the useful controls are visible on the first usable paint.
+    await expect(cameraStep.getByRole("button", { name: /skip photo/i })).toHaveCount(0);
+    await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
+    await expect(
+      form.getByRole("group", { name: /add this spill to/i }).getByRole("button", {
+        name: "Tonight",
+      }),
+    ).toBeVisible();
 
     expect(errors).toEqual([]);
   });
@@ -88,9 +95,6 @@ test.describe("camera-first Spill composer", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     const { form } = await openComposer(page);
-
-    // Get past the camera-first step into the full form.
-    await form.getByRole("button", { name: /skip photo/i }).click();
 
     // Destination chips (Tonight / My Round / Family Table / Ledger) render.
     const destinations = form.getByRole("group", { name: /add this spill to/i });
@@ -124,7 +128,6 @@ test.describe("camera-first Spill composer", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     const { form } = await openComposer(page);
-    await form.getByRole("button", { name: /skip photo/i }).click();
 
     await form.getByRole("button", { name: "Family Table" }).click();
 
@@ -142,15 +145,58 @@ test.describe("camera-first Spill composer", () => {
     const errors = watchPageErrors(page);
     await page.setViewportSize({ width: 390, height: 844 });
     // Legacy Mode is a data attribute on <html>; set it before the composer opens.
-    await page.addInitScript(() => document.documentElement.setAttribute("data-legacy", "1"));
+    await page.addInitScript(() => {
+      const apply = () => document.documentElement?.setAttribute("data-legacy", "1");
+      if (document.documentElement) apply();
+      else window.addEventListener("DOMContentLoaded", apply, { once: true });
+    });
 
     const { form } = await openComposer(page);
-    await form.getByRole("button", { name: /skip photo/i }).click();
 
     // The core controls still render and are operable under Legacy Mode.
     await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
-    await expect(form.getByRole("button", { name: "Tonight" })).toBeVisible();
+    await expect(
+      form.getByRole("group", { name: /add this spill to/i }).getByRole("button", {
+        name: "Tonight",
+      }),
+    ).toBeVisible();
     await expect(form.locator(".spillPreviewCard")).toBeVisible();
+
+    expect(errors).toEqual([]);
+  });
+
+  test("/map?log=1 opens the mobile composer without the full pint dataset", async ({ page }) => {
+    const errors = watchPageErrors(page);
+    const requests: string[] = [];
+    page.on("request", (request) => requests.push(new URL(request.url()).pathname));
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const response = await page.goto("/map?log=1");
+    expect(response?.status()).toBe(200);
+
+    const form = page.locator("form.dropComposer");
+    await expect(form).toBeVisible({ timeout: 10_000 });
+    await expect(form.locator('[data-testid="spill-camera-step"]')).toBeVisible();
+    await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() => performance.getEntriesByName("pubmax:composer-interactive").length),
+      )
+      .toBeGreaterThan(0);
+
+    const marks = await page.evaluate(() =>
+      [
+        "pubmax:map-chunk-ready",
+        "pubmax:slim-venues-ready",
+        "pubmax:drop-route-ready",
+        "pubmax:composer-mounted",
+        "pubmax:composer-interactive",
+      ].map((name) => ({ name, count: performance.getEntriesByName(name).length })),
+    );
+    expect(marks.every((mark) => mark.count > 0)).toBe(true);
+    expect(requests).toContain("/data/venues_slim.json");
+    expect(requests).not.toContain("/data/pint_prices_app_dataset.json");
 
     expect(errors).toEqual([]);
   });

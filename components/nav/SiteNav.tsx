@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Home } from "lucide-react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -92,7 +93,11 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
     >
       {/* Wordmark: the compact-mobile anchor + the desktop home affordance. */}
       <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXXING landing page">
-        PUBMAXXING
+        <span className="siteNavBrandFull">PUBMAXXING</span>
+        <span className="siteNavBrandMobile" aria-hidden="true">
+          <Home size={15} strokeWidth={2} />
+          <span>Home</span>
+        </span>
       </Link>
 
       {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}

@@ -18,6 +18,25 @@
   border: 0;
 }
 
+.spillComposerIntro {
+  display: grid;
+  gap: 3px;
+}
+
+.spillComposerIntro strong {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.spillComposerEyebrow {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 /* ── Visibility segmented control ───────────────────────────────────────── */
 .visibilityField {
   margin: 0;
@@ -418,6 +437,56 @@
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .spillComposer {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .spillCameraStep {
+    gap: 8px;
+  }
+
+  .spillCameraHeader {
+    gap: 8px;
+  }
+
+  .spillCaptureRail {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 7px;
+    border-radius: 16px;
+  }
+
+  .spillCameraFrame {
+    display: none;
+  }
+
+  .spillCameraActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .spillCameraBtn {
+    min-height: 48px;
+    padding: 10px 11px;
+    border-radius: 999px;
+    font-size: 0.84rem;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .spillCameraBtn.primary {
+    min-height: 48px;
+    flex-direction: row;
+  }
+
+  .spillShotStamp {
+    min-height: 24px;
+    padding: 3px 7px;
+    font-size: 0.56rem;
+  }
 }
 
 .spillSkipPhoto:hover {

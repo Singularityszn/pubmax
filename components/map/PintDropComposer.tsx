@@ -31,6 +31,7 @@ import {
   type SpillDestination,
 } from "@/lib/spillPreview";
 import { readPintDropDraft, writePintDropDraft } from "@/lib/pintDropDraft";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import "./spillComposer.css";
 
@@ -124,6 +125,9 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
   const withWhoInputId = useId();
   const eraInputId = useId();
   const [draftReadyVenueId, setDraftReadyVenueId] = useState<string | null>(null);
+  useEffect(() => {
+    markPubmaxTiming("pubmax:composer-mounted");
+  }, []);
   if (draftReadyVenueId !== null && draftReadyVenueId !== venueId) {
     // React adjust-state-during-render pattern: block stale shared composer
     // state from painting under a newly selected pub while the venue draft
@@ -168,15 +172,11 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
     );
   }, [venueId, draftReadyVenueId, dropForm, visibility, vibeTags]);
 
-  // Camera-first (PRD priority 2): on a mobile-class viewport the photo/camera
-  // step is presented FIRST as a full step; the writer either shoots (or picks)
-  // a photo or explicitly skips it, and only then are text/price/voice revealed.
-  // Desktop keeps the old single-scroll layout (no fake camera; the photo slots
-  // sit inline lower down as they always did). Hydration-safe: server render and
-  // first client paint agree on `mobile=false`, then matchMedia upgrades — the
-  // same idiom the speech detection below uses.
+  // Camera-first, not camera-blocked: on mobile the photo action is presented
+  // first, while price/story controls stay available on the first usable paint.
+  // Desktop keeps the old single-scroll layout. Hydration-safe: server render
+  // and first client paint agree on `mobile=false`, then matchMedia upgrades.
   const [mobile, setMobile] = useState(false);
-  const [photoStepDone, setPhotoStepDone] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
@@ -339,10 +339,13 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
     ],
   );
 
-  const hasAnyPhoto = Boolean(pintPhoto || venuePhoto);
-  // On mobile the rest of the form is gated behind the camera-first step until
-  // the writer shoots a photo or taps "skip". On desktop everything is shown.
-  const showRest = !mobile || photoStepDone || hasAnyPhoto;
+  // Mobile still leads with the photo affordance, but price/story controls must
+  // be available on first paint so logging a pint never waits behind camera UI.
+  const showRest = true;
+
+  useEffect(() => {
+    if (draftReady) markPubmaxTiming("pubmax:composer-interactive");
+  }, [draftReady]);
 
   if (!draftReady) {
     return (
@@ -357,10 +360,15 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
       className="dropComposer spillComposer"
       onSubmit={(event) => submitDrop(event, venueId, { venueName })}
     >
-      {/* ── Camera-first step (mobile) ────────────────────────────────────────
-          On a phone the very first thing the composer presents is the shot: a
-          rear-camera capture, a flip to the front camera, or an explicit skip.
-          Desktop renders the classic inline photo pair lower down instead. */}
+      <div className="spillComposerIntro">
+        <span className="spillComposerEyebrow">Drop a pint here</span>
+        <strong>{venueName ?? "This pub"}</strong>
+      </div>
+
+      {/* ── Compact photo action (mobile) ─────────────────────────────────────
+          On a phone the shot is immediately available, but the rest of the
+          composer stays visible so a price/story drop is not blocked by camera
+          setup. Desktop renders the classic inline photo pair lower down. */}
       {mobile ? (
         <div className="spillCameraStep" data-testid="spill-camera-step">
           <div className="spillCameraHeader">
@@ -431,20 +439,11 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
               </div>
             </div>
           )}
-          {!showRest ? (
-            <button
-              type="button"
-              className="spillSkipPhoto"
-              onClick={() => setPhotoStepDone(true)}
-            >
-              Skip photo — just the price &amp; story
-            </button>
-          ) : null}
         </div>
       ) : null}
 
-      {/* The rest of the composer. Hidden on mobile until the camera step is
-          resolved (shot taken or skipped); always shown on desktop. */}
+      {/* The rest of the composer. On mobile this is visible immediately under
+          the compact photo affordance so Drop never feels blocked by camera UI. */}
       {showRest ? (
         <>
           <label className="spillTextField" htmlFor={handleId}>
@@ -818,7 +817,6 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                 onClick={() => {
                   if (pintPhoto) removePhoto("pint");
                   if (venuePhoto) removePhoto("venue");
-                  setPhotoStepDone(false);
                 }}
               >
                 <RefreshCw size={13} /> New shot

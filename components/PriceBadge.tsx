@@ -5,7 +5,7 @@ import styles from "./PriceBadge.module.css";
 export type PriceBadgeVariant = "baseline" | "current" | "cheap" | "increase" | "neutral";
 
 type PriceBadgeProps = {
-  children: ReactNode;
+  children?: ReactNode;
   variant?: PriceBadgeVariant;
   className?: string;
 };

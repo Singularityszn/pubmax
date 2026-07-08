@@ -35,12 +35,12 @@ import "./accessibilityFilters.css";
 export type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-home";
 
 const TABS: { key: TabKey; label: string; shortLabel: string }[] = [
-  { key: "overview", label: "Overview", shortLabel: "Pub" },
+  { key: "overview", label: "Pub", shortLabel: "Pub" },
   { key: "pints", label: "Drops", shortLabel: "Drops" },
-  { key: "menu", label: "Drinks", shortLabel: "Menu" },
-  { key: "story", label: "Story", shortLabel: "Lore" },
+  { key: "menu", label: "Menu", shortLabel: "Menu" },
+  { key: "story", label: "Lore", shortLabel: "Lore" },
   { key: "ask", label: "Ask", shortLabel: "Ask" },
-  { key: "getting-home", label: "Last train", shortLabel: "Train" },
+  { key: "getting-home", label: "Train", shortLabel: "Train" },
 ];
 
 const DEFAULT_TAB: TabKey = "pints";
@@ -90,6 +90,7 @@ type VenueInspectorProps = {
   onGrabDragStart?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragMove?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
+  onTabSelect?: (key: TabKey) => void;
 };
 
 export default function VenueInspector({
@@ -104,6 +105,7 @@ export default function VenueInspector({
   onGrabDragStart,
   onGrabDragMove,
   onGrabDragEnd,
+  onTabSelect,
 }: VenueInspectorProps) {
   const { dropsByVenueId, composerOpen, setComposerOpen, dropMsg, reportDrop } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
@@ -171,6 +173,7 @@ export default function VenueInspector({
 
   function selectTab(next: TabKey) {
     setTab(next);
+    onTabSelect?.(next);
     tabRefs.current[next]?.focus();
   }
 
@@ -397,10 +400,11 @@ export default function VenueInspector({
         className="venueTabPanel"
         hidden={tab !== "pints"}
       >
-        {/* The Golden Thread — this pub's price story (baseline vs community
-            price + inflation on a dated memory). Leads the Pints tab; falls back
-            to an honest empty state when the venue has no price story yet. */}
-        <VenuePriceStory venue={venue} drops={drops} />
+        {composerOpen ? (
+          <PintDropComposer venueId={venue.id} state={pintDrops} venueName={venue.name} />
+        ) : (
+          <VenuePriceStory venue={venue} drops={drops} />
+        )}
         <section className="pintDrops">
           <div className="inspectorTitle">
             <Quote size={16} />
@@ -413,13 +417,14 @@ export default function VenueInspector({
               flow.
             </div>
           ) : null}
-          {composerOpen ? (
-            <PintDropComposer venueId={venue.id} state={pintDrops} venueName={venue.name} />
-          ) : (
+          {composerOpen ? null : (
             <div className="logDropBar">
               <button
                 className="logDropBtn"
-                onClick={() => setComposerOpen(true)}
+                onClick={() => {
+                  onTabSelect?.("pints");
+                  setComposerOpen(true);
+                }}
                 aria-label={`Log a Pint Drop at ${venue.name}`}
               >
                 <PlusCircle size={17} /> Log a Pint Drop

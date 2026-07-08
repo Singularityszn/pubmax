@@ -40,6 +40,7 @@ import { slimVenuesToPins } from "@/lib/slimPins";
 import { buildRouteLegs } from "@/lib/routeLegs";
 import { haversineKm } from "@/lib/haversine";
 import { hasMapLogIntent, resolveMapLogIntent, shouldRunMapLogIntent } from "@/lib/mapLogIntent";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -239,6 +240,7 @@ function useLogIntent(deps: {
     }
     handled.current = true;
     setFallbackVisible(false);
+    markPubmaxTiming("pubmax:drop-route-ready");
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
@@ -387,6 +389,9 @@ function readOnboardingDismissed(): boolean {
 
 export default function PubMap() {
   const searchParams = useSearchParams();
+  useEffect(() => {
+    markPubmaxTiming("pubmax:map-chunk-ready");
+  }, []);
   // Seed the crawl from the shareable URL (falls back to defaults / honors
   // ?style=heritage from the landing page). Lazy init keeps this off effects.
   // If the URL carries no hand-built crawl but localStorage does, seed from it —
@@ -504,14 +509,8 @@ export default function PubMap() {
       .then((slim) => {
         if (cancelled || slim.length === 0) return;
         setSlimPins(slimVenuesToPins(slim));
-        if (typeof performance !== "undefined" && typeof performance.mark === "function") {
-          try {
-            performance.mark("pubmax:first-pins");
-          } catch {
-            // performance.mark can throw under strict CSP / locked-down envs;
-            // the pins still painted, the mark is best-effort telemetry only.
-          }
-        }
+        markPubmaxTiming("pubmax:first-pins");
+        markPubmaxTiming("pubmax:slim-venues-ready");
       })
       .catch(() => {
         // Slim fetch failed with no offline mirror — render the honest empty
@@ -604,9 +603,11 @@ export default function PubMap() {
 
   const canvasVenues = filteredVenues;
 
+  const hasReactiveLogIntent = hasMapLogIntent(searchParams);
+  const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
   const suggestedRoute = useMemo(
-    () => buildCrawlRoute(filteredVenues, filters),
-    [filteredVenues, filters],
+    () => (shouldBuildSuggestedRoute ? buildCrawlRoute(filteredVenues, filters) : EMPTY_ROUTE),
+    [shouldBuildSuggestedRoute, filteredVenues, filters],
   );
   const builtRoute = useMemo(
     () => builtIds.map((id) => venueById.get(id)).filter((v): v is Venue => Boolean(v)),
@@ -725,8 +726,6 @@ export default function PubMap() {
   const filteredVenueCount = filteredVenues.length;
   const firstRouteId = route[0]?.id ?? "";
   const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
-  const hasReactiveLogIntent = hasMapLogIntent(searchParams);
-
   const focusMapSearch = useCallback(() => {
     const search = document.getElementById("mapSearchInput") as HTMLInputElement | null;
     if (search) search.focus();
@@ -747,6 +746,15 @@ export default function PubMap() {
     dismissOnboarding();
     setComposerOpen(true);
   }, [dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
+
+  const handleInspectorTabSelect = useCallback(
+    (nextTab: TabKey) => {
+      if (!isMobileViewport()) return;
+      setSheetSnap(nextTab === "overview" ? "half" : "full");
+      setSheetDragY(null);
+    },
+    [setSheetDragY, setSheetSnap],
+  );
 
   // Core-loop entry point: the mobile Log FAB links to /map?log=1. Once the
   // fast venue list exists, turn that intent into the existing single composer
@@ -1135,83 +1143,87 @@ export default function PubMap() {
         className={planningOpen ? "mapDrawer left open" : "mapDrawer left"}
         aria-hidden={!planningOpen}
       >
-        <button
-          type="button"
-          className="plannerMapButton"
-          onClick={() => setPlanningOpen(false)}
-        >
-          <MapPinned size={16} aria-hidden="true" />
-          View London map
-        </button>
-        <ControlRail
-          mode={mode}
-          onModeChange={setMode}
-          filters={filters}
-          onFiltersChange={setFilters}
-          filteredVenues={filteredVenues}
-          builtCount={builtIds.length}
-          onClearBuilt={clearBuilt}
-          onLoadCrawl={loadCuratedCrawl}
-          onNearbyCrawl={startNearbyCrawl}
-          nearbyLoading={nearbyLoading}
-          nearbyError={nearbyError}
-          savedOnly={savedOnly}
-          onSavedOnlyChange={changeSavedOnly}
-        />
-        <RoutePanel
-          mode={mode}
-          crawlStyle={filters.crawlStyle}
-          altStyle={altStyle}
-          onAltStyleChange={setAltStyle}
-          route={route}
-          filteredVenues={filteredVenues}
-          builtIds={builtIds}
-          activeVenueId={selectedVenue?.id}
-          venueSignals={venueSignals}
-          crawlBlurb={activeCrawl?.blurb}
-          crawlName={activeCrawl?.name}
-          crawlId={activeCrawl?.id}
-          routeMapped={routeMappedActive}
-          originDistanceKm={distanceFromUserKm}
-          onMapRoute={mapCurrentRoute}
-          onHideRoute={hideMappedRoute}
-          onCheckLastTrain={checkLastTrainAtRouteEnd}
-          onSelectVenue={selectVenue}
-          onToggleStop={toggleBuiltStop}
-          onReverseRoute={reverseRoute}
-        >
-          {loaded && filteredVenues.length === 0 ? (
-            savedOnly && savedIds.size === 0 ? (
-              <section className="venueInspector" style={{ textAlign: "center" }}>
-                <p className="description" style={{ marginTop: 0 }}>
-                  No saved pubs yet — tap a pub and Save it, then flip &ldquo;Saved only&rdquo; back
-                  on to see just your list.
-                </p>
-                <button
-                  type="button"
-                  className="addStopBtn"
-                  onClick={() => changeSavedOnly(false)}
-                >
-                  Show all pubs
-                </button>
-              </section>
-            ) : (
-              <section className="venueInspector" style={{ textAlign: "center" }}>
-                <p className="description" style={{ marginTop: 0 }}>
-                  No pubs match these filters — try widening your price or clearing your story
-                  filters.
-                </p>
-                <button
-                  type="button"
-                  className="addStopBtn"
-                  onClick={() => setFilters(seedCrawlState("").filters)}
-                >
-                  Clear filters
-                </button>
-              </section>
-            )
-          ) : null}
-        </RoutePanel>
+        {planningOpen ? (
+          <>
+            <button
+              type="button"
+              className="plannerMapButton"
+              onClick={() => setPlanningOpen(false)}
+            >
+              <MapPinned size={16} aria-hidden="true" />
+              View London map
+            </button>
+            <ControlRail
+              mode={mode}
+              onModeChange={setMode}
+              filters={filters}
+              onFiltersChange={setFilters}
+              filteredVenues={filteredVenues}
+              builtCount={builtIds.length}
+              onClearBuilt={clearBuilt}
+              onLoadCrawl={loadCuratedCrawl}
+              onNearbyCrawl={startNearbyCrawl}
+              nearbyLoading={nearbyLoading}
+              nearbyError={nearbyError}
+              savedOnly={savedOnly}
+              onSavedOnlyChange={changeSavedOnly}
+            />
+            <RoutePanel
+              mode={mode}
+              crawlStyle={filters.crawlStyle}
+              altStyle={altStyle}
+              onAltStyleChange={setAltStyle}
+              route={route}
+              filteredVenues={filteredVenues}
+              builtIds={builtIds}
+              activeVenueId={selectedVenue?.id}
+              venueSignals={venueSignals}
+              crawlBlurb={activeCrawl?.blurb}
+              crawlName={activeCrawl?.name}
+              crawlId={activeCrawl?.id}
+              routeMapped={routeMappedActive}
+              originDistanceKm={distanceFromUserKm}
+              onMapRoute={mapCurrentRoute}
+              onHideRoute={hideMappedRoute}
+              onCheckLastTrain={checkLastTrainAtRouteEnd}
+              onSelectVenue={selectVenue}
+              onToggleStop={toggleBuiltStop}
+              onReverseRoute={reverseRoute}
+            >
+              {loaded && filteredVenues.length === 0 ? (
+                savedOnly && savedIds.size === 0 ? (
+                  <section className="venueInspector" style={{ textAlign: "center" }}>
+                    <p className="description" style={{ marginTop: 0 }}>
+                      No saved pubs yet — tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
+                      back on to see just your list.
+                    </p>
+                    <button
+                      type="button"
+                      className="addStopBtn"
+                      onClick={() => changeSavedOnly(false)}
+                    >
+                      Show all pubs
+                    </button>
+                  </section>
+                ) : (
+                  <section className="venueInspector" style={{ textAlign: "center" }}>
+                    <p className="description" style={{ marginTop: 0 }}>
+                      No pubs match these filters — try widening your price or clearing your story
+                      filters.
+                    </p>
+                    <button
+                      type="button"
+                      className="addStopBtn"
+                      onClick={() => setFilters(seedCrawlState("").filters)}
+                    >
+                      Clear filters
+                    </button>
+                  </section>
+                )
+              ) : null}
+            </RoutePanel>
+          </>
+        ) : null}
       </div>
 
       {/* Right drawer: the selected pub's detail — opens only on an explicit pick.
@@ -1288,6 +1300,7 @@ export default function PubMap() {
               onGrabDragStart={onSheetDragStart}
               onGrabDragMove={onSheetDragMove}
               onGrabDragEnd={onSheetDragEnd}
+              onTabSelect={handleInspectorTabSelect}
             />
           </>
         ) : null}

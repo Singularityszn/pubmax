@@ -235,6 +235,46 @@ test("discover 'Cheapest Pints Tonight' board renders rows or its empty state (�
   expect(errors).toEqual([]);
 });
 
+test("discover mobile price badges stay stable and inside the viewport", async ({ page }) => {
+  const errors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const response = await page.goto("/discover");
+  expect(response?.status()).toBe(200);
+
+  await page.locator("#cheap-title").scrollIntoViewIfNeeded();
+  const badges = page.locator(".leaderboard .priceBadge");
+  await expect(badges.first()).toBeVisible({ timeout: 15_000 });
+
+  const result = await page.evaluate(() => {
+    const overflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+    const boxes = Array.from(document.querySelectorAll<HTMLElement>(".leaderboard .priceBadge"))
+      .filter((el) => el.offsetParent !== null)
+      .slice(0, 8)
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          width: rect.width,
+          height: rect.height,
+          right: rect.right,
+          transform: getComputedStyle(el).transform,
+        };
+      });
+    return { overflow, boxes };
+  });
+
+  expect(result.overflow).toBeLessThanOrEqual(1);
+  expect(result.boxes.length).toBeGreaterThan(0);
+  for (const box of result.boxes) {
+    expect(box.width).toBeGreaterThan(40);
+    expect(box.height).toBeGreaterThan(20);
+    expect(box.right).toBeLessThanOrEqual(391);
+    expect(box.transform === "none" || box.transform === "").toBe(true);
+  }
+
+  expect(errors).toEqual([]);
+});
+
 // ---------------------------------------------------------------------------
 // Borough discovery pages (app/borough/page.tsx + app/borough/[slug]/page.tsx).
 // Server-rendered, shareable, dataset-backed (cc_plan2 §14/§25). The index lists

@@ -1,8 +1,8 @@
 /* The venue Menu (PRD E1) — drinks grouped by category, rendered inside the
    Menu tab of .venueInspector. Scoped to .drinkMenu only; reuses the shared app
    tokens (--brass, --ink, --ink-soft, --line, --panel-raised, --font-data,
-   --radius-sm) and the global .ink-stamp idiom for the price stamp. Each
-   category section pulls its accent from the inline `--cat-accent` custom
+   --radius-sm). Menu prices use the shared stable PriceBadge, not stamp tilt.
+   Each category section pulls its accent from the inline `--cat-accent` custom
    property set by DrinkMenu.tsx (value from lib/categoryColors.ts — E5's
    canonical palette). Candle-lit field-guide feel, one accent per family. */
 
@@ -151,13 +151,10 @@ html[data-legacy="1"] .drinkCategoryTitle {
   flex: 0 0 auto;
 }
 
-/* Brass price stamp — .ink-stamp (global) supplies the border/shadow/data face;
-   this only owns padding + size, matching the .priceStamp idiom. */
 .drinkPrice {
-  padding: 3px 8px;
+  min-inline-size: 4.2rem;
+  padding: 4px 8px;
   font-size: 0.9rem;
-  color: var(--ink);
-  background: var(--panel-raised);
   white-space: nowrap;
 }
 

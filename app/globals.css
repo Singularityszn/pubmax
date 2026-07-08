@@ -130,7 +130,7 @@
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* — Pressed-ink / bar-mat tactility: one shared token set for the price
-       stamp, provenance chips, and vibe tags (see .ink-stamp below). Kept
+     stamp, provenance chips, and vibe tags (see .ink-stamp below). Kept
        deliberately restrained — brass is the only accent colour it uses. */
   --ink-stamp-border: 1.5px solid var(--brass);
   --ink-stamp-radius: 6px;
@@ -157,7 +157,8 @@
 
 /* ── Pressed-ink / bar-mat utility ──────────────────────────────────────────
    One shared treatment for anything that should read as "stamped" rather
-   than merely styled: the brass price stamp, provenance chips, vibe tags.
+   than merely styled: passport seals, logged-pint artifacts, provenance chips,
+   and achievements. Do not use this on numeric data badges or menu prices.
    Apply `.ink-stamp` alongside a component's existing class — it only adds
    the shared border/shadow/tilt/type, it never resets layout (display,
    padding, colour stay owned by the component's own class).
@@ -166,13 +167,12 @@
      .ink-stamp        — base treatment: brass hairline border, inset
                           "pressed" shadow, data face, tabular numerals.
      .ink-stamp--tilt   — adds the signature -1.5deg press tilt. Reserve this
-                          for the ONE signature element (the brass price
-                          stamp) — provenance chips / vibe tags should use
-                          `.ink-stamp` alone, so the tilt stays rare.
+                          for collectible seals/logged artifacts only, so the
+                          tilt stays rare and intentional.
      .ink-stamp--flat   — same border/shadow, no data face (for chips whose
                           copy is words, not numbers, e.g. provenance/vibe).
-   Existing .priceStamp / .provChip / .vibeChip classes are untouched; this
-   is additive so any of them can opt in with a single extra class. */
+   Existing .provChip / .vibeChip classes are untouched; this is additive so
+   artifact chips can opt in with a single extra class. */
 .ink-stamp {
   border: var(--ink-stamp-border);
   border-radius: var(--ink-stamp-radius);

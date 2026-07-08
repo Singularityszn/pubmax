@@ -6,6 +6,7 @@ import { Map, Newspaper, CirclePlus, User, Wine } from "lucide-react";
 import { useCallback } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { warmMapIntent } from "@/lib/mapWarmup";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -68,6 +69,9 @@ export default function MobileTabBar() {
     },
     [router],
   );
+  const markDropTap = useCallback((primary?: boolean) => {
+    if (primary) markPubmaxTiming("pubmax:drop-tap");
+  }, []);
 
   if (pathname === "/") return null;
 
@@ -88,6 +92,7 @@ export default function MobileTabBar() {
                 }
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
+                onClick={() => markDropTap(tab.primary)}
                 onMouseEnter={() => warmTab(tab.href)}
                 onFocus={() => warmTab(tab.href)}
                 onTouchStart={() => warmTab(tab.href)}

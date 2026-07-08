@@ -371,24 +371,6 @@ html[data-legacy="1"] .venueTabPanel::before {
   box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 24%, transparent);
 }
 
-.venueTab[aria-controls="venuePanel-getting-home"]:not(.active) {
-  color: var(--river);
-}
-
-.venueTab[aria-controls="venuePanel-getting-home"]:hover {
-  background: color-mix(in srgb, var(--river) 10%, var(--panel-raised));
-}
-
-.venueTab[aria-controls="venuePanel-getting-home"].active {
-  background: linear-gradient(135deg, var(--river), var(--river-bright));
-  color: var(--color-on-photo);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--river) 24%, transparent);
-}
-
-.venueTab[aria-controls="venuePanel-getting-home"]:focus-visible {
-  outline-color: var(--river);
-}
-
 .venueBaselinePhoto::after {
   content: "";
   position: absolute;

@@ -1,6 +1,7 @@
 import { categoryColor } from "@/lib/categoryColors";
 import { formatPrice } from "@/lib/venues";
 import DrinkRatingRow from "@/components/ratings/DrinkRatingRow";
+import PriceBadge from "@/components/PriceBadge";
 import {
   groupDrinksByCategory,
   type Drink,
@@ -13,9 +14,9 @@ import "./drinkMenu.css";
 
 // The venue Menu (PRD E1): a venue's drinks grouped by category, each section
 // carrying its own colour token (lib/categoryColors.ts — E5 owns the canonical
-// palette) and a per-drink row: name, producer/style/abv, a brass price stamp
-// (reusing the shared .ink-stamp idiom), and a provenance chip so a seeded demo
-// pour is always visibly distinct from a real price.
+// palette) and a per-drink row: name, producer/style/abv, a stable numeric
+// price badge, and a provenance chip so a seeded demo pour is always visibly
+// distinct from a real price.
 //
 // Server-composable: it takes `drinks` as a prop (the caller runs
 // venueDrinkMenu(venueId, venue.prices) — no client fetch), so it drops into a
@@ -86,7 +87,9 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
         />
       </div>
       <div className="drinkRowSide">
-        <span className="drinkPrice ink-stamp">{formatPrice(drink.priceGbp)}</span>
+        <PriceBadge variant="neutral" className="drinkPrice">
+          {formatPrice(drink.priceGbp)}
+        </PriceBadge>
         <ProvChip prov={drink.provenance} />
       </div>
     </li>
