@@ -191,6 +191,16 @@ function normaliseDrinkHaystack(value) {
     .replace(/\s+/g, " ");
 }
 
+function haystackHasCategoryToken(hay, tokens) {
+  return tokens.some((token) => {
+    const n = normaliseDrinkHaystack(token);
+    if (!n) return false;
+    if (n.includes(" ")) return hay.includes(n);
+    const re = new RegExp(`(^| )${n}( |$)`);
+    return re.test(hay);
+  });
+}
+
 function buildDrinkHints(prices) {
   const categories = new Set();
   const brands = new Set();
@@ -211,15 +221,7 @@ function buildDrinkHints(prices) {
   }
 
   for (const [category, tokens] of CATEGORY_HINT_TOKENS) {
-    if (
-      tokens.some((token) => {
-        const n = normaliseDrinkHaystack(token);
-        if (!n) return false;
-        if (n.includes(" ")) return hay.includes(n);
-        const re = new RegExp(`(^| )${n}( |$)`);
-        return re.test(hay);
-      })
-    ) {
+    if (haystackHasCategoryToken(hay, tokens)) {
       categories.add(category);
     }
   }

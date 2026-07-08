@@ -65,6 +65,9 @@ describe("drinkBrands", () => {
     expect(haystackMatchesCategory("house red wine list", "wine")).toBe(true);
     expect(haystackMatchesCategory("vodka soda", "vodka")).toBe(true);
     expect(haystackMatchesCategory("guinness pint", "vodka")).toBe(false);
+    // "g&t" must not collapse into "g t" and hit "canning town".
+    expect(haystackMatchesCategory("canning town carlsberg", "gin")).toBe(false);
+    expect(haystackMatchesCategory("classic g&t", "gin")).toBe(true);
   });
 
   it("parses drink category params defensively", () => {

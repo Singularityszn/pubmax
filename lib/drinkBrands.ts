@@ -93,12 +93,18 @@ export const CATEGORY_SEARCH_TOKENS: Record<DrinkCategory, string[]> = {
   beer: ["beer", "pint", "lager", "ale", "ipa", "stout", "porter", "cider"],
   wine: ["wine", "prosecco", "champagne", "rioja", "malbec", "chardonnay"],
   whisky: ["whisky", "whiskey", "scotch", "bourbon", "dram"],
-  gin: ["gin", "g&t", "gin and tonic"],
+  gin: ["gin", "gin and tonic"],
   vodka: ["vodka"],
   rum: ["rum", "rhum"],
   cocktail: ["cocktail", "spritz", "negroni", "martini", "margarita", "mojito"],
   shot: ["shot", "shots", "tequila", "sambuca"],
   other: [],
+};
+
+// Tokens matched against the raw (lowercased) string before punctuation collapse,
+// so "g&t" does not become the over-broad "g t" (which hits "canning town").
+const CATEGORY_RAW_TOKENS: Partial<Record<DrinkCategory, string[]>> = {
+  gin: ["g&t", "g & t"],
 };
 
 /** Brands listed for a category (empty array for thin-coverage categories). */
@@ -166,6 +172,10 @@ export function haystackMatchesCategory(
   haystack: string,
   category: DrinkCategory,
 ): boolean {
+  const raw = haystack.toLowerCase();
+  if ((CATEGORY_RAW_TOKENS[category] ?? []).some((token) => raw.includes(token))) {
+    return true;
+  }
   const hay = normalizeDrinkHaystack(haystack);
   if (!hay) return false;
   return CATEGORY_SEARCH_TOKENS[category].some((token) => {
