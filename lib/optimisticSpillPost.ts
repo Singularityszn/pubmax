@@ -24,6 +24,9 @@ export type OptimisticSpillInput = {
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
   createdAt: string;
+  /** Wave G1: optional Last Train context when a live decision was on screen. */
+  leaveByIso?: string;
+  lastTrainDecision?: string;
 };
 
 export type OptimisticSpillRetryPayload = {
@@ -38,6 +41,8 @@ export type OptimisticSpillRetryPayload = {
   vibeTags: string[];
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  leaveByIso?: string;
+  lastTrainDecision?: string;
 };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -90,6 +95,8 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
     venuePhotoUrl: input.venuePhotoUrl,
     venueName: cleanString(input.venueName ?? "") || undefined,
     venueMapUrl: mapUrlFor(input.venueId),
+    ...(input.leaveByIso ? { leaveByIso: input.leaveByIso } : {}),
+    ...(input.lastTrainDecision ? { lastTrainDecision: input.lastTrainDecision } : {}),
     optimistic: {
       state: hasPhoto ? "uploading" : "pending",
       message: hasPhoto ? "Posting Spill — uploading photo" : "Posting Spill",
@@ -115,6 +122,8 @@ export function buildOptimisticSpillRetryPayload(
     vibeTags: input.vibeTags,
     pintPhotoUrl: input.pintPhotoUrl,
     venuePhotoUrl: input.venuePhotoUrl,
+    ...(input.leaveByIso ? { leaveByIso: input.leaveByIso } : {}),
+    ...(input.lastTrainDecision ? { lastTrainDecision: input.lastTrainDecision } : {}),
   };
 }
 
@@ -218,6 +227,8 @@ export async function buildOptimisticSpillRetryFormData(
   body.set("era", payload.era);
   body.set("visibility", payload.visibility);
   for (const tag of payload.vibeTags) body.append("vibe_tags", tag);
+  if (payload.leaveByIso) body.set("leaveByIso", payload.leaveByIso);
+  if (payload.lastTrainDecision) body.set("lastTrainDecision", payload.lastTrainDecision);
   await appendRetryPhoto(body, "pint_photo", payload.pintPhotoUrl, resolvePhotoPreview);
   await appendRetryPhoto(body, "venue_photo", payload.venuePhotoUrl, resolvePhotoPreview);
   return body;

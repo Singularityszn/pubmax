@@ -33,6 +33,7 @@ import {
 } from "@/lib/spillPreview";
 import { readPintDropDraft, writePintDropDraft } from "@/lib/pintDropDraft";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import type { LastPintDecision } from "@/lib/tfl";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import "./spillComposer.css";
 
@@ -42,6 +43,9 @@ type PintDropComposerProps = {
   /** Optional pub name for the preview card scrim; the composer degrades
    *  gracefully to a generic label when the seam doesn't pass one. */
   venueName?: string;
+  /** Live Last Pint decision from the Getting-home tab (Wave G1). When a
+   *  genuine live kind + leave-by exist, submit stamps them on the Spill. */
+  lastTrainDecision?: LastPintDecision | null;
 };
 
 // Honest, one-line copy per visibility lane (issue #24 / PRD "The Spill").
@@ -94,7 +98,12 @@ function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export default function PintDropComposer({ venueId, state, venueName }: PintDropComposerProps) {
+export default function PintDropComposer({
+  venueId,
+  state,
+  venueName,
+  lastTrainDecision = null,
+}: PintDropComposerProps) {
   const {
     handle,
     setHandle,
@@ -373,7 +382,7 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
   return (
     <form
       className="dropComposer spillComposer"
-      onSubmit={(event) => submitDrop(event, venueId, { venueName })}
+      onSubmit={(event) => submitDrop(event, venueId, { venueName, lastTrainDecision })}
     >
       <div className="spillComposerIntro">
         <span className="spillComposerEyebrow">Drop a pint here</span>

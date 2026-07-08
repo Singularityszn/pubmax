@@ -26,6 +26,7 @@ import {
   type ViewerContext,
   type Visibility,
 } from "@/lib/pintDropShared";
+import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { checkRateLimitDurable, isSupabaseConfigured } from "@/lib/supabase";
 
 // Re-export the browser-safe surface so existing importers (and tests) that pull
@@ -136,6 +137,21 @@ export function validatePintDrop(input: unknown): ValidationResult {
   // carries its lane.
   const visibility = cleanVisibility(raw.visibility);
 
+  // Wave G1: optional Last Train context from compose. Server re-filters to the
+  // same live-kind + leave-by rules as lastTrainComposeFields — never persist a
+  // TfL-down guess or a bare decision without a leave-by clock.
+  const leaveByIsoRaw =
+    typeof raw.leaveByIso === "string" ? raw.leaveByIso.trim() : "";
+  const lastTrainDecisionRaw =
+    typeof raw.lastTrainDecision === "string" ? raw.lastTrainDecision.trim() : "";
+  const leaveByOk =
+    leaveByIsoRaw !== "" && !Number.isNaN(Date.parse(leaveByIsoRaw));
+  const lastTrainOk = isLiveLastTrainDecision(lastTrainDecisionRaw);
+  const lastTrainFields =
+    leaveByOk && lastTrainOk
+      ? { leaveByIso: leaveByIsoRaw, lastTrainDecision: lastTrainDecisionRaw }
+      : {};
+
   return {
     ok: true,
     value: {
@@ -151,6 +167,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
       status: "visible",
       visibility,
       createdAt: new Date().toISOString(),
+      ...lastTrainFields,
     },
   };
 }
