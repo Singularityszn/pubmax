@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import { completedCrawlCount } from "@/lib/crawlCompletion";
+import {
+  completedCrawlCount,
+  crawlQuestChips,
+  type CrawlQuestChip,
+} from "@/lib/crawlCompletion";
 import {
   nextBadgeProgress,
   normalizeHandle,
@@ -22,8 +26,8 @@ import "./nextBadgeChips.css";
 //  • fetch failed → renders nothing (a guess is worse than silence);
 //  • every badge earned → renders nothing (no fake quests).
 // A `handle` prop skips the localStorage read when the parent already knows it.
-// Loop 2: optionally shows a "Crawls walked" count from local crawlCompletion
-// when `showCrawlsWalked` is set (own-device progress only).
+// Loop 2 / Wave G2: optionally shows crawl-walked + Place-story quest chips from
+// local crawlCompletion when `showCrawlsWalked` is set (own-device progress only).
 
 const HANDLE_KEY = "pubmax_handle";
 const MAX_CHIPS = 2;
@@ -37,6 +41,7 @@ export default function NextBadgeChips({
 }): React.JSX.Element | null {
   const [quests, setQuests] = useState<BadgeProgress[]>([]);
   const [crawlsWalked, setCrawlsWalked] = useState(0);
+  const [crawlQuests, setCrawlQuests] = useState<CrawlQuestChip[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -72,7 +77,11 @@ export default function NextBadgeChips({
     let active = true;
     async function loadWalked() {
       const next = completedCrawlCount();
-      if (active) setCrawlsWalked(next);
+      const chips = crawlQuestChips();
+      if (active) {
+        setCrawlsWalked(next);
+        setCrawlQuests(chips);
+      }
     }
     void loadWalked();
     return () => {
@@ -80,7 +89,9 @@ export default function NextBadgeChips({
     };
   }, [showCrawlsWalked]);
 
-  if (quests.length === 0 && !(showCrawlsWalked && crawlsWalked > 0)) return null;
+  const hasWalkedChip =
+    showCrawlsWalked && (crawlsWalked > 0 || crawlQuests.length > 0);
+  if (quests.length === 0 && !hasWalkedChip) return null;
 
   return (
     <div className="questChips" aria-label="Next badge progress">
@@ -93,7 +104,15 @@ export default function NextBadgeChips({
           {quest.label}
         </span>
       ))}
-      {showCrawlsWalked && crawlsWalked > 0 ? (
+      {showCrawlsWalked
+        ? crawlQuests.map((chip) => (
+            <span key={chip.id} className="questChip questChipWalked">
+              <span className="questChipCount">{chip.current}</span>
+              {chip.label}
+            </span>
+          ))
+        : null}
+      {showCrawlsWalked && crawlsWalked > 0 && crawlQuests.length === 0 ? (
         <span className="questChip questChipWalked">
           <span className="questChipCount">{crawlsWalked}</span>
           Crawls walked
