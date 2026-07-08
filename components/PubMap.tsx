@@ -69,8 +69,13 @@ function currentSearch(): string {
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
 // Module-level (pure) so the branch lives off PubMap's complexity budget.
+// `drink=` counts (landing drink-shape taps) but is NOT a planner-open signal.
 function hasCrawlArrivalParams(search: string): boolean {
-  return /[?&](pubs|sel|style|mode|q)=/.test(search);
+  return /[?&](pubs|sel|style|mode|q|drink|cocktails)=/.test(search);
+}
+
+function isDrinkShapeArrival(search: string): boolean {
+  return /[?&]drink=/.test(search) || /[?&]cocktails=1/.test(search);
 }
 
 function isMobileViewport(): boolean {
@@ -80,11 +85,14 @@ function isMobileViewport(): boolean {
 // The planner (left drawer) starts open when a shared/restored crawl means the
 // route would otherwise be invisible on arrival. Pure so its three-way OR lives
 // off PubMap's complexity budget.
+// Drink-shape deep-links stay on the clean map (chips + search) — opening the
+// planner would hide the drink metaphor the visitor just tapped.
 function shouldOpenPlanningInitially(
   seededBuiltIds: string[],
   seededMode: CrawlMode,
   search: string,
 ): boolean {
+  if (isDrinkShapeArrival(search) && seededBuiltIds.length === 0) return false;
   return (
     seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|mode|q)=/.test(search)
   );
@@ -432,6 +440,9 @@ export default function PubMap() {
   const seed = useMemo(() => {
     const search = typeof window === "undefined" ? "" : window.location.search;
     const seeded = seedCrawlState(search);
+    // Landing drink-shape taps should land on a clean filtered map — never
+    // resurrect a previous hand-built crawl from localStorage over the drink.
+    if (isDrinkShapeArrival(search)) return seeded;
     if (seeded.builtIds.length === 0) {
       const stored = readStoredBuiltIds();
       if (stored.length) return { ...seeded, mode: "build" as const, builtIds: stored };
