@@ -52,6 +52,11 @@ function makeAdmin(script: { select: Result[]; insert: Result }) {
 const mockGetSupabaseAdmin = vi.fn();
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => mockGetSupabaseAdmin(),
+  requireSupabaseAdmin: () => {
+    const client = mockGetSupabaseAdmin();
+    if (!client) throw new Error("Supabase not configured.");
+    return client;
+  },
 }));
 
 // Import after the mock is registered.

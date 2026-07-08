@@ -8,18 +8,15 @@
 // Supabase when configured, process-memory otherwise. Reads never 503 — a
 // missing profile is a first-class "null" result, so the page always renders.
 
-import { callerUserId } from "@/lib/authServer";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
-import { decideProfileWrite, shouldLinkUser } from "@/lib/profileOwnership";
+import { gateHandleAction } from "@/lib/profileOwnership";
 import {
-  memoryProfileStore,
-  supabaseProfileStore,
+  profileStore,
   type ProfilePatch,
   type ProfileRecord,
-  type ProfileStore,
 } from "@/lib/profileStore";
-import { memoryFollowStore, supabaseFollowStore, type FollowStore } from "@/lib/followStore";
+import { followStore } from "@/lib/followStore";
 import {
   clientIp,
   hashIp,
@@ -27,15 +24,13 @@ import {
   requiresSupabaseStore,
 } from "@/lib/supabase";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
+import { assertServerEnv } from "@/lib/serverEnv";
+import { jsonNoStore } from "@/lib/apiResponses";
 
-function stores(): { profiles: ProfileStore; follows: FollowStore } {
-  return isSupabaseConfigured()
-    ? { profiles: supabaseProfileStore, follows: supabaseFollowStore }
-    : { profiles: memoryProfileStore, follows: memoryFollowStore };
-}
+assertServerEnv();
 
-function profileStore(): ProfileStore {
-  return isSupabaseConfigured() ? supabaseProfileStore : memoryProfileStore;
+function stores() {
+  return { profiles: profileStore(), follows: followStore() };
 }
 
 // Public projection of a profile row: strips the internal ownership key
@@ -111,7 +106,7 @@ export async function GET(
 ): Promise<Response> {
   const handle = normalizeHandle((await params).handle);
   if (!handle) {
-    return Response.json({ error: "Missing handle." }, { status: 400 });
+    return jsonNoStore({ error: "Missing handle." }, { status: 400 });
   }
 
   const { profiles, follows } = stores();
@@ -127,14 +122,14 @@ export async function GET(
     const viewerFollowing =
       viewer && viewer !== handle ? await follows.isFollowing(viewer, handle) : false;
 
-    return Response.json(
+    return jsonNoStore(
       { profile: toPublicProfile(profile), counts, viewerFollowing },
       { status: 200 },
     );
   } catch {
     // A backend hiccup degrades to the synthesized-profile path on the client —
     // return an empty-but-valid shape rather than an error the page must handle.
-    return Response.json(
+    return jsonNoStore(
       { profile: null, counts: { followers: 0, following: 0 }, viewerFollowing: false },
       { status: 200 },
     );
@@ -168,66 +163,52 @@ export async function PATCH(
 ): Promise<Response> {
   const handle = normalizeHandle((await params).handle);
   if (!handle) {
-    return Response.json({ error: "Missing handle." }, { status: 400 });
+    return jsonNoStore({ error: "Missing handle." }, { status: 400 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
   if (!body || typeof body !== "object") {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   // Rate-limit per handle + hashed IP so a profile can't be edit-spammed.
   const key = `profile-edit:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(handle, key)) {
-    return Response.json({ error: "Too many edits, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many edits, slow down." }, { status: 429 });
   }
 
   const built = buildPatch(body);
   if (!built.ok) {
-    return Response.json({ error: built.error }, { status: 400 });
+    return jsonNoStore({ error: built.error }, { status: 400 });
   }
 
   // In production we require the durable store — silently editing an in-memory
   // row that vanishes on the next cold start would be a lie about persistence.
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return Response.json({ error: "Profile storage is not configured." }, { status: 503 });
+    return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
   }
 
-  // Resolve the caller's verified identity (null when anonymous / bad token).
-  const caller = await callerUserId(request);
+  // OWNERSHIP GATE: linked handle → JWT owner only; unlinked → demo path.
+  const gate = await gateHandleAction(request, handle);
+  if (!gate.allowed) {
+    return jsonNoStore({ error: gate.error }, { status: gate.status });
+  }
 
   try {
     const store = profileStore();
-    // Upsert-then-ownership-check-then-update: ensure a row exists (a handle that
-    // has only claimed, never dropped a pint, has no row yet), so we can read its
-    // current ownership before deciding whether this caller may write.
-    const existing = await store.ensure(handle);
-
-    // OWNERSHIP GATE: a linked handle is owner-only; an unlinked handle stays
-    // editable by anyone (demo path). See lib/profileOwnership.ts.
-    const decision = decideProfileWrite(existing.userId, caller);
-    if (!decision.allowed) {
-      return Response.json(
-        { error: "This handle belongs to a signed-in account. Sign in as its owner to edit it." },
-        { status: decision.status },
-      );
-    }
-
-    // First authenticated touch of a still-unlinked handle claims it (account
-    // migration, story 32) — all its handle-keyed activity comes with it.
-    if (shouldLinkUser(existing.userId, caller)) {
-      await store.linkUser(handle, caller as string);
-    }
-
+    // Ensure a row exists before patching (a handle that has only claimed, never
+    // dropped a pint, may have no row yet). gateHandleAction already linked on
+    // first authenticated touch when needed.
+    await store.ensure(handle);
     const profile = await store.update(handle, built.patch);
-    return Response.json({ profile: toPublicProfile(profile) }, { status: 200 });
+    return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });
   } catch {
-    return Response.json({ error: "Profile storage is unavailable." }, { status: 503 });
+    return jsonNoStore({ error: "Profile storage is unavailable." }, { status: 503 });
   }
 }
 

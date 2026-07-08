@@ -13,12 +13,17 @@
 // knows it can read + (as a member) build the Round; that's the design (see
 // supabase/migrations/0011_rounds.sql). Writes are rate-limited per handle + IP.
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
 import { isValidRoundCode } from "@/lib/rounds";
 import { roundsStore, type RoundWriteError } from "@/lib/roundsStore";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 type Ctx = { params: Promise<{ code: string }> };
 
@@ -34,47 +39,52 @@ function errorResponse(error: RoundWriteError): Response {
     error: { status: 503, message: "Something went wrong. Try again." },
   };
   const { status, message } = map[error];
-  return Response.json({ error: message }, { status });
+  return jsonNoStore({ error: message }, { status });
 }
 
 export async function GET(_request: Request, ctx: Ctx): Promise<Response> {
   const { code } = await ctx.params;
   if (!isValidRoundCode(code)) {
-    return Response.json({ error: "That Round doesn't exist." }, { status: 404 });
+    return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
   }
   const state = await roundsStore().getByCode(code);
-  if (!state) return Response.json({ error: "That Round doesn't exist." }, { status: 404 });
-  return Response.json(state, { status: 200 });
+  if (!state) return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
+  return jsonNoStore(state, { status: 200 });
 }
 
 export async function POST(request: Request, ctx: Ctx): Promise<Response> {
   const { code } = await ctx.params;
   if (!isValidRoundCode(code)) {
-    return Response.json({ error: "That Round doesn't exist." }, { status: 404 });
+    return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const action = readString(body.action);
   const handle = normalizeHandle(readString(body.handle) ?? "");
-  if (!handle) return Response.json({ error: "Add a handle." }, { status: 400 });
+  if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
 
   // One limiter budget per handle+IP across every Round action.
   const key = `round-action:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return Response.json({ error: "Too many updates, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many updates, slow down." }, { status: 429 });
   }
 
   const store = roundsStore();
   switch (action) {
     case "join": {
       const result = await store.join(code, handle);
-      return result.ok ? Response.json(result.state, { status: 200 }) : errorResponse(result.error);
+      return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
     }
     case "addStop": {
       const result = await store.addStop(code, {
@@ -83,13 +93,13 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
         addedByHandle: handle,
         dropRef: body.dropRef,
       });
-      return result.ok ? Response.json(result.state, { status: 200 }) : errorResponse(result.error);
+      return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
     }
     case "close": {
       const result = await store.close(code, handle);
-      return result.ok ? Response.json(result.state, { status: 200 }) : errorResponse(result.error);
+      return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
     }
     default:
-      return Response.json({ error: "Unknown action." }, { status: 400 });
+      return jsonNoStore({ error: "Unknown action." }, { status: 400 });
   }
 }

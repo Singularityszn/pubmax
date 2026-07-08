@@ -17,13 +17,21 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { notificationsStore } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 export async function GET(request: Request): Promise<Response> {
   const handle = normalizeHandle(new URL(request.url).searchParams.get("handle") ?? "");
   // Nothing to key on → an empty (but valid) inbox, so the bell/page still renders.
   if (!handle) return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
   const inbox = await notificationsStore().list(handle);
   return jsonNoStore(inbox, { status: 200 });
 }
@@ -38,6 +46,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const handle = normalizeHandle(readString(body.handle) ?? "");
   if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
 
   // Rate-limit mark-read per handle + hashed IP, like the app's other routes.
   const key = `notif-read:${handle}:${hashIp(clientIp(request))}`;

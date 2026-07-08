@@ -10,6 +10,7 @@
 // or an anonymous story (no author to match) also 403s — you can never edit a
 // story you don't own.
 
+import { jsonNoStore } from "@/lib/apiResponses";
 import {
   deleteCrawlStory,
   getStoryAuthor,
@@ -18,8 +19,12 @@ import {
 } from "@/lib/crawlStoryStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 const MAX_TITLE = 120;
 const MAX_SUMMARY = 280;
@@ -27,7 +32,7 @@ const MAX_SUMMARY = 280;
 // A blank/mismatched handle can never edit — 403 (not 401: there is no auth realm
 // to challenge, this is a self-asserted ownership gate).
 function forbidden(): Response {
-  return Response.json({ error: "You can only edit a crawl you authored." }, { status: 403 });
+  return jsonNoStore({ error: "You can only edit a crawl you authored." }, { status: 403 });
 }
 
 export async function PATCH(
@@ -39,16 +44,22 @@ export async function PATCH(
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ error: "Malformed request body." }, { status: 400 });
+    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
   const handle = normalizeHandle(readString(body.handle) ?? "");
   if (!handle) return forbidden();
 
+  // Linked-handle ownership: a claimed handle cannot be forged via body.handle.
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
+
   // Rate-limit edits per handle + hashed IP so the edit path can't be hammered.
   const key = `crawl-edit:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return Response.json({ error: "Too many edits, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many edits, slow down." }, { status: 429 });
   }
 
   // Author gate — the store re-checks too, but 403 early with a clear message.
@@ -61,9 +72,9 @@ export async function PATCH(
 
   const story = await updateCrawlStory(slug, handle, patch as never);
   if (!story) {
-    return Response.json({ error: "Could not update this crawl." }, { status: 400 });
+    return jsonNoStore({ error: "Could not update this crawl." }, { status: 400 });
   }
-  return Response.json({ story }, { status: 200 });
+  return jsonNoStore({ story }, { status: 200 });
 }
 
 export async function DELETE(
@@ -82,16 +93,21 @@ export async function DELETE(
   );
   if (!handle) return forbidden();
 
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
+
   const key = `crawl-del:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return Response.json({ error: "Too many deletes, slow down." }, { status: 429 });
+    return jsonNoStore({ error: "Too many deletes, slow down." }, { status: 429 });
   }
 
   if (!(await isAuthor(slug, handle))) return forbidden();
 
   const ok = await deleteCrawlStory(slug, handle);
-  if (!ok) return Response.json({ error: "Could not delete this crawl." }, { status: 400 });
-  return Response.json({ ok: true }, { status: 200 });
+  if (!ok) return jsonNoStore({ error: "Could not delete this crawl." }, { status: 400 });
+  return jsonNoStore({ ok: true }, { status: 200 });
 }
 
 // GET-author convenience (used by the story page's owner-aware controls if it ever
@@ -102,5 +118,5 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
   const { slug } = await params;
-  return Response.json({ author: await getStoryAuthor(slug) }, { status: 200 });
+  return jsonNoStore({ author: await getStoryAuthor(slug) }, { status: 200 });
 }

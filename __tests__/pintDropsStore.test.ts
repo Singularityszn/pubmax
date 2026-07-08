@@ -11,12 +11,14 @@ const rpcMock = vi.fn();
 // its own resolved value(s); a from() call returns a fresh object every time so
 // the two inserts of a resilience retry each hit the queued mock in order.
 const insertMock = vi.fn();
+const mockAdmin = () => ({
+  from: () => ({ insert: insertMock }),
+  storage: { from: () => ({ getPublicUrl, remove: removeMock }) },
+  rpc: rpcMock,
+});
 vi.mock("@/lib/supabase", () => ({
-  getSupabaseAdmin: () => ({
-    from: () => ({ insert: insertMock }),
-    storage: { from: () => ({ getPublicUrl, remove: removeMock }) },
-    rpc: rpcMock,
-  }),
+  getSupabaseAdmin: () => mockAdmin(),
+  requireSupabaseAdmin: () => mockAdmin(),
   STORAGE_BUCKET: "pint-drops",
 }));
 

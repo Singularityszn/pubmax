@@ -26,7 +26,7 @@ import {
   type MessageDTO,
 } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 // Hard caps so one busy handle can't return an unbounded payload.
 export const MAX_CONVERSATIONS = 100;
@@ -62,9 +62,7 @@ const MESSAGES = "messages";
 const memoryFallbackWarnings = new Set<string>();
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 function errorMessage(err: unknown): string {

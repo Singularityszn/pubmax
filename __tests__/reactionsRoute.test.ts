@@ -186,14 +186,16 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
     vi.doMock("@/lib/reactionsStore", async () => {
       const actual =
         await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
+      // Mock the factory the route calls — not only the named supabase export
+      // (the actual factory closes over the original binding).
       return {
         ...actual,
-        supabaseReactionsStore: {
-          ...actual.supabaseReactionsStore,
+        reactionsStore: () => ({
           toggle: vi.fn(async (dropId: string) => {
             throw new actual.UnknownDropError(dropId);
           }),
-        },
+          summarize: async () => ({}),
+        }),
       };
     });
     const { POST: PostFresh } = await import("@/app/api/pint-drops/reactions/route");
@@ -214,12 +216,12 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
         await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
       return {
         ...actual,
-        supabaseReactionsStore: {
-          ...actual.supabaseReactionsStore,
+        reactionsStore: () => ({
           toggle: vi.fn(async () => {
             throw new Error("boom");
           }),
-        },
+          summarize: async () => ({}),
+        }),
       };
     });
     const { POST: PostFresh } = await import("@/app/api/pint-drops/reactions/route");
@@ -240,12 +242,12 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
         await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
       return {
         ...actual,
-        supabaseReactionsStore: {
-          ...actual.supabaseReactionsStore,
+        reactionsStore: () => ({
+          toggle: async () => ({ counts: {}, mine: [] }),
           summarize: vi.fn(async () => {
             throw new Error("boom");
           }),
-        },
+        }),
       };
     });
     const { GET: GetFresh } = await import("@/app/api/pint-drops/reactions/route");

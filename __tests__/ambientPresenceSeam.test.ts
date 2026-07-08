@@ -29,9 +29,11 @@ vi.mock("@/lib/supabase", () => {
     order: () => chain,
     limit: () => tail,
   };
+  const admin = () => ({ from: () => chain });
   return {
     isSupabaseConfigured: () => true,
-    getSupabaseAdmin: () => ({ from: () => chain }),
+    getSupabaseAdmin: admin,
+    requireSupabaseAdmin: admin,
   };
 });
 

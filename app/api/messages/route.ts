@@ -19,8 +19,12 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { messagesStore } from "@/lib/messagesStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 // Sends are chattier than pint drops (a conversation is a back-and-forth), so the
 // budget is looser than the default 8/min — 20 sends/min per handle.
@@ -31,6 +35,11 @@ export async function GET(request: Request): Promise<Response> {
   const handle = normalizeHandle(new URL(request.url).searchParams.get("handle") ?? "");
   // Nothing to key on → an empty (but valid) inbox, so the page still renders.
   if (!handle) return jsonNoStore({ conversations: [] }, { status: 200 });
+  // Private inbox: a linked handle requires the matching signed-in owner.
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
   const conversations = await messagesStore().listConversations(handle);
   return jsonNoStore({ conversations }, { status: 200 });
 }
@@ -50,6 +59,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!other) return jsonNoStore({ error: "Add a recipient handle." }, { status: 400 });
   if (handle === other) {
     return jsonNoStore({ error: "You can't message yourself." }, { status: 400 });
+  }
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
 
   const store = messagesStore();

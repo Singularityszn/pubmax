@@ -14,7 +14,7 @@ import {
   supabaseProfileStore,
   type ProfileStore,
 } from "@/lib/profileStore";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 export type FollowCounts = { followers: number; following: number };
 
@@ -38,9 +38,7 @@ export type FollowStore = {
 const TABLE = "follows";
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 // A self-follow is nonsense (and rejected by follows_no_self_chk). Normalise both
@@ -202,6 +200,11 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
 }
 
 export const memoryFollowStore: FollowStore = makeMemoryFollowStore(memoryProfileStore);
+
+/** The single backend selection point (mirrors the other stores). */
+export function followStore(): FollowStore {
+  return isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
+}
 
 /** Test-only: clear the in-memory edge set + handle index between cases. */
 export function __resetMemoryFollows(): void {

@@ -8,6 +8,9 @@ vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: (table: string) => makeQuery(table),
   }),
+  requireSupabaseAdmin: () => ({
+    from: (table: string) => makeQuery(table),
+  }),
   isSupabaseConfigured: () => true,
   requiresSupabaseStore: () => false,
 }));

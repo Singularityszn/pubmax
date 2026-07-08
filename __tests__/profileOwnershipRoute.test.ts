@@ -23,6 +23,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, requiresSupabaseStore: () => prodGuard.requiresSupabase };
 });
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { PATCH } from "@/app/api/profiles/[handle]/route";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";

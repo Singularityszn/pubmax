@@ -18,7 +18,7 @@
 // constants/types from @/lib/reactions instead. (The repo has no `server-only`
 // package installed, so this comment is the guard.)
 
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 // Canonical allowlist + DTO shapes live in the browser-safe module and are
 // re-exported here so server callers (route, tests) keep one import site and the
@@ -50,9 +50,7 @@ export class UnknownDropError extends Error {
 const TABLE = "pint_drop_reactions";
 
 function admin() {
-  const client = getSupabaseAdmin();
-  if (!client) throw new Error("Supabase not configured.");
-  return client;
+  return requireSupabaseAdmin();
 }
 
 function isForeignKeyViolation(error: { code?: string } | null): boolean {
@@ -188,6 +186,11 @@ export const memoryReactionsStore: ReactionsStore = {
     return out;
   },
 };
+
+/** The single backend selection point (mirrors the other stores). */
+export function reactionsStore(): ReactionsStore {
+  return isSupabaseConfigured() ? supabaseReactionsStore : memoryReactionsStore;
+}
 
 /** Test-only: clear the in-memory reaction set between cases. */
 export function __resetMemoryReactions(): void {

@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     requiresSupabaseStore: () => false,
   };
 });
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { POST } from "@/app/api/profiles/[handle]/follow/route";
 import { __resetMemoryFollows } from "@/lib/followStore";

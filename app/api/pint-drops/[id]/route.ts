@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-
+import { jsonNoStore } from "@/lib/apiResponses";
 import { getPintDropById } from "@/lib/pintDropLookup";
 
 // GET /api/pint-drops/[id] — the single public read behind a Pint Drop
@@ -15,7 +14,7 @@ export async function GET(
   const { id } = await params;
   const drop = await getPintDropById(id);
   if (!drop) {
-    return NextResponse.json({ error: "Pint drop not found." }, { status: 404 });
+    return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
   }
-  return NextResponse.json({ drop });
+  return jsonNoStore({ drop });
 }

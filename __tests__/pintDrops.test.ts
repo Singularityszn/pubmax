@@ -4,16 +4,20 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 // (memory store, toDTO, validation) but swap the Supabase store's `create` so
 // Supabase-configured tests never open a network connection. Orphan-cleanup
 // behaviour is pinned where it now lives: pintDropsStore.test.ts.
-const { storeCreate } = vi.hoisted(() => ({
-  storeCreate: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-}));
+
 vi.mock("@/lib/pintDropsStore", async () => {
   const actual = await vi.importActual<typeof import("@/lib/pintDropsStore")>(
     "@/lib/pintDropsStore",
   );
+  // Override create on the Supabase store AND the factory: pintDropsStore() in
+  // the actual module closes over the original supabasePintDropStore binding, so
+  // replacing only the named export would leave the route calling the real create.
+  const supabasePintDropStore = { ...actual.supabasePintDropStore, create: storeCreate };
   return {
     ...actual,
-    supabasePintDropStore: { ...actual.supabasePintDropStore, create: storeCreate },
+    supabasePintDropStore,
+    pintDropsStore: () =>
+      supaGuard.configured ? supabasePintDropStore : actual.memoryPintDropStore,
   };
 });
 
@@ -31,7 +35,8 @@ vi.mock("@/lib/pintDropsStore", async () => {
 //   • getSupabaseAdmin — swappable via adminRef so the supabasePintDropStore
 //     report tests below can script rpc() responses without a network client.
 //     Defaults to null (= unconfigured), matching the real default in tests.
-const { checkRateLimitDurable, supaGuard, adminRef } = vi.hoisted(() => ({
+const { storeCreate, checkRateLimitDurable, supaGuard, adminRef } = vi.hoisted(() => ({
+  storeCreate: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   checkRateLimitDurable: vi.fn<(key: string) => Promise<boolean | null>>(),
   supaGuard: { configured: false, requiresStore: false },
   adminRef: { client: null as unknown },
@@ -44,6 +49,11 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     isSupabaseConfigured: () => supaGuard.configured,
     requiresSupabaseStore: () => supaGuard.requiresStore,
     getSupabaseAdmin: () => adminRef.client,
+    requireSupabaseAdmin: () => {
+      const client = adminRef.client;
+      if (!client) throw new Error("Supabase not configured.");
+      return client;
+    },
   };
 });
 
@@ -57,6 +67,21 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 // requiresSupabaseStore() flag below — so no-op it here for a deterministic import
 // in every environment.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+
+// Ownership gate is covered elsewhere; these route tests focus on storage /
+// rate-limit contracts and use unlinked demo handles. Keep the gate open so a
+// configured-Supabase profile lookup cannot 503/403 the write path under test.
+vi.mock("@/lib/profileOwnership", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/profileOwnership")>();
+  return {
+    ...actual,
+    gateHandleAction: async (_request: Request, handle: string) => ({
+      allowed: true as const,
+      callerUserId: null,
+      handle,
+    }),
+  };
+});
 
 import { GET, POST } from "@/app/api/pint-drops/route";
 import { __resetPintDrops, reportPintDrop, validatePintDrop } from "@/lib/pintDrops";
