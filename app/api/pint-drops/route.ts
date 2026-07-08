@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { isModerator } from "@/lib/adminAuth";
 
 // Single write-path seam for community "Pint Drops".
 //
@@ -10,15 +10,13 @@ import { createHash, timingSafeEqual } from "node:crypto";
 // truth: backend failures return a 503 instead of acknowledging data that
 // would only live in process memory.
 
-import { followStore } from "@/lib/followStore";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveViewerContextFromRequest } from "@/lib/authServer";
 import { log } from "@/lib/log";
 import {
   isLimited,
-  normalizeViewerHandle,
   validatePintDrop,
   type PintDropStatus,
-  type ViewerContext,
 } from "@/lib/pintDrops";
 import {
   pintDropsStore,
@@ -74,26 +72,22 @@ async function withVenueNames<T extends { venueId: string }>(
   }));
 }
 
-// Resolve the requester's self-asserted viewer identity for a friends-gated read
-// (issue #29). Returns undefined for an anonymous/blank viewer (⇒ they see public
-// + anonymous only). Otherwise resolves the handles they follow via the same
-// FollowStore seam the Friends feed lane uses — fail-soft: any follow-graph
-// hiccup degrades to an empty follow set (the viewer still sees public/anonymous
-// + their own drops), never a 500 on the public feed.
-async function resolveViewer(rawHandle: string | null): Promise<ViewerContext | undefined> {
-  const handle = normalizeViewerHandle(rawHandle);
-  if (!handle) return undefined;
+// Resolve the requester's verified viewer identity for friends-gated reads
+// (issue #29). JWT → profiles.user_id → handle is authoritative; ?viewer= is
+// a dev/test fallback only (see resolveViewerContextFromRequest).
+async function resolveViewer(request: Request): Promise<Awaited<ReturnType<typeof resolveViewerContextFromRequest>>> {
+  const params = new URL(request.url).searchParams;
   try {
-    const following = await followStore().listFollowing(handle);
-    return { handle, followingHandles: new Set(following.map(normalizeViewerHandle).filter(Boolean)) };
+    return await resolveViewerContextFromRequest(
+      request,
+      params.get("viewer") ?? params.get("handle"),
+    );
   } catch (err) {
     log("warn", "pint_drops.viewer_follow_lookup_failed", {
       route: "GET /api/pint-drops",
       error: err instanceof Error ? err.message : String(err),
     });
-    // Author-only fallback: the viewer still sees their own drops (canView checks
-    // isAuthor from the handle alone), just none of their friends' friends-drops.
-    return { handle };
+    return undefined;
   }
 }
 
@@ -116,31 +110,6 @@ function notFound(): Response {
 
 function ok(): Response {
   return jsonNoStore({ ok: true }, { status: 200 });
-}
-
-// Constant-time token compare (M2): sha256 both sides so lengths always match,
-// then timingSafeEqual — a plain === leaks match length/prefix via timing.
-function safeTokenEqual(provided: string, expected: string): boolean {
-  const a = createHash("sha256").update(provided).digest();
-  const b = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(a, b);
-}
-
-// Moderator gate. The console passes the token as the `x-admin-token` header
-// ONLY — query-string tokens are not accepted because they leak through
-// browser history, server logs, analytics, and Referer headers. When
-// ADMIN_TOKEN is set, the token must match it. When it is unset we DENY
-// everywhere except local dev (and the test runner) — keying on "not
-// production" would leave e.g. a Vercel preview wide open. The token is
-// compared here and never echoed back to the client.
-function isModerator(request: Request): boolean {
-  const expected = process.env.ADMIN_TOKEN;
-  const provided = request.headers.get("x-admin-token") ?? undefined;
-  if (!expected) {
-    return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
-  }
-  if (!provided) return false;
-  return safeTokenEqual(provided, expected);
 }
 
 function forbidden(): Response {
@@ -337,16 +306,12 @@ export async function GET(request: Request): Promise<Response> {
 
   // Public read: visible drops only, newest-first, hard-capped (MAX_PUBLIC_DROPS),
   // with per-drop VISIBILITY applied server-side (issue #29). The viewer is
-  // whoever the client claims to be — a `viewer`/`handle` query param carrying
-  // their self-asserted handle — plus the handles they follow (their follow
-  // graph), which gates the `friends` lane. Honest-best-effort courtesy curtain,
-  // NOT cryptographic privacy: with self-asserted handles a determined viewer can
-  // claim any handle. Documented here and in lib/pintDrops.ts, same trust posture
-  // as lib/notifications.ts, until auth (#21) hardens the identity.
+  // resolved from a verified JWT when present; ?viewer= is ignored in production.
   const unavailable = productionStorageUnavailable();
   if (unavailable) return unavailable;
   try {
-    const viewer = await resolveViewer(params.get("viewer") ?? params.get("handle"));
+    const viewer = await resolveViewer(request);
+    const params = new URL(request.url).searchParams;
     const drops = await pintDropsStore().listVisible(params.get("venueId") ?? undefined, viewer);
     return jsonNoStore({ drops: await withVenueNames(drops) }, { status: 200 });
   } catch (err) {

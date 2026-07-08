@@ -5,6 +5,8 @@
 import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import {
   cleanListType,
   savedListFollowsStore,
@@ -12,6 +14,8 @@ import {
 } from "@/lib/savedPubsStore";
 import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 function store(): SavedListFollowsStore {
   return savedListFollowsStore();
@@ -76,6 +80,11 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "You can't follow your own list." }, { status: 400 });
   }
 
+  const ownership = await gateHandleAction(request, follower);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
+
   const actorHash = hashIp(clientIp(request));
   if (await isLimited(`list-follow:${follower}`, `list-follow:${follower}:${actorHash}`)) {
     return jsonNoStore({ error: "Too many list follows, slow down." }, { status: 429 });
@@ -89,8 +98,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const s = store();
     const following = unfollow
-      ? !(await s.unfollowList(follower, owner, listType))
-      : await s.followList(follower, owner, listType);
+      ? !(await s.unfollowList(ownership.handle, owner, listType))
+      : await s.followList(ownership.handle, owner, listType);
     const counts = await s.counts(owner, listType);
     return jsonNoStore({ following, counts }, { status: 200 });
   } catch {

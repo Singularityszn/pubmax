@@ -1,5 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+
 import { GET, POST } from "@/app/api/saved-pubs/list-follows/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles } from "@/lib/profileStore";

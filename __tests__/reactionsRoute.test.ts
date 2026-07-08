@@ -17,6 +17,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => supaGuard.configured };
 });
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/pint-drops/reactions/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
