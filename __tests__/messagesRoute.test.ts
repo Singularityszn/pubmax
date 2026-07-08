@@ -9,12 +9,22 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
+const authState = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return {
+    ...actual,
+    callerUserId: async () => authState.userId,
+  };
+});
+
 import { GET as GET_INBOX, POST as POST_INBOX } from "@/app/api/messages/route";
 import {
   GET as GET_THREAD,
   POST as POST_THREAD,
 } from "@/app/api/messages/[id]/route";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
+import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 
 const BASE = "http://localhost/api/messages";
 
@@ -22,11 +32,17 @@ function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");
 }
 
-function getInbox(query?: string): Promise<Response> {
-  return GET_INBOX(new Request(query ? `${BASE}?${query}` : BASE));
+function getInbox(query?: string, headers?: HeadersInit): Promise<Response> {
+  return GET_INBOX(new Request(query ? `${BASE}?${query}` : BASE, { headers }));
 }
-function postInbox(body: unknown): Promise<Response> {
-  return POST_INBOX(new Request(BASE, { method: "POST", body: JSON.stringify(body) }));
+function postInbox(body: unknown, headers?: HeadersInit): Promise<Response> {
+  return POST_INBOX(
+    new Request(BASE, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    }),
+  );
 }
 function getThread(id: string, query?: string): Promise<Response> {
   const url = query ? `${BASE}/${id}?${query}` : `${BASE}/${id}`;
@@ -41,7 +57,9 @@ function postThread(id: string, body: unknown): Promise<Response> {
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  authState.userId = null;
   __resetMemoryMessages();
+  __resetMemoryProfiles();
 });
 
 describe("GET /api/messages — inbox", () => {
@@ -169,5 +187,38 @@ describe("POST /api/messages/[id] — send + report gating", () => {
 
     const stillUnflagged = await (await getThread(secondId, "handle=max")).json();
     expect(stillUnflagged.messages[0].flagged).toBe(false);
+  });
+});
+
+describe("messages auth ownership — linked handle wins over body handle", () => {
+  it("sends as the auth-linked handle, ignoring a spoofed body handle", async () => {
+    await memoryProfileStore.linkUser("ken", "user-ken");
+    authState.userId = "user-ken";
+
+    const res = await postInbox({
+      action: "send",
+      handle: "mallory",
+      other: "sam",
+      body: "from ken",
+    });
+    expect(res.status).toBe(201);
+    const payload = await res.json();
+    expect(payload.message.senderHandle).toBe("ken");
+
+    const inbox = await (await getInbox("handle=ignored")).json();
+    expect(inbox.conversations.length).toBe(1);
+    expect(inbox.conversations[0].otherHandle).toBe("sam");
+  });
+
+  it("keeps the anonymous demo path when auth is absent", async () => {
+    authState.userId = null;
+    const res = await postInbox({
+      action: "send",
+      handle: "demo",
+      other: "sam",
+      body: "anon hi",
+    });
+    expect(res.status).toBe(201);
+    expect((await res.json()).message.senderHandle).toBe("demo");
   });
 });

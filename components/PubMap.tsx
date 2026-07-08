@@ -1,6 +1,6 @@
 "use client";
 
-import { Footprints, MapPinned, Route as RouteIcon, X } from "lucide-react";
+import { Footprints, MapPinned, Route as RouteIcon, TrainFront, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
@@ -23,6 +23,7 @@ import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
+import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 import MapToolbar from "@/components/map/MapToolbar";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
@@ -39,7 +40,13 @@ import { loadSlimVenues } from "@/lib/venuesSlim";
 import { slimVenuesToPins } from "@/lib/slimPins";
 import { buildRouteLegs } from "@/lib/routeLegs";
 import { haversineKm } from "@/lib/haversine";
-import { hasMapLogIntent, resolveMapLogIntent, shouldRunMapLogIntent } from "@/lib/mapLogIntent";
+import {
+  buildLogNearbyCandidates,
+  hasMapLogIntent,
+  resolveMapLogIntent,
+  shouldRunMapLogIntent,
+} from "@/lib/mapLogIntent";
+import prefetchVenue from "@/lib/prefetchVenue";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
@@ -319,6 +326,32 @@ const LOG_INTENT_FALLBACK_ACTIONS_STYLE: CSSProperties = {
   display: "flex",
   gap: "8px",
   flexWrap: "wrap",
+};
+
+const LOG_NEARBY_LIST_STYLE: CSSProperties = {
+  display: "grid",
+  gap: "6px",
+  margin: "10px 0 0",
+  padding: 0,
+  listStyle: "none",
+};
+
+const LOG_NEARBY_BTN_STYLE: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "10px",
+  width: "100%",
+  minHeight: "44px",
+  padding: "8px 12px",
+  border: "1px solid var(--line)",
+  borderRadius: "10px",
+  background: "var(--panel-raised)",
+  color: "var(--ink)",
+  font: "inherit",
+  fontWeight: 700,
+  textAlign: "left",
+  cursor: "pointer",
 };
 
 type VenueDetailStatus = "idle" | "loading" | "ready" | "unavailable";
@@ -668,6 +701,7 @@ export default function PubMap() {
   const selectVenue = useCallback(
     (id: string, initialTab: TabKey = "pints") => {
       if (!id) return;
+      prefetchVenue(id);
       if (isMobileViewport()) setPlanningOpen(false);
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
@@ -676,6 +710,15 @@ export default function PubMap() {
       setSheetDragY(null);
     },
     [closeComposer, setSheetSnap, setSheetDragY],
+  );
+
+  const prefetchVenueDetail = useCallback((id: string) => {
+    prefetchVenue(id);
+  }, []);
+
+  const logNearbyCandidates = useMemo(
+    () => buildLogNearbyCandidates(filteredVenues),
+    [filteredVenues],
   );
 
   const showLoadedRoute = useCallback(
@@ -746,6 +789,15 @@ export default function PubMap() {
     dismissOnboarding();
     setComposerOpen(true);
   }, [dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
+
+  const pickLogNearbyVenue = useCallback(
+    (venueId: string) => {
+      setLogIntentFallbackVisible(false);
+      selectVenue(venueId);
+      openComposerForLog();
+    },
+    [openComposerForLog, selectVenue],
+  );
 
   const handleInspectorTabSelect = useCallback(
     (nextTab: TabKey) => {
@@ -1003,6 +1055,7 @@ export default function PubMap() {
           selectedVenueId={selectedVenueId}
           onVenueClick={handleVenueClick}
           onRouteStopClick={selectVenue}
+          onVenuePrefetch={prefetchVenueDetail}
           venueSignals={venueSignals}
           favoritePint={favoritePint}
           activeBandId={activeBandId}
@@ -1023,10 +1076,28 @@ export default function PubMap() {
             <div>
               <strong>Pick a pub to log a Pint Drop</strong>
               <p className="description" style={{ margin: "6px 0 0", color: "inherit" }}>
-                Search for a pub or tap one on the map, then we&rsquo;ll open the existing Pint
-                Drop composer.
+                Choose a nearby pub, search, or tap one on the map — then we&rsquo;ll open the
+                existing Pint Drop composer.
               </p>
             </div>
+            {logNearbyCandidates.length > 0 ? (
+              <ul style={LOG_NEARBY_LIST_STYLE} aria-label="Nearby pubs to log">
+                {logNearbyCandidates.map((candidate) => (
+                  <li key={candidate.id}>
+                    <button
+                      type="button"
+                      style={LOG_NEARBY_BTN_STYLE}
+                      onClick={() => pickLogNearbyVenue(candidate.id)}
+                      onPointerEnter={() => prefetchVenueDetail(candidate.id)}
+                      onTouchStart={() => prefetchVenueDetail(candidate.id)}
+                    >
+                      <span>{candidate.name}</span>
+                      <span>{candidate.priceLabel}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <div style={LOG_INTENT_FALLBACK_ACTIONS_STYLE}>
               <button type="button" className="addStopBtn" onClick={focusMapSearch}>
                 Search pubs
@@ -1051,6 +1122,14 @@ export default function PubMap() {
             </div>
             <button type="button" onClick={() => setPlanningOpen(true)}>
               Edit
+            </button>
+            <button
+              type="button"
+              onClick={checkLastTrainAtRouteEnd}
+              aria-label="Check last train at final stop"
+              title="Last train"
+            >
+              <TrainFront size={14} aria-hidden="true" />
             </button>
             <button type="button" onClick={hideMappedRoute} aria-label="Hide mapped crawl">
               <X size={14} aria-hidden="true" />
@@ -1278,11 +1357,7 @@ export default function PubMap() {
         </div>
         {detailOpen && selectedVenue ? (
           <>
-            {selectedDetailStatus === "loading" ? (
-              <div style={DETAIL_STATUS_STYLE} role="status">
-                Loading full pub details…
-              </div>
-            ) : null}
+            {selectedDetailStatus === "loading" ? <VenueSheetSkeleton /> : null}
             {selectedDetailStatus === "unavailable" ? (
               <div style={DETAIL_WARNING_STYLE} role="status">
                 Showing fast map details. Full pub notes are unavailable right now.

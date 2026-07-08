@@ -23,11 +23,11 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
 import "./discover.css";
 
-// "Explore by drink" deep-link. The app has no drink-category venue filter yet
-// (feed lanes are latest/for-you/… and the map search doesn't seed from the URL),
-// so each category card links to the map's search param — the closest existing
-// seam — carrying the category label as the query. Honest: it opens the map with
-// that drink named, ready for the drink-filter wiring to consume the param.
+// "Explore by drink" → /map deep-link. decodeCrawl (lib/crawlUrl) maps these:
+//   cocktail → requireCocktails (amenity flag; fully filterable)
+//   wine → soft text query "Wine"
+//   beer / spirits / shot / other → open map with ?drink= only (no fake filters)
+// low-no uses LOW_NO_HREF below (requireNonAlcoholic + mocktail alt).
 function exploreHref(category: DrinkCategory): string {
   const params = new URLSearchParams({ drink: category });
   if (category === "cocktail") params.set("cocktails", "1");

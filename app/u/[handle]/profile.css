@@ -958,6 +958,14 @@
   background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
 }
 
+/* Loop 2: local crawl-completion one-liner under quest chips / passport. */
+.profileCrawlsWalked {
+  margin: 10px 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--brass);
+}
+
 @media (max-width: 560px) {
   .profilePage .passportGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

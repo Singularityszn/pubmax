@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Camera,
   ImagePlus,
@@ -223,20 +224,34 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
     // Async wrapper defers the setState to a microtask after hydration (same
     // idiom as detectSpeech above), so the server render and first client paint
     // agree on "no active Round" and the repo's set-state-in-effect rule is met.
+    // Also re-check on focus / storage so a Round stamped on /rounds/[code]
+    // lights the chip without remounting the composer.
     let active = true;
-    async function detectRound() {
-      let open = false;
+    function readOpen(): boolean {
       try {
-        open = Boolean(window.localStorage.getItem(ACTIVE_ROUND_KEY));
+        return Boolean(window.localStorage.getItem(ACTIVE_ROUND_KEY));
       } catch {
-        // Private-mode / disabled storage — treat as no active Round.
-        open = false;
+        return false;
       }
+    }
+    async function detectRound() {
+      const open = typeof window !== "undefined" ? readOpen() : false;
       if (active) setHasActiveRound(open);
     }
-    if (typeof window !== "undefined") void detectRound();
+    function onFocusOrStorage() {
+      if (active) setHasActiveRound(readOpen());
+    }
+    if (typeof window !== "undefined") {
+      void detectRound();
+      window.addEventListener("focus", onFocusOrStorage);
+      window.addEventListener("storage", onFocusOrStorage);
+    }
     return () => {
       active = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", onFocusOrStorage);
+        window.removeEventListener("storage", onFocusOrStorage);
+      }
     };
   }, []);
 
@@ -828,6 +843,15 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
                 className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
               >
                 {dropMsg.text}
+                {dropMsg.ok && dropMsg.links && dropMsg.links.length > 0 ? (
+                  <span className="composerMsgLinks">
+                    {dropMsg.links.map((link) => (
+                      <Link key={link.href} href={link.href} className="composerMsgLink">
+                        {link.label}
+                      </Link>
+                    ))}
+                  </span>
+                ) : null}
               </span>
             ) : null}
           </div>

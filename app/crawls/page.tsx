@@ -11,6 +11,7 @@ import type { RoundState } from "@/lib/rounds";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
+import { routePacks } from "@/lib/routePacks";
 import SiteNav from "@/components/nav/SiteNav";
 import "./crawls.css";
 
@@ -91,6 +92,29 @@ export default function CrawlsPage() {
             the vibe. Here are a few routes worth the walk, handed down from the old hands who
             drank them first. Pick one, or start your own on the map.
           </p>
+
+          <div className="routePacks" aria-labelledby="routePacksHeading">
+            <p className="crawlEyebrow" id="routePacksHeading">
+              Route packs
+            </p>
+            <ul className="routePackList">
+              {routePacks.map((pack) => {
+                const first = curatedCrawls.find((c) => c.id === pack.crawlIds[0]);
+                const href = first ? curatedCrawlHref(first) : "/map";
+                return (
+                  <li key={pack.id}>
+                    <Link href={href} className="routePackLink" aria-label={`Open ${pack.title} pack`}>
+                      <span className="routePackTitle">{pack.title}</span>
+                      <span className="routePackBlurb">{pack.blurb}</span>
+                      <span className="routePackMeta">
+                        {pack.crawlIds.length} route{pack.crawlIds.length === 1 ? "" : "s"}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
           <ul className="curatedGrid" aria-label="Curated crawls worth walking">
             {curatedCrawls.map((crawl) => {

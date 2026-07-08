@@ -4,18 +4,19 @@
 //   POST { action:"send", handle, other, body }    → { message }   (opens if needed)
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// COURTESY-CURTAIN, NOT PRIVACY. Identity is the self-asserted `handle` (no auth
-// yet — same trust boundary as the rest of the social layer). A read keyed by a
-// self-asserted handle trusts whoever claims it; this is a courtesy curtain, not
-// cryptographic privacy. The store enforces the participant check; the DB denies
-// all anon access (RLS-on / no-policy, migration 0019). Keep content
-// low-sensitivity by design. When Google OAuth lands, gate on auth.uid().
+// IDENTITY. Prefer a verified Supabase Auth JWT when present: if the auth user
+// has a linked profile, that handle is the actor (body handle is not trusted
+// alone). When auth is absent / unconfigured / unlinked, the self-asserted
+// handle still works — dual-backend demo path, same as profiles. The store
+// enforces the participant check; the DB denies all anon access (RLS-on /
+// no-policy, migration 0019). Keep content low-sensitivity by design.
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Reads are fail-soft (the store returns an empty inbox on error) so an outage
 // never 500s the inbox. Sends are rate-limited per handle (~20/min).
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -32,7 +33,8 @@ const SEND_LIMIT = 20;
 const SEND_WINDOW_MS = 60_000;
 
 export async function GET(request: Request): Promise<Response> {
-  const handle = normalizeHandle(new URL(request.url).searchParams.get("handle") ?? "");
+  const asserted = new URL(request.url).searchParams.get("handle") ?? "";
+  const handle = await resolveMessageHandle(request, asserted);
   // Nothing to key on → an empty (but valid) inbox, so the page still renders.
   if (!handle) return jsonNoStore({ conversations: [] }, { status: 200 });
   // Private inbox: a linked handle requires the matching signed-in owner.
@@ -53,7 +55,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const action = readString(body.action);
-  const handle = normalizeHandle(readString(body.handle) ?? "");
+  const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
   const other = normalizeHandle(readString(body.other) ?? "");
   if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
   if (!other) return jsonNoStore({ error: "Add a recipient handle." }, { status: 400 });

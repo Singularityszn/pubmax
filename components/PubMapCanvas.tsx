@@ -49,6 +49,8 @@ type PubMapCanvasProps = {
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
   onRouteStopClick: (id: string) => void;
+  /** Speculative warm of `/api/venue/[id]` on press-start / hover intent. */
+  onVenuePrefetch?: (id: string) => void;
   venueSignals?: Map<string, VenueSignal>;
   /** Canonical beer id (lib/beers). When set, pins re-price to it; non-serving pubs dim. */
   favoritePint?: string | null;
@@ -461,6 +463,7 @@ export default function PubMapCanvas({
   selectedVenueId,
   onVenueClick,
   onRouteStopClick,
+  onVenuePrefetch,
   venueSignals = new Map(),
   favoritePint = null,
   onLandmarkSelect,
@@ -516,6 +519,7 @@ export default function PubMapCanvas({
 
   const onVenueClickRef = useRef(onVenueClick);
   const onRouteStopClickRef = useRef(onRouteStopClick);
+  const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
   const hoverDetailLoadingRef = useRef<Set<string>>(new Set());
   const rememberHoverDetail = useCallback((id: string, venue: Venue | null) => {
@@ -526,8 +530,9 @@ export default function PubMapCanvas({
   useEffect(() => {
     onVenueClickRef.current = onVenueClick;
     onRouteStopClickRef.current = onRouteStopClick;
+    onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
-  }, [onVenueClick, onRouteStopClick, onLandmarkSelect]);
+  }, [onVenueClick, onRouteStopClick, onVenuePrefetch, onLandmarkSelect]);
 
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
@@ -1475,55 +1480,107 @@ export default function PubMapCanvas({
       contextLostTimer = undefined;
     });
 
-    // --- Click + cursor wiring (delegated by layer id; survives setStyle).
-    map.on("click", "pubs-point", (event) => {
+    // --- Click + cursor wiring.
+    // Pub-first hit testing: a single map click queries pubs/route stops before
+    // landmarks/POIs so dense central London taps open a pub sheet, not a
+    // landmark card that happened to sit under the same finger.
+    const PUB_FIRST_LAYERS = [
+      "pubs-point",
+      "route-stops",
+      "clusters",
+      "landmarks-icon",
+      "pois-dot",
+      "pois-transport-major",
+      "pois-transport-minor",
+    ] as const;
+
+    map.on("click", (event) => {
+      const features = map.queryRenderedFeatures(event.point, {
+        layers: PUB_FIRST_LAYERS.filter((id) => Boolean(map.getLayer(id))),
+      });
+      if (!features.length) return;
+
+      const byLayer = new Map<string, (typeof features)[number]>();
+      for (const feature of features) {
+        const layerId = feature.layer?.id;
+        if (typeof layerId === "string" && !byLayer.has(layerId)) {
+          byLayer.set(layerId, feature);
+        }
+      }
+
+      const pubHit = byLayer.get("pubs-point");
+      if (pubHit) {
+        const id = pubHit.properties?.id;
+        if (typeof id !== "string") return;
+        selectLandmark(null);
+        setHoveredVenue(null);
+        setActivePoi(null);
+        onVenueClickRef.current(id);
+        return;
+      }
+
+      const stopHit = byLayer.get("route-stops");
+      if (stopHit) {
+        const id = stopHit.properties?.id;
+        if (typeof id !== "string") return;
+        selectLandmark(null);
+        setActivePoi(null);
+        onRouteStopClickRef.current(id);
+        return;
+      }
+
+      const clusterHit = byLayer.get("clusters");
+      if (clusterHit) {
+        const clusterId = clusterHit.properties?.cluster_id;
+        const source = map.getSource("pubs") as maplibregl.GeoJSONSource;
+        if (clusterId == null || !source) return;
+        source.getClusterExpansionZoom(clusterId).then((zoom) => {
+          const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
+          cinematic({ center: [lng, lat], zoom, duration: 700 });
+        });
+        return;
+      }
+
+      const landmarkHit = byLayer.get("landmarks-icon");
+      if (landmarkHit) {
+        const id = landmarkHit.properties?.id;
+        const landmark = landmarks.find((item) => item.id === id);
+        if (!landmark) return;
+        setActivePoi(null);
+        selectLandmark(landmark);
+        cinematic({
+          center: landmark.coordinates,
+          zoom: Math.max(map.getZoom(), 13),
+          pitch: 55,
+          duration: 1100,
+        });
+        return;
+      }
+
+      for (const layer of ["pois-dot", "pois-transport-major", "pois-transport-minor"] as const) {
+        const poiHit = byLayer.get(layer);
+        if (!poiHit) continue;
+        const name = poiHit.properties?.name;
+        const category = poiHit.properties?.category;
+        if (typeof name !== "string" || typeof category !== "string") return;
+        selectLandmark(null);
+        setActivePoi({ name, category: category as PoiCategory });
+        return;
+      }
+    });
+
+    // Press-start / hover intent warms venue detail so the sheet opens warm.
+    const prefetchFromEvent = (event: {
+      features?: Array<{ properties?: Record<string, unknown> | null }> | undefined;
+    }) => {
       const id = event.features?.[0]?.properties?.id;
       if (typeof id !== "string") return;
-      selectLandmark(null); // the camera leaves the landmark; its card goes too
-      setHoveredVenue(null);
-      onVenueClickRef.current(id);
-    });
-    map.on("click", "route-stops", (event) => {
-      const id = event.features?.[0]?.properties?.id;
-      if (typeof id !== "string") return;
-      selectLandmark(null);
-      onRouteStopClickRef.current(id);
-    });
-    map.on("click", "landmarks-icon", (event) => {
-      const id = event.features?.[0]?.properties?.id;
-      const landmark = landmarks.find((item) => item.id === id);
-      if (!landmark) return;
-      selectLandmark(landmark);
-      cinematic({
-        center: landmark.coordinates,
-        zoom: Math.max(map.getZoom(), 13),
-        pitch: 55,
-        duration: 1100,
-      });
-    });
-    map.on("click", "clusters", (event) => {
-      const feature = event.features?.[0];
-      const clusterId = feature?.properties?.cluster_id;
-      const source = map.getSource("pubs") as maplibregl.GeoJSONSource;
-      if (clusterId == null || !source) return;
-      source.getClusterExpansionZoom(clusterId).then((zoom) => {
-        const [lng, lat] = (feature!.geometry as GeoJSON.Point).coordinates;
-        cinematic({ center: [lng, lat], zoom, duration: 700 });
-      });
-    });
-    // POI tap: a light name/category label (not the sourced-history card that
-    // landmarks get) — POIs orient, pubs are the subject. Wired to the ambient
-    // dots and both transport symbol layers so any station/pier is tappable.
-    const onPoiClick = (event: maplibregl.MapLayerMouseEvent) => {
-      const props = event.features?.[0]?.properties;
-      const name = props?.name;
-      const category = props?.category;
-      if (typeof name !== "string" || typeof category !== "string") return;
-      setActivePoi({ name, category: category as PoiCategory });
+      onVenuePrefetchRef.current?.(id);
     };
-    for (const layer of ["pois-dot", "pois-transport-major", "pois-transport-minor"]) {
-      map.on("click", layer, onPoiClick);
-    }
+    map.on("mouseenter", "pubs-point", prefetchFromEvent);
+    map.on("mousedown", "pubs-point", prefetchFromEvent);
+    map.on("touchstart", "pubs-point", prefetchFromEvent);
+
     const onPubHover = (event: maplibregl.MapLayerMouseEvent) => {
       if (!hoverCapableRef.current) return;
       const props = event.features?.[0]?.properties;

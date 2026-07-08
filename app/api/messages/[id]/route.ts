@@ -7,15 +7,18 @@
 // COURTESY PARTICIPANT CHECK. A read/send is only served when `handle` is a
 // participant of THIS conversation. A non-participant (or unknown conversation)
 // gets a 404 — deliberately indistinguishable from "no such conversation" so the
-// endpoint never confirms a private thread exists to an outsider. Identity is the
-// self-asserted handle (no auth yet), so this is a courtesy curtain, not
-// cryptographic privacy — see app/api/messages/route.ts + migration 0019.
+// endpoint never confirms a private thread exists to an outsider.
+//
+// Identity prefers a verified Supabase Auth JWT (linked profile handle) when
+// present; otherwise the self-asserted handle (anonymous/demo dual-backend).
+// Linked-handle ownership is then enforced via gateHandleAction.
+// See app/api/messages/route.ts + lib/messageAuth.ts + migration 0019.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -30,7 +33,8 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const handle = normalizeHandle(new URL(request.url).searchParams.get("handle") ?? "");
+  const asserted = new URL(request.url).searchParams.get("handle") ?? "";
+  const handle = await resolveMessageHandle(request, asserted);
   if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);
@@ -57,7 +61,7 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   }
 
   const action = readString(body.action);
-  const handle = normalizeHandle(readString(body.handle) ?? "");
+  const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
   if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);

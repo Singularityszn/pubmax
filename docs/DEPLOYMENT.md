@@ -66,6 +66,18 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard â†
 - Mutable social/admin responses use `Cache-Control: no-store` via `jsonNoStore` (`lib/apiResponses.ts`) so private inboxes and ownership-gated writes are never CDN-cached.
 - Hidden Pint Drop photos: DTOs null out URLs today; private/quarantine Storage is the next takedown hardening step (see Storage bucket note above).
 
+## Venue detail artifacts (build-time)
+
+`npm run prebuild` runs `build:slim`, which generates both the browser slim index and the server-only venue detail pack:
+
+| Output | Role |
+|---|---|
+| `public/data/venues_slim.json` | Map pins + filter hints (shipped to clients). |
+| `data/generated/venue_detail_index.json` | Byte-offset manifest for lazy detail reads. |
+| `data/generated/venue_details.jsonl` | Per-venue price rows (not committed â€” large). |
+
+Do not commit the `data/generated/` detail binaries. Vercel/CI regenerates them on every build via `prebuild`. If artifacts are absent locally, `lib/venueDetailIndex.ts` falls back to the raw dataset outside production so `/api/venue/[id]` still works in dev/test.
+
 ## Continuous integration and deployment checks
 
 `vercel.json` sets the build command to the full gate:
