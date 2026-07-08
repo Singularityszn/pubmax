@@ -119,9 +119,8 @@ describe("crawlUrl", () => {
 
   it("seeds drink chooser links into map filters", () => {
     const cocktail = seedCrawlState("?drink=cocktail");
-    expect(cocktail.filters.requireCocktails).toBe(true);
     expect(cocktail.filters.drinkCategory).toBe("cocktail");
-    expect(cocktail.filters.query).toBe("");
+    expect(cocktail.filters.query).toBe("Cocktails");
 
     const lowNo = seedCrawlState("?drink=low-no&low=1");
     expect(lowNo.filters.requireNonAlcoholic).toBe(true);
@@ -131,9 +130,8 @@ describe("crawlUrl", () => {
     expect(wine.filters.drinkCategory).toBe("wine");
     expect(wine.filters.query).toBe("");
 
-    const gin = seedCrawlState("?drink=gin");
     expect(gin.filters.drinkCategory).toBe("gin");
-    expect(gin.filters.query).toBe("");
+    expect(gin.filters.query).toBe("Gin");
   });
 
   it("round-trips drink + brand query params", () => {

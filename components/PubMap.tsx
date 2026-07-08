@@ -1088,6 +1088,8 @@ export default function PubMap() {
           }
           planningOpen={planningOpen}
           onTogglePlanning={() => setPlanningOpen((open) => !open)}
+          filters={filters}
+          onFiltersChange={setFilters}
         />
         {logIntentFallbackVisible ? (
           <div style={LOG_INTENT_FALLBACK_STYLE} role="status" aria-live="polite">

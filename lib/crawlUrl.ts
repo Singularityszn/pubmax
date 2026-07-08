@@ -5,7 +5,7 @@ import {
   normalizeBrandQuery,
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
-import { isDrinkCategory } from "@/lib/drinks";
+import { categoryLabel } from "@/lib/drinks";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -155,6 +155,10 @@ export function decodeCrawl(
     if (drinkCategory) {
       filters.drinkCategory = drinkCategory;
       if (drinkCategory === "cocktail") filters.requireCocktails = true;
+      // Soft text query mirrors landing drink-shape taps when no explicit q=.
+      if (!filters.query) {
+        filters.query = categoryLabel(drinkCategory);
+      }
     }
   }
 

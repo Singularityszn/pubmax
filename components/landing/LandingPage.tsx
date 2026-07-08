@@ -205,61 +205,35 @@ export default function LandingPage() {
       </header>
 
       <main>
-        {/* ── Hero ──────────────────────────────────────────────── */}
-        <section className="hero container" aria-labelledby="hero-title">
-          <div className="heroGrid">
+        {/* ── Hero: brand-first full-bleed photo + drink-shaped pubs ── */}
+        <section className="hero heroPhoto" aria-labelledby="hero-brand">
+          <div className="container heroGrid">
             <div className="heroCopy">
-              <p className="eyebrow">Every pint has a story.</p>
-              <h1 id="hero-title" className="lpSerif">
-                Bring back <em>pub crawling.</em>
+              <h1 id="hero-brand" className="heroBrand lpSerif">
+                PUBMAXXING
               </h1>
               <p className="heroTagline lpSerif">
-                Cheap pints, chaotic nights, and the crawl stories worth passing
-                down.
+                London pubs for every kind of night.
               </p>
               <p className="heroLede">
-                PUBMAXXING maps every real pint price and every pub worth the
-                walk across London — so the night plans itself and the wandering
-                is the point.
+                Real pint prices, drink-shaped pins, and crawls that welcome
+                first-timers and regulars alike — tap a glass to start.
               </p>
               <div className="heroActions">
                 <Link href="/map" className="btn btnPrimary" {...mapWarmProps}>
                   Open the map
                   <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
                 </Link>
-                <Link href="/map?style=heritage" className="btn btnGhost" {...mapWarmProps}>
-                  Start with heritage
-                </Link>
                 <a href="#wedge" className="btn btnGhost">
                   How it works
                 </a>
               </div>
-              <ul className="statChips" aria-label="At a glance">
-                <li className="statChip">
-                  <strong>3,000+</strong>
-                  <span>pint prices mapped</span>
-                </li>
-                <li className="statChip">
-                  <strong>Every borough</strong>
-                  <span>across London</span>
-                </li>
-                <li className="statChip">
-                  <strong>from £1.99</strong>
-                  <span>cheapest observed</span>
-                </li>
-              </ul>
             </div>
-            <figure className="heroFigure textured-panel">
+            <figure className="heroFigure">
               <ThamesHero />
-              <div className="crawlTicket" aria-hidden="true">
-                <span className="ticketLabel">Tonight&apos;s crawl</span>
-                <strong>River four-stop</strong>
-                <span>The Dove -&gt; Mayflower -&gt; Cheshire Cheese</span>
-                <span className="ticketPrice">from £19.30</span>
-              </div>
               <figcaption className="figCaption">
-                A crawl along the river — four pins, four prices, one afternoon.
-                Figures shown are illustrative.
+                Each shape is a drink family — beer, gin, whisky, wine, cocktail,
+                rum. Prices are illustrative; tap to open the live map.
               </figcaption>
             </figure>
           </div>
