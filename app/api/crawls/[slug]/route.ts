@@ -62,15 +62,16 @@ export async function PATCH(
     return jsonNoStore({ error: "Too many edits, slow down." }, { status: 429 });
   }
 
-  // Author gate — the store re-checks too, but 403 early with a clear message.
-  if (!(await isAuthor(slug, handle))) return forbidden();
+  // Author gate — use the normalized handle from gateHandleAction; for linked
+  // authors, isAuthor also verifies the JWT owner matches the profile link.
+  if (!(await isAuthor(slug, ownership.handle, ownership.callerUserId))) return forbidden();
 
   const patch: { title?: string; summary?: string; visibility?: unknown } = {};
   if ("title" in body) patch.title = readString(body.title)?.slice(0, MAX_TITLE) ?? "";
   if ("summary" in body) patch.summary = readString(body.summary)?.slice(0, MAX_SUMMARY) ?? "";
   if ("visibility" in body) patch.visibility = body.visibility;
 
-  const story = await updateCrawlStory(slug, handle, patch as never);
+  const story = await updateCrawlStory(slug, ownership.handle, patch as never, ownership.callerUserId);
   if (!story) {
     return jsonNoStore({ error: "Could not update this crawl." }, { status: 400 });
   }
@@ -103,9 +104,9 @@ export async function DELETE(
     return jsonNoStore({ error: "Too many deletes, slow down." }, { status: 429 });
   }
 
-  if (!(await isAuthor(slug, handle))) return forbidden();
+  if (!(await isAuthor(slug, ownership.handle, ownership.callerUserId))) return forbidden();
 
-  const ok = await deleteCrawlStory(slug, handle);
+  const ok = await deleteCrawlStory(slug, ownership.handle, ownership.callerUserId);
   if (!ok) return jsonNoStore({ error: "Could not delete this crawl." }, { status: 400 });
   return jsonNoStore({ ok: true }, { status: 200 });
 }

@@ -11,7 +11,7 @@ import { isModerator } from "@/lib/adminAuth";
 // would only live in process memory.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { resolveViewerContextFromRequest } from "@/lib/authServer";
+import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
 import {
   isLimited,

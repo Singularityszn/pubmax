@@ -38,11 +38,22 @@ type ModeratorComment = {
   createdAt: string;
 };
 
-const TOKEN_KEY = "pubmax_admin_token";
+const SESSION_FETCH: RequestInit = { credentials: "include" };
 
-function readStoredToken(): string {
-  if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(TOKEN_KEY) ?? "";
+async function establishSession(token: string): Promise<boolean> {
+  if (token) {
+    const res = await fetch("/api/admin/session", {
+      ...SESSION_FETCH,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    return res.ok;
+  }
+  const res = await fetch("/api/admin/session", SESSION_FETCH);
+  if (!res.ok) return false;
+  const body = (await res.json()) as { authenticated?: boolean };
+  return body.authenticated === true;
 }
 
 // venueId → name, resolved from the same app dataset the map groups. Fetched
@@ -55,9 +66,7 @@ async function fetchVenueNames(): Promise<Map<string, string>> {
 }
 
 export default function AdminPage() {
-  // Lazy initialiser reads localStorage on first client render — no effect, so we
-  // don't trip react-hooks/set-state-in-effect.
-  const [token, setToken] = useState(readStoredToken);
+  const [token, setToken] = useState("");
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
   const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
   const [comments, setComments] = useState<ModeratorComment[]>([]);
@@ -66,14 +75,18 @@ export default function AdminPage() {
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const t = token.trim();
-    if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/pint-drops?status=hidden", {
-        headers: { "x-admin-token": t },
-      });
+      const authed = await establishSession(token.trim());
+      if (!authed) {
+        setDrops([]);
+        setComments([]);
+        setMessage("Not authorised — check the admin token.");
+        return;
+      }
+
+      const res = await fetch("/api/pint-drops?status=hidden", SESSION_FETCH);
       if (res.status === 403) {
         setDrops([]);
         setMessage("Not authorised — check the admin token.");
@@ -95,12 +108,10 @@ export default function AdminPage() {
           /* names stay unresolved; rows fall back to the venueId */
         }
       }
-      // Also load the hidden-comment queue (story 37) with the same token, in the
+      // Also load the hidden-comment queue (story 37) with the same session, in the
       // same pass. Best-effort — a comments failure never blocks drop moderation.
       try {
-        const cRes = await fetch("/api/admin/comments?status=hidden", {
-          headers: { "x-admin-token": t },
-        });
+        const cRes = await fetch("/api/admin/comments?status=hidden", SESSION_FETCH);
         if (cRes.ok) {
           const cBody = (await cRes.json()) as { comments: ModeratorComment[] };
           setComments(cBody.comments ?? []);
@@ -119,68 +130,62 @@ export default function AdminPage() {
     }
   }, [token, venueNames.size]);
 
-  const decideComment = useCallback(
-    async (id: string, action: "restore" | "keep_hidden") => {
-      const t = token.trim();
-      setPendingId(id);
-      setMessage(null);
-      try {
-        const res = await fetch("/api/admin/comments", {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-admin-token": t },
-          body: JSON.stringify({ action, id }),
-        });
-        if (res.status === 403) {
-          setMessage("Not authorised — check the admin token.");
-          return;
-        }
-        if (!res.ok) {
-          setMessage("Action failed — try again.");
-          return;
-        }
-        // Decided comments leave the hidden queue either way.
-        setComments((current) => current.filter((c) => c.id !== id));
-        setMessage(action === "restore" ? "Comment restored." : "Comment kept hidden.");
-      } catch {
-        setMessage("Could not reach the server.");
-      } finally {
-        setPendingId(null);
+  const decideComment = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
+    setPendingId(id);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/comments", {
+        ...SESSION_FETCH,
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, id }),
+      });
+      if (res.status === 403) {
+        setMessage("Not authorised — check the admin token.");
+        return;
       }
-    },
-    [token],
-  );
+      if (!res.ok) {
+        setMessage("Action failed — try again.");
+        return;
+      }
+      // Decided comments leave the hidden queue either way.
+      setComments((current) => current.filter((c) => c.id !== id));
+      setMessage(action === "restore" ? "Comment restored." : "Comment kept hidden.");
+    } catch {
+      setMessage("Could not reach the server.");
+    } finally {
+      setPendingId(null);
+    }
+  }, []);
 
-  const decide = useCallback(
-    async (id: string, action: "restore" | "keep_hidden") => {
-      const t = token.trim();
-      setPendingId(id);
-      setMessage(null);
-      try {
-        const res = await fetch("/api/pint-drops", {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-admin-token": t },
-          body: JSON.stringify({ action, id }),
-        });
-        if (res.status === 403) {
-          setMessage("Not authorised — check the admin token.");
-          return;
-        }
-        if (!res.ok) {
-          setMessage("Action failed — try again.");
-          return;
-        }
-        // Decided drops leave the queue either way (restore → visible,
-        // keep_hidden → reviewed), so drop them from the list.
-        setDrops((current) => current.filter((d) => d.id !== id));
-        setMessage(action === "restore" ? "Pint Drop restored." : "Pint Drop kept hidden.");
-      } catch {
-        setMessage("Could not reach the server.");
-      } finally {
-        setPendingId(null);
+  const decide = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
+    setPendingId(id);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/pint-drops", {
+        ...SESSION_FETCH,
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, id }),
+      });
+      if (res.status === 403) {
+        setMessage("Not authorised — check the admin token.");
+        return;
       }
-    },
-    [token],
-  );
+      if (!res.ok) {
+        setMessage("Action failed — try again.");
+        return;
+      }
+      // Decided drops leave the queue either way (restore → visible,
+      // keep_hidden → reviewed), so drop them from the list.
+      setDrops((current) => current.filter((d) => d.id !== id));
+      setMessage(action === "restore" ? "Pint Drop restored." : "Pint Drop kept hidden.");
+    } catch {
+      setMessage("Could not reach the server.");
+    } finally {
+      setPendingId(null);
+    }
+  }, []);
 
   return (
     <main className="admin">

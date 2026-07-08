@@ -243,10 +243,11 @@ export async function filterPubliclyReadableDropIds(ids: readonly string[]): Pro
  * reported, unknown, OR visibility-gated id resolves to null too — the Supabase
  * read is gated on `status = "visible"`, the memory fallback filters
  * visible-only, and per-drop visibility (issue #29) is applied against the
- * self-asserted `viewer`. Anonymous drops resolve with the handle WITHHELD.
+ * self-asserted `viewer` in dev/test only). Anonymous drops resolve with the handle WITHHELD.
  *
- * `viewer` is optional + self-asserted (no auth yet) — friends visibility is a
- * courtesy curtain, not cryptographic privacy, matching lib/notifications.ts.
+ * Prefer {@link resolveViewerContextFromRequest} from lib/pintDropViewer.ts at
+ * API/page seams so friends visibility requires a verified JWT in production;
+ * pass the resulting ViewerContext here.
  */
 export async function getPintDropById(
   id: string,
