@@ -4,10 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import ThemeToggle from "@/components/ThemeToggle";
-import LegacyToggle from "@/components/LegacyToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
-import ViewModeSwitch from "@/components/nav/ViewModeSwitch";
 import SignInButton from "@/components/auth/SignInButton";
 
 import "./siteNav.css";
@@ -17,7 +15,7 @@ import "./siteNav.css";
 // drifts page-to-page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar — Map/Feed/Log/Crawls/Profile). Repeating the full link list up
+// (MobileTabBar — Map/Stories/Drop/Drinks/You). Repeating the full link list up
 // top there caused the old `.appNav` pill to overflow the viewport (Admin +
 // theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
 // bar — just the wordmark + theme toggle + sign-in — and hides the full link
@@ -44,18 +42,20 @@ type NavLink = {
   label: string;
   /** Path prefixes that should mark this link active (defaults to href). */
   match: string[];
+  /** Optional category tint for the active/hover state. */
+  accent?: "beer" | "wine" | "whisky" | "gin" | "vodka" | "rum" | "cocktail" | "shot" | "other";
 };
 
-// The public link set, in display order. Admin is intentionally NOT here — it is
+// The public link set, in display order. The wordmark is already Home, so the
+// route tabs stay focused on actions. Admin is intentionally NOT here — it is
 // appended below only outside production so it never shows in the public nav.
 const LINKS: NavLink[] = [
-  { key: "home", href: "/", label: "Home", match: ["/"] },
-  { key: "map", href: "/map", label: "Map", match: ["/map"] },
-  { key: "feed", href: "/feed", label: "Feed", match: ["/feed"] },
-  { key: "discover", href: "/discover", label: "Discover", match: ["/discover"] },
-  { key: "borough", href: "/borough", label: "Boroughs", match: ["/borough"] },
-  { key: "crawls", href: "/crawls", label: "Crawls", match: ["/crawls"] },
-  { key: "profile", href: "/u/you", label: "Profile", match: ["/u"] },
+  { key: "map", href: "/map", label: "Pub Map", match: ["/map"], accent: "beer" },
+  { key: "feed", href: "/feed", label: "Stories", match: ["/feed"], accent: "cocktail" },
+  { key: "discover", href: "/discover", label: "Drinks", match: ["/discover"], accent: "gin" },
+  { key: "borough", href: "/borough", label: "Areas", match: ["/borough"], accent: "wine" },
+  { key: "crawls", href: "/crawls", label: "Crawls", match: ["/crawls"], accent: "rum" },
+  { key: "profile", href: "/u/you", label: "You", match: ["/u"], accent: "vodka" },
 ];
 
 // Admin is a dev/preview-only convenience link. In production it is hidden from
@@ -105,6 +105,7 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
                 href={link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
+                data-cat={link.accent}
               >
                 {link.label}
               </Link>
@@ -120,11 +121,7 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
         {/* E4: 1:1 messaging inbox link — unread-count badge + link to /messages.
             Same ambient island shape as the bell; shows on mobile too. */}
         <MessagesLink />
-        {/* Lock-In / Ledger mode switch (dual-modes surface). A view layer that
-            composes Legacy Mode + the calm lane — see ViewModeSwitch / lib/viewMode. */}
-        <ViewModeSwitch />
         <ThemeToggle />
-        <LegacyToggle />
         <SignInButton />
       </div>
     </nav>

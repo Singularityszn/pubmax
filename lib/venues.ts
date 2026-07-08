@@ -333,6 +333,8 @@ export function filterVenues(
       !query ||
       venue.name.toLowerCase().includes(query) ||
       venue.address.toLowerCase().includes(query) ||
+      venue.cheapestPint.toLowerCase().includes(query) ||
+      venue.prices.some((price) => price.pint_name.toLowerCase().includes(query)) ||
       venue.primaryBorough.toLowerCase().includes(query) ||
       venue.visibleBoroughs.some((borough) => borough.toLowerCase().includes(query));
 

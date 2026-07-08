@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 // CategoryShowcase — the flagship of the E5 colour system. Two modes off one
 // component:
@@ -30,6 +31,8 @@ export interface CategoryShowcaseProps {
   hrefFor?: (category: DrinkCategory) => string;
   /** Optional sub-label under each category (explore mode), e.g. "Find a pub". */
   cardHint?: string;
+  /** Optional extra cards rendered in the same grid, e.g. Low/No alcohol. */
+  extraItems?: ReactNode;
 }
 
 export function CategoryShowcase({
@@ -38,6 +41,7 @@ export function CategoryShowcase({
   className,
   hrefFor,
   cardHint,
+  extraItems,
 }: CategoryShowcaseProps) {
   const explore = Boolean(hrefFor);
   const size = glyphSize ?? (explore ? 34 : 28);
@@ -97,6 +101,7 @@ export function CategoryShowcase({
             </li>
           );
         })}
+        {extraItems}
       </ul>
     </section>
   );

@@ -124,6 +124,13 @@
   color: var(--ink-soft);
 }
 
+.discoverLowNoBadge {
+  font-family: var(--font-data, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .catShowcase__link:hover {
     transform: translateY(-2px);

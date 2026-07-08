@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, Newspaper, CirclePlus, Route, User } from "lucide-react";
+import { Map, Newspaper, CirclePlus, User, Wine } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import "./mobileNav.css";
 
@@ -31,10 +31,10 @@ type Tab = {
 function buildTabs(profileHref: string): Tab[] {
   return [
     { href: "/map", label: "Map", Icon: Map, match: ["/map"] },
-    { href: "/feed", label: "Feed", Icon: Newspaper, match: ["/feed"] },
-    { href: "/map?log=1", label: "Log", Icon: CirclePlus, primary: true },
-    { href: "/crawls", label: "Crawls", Icon: Route, match: ["/crawls"] },
-    { href: profileHref, label: "Profile", Icon: User, match: ["/u"] },
+    { href: "/feed", label: "Stories", Icon: Newspaper, match: ["/feed"] },
+    { href: "/map?log=1", label: "Drop", Icon: CirclePlus, primary: true },
+    { href: "/discover", label: "Drinks", Icon: Wine, match: ["/discover"] },
+    { href: profileHref, label: "You", Icon: User, match: ["/u"] },
   ];
 }
 

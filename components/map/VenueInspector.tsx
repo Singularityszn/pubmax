@@ -29,18 +29,18 @@ import "./venueSheet.css";
 import "./accessibilityFilters.css";
 
 // Mobile-first tabs regroup the panel's long vertical scroll into thumb-friendly
-// sections (most PUBMAXXERs are on a phone while travelling). Pints is the
+// sections (most PUBMAXXERs are on a phone while travelling). Drops is the
 // primary tab. "getting-home" is a placeholder slot the orchestrator fills with
 // a transport card built by another agent — we only render its mount point here.
 type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-home";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
-  { key: "pints", label: "Pints" },
-  { key: "menu", label: "Menu" },
+  { key: "pints", label: "Drops" },
+  { key: "menu", label: "Drinks" },
   { key: "story", label: "Story" },
   { key: "ask", label: "Ask" },
-  { key: "getting-home", label: "Getting home" },
+  { key: "getting-home", label: "Last train" },
 ];
 
 const DEFAULT_TAB: TabKey = "pints";

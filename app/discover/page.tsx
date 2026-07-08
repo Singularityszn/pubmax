@@ -19,7 +19,7 @@ import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
 import TopRatedPubs from "@/components/ratings/TopRatedPubs";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
-import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
+import type { DrinkCategory } from "@/lib/drinks";
 import "./discover.css";
 
 // "Explore by drink" deep-link. The app has no drink-category venue filter yet
@@ -28,8 +28,12 @@ import "./discover.css";
 // seam — carrying the category label as the query. Honest: it opens the map with
 // that drink named, ready for the drink-filter wiring to consume the param.
 function exploreHref(category: DrinkCategory): string {
-  return `/map?q=${encodeURIComponent(categoryLabel(category))}`;
+  const params = new URLSearchParams({ drink: category });
+  if (category === "cocktail") params.set("cocktails", "1");
+  return `/map?${params.toString()}`;
 }
+
+const LOW_NO_HREF = "/map?drink=low-no&low=1&alt=mocktail";
 
 // Static editorial lanes. Real content, real links into the planner — the copy
 // is nostalgic/cultural but each card is a genuine anchor into /map or /crawls.
@@ -160,28 +164,53 @@ export default function DiscoverPage() {
       <SiteNav active="discover" />
 
       <header className="discoverHead">
-        <p className="discoverEyebrow">Discover</p>
+        <p className="discoverEyebrow">Drinks</p>
         <h1 className="discoverTitle">There is a story behind every pint.</h1>
         <p className="discoverLede">
-          Cheap-pint leaderboards, golden-days routes, and the corners worth
-          walking to. PUBMAXXING is more than a map — it&rsquo;s a way back into
-          London pub culture.
+          Pick your poison, your nectar, or your 0.0. PUBMAXXING follows every
+          kind of round — beer, wine, gin, vodka, rum, cocktails, shots, and the
+          soft drinks that keep the night moving.
         </p>
       </header>
 
       <section className="discoverSection" aria-labelledby="explore-title">
         <h2 id="explore-title" className="discoverSectionTitle">
-          Explore by drink
+          Choose your drink
         </h2>
         <p className="discoverSectionDek">
-          Every drink has a colour. Pick a family and jump to the map with it in
-          hand — beer to the burgundy of a house red.
+          Every drink has a colour. Pick the family you want in hand — a cheap
+          pint, a house red, a gin and tonic, or the low/no option for one more
+          stop before the last train.
         </p>
         <CategoryShowcase
           title=""
           hrefFor={exploreHref}
-          cardHint="Open on the map"
+          cardHint="Choose this"
           className="discoverExplore"
+          extraItems={
+            <li
+              className="catShowcase__item discoverLowNoItem"
+              style={{ ["--cat" as string]: "var(--pint)" } as React.CSSProperties}
+            >
+              <Link
+                className="catShowcase__link discoverLowNoLink"
+                href={LOW_NO_HREF}
+                aria-label="Explore low and no alcohol drinks"
+              >
+                <span
+                  className="catShowcase__swatch discoverLowNoBadge"
+                  style={{ color: "var(--pint)" }}
+                  aria-hidden="true"
+                >
+                  0.0
+                </span>
+                <span className="catShowcase__labelWrap">
+                  <span className="catShowcase__label">Low / No</span>
+                  <span className="catShowcase__hint">Choose this</span>
+                </span>
+              </Link>
+            </li>
+          }
         />
       </section>
 

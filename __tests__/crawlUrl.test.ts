@@ -116,4 +116,32 @@ describe("crawlUrl", () => {
     expect(seeded.mode).toBe("suggest");
     expect(seeded.builtIds).toEqual([]);
   });
+
+  it("seeds drink chooser links into map filters", () => {
+    const cocktail = seedCrawlState("?drink=cocktail");
+    expect(cocktail.filters.requireCocktails).toBe(true);
+
+    const lowNo = seedCrawlState("?drink=low-no&low=1");
+    expect(lowNo.filters.requireNonAlcoholic).toBe(true);
+    expect(lowNo.altStyle).toBe("mocktail");
+
+    const gin = seedCrawlState("?drink=gin");
+    expect(gin.filters.query).toBe("Gin");
+  });
+
+  it("round-trips explicit drink search filters", () => {
+    const encoded = encodeCrawl({
+      ...sample,
+      filters: {
+        ...sample.filters,
+        query: "Lucky Saint",
+        requireNonAlcoholic: true,
+        requireCocktails: true,
+      },
+    });
+    const decoded = seedCrawlState(`?${encoded}`);
+    expect(decoded.filters.query).toBe("Lucky Saint");
+    expect(decoded.filters.requireNonAlcoholic).toBe(true);
+    expect(decoded.filters.requireCocktails).toBe(true);
+  });
 });

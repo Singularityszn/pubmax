@@ -1,5 +1,6 @@
 import type { CrawlStyle, Filters } from "@/lib/venues";
 import { initialFilters, type CrawlMode } from "@/components/map/ControlRail";
+import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -87,6 +88,9 @@ export function encodeCrawl(state: CrawlUrlState): string {
   params.set("win", String(filters.routeWindow));
   // Only the "on" case is encoded — off is the default, so a bare link stays short.
   if (filters.requirePintDrops) params.set("drops", "1");
+  if (filters.requireNonAlcoholic) params.set("low", "1");
+  if (filters.requireCocktails) params.set("cocktails", "1");
+  if (filters.query.trim()) params.set("q", filters.query.trim());
   if (builtIds.length) params.set("pubs", builtIds.join(","));
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
@@ -117,6 +121,18 @@ export function decodeCrawl(
   if (win !== undefined) filters.routeWindow = win;
   // Only "1" turns it on; any other/absent value leaves it at the default (off).
   if (params.get("drops") === "1") filters.requirePintDrops = true;
+  if (params.get("low") === "1") filters.requireNonAlcoholic = true;
+  if (params.get("cocktails") === "1") filters.requireCocktails = true;
+  const q = params.get("q")?.trim();
+  if (q) filters.query = q.slice(0, 80);
+  const drink = params.get("drink")?.trim();
+  if (drink === "low-no") {
+    filters.requireNonAlcoholic = true;
+    out.altStyle = "mocktail";
+  } else if (isDrinkCategory(drink)) {
+    if (drink === "cocktail") filters.requireCocktails = true;
+    if (!filters.query && drink !== "beer") filters.query = categoryLabel(drink);
+  }
   if (Object.keys(filters).length) out.filters = filters;
 
   const pubs = params.get("pubs");
