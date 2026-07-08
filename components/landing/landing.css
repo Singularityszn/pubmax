@@ -323,11 +323,13 @@
 .lp .heroLede {
   max-width: 38ch;
   margin: 0 0 26px;
-  color: color-mix(in srgb, var(--color-on-photo) 88%, var(--paper));
+  color: var(--color-on-photo);
   font-size: clamp(1.02rem, 2.1vw, 1.16rem);
   line-height: 1.55;
   text-wrap: pretty;
-  text-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 40%, transparent);
+  text-shadow:
+    0 1px 2px color-mix(in srgb, var(--ink-deep) 55%, transparent),
+    0 8px 20px color-mix(in srgb, var(--ink-deep) 45%, transparent);
 }
 
 .lp .heroActions {
@@ -338,10 +340,11 @@
 }
 
 .lp .heroPhoto .btnGhost {
-  background: color-mix(in srgb, var(--panel-raised) 22%, transparent);
+  background: color-mix(in srgb, var(--panel-raised) 28%, transparent);
   color: var(--color-on-photo);
-  border-color: color-mix(in srgb, var(--color-on-photo) 42%, transparent);
+  border-color: color-mix(in srgb, var(--color-on-photo) 48%, transparent);
   backdrop-filter: blur(8px);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--ink-deep) 40%, transparent);
 }
 
 .lp .heroPhoto .btnGhost:hover {
@@ -1409,18 +1412,37 @@
   }
 
   .lp .thamesHeroPhoto {
-    min-height: 320px;
-    aspect-ratio: 390 / 360;
+    min-height: 300px;
+    aspect-ratio: 390 / 340;
   }
 
   .lp .thamesHeroPinGlyph {
-    width: 52px;
-    height: 52px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .lp .thamesHeroPinMeta {
+    padding: 4px 7px 5px;
+    max-width: 96px;
+  }
+
+  .lp .thamesHeroPinPlace {
+    font-size: 0.72rem;
+  }
+
+  .lp .thamesHeroPinPrice {
+    font-size: 0.64rem;
   }
 
   .lp .thamesHeroHint {
     font-size: 0.68rem;
     max-width: calc(100% - 28px);
+  }
+
+  /* Hide the two densest pins on narrow phones so shapes stay tappable. */
+  .lp .thamesHeroPin:nth-child(5),
+  .lp .thamesHeroPin:nth-child(6) {
+    display: none;
   }
 
   /* Nav condenses to wordmark + CTA + theme toggle; keep the CTA reachable. */
