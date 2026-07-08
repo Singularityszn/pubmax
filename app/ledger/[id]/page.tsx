@@ -88,6 +88,9 @@ function NotInTheLedger() {
   return (
     <main className="ledgerPage ledgerPage--empty">
       <div className="ledgerEmptyCard">
+        <Link className="ledgerHomeLink" href="/">
+          PUBMAXXING
+        </Link>
         <p className="ledgerEyebrow">The Ledger</p>
         <h1 className="ledgerEmptyTitle">This pub isn&rsquo;t in the ledger</h1>
         <p className="ledgerEmptyBody">
@@ -184,6 +187,9 @@ export default async function LedgerPage({ params }: PageProps) {
   return (
     <main className="ledgerPage">
       <header className="ledgerHead">
+        <Link className="ledgerHomeLink" href="/">
+          PUBMAXXING
+        </Link>
         <p className="ledgerEyebrow">The Ledger</p>
         <h1 className="ledgerTitle">{venue.name}</h1>
         <p className="ledgerAddress">

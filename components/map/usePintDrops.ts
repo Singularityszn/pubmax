@@ -16,6 +16,7 @@ import {
   upsertOptimisticSpill,
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
+import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
 
@@ -167,17 +168,21 @@ export function usePintDrops() {
     if (inputEl) inputEl.value = "";
   }
 
-  function resetComposer() {
-    if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
-    if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
-    setPintPhoto(null);
-    setVenuePhoto(null);
+  const resetComposer = useCallback(() => {
+    setPintPhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
+    setVenuePhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
     setDropForm({ price: "", drink: "", note: "", era: "", withWho: "" });
     setVibeTags([]);
     setVisibility(DEFAULT_VISIBILITY);
     if (pintInputRef.current) pintInputRef.current.value = "";
     if (venueInputRef.current) venueInputRef.current.value = "";
-  }
+  }, []);
 
   // Revoke any live preview URLs when the component unmounts.
   useEffect(() => {
@@ -315,7 +320,6 @@ export function usePintDrops() {
             reconcileOptimisticSpill(current, clientRequestId, reconciledDrop),
           );
         }
-        window.localStorage.setItem("pubmax_handle", handle.trim());
         setDropsByVenueId((current) => {
           const next = new Map(current);
           next.set(venueId, [
@@ -324,6 +328,16 @@ export function usePintDrops() {
           ]);
           return next;
         });
+        clearPintDropDraft(
+          typeof window === "undefined" ? null : window.sessionStorage,
+          venueId,
+        );
+        try {
+          window.localStorage.setItem("pubmax_handle", handle.trim());
+        } catch {
+          // A successful Pint Drop should not become a failed post because
+          // browser storage is blocked/full. The handle can be re-entered later.
+        }
         resetComposer();
         setComposerOpen(false);
         setDropMsg({ ok: true, text: "Cheers — your Pint Drop is live." });
@@ -407,6 +421,7 @@ export function usePintDrops() {
     dropForm,
     setDropForm,
     vibeTags,
+    setVibeTags,
     toggleVibeTag,
     visibility,
     setVisibility,
@@ -416,6 +431,7 @@ export function usePintDrops() {
     venueInputRef,
     pickPhoto,
     removePhoto,
+    resetComposer,
     submitting,
     dropMsg,
     submitDrop,

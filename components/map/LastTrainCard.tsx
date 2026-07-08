@@ -9,9 +9,9 @@
 //
 // React 19 rules: the fetch fires in an effect but setState only ever runs
 // inside the async resolution/catch (never the effect body). AbortController
-// cancels the request on unmount. Provenance-honest: a small "Live from TfL."
-// note, and a warm fallback when TfL can't be reached (we never show a broken
-// or blank card — user story 24).
+// cancels the request on unmount. Provenance-honest: live copy is scoped to
+// live departures only, while the Last Pint decision stays timetable-based; TfL
+// failures get a warm fallback instead of a broken or blank card.
 //
 // Styling: inline style objects, matching the rest of components/map/** (no
 // CSS module/import convention exists in this codebase — see styles below).
@@ -37,19 +37,44 @@ type LastTrainCardProps = {
   onDecision?: (decision: LastPintDecision | null) => void;
 };
 
-type LoadState =
+export type LastTrainCardState =
   | { status: "loading" }
-  | { status: "ready"; data: LastTrainResult }
-  | { status: "empty" };
+  | { status: "ready"; requestKey: string; data: LastTrainResult }
+  | { status: "empty"; requestKey: string };
+
+export function lastTrainRequestKey({
+  lat,
+  lng,
+  venueName,
+}: {
+  lat: number;
+  lng: number;
+  venueName?: string;
+}): string {
+  return `${lat}:${lng}:${venueName ?? ""}`;
+}
+
+export function currentLastTrainState(
+  state: LastTrainCardState,
+  requestKey: string,
+): LastTrainCardState {
+  if (state.status !== "loading" && state.requestKey !== requestKey) {
+    return { status: "loading" };
+  }
+  return state;
+}
 
 // The API always 200s (even on TfL failure) with either a result or an { error }
 // shape; treat anything without a station as "empty" so the card shows the
 // friendly note rather than a half-populated panel.
-function toState(data: Partial<LastTrainResult> & { error?: string }): LoadState {
+function toState(
+  data: Partial<LastTrainResult> & { error?: string },
+  requestKey: string,
+): LastTrainCardState {
   if (data.station && Array.isArray(data.trains)) {
-    return { status: "ready", data: data as LastTrainResult };
+    return { status: "ready", requestKey, data: data as LastTrainResult };
   }
-  return { status: "empty" };
+  return { status: "empty", requestKey };
 }
 
 // Pub-voice copy for each decision state (user story 21) — this is the whole
@@ -72,6 +97,15 @@ const DECISION_COLOUR: Record<LastPintDecisionKind, string> = {
   live_data_unavailable: "var(--ink-soft, #6b726a)",
 };
 
+export function provenanceCopyForDepartures(
+  departures: LastTrainResult["departures"] | undefined,
+): string {
+  const hasLiveDepartures = (departures ?? []).some((d) => d.live);
+  return hasLiveDepartures
+    ? "Live departures from TfL; last train uses the timetable."
+    : "Scheduled times from TfL - not a live feed.";
+}
+
 function formatLeaveBy(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -91,7 +125,9 @@ export default function LastTrainCard({
   onSelectVenue,
   onDecision,
 }: LastTrainCardProps) {
-  const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [state, setState] = useState<LastTrainCardState>({ status: "loading" });
+  const requestKey = lastTrainRequestKey({ lat, lng, venueName });
+  const displayState = currentLastTrainState(state, requestKey);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -101,7 +137,7 @@ export default function LastTrainCard({
     fetch(`/api/last-train?lat=${lat}&lng=${lng}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((data: Partial<LastTrainResult> & { error?: string }) => {
-        setState(toState(data));
+        setState(toState(data, requestKey));
       })
       .catch((err: unknown) => {
         // Abort on unmount is expected — not an error surface. Anything else falls
@@ -109,12 +145,12 @@ export default function LastTrainCard({
         if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
           return;
         }
-        setState({ status: "empty" });
+        setState({ status: "empty", requestKey });
       });
     return () => controller.abort();
-  }, [lat, lng]);
+  }, [lat, lng, venueName, requestKey]);
 
-  const decision = state.status === "ready" ? state.data.decision : undefined;
+  const decision = displayState.status === "ready" ? displayState.data.decision : undefined;
 
   // Publish the resolved decision up to the orchestrator (if it asked). This is
   // a parent callback, not local setState, so it's allowed in an effect — and it
@@ -127,32 +163,32 @@ export default function LastTrainCard({
   }, [decision, onDecision]);
 
   const leaveBy = decision ? formatLeaveBy(decision.leaveByIso) : null;
-  // Provenance honesty (H5): "Live from TfL" may only be claimed when at least
-  // one line's departures are genuinely live Arrivals. A station that resolved
-  // on timetable fallback (or with no live vehicle in service) shows scheduled
-  // times, not live ones — say so rather than over-claiming a live feed.
-  const anyLiveDepartures =
-    state.status === "ready" && (state.data.departures ?? []).some((d) => d.live);
+  // Provenance honesty (H5): the Last Pint decision is timetable-based even when
+  // next departures are live. Scope the live claim to departures only.
+  const provenance =
+    displayState.status === "ready"
+      ? provenanceCopyForDepartures(displayState.data.departures)
+      : null;
 
   return (
     <section aria-label="Last Pint" style={styles.card}>
       <div style={styles.header}>
         <span style={styles.eyebrow}>Last Pint</span>
-        {state.status === "ready" ? (
+        {displayState.status === "ready" ? (
           <span style={styles.station}>
-            {state.data.station.name}
-            {state.data.station.distanceM > 0 ? (
-              <span style={styles.distance}> · ~{state.data.station.distanceM} m away</span>
+            {displayState.data.station.name}
+            {displayState.data.station.distanceM > 0 ? (
+              <span style={styles.distance}> · ~{displayState.data.station.distanceM} m away</span>
             ) : null}
           </span>
         ) : null}
       </div>
 
-      {state.status === "loading" ? (
+      {displayState.status === "loading" ? (
         <p style={styles.note}>Checking trains from near {venueName ?? "here"}…</p>
       ) : null}
 
-      {state.status === "empty" ? (
+      {displayState.status === "empty" ? (
         <p style={styles.note}>Couldn&rsquo;t reach TfL just now — check before you head out.</p>
       ) : null}
 
@@ -170,9 +206,11 @@ export default function LastTrainCard({
         </div>
       ) : null}
 
-      {state.status === "ready" && state.data.departures && state.data.departures.length > 0 ? (
+      {displayState.status === "ready" &&
+      displayState.data.departures &&
+      displayState.data.departures.length > 0 ? (
         <ul style={styles.list}>
-          {state.data.departures.map((line) => (
+          {displayState.data.departures.map((line) => (
             <li key={line.lineId} style={styles.row}>
               <span aria-hidden="true" style={{ ...styles.dot, background: line.colour }} />
               <span style={styles.lineName}>{line.lineName}</span>
@@ -185,9 +223,9 @@ export default function LastTrainCard({
         </ul>
       ) : null}
 
-      {state.status === "ready" && state.data.trains.length > 0 ? (
+      {displayState.status === "ready" && displayState.data.trains.length > 0 ? (
         <ul style={styles.list}>
-          {state.data.trains.map((train) => (
+          {displayState.data.trains.map((train) => (
             <li key={train.lineId} style={styles.row}>
               <span aria-hidden="true" style={{ ...styles.dot, background: train.colour }} />
               <span style={styles.lineName}>Last {train.lineName} line</span>
@@ -200,11 +238,13 @@ export default function LastTrainCard({
         </ul>
       ) : null}
 
-      {state.status === "ready" && state.data.nearestPubs && state.data.nearestPubs.length > 0 ? (
+      {displayState.status === "ready" &&
+      displayState.data.nearestPubs &&
+      displayState.data.nearestPubs.length > 0 ? (
         <div style={styles.pubsBlock}>
           <span style={styles.eyebrow}>One more by the platform</span>
           <ul style={styles.pubList}>
-            {state.data.nearestPubs.map((pub) =>
+            {displayState.data.nearestPubs.map((pub) =>
               onSelectVenue ? (
                 <li key={pub.id}>
                   <button
@@ -231,10 +271,8 @@ export default function LastTrainCard({
         </div>
       ) : null}
 
-      {state.status === "ready" ? (
-        <p style={styles.provenance}>
-          {anyLiveDepartures ? "Live from TfL." : "Scheduled times from TfL — not a live feed."}
-        </p>
+      {displayState.status === "ready" ? (
+        <p style={styles.provenance}>{provenance}</p>
       ) : null}
     </section>
   );

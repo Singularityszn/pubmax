@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import {
@@ -20,6 +20,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import TopRatedPubs from "@/components/ratings/TopRatedPubs";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
 import type { DrinkCategory } from "@/lib/drinks";
+import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
 import "./discover.css";
 
 // "Explore by drink" deep-link. The app has no drink-category venue filter yet
@@ -102,7 +103,9 @@ function pickDrops(raw: unknown): TonightDrop[] {
 
 export default function DiscoverPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle",
+  );
   // "Then vs Now" is best-effort and independent of the leaderboard: it needs
   // BOTH the dataset (for baseline prices + names) and the community drops. If
   // either fetch fails we just leave this empty and show a friendly note — the
@@ -117,46 +120,60 @@ export default function DiscoverPage() {
   // ratings API returns venue ids; names come from the SAME dataset fetch the
   // leaderboard already makes (no second dataset read).
   const [venueNames, setVenueNames] = useState<Record<string, string>>({});
+  const analysisRef = useRef<HTMLElement | null>(null);
 
-  // Fetch the public dataset and rank it. setState only fires in the async
-  // handlers (never the effect body) — React 19 set-state-in-effect is an error.
+  // Defer the 5.9MB public dataset until the data-heavy sections are near the
+  // viewport. The route shell and drink categories can paint without competing
+  // with the dataset download + grouping work on mobile.
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/data/pint_prices_app_dataset.json", { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(async (rows: VenuePrice[]) => {
-        const venues: Venue[] = groupVenuePrices(Array.isArray(rows) ? rows : []);
-        setEntries(cheapestPints(venues, 10));
-        setVenueNames(
-          Object.fromEntries(venues.map((venue) => [venue.id, venue.name])),
-        );
-        setStatus("ready");
-
-        // Best-effort community "now" prices. Wrapped so a failed/aborted drops
-        // fetch never rejects the dataset chain — worst case the section stays
-        // empty and shows its friendly note.
-        try {
-          const res = await fetch("/api/pint-drops", { signal: controller.signal });
-          if (!res.ok) return;
+    const startAnalysis = () => {
+      void runDiscoverAnalysisLoad({
+        signal: controller.signal,
+        setStatus,
+        loadDataset: async () => {
+          const res = await fetch("/data/pint_prices_app_dataset.json", {
+            signal: controller.signal,
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const rows = (await res.json()) as VenuePrice[];
+          return groupVenuePrices(Array.isArray(rows) ? rows : []);
+        },
+        applyDataset: (venues: Venue[]) => {
+          setEntries(cheapestPints(venues, 10));
+          setVenueNames(
+            Object.fromEntries(venues.map((venue) => [venue.id, venue.name])),
+          );
+        },
+        loadDrops: async () => {
+          const res = await fetch("/api/pint-drops", {
+            signal: controller.signal,
+          });
+          if (!res.ok) return [];
           const body = await res.json();
-          const drops = pickDrops(body);
+          return pickDrops(body);
+        },
+        applyDrops: (venues: Venue[], drops: TonightDrop[]) => {
           // Same drops, two computes: the live "tonight" board (last 24h,
           // cheapest-first) and the "then vs now" baseline comparison.
           setTonight(cheapestTonight(drops, { limit: 10 }));
           setThenVsNow(computeThenVsNow(venues, drops, 8));
-        } catch (err) {
-          if ((err as Error).name === "AbortError") return;
-          // Swallow: no community "now" prices → empty section, friendly note.
-        }
-      })
-      .catch((err) => {
-        if ((err as Error).name === "AbortError") return;
-        setStatus("error");
+        },
+        // Community "now" prices are best-effort: a non-abort failure still
+        // leaves the rest of the page ready, with empty sections and friendly copy.
+        onDropsError: () => {},
       });
-    return () => controller.abort();
+    };
+
+    const cancelScheduledLoad = scheduleDiscoverAnalysisLoad({
+      target: analysisRef.current,
+      start: startAnalysis,
+    });
+
+    return () => {
+      cancelScheduledLoad();
+      controller.abort();
+    };
   }, []);
 
   return (
@@ -215,7 +232,11 @@ export default function DiscoverPage() {
         />
       </section>
 
-      <section className="discoverSection" aria-labelledby="tonight-title">
+      <section
+        ref={analysisRef}
+        className="discoverSection"
+        aria-labelledby="tonight-title"
+      >
         <h2 id="tonight-title" className="discoverSectionTitle">
           Cheapest Pints Tonight
         </h2>
@@ -223,7 +244,22 @@ export default function DiscoverPage() {
           Live from the community — the cheapest pints logged in the last 24
           hours, cheapest first. Community-reported, not gospel.
         </p>
-        <TonightBoard entries={tonight} />
+        {status === "idle" ? (
+          <p className="discoverEmpty" role="status">
+            Tonight&rsquo;s prices load as you reach the rankings.
+          </p>
+        ) : status === "loading" ? (
+          <p className="discoverEmpty" role="status">
+            Loading tonight&rsquo;s prices…
+          </p>
+        ) : status === "error" ? (
+          <p className="discoverEmpty" role="status">
+            Couldn&rsquo;t load tonight&rsquo;s prices just now.{" "}
+            <Link href="/map">Open the map</Link> instead.
+          </p>
+        ) : (
+          <TonightBoard entries={tonight} />
+        )}
       </section>
 
       <section className="discoverSection" aria-labelledby="topRated-title">
@@ -234,7 +270,13 @@ export default function DiscoverPage() {
           Ranked by the community&rsquo;s stars over the last thirty days. A pub
           needs ten ratings to make the list — honest scores, no seeded numbers.
         </p>
-        <TopRatedPubs venueNames={venueNames} />
+        {status === "idle" ? (
+          <p className="discoverEmpty" role="status">
+            Community ratings load with the rankings below.
+          </p>
+        ) : (
+          <TopRatedPubs venueNames={venueNames} />
+        )}
       </section>
 
       <section className="discoverSection" aria-labelledby="cheap-title">
@@ -244,7 +286,11 @@ export default function DiscoverPage() {
         <p className="discoverSectionDek">
           The ten cheapest taps on the map right now.
         </p>
-        {status === "loading" ? (
+        {status === "idle" ? (
+          <p className="discoverEmpty" role="status">
+            The cheap pint table loads when you reach the rankings.
+          </p>
+        ) : status === "loading" ? (
           <p className="discoverEmpty" role="status">
             Counting the cheapest pints…
           </p>
@@ -266,7 +312,20 @@ export default function DiscoverPage() {
           Today&rsquo;s community-reported pint against the baseline price on
           record — the biggest movers first. Community numbers, not gospel.
         </p>
-        {thenVsNow.length === 0 ? (
+        {status === "idle" ? (
+          <p className="discoverEmpty" role="status">
+            Price comparisons load when you reach the rankings.
+          </p>
+        ) : status === "loading" ? (
+          <p className="discoverEmpty" role="status">
+            Comparing baseline prices…
+          </p>
+        ) : status === "error" ? (
+          <p className="discoverEmpty" role="status">
+            Couldn&rsquo;t load price comparisons just now.{" "}
+            <Link href="/map">Open the map</Link> instead.
+          </p>
+        ) : thenVsNow.length === 0 ? (
           <p className="discoverEmpty" role="status">
             Not enough community prices yet to compare.{" "}
             <Link href="/map">Log a pint on the map</Link> to help fill this in.

@@ -26,6 +26,26 @@ async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   }, theme);
 }
 
+async function waitForMobileVenueSheet(page: Page): Promise<void> {
+  await page.locator(".mapDrawer.right.open .venueInspector").waitFor({
+    state: "visible",
+    timeout: 10000,
+  });
+  await page.waitForFunction(() => {
+    const drawer = document.querySelector<HTMLElement>(".mapDrawer.right.open");
+    if (!drawer) return false;
+
+    const rect = drawer.getBoundingClientRect();
+    const style = window.getComputedStyle(drawer);
+    return (
+      style.bottom !== "auto" &&
+      rect.left >= -1 &&
+      rect.right <= window.innerWidth + 1 &&
+      rect.width >= window.innerWidth - 2
+    );
+  });
+}
+
 const THEMES: Array<"light" | "dark"> = ["light", "dark"];
 
 for (const theme of THEMES) {
@@ -48,10 +68,7 @@ for (const theme of THEMES) {
       const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
       expect(response?.status()).toBe(200);
       await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
-      await page
-        .locator(".mapDrawer.right")
-        .waitFor({ state: "visible", timeout: 10000 })
-        .catch(() => {});
+      await waitForMobileVenueSheet(page);
       await page.screenshot({ path: `${OUT_DIR}/map-sheet-${theme}.png` });
     });
 

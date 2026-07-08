@@ -25,6 +25,7 @@ import {
   wedgeCategory,
   type WedgeKey,
 } from "@/lib/surfaceAccent";
+import { warmMapIntent } from "@/lib/mapWarmup";
 import "./landing.css";
 
 function PintDropStripLoading() {
@@ -170,6 +171,11 @@ const goldenDays = [
 
 export default function LandingPage() {
   const ref = useReveal();
+  const mapWarmProps = {
+    onPointerEnter: warmMapIntent,
+    onTouchStart: warmMapIntent,
+    onFocus: warmMapIntent,
+  };
 
   return (
     <div className="lp" ref={ref}>
@@ -188,11 +194,10 @@ export default function LandingPage() {
             <a href="#drops">Pint Drops</a>
             <Link href="/feed">Feed</Link>
             <Link href="/crawls">Crawls</Link>
-            <Link href="/admin">Admin</Link>
             <ThemeToggle />
             <LegacyToggle />
             <SignInButton />
-            <Link href="/map" className="btn btnPrimary topbarCta">
+            <Link href="/map" className="btn btnPrimary topbarCta" {...mapWarmProps}>
               Open the map
             </Link>
           </nav>
@@ -218,11 +223,11 @@ export default function LandingPage() {
                 is the point.
               </p>
               <div className="heroActions">
-                <Link href="/map" className="btn btnPrimary">
+                <Link href="/map" className="btn btnPrimary" {...mapWarmProps}>
                   Open the map
                   <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
                 </Link>
-                <Link href="/map?style=heritage" className="btn btnGhost">
+                <Link href="/map?style=heritage" className="btn btnGhost" {...mapWarmProps}>
                   Start with heritage
                 </Link>
                 <a href="#wedge" className="btn btnGhost">
@@ -484,11 +489,11 @@ export default function LandingPage() {
               Open the map, set your price, and let the river do the routing.
               Every pin is a pint worth knowing about.
             </p>
-            <Link href="/map" className="btn btnPrimary">
+            <Link href="/map" className="btn btnPrimary" {...mapWarmProps}>
               Open the map
               <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
             </Link>
-            <Link href="/map?style=heritage" className="btn btnGhost">
+            <Link href="/map?style=heritage" className="btn btnGhost" {...mapWarmProps}>
               Start with heritage
             </Link>
           </div>
@@ -522,7 +527,7 @@ export default function LandingPage() {
           <div className="footerCols">
             <div className="footerCol">
               <h4>Explore</h4>
-              <Link href="/map">
+              <Link href="/map" {...mapWarmProps}>
                 <MapPin
                   size={13}
                   strokeWidth={1.5}
@@ -531,7 +536,6 @@ export default function LandingPage() {
                 />
                 The map
               </Link>
-              <Link href="/admin">Moderation</Link>
               <a href="#wedge">How it works</a>
               <a href="#drops">Pint Drops</a>
             </div>

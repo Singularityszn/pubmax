@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Map, Newspaper, CirclePlus, User, Wine } from "lucide-react";
+import { useCallback } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { warmMapIntent } from "@/lib/mapWarmup";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -24,6 +26,8 @@ type Tab = {
   /** The emphasized centre action. */
   primary?: boolean;
 };
+
+const warmedTabs = new Set<string>();
 
 // The Profile tab's destination is the only auth-aware bit: signed-in users go
 // to /u/<their handle>, everyone else keeps the demo /u/you. `match: ["/u"]`
@@ -50,9 +54,22 @@ function isActive(pathname: string, tab: Tab): boolean {
 
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
+  const router = useRouter();
   // Signed-in → their derived handle; signed-out (or still loading) → demo /you.
   const { handle } = useAuth();
   const tabs = buildTabs(handle ? `/u/${handle}` : "/u/you");
+  const warmTab = useCallback(
+    (href: string) => {
+      const prefetchHref = href.split("?")[0] || href;
+      if (warmedTabs.has(prefetchHref)) return;
+      warmedTabs.add(prefetchHref);
+      router.prefetch(prefetchHref);
+      if (prefetchHref === "/map") warmMapIntent();
+    },
+    [router],
+  );
+
+  if (pathname === "/") return null;
 
   return (
     <nav className="mobileTabBar" role="navigation" aria-label="Primary">
@@ -70,6 +87,10 @@ export default function MobileTabBar() {
                   (active ? " isActive" : "")
                 }
                 aria-current={active ? "page" : undefined}
+                onPointerDown={() => warmTab(tab.href)}
+                onMouseEnter={() => warmTab(tab.href)}
+                onFocus={() => warmTab(tab.href)}
+                onTouchStart={() => warmTab(tab.href)}
               >
                 <span className="mobileTabIcon" aria-hidden="true">
                   <Icon size={tab.primary ? 26 : 22} strokeWidth={1.75} />

@@ -266,6 +266,8 @@ button {
   --map-top-clearance: 92px;
   --map-overlay-top: 108px;
   --mobile-tab-clearance: calc(74px + env(safe-area-inset-bottom, 0px));
+  --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
+  --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
   height: 100vh;
   position: relative;
   overflow: hidden;
@@ -553,6 +555,21 @@ h3 {
   font-weight: 700;
 }
 
+.featuredMapCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  min-height: 28px;
+  margin-top: 2px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
+  color: var(--river);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
 .featuredCount {
   flex: none;
   font-size: 0.74rem;
@@ -677,7 +694,7 @@ input[type="range"] {
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   color: var(--brass);
-  box-shadow: var(--shadow);
+  box-shadow: var(--map-overlay-shadow-tight);
   backdrop-filter: blur(10px);
   font: inherit;
   font-size: 0.72rem;
@@ -710,6 +727,87 @@ input[type="range"] {
   transform: translateY(-8px);
 }
 
+.mappedRouteChip {
+  position: absolute;
+  left: 50%;
+  bottom: 82px;
+  z-index: 540;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 9px 10px 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 94%, transparent), color-mix(in srgb, var(--surface-tint-lager) 62%, transparent)),
+    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  color: var(--ink);
+  box-shadow: var(--map-overlay-shadow);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  transform: translateX(-50%);
+}
+
+.mappedRouteChip > svg {
+  flex: 0 0 auto;
+  color: var(--brass);
+}
+
+.mappedRouteChip div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mappedRouteChip strong,
+.mappedRouteChip span {
+  white-space: nowrap;
+}
+
+.mappedRouteChip strong {
+  font-size: 0.82rem;
+}
+
+.mappedRouteChip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.mappedRouteChip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mappedRouteChip button:first-of-type {
+  padding: 0 11px;
+}
+
+.mappedRouteChip button:last-of-type {
+  width: 32px;
+  padding: 0;
+}
+
+.mappedRouteChip button:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
 /* ── Map-first overlays: floating toolbar + sliding drawers ─────────────────*/
 .mapToolbar {
   position: absolute;
@@ -727,7 +825,7 @@ input[type="range"] {
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 92%, transparent), color-mix(in srgb, var(--surface-tint-river) 70%, transparent)),
     color-mix(in srgb, var(--panel-raised) 88%, transparent);
-  box-shadow: 0 14px 34px rgba(44, 30, 62, 0.13), 0 4px 14px rgba(40, 100, 216, 0.08);
+  box-shadow: var(--map-overlay-shadow);
   backdrop-filter: blur(14px) saturate(1.08);
 }
 
@@ -799,7 +897,7 @@ input[type="range"] {
   overflow-y: auto;
   scrollbar-width: thin;
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform;
+  will-change: auto;
 }
 
 .mapDrawer.left {
@@ -819,6 +917,7 @@ input[type="range"] {
 .mapDrawer.left.open,
 .mapDrawer.right.open {
   transform: translateX(0);
+  will-change: transform;
 }
 
 .mapDrawer[aria-hidden="true"] {
@@ -2793,6 +2892,67 @@ input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 
+.routeMapPrompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--river) 34%, var(--line));
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--river) 8%, var(--panel-raised)), var(--panel-raised)),
+    var(--panel-raised);
+}
+
+.routeMapPrompt.active {
+  border-color: color-mix(in srgb, var(--brass) 48%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel-raised)), var(--panel-raised)),
+    var(--panel-raised);
+}
+
+.routeMapPrompt div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.routeMapPrompt strong {
+  color: var(--ink);
+  font-size: 0.86rem;
+}
+
+.routeMapPrompt span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.routeMapPrompt small {
+  color: var(--river);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.routeMapPrompt button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 /* Per-leg walk/run time + "on the way" POI line, rendered under each stop that
    has a next stop (story 25/26). Honest straight-line label lives in the text
    itself (see lib/routeLegs.formatLeg), not just a tooltip. */
@@ -3608,6 +3768,10 @@ button:disabled {
     transform: translateY(0);
   }
 
+  .appShell.planning-open .mapDrawer.left.open {
+    z-index: 650;
+  }
+
   .plannerMapButton {
     position: sticky;
     top: 0;
@@ -3700,12 +3864,21 @@ button:disabled {
   .appShell {
     --map-mobile-hero-clearance: 154px;
     --map-mobile-legend-clearance: 62px;
+    --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
+    --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
   }
 
   .mapCameraControls {
     top: calc(var(--map-overlay-top) + 4px);
     right: 12px;
     gap: 5px;
+  }
+
+  /* MapLibre's built-in zoom/compass control competes with the bottom tab bar
+     on phones. The app-owned London/Recenter controls remain visible above. */
+  .maplibregl-ctrl-top-right,
+  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group {
+    display: none;
   }
 
   .mapFitLondonBtn,
@@ -3717,8 +3890,17 @@ button:disabled {
   .appShell.detail-open .mapToolbar,
   .appShell.detail-open .mapHeroCard,
   .appShell.detail-open .mapLegend,
+  .appShell.detail-open .mappedRouteChip,
   .appShell.detail-open .poiToggle,
-  .appShell.detail-open .bandPicker {
+  .appShell.detail-open .bandPicker,
+  .appShell.route-mapped .mapHeroCard,
+  .appShell.planning-open .mapToolbar,
+  .appShell.planning-open .mapCameraControls,
+  .appShell.planning-open .mapHeroCard,
+  .appShell.planning-open .mapLegend,
+  .appShell.planning-open .mappedRouteChip,
+  .appShell.planning-open .poiToggle,
+  .appShell.planning-open .bandPicker {
     opacity: 0;
     pointer-events: none;
     transform: translateY(8px);
@@ -3726,6 +3908,14 @@ button:disabled {
 
   .mapLegend {
     bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
+  }
+
+  .mappedRouteChip {
+    left: 10px;
+    right: 10px;
+    bottom: calc(var(--mobile-tab-clearance) + 10px);
+    max-width: none;
+    transform: none;
   }
 
   .poiToggle {
@@ -3756,6 +3946,50 @@ button:disabled {
     bottom: calc(
       var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance) + var(--map-mobile-legend-clearance) + 44px
     );
+  }
+}
+
+@media (max-width: 640px), (hover: none), (pointer: coarse) {
+  .mapFitLondonBtn,
+  .mapRecenterBtn,
+  .mappedRouteChip,
+  .mapToolbar,
+  .mapLoading,
+  .poiToggle,
+  .poiLabelCard,
+  .bandPicker,
+  .mapLegend,
+  .mapHeroCard {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .mapFitLondonBtn,
+  .mapRecenterBtn,
+  .poiToggle,
+  .bandPicker,
+  .mapLegend,
+  .mapHeroCard {
+    background: var(--panel-raised);
+    box-shadow: var(--map-overlay-shadow-tight);
+  }
+
+  .mapToolbar,
+  .mappedRouteChip {
+    background:
+      linear-gradient(135deg, var(--panel-raised), color-mix(in srgb, var(--surface-tint-river) 36%, var(--panel-raised) 64%)),
+      var(--panel-raised);
+    box-shadow: var(--map-overlay-shadow);
+  }
+
+  .mappedRouteChip {
+    border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
+  }
+
+  .mapDrawer.left.open,
+  .mapDrawer.right.open,
+  .mapDrawer.right.sheet-dragging {
+    will-change: transform;
   }
 }
 
@@ -3819,6 +4053,29 @@ button:disabled {
     gap: 8px 12px;
     padding: 8px 10px;
     font-size: 0.74rem;
+  }
+
+  .mappedRouteChip {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .mappedRouteChip strong {
+    font-size: 0.78rem;
+  }
+
+  .mappedRouteChip span {
+    font-size: 0.68rem;
+  }
+
+  .routeMapPrompt {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .routeMapPrompt button {
+    justify-content: center;
+    width: 100%;
   }
 
   /* Route rows: keep the number + text comfortable, no overflow. */
@@ -3971,14 +4228,10 @@ html[data-legacy="1"] *::after {
 }
 
 /* Map mobile nav guard: /map renders the shared SiteNav over a full-bleed map.
-   The bottom tab bar owns primary nav at this width, so the floating top bar is
-   utility-only and must never overflow the 390px demo viewport. Kept global
-   because /map's client chunk can load its component CSS after the layout CSS. */
+   The bottom tab bar owns primary nav at this width, while the compact PX mark
+   remains the landing-page affordance. Keep the utility cluster tight so the
+   390px demo viewport never overflows. */
 @media (max-width: 640px) {
-  .siteNavBarFloating .siteNavBrand {
-    display: none;
-  }
-
   .siteNavBarFloating .siteNavActions {
     gap: 6px;
   }

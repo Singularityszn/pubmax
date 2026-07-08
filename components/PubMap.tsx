@@ -1,6 +1,7 @@
 "use client";
 
-import { MapPinned, X } from "lucide-react";
+import { Footprints, MapPinned, Route as RouteIcon, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -21,7 +22,7 @@ import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import RoutePanel from "@/components/map/RoutePanel";
-import VenueInspector from "@/components/map/VenueInspector";
+import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
 import MapToolbar from "@/components/map/MapToolbar";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
@@ -36,6 +37,9 @@ import {
 import { getSaved } from "@/lib/savedPubs";
 import { loadSlimVenues } from "@/lib/venuesSlim";
 import { slimVenuesToPins } from "@/lib/slimPins";
+import { buildRouteLegs } from "@/lib/routeLegs";
+import { haversineKm } from "@/lib/haversine";
+import { hasMapLogIntent, resolveMapLogIntent, shouldRunMapLogIntent } from "@/lib/mapLogIntent";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -61,10 +65,6 @@ function hasCrawlArrivalParams(search: string): boolean {
   return /[?&](pubs|sel|style|mode|q)=/.test(search);
 }
 
-function hasLogIntent(search: string): boolean {
-  return /[?&]log=1(?:&|$)/.test(search);
-}
-
 function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
 }
@@ -78,7 +78,7 @@ function shouldOpenPlanningInitially(
   search: string,
 ): boolean {
   return (
-    seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|sel|mode|q)=/.test(search)
+    seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|mode|q)=/.test(search)
   );
 }
 
@@ -135,20 +135,32 @@ function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters 
 // Issue #15: the landmark card's two journey actions, hoisted into their own
 // hook so their branches live off PubMap's complexity budget.
 //   • startCrawlFromPubs — drop the nearest pubs into Build mode (shareable via
-//     ?mode=build&pubs=…, reusing the curated-crawl path).
+//     ?mode=build&pubs=…, reusing the curated-crawl path), then leave the route
+//     list visible on mobile.
 //   • askPubmaxxerAtPub — select the nearest story pub so its inspector opens
 //     with the grounded "Ask the PUBMAXXER" panel a tap away. Seeding a question
 //     straight into that panel is invasive (another agent owns VenueInspector),
 //     so selecting the pub is the documented ceiling.
 function useLandmarkJourney(deps: {
   selectVenue: (id: string) => void;
+  showLoadedRoute: (firstStopId: string) => void;
   dismissOnboarding: () => void;
   setMode: (mode: CrawlMode) => void;
   setBuiltIds: (ids: string[]) => void;
+  setRouteMapped: (mapped: boolean) => void;
   setActiveCrawl: (crawl: CuratedCrawl | null) => void;
   setPlanningOpen: (open: boolean) => void;
 }) {
-  const { selectVenue, dismissOnboarding, setMode, setBuiltIds, setActiveCrawl, setPlanningOpen } =
+  const {
+    selectVenue,
+    showLoadedRoute,
+    dismissOnboarding,
+    setMode,
+    setBuiltIds,
+    setRouteMapped,
+    setActiveCrawl,
+    setPlanningOpen,
+  } =
     deps;
   const startCrawlFromPubs = useCallback(
     (ids: string[]) => {
@@ -156,13 +168,20 @@ function useLandmarkJourney(deps: {
       if (stops.length) {
         setMode("build");
         setBuiltIds(stops);
+        setRouteMapped(true);
         setActiveCrawl(null); // a landmark-seeded crawl isn't a curated one
-        setPlanningOpen(true);
-        selectVenue(stops[0]);
+        showLoadedRoute(stops[0]);
         dismissOnboarding();
       }
     },
-    [selectVenue, dismissOnboarding, setMode, setBuiltIds, setActiveCrawl, setPlanningOpen],
+    [
+      dismissOnboarding,
+      setMode,
+      setBuiltIds,
+      setRouteMapped,
+      setActiveCrawl,
+      showLoadedRoute,
+    ],
   );
   const askPubmaxxerAtPub = useCallback(
     (venueId: string) => {
@@ -175,44 +194,70 @@ function useLandmarkJourney(deps: {
 }
 
 function useLogIntent(deps: {
-  filteredVenueCount: number;
+  hasLogIntent: boolean;
+  loaded: boolean;
   firstFilteredVenueId: string;
   firstRouteId: string;
   selectedVenueId: string;
+  selectedVenueResolvable: boolean;
   selectVenue: (id: string) => void;
   openComposerForLog: () => void;
+  setFallbackVisible: (visible: boolean) => void;
 }) {
   const {
-    filteredVenueCount,
+    hasLogIntent,
+    loaded,
     firstFilteredVenueId,
     firstRouteId,
     selectedVenueId,
+    selectedVenueResolvable,
     selectVenue,
     openComposerForLog,
+    setFallbackVisible,
   } = deps;
   const handled = useRef(false);
 
   useEffect(() => {
-    if (handled.current || !hasLogIntent(currentSearch()) || filteredVenueCount === 0) return;
-    const id = selectedVenueId || firstRouteId || firstFilteredVenueId;
-    if (!id) return;
+    if (!hasLogIntent) {
+      handled.current = false;
+      setFallbackVisible(false);
+      return;
+    }
+    if (!shouldRunMapLogIntent({ hasLogIntent, handled: handled.current })) return;
+    const resolution = resolveMapLogIntent({
+      hasLogIntent,
+      loaded,
+      selectedVenueId,
+      selectedVenueResolvable,
+      firstRouteId,
+      firstFilteredVenueId,
+    });
+    if (resolution.status === "inactive" || resolution.status === "pending") return;
+    if (resolution.status === "fallback") {
+      setFallbackVisible(true);
+      return;
+    }
     handled.current = true;
+    setFallbackVisible(false);
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
-      selectVenue(id);
+      selectVenue(resolution.venueId);
       openComposerForLog();
     });
     return () => {
       active = false;
     };
   }, [
-    filteredVenueCount,
+    hasLogIntent,
+    loaded,
     firstFilteredVenueId,
     firstRouteId,
     openComposerForLog,
     selectVenue,
     selectedVenueId,
+    selectedVenueResolvable,
+    setFallbackVisible,
   ]);
 }
 
@@ -232,6 +277,7 @@ function readStoredBuiltIds(): string[] {
 // same visit doesn't re-nag, but a fresh session gets the offer again. sessionStorage
 // (not localStorage) keeps it a gentle, per-visit prompt.
 const ONBOARDING_DISMISSED_KEY = "pubmax_onboarding_dismissed";
+const EMPTY_ROUTE: Venue[] = [];
 
 const DETAIL_STATUS_STYLE: CSSProperties = {
   margin: "0 18px 10px",
@@ -250,10 +296,38 @@ const DETAIL_WARNING_STYLE: CSSProperties = {
   background: "rgba(209, 99, 83, 0.12)",
 };
 
+const LOG_INTENT_FALLBACK_STYLE: CSSProperties = {
+  position: "absolute",
+  left: "max(16px, env(safe-area-inset-left))",
+  right: "max(16px, env(safe-area-inset-right))",
+  bottom: "calc(88px + env(safe-area-inset-bottom))",
+  zIndex: 545,
+  display: "grid",
+  gap: "10px",
+  maxWidth: "440px",
+  padding: "14px",
+  border: "1px solid rgba(211, 164, 74, 0.38)",
+  borderRadius: "8px",
+  background: "rgba(36, 27, 20, 0.94)",
+  boxShadow: "0 18px 50px rgba(0, 0, 0, 0.28)",
+  color: "var(--paper)",
+};
+
+const LOG_INTENT_FALLBACK_ACTIONS_STYLE: CSSProperties = {
+  display: "flex",
+  gap: "8px",
+  flexWrap: "wrap",
+};
+
 type VenueDetailStatus = "idle" | "loading" | "ready" | "unavailable";
 
 type VenueDetailResponse = {
   venue?: Venue;
+};
+
+type UserLocation = {
+  lat: number;
+  lng: number;
 };
 
 function detailStatusFor(
@@ -312,6 +386,7 @@ function readOnboardingDismissed(): boolean {
 }
 
 export default function PubMap() {
+  const searchParams = useSearchParams();
   // Seed the crawl from the shareable URL (falls back to defaults / honors
   // ?style=heritage from the landing page). Lazy init keeps this off effects.
   // If the URL carries no hand-built crawl but localStorage does, seed from it —
@@ -330,7 +405,7 @@ export default function PubMap() {
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
   // If any of these are present, the arrival is intentional and we never onboard.
   const arrivedWithCrawlParams = useMemo(
-    () => hasCrawlArrivalParams(currentSearch()) || hasLogIntent(currentSearch()),
+    () => hasCrawlArrivalParams(currentSearch()) || hasMapLogIntent(currentSearch()),
     [],
   );
   // `loaded` means the slim map index has settled. The full price dataset is no
@@ -347,6 +422,7 @@ export default function PubMap() {
     () => new Map(),
   );
   const [selectedVenueId, setSelectedVenueId] = useState<string>(seed.selectedVenueId);
+  const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("pints");
   const [filters, setFilters] = useState<Filters>(seed.filters);
   const [mode, setMode] = useState<CrawlMode>(seed.mode);
   const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
@@ -360,6 +436,10 @@ export default function PubMap() {
   const [planningOpen, setPlanningOpen] = useState<boolean>(() =>
     shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch()),
   );
+  // Explicit route mapping: a suggested crawl can exist without drawing on the
+  // clean first map. Once the user chooses "Map route" (or a curated/nearby
+  // crawl), keep the line visible even if the mobile planner closes.
+  const [routeMapped, setRouteMapped] = useState<boolean>(seed.builtIds.length >= 2);
   // Favorite pint: re-prices the map to one beer. Persisted per-device; the
   // guard mirrors readStoredBuiltIds so SSR and hydration read the same source.
   const [favoritePint, setFavoritePintState] = useState<string | null>(() =>
@@ -376,6 +456,7 @@ export default function PubMap() {
   );
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   // The curated crawl whose blurb is shown under the route title. Cleared the
   // moment the user manually mutates the stops (add/remove/reverse/clear).
   const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(null);
@@ -386,6 +467,7 @@ export default function PubMap() {
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
+  const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   const pintDrops = usePintDrops();
@@ -531,11 +613,26 @@ export default function PubMap() {
     [builtIds, venueById],
   );
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
+  const routeMappedActive = routeMapped && route.length >= 2;
+  const routeForMap = useMemo(
+    () => (routeMappedActive ? route : EMPTY_ROUTE),
+    [routeMappedActive, route],
+  );
+  const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
+  const distanceFromUserKm = useMemo(() => {
+    const firstStop = route[0];
+    if (!firstStop || !userLocation) return null;
+    return haversineKm(
+      [userLocation.lng, userLocation.lat],
+      [firstStop.longitude, firstStop.latitude],
+    );
+  }, [route, userLocation]);
 
   const selectedVenue = useMemo(
     () => (selectedVenueId ? venueById.get(selectedVenueId) : route[0]),
     [route, selectedVenueId, venueById],
   );
+  const selectedVenueResolvable = selectedVenueId ? venueById.has(selectedVenueId) : false;
   const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
 
   // Keep the URL in sync so "Copy link" shares the current crawl.
@@ -568,15 +665,32 @@ export default function PubMap() {
   }, [builtIds]);
 
   const selectVenue = useCallback(
-    (id: string) => {
+    (id: string, initialTab: TabKey = "pints") => {
       if (!id) return;
       if (isMobileViewport()) setPlanningOpen(false);
+      setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
       closeComposer();
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
     },
     [closeComposer, setSheetSnap, setSheetDragY],
+  );
+
+  const showLoadedRoute = useCallback(
+    (firstStopId: string) => {
+      setPlanningOpen(true);
+      if (isMobileViewport()) {
+        setSelectedVenueId("");
+        setVenueInitialTab("pints");
+        closeComposer();
+        setSheetSnap("half");
+        setSheetDragY(null);
+        return;
+      }
+      selectVenue(firstStopId);
+    },
+    [closeComposer, selectVenue, setSheetDragY, setSheetSnap],
   );
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
@@ -611,6 +725,20 @@ export default function PubMap() {
   const filteredVenueCount = filteredVenues.length;
   const firstRouteId = route[0]?.id ?? "";
   const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
+  const hasReactiveLogIntent = hasMapLogIntent(searchParams);
+
+  const focusMapSearch = useCallback(() => {
+    const search = document.getElementById("mapSearchInput") as HTMLInputElement | null;
+    if (search) search.focus();
+  }, []);
+
+  const resetLogIntentFilters = useCallback(() => {
+    setSavedOnly(false);
+    setSavedIds(readSavedVenueIds());
+    setFilters(seedCrawlState("").filters);
+    setPlanningOpen(false);
+    focusMapSearch();
+  }, [focusMapSearch]);
 
   const openComposerForLog = useCallback(() => {
     setPlanningOpen(false);
@@ -624,12 +752,15 @@ export default function PubMap() {
   // fast venue list exists, turn that intent into the existing single composer
   // path: pick the best visible pub, open its sheet, and open the composer.
   useLogIntent({
-    filteredVenueCount,
+    hasLogIntent: hasReactiveLogIntent,
+    loaded,
     firstFilteredVenueId,
     firstRouteId,
     selectedVenueId,
+    selectedVenueResolvable,
     selectVenue,
     openComposerForLog,
+    setFallbackVisible: setLogIntentFallbackVisible,
   });
 
   // Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
@@ -670,6 +801,7 @@ export default function PubMap() {
     setBuiltIds((current) =>
       current.includes(id) ? current.filter((existing) => existing !== id) : [...current, id],
     );
+    setRouteMapped(true);
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
   }, []);
 
@@ -677,11 +809,13 @@ export default function PubMap() {
   // setState is fine; URL-sync picks up the new builtIds order automatically.
   const reverseRoute = useCallback(() => {
     setBuiltIds((current) => [...current].reverse());
+    setRouteMapped(true);
     setActiveCrawl(null);
   }, []);
 
   const clearBuilt = useCallback(() => {
     setBuiltIds([]);
+    setRouteMapped(false);
     setActiveCrawl(null);
     // Explicit Clear also drops the refresh-safety net.
     if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
@@ -703,14 +837,14 @@ export default function PubMap() {
     (crawl: CuratedCrawl) => {
       setMode("build");
       setBuiltIds(crawl.venueIds);
+      setRouteMapped(true);
       setFilters((current) => filtersForCuratedCrawl(current, crawl));
       setAltStyle(crawl.altStyle ?? "pint"); // "kind of night" label for copy
       setActiveCrawl(crawl); // its blurb shows under the route title until mutated
-      setPlanningOpen(true); // a loaded crawl needs the planner visible
-      selectVenue(crawl.venueIds[0] ?? "");
+      showLoadedRoute(crawl.venueIds[0] ?? "");
       dismissOnboarding(); // picking a crawl from the overlay closes + remembers it
     },
-    [selectVenue, dismissOnboarding],
+    [dismissOnboarding, showLoadedRoute],
   );
 
   // Issue #15: "Start a crawl here" from a landmark card. The canvas hands us the
@@ -720,9 +854,11 @@ export default function PubMap() {
   // Issue #15 landmark → journey actions (see useLandmarkJourney above).
   const { startCrawlFromPubs, askPubmaxxerAtPub } = useLandmarkJourney({
     selectVenue,
+    showLoadedRoute,
     dismissOnboarding,
     setMode,
     setBuiltIds,
+    setRouteMapped,
     setActiveCrawl,
     setPlanningOpen,
   });
@@ -740,6 +876,7 @@ export default function PubMap() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setNearbyLoading(false);
+        setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
         const ids = nearestVenueIds(
           position.coords.latitude,
           position.coords.longitude,
@@ -752,16 +889,34 @@ export default function PubMap() {
         }
         setMode("build");
         setBuiltIds(ids);
+        setRouteMapped(true);
         setActiveCrawl(null); // a near-me crawl isn't a curated one
-        setPlanningOpen(true);
-        selectVenue(ids[0]);
+        showLoadedRoute(ids[0]);
       },
       () => {
         setNearbyLoading(false);
         setNearbyError("Couldn't get your location. Grant access and try again.");
       },
     );
-  }, [filteredVenues, filters.stopCount, selectVenue]);
+  }, [filteredVenues, filters.stopCount, showLoadedRoute]);
+
+  const mapCurrentRoute = useCallback(() => {
+    if (route.length < 2) return;
+    setRouteMapped(true);
+    dismissOnboarding();
+    if (isMobileViewport()) setPlanningOpen(false);
+  }, [route.length, dismissOnboarding]);
+
+  const hideMappedRoute = useCallback(() => {
+    setRouteMapped(false);
+  }, []);
+
+  const checkLastTrainAtRouteEnd = useCallback(() => {
+    const finalStop = route[route.length - 1];
+    if (!finalStop) return;
+    setPlanningOpen(false);
+    selectVenue(finalStop.id, "getting-home");
+  }, [route, selectVenue]);
 
   const detailOpen = Boolean(selectedVenueId && selectedVenue);
 
@@ -791,8 +946,10 @@ export default function PubMap() {
         // way while the mobile sheet is at its most-expanded snap, per the
         // thumb-reach control pass (GH #17 user story 17).
         "appShell dark" +
+        (planningOpen ? " planning-open" : "") +
         (detailOpen ? " detail-open" : "") +
         (detailOpen && sheetSnap === "full" ? " sheet-full" : "") +
+        (routeMappedActive ? " route-mapped" : "") +
         (showOnboarding ? " onboarding-open" : "")
       }
     >
@@ -832,9 +989,9 @@ export default function PubMap() {
         ) : null}
         <PubMapCanvas
           venues={canvasVenues}
-          // The crawl only draws on the map while the planner is open — the
-          // clean first view is pubs + POIs, never a route the user didn't ask for.
-          route={planningOpen ? route : []}
+          // Clean first view stays route-free. Once the user maps a crawl, the
+          // line remains visible even if the mobile planner closes.
+          route={routeForMap}
           selectedVenueId={selectedVenueId}
           onVenueClick={handleVenueClick}
           onRouteStopClick={selectVenue}
@@ -853,6 +1010,45 @@ export default function PubMap() {
           planningOpen={planningOpen}
           onTogglePlanning={() => setPlanningOpen((open) => !open)}
         />
+        {logIntentFallbackVisible ? (
+          <div style={LOG_INTENT_FALLBACK_STYLE} role="status" aria-live="polite">
+            <div>
+              <strong>Pick a pub to log a Pint Drop</strong>
+              <p className="description" style={{ margin: "6px 0 0", color: "inherit" }}>
+                Search for a pub or tap one on the map, then we&rsquo;ll open the existing Pint
+                Drop composer.
+              </p>
+            </div>
+            <div style={LOG_INTENT_FALLBACK_ACTIONS_STYLE}>
+              <button type="button" className="addStopBtn" onClick={focusMapSearch}>
+                Search pubs
+              </button>
+              {filteredVenueCount === 0 ? (
+                <button type="button" className="addStopBtn" onClick={resetLogIntentFilters}>
+                  Show all pubs
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        {routeMappedActive ? (
+          <div className="mappedRouteChip" role="status" aria-live="polite">
+            <RouteIcon size={16} aria-hidden="true" />
+            <div>
+              <strong>{route.length} stops mapped</strong>
+              <span>
+                <Footprints size={12} aria-hidden="true" />
+                {routeForMapLegs.totalKm.toFixed(1)} km, {routeForMapLegs.totalMinutes} min walk
+              </span>
+            </div>
+            <button type="button" onClick={() => setPlanningOpen(true)}>
+              Edit
+            </button>
+            <button type="button" onClick={hideMappedRoute} aria-label="Hide mapped crawl">
+              <X size={14} aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
         <div className="mapLegend">
           <span>
             <i className="green" /> ≤ £5.50
@@ -975,6 +1171,11 @@ export default function PubMap() {
           crawlBlurb={activeCrawl?.blurb}
           crawlName={activeCrawl?.name}
           crawlId={activeCrawl?.id}
+          routeMapped={routeMappedActive}
+          originDistanceKm={distanceFromUserKm}
+          onMapRoute={mapCurrentRoute}
+          onHideRoute={hideMappedRoute}
+          onCheckLastTrain={checkLastTrainAtRouteEnd}
           onSelectVenue={selectVenue}
           onToggleStop={toggleBuiltStop}
           onReverseRoute={reverseRoute}
@@ -1081,6 +1282,8 @@ export default function PubMap() {
               inCrawl={builtIds.includes(selectedVenue.id)}
               latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
               onToggleStop={toggleBuiltStop}
+              onSelectVenue={selectVenue}
+              initialTab={venueInitialTab}
               pintDrops={pintDrops}
               onGrabDragStart={onSheetDragStart}
               onGrabDragMove={onSheetDragMove}

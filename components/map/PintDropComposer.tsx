@@ -30,6 +30,7 @@ import {
   resolveDestination,
   type SpillDestination,
 } from "@/lib/spillPreview";
+import { readPintDropDraft, writePintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import "./spillComposer.css";
 
@@ -98,6 +99,7 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
     dropForm,
     setDropForm,
     vibeTags,
+    setVibeTags,
     toggleVibeTag,
     visibility,
     setVisibility,
@@ -107,6 +109,7 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
     venueInputRef,
     pickPhoto,
     removePhoto,
+    resetComposer,
     submitting,
     dropMsg,
     submitDrop,
@@ -120,6 +123,50 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
   const noteInputId = useId();
   const withWhoInputId = useId();
   const eraInputId = useId();
+  const [draftReadyVenueId, setDraftReadyVenueId] = useState<string | null>(null);
+  if (draftReadyVenueId !== null && draftReadyVenueId !== venueId) {
+    // React adjust-state-during-render pattern: block stale shared composer
+    // state from painting under a newly selected pub while the venue draft
+    // hydrates. The actual field reset happens in the effect below.
+    setDraftReadyVenueId(null);
+  }
+  const draftReady = draftReadyVenueId === venueId;
+
+  useEffect(() => {
+    let active = true;
+    async function hydrateVenueDraft() {
+      const draft = readPintDropDraft(
+        typeof window === "undefined" ? null : window.sessionStorage,
+        venueId,
+      );
+      if (!active) return;
+      resetComposer();
+      if (draft) {
+        setDropForm(draft.form);
+        setVisibility(draft.visibility);
+        setVibeTags(draft.vibeTags);
+      }
+      setDraftReadyVenueId(venueId);
+    }
+    void hydrateVenueDraft();
+    return () => {
+      active = false;
+    };
+  }, [venueId, resetComposer, setDropForm, setVisibility, setVibeTags]);
+
+  useEffect(() => {
+    if (draftReadyVenueId !== venueId) return;
+    writePintDropDraft(
+      typeof window === "undefined" ? null : window.sessionStorage,
+      venueId,
+      {
+        form: dropForm,
+        visibility,
+        vibeTags,
+        updatedAt: new Date().toISOString(),
+      },
+    );
+  }, [venueId, draftReadyVenueId, dropForm, visibility, vibeTags]);
 
   // Camera-first (PRD priority 2): on a mobile-class viewport the photo/camera
   // step is presented FIRST as a full step; the writer either shoots (or picks)
@@ -296,6 +343,14 @@ export default function PintDropComposer({ venueId, state, venueName }: PintDrop
   // On mobile the rest of the form is gated behind the camera-first step until
   // the writer shoots a photo or taps "skip". On desktop everything is shown.
   const showRest = !mobile || photoStepDone || hasAnyPhoto;
+
+  if (!draftReady) {
+    return (
+      <form className="dropComposer spillComposer" aria-busy="true">
+        <p className="description muted">Loading saved Pint Drop draft...</p>
+      </form>
+    );
+  }
 
   return (
     <form

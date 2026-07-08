@@ -25,6 +25,21 @@
   margin-bottom: 36px;
 }
 
+.ledgerHomeLink {
+  display: inline-flex;
+  margin-bottom: 18px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.ledgerHomeLink:hover {
+  color: var(--brass);
+}
+
 .ledgerEyebrow {
   margin: 0 0 10px;
   color: var(--brass);

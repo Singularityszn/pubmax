@@ -32,7 +32,7 @@ import "./accessibilityFilters.css";
 // sections (most PUBMAXXERs are on a phone while travelling). Drops is the
 // primary tab. "getting-home" is a placeholder slot the orchestrator fills with
 // a transport card built by another agent — we only render its mount point here.
-type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-home";
+export type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-home";
 
 const TABS: { key: TabKey; label: string; shortLabel: string }[] = [
   { key: "overview", label: "Overview", shortLabel: "Pub" },
@@ -79,6 +79,8 @@ type VenueInspectorProps = {
   inCrawl: boolean;
   latestContributorPrice: number | null | undefined;
   onToggleStop: (id: string) => void;
+  onSelectVenue?: (id: string) => void;
+  initialTab?: TabKey;
   pintDrops: PintDropsState;
   // The mobile bottom-sheet drag gesture (GH #17) lives in PubMap.tsx (the
   // owner of the .mapDrawer seam); this component only exposes the grab
@@ -96,6 +98,8 @@ export default function VenueInspector({
   inCrawl,
   latestContributorPrice,
   onToggleStop,
+  onSelectVenue,
+  initialTab = DEFAULT_TAB,
   pintDrops,
   onGrabDragStart,
   onGrabDragMove,
@@ -129,11 +133,12 @@ export default function VenueInspector({
   // tab could linger — React's adjust-state-during-render pattern resets it when
   // the venue id changes (mirrors presenceVenueId). NEVER setState in an effect
   // here (react-hooks/set-state-in-effect is an error in this repo).
-  const [tab, setTab] = useState<TabKey>(DEFAULT_TAB);
-  const [tabVenueId, setTabVenueId] = useState(venue.id);
-  if (tabVenueId !== venue.id) {
-    setTabVenueId(venue.id);
-    setTab(DEFAULT_TAB);
+  const [tab, setTab] = useState<TabKey>(initialTab);
+  const tabKey = `${venue.id}:${initialTab}`;
+  const [tabResetKey, setTabResetKey] = useState(tabKey);
+  if (tabResetKey !== tabKey) {
+    setTabResetKey(tabKey);
+    setTab(initialTab);
   }
 
   // The venue's live Last Pint decision, lifted up from LastTrainCard so the
@@ -622,12 +627,16 @@ export default function VenueInspector({
         className="venueTabPanel"
         hidden={tab !== "getting-home"}
       >
-        <LastTrainCard
-          lat={venue.latitude}
-          lng={venue.longitude}
-          venueName={venue.name}
-          onDecision={setLastTrainDecision}
-        />
+        {tab === "getting-home" ? (
+          <LastTrainCard
+            key={`${venue.id}:${venue.latitude}:${venue.longitude}:${venue.name}`}
+            lat={venue.latitude}
+            lng={venue.longitude}
+            venueName={venue.name}
+            onSelectVenue={onSelectVenue}
+            onDecision={setLastTrainDecision}
+          />
+        ) : null}
       </div>
     </section>
   );

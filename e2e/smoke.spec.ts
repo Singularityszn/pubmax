@@ -215,6 +215,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   // while still proving the sheet-open contract that peek/half/full build on.
   const sheet = page.locator(".mapDrawer.right");
   await expect(sheet).toHaveClass(/open/);
+  await expect(page.locator(".mapDrawer.left")).not.toHaveClass(/open/);
 
   // The grab handle (the drag affordance itself) is visible and — even
   // without simulating a real pointer-drag — present in the DOM as the
@@ -242,8 +243,8 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   expect(closeBox).not.toBeNull();
   expect(tabsBox).not.toBeNull();
   expect(horizontalOverflow).toBeLessThanOrEqual(1);
-  expect(navBox!.left).toBeGreaterThanOrEqual(0);
-  expect(navBox!.right).toBeLessThanOrEqual(390);
+  expect(navBox!.x).toBeGreaterThanOrEqual(0);
+  expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(390);
   expect(closeBox!.y + closeBox!.height).toBeLessThan(navBox!.y);
   expect(tabsBox!.y + tabsBox!.height).toBeLessThan(navBox!.y);
 

@@ -50,10 +50,10 @@ type NavLink = {
 // route tabs stay focused on actions. Admin is intentionally NOT here — it is
 // appended below only outside production so it never shows in the public nav.
 const LINKS: NavLink[] = [
-  { key: "map", href: "/map", label: "Pub Map", match: ["/map"], accent: "beer" },
+  { key: "map", href: "/map", label: "Map", match: ["/map"], accent: "beer" },
   { key: "feed", href: "/feed", label: "Stories", match: ["/feed"], accent: "cocktail" },
   { key: "discover", href: "/discover", label: "Drinks", match: ["/discover"], accent: "gin" },
-  { key: "borough", href: "/borough", label: "Areas", match: ["/borough"], accent: "wine" },
+  { key: "borough", href: "/borough", label: "London", match: ["/borough"], accent: "wine" },
   { key: "crawls", href: "/crawls", label: "Crawls", match: ["/crawls"], accent: "rum" },
   { key: "profile", href: "/u/you", label: "You", match: ["/u"], accent: "vodka" },
 ];
@@ -91,7 +91,7 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
       aria-label="Site navigation"
     >
       {/* Wordmark: the compact-mobile anchor + the desktop home affordance. */}
-      <Link href="/" className="siteNavBrand">
+      <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXXING landing page">
         PUBMAXXING
       </Link>
 

@@ -115,6 +115,9 @@ function NotOnTheWall() {
   return (
     <main className="permalink permalink--empty">
       <div className="permalink__emptyCard">
+        <Link className="permalink__home" href="/">
+          PUBMAXXING
+        </Link>
         <p className="permalink__eyebrow">Pint Drop</p>
         <h1 className="permalink__emptyTitle">This pint isn&rsquo;t on the wall</h1>
         <p className="permalink__emptyBody">
@@ -156,7 +159,9 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
       <div className="permalink__mat">
         {/* Kicker: brand + edition line */}
         <div className="permalink__kicker">
-          <span className="permalink__brand">PUBMAXXING</span>
+          <Link className="permalink__brand" href="/">
+            PUBMAXXING
+          </Link>
           <span className="permalink__edition">A Pint Drop</span>
         </div>
 

@@ -15,6 +15,7 @@ import {
   Trophy,
   ArrowUpDown,
   CalendarPlus,
+  TrainFront,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -61,6 +62,11 @@ type RoutePanelProps = {
   crawlBlurb?: string;
   crawlName?: string;
   crawlId?: string;
+  routeMapped: boolean;
+  originDistanceKm?: number | null;
+  onMapRoute: () => void;
+  onHideRoute: () => void;
+  onCheckLastTrain?: () => void;
   onSelectVenue: (id: string) => void;
   onToggleStop: (id: string) => void;
   onReverseRoute?: () => void;
@@ -94,6 +100,11 @@ export default function RoutePanel({
   crawlBlurb,
   crawlName,
   crawlId,
+  routeMapped,
+  originDistanceKm,
+  onMapRoute,
+  onHideRoute,
+  onCheckLastTrain,
   onSelectVenue,
   onToggleStop,
   onReverseRoute,
@@ -295,6 +306,29 @@ export default function RoutePanel({
         </div>
       ) : null}
 
+      {route.length >= 2 ? (
+        <div className={routeMapped ? "routeMapPrompt active" : "routeMapPrompt"}>
+          <div>
+            <strong>{routeMapped ? "Mapped on London" : "Map this crawl?"}</strong>
+            <span>
+              {legSummary.totalKm.toFixed(1)} km, {legSummary.totalMinutes} min walk,
+              straight-line.
+            </span>
+            {typeof originDistanceKm === "number" ? (
+              <small>From you: {originDistanceKm.toFixed(1)} km to the first stop.</small>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={routeMapped ? onHideRoute : onMapRoute}
+            aria-pressed={routeMapped}
+          >
+            <Route size={14} aria-hidden="true" />
+            {routeMapped ? "Hide line" : "Map route"}
+          </button>
+        </div>
+      ) : null}
+
       {route.length >= 1 ? (
         <button
           type="button"
@@ -304,6 +338,18 @@ export default function RoutePanel({
         >
           <CalendarPlus size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
           Add to calendar (.ics)
+        </button>
+      ) : null}
+
+      {route.length >= 2 && onCheckLastTrain ? (
+        <button
+          type="button"
+          className="addStopBtn trainRouteBtn"
+          onClick={onCheckLastTrain}
+          data-testid="check-last-train"
+        >
+          <TrainFront size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
+          Check last train at final stop
         </button>
       ) : null}
 

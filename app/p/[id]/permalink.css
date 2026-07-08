@@ -49,6 +49,22 @@
   letter-spacing: 0.06em;
   color: var(--ink);
   font-size: 15px;
+  text-decoration: none;
+}
+
+.permalink__brand:hover {
+  color: var(--brass);
+}
+
+.permalink__home {
+  display: inline-flex;
+  margin-bottom: 14px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-decoration: none;
 }
 
 .permalink__edition {

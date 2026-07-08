@@ -212,7 +212,7 @@ export default function ControlRail({
             <button
               key={crawl.id}
               className="featuredCrawl"
-              aria-label={`Load the ${crawl.name} crawl — ${crawl.venueIds.length} stops`}
+              aria-label={`Map the ${crawl.name} crawl with ${crawl.venueIds.length} stops`}
               onClick={() => onLoadCrawl(crawl)}
             >
               <span className="featuredCrawlHead">
@@ -222,6 +222,10 @@ export default function ControlRail({
                 </span>
               </span>
               <span className="featuredBlurb">{crawl.blurb}</span>
+              <span className="featuredMapCta">
+                <MapPinned size={13} aria-hidden="true" />
+                Map route
+              </span>
             </button>
           ))}
         </div>
