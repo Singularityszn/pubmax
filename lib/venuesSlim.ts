@@ -1,6 +1,7 @@
 // Client-safe loader for the SLIM venue index (public/data/venues_slim.json,
 // built by scripts/build_slim_index.mjs). This is the minimum the map needs to
-// render pins + labels + price colour: the map fetches THIS (~140 KB) on load
+// render pins + labels + price colour + filter hints: the map fetches THIS
+// (~400 KB) on load
 // instead of the ~6 MB raw price dataset, and fetches heavy per-venue detail
 // lazily via /api/venue/[id] only when a pub is opened.
 //
@@ -17,6 +18,7 @@
 // can still return the last parsed index instead of an empty map.
 
 import { offlineCache } from "@/lib/offlineCache";
+import type { VenueFilterHints } from "@/lib/venues";
 
 const OFFLINE_KEY = "venues_slim:v1";
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
@@ -28,7 +30,32 @@ export type SlimVenue = {
   lng: number;
   cheapestPrice: number | null;
   borough: string;
+  filterHints?: VenueFilterHints;
 };
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
+}
+
+function isFilterHints(value: unknown): value is VenueFilterHints {
+  if (typeof value !== "object" || value === null) return false;
+  const row = value as Record<string, unknown>;
+  if (typeof row.searchText !== "string") return false;
+  if (typeof row.amenities !== "object" || row.amenities === null) return false;
+  if (typeof row.curation !== "object" || row.curation === null) return false;
+  const amenities = row.amenities as Record<string, unknown>;
+  const curation = row.curation as Record<string, unknown>;
+  return (
+    isBoolean(amenities.food) &&
+    isBoolean(amenities.cocktails) &&
+    isBoolean(amenities.beerGarden) &&
+    isBoolean(amenities.liveSports) &&
+    isBoolean(amenities.nonAlcoholic) &&
+    isBoolean(curation.nearWater) &&
+    isBoolean(curation.hasStory) &&
+    isBoolean(row.canonical)
+  );
+}
 
 // Light runtime guard: a row must have a non-empty id + name, finite coords, a
 // borough string, and a cheapestPrice that is either a finite number or null.
@@ -43,7 +70,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   const price = row.cheapestPrice;
   const priceOk =
     price === null || (typeof price === "number" && Number.isFinite(price));
-  return priceOk;
+  return priceOk && (row.filterHints === undefined || isFilterHints(row.filterHints));
 }
 
 // Normalise each surviving row to exactly the SlimVenue shape so no stray
@@ -59,6 +86,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
     borough: venue.borough,
+    ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
   }));
 }
 

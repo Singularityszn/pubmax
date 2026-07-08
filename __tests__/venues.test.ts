@@ -177,6 +177,45 @@ describe("filterVenues", () => {
     expect(filterVenues(canonical, makeFilters({ canonicalOnly: true }))).toHaveLength(1);
     expect(filterVenues(nonCanonical, makeFilters({ canonicalOnly: true }))).toHaveLength(0);
   });
+
+  it("uses slim filter hints before venue detail rows hydrate", () => {
+    const [venue] = groupVenuePrices([makeRow({ pub_name: "The Anchor", price_gbp: 5 })]);
+    const slim = {
+      ...venue,
+      prices: [],
+      cheapestPint: "",
+      amenities: {
+        ...venue.amenities,
+        cocktails: false,
+        nonAlcoholic: false,
+      },
+      curation: {},
+      hasStory: false,
+      filterHints: {
+        searchText: "the anchor bankside wine cocktails low no",
+        amenities: {
+          food: false,
+          cocktails: true,
+          beerGarden: false,
+          liveSports: false,
+          nonAlcoholic: true,
+        },
+        curation: {
+          nearWater: true,
+          hasStory: true,
+        },
+        canonical: true,
+      },
+    };
+
+    expect(filterVenues([slim], makeFilters({ query: "wine" }))).toHaveLength(1);
+    expect(filterVenues([slim], makeFilters({ requireCocktails: true }))).toHaveLength(1);
+    expect(filterVenues([slim], makeFilters({ requireNonAlcoholic: true }))).toHaveLength(1);
+    expect(filterVenues([slim], makeFilters({ requireWater: true }))).toHaveLength(1);
+    expect(filterVenues([slim], makeFilters({ requireHeritage: true }))).toHaveLength(1);
+    expect(filterVenues([slim], makeFilters({ canonicalOnly: true }))).toHaveLength(1);
+    expect(filterVenues([slim], makeFilters({ query: "vodka" }))).toHaveLength(0);
+  });
 });
 
 describe("scoreVenue", () => {

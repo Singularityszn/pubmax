@@ -296,7 +296,8 @@ function filterMapVenues(
     requireHeritage: false,
   };
   return venues.filter((venue) => {
-    const effectiveFilters = venue.prices.length === 0 ? slimPinFilters : filters;
+    const effectiveFilters =
+      venue.prices.length === 0 && !venue.filterHints ? slimPinFilters : filters;
     return filterVenues([venue], effectiveFilters, hasPintDrops).length > 0;
   });
 }
@@ -336,7 +337,7 @@ export default function PubMap() {
   // longer fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
   // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
-  // ~116 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
+  // ~400 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
   // the ~5.6 MB full dataset lands so the first interactive pin appears fast.
   // They carry only what pubsToGeoJSON needs (id/name/coords/cheapestPrice);
   // hasStory + prices degrade to inert defaults until hydration (see lib/slimPins).
@@ -412,7 +413,7 @@ export default function PubMap() {
     onSheetDragEnd,
   } = useSheetDrag(dismissSheet);
 
-  // Issue #35 — stage 1: paint pins from the slim index. This resolves in ~116 KB
+  // Issue #35 — stage 1: paint pins from the slim index. This resolves in ~400 KB
   // (or instantly from IndexedDB), and is the ONLY initial venue payload for the
   // map. Full pub detail is fetched lazily via /api/venue/[id] when inspected.
   useEffect(() => {

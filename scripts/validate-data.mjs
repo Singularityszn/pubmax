@@ -751,6 +751,58 @@ function isHttpUrl(value) {
   }
 }
 
+function validatePubmaxxingSource(data, errs) {
+  if (data.version !== 1) {
+    errs.add(`version must be 1 (got ${JSON.stringify(data.version)})`);
+  }
+  if (!data.source || !isHttpUrl(data.source.sourceRepo)) {
+    errs.add("source.sourceRepo must be an http(s) URL");
+  }
+  if (!data.source || typeof data.source.sourceCommit !== "string" || data.source.sourceCommit.length < 7) {
+    errs.add("source.sourceCommit must be a git commit-ish string");
+  }
+  if (!data.source || typeof data.source.importedAt !== "string" || data.source.importedAt.length === 0) {
+    errs.add("source.importedAt must be a non-empty string");
+  }
+  if (typeof data.sourceImportedAt !== "string" || data.sourceImportedAt.length === 0) {
+    errs.add("sourceImportedAt must be a non-empty string");
+  } else if (data.source?.importedAt && data.sourceImportedAt !== data.source.importedAt) {
+    errs.add("sourceImportedAt must match source.importedAt");
+  }
+}
+
+function validatePubmaxxingSummary(data, rows, errs) {
+  const { pubs, beverages, historySeeds, discountMentions } = rows;
+  const summary = data.summary && typeof data.summary === "object" ? data.summary : null;
+  if (!summary) {
+    errs.add("summary must be an object");
+  }
+
+  const alcoholicRows = beverages.filter((row) => row?.isAlcoholic === true).length;
+  const nonAlcoholicRows = beverages.filter((row) => row?.isAlcoholic === false).length;
+  const unknownAlcoholicRows = beverages.filter(
+    (row) => row?.isAlcoholic !== true && row?.isAlcoholic !== false,
+  ).length;
+  const expectedSummary = {
+    pubs: pubs.length,
+    beverageRows: beverages.length,
+    alcoholicRows,
+    nonAlcoholicRows,
+    unknownAlcoholicRows,
+    historySeeds: historySeeds.length,
+    discountMentions: discountMentions.length,
+    uniquePubIds: new Set(
+      [...pubs.map((row) => row?.pubId), ...beverages.map((row) => row?.pubId)].filter(Boolean),
+    ).size,
+  };
+  for (const [field, expected] of Object.entries(expectedSummary)) {
+    if (summary?.[field] !== expected) {
+      errs.add(`summary.${field} must equal computed count ${expected}`);
+    }
+  }
+  return { alcoholicRows, nonAlcoholicRows, unknownAlcoholicRows };
+}
+
 // pubmaxxing_seed_snapshot.json — compact Firecrawl handoff seed from the
 // sibling pubmaxxing repo. This data is not yet normalized into canonical live
 // venue ids; validate it as an external seed so the all-drinks/history source
@@ -771,23 +823,7 @@ function validatePubmaxxingSeed() {
     return { ok: false, count: 0 };
   }
 
-  if (data.version !== 1) {
-    errs.add(`version must be 1 (got ${JSON.stringify(data.version)})`);
-  }
-  if (!data.source || !isHttpUrl(data.source.sourceRepo)) {
-    errs.add("source.sourceRepo must be an http(s) URL");
-  }
-  if (!data.source || typeof data.source.sourceCommit !== "string" || data.source.sourceCommit.length < 7) {
-    errs.add("source.sourceCommit must be a git commit-ish string");
-  }
-  if (!data.source || typeof data.source.importedAt !== "string" || data.source.importedAt.length === 0) {
-    errs.add("source.importedAt must be a non-empty string");
-  }
-  if (typeof data.sourceImportedAt !== "string" || data.sourceImportedAt.length === 0) {
-    errs.add("sourceImportedAt must be a non-empty string");
-  } else if (data.source?.importedAt && data.sourceImportedAt !== data.source.importedAt) {
-    errs.add("sourceImportedAt must match source.importedAt");
-  }
+  validatePubmaxxingSource(data, errs);
 
   const pubs = Array.isArray(data.pubs) ? data.pubs : [];
   const beverages = Array.isArray(data.beverages) ? data.beverages : [];
@@ -804,14 +840,11 @@ function validatePubmaxxingSeed() {
     errs.add(`history seed count ${historySeeds.length} is below floor ${PUBMAXXING_HISTORY_SEED_FLOOR}`);
   }
 
-  const alcoholicRows = beverages.filter((row) => row?.isAlcoholic === true).length;
-  const nonAlcoholicRows = beverages.filter((row) => row?.isAlcoholic === false).length;
-  const unknownAlcoholicRows = beverages.filter(
-    (row) => row?.isAlcoholic !== true && row?.isAlcoholic !== false,
-  ).length;
-  if (data.summary?.unknownAlcoholicRows !== unknownAlcoholicRows) {
-    errs.add(`summary.unknownAlcoholicRows must equal computed unknown row count ${unknownAlcoholicRows}`);
-  }
+  const { alcoholicRows, nonAlcoholicRows, unknownAlcoholicRows } = validatePubmaxxingSummary(
+    data,
+    { pubs, beverages, historySeeds, discountMentions },
+    errs,
+  );
   if (alcoholicRows < PUBMAXXING_ALCOHOLIC_ROW_FLOOR) {
     errs.add(`alcoholic rows ${alcoholicRows} below floor ${PUBMAXXING_ALCOHOLIC_ROW_FLOOR}`);
   }

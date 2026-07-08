@@ -23,6 +23,12 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
+const PUBMAXXING_SEED_PATH = path.join(
+  ROOT,
+  "public",
+  "data",
+  "pubmaxxing_seed_snapshot.json",
+);
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const GENERATED_DIR = path.join(ROOT, "data", "generated");
 const DETAIL_INDEX_PATH = path.join(GENERATED_DIR, "venue_detail_index.json");
@@ -65,10 +71,204 @@ function stableVenueIdFromKey(key) {
   return `venue-${(hash >>> 0).toString(36)}`;
 }
 
+// --- filter hint helpers ------------------------------------------------------
+
+function truthyFlag(value) {
+  return ["yes", "true", "y", "1"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+const NA_BRANDS = [
+  "lucky saint",
+  "nanny state",
+  "big drop",
+  "mash gang",
+  "days brewing",
+  "beck's blue",
+  "becks blue",
+  "free damm",
+  "erdinger alkoholfrei",
+  "infinite session",
+  "impossibrew",
+  "st peter's without",
+];
+
+const NA_PATTERNS = [
+  /alcohol[\s-]?free/i,
+  /non[\s-]?alcoholic/i,
+  /\balcohol[\s-]?free\b/i,
+  /\b0[.,]0\b/,
+  /\b0[.,]5\s*%/,
+  /\b0\s*%/,
+  /\bAF\b/,
+  /(guinness|heineken|peroni|san miguel|corona|stella|birra moretti|estrella|madri|asahi)\s*0/i,
+];
+
+function isNonAlcoholicDrinkName(name) {
+  const raw = String(name ?? "");
+  const lower = raw.toLowerCase();
+  if (!lower.trim()) return false;
+  if (NA_BRANDS.some((brand) => lower.includes(brand))) return true;
+  return NA_PATTERNS.some((pattern) => pattern.test(raw));
+}
+
+const WATER_TERMS = [
+  "riverside",
+  "river",
+  "thames",
+  "strand-on-the-green",
+  "strand on the green",
+  "wapping wall",
+  "narrow st",
+  "narrow street",
+  "upper mall",
+  "wharf",
+  "dock",
+  "canal",
+  "waterside",
+];
+
+const HERITAGE_TERMS = [
+  "victorian",
+  "georgian",
+  "edwardian",
+  "tudor",
+  "grade ii listed",
+  "grade i listed",
+  "oldest pub",
+  "dating back",
+  "since 18",
+  "since 17",
+  "since 16",
+];
+
+function normaliseSeedName(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/^the\s+/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function addSeedTerms(target, beverage) {
+  const category = String(beverage.category ?? "").trim().toLowerCase();
+  if (category === "wine") target.add("wine");
+  if (category === "cocktails") {
+    target.add("cocktail");
+    target.add("cocktails");
+  }
+  if (category === "non-alcoholic") {
+    target.add("low no");
+    target.add("low/no");
+    target.add("non alcoholic");
+    target.add("alcohol free");
+  }
+  if (category === "beer & cider") {
+    target.add("beer");
+    target.add("cider");
+  }
+
+  const name = String(beverage.name ?? "").toLowerCase();
+  if (/whisk(e)?y|bourbon|scotch/.test(name)) target.add("whisky");
+  if (/\bgin\b/.test(name)) target.add("gin");
+  if (/vodka/.test(name)) target.add("vodka");
+  if (/\brum\b/.test(name)) target.add("rum");
+  if (/\bshots?\b|shooter/.test(name)) target.add("shot");
+}
+
+async function loadPubmaxxingSeedHints() {
+  try {
+    const seedText = await readFile(PUBMAXXING_SEED_PATH, "utf8");
+    const seed = JSON.parse(seedText);
+    const beverages = Array.isArray(seed?.beverages) ? seed.beverages : [];
+    const hints = new Map();
+    for (const beverage of beverages) {
+      const key = normaliseSeedName(beverage.pubName);
+      if (!key) continue;
+      const current = hints.get(key) ?? {
+        terms: new Set(),
+        cocktails: false,
+        nonAlcoholic: false,
+      };
+      addSeedTerms(current.terms, beverage);
+      const category = String(beverage.category ?? "").trim().toLowerCase();
+      if (category === "cocktails") current.cocktails = true;
+      if (category === "non-alcoholic") current.nonAlcoholic = true;
+      hints.set(key, current);
+    }
+    return hints;
+  } catch {
+    return new Map();
+  }
+}
+
+function seedHintsForVenue(seedHints, pubName) {
+  const venueKey = normaliseSeedName(pubName);
+  if (!venueKey) return undefined;
+  const exact = seedHints.get(venueKey);
+  if (exact) return exact;
+  for (const [seedKey, hints] of seedHints) {
+    if (
+      (seedKey.length > 6 && venueKey.includes(seedKey)) ||
+      (venueKey.length > 6 && seedKey.includes(venueKey))
+    ) {
+      return hints;
+    }
+  }
+  return undefined;
+}
+
+function buildFilterHints(prices, seedHints) {
+  const first = prices[0];
+  const seedTerms = seedHints?.terms ?? new Set();
+  const searchParts = new Set(
+    [
+      first.pub_name,
+      first.address,
+      first.primary_borough,
+      first.boroughs_visible,
+      ...prices.map((price) => price.pint_name),
+      ...seedTerms,
+    ]
+      .map((part) => String(part ?? "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const haystack = [
+    first.pub_name,
+    first.address,
+    first.description,
+    ...prices.map((price) => price.comment),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return {
+    searchText: Array.from(searchParts).join(" "),
+    amenities: {
+      food: prices.some((price) => truthyFlag(price.food)),
+      cocktails:
+        prices.some((price) => truthyFlag(price.cocktails)) ||
+        seedHints?.cocktails === true,
+      beerGarden: prices.some((price) => truthyFlag(price.beer_garden)),
+      liveSports: prices.some((price) => truthyFlag(price.live_sports)),
+      nonAlcoholic:
+        prices.some((price) => isNonAlcoholicDrinkName(price.pint_name)) ||
+        seedHints?.nonAlcoholic === true,
+    },
+    curation: {
+      nearWater: WATER_TERMS.some((term) => haystack.includes(term)),
+      hasStory: HERITAGE_TERMS.some((term) => haystack.includes(term)),
+    },
+    canonical: prices.some((price) => price.is_clean_canonical_app_row === true),
+  };
+}
+
 // --- build -------------------------------------------------------------------
 
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
+  const seedHintsByName = await loadPubmaxxingSeedHints();
   const rows = JSON.parse(rawText);
   if (!Array.isArray(rows)) {
     throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
@@ -120,6 +320,7 @@ async function main() {
       lng: Number(first.longitude),
       cheapestPrice,
       borough: String(first.primary_borough || ""),
+      filterHints: buildFilterHints(prices, seedHintsForVenue(seedHintsByName, first.pub_name)),
     });
 
     const detailLine = `${JSON.stringify({ id, rows: prices })}\n`;

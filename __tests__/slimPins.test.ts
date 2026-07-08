@@ -10,10 +10,25 @@ const slim: SlimVenue = {
   lng: -0.0498,
   cheapestPrice: 5.2,
   borough: "Tower Hamlets",
+  filterHints: {
+    searchText: "prospect of whitby wine",
+    amenities: {
+      food: true,
+      cocktails: true,
+      beerGarden: false,
+      liveSports: false,
+      nonAlcoholic: true,
+    },
+    curation: {
+      nearWater: true,
+      hasStory: true,
+    },
+    canonical: true,
+  },
 };
 
 describe("slimVenueToPin", () => {
-  it("maps the six pin-critical fields straight through", () => {
+  it("maps the pin-critical fields straight through", () => {
     const pin = slimVenueToPin(slim);
     expect(pin.id).toBe("venue-abc123");
     expect(pin.name).toBe("The Prospect of Whitby");
@@ -46,6 +61,10 @@ describe("slimVenueToPin", () => {
     expect(pin.visibleBoroughs).toEqual(["Tower Hamlets"]);
     expect(pin.latestContributorPrice).toBeNull();
     expect(pin.averagePrice).toBeNull();
+  });
+
+  it("carries slim filter hints through to the venue-shaped pin", () => {
+    expect(slimVenueToPin(slim).filterHints).toEqual(slim.filterHints);
   });
 
   it("produces an empty visibleBoroughs when borough is blank", () => {

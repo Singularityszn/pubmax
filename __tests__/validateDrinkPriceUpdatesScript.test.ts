@@ -96,10 +96,19 @@ function writePubmaxxingSnapshotWithAlcoholBuckets(
   ];
   snapshot.summary = {
     ...snapshot.summary,
+    pubs: snapshot.pubs.length,
     beverageRows: snapshot.beverages.length,
     alcoholicRows: counts.alcoholic,
     nonAlcoholicRows: counts.nonAlcoholic,
     unknownAlcoholicRows: counts.unknown,
+    historySeeds: snapshot.historySeeds.length,
+    discountMentions: snapshot.discountMentions.length,
+    uniquePubIds: new Set(
+      [
+        ...snapshot.pubs.map((row: { pubId?: string }) => row.pubId),
+        ...snapshot.beverages.map((row: { pubId?: string }) => row.pubId),
+      ].filter(Boolean),
+    ).size,
   };
   writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
 }
@@ -289,6 +298,19 @@ describe("validate-data.mjs pubmaxxing seed validation", () => {
 
     expect(code).toBe(1);
     expect(stdout).toContain("unknown isAlcoholic rows 151 above ceiling");
+  });
+
+  it("FAILS when generated summary counts drift from the snapshot arrays", () => {
+    const scriptsDir = setupScratch({});
+    const snapshotPath = join(scriptsDir, "..", "public", "data", "pubmaxxing_seed_snapshot.json");
+    const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+    snapshot.summary = { ...snapshot.summary, beverageRows: snapshot.beverages.length + 1 };
+    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("summary.beverageRows must equal computed count");
   });
 });
 

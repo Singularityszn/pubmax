@@ -10,7 +10,7 @@ import {
 } from "@/lib/venues";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 
-// Guards the built public/data/venues_slim.json — the ~140 KB file the map
+// Guards the built public/data/venues_slim.json — the ~400 KB file the map
 // loads instead of the ~6 MB raw dataset (scripts/build_slim_index.mjs). The
 // script MIRRORS lib/venues.ts's grouping/id logic in plain JS; the id-match
 // test below re-derives ids from the real TS off the raw rows, so any drift
@@ -19,7 +19,7 @@ import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 const ROOT = path.resolve(__dirname, "..");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
-const SLIM_KEYS = ["borough", "cheapestPrice", "id", "lat", "lng", "name"];
+const SLIM_KEYS = ["borough", "cheapestPrice", "filterHints", "id", "lat", "lng", "name"];
 
 const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as unknown;
 const rawRows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
@@ -39,6 +39,9 @@ function isSlimVenue(value: unknown): value is SlimVenue {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
   const price = row.cheapestPrice;
+  const hints = row.filterHints as Record<string, unknown> | undefined;
+  const amenities = hints?.amenities as Record<string, unknown> | undefined;
+  const curation = hints?.curation as Record<string, unknown> | undefined;
   return (
     typeof row.id === "string" &&
     row.id.length > 0 &&
@@ -49,7 +52,16 @@ function isSlimVenue(value: unknown): value is SlimVenue {
     Number.isFinite(row.lat) &&
     typeof row.lng === "number" &&
     Number.isFinite(row.lng) &&
-    (price === null || (typeof price === "number" && Number.isFinite(price)))
+    (price === null || (typeof price === "number" && Number.isFinite(price))) &&
+    typeof hints?.searchText === "string" &&
+    typeof amenities?.food === "boolean" &&
+    typeof amenities?.cocktails === "boolean" &&
+    typeof amenities?.beerGarden === "boolean" &&
+    typeof amenities?.liveSports === "boolean" &&
+    typeof amenities?.nonAlcoholic === "boolean" &&
+    typeof curation?.nearWater === "boolean" &&
+    typeof curation?.hasStory === "boolean" &&
+    typeof hints?.canonical === "boolean"
   );
 }
 
@@ -113,6 +125,13 @@ describe("venues_slim.json", () => {
         expect(v.cheapestPrice).toBeGreaterThan(0);
       }
     }
+  });
+
+  it("carries compact filter hints for the fast map path", () => {
+    const rows = slim as SlimVenue[];
+    expect(rows.some((row) => row.filterHints?.searchText.includes("wine"))).toBe(true);
+    expect(rows.some((row) => row.filterHints?.amenities.cocktails)).toBe(true);
+    expect(rows.some((row) => row.filterHints?.amenities.nonAlcoholic)).toBe(true);
   });
 
   it("slim ids equal the canonical stableVenueIdFromKey(venueGroupingKey(...))", () => {

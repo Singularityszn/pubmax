@@ -104,12 +104,31 @@ export type Venue = {
   dataQualityNotes: string[];
   sourceDatasets: string[];
   curation: VenueCuration;
+  // Compact facts carried by the slim map index so URL/query filters can work
+  // before the heavy venue detail rows are hydrated.
+  filterHints?: VenueFilterHints;
   // Publicly-documented accessible-venue facts (PRD issue #28). Present ONLY for
   // the small curated seed of pubs whose access is documented (see
   // lib/venueAccessibilitySeeds.ts); for every other venue this is undefined —
   // honestly UNKNOWN, never fabricated. See lib/venueAccessibility.ts for the
   // predicates + filter contract (an unknown field FAILS a positive filter).
   accessibility?: VenueAccessibility;
+};
+
+export type VenueFilterHints = {
+  searchText: string;
+  amenities: {
+    food: boolean;
+    cocktails: boolean;
+    beerGarden: boolean;
+    liveSports: boolean;
+    nonAlcoholic: boolean;
+  };
+  curation: {
+    nearWater: boolean;
+    hasStory: boolean;
+  };
+  canonical: boolean;
 };
 
 export type Filters = {
@@ -322,6 +341,57 @@ export function mergeVenueDrops<D extends SummaryDrop>(
 // `hasPintDrops` is a signal derived client-side from live Pint Drops (see
 // usePintDrops.venueSignals), so it isn't on the pure Venue. Callers that want
 // the requirePintDrops filter pass a lookup; without one it's a no-op predicate.
+function hasSlimFlag(venue: Venue, pick: (hints: VenueFilterHints) => boolean): boolean {
+  return venue.prices.length === 0 && venue.filterHints ? pick(venue.filterHints) : false;
+}
+
+function matchesVenueQuery(venue: Venue, query: string): boolean {
+  if (!query) return true;
+  const searchableFields = [
+    venue.name,
+    venue.address,
+    venue.cheapestPint,
+    venue.primaryBorough,
+    ...venue.visibleBoroughs,
+    ...venue.prices.map((price) => price.pint_name),
+  ];
+  if (searchableFields.some((field) => field.toLowerCase().includes(query))) return true;
+  return hasSlimFlag(venue, (hints) => hints.searchText.includes(query));
+}
+
+function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
+  const checks = [
+    [filters.requireBeerGarden, venue.amenities.beerGarden, (hints: VenueFilterHints) => hints.amenities.beerGarden],
+    [filters.requireNonAlcoholic, venue.amenities.nonAlcoholic, (hints: VenueFilterHints) => hints.amenities.nonAlcoholic],
+    [filters.requireLiveSports, venue.amenities.liveSports, (hints: VenueFilterHints) => hints.amenities.liveSports],
+    [filters.requireFood, venue.amenities.food, (hints: VenueFilterHints) => hints.amenities.food],
+    [filters.requireCocktails, venue.amenities.cocktails, (hints: VenueFilterHints) => hints.amenities.cocktails],
+  ] as const;
+  return checks.every(([required, detailedValue, pickHint]) => {
+    return !required || detailedValue || hasSlimFlag(venue, pickHint);
+  });
+}
+
+function matchesVenueCuration(venue: Venue, filters: Filters): boolean {
+  const matchesWater =
+    !filters.requireWater ||
+    Boolean(venue.curation.nearWater) ||
+    hasSlimFlag(venue, (hints) => hints.curation.nearWater);
+  const matchesHeritage =
+    !filters.requireHeritage ||
+    venue.hasStory ||
+    hasSlimFlag(venue, (hints) => hints.curation.hasStory);
+  return matchesWater && matchesHeritage;
+}
+
+function matchesCanonicalFilter(venue: Venue, canonicalOnly: boolean): boolean {
+  return (
+    !canonicalOnly ||
+    venue.prices.some((price) => price.is_clean_canonical_app_row) ||
+    hasSlimFlag(venue, (hints) => hints.canonical)
+  );
+}
+
 export function filterVenues(
   venues: Venue[],
   filters: Filters,
@@ -329,32 +399,8 @@ export function filterVenues(
 ): Venue[] {
   const query = filters.query.trim().toLowerCase();
   return venues.filter((venue) => {
-    const matchesQuery =
-      !query ||
-      venue.name.toLowerCase().includes(query) ||
-      venue.address.toLowerCase().includes(query) ||
-      venue.cheapestPint.toLowerCase().includes(query) ||
-      venue.prices.some((price) => price.pint_name.toLowerCase().includes(query)) ||
-      venue.primaryBorough.toLowerCase().includes(query) ||
-      venue.visibleBoroughs.some((borough) => borough.toLowerCase().includes(query));
-
     const matchesPrice =
       venue.cheapestPrice === null || venue.cheapestPrice <= filters.maxPrice;
-
-    const matchesAmenities =
-      (!filters.requireBeerGarden || venue.amenities.beerGarden) &&
-      (!filters.requireNonAlcoholic || venue.amenities.nonAlcoholic) &&
-      (!filters.requireLiveSports || venue.amenities.liveSports) &&
-      (!filters.requireFood || venue.amenities.food) &&
-      (!filters.requireCocktails || venue.amenities.cocktails);
-
-    const matchesCuration =
-      (!filters.requireWater || Boolean(venue.curation.nearWater)) &&
-      (!filters.requireHeritage || venue.hasStory);
-
-    const matchesCanonical =
-      !filters.canonicalOnly ||
-      venue.prices.some((price) => price.is_clean_canonical_app_row);
 
     const matchesPintDrops = !filters.requirePintDrops || hasPintDrops(venue.id);
 
@@ -367,11 +413,11 @@ export function filterVenues(
     });
 
     return (
-      matchesQuery &&
+      matchesVenueQuery(venue, query) &&
       matchesPrice &&
-      matchesAmenities &&
-      matchesCuration &&
-      matchesCanonical &&
+      matchesVenueAmenities(venue, filters) &&
+      matchesVenueCuration(venue, filters) &&
+      matchesCanonicalFilter(venue, filters.canonicalOnly) &&
       matchesPintDrops &&
       matchesAccessibility
     );

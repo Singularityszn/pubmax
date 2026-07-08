@@ -131,7 +131,11 @@ export function decodeCrawl(
     out.altStyle = "mocktail";
   } else if (isDrinkCategory(drink)) {
     if (drink === "cocktail") filters.requireCocktails = true;
-    if (!filters.query && drink !== "beer" && drink !== "cocktail") {
+    // The fast map index can currently answer wine text queries and the
+    // cocktail/low-no boolean filters. Other drink families remain valid
+    // discover intents, but turning them into text queries would blank the map
+    // because the base pint dataset has no vodka/rum/whisky/shot rows.
+    if (!filters.query && drink === "wine") {
       filters.query = categoryLabel(drink);
     }
   }

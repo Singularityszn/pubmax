@@ -126,8 +126,11 @@ describe("crawlUrl", () => {
     expect(lowNo.filters.requireNonAlcoholic).toBe(true);
     expect(lowNo.altStyle).toBe("mocktail");
 
+    const wine = seedCrawlState("?drink=wine");
+    expect(wine.filters.query).toBe("Wine");
+
     const gin = seedCrawlState("?drink=gin");
-    expect(gin.filters.query).toBe("Gin");
+    expect(gin.filters.query).toBe("");
   });
 
   it("round-trips explicit drink search filters", () => {

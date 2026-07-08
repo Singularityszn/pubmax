@@ -1,4 +1,4 @@
-// Issue #35 — two-stage map load. The map paints pins from the ~116 KB slim
+// Issue #35 — two-stage map load. The map paints pins from the ~400 KB slim
 // index (lib/venuesSlim.ts) BEFORE the ~5.6 MB full price dataset lands, so the
 // first interactive pin appears fast. This module is the pure bridge between the
 // two: it turns a SlimVenue into a MINIMAL, Venue-SHAPE-COMPATIBLE object that
@@ -22,7 +22,7 @@ import type { Venue } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 // A slim pin is a real Venue value (so the canvas prop type is satisfied) built
-// from the six fields the pin paint actually needs; every other field carries a
+// from the compact fields the pin paint and fast filters need; every other field carries a
 // safe, inert default so nothing downstream throws before hydration.
 export function slimVenueToPin(slim: SlimVenue): Venue {
   return {
@@ -60,6 +60,7 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     dataQualityNotes: [],
     sourceDatasets: [],
     curation: {},
+    ...(slim.filterHints ? { filterHints: slim.filterHints } : {}),
   };
 }
 
