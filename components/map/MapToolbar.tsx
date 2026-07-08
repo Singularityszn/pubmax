@@ -2,13 +2,15 @@
 
 import { Route, Search, X } from "lucide-react";
 
+import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
+import type { Filters } from "@/lib/venues";
 
 import "./mapToolbar.css";
 
 // The only chrome on the clean, full-bleed map: search, favorite-pint picker,
-// and a "Plan a crawl" toggle. Everything else (filters, route, venue detail)
-// lives in drawers that slide in only when the user acts.
+// drink-shape chips, and a "Plan a crawl" toggle. Everything else (filters,
+// route, venue detail) lives in drawers that slide in only when the user acts.
 type MapToolbarProps = {
   query: string;
   onQueryChange: (query: string) => void;
@@ -16,6 +18,8 @@ type MapToolbarProps = {
   onFavoritePintChange: (beerId: string | null) => void;
   planningOpen: boolean;
   onTogglePlanning: () => void;
+  filters: Filters;
+  onFiltersChange: (filters: Filters) => void;
 };
 
 export default function MapToolbar({
@@ -25,42 +29,47 @@ export default function MapToolbar({
   onFavoritePintChange,
   planningOpen,
   onTogglePlanning,
+  filters,
+  onFiltersChange,
 }: MapToolbarProps) {
   return (
     <div className="mapToolbar" role="search">
-      <div className="mapToolbarSearch">
-        <Search size={15} aria-hidden="true" />
-        <input
-          id="mapSearchInput"
-          type="search"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search a pub, area or borough…"
-          aria-label="Search pubs by name, area or borough"
-        />
-        {query ? (
-          <button
-            type="button"
-            className="mapToolbarClear"
-            onClick={() => onQueryChange("")}
-            aria-label="Clear search"
-          >
-            <X size={13} />
-          </button>
-        ) : null}
+      <div className="mapToolbarRow">
+        <div className="mapToolbarSearch">
+          <Search size={15} aria-hidden="true" />
+          <input
+            id="mapSearchInput"
+            type="search"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search a pub, area or drink…"
+            aria-label="Search pubs by name, area, borough or drink"
+          />
+          {query ? (
+            <button
+              type="button"
+              className="mapToolbarClear"
+              onClick={() => onQueryChange("")}
+              aria-label="Clear search"
+            >
+              <X size={13} />
+            </button>
+          ) : null}
+        </div>
+
+        <FavoritePintPicker value={favoritePint} onChange={onFavoritePintChange} />
+
+        <button
+          type="button"
+          className={planningOpen ? "planBtn active" : "planBtn"}
+          onClick={onTogglePlanning}
+          aria-pressed={planningOpen}
+        >
+          <Route size={15} aria-hidden="true" />
+          {planningOpen ? "Close planner" : "Plan a crawl"}
+        </button>
       </div>
-
-      <FavoritePintPicker value={favoritePint} onChange={onFavoritePintChange} />
-
-      <button
-        type="button"
-        className={planningOpen ? "planBtn active" : "planBtn"}
-        onClick={onTogglePlanning}
-        aria-pressed={planningOpen}
-      >
-        <Route size={15} aria-hidden="true" />
-        {planningOpen ? "Close planner" : "Plan a crawl"}
-      </button>
+      <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
     </div>
   );
 }

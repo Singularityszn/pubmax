@@ -139,7 +139,11 @@ export function decodeCrawl(
     out.altStyle = "mocktail";
   } else if (isDrinkCategory(drink)) {
     if (drink === "cocktail") filters.requireCocktails = true;
-    if (!filters.query && drink === "wine") {
+    // Soft text query for every drink family so landing drink-shape taps
+    // open a usefully narrowed map (wine lists, gin bars, whisky pubs…).
+    // Cocktail already has a hard amenity filter; keep the query too so the
+    // search field mirrors what the visitor tapped.
+    if (!filters.query) {
       filters.query = categoryLabel(drink);
     }
   }
