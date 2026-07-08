@@ -7,8 +7,12 @@ import {
   buildLedgerEntries,
   buildVenueClaims,
   ledgerClaimDrops,
-  redactFamilyTableEntries,
+  resolveFamilyTableDisplay,
+  type RedactedFamilyEntry,
+  type FamilyTableEntry,
 } from "@/lib/ledger";
+import { normalizeViewerHandle, type ViewerContext } from "@/lib/pintDrops";
+import { memoryFollowStore, supabaseFollowStore } from "@/lib/followStore";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -31,7 +35,10 @@ import "./ledger.css";
 // button (components/ledger/ReadLedgerButton), which is feature-detected and
 // degrades to nothing when speechSynthesis is unsupported.
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
 // Mirrors app/api/venue/[id]'s memoized read: group the bundled dataset once
 // per process and look venues up by id. Never throws — a read/parse failure
@@ -60,6 +67,31 @@ async function getVenue(id: string): Promise<Venue | null> {
 
 function pintDropStoreFor() {
   return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
+}
+
+async function resolveViewer(
+  searchParams?: PageProps["searchParams"],
+): Promise<ViewerContext | undefined> {
+  const params = searchParams ? await searchParams : undefined;
+  const raw = params?.viewer;
+  const handle = normalizeViewerHandle(Array.isArray(raw) ? raw[0] : raw);
+  if (!handle) return undefined;
+  const follows = isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
+  try {
+    const following = await follows.listFollowing(handle);
+    return {
+      handle,
+      followingHandles: new Set(following.map(normalizeViewerHandle).filter(Boolean)),
+    };
+  } catch {
+    return { handle };
+  }
+}
+
+function isFullFamilyEntry(
+  entry: FamilyTableEntry | RedactedFamilyEntry,
+): entry is FamilyTableEntry {
+  return "note" in entry;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -104,8 +136,9 @@ function NotInTheLedger() {
   );
 }
 
-export default async function LedgerPage({ params }: PageProps) {
+export default async function LedgerPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const viewer = await resolveViewer(searchParams);
   const venue = await getVenue(id);
   if (!venue) return <NotInTheLedger />;
 
@@ -142,25 +175,24 @@ export default async function LedgerPage({ params }: PageProps) {
   // call from listVisible above, never a filter over `drops`, so a legacy row
   // can never accidentally end up rendered in the public logbook above.
   const legacyDrops = await pintDropStoreFor().listLegacyForVenue(id);
-  // F4: this is a PUBLIC page, so legacy ("ledger-only") entries render
-  // REDACTED — initials-style handle, no price, no note body (see
-  // redactFamilyTableEntries in lib/ledger.ts). The table still shows its
-  // shape (how many stories, when, which era) so "kept for the family" reads
-  // as a real place, not an empty section. TRUE viewer-gating — the family
-  // actually reading the notes — waits for Supabase Auth (Epic D).
-  const familyEntries = redactFamilyTableEntries(
-    buildFamilyTableEntries(
-      legacyDrops.map((d) => ({
-        id: d.id,
-        handle: d.handle,
-        drink: d.drink,
-        priceGbp: d.priceGbp,
-        passedDownNote: d.passedDownNote,
-        era: d.era,
-        provenance: d.provenance,
-        createdAt: d.createdAt,
-      })),
-    ),
+  const legacySources = legacyDrops.map((d) => ({
+    id: d.id,
+    handle: d.handle,
+    drink: d.drink,
+    priceGbp: d.priceGbp,
+    passedDownNote: d.passedDownNote,
+    era: d.era,
+    provenance: d.provenance,
+    createdAt: d.createdAt,
+  }));
+  // F4: public page redacts legacy rows unless the self-asserted viewer is the
+  // drop's author (?viewer=, same courtesy curtain as /p/[id]). Everyone else
+  // sees initials-style attribution and a generic family-table line — no price
+  // or note body.
+  const familyEntries = resolveFamilyTableDisplay(
+    buildFamilyTableEntries(legacySources),
+    legacySources,
+    viewer?.handle,
   );
   // The Ledger's own canonical link, for the share actions below. Relative,
   // like every other in-app link on this page (venueMapUrl) — the deployed
@@ -315,11 +347,19 @@ export default async function LedgerPage({ params }: PageProps) {
                       {entry.era ? <span className="ledgerClaimEra"> · {entry.era}</span> : null}
                     </span>
                   </div>
-                  {/* F4: the note body and price never reach this public page —
-                      RedactedFamilyEntry omits them at the type level. */}
-                  <p className="ledgerFamilyEntryNote">
-                    A story kept for the family table.
-                  </p>
+                  {isFullFamilyEntry(entry) ? (
+                    <>
+                      <p className="ledgerFamilyEntryNote">{entry.note}</p>
+                      {entry.priceLabel ? (
+                        <p className="ledgerEntryPrice">
+                          <span className="ledgerEntryPriceLabel">Paid</span>{" "}
+                          <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="ledgerFamilyEntryNote">A story kept for the family table.</p>
+                  )}
                 </article>
               </li>
             ))}
