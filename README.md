@@ -34,7 +34,7 @@ Useful scripts:
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run verify` | lint · typecheck · test — the fast local gate |
+| `npm run verify` | validate-data · lint · typecheck · coverage — the local pre-push gate |
 | `npm run ci` | `verify` + build — the full gate (what Vercel runs) |
 | `npm test` | Vitest unit suite |
 | `npm run test:e2e` | Playwright smoke (builds, starts, drives Chromium) |
