@@ -18,6 +18,8 @@ import prefetchVenue from "@/lib/prefetchVenue";
 // Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
+import { lastTrainBadge } from "@/lib/lastTrainBadge";
+import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
 // canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
@@ -162,6 +164,14 @@ export default function FeedCard({
   const catStyle = { ["--feed-cat" as string]: categoryColor(category) };
   const catLabel = categoryLabel(category);
 
+  // Honest Last Train stamp (Wave F0 / IDEAS A5): only when the drop carries
+  // leave-by + a live decision kind. Never invent "made the last train."
+  const trainBadge = lastTrainBadge(
+    item.createdAt,
+    item.leaveByIso,
+    item.lastTrainDecision as LastPintDecisionKind | null | undefined,
+  );
+
   return (
     <article
       className={feedCardClassName(hero, optimistic, categoryResolved)}
@@ -230,6 +240,14 @@ export default function FeedCard({
                       <time dateTime={item.createdAt}>{ago}</time>
                     </>
                   ) : null}
+                  {trainBadge ? (
+                    <>
+                      {" · "}
+                      <span className="feedTrainBadge" data-tone={trainBadge.tone}>
+                        {trainBadge.label}
+                      </span>
+                    </>
+                  ) : null}
                 </span>
               </div>
             </div>
@@ -279,6 +297,11 @@ export default function FeedCard({
                 <time className="feedTime" dateTime={item.createdAt}>
                   {ago}
                 </time>
+              ) : null}
+              {trainBadge ? (
+                <span className="feedTrainBadge" data-tone={trainBadge.tone}>
+                  {trainBadge.label}
+                </span>
               ) : null}
             </div>
             <span className={`feedProv feedProv-${item.provenance}`}>{provLabel}</span>

@@ -27,6 +27,7 @@ import { directVenueImageUrl } from "@/lib/venueImages";
 import { bandsForVenue } from "@/lib/storyBands";
 import { nearestLandmarks } from "@/lib/landmarks";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
+import { curatedCrawlsForBand, placeStoryMapHref } from "@/lib/curatedCrawls";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
@@ -663,21 +664,39 @@ export default function VenueInspector({
             <div className="placeStoryList">
               {placeStories.map((band) => {
                 const source = band.sources[0];
+                const storyCrawls = curatedCrawlsForBand(band.id);
+                const primaryCrawl = storyCrawls[0];
                 return (
                   <article key={band.id} className="placeStoryCard">
                     <h4 className="placeStoryTitle">{band.title}</h4>
                     <p className="placeStoryCopy">{band.copy}</p>
-                    {source ? (
-                      <a
-                        className="placeStorySource"
-                        href={source.url}
-                        target="_blank"
-                        rel="noreferrer"
+                    <div className="placeStoryActions">
+                      <Link
+                        className="placeStoryWalk"
+                        href={placeStoryMapHref(band.id, primaryCrawl?.id)}
                       >
-                        {source.label}
-                        <ExternalLink size={13} />
-                      </a>
-                    ) : null}
+                        Walk this story
+                      </Link>
+                      {primaryCrawl ? (
+                        <Link
+                          className="placeStoryCrawl"
+                          href={`/crawls#${encodeURIComponent(primaryCrawl.id)}`}
+                        >
+                          {primaryCrawl.name}
+                        </Link>
+                      ) : null}
+                      {source ? (
+                        <a
+                          className="placeStorySource"
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {source.label}
+                          <ExternalLink size={13} />
+                        </a>
+                      ) : null}
+                    </div>
                   </article>
                 );
               })}

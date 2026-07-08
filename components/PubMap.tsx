@@ -1063,6 +1063,7 @@ export default function PubMap() {
           onVenuePrefetch={prefetchVenueDetail}
           venueSignals={venueSignals}
           favoritePint={favoritePint}
+          drinkCategory={filters.drinkCategory || null}
           activeBandId={activeBandId}
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}

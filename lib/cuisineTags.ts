@@ -56,6 +56,20 @@ export const CURATED_CUISINE_BY_VENUE_ID: Readonly<Record<string, readonly strin
   "venue-7g6jxt": ["pie"], // The New Fairlop Oak
   "venue-we3mzn": ["kitchen"], // German Gymnasium
   "venue-5zogu6": ["kitchen"], // Hicce Hart
+  // Wave F1 — denser food coverage on central crawl pubs (still light tags).
+  "venue-1yd70c7": ["gastropub", "roast"], // The Lamb
+  "venue-fr71bp": ["gastropub"], // Museum Tavern
+  "venue-gv8lwa": ["gastropub", "fish"], // Anchor Bankside
+  "venue-1x50b6d": ["gastropub"], // Old Thameside Inn
+  "venue-16pnwmm": ["gastropub", "fish"], // Prospect of Whitby
+  "venue-ekvkuv": ["gastropub"], // The Grapes
+  "venue-1d8a5xb": ["gastropub"], // Captain Kidd
+  "venue-fpmfjs": ["gastropub"], // The Rake
+  "venue-133uf6h": ["gastropub", "kitchen"], // Katzenjammers
+  "venue-dbukrn": ["gastropub"], // The Coal Hole
+  "venue-lrlyh8": ["gastropub", "roast"], // Old Bank of England
+  "venue-1sx1vco": ["gastropub"], // Ye Olde Cock Tavern
+  "venue-erabed": ["gastropub"], // The Perseverance
 };
 
 /** Normalise a raw tag: trim, lowercase, drop empties / unknowns. */

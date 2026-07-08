@@ -29,6 +29,11 @@ export type CuratedCrawl = {
    * unchanged — and a "mocktail" crawl nudges the non-alcoholic filter on.
    */
   altStyle?: AltCrawlStyle;
+  /**
+   * Optional Place story corridor id (lib/storyBands) this crawl packages
+   * (Wave F2). When set, Crawls / Lore can deep-link the corridor + route.
+   */
+  placeStoryBandId?: string;
 };
 
 export const curatedCrawls: CuratedCrawl[] = [
@@ -64,6 +69,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-1r447i7", // The Tipperary — 66 Fleet St
     ],
     startLandmarkId: "somerset-house",
+    placeStoryBandId: "fleet-street-writers",
   },
   {
     id: "bloomsbury-literary",
@@ -95,6 +101,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-ekvkuv", // The Grapes — 76 Narrow St, Limehouse
     ],
     startLandmarkId: "tower-bridge",
+    placeStoryBandId: "thames-industrial",
   },
   {
     id: "pint-park-view",
@@ -128,6 +135,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-2e3otf", // The Barrowboy & Banker — 6-8 Borough High St
     ],
     startLandmarkId: "borough-market",
+    placeStoryBandId: "markets-theatre",
   },
   {
     id: "bankside-riverside",
@@ -143,6 +151,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-1pvqxca", // Lord Clyde — 27 Clennam Street
     ],
     startLandmarkId: "tate-modern",
+    placeStoryBandId: "river-history",
   },
   {
     id: "camden-market-crawl",
@@ -196,3 +205,29 @@ export const curatedCrawls: CuratedCrawl[] = [
     startLandmarkId: "piccadilly-circus",
   },
 ];
+
+/** Curated crawls that package a given Place story corridor (Wave F2). */
+export function curatedCrawlsForBand(bandId: string | null | undefined): CuratedCrawl[] {
+  if (!bandId) return [];
+  return curatedCrawls.filter((crawl) => crawl.placeStoryBandId === bandId);
+}
+
+/** Look up one curated crawl by id. */
+export function curatedCrawlById(id: string | null | undefined): CuratedCrawl | undefined {
+  if (!id) return undefined;
+  return curatedCrawls.find((crawl) => crawl.id === id);
+}
+
+/** Map deep-link that opens a Place story corridor (and optional crawl stops). */
+export function placeStoryMapHref(bandId: string, crawlId?: string): string {
+  const crawl = crawlId ? curatedCrawlById(crawlId) : undefined;
+  if (crawl) {
+    const params = new URLSearchParams();
+    params.set("mode", "build");
+    params.set("pubs", crawl.venueIds.join(","));
+    params.set("band", bandId);
+    return `/map?${params.toString()}`;
+  }
+  const params = new URLSearchParams({ band: bandId });
+  return `/map?${params.toString()}`;
+}

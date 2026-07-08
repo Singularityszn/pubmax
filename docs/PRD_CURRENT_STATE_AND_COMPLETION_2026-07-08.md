@@ -2,6 +2,11 @@
 
 Date: 2026-07-08
 
+> **Next wave (2026-07-08):** After Mobile UX (#51) and Design/Map/Drink (#53),
+> see [`PRD_PLACE_DRINK_FOOD_NEXT_WAVE_2026-07-08.md`](./PRD_PLACE_DRINK_FOOD_NEXT_WAVE_2026-07-08.md)
+> for Hungry CTA, Place story deep-links, Feed Last Train stamps, slim
+> brand/cuisine hints, story crawl packs, and durable admin import notes.
+
 ## Problem Statement
 
 PUBMAXXING has moved from a concept into a credible demoable product: a London

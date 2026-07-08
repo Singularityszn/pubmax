@@ -72,7 +72,8 @@ export const STORY_BANDS: StoryBand[] = [
       "hms-belfast",
     ],
     colourToken: "river",
-    radiusKm: 0.55,
+    // Wave F1: slightly wider so more Bankside / South Bank crawl pubs join Lore.
+    radiusKm: 0.7,
     sources: [
       {
         label: "Museum of London Docklands",
@@ -88,7 +89,7 @@ export const STORY_BANDS: StoryBand[] = [
     kind: "literary",
     anchorLandmarkIds: ["st-pauls", "somerset-house", "covent-garden"],
     colourToken: "brass",
-    radiusKm: 0.6,
+    radiusKm: 0.75,
     sources: [
       {
         label: "British Library — Fleet Street",
@@ -104,7 +105,7 @@ export const STORY_BANDS: StoryBand[] = [
     kind: "market",
     anchorLandmarkIds: ["borough-market", "shakespeares-globe", "the-shard"],
     colourToken: "amber",
-    radiusKm: 0.5,
+    radiusKm: 0.65,
     sources: [
       {
         label: "Borough Market — Our history",
@@ -126,7 +127,7 @@ export const STORY_BANDS: StoryBand[] = [
       "buckingham-palace",
     ],
     colourToken: "brick",
-    radiusKm: 0.6,
+    radiusKm: 0.75,
     sources: [
       {
         label: "UK Parliament — Living Heritage",
@@ -142,7 +143,7 @@ export const STORY_BANDS: StoryBand[] = [
     kind: "industrial",
     anchorLandmarkIds: ["tower-of-london", "tower-bridge", "hms-belfast"],
     colourToken: "muted",
-    radiusKm: 0.7,
+    radiusKm: 0.85,
     sources: [
       {
         label: "Museum of London Docklands",
@@ -158,7 +159,7 @@ export const STORY_BANDS: StoryBand[] = [
     kind: "modern",
     anchorLandmarkIds: ["barbican", "gherkin", "leadenhall-market"],
     colourToken: "riverBright",
-    radiusKm: 0.55,
+    radiusKm: 0.7,
     sources: [
       {
         label: "Tech City / Silicon Roundabout — Wikipedia",

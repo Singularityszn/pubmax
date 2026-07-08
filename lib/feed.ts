@@ -32,6 +32,14 @@ export type PintDropDTO = {
   venueName?: string;
   venueMapUrl?: string;
   optimistic?: OptimisticSpillState;
+  /**
+   * Optional Last Train context captured when the Spill was posted (Wave F0).
+   * When both fields are present and the decision is a live kind, the feed card
+   * may stamp an honest "before/after the last train" badge. Absent on most
+   * drops — never invent these client-side.
+   */
+  leaveByIso?: string | null;
+  lastTrainDecision?: string | null;
 };
 
 export type OptimisticSpillState = {
@@ -70,6 +78,10 @@ export type FeedItem = {
   drink: string;
   era: string;
   optimistic?: OptimisticSpillState;
+  /** Optional Last Train leave-by ISO from the drop DTO (Wave F0). */
+  leaveByIso?: string | null;
+  /** Optional Last Pint decision kind from the drop DTO (Wave F0). */
+  lastTrainDecision?: string | null;
 };
 
 // The friendly label shown when an id has no resolvable pub name — kept here so
@@ -148,6 +160,12 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
     drink: dto.drink ?? "",
     era: dto.era ?? "",
   };
+  if (dto.leaveByIso != null && dto.leaveByIso !== "") {
+    item.leaveByIso = dto.leaveByIso;
+  }
+  if (dto.lastTrainDecision != null && dto.lastTrainDecision !== "") {
+    item.lastTrainDecision = dto.lastTrainDecision;
+  }
   const optimistic = normalizeOptimistic(dto.optimistic);
   if (optimistic) item.optimistic = optimistic;
   return item;
