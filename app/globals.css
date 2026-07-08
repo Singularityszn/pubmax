@@ -3550,12 +3550,6 @@ button:disabled {
     border-radius: 16px;
   }
 
-  .appShell.onboarding-open .mapToolbar,
-  .appShell.onboarding-open .mapLegend {
-    opacity: 0;
-    pointer-events: none;
-  }
-
   .mapToolbarSearch input {
     min-width: 120px;
   }

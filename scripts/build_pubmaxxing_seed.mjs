@@ -213,14 +213,22 @@ function build() {
   });
 
   const discountMentionRecords = [
-    ...csvRecords("london_pub_discount_mentions.csv").map((row) => ({ ...row, sourceFile: "london_pub_discount_mentions.csv" })),
-    ...csvRecords("area-expansion/london_pub_discount_mentions.csv").map((row) => ({
+    ...csvRecords("london_pub_discount_mentions.csv").map((row, index) => ({
+      ...row,
+      sourceFile: "london_pub_discount_mentions.csv",
+      sourceRow: index + 2,
+    })),
+    ...csvRecords("area-expansion/london_pub_discount_mentions.csv").map((row, index) => ({
       ...row,
       sourceFile: "area-expansion/london_pub_discount_mentions.csv",
+      sourceRow: index + 2,
     })),
   ];
-  const discountMentions = compactMap(discountMentionRecords, (row, index) => {
-    const sourceUrl = rowCriticalHttpUrl(row.source_url, `discount source_url row ${index + 2}`);
+  const discountMentions = compactMap(discountMentionRecords, (row) => {
+    const sourceUrl = rowCriticalHttpUrl(
+      row.source_url,
+      `discount source_url row ${row.sourceRow} in ${row.sourceFile}`,
+    );
     if (!sourceUrl.ok) return undefined;
     return {
       pubId: nonEmpty(row.pub_id),

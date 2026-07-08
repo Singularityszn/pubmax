@@ -1367,25 +1367,6 @@
    Every transform/lift lives here so reduced-motion users get static,
    fully-visible content with colour/shadow feedback only. */
 @media (prefers-reduced-motion: no-preference) {
-  /* Keep revealed content paintable for full-page capture, crawlers, and print.
-     Motion is limited to hover/press feedback below; sections never start
-     invisible, so screenshots cannot capture blank bands. */
-  .lp.jsEnhanced .reveal {
-    opacity: 1;
-    transform: none;
-    transition: opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1),
-      transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
-  }
-
-  /* Gentle stagger for grouped reveals (cards, drop stack). */
-  .lp.jsEnhanced .cardGrid .reveal:nth-child(2) {
-    transition-delay: 0.08s;
-  }
-
-  .lp.jsEnhanced .cardGrid .reveal:nth-child(3) {
-    transition-delay: 0.16s;
-  }
-
   /* CTA + card + chip lifts and presses. */
   .lp .btnPrimary:hover {
     transform: translateY(-2px);
