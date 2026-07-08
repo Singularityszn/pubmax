@@ -445,7 +445,12 @@ export default function VenueInspector({
         hidden={tab !== "pints"}
       >
         {composerOpen ? (
-          <PintDropComposer venueId={venue.id} state={pintDrops} venueName={venue.name} />
+          <PintDropComposer
+            venueId={venue.id}
+            state={pintDrops}
+            venueName={venue.name}
+            lastTrainDecision={lastTrainDecision}
+          />
         ) : (
           <VenuePriceStory venue={venue} drops={drops} />
         )}
@@ -502,13 +507,15 @@ export default function VenueInspector({
             <div className="dropList">
               {drops.map((drop) => {
                 const hasPhotos = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
-                // Honest transport-context stamp (IDEAS A5): null unless the
-                // Getting-home tab has loaded a live decision AND the timestamps
-                // back a claim — see lib/lastTrainBadge.ts. No decision → no badge.
+                // Honest transport-context stamp (IDEAS A5 / Wave G1): prefer
+                // fields captured on the drop at compose time; fall back to the
+                // live Getting-home session for older rows that never stored them.
+                // See lib/lastTrainBadge.ts — no live kind / leave-by → no badge.
                 const trainBadge = lastTrainBadge(
                   drop.createdAt,
-                  lastTrainDecision?.leaveByIso,
-                  lastTrainDecision?.decision,
+                  drop.leaveByIso ?? lastTrainDecision?.leaveByIso,
+                  (drop.lastTrainDecision as LastPintDecision["decision"] | null | undefined) ??
+                    lastTrainDecision?.decision,
                 );
                 return (
                   <article

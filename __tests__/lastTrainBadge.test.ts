@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 
-import { lastTrainBadge, type LastTrainBadge } from "@/lib/lastTrainBadge";
+import {
+  lastTrainBadge,
+  lastTrainComposeFields,
+  type LastTrainBadge,
+} from "@/lib/lastTrainBadge";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // Pure badge logic for IDEAS A5 / PRD story 36. No network, no clock — every
@@ -89,6 +93,42 @@ describe("lastTrainBadge — refuses to guess (null cases)", () => {
         "totally_made_up" as unknown as LastPintDecisionKind,
       ),
     ).toBeNull();
+  });
+});
+
+describe("lastTrainComposeFields — Spill create payload (Wave G1)", () => {
+  it("includes leaveByIso + lastTrainDecision when the decision is live", () => {
+    for (const kind of LIVE_KINDS) {
+      expect(
+        lastTrainComposeFields({ decision: kind, leaveByIso: LEAVE_BY }),
+      ).toEqual({ leaveByIso: LEAVE_BY, lastTrainDecision: kind });
+    }
+  });
+
+  it("omits fields when TfL was unreachable (live_data_unavailable)", () => {
+    expect(
+      lastTrainComposeFields({
+        decision: "live_data_unavailable",
+        leaveByIso: LEAVE_BY,
+      }),
+    ).toBeNull();
+  });
+
+  it("omits fields when leaveByIso is missing or unparseable", () => {
+    expect(
+      lastTrainComposeFields({ decision: "order_one_more", leaveByIso: null }),
+    ).toBeNull();
+    expect(
+      lastTrainComposeFields({ decision: "order_one_more", leaveByIso: "" }),
+    ).toBeNull();
+    expect(
+      lastTrainComposeFields({ decision: "train_risk", leaveByIso: "not-a-date" }),
+    ).toBeNull();
+  });
+
+  it("omits fields when there is no active decision", () => {
+    expect(lastTrainComposeFields(null)).toBeNull();
+    expect(lastTrainComposeFields(undefined)).toBeNull();
   });
 });
 

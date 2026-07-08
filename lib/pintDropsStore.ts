@@ -190,6 +190,10 @@ function toRow(drop: PersistableDrop) {
     report_count: drop.reportCount ?? 0,
     moderated_at: drop.moderatedAt ?? null,
     moderator_note: drop.moderatorNote ?? null,
+    // Wave G1 / F0: optional Last Train context captured at Spill compose time.
+    // Null when the composer had no live decision (or TfL was down).
+    leave_by_iso: drop.leaveByIso ?? null,
+    last_train_decision: drop.lastTrainDecision ?? null,
   };
 }
 
@@ -219,6 +223,10 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     reportCount: row.report_count === null || row.report_count === undefined ? undefined : Number(row.report_count),
     moderatedAt: row.moderated_at ? String(row.moderated_at) : undefined,
     moderatorNote: row.moderator_note ? String(row.moderator_note) : undefined,
+    leaveByIso: row.leave_by_iso ? String(row.leave_by_iso) : undefined,
+    lastTrainDecision: row.last_train_decision
+      ? String(row.last_train_decision)
+      : undefined,
   };
 }
 
@@ -354,6 +362,16 @@ function isMissingVisibilityColumnError(error: { code?: string; message?: string
   return (code === "42703" || code === "PGRST204") && message.includes("visibility");
 }
 
+// Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
+function isMissingLastTrainColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  const mentions =
+    message.includes("leave_by_iso") || message.includes("last_train_decision");
+  return (code === "42703" || code === "PGRST204") && mentions;
+}
+
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
@@ -371,10 +389,25 @@ export const supabasePintDropStore: PintDropStore = {
         persistable.venuePhotoKey = await uploadPhoto("venue", drop.venueId, drop.id, photos.venue);
         uploaded.push(persistable.venuePhotoKey);
       }
-      const row = toRow(persistable);
-      // First attempt includes vibe_tags. Once migration 0005 is applied this is
-      // the only path that ever runs; the fallback below never fires.
-      const { error } = await admin().from(TABLE).insert(row);
+      let row = toRow(persistable);
+      // First attempt includes vibe_tags + Last Train columns. Once migrations
+      // 0005 / 0021 are applied this is the only path that ever runs.
+      let { error } = await admin().from(TABLE).insert(row);
+      if (error && isMissingLastTrainColumnError(error)) {
+        console.warn(
+          "[pint-drops] leave_by_iso/last_train_decision missing — inserting without them (apply migration 0021):",
+          error.message,
+        );
+        const {
+          leave_by_iso: _omitLeave,
+          last_train_decision: _omitDecision,
+          ...rowWithoutLastTrain
+        } = row;
+        void _omitLeave;
+        void _omitDecision;
+        row = rowWithoutLastTrain as typeof row;
+        ({ error } = await admin().from(TABLE).insert(row));
+      }
       if (error) {
         if (!isMissingVibeTagsColumnError(error)) throw new Error(error.message);
         // Migration 0005 (vibe_tags column) is not applied to this DB yet.

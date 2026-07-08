@@ -16,9 +16,11 @@ import {
   upsertOptimisticSpill,
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
+import { lastTrainComposeFields } from "@/lib/lastTrainBadge";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
+import type { LastPintDecision } from "@/lib/tfl";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -260,12 +262,19 @@ export function usePintDrops() {
     emitOptimisticSpillChange();
   }
 
-  async function submitDrop(event: FormEvent, venueId: string, options?: { venueName?: string }) {
+  async function submitDrop(
+    event: FormEvent,
+    venueId: string,
+    options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
+  ) {
     event.preventDefault();
     setSubmitting(true);
     setDropMsg(null);
     const clientRequestId = newOptimisticSpillClientId();
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
+    // Wave G1: only stamp leave-by + decision when a LIVE Last Pint verdict is
+    // on screen — never attach live_data_unavailable or a missing leave-by.
+    const trainFields = lastTrainComposeFields(options?.lastTrainDecision ?? null);
     const optimisticInput = {
       clientRequestId,
       venueId,
@@ -280,6 +289,7 @@ export function usePintDrops() {
       pintPhotoUrl: pintPhoto?.previewUrl ?? null,
       venuePhotoUrl: venuePhoto?.previewUrl ?? null,
       createdAt: new Date().toISOString(),
+      ...(trainFields ?? {}),
     };
     const optimisticDrop = buildOptimisticSpillDrop(optimisticInput);
     const publishToFeed = shouldOptimisticallyAppearInFeed(visibility);
@@ -308,6 +318,9 @@ export function usePintDrops() {
       pintPhotoUrl: optimisticDrop.pintPhotoUrl,
       venuePhotoUrl: optimisticDrop.venuePhotoUrl,
       optimistic: optimisticDrop.optimistic,
+      ...(trainFields
+        ? { leaveByIso: trainFields.leaveByIso, lastTrainDecision: trainFields.lastTrainDecision }
+        : {}),
     };
     setDropsByVenueId((current) => {
       const next = new Map(current);
@@ -359,6 +372,10 @@ export function usePintDrops() {
       // Repeated field entries — the route also accepts one comma-separated
       // value; the server re-filters against its allowlist either way.
       for (const tag of vibeTags) body.append("vibe_tags", tag);
+      if (trainFields) {
+        body.set("leaveByIso", trainFields.leaveByIso);
+        body.set("lastTrainDecision", trainFields.lastTrainDecision);
+      }
       if (pintPhoto) body.set("pint_photo", pintPhoto.file);
       if (venuePhoto) body.set("venue_photo", venuePhoto.file);
 
