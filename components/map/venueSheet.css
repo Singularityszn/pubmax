@@ -39,6 +39,10 @@
   border-bottom: 1px solid var(--line);
 }
 
+.venueTabShort {
+  display: none;
+}
+
 .venueTabs::-webkit-scrollbar {
   display: none;
 }
@@ -213,6 +217,7 @@
     flex-wrap: nowrap;
     max-height: none;
     scroll-snap-type: x proximity;
+    mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
   }
 
   .venueTab {
@@ -513,10 +518,38 @@ html[data-legacy="1"] .venueTabPanel::before {
 
 @media (max-width: 640px) {
   .venueTabs {
+    gap: 3px;
+    margin-top: 10px;
+    padding: 3px;
     border-radius: 16px;
+  }
+
+  .venueTab {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+
+  .venueTabFull {
+    display: none;
+  }
+
+  .venueTabShort {
+    display: inline;
   }
 
   .venueTabPanel {
     padding: 12px 12px 24px;
+  }
+}
+
+@media (max-width: 390px) {
+  .venueTabs {
+    gap: 2px;
+  }
+
+  .venueTab {
+    padding-inline: 9px;
+    font-size: 0.78rem;
   }
 }

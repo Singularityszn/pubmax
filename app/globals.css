@@ -265,7 +265,7 @@ button {
 .appShell {
   --map-top-clearance: 92px;
   --map-overlay-top: 108px;
-  --mobile-tab-clearance: calc(78px + env(safe-area-inset-bottom, 0px));
+  --mobile-tab-clearance: calc(74px + env(safe-area-inset-bottom, 0px));
   height: 100vh;
   position: relative;
   overflow: hidden;
@@ -655,20 +655,30 @@ input[type="range"] {
   height: 100%;
 }
 
-.mapRecenterBtn {
+.mapCameraControls {
   position: absolute;
   top: var(--map-overlay-top);
   right: 10px;
-  z-index: 455;
+  z-index: 530;
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.mapFitLondonBtn,
+.mapRecenterBtn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 9px;
+  min-height: 34px;
+  padding: 7px 10px;
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
-  background: var(--panel-raised);
+  background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   color: var(--brass);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
   font: inherit;
   font-size: 0.72rem;
   font-weight: 600;
@@ -676,11 +686,13 @@ input[type="range"] {
   cursor: pointer;
 }
 
+.mapFitLondonBtn:hover,
 .mapRecenterBtn:not(:disabled):hover {
   background: var(--brass);
   color: var(--paper);
 }
 
+.mapFitLondonBtn:focus-visible,
 .mapRecenterBtn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--brass-bright);
@@ -689,6 +701,13 @@ input[type="range"] {
 .mapRecenterBtn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.appShell.sheet-full .mapCameraControls,
+.appShell.onboarding-open .mapCameraControls {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
 }
 
 /* ── Map-first overlays: floating toolbar + sliding drawers ─────────────────*/
@@ -804,6 +823,10 @@ input[type="range"] {
 
 .mapDrawer[aria-hidden="true"] {
   pointer-events: none;
+}
+
+.plannerMapButton {
+  display: none;
 }
 
 /* Panels lose their own chrome inside a drawer — the drawer carries it. */
@@ -1007,13 +1030,23 @@ input[type="range"] {
 @media (max-width: 640px) {
   .mapOnboarding {
     align-items: flex-end;
-    padding: 12px 12px calc(90px + env(safe-area-inset-bottom, 0px));
+    padding: 12px 12px calc(var(--mobile-tab-clearance) + 30px);
   }
 
   .mapOnboardingCard {
     width: 100%;
-    max-height: calc(100% - 116px - env(safe-area-inset-bottom, 0px));
-    padding: 20px 18px 16px;
+    max-height: min(620px, calc(100% - var(--mobile-tab-clearance) - 144px));
+    padding: 20px 18px 22px;
+  }
+
+  .mapOnboardingDismiss {
+    position: sticky;
+    bottom: -10px;
+    background: linear-gradient(
+      to top,
+      var(--panel-raised) 72%,
+      color-mix(in srgb, var(--panel-raised) 86%, transparent)
+    );
   }
 }
 
@@ -3575,6 +3608,34 @@ button:disabled {
     transform: translateY(0);
   }
 
+  .plannerMapButton {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: calc(100% - 28px);
+    min-height: 44px;
+    margin: 12px 14px 2px;
+    border: 1px solid color-mix(in srgb, var(--river) 34%, var(--line));
+    border-radius: 999px;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--river) 10%, var(--panel-raised)), var(--panel-raised));
+    color: var(--river);
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--ink) 10%, transparent);
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .plannerMapButton:hover {
+    border-color: var(--river);
+    background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
+  }
+
   /* Toolbar hugs the top under the nav; wrap + full width on a phone. */
   .mapToolbar {
     top: var(--map-top-clearance);
@@ -3636,16 +3697,65 @@ button:disabled {
 }
 
 @media (max-width: 640px) {
+  .appShell {
+    --map-mobile-hero-clearance: 154px;
+    --map-mobile-legend-clearance: 62px;
+  }
+
+  .mapCameraControls {
+    top: calc(var(--map-overlay-top) + 4px);
+    right: 12px;
+    gap: 5px;
+  }
+
+  .mapFitLondonBtn,
+  .mapRecenterBtn {
+    min-height: 36px;
+    padding: 7px 10px;
+  }
+
+  .appShell.detail-open .mapToolbar,
+  .appShell.detail-open .mapHeroCard,
+  .appShell.detail-open .mapLegend,
+  .appShell.detail-open .poiToggle,
+  .appShell.detail-open .bandPicker {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+  }
+
   .mapLegend {
-    bottom: calc(var(--mobile-tab-clearance) + 10px);
+    bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
   }
 
   .poiToggle {
-    bottom: calc(var(--mobile-tab-clearance) + 14px);
+    left: 10px;
+    right: 10px;
+    max-width: calc(100vw - 20px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    bottom: calc(
+      var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance) + var(--map-mobile-legend-clearance)
+    );
+    scrollbar-width: none;
+  }
+
+  .poiToggle::-webkit-scrollbar {
+    display: none;
+  }
+
+  .poiToggleBtn {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 4px 9px;
   }
 
   .bandPicker {
-    bottom: calc(var(--mobile-tab-clearance) + 58px);
+    bottom: calc(
+      var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance) + var(--map-mobile-legend-clearance) + 44px
+    );
   }
 }
 
@@ -3705,7 +3815,7 @@ button:disabled {
 
   /* Legend wraps to two rows on the narrowest phones without clipping. */
   .mapLegend {
-    bottom: calc(var(--mobile-tab-clearance) + 10px);
+    bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
     gap: 8px 12px;
     padding: 8px 10px;
     font-size: 0.74rem;

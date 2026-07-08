@@ -226,6 +226,27 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   await expect(page.locator(".drawerClose")).toBeVisible();
   const tabs = page.getByRole("tab");
   await expect(tabs.first()).toBeVisible();
+
+  const mobileNav = page.locator(".mobileTabBar");
+  const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
+  await expect(mobileNav).toBeVisible();
+  await expect(tablist).toBeVisible();
+
+  const [navBox, closeBox, tabsBox, horizontalOverflow] = await Promise.all([
+    mobileNav.boundingBox(),
+    page.locator(".drawerClose").boundingBox(),
+    tablist.boundingBox(),
+    page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+  ]);
+  expect(navBox).not.toBeNull();
+  expect(closeBox).not.toBeNull();
+  expect(tabsBox).not.toBeNull();
+  expect(horizontalOverflow).toBeLessThanOrEqual(1);
+  expect(navBox!.left).toBeGreaterThanOrEqual(0);
+  expect(navBox!.right).toBeLessThanOrEqual(390);
+  expect(closeBox!.y + closeBox!.height).toBeLessThan(navBox!.y);
+  expect(tabsBox!.y + tabsBox!.height).toBeLessThan(navBox!.y);
+
   await page.locator(".drawerClose").click();
   await expect(sheet).not.toHaveClass(/open/);
 });

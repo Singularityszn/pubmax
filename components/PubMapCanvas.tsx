@@ -3,7 +3,13 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import maplibregl from "maplibre-gl";
-import { Crosshair, ExternalLink, Landmark as LandmarkIcon, X } from "lucide-react";
+import {
+  Crosshair,
+  ExternalLink,
+  Landmark as LandmarkIcon,
+  MapPinned,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { landmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
@@ -84,6 +90,10 @@ const LONDON_VIEW = {
   pitch: 45,
   bearing: -15,
 };
+const LONDON_BOUNDS: [[number, number], [number, number]] = [
+  [-0.55, 51.28],
+  [0.35, 51.72],
+];
 
 const ORBIT_DEG_PER_SEC = 0.7; // gentle drift — a full turn in ~8.5 minutes
 const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
@@ -734,10 +744,7 @@ export default function PubMapCanvas({
         container,
         style: MAP_STYLES[themeRef.current],
         ...LONDON_VIEW,
-        maxBounds: [
-          [-0.55, 51.28],
-          [0.35, 51.72],
-        ],
+        maxBounds: LONDON_BOUNDS,
         // Attempt 2 drops to low-power: some drivers refuse a
         // high-performance context under load but grant the integrated GPU.
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
@@ -1757,6 +1764,25 @@ export default function PubMapCanvas({
     });
   }, []);
 
+  const fitLondon = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    holdUntilRef.current = Math.max(
+      holdUntilRef.current,
+      performance.now() + 900 + ORBIT_RESUME_MS,
+    );
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
+    map.fitBounds(LONDON_BOUNDS, {
+      padding: isPhone
+        ? { top: 184, right: 24, bottom: 190, left: 24 }
+        : 90,
+      maxZoom: 11,
+      duration: reducedRef.current ? 0 : 800,
+      pitch: LONDON_VIEW.pitch,
+      bearing: LONDON_VIEW.bearing,
+    });
+  }, []);
+
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere
   // selection change produce the same key, so the camera stays put while a user
@@ -1923,20 +1949,30 @@ export default function PubMapCanvas({
   return (
     <div className="mapCanvasWrap">
       <div ref={containerRef} className="maplibreMap" />
-      {/* Recenter route: re-runs the same fit logic as the route effect.
-          Self-contained (no parent prop); the nav control sits top-right so
-          this tucks just under it. Disabled below two stops. */}
-      <button
-        type="button"
-        className="mapRecenterBtn"
-        onClick={fitRoute}
-        disabled={!canRecenter}
-        aria-label="Recenter route"
-        title="Recenter route"
-      >
-        <Crosshair size={14} aria-hidden />
-        Recenter
-      </button>
+      {/* Camera controls: London is always available; Recenter remains route-only. */}
+      <div className="mapCameraControls" aria-label="Map camera controls">
+        <button
+          type="button"
+          className="mapFitLondonBtn"
+          onClick={fitLondon}
+          aria-label="Show all of London"
+          title="Show all of London"
+        >
+          <MapPinned size={14} aria-hidden />
+          London
+        </button>
+        <button
+          type="button"
+          className="mapRecenterBtn"
+          onClick={fitRoute}
+          disabled={!canRecenter}
+          aria-label="Recenter route"
+          title="Recenter route"
+        >
+          <Crosshair size={14} aria-hidden />
+          Recenter
+        </button>
+      </div>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>
           {activeLandmark.image ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { MapPinned, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -791,6 +791,7 @@ export default function PubMap() {
         // way while the mobile sheet is at its most-expanded snap, per the
         // thumb-reach control pass (GH #17 user story 17).
         "appShell dark" +
+        (detailOpen ? " detail-open" : "") +
         (detailOpen && sheetSnap === "full" ? " sheet-full" : "") +
         (showOnboarding ? " onboarding-open" : "")
       }
@@ -938,6 +939,14 @@ export default function PubMap() {
         className={planningOpen ? "mapDrawer left open" : "mapDrawer left"}
         aria-hidden={!planningOpen}
       >
+        <button
+          type="button"
+          className="plannerMapButton"
+          onClick={() => setPlanningOpen(false)}
+        >
+          <MapPinned size={16} aria-hidden="true" />
+          View London map
+        </button>
         <ControlRail
           mode={mode}
           onModeChange={setMode}

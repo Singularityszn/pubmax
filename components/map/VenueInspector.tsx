@@ -34,13 +34,13 @@ import "./accessibilityFilters.css";
 // a transport card built by another agent — we only render its mount point here.
 type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-home";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "pints", label: "Drops" },
-  { key: "menu", label: "Drinks" },
-  { key: "story", label: "Story" },
-  { key: "ask", label: "Ask" },
-  { key: "getting-home", label: "Last train" },
+const TABS: { key: TabKey; label: string; shortLabel: string }[] = [
+  { key: "overview", label: "Overview", shortLabel: "Pub" },
+  { key: "pints", label: "Drops", shortLabel: "Drops" },
+  { key: "menu", label: "Drinks", shortLabel: "Menu" },
+  { key: "story", label: "Story", shortLabel: "Lore" },
+  { key: "ask", label: "Ask", shortLabel: "Ask" },
+  { key: "getting-home", label: "Last train", shortLabel: "Train" },
 ];
 
 const DEFAULT_TAB: TabKey = "pints";
@@ -237,7 +237,7 @@ export default function VenueInspector({
       <h3>{venue.name}</h3>
 
       <div className="venueTabs" role="tablist" aria-label="Venue detail sections">
-        {TABS.map(({ key, label }) => {
+        {TABS.map(({ key, label, shortLabel }) => {
           const active = tab === key;
           return (
             <button
@@ -246,6 +246,7 @@ export default function VenueInspector({
               role="tab"
               id={`venueTab-${key}`}
               aria-controls={`venuePanel-${key}`}
+              aria-label={label}
               aria-selected={active}
               tabIndex={active ? 0 : -1}
               className={active ? "venueTab active" : "venueTab"}
@@ -255,7 +256,10 @@ export default function VenueInspector({
               onClick={() => selectTab(key)}
               onKeyDown={(event) => onTabKeyDown(event, key)}
             >
-              {label}
+              <span className="venueTabFull">{label}</span>
+              <span className="venueTabShort" aria-hidden="true">
+                {shortLabel}
+              </span>
             </button>
           );
         })}
