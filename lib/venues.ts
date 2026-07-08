@@ -1,4 +1,10 @@
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import {
+  findBrand,
+  haystackMatchesBrand,
+  haystackMatchesCategory,
+  parseDrinkCategoryParam,
+} from "@/lib/drinkBrands";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import {
@@ -129,6 +135,16 @@ export type VenueFilterHints = {
     hasStory: boolean;
   };
   canonical: boolean;
+  /**
+   * Soft cuisine / plate tags (roast, thai, pizza, …). Optional — absent on
+   * most slim rows; when present they are short lowercase tokens for UI chips
+   * and Discover "Hungry?" deep-links, never a hard filter gate.
+   */
+  cuisineTags?: string[];
+  // Optional drink-lens hints from the slim index (Wave C). Populated
+  // pragmatically from pint names / amenity flags — not a full menu DB.
+  drinkCategories?: string[];
+  drinkBrands?: string[];
 };
 
 export type Filters = {
@@ -152,6 +168,11 @@ export type Filters = {
   requireStepFree: boolean;
   requireAccessibleToilet: boolean;
   requireSeatedService: boolean;
+  // Drink-lens filters (Wave C / Discover deep-links). Empty string = off.
+  // drinkCategory is a DrinkCategory id; drinkBrand is a curated brand id from
+  // lib/drinkBrands. Cocktail / low-no still prefer the amenity flags above.
+  drinkCategory: string;
+  drinkBrand: string;
 };
 
 export function truthyFlag(value: string): boolean {
@@ -392,12 +413,58 @@ function matchesCanonicalFilter(venue: Venue, canonicalOnly: boolean): boolean {
   );
 }
 
+function venueDrinkHaystack(venue: Venue): string {
+  const parts = [
+    venue.name,
+    venue.cheapestPint,
+    ...venue.prices.map((price) => price.pint_name),
+    venue.filterHints?.searchText ?? "",
+  ];
+  return parts.join(" ");
+}
+
+function matchesDrinkCategory(venue: Venue, drinkCategory: string): boolean {
+  const category = parseDrinkCategoryParam(drinkCategory);
+  if (!category) return true;
+
+  const hinted = venue.filterHints?.drinkCategories;
+  if (Array.isArray(hinted) && hinted.some((c) => c === category)) return true;
+
+  // Cocktail amenity is a strong positive signal for the cocktail lens.
+  if (category === "cocktail") {
+    if (venue.amenities.cocktails) return true;
+    if (hasSlimFlag(venue, (hints) => hints.amenities.cocktails)) return true;
+  }
+
+  // Beer is the dataset spine — any priced pint row (or beer hint) counts.
+  if (category === "beer") {
+    if (venue.prices.length > 0) return true;
+    if (hasSlimFlag(venue, (hints) => (hints.drinkCategories ?? []).includes("beer"))) {
+      return true;
+    }
+  }
+
+  return haystackMatchesCategory(venueDrinkHaystack(venue), category);
+}
+
+function matchesDrinkBrand(venue: Venue, drinkBrand: string): boolean {
+  const hit = findBrand(drinkBrand);
+  if (!hit) return true;
+
+  const hinted = venue.filterHints?.drinkBrands;
+  if (Array.isArray(hinted) && hinted.includes(hit.brand.id)) return true;
+
+  return haystackMatchesBrand(venueDrinkHaystack(venue), hit.brand);
+}
+
 export function filterVenues(
   venues: Venue[],
   filters: Filters,
   hasPintDrops: (venueId: string) => boolean = () => false,
 ): Venue[] {
   const query = filters.query.trim().toLowerCase();
+  const drinkCategory = filters.drinkCategory?.trim() ?? "";
+  const drinkBrand = filters.drinkBrand?.trim() ?? "";
   return venues.filter((venue) => {
     const matchesPrice =
       venue.cheapestPrice === null || venue.cheapestPrice <= filters.maxPrice;
@@ -419,7 +486,9 @@ export function filterVenues(
       matchesVenueCuration(venue, filters) &&
       matchesCanonicalFilter(venue, filters.canonicalOnly) &&
       matchesPintDrops &&
-      matchesAccessibility
+      matchesAccessibility &&
+      matchesDrinkCategory(venue, drinkCategory) &&
+      matchesDrinkBrand(venue, drinkBrand)
     );
   });
 }

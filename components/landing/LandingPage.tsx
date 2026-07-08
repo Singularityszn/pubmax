@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import ThamesHero from "./ThamesHero";
 import ThemeToggle from "@/components/ThemeToggle";
-import LegacyToggle from "@/components/LegacyToggle";
 import SignInButton from "@/components/auth/SignInButton";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import { categoryColor } from "@/lib/categoryColors";
@@ -190,12 +189,13 @@ export default function LandingPage() {
           </Link>
           <nav className="navLinks" aria-label="Primary">
             <a href="#wedge">How it works</a>
-            <a href="#landlord">The PUBMAXXER</a>
+            <Link href="/map" {...mapWarmProps}>
+              Map
+            </Link>
             <a href="#drops">Pint Drops</a>
             <Link href="/feed">Feed</Link>
             <Link href="/crawls">Crawls</Link>
             <ThemeToggle />
-            <LegacyToggle />
             <SignInButton />
             <Link href="/map" className="btn btnPrimary topbarCta" {...mapWarmProps}>
               Open the map
@@ -538,6 +538,7 @@ export default function LandingPage() {
               </Link>
               <a href="#wedge">How it works</a>
               <a href="#drops">Pint Drops</a>
+              <a href="#landlord">The PUBMAXXER</a>
             </div>
             <div className="footerCol">
               <h4>The record</h4>

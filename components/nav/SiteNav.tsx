@@ -34,8 +34,7 @@ type NavKey =
   | "discover"
   | "crawls"
   | "profile"
-  | "borough"
-  | "admin";
+  | "borough";
 
 type NavLink = {
   key: NavKey;
@@ -47,9 +46,9 @@ type NavLink = {
   accent?: "beer" | "wine" | "whisky" | "gin" | "vodka" | "rum" | "cocktail" | "shot" | "other";
 };
 
-// The public link set, in display order. The wordmark is already Home, so the
-// route tabs stay focused on actions. Admin is intentionally NOT here — it is
-// appended below only outside production so it never shows in the public nav.
+// Consumer nav only. Staff moderation lives at /admin (URL + token) and is
+// intentionally absent from every public nav so demos never look like an
+// admin console.
 const LINKS: NavLink[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"], accent: "beer" },
   { key: "feed", href: "/feed", label: "Stories", match: ["/feed"], accent: "cocktail" },
@@ -58,17 +57,6 @@ const LINKS: NavLink[] = [
   { key: "crawls", href: "/crawls", label: "Crawls", match: ["/crawls"], accent: "rum" },
   { key: "profile", href: "/u/you", label: "You", match: ["/u"], accent: "vodka" },
 ];
-
-// Admin is a dev/preview-only convenience link. In production it is hidden from
-// the public nav entirely — /admin stays reachable by direct URL (its own token
-// gate is unchanged). Read at module scope: NODE_ENV is a build-time constant.
-const SHOW_ADMIN = process.env.NODE_ENV !== "production";
-const ADMIN_LINK: NavLink = {
-  key: "admin",
-  href: "/admin",
-  label: "Admin",
-  match: ["/admin"],
-};
 
 function matchesPath(pathname: string, link: NavLink): boolean {
   return link.match.some((prefix) =>
@@ -79,7 +67,7 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 
 export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Element {
   const pathname = usePathname() ?? "";
-  const links = SHOW_ADMIN ? [...LINKS, ADMIN_LINK] : LINKS;
+  const links = LINKS;
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
   // (fixed) over it. Every other page keeps the bar in normal flow.

@@ -717,3 +717,91 @@
     display: none;
   }
 }
+
+/* Brand chips under the drink chooser (Wave C). */
+.discoverBrandPanel {
+  margin-top: 18px;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--brass) 6%, var(--panel-raised)) 0%,
+      var(--panel-raised) 55%
+    );
+}
+
+.discoverBrandHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.discoverBrandTitle {
+  margin: 0;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.discoverBrandAll {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.discoverBrandAll:hover {
+  text-decoration: underline;
+}
+
+.discoverBrandDek,
+.discoverBrandEmpty {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
+.discoverBrandEmpty {
+  margin-bottom: 0;
+}
+
+.discoverBrandChips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.discoverBrandChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel));
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.discoverBrandChip:hover {
+  border-color: color-mix(in srgb, var(--brass) 55%, transparent);
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel));
+}
+
+.discoverBrandChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}

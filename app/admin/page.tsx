@@ -38,6 +38,8 @@ type ModeratorComment = {
   createdAt: string;
 };
 
+type AdminTab = "moderation" | "import";
+
 const TOKEN_KEY = "pubmax_admin_token";
 
 function readStoredToken(): string {
@@ -58,12 +60,23 @@ export default function AdminPage() {
   // Lazy initialiser reads localStorage on first client render — no effect, so we
   // don't trip react-hooks/set-state-in-effect.
   const [token, setToken] = useState(readStoredToken);
+  const [tab, setTab] = useState<AdminTab>("moderation");
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
   const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
   const [comments, setComments] = useState<ModeratorComment[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
+
+  // Import-note stub form (Wave E) — client validates, POSTs to in-memory API.
+  const [importBody, setImportBody] = useState("");
+  const [importVenueId, setImportVenueId] = useState("");
+  const [importVenueName, setImportVenueName] = useState("");
+  const [importProvenance, setImportProvenance] = useState<"sourced" | "contributor">(
+    "sourced",
+  );
+  const [importPending, setImportPending] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const t = token.trim();
@@ -182,15 +195,77 @@ export default function AdminPage() {
     [token],
   );
 
+  async function submitImportNote() {
+    const t = token.trim();
+    if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
+    setImportPending(true);
+    setImportMsg(null);
+    try {
+      const res = await fetch("/api/admin/import-notes", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-admin-token": t },
+        body: JSON.stringify({
+          body: importBody,
+          venueId: importVenueId.trim() || undefined,
+          venueName: importVenueName.trim() || undefined,
+          provenance: importProvenance,
+        }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+      };
+      if (res.status === 403) {
+        setImportMsg("Not authorised — check the admin token.");
+        return;
+      }
+      if (!res.ok) {
+        setImportMsg(payload.error ?? "Could not queue the note.");
+        return;
+      }
+      setImportMsg(payload.message ?? "Queued for review (demo)");
+      setImportBody("");
+      setImportVenueId("");
+      setImportVenueName("");
+    } catch {
+      setImportMsg("Could not reach the server.");
+    } finally {
+      setImportPending(false);
+    }
+  }
+
   return (
     <main className="admin">
-      <SiteNav active="admin" />
+      <SiteNav />
 
-      <h1>Pint Drop moderation</h1>
-      <p className="admin-sub">Review reported community drops. Restore the good, keep the rest hidden.</p>
+      <h1>Admin</h1>
+      <p className="admin-sub">
+        Review reported community drops, or queue a research note for moderated import.
+      </p>
       <Link className="adminMapCallout" href="/map">
         Back to the live map
       </Link>
+
+      <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+        <button
+          type="button"
+          role="tab"
+          className={tab === "moderation" ? "admin-tab active" : "admin-tab"}
+          aria-selected={tab === "moderation"}
+          onClick={() => setTab("moderation")}
+        >
+          Moderation
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={tab === "import" ? "admin-tab active" : "admin-tab"}
+          aria-selected={tab === "import"}
+          onClick={() => setTab("import")}
+        >
+          Import note
+        </button>
+      </div>
 
       <div className="admin-bar">
         <input
@@ -200,137 +275,255 @@ export default function AdminPage() {
           placeholder="Admin token"
           aria-label="Admin token"
         />
-        <button className="admin-btn" onClick={load} disabled={loading}>
-          {loading ? "Loading…" : "Load reported drops"}
-        </button>
+        {tab === "moderation" ? (
+          <button className="admin-btn" onClick={load} disabled={loading}>
+            {loading ? "Loading…" : "Load reported drops"}
+          </button>
+        ) : null}
       </div>
 
-      {message ? (
-        <div
-          className="admin-msg"
-          role={message.startsWith("Not authorised") || message.startsWith("Could not") ? "alert" : "status"}
-        >
-          {message}
-        </div>
-      ) : null}
+      {tab === "moderation" ? (
+        <>
+          {message ? (
+            <div
+              className="admin-msg"
+              role={
+                message.startsWith("Not authorised") || message.startsWith("Could not")
+                  ? "alert"
+                  : "status"
+              }
+            >
+              {message}
+            </div>
+          ) : null}
 
-      {drops.length === 0 ? (
-        <div className="admin-empty">
-          <strong>Queue clear</strong>
-          <span>Reported Pint Drops will appear here after they reach the review threshold.</span>
-          <Link href="/map">Open the map</Link>
-        </div>
-      ) : (
-        <div className="admin-list">
-          {drops.map((d) => (
-            <article className="admin-card" key={d.id}>
-              <div className="admin-card-head">
-                <span className="admin-handle">{d.handle}</span>
-                {d.priceGbp != null ? <span className="admin-price">£{d.priceGbp.toFixed(2)}</span> : null}
-              </div>
+          <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
+            Pint Drop moderation
+          </h2>
+          <p className="admin-sub">
+            Review reported community drops. Restore the good, keep the rest hidden.
+          </p>
 
-              <div className="admin-venue">
-                <span className="admin-venue-name">{venueNames.get(d.venueId) ?? d.venueId}</span>
-                <Link className="admin-venue-link" href={`/map?sel=${encodeURIComponent(d.venueId)}`}>
-                  View on map
-                </Link>
-              </div>
+          {drops.length === 0 ? (
+            <div className="admin-empty">
+              <strong>Queue clear</strong>
+              <span>
+                Reported Pint Drops will appear here after they reach the review threshold.
+              </span>
+              <Link href="/map">Open the map</Link>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {drops.map((d) => (
+                <article className="admin-card" key={d.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{d.handle}</span>
+                    {d.priceGbp != null ? (
+                      <span className="admin-price">£{d.priceGbp.toFixed(2)}</span>
+                    ) : null}
+                  </div>
 
-              {d.passedDownNote ? <p className="admin-note">{d.passedDownNote}</p> : null}
+                  <div className="admin-venue">
+                    <span className="admin-venue-name">
+                      {venueNames.get(d.venueId) ?? d.venueId}
+                    </span>
+                    <Link
+                      className="admin-venue-link"
+                      href={`/map?sel=${encodeURIComponent(d.venueId)}`}
+                    >
+                      View on map
+                    </Link>
+                  </div>
 
-              <div className="admin-meta">
-                {d.era ? <span>Era: {d.era}</span> : null}
-                {d.reportReason ? <span className="admin-report">Reason: {d.reportReason}</span> : null}
-                <span className="admin-report">Reports: {d.reportCount ?? 1}</span>
-                {d.reportedAt ? <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span> : null}
-              </div>
+                  {d.passedDownNote ? <p className="admin-note">{d.passedDownNote}</p> : null}
 
-              {d.pintPhotoUrl || d.venuePhotoUrl ? (
-                <div className="admin-photos">
-                  {d.pintPhotoUrl ? (
-                    <Image
-                      src={d.pintPhotoUrl}
-                      alt={`Pint photo reported from ${d.handle}`}
-                      width={96}
-                      height={96}
-                      unoptimized
-                    />
+                  <div className="admin-meta">
+                    {d.era ? <span>Era: {d.era}</span> : null}
+                    {d.reportReason ? (
+                      <span className="admin-report">Reason: {d.reportReason}</span>
+                    ) : null}
+                    <span className="admin-report">Reports: {d.reportCount ?? 1}</span>
+                    {d.reportedAt ? (
+                      <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
+                    ) : null}
+                  </div>
+
+                  {d.pintPhotoUrl || d.venuePhotoUrl ? (
+                    <div className="admin-photos">
+                      {d.pintPhotoUrl ? (
+                        <Image
+                          src={d.pintPhotoUrl}
+                          alt={`Pint photo reported from ${d.handle}`}
+                          width={96}
+                          height={96}
+                          unoptimized
+                        />
+                      ) : null}
+                      {d.venuePhotoUrl ? (
+                        <Image
+                          src={d.venuePhotoUrl}
+                          alt={`Venue photo reported from ${d.handle}`}
+                          width={96}
+                          height={96}
+                          unoptimized
+                        />
+                      ) : null}
+                    </div>
                   ) : null}
-                  {d.venuePhotoUrl ? (
-                    <Image
-                      src={d.venuePhotoUrl}
-                      alt={`Venue photo reported from ${d.handle}`}
-                      width={96}
-                      height={96}
-                      unoptimized
-                    />
-                  ) : null}
-                </div>
-              ) : null}
 
-              <div className="admin-actions">
-                <button
-                  className="admin-btn admin-restore"
-                  onClick={() => decide(d.id, "restore")}
-                  disabled={pendingId === d.id}
-                >
-                  {pendingId === d.id ? "Working…" : "Restore"}
-                </button>
-                <button
-                  className="admin-btn admin-keep"
-                  onClick={() => decide(d.id, "keep_hidden")}
-                  disabled={pendingId === d.id}
-                >
-                  {pendingId === d.id ? "Working…" : "Keep hidden"}
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decide(d.id, "restore")}
+                      disabled={pendingId === d.id}
+                    >
+                      {pendingId === d.id ? "Working…" : "Restore"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => decide(d.id, "keep_hidden")}
+                      disabled={pendingId === d.id}
+                    >
+                      {pendingId === d.id ? "Working…" : "Keep hidden"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
 
-      {/* ── Comment moderation queue (story 37) ─────────────────────────── */}
-      <h2 className="admin-section">Hidden comments</h2>
-      <p className="admin-sub">Review hidden Pint Drop comments. Restore the good, keep the rest hidden.</p>
-      {comments.length === 0 ? (
-        <div className="admin-empty">
-          <strong>No hidden comments</strong>
-          <span>Hidden or reported comments will appear here for review.</span>
-        </div>
+          {/* ── Comment moderation queue (story 37) ─────────────────────────── */}
+          <h2 className="admin-section">Hidden comments</h2>
+          <p className="admin-sub">
+            Review hidden Pint Drop comments. Restore the good, keep the rest hidden.
+          </p>
+          {comments.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No hidden comments</strong>
+              <span>Hidden or reported comments will appear here for review.</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {comments.map((c) => (
+                <article className="admin-card" key={c.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{c.handle}</span>
+                    <span className="admin-report">{c.status}</span>
+                  </div>
+                  <p className="admin-note">{c.body}</p>
+                  <div className="admin-meta">
+                    <Link
+                      className="admin-venue-link"
+                      href={`/map?drop=${encodeURIComponent(c.pintDropId)}`}
+                    >
+                      View the Pint Drop
+                    </Link>
+                    <span>Posted: {new Date(c.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decideComment(c.id, "restore")}
+                      disabled={pendingId === c.id}
+                    >
+                      {pendingId === c.id ? "Working…" : "Restore"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => decideComment(c.id, "keep_hidden")}
+                      disabled={pendingId === c.id}
+                    >
+                      {pendingId === c.id ? "Working…" : "Keep hidden"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </>
       ) : (
-        <div className="admin-list">
-          {comments.map((c) => (
-            <article className="admin-card" key={c.id}>
-              <div className="admin-card-head">
-                <span className="admin-handle">{c.handle}</span>
-                <span className="admin-report">{c.status}</span>
-              </div>
-              <p className="admin-note">{c.body}</p>
-              <div className="admin-meta">
-                <Link className="admin-venue-link" href={`/map?drop=${encodeURIComponent(c.pintDropId)}`}>
-                  View the Pint Drop
-                </Link>
-                <span>Posted: {new Date(c.createdAt).toLocaleString()}</span>
-              </div>
-              <div className="admin-actions">
-                <button
-                  className="admin-btn admin-restore"
-                  onClick={() => decideComment(c.id, "restore")}
-                  disabled={pendingId === c.id}
-                >
-                  {pendingId === c.id ? "Working…" : "Restore"}
-                </button>
-                <button
-                  className="admin-btn admin-keep"
-                  onClick={() => decideComment(c.id, "keep_hidden")}
-                  disabled={pendingId === c.id}
-                >
-                  {pendingId === c.id ? "Working…" : "Keep hidden"}
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+        <>
+          <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
+            Import note
+          </h2>
+          <p className="admin-sub">
+            Queue a URL or research note for moderated review. Demo stub — no Reddit/X
+            polling; notes sit in memory until a real store is wired.
+          </p>
+
+          {importMsg ? (
+            <div
+              className="admin-msg"
+              role={
+                importMsg.startsWith("Not authorised") ||
+                importMsg.startsWith("Could not") ||
+                importMsg.includes("required") ||
+                importMsg.includes("too long") ||
+                importMsg.includes("Provenance")
+                  ? "alert"
+                  : "status"
+              }
+            >
+              {importMsg}
+            </div>
+          ) : null}
+
+          <form
+            className="admin-import-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submitImportNote();
+            }}
+          >
+            <label className="admin-field">
+              <span>URL or note text</span>
+              <textarea
+                value={importBody}
+                onChange={(e) => setImportBody(e.target.value)}
+                rows={5}
+                required
+                placeholder="https://… or a short research note"
+                aria-label="URL or note text"
+              />
+            </label>
+            <label className="admin-field">
+              <span>Venue id (optional)</span>
+              <input
+                type="text"
+                value={importVenueId}
+                onChange={(e) => setImportVenueId(e.target.value)}
+                placeholder="venue-…"
+                aria-label="Optional venue id"
+              />
+            </label>
+            <label className="admin-field">
+              <span>Venue name (optional)</span>
+              <input
+                type="text"
+                value={importVenueName}
+                onChange={(e) => setImportVenueName(e.target.value)}
+                placeholder="The Example Arms"
+                aria-label="Optional venue name"
+              />
+            </label>
+            <label className="admin-field">
+              <span>Provenance</span>
+              <select
+                value={importProvenance}
+                onChange={(e) =>
+                  setImportProvenance(e.target.value as "sourced" | "contributor")
+                }
+                aria-label="Provenance"
+              >
+                <option value="sourced">sourced</option>
+                <option value="contributor">contributor</option>
+              </select>
+            </label>
+            <button className="admin-btn" type="submit" disabled={importPending}>
+              {importPending ? "Queuing…" : "Submit for review"}
+            </button>
+          </form>
+        </>
       )}
     </main>
   );

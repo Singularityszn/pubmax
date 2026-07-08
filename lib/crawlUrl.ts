@@ -1,6 +1,11 @@
 import type { CrawlStyle, Filters } from "@/lib/venues";
 import { initialFilters, type CrawlMode } from "@/components/map/ControlRail";
-import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
+import {
+  findBrand,
+  normalizeBrandQuery,
+  parseDrinkCategoryParam,
+} from "@/lib/drinkBrands";
+import { isDrinkCategory } from "@/lib/drinks";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -90,7 +95,17 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (filters.requirePintDrops) params.set("drops", "1");
   if (filters.requireNonAlcoholic) params.set("low", "1");
   if (filters.requireCocktails) params.set("cocktails", "1");
+  if (filters.requireFood) params.set("food", "1");
   if (filters.query.trim()) params.set("q", filters.query.trim());
+  // Drink lens (Wave C): round-trip ?drink= + optional ?brand=.
+  const drinkCategory = filters.drinkCategory?.trim();
+  if (drinkCategory && isDrinkCategory(drinkCategory)) {
+    params.set("drink", drinkCategory);
+  }
+  const drinkBrand = normalizeBrandQuery(filters.drinkBrand);
+  if (drinkBrand && findBrand(drinkBrand)) {
+    params.set("brand", drinkBrand);
+  }
   if (builtIds.length) params.set("pubs", builtIds.join(","));
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
@@ -123,26 +138,37 @@ export function decodeCrawl(
   if (params.get("drops") === "1") filters.requirePintDrops = true;
   if (params.get("low") === "1") filters.requireNonAlcoholic = true;
   if (params.get("cocktails") === "1") filters.requireCocktails = true;
+  if (params.get("food") === "1") filters.requireFood = true;
   const q = params.get("q")?.trim();
   if (q) filters.query = q.slice(0, 80);
-  // Discover → map drink deep-links (`?drink=` from exploreHref).
-  // Fully filterable against venue amenity / index data today:
-  //   low-no → requireNonAlcoholic (+ mocktail alt style)
-  //   cocktail → requireCocktails
-  // Soft-link only (text query; may return few/no pins until drink rows land):
-  //   wine → query "Wine" (pint dataset sometimes mentions wine lists)
-  // Not filterable yet (no inventing fake amenity flags) — open map without a
-  // blanking query: beer, whisky, gin, vodka, rum, shot, other.
-  const drink = params.get("drink")?.trim();
-  if (drink === "low-no") {
+
+  // Discover → map drink deep-links (`?drink=` / `?brand=` from exploreHref).
+  //   low-no / non-alcoholic → requireNonAlcoholic (+ mocktail alt style)
+  //   cocktail → requireCocktails + drinkCategory
+  //   wine/vodka/gin/… → drinkCategory (+ optional drinkBrand)
+  const drinkRaw = params.get("drink")?.trim().toLowerCase() ?? "";
+  if (drinkRaw === "low-no" || drinkRaw === "non-alcoholic") {
     filters.requireNonAlcoholic = true;
     out.altStyle = "mocktail";
-  } else if (isDrinkCategory(drink)) {
-    if (drink === "cocktail") filters.requireCocktails = true;
-    if (!filters.query && drink === "wine") {
-      filters.query = categoryLabel(drink);
+  } else {
+    const drinkCategory = parseDrinkCategoryParam(drinkRaw);
+    if (drinkCategory) {
+      filters.drinkCategory = drinkCategory;
+      if (drinkCategory === "cocktail") filters.requireCocktails = true;
     }
   }
+
+  const brandRaw = normalizeBrandQuery(params.get("brand"));
+  if (brandRaw) {
+    const hit = findBrand(brandRaw);
+    if (hit) {
+      filters.drinkBrand = hit.brand.id;
+      // Brand implies its category when drink= was omitted or mismatched.
+      if (!filters.drinkCategory) filters.drinkCategory = hit.category;
+      if (hit.category === "cocktail") filters.requireCocktails = true;
+    }
+  }
+
   if (Object.keys(filters).length) out.filters = filters;
 
   const pubs = params.get("pubs");

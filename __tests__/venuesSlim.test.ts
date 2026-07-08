@@ -91,6 +91,8 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireStepFree: false,
     requireAccessibleToilet: false,
     requireSeatedService: false,
+    drinkCategory: "",
+    drinkBrand: "",
     ...overrides,
   };
 }
@@ -176,6 +178,29 @@ describe("venues_slim.json", () => {
     expect(rows.some((row) => row.filterHints?.searchText.includes("wine"))).toBe(true);
     expect(rows.some((row) => row.filterHints?.amenities.cocktails)).toBe(true);
     expect(rows.some((row) => row.filterHints?.amenities.nonAlcoholic)).toBe(true);
+    expect(rows.some((row) => (row.filterHints?.drinkCategories ?? []).includes("beer"))).toBe(
+      true,
+    );
+    expect(rows.some((row) => (row.filterHints?.drinkBrands ?? []).includes("guinness"))).toBe(
+      true,
+    );
+  });
+
+  it("drink-lens filters use slim drinkCategories / drinkBrands hints", () => {
+    const ginIds = matchingIdsFromSlim(makeFilters({ drinkCategory: "gin" }));
+    const guinnessIds = matchingIdsFromSlim(makeFilters({ drinkBrand: "guinness" }));
+    expect(ginIds.length).toBeGreaterThan(0);
+    expect(guinnessIds.length).toBeGreaterThan(0);
+    // Hints are the fast path — every gin hit should carry a gin category hint
+    // or gin token in searchText (never invent matches from nowhere).
+    const byId = new Map((slim as SlimVenue[]).map((row) => [row.id, row]));
+    for (const id of ginIds.slice(0, 20)) {
+      const hints = byId.get(id)?.filterHints;
+      expect(hints).toBeTruthy();
+      const fromHint = (hints?.drinkCategories ?? []).includes("gin");
+      const fromText = (hints?.searchText ?? "").includes("gin");
+      expect(fromHint || fromText).toBe(true);
+    }
   });
 
   it.each([

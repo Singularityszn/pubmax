@@ -576,6 +576,118 @@ html[data-legacy="1"] .venueTabPanel::before {
   color: var(--pint);
 }
 
+.venueTabPanel .cuisineRow {
+  margin: 0 0 12px;
+}
+
+.venueTabPanel .cuisineServes {
+  margin: 0 0 6px;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+
+.venueTabPanel .cuisineTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.venueTabPanel .cuisineChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--amber, #c48a3a) 40%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--amber, #c48a3a) 10%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.venueTabPanel .placeStories {
+  margin: 16px 0 12px;
+}
+
+.venueTabPanel .placeStoriesLead {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.venueTabPanel .placeStoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.venueTabPanel .placeStoryCard {
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
+  border-radius: 14px;
+  background: var(--panel-raised);
+}
+
+.venueTabPanel .placeStoryTitle {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.venueTabPanel .placeStoryCopy {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.venueTabPanel .placeStorySource {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.venueTabPanel .placeStorySource:hover {
+  text-decoration: underline;
+}
+
+.venueTabPanel .aroundHere {
+  margin-top: 12px;
+}
+
+.venueTabPanel .aroundHereLabel {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.venueTabPanel .aroundHereList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.venueTabPanel .aroundHereList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: var(--ink-soft);
+}
+
+.venueTabPanel .aroundHereList small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 #venuePanel-getting-home {
   border-color: color-mix(in srgb, var(--river) 30%, var(--line));
   background:

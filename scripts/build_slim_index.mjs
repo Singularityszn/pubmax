@@ -135,6 +135,108 @@ const HERITAGE_TERMS = [
   "since 16",
 ];
 
+// Compact mirrors of lib/drinkBrands.ts + category tokens — keep pragmatic;
+// the slim index only needs soft drink-lens hints, not a full menu DB.
+const DRINK_BRAND_HINTS = [
+  { id: "guinness", category: "beer", needles: ["guinness"] },
+  { id: "neck-oil", category: "beer", needles: ["neck oil", "beavertown", "bevertown"] },
+  { id: "estrella", category: "beer", needles: ["estrella"] },
+  { id: "peroni", category: "beer", needles: ["peroni"] },
+  { id: "amstel", category: "beer", needles: ["amstel"] },
+  { id: "madri", category: "beer", needles: ["madri", "madrí"] },
+  { id: "camden-hells", category: "beer", needles: ["camden hell", "hells lager", "camden hells"] },
+  { id: "birra-moretti", category: "beer", needles: ["moretti", "birra moretti"] },
+  { id: "sipsmith", category: "gin", needles: ["sipsmith"] },
+  { id: "tanqueray", category: "gin", needles: ["tanqueray"] },
+  { id: "bombay-sapphire", category: "gin", needles: ["bombay"] },
+  { id: "hendricks", category: "gin", needles: ["hendrick", "hendricks"] },
+  { id: "gordon", category: "gin", needles: ["gordon"] },
+  { id: "beefeater", category: "gin", needles: ["beefeater"] },
+  { id: "absolut", category: "vodka", needles: ["absolut"] },
+  { id: "smirnoff", category: "vodka", needles: ["smirnoff"] },
+  { id: "grey-goose", category: "vodka", needles: ["grey goose", "gray goose"] },
+  { id: "belvedere", category: "vodka", needles: ["belvedere"] },
+  { id: "ketel-one", category: "vodka", needles: ["ketel one"] },
+  { id: "jameson", category: "whisky", needles: ["jameson"] },
+  { id: "jack-daniels", category: "whisky", needles: ["jack daniel", "jack daniels"] },
+  { id: "johnnie-walker", category: "whisky", needles: ["johnnie walker", "johnny walker"] },
+  { id: "bacardi", category: "rum", needles: ["bacardi"] },
+  { id: "captain-morgan", category: "rum", needles: ["captain morgan"] },
+  { id: "havana-club", category: "rum", needles: ["havana club"] },
+  { id: "prosecco", category: "wine", needles: ["prosecco"] },
+  { id: "rioja", category: "wine", needles: ["rioja"] },
+  { id: "malbec", category: "wine", needles: ["malbec"] },
+  { id: "chardonnay", category: "wine", needles: ["chardonnay"] },
+  { id: "negroni", category: "cocktail", needles: ["negroni"] },
+  { id: "espresso-martini", category: "cocktail", needles: ["espresso martini"] },
+  { id: "aperol-spritz", category: "cocktail", needles: ["aperol"] },
+  { id: "mojito", category: "cocktail", needles: ["mojito"] },
+];
+
+const CATEGORY_HINT_TOKENS = [
+  ["wine", ["wine", "prosecco", "champagne", "rioja", "malbec", "chardonnay"]],
+  ["whisky", ["whisky", "whiskey", "scotch", "bourbon"]],
+  ["gin", ["gin"]],
+  ["vodka", ["vodka"]],
+  ["rum", ["rum"]],
+  ["cocktail", ["cocktail", "spritz", "negroni", "martini", "margarita", "mojito"]],
+  ["shot", ["shot", "shots", "tequila", "sambuca"]],
+];
+
+function normaliseDrinkHaystack(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function buildDrinkHints(prices) {
+  const categories = new Set();
+  const brands = new Set();
+  const hay = normaliseDrinkHaystack(
+    [
+      ...prices.map((price) => price.pint_name),
+      ...prices.map((price) => price.comment),
+      prices[0]?.description,
+    ].join(" "),
+  );
+
+  // Beer is the dataset spine — any pint row implies beer coverage.
+  if (prices.some((price) => String(price.pint_name ?? "").trim())) {
+    categories.add("beer");
+  }
+  if (prices.some((price) => truthyFlag(price.cocktails))) {
+    categories.add("cocktail");
+  }
+
+  for (const [category, tokens] of CATEGORY_HINT_TOKENS) {
+    if (
+      tokens.some((token) => {
+        const n = normaliseDrinkHaystack(token);
+        if (!n) return false;
+        if (n.includes(" ")) return hay.includes(n);
+        const re = new RegExp(`(^| )${n}( |$)`);
+        return re.test(hay);
+      })
+    ) {
+      categories.add(category);
+    }
+  }
+
+  for (const brand of DRINK_BRAND_HINTS) {
+    if (brand.needles.some((needle) => hay.includes(normaliseDrinkHaystack(needle)))) {
+      brands.add(brand.id);
+      categories.add(brand.category);
+    }
+  }
+
+  return {
+    drinkCategories: Array.from(categories).sort(),
+    drinkBrands: Array.from(brands).sort(),
+  };
+}
+
 // Mirrors the curated names in lib/curation.ts. Keep this compact: the slim
 // artifact only needs the derived filter booleans, not the display copy.
 const CURATED_VENUES = {
@@ -191,6 +293,7 @@ function buildFilterHints(prices) {
       .filter(Boolean),
   );
   const curation = buildCurationHints(prices);
+  const drinkHints = buildDrinkHints(prices);
 
   return {
     searchText: Array.from(searchParts).join(" "),
@@ -203,6 +306,10 @@ function buildFilterHints(prices) {
     },
     curation,
     canonical: prices.some((price) => price.is_clean_canonical_app_row === true),
+    ...(drinkHints.drinkCategories.length
+      ? { drinkCategories: drinkHints.drinkCategories }
+      : {}),
+    ...(drinkHints.drinkBrands.length ? { drinkBrands: drinkHints.drinkBrands } : {}),
   };
 }
 

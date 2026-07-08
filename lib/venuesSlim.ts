@@ -37,6 +37,10 @@ function isBoolean(value: unknown): value is boolean {
   return typeof value === "boolean";
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
 function isFilterHints(value: unknown): value is VenueFilterHints {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
@@ -45,6 +49,10 @@ function isFilterHints(value: unknown): value is VenueFilterHints {
   if (typeof row.curation !== "object" || row.curation === null) return false;
   const amenities = row.amenities as Record<string, unknown>;
   const curation = row.curation as Record<string, unknown>;
+  // Optional soft arrays (Wave C drink lens + Wave E cuisine tags).
+  if (row.cuisineTags !== undefined && !isStringArray(row.cuisineTags)) return false;
+  if (row.drinkCategories !== undefined && !isStringArray(row.drinkCategories)) return false;
+  if (row.drinkBrands !== undefined && !isStringArray(row.drinkBrands)) return false;
   return (
     isBoolean(amenities.food) &&
     isBoolean(amenities.cocktails) &&

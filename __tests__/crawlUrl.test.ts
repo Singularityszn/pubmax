@@ -120,6 +120,7 @@ describe("crawlUrl", () => {
   it("seeds drink chooser links into map filters", () => {
     const cocktail = seedCrawlState("?drink=cocktail");
     expect(cocktail.filters.requireCocktails).toBe(true);
+    expect(cocktail.filters.drinkCategory).toBe("cocktail");
     expect(cocktail.filters.query).toBe("");
 
     const lowNo = seedCrawlState("?drink=low-no&low=1");
@@ -127,10 +128,67 @@ describe("crawlUrl", () => {
     expect(lowNo.altStyle).toBe("mocktail");
 
     const wine = seedCrawlState("?drink=wine");
-    expect(wine.filters.query).toBe("Wine");
+    expect(wine.filters.drinkCategory).toBe("wine");
+    expect(wine.filters.query).toBe("");
 
     const gin = seedCrawlState("?drink=gin");
+    expect(gin.filters.drinkCategory).toBe("gin");
     expect(gin.filters.query).toBe("");
+  });
+
+  it("round-trips drink + brand query params", () => {
+    const encoded = encodeCrawl({
+      ...sample,
+      filters: {
+        ...sample.filters,
+        drinkCategory: "gin",
+        drinkBrand: "sipsmith",
+      },
+    });
+    expect(encoded).toContain("drink=gin");
+    expect(encoded).toContain("brand=sipsmith");
+
+    const decoded = seedCrawlState(`?${encoded}`);
+    expect(decoded.filters.drinkCategory).toBe("gin");
+    expect(decoded.filters.drinkBrand).toBe("sipsmith");
+  });
+
+  it("seeds Discover brand deep-links like ?drink=vodka&brand=absolut", () => {
+    const seeded = seedCrawlState("?drink=vodka&brand=absolut");
+    expect(seeded.filters.drinkCategory).toBe("vodka");
+    expect(seeded.filters.drinkBrand).toBe("absolut");
+  });
+
+  it("infers drinkCategory from a known brand when drink= is omitted", () => {
+    const seeded = seedCrawlState("?brand=sipsmith");
+    expect(seeded.filters.drinkBrand).toBe("sipsmith");
+    expect(seeded.filters.drinkCategory).toBe("gin");
+  });
+
+  it("ignores unknown drink/brand values", () => {
+    const seeded = seedCrawlState("?drink=wizard&brand=not-real");
+    expect(seeded.filters.drinkCategory).toBe("");
+    expect(seeded.filters.drinkBrand).toBe("");
+  });
+
+  it("maps non-alcoholic drink aliases onto the low/no filter", () => {
+    const seeded = seedCrawlState("?drink=non-alcoholic");
+    expect(seeded.filters.requireNonAlcoholic).toBe(true);
+    expect(seeded.altStyle).toBe("mocktail");
+  });
+
+  it("decodes food=1 into requireFood (Discover Hungry? deep-link)", () => {
+    expect(decodeCrawl(new URLSearchParams("food=1")).filters?.requireFood).toBe(true);
+    expect(decodeCrawl(new URLSearchParams("food=0")).filters?.requireFood).toBeUndefined();
+    expect(seedCrawlState("?food=1").filters.requireFood).toBe(true);
+    const encoded = encodeCrawl({
+      ...sample,
+      filters: { ...sample.filters, requireFood: true },
+    });
+    expect(encoded).toContain("food=1");
+    expect(
+      encodeCrawl({ ...sample, filters: { ...sample.filters, requireFood: false } }),
+    ).not.toContain("food=");
   });
 
   it("round-trips explicit drink search filters", () => {
