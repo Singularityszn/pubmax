@@ -1,14 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CRAWL_CELEBRATION_KEY,
   CRAWL_PROGRESS_KEY,
+  CRAWL_QUEST_KEY,
+  acknowledgeCrawlCompletion,
   completedCrawlCount,
+  creditCrawlQuest,
+  crawlQuestChips,
+  hasCelebrationBeenShown,
   isComplete,
+  markCelebrationShown,
   markCrawlComplete,
   markStopVisited,
   parseProgress,
   readCrawl,
+  readCrawlQuest,
   readProgress,
+  shouldCelebrateCompletion,
   startCrawl,
 } from "@/lib/crawlCompletion";
 
@@ -158,5 +167,82 @@ describe("storage seam", () => {
     });
     // No window → default storage resolves to null.
     expect(readProgress()).toEqual({ crawls: {} });
+  });
+});
+
+describe("Wave G2 celebration eligibility + one-shot flag", () => {
+  it("is not eligible until the crawl is complete", () => {
+    const storage = makeMemoryStorage();
+    startCrawl("river", ["a", "b"], storage);
+    markStopVisited("river", "a", storage);
+    expect(shouldCelebrateCompletion("river", null, storage)).toBe(false);
+    expect(hasCelebrationBeenShown("river", storage)).toBe(false);
+  });
+
+  it("becomes eligible on the transition to complete, then one-shot after claim", () => {
+    const storage = makeMemoryStorage();
+    startCrawl("river", ["a", "b"], storage);
+    markStopVisited("river", "a", storage);
+    const done = markStopVisited("river", "b", storage);
+    expect(isComplete(done)).toBe(true);
+    expect(shouldCelebrateCompletion("river", done, storage)).toBe(true);
+
+    markCelebrationShown("river", storage);
+    expect(hasCelebrationBeenShown("river", storage)).toBe(true);
+    expect(shouldCelebrateCompletion("river", done, storage)).toBe(false);
+    // Remount / second claim does not re-arm.
+    markCelebrationShown("river", storage);
+    expect(shouldCelebrateCompletion("river", done, storage)).toBe(false);
+    expect(storage.getItem(CRAWL_CELEBRATION_KEY)).toContain("river");
+  });
+
+  it("acknowledgeCrawlCompletion celebrates once and credits quest + Place story", () => {
+    const storage = makeMemoryStorage();
+    startCrawl("fleet-street-writers", ["a", "b"], storage);
+    markCrawlComplete("fleet-street-writers", storage);
+
+    const first = acknowledgeCrawlCompletion(
+      "fleet-street-writers",
+      { placeStoryBandId: "fleet-street-writers" },
+      storage,
+    );
+    expect(first.celebrate).toBe(true);
+    expect(first.quest.completedCrawlIds).toEqual(["fleet-street-writers"]);
+    expect(first.quest.placeStoryBandIds).toEqual(["fleet-street-writers"]);
+
+    const second = acknowledgeCrawlCompletion(
+      "fleet-street-writers",
+      { placeStoryBandId: "fleet-street-writers" },
+      storage,
+    );
+    expect(second.celebrate).toBe(false);
+    expect(second.quest.completedCrawlIds).toEqual(["fleet-street-writers"]);
+    expect(crawlQuestChips(storage).map((c) => c.id)).toEqual([
+      "crawl-complete",
+      "place-story-crawl",
+    ]);
+  });
+
+  it("creditCrawlQuest is idempotent and skips Place story when unset", () => {
+    const storage = makeMemoryStorage();
+    creditCrawlQuest("hand-built", undefined, storage);
+    creditCrawlQuest("hand-built", { placeStoryBandId: "  " }, storage);
+    expect(readCrawlQuest(storage)).toEqual({
+      completedCrawlIds: ["hand-built"],
+      placeStoryBandIds: [],
+    });
+    creditCrawlQuest("hand-built", { placeStoryBandId: "river-history" }, storage);
+    creditCrawlQuest("hand-built", { placeStoryBandId: "river-history" }, storage);
+    expect(readCrawlQuest(storage).placeStoryBandIds).toEqual(["river-history"]);
+    expect(storage.getItem(CRAWL_QUEST_KEY)).toContain("river-history");
+  });
+
+  it("acknowledge does not celebrate incomplete crawls", () => {
+    const storage = makeMemoryStorage();
+    startCrawl("half", ["a", "b"], storage);
+    const ack = acknowledgeCrawlCompletion("half", undefined, storage);
+    expect(ack.celebrate).toBe(false);
+    expect(ack.quest.completedCrawlIds).toEqual([]);
+    expect(hasCelebrationBeenShown("half", storage)).toBe(false);
   });
 });

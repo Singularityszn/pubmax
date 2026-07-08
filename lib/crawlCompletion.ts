@@ -6,6 +6,10 @@
 // SSR / missing storage is fail-soft (reads return empty, writes are no-ops).
 
 export const CRAWL_PROGRESS_KEY = "pubmax_crawl_progress";
+/** Per-crawl one-shot celebration flags (Wave G2) — survives remounts. */
+export const CRAWL_CELEBRATION_KEY = "pubmax_crawl_celebration";
+/** Lightweight quest credit for crawls walked / Place stories (Wave G2). */
+export const CRAWL_QUEST_KEY = "pubmax_crawl_quest";
 
 export type CrawlProgressEntry = {
   /** Ordered stop venue ids for this crawl (snapshot at start). */
@@ -19,6 +23,28 @@ export type CrawlProgressEntry = {
 
 export type CrawlProgressMap = {
   crawls: Record<string, CrawlProgressEntry>;
+};
+
+/** Celebration-shown map: crawl id → ISO timestamp when the prompt was claimed. */
+export type CrawlCelebrationMap = {
+  shown: Record<string, string>;
+};
+
+/**
+ * Device-local quest credit for completing crawls (breadth of places/stories,
+ * not drink volume). Idempotent per crawl id / Place-story band id.
+ */
+export type CrawlQuestCredit = {
+  completedCrawlIds: string[];
+  placeStoryBandIds: string[];
+};
+
+/** Ready-to-render quest chip for NextBadgeChips / celebration copy. */
+export type CrawlQuestChip = {
+  id: string;
+  current: number;
+  target: number;
+  label: string;
 };
 
 function emptyProgress(): CrawlProgressMap {
@@ -202,4 +228,194 @@ export function markCrawlComplete(
   map.crawls[id] = entry;
   writeProgress(map, storage);
   return entry;
+}
+
+// ── Wave G2: celebration one-shot + lightweight quest credit ─────────────────
+
+function emptyCelebration(): CrawlCelebrationMap {
+  return { shown: {} };
+}
+
+function emptyQuest(): CrawlQuestCredit {
+  return { completedCrawlIds: [], placeStoryBandIds: [] };
+}
+
+function parseCelebration(raw: unknown): CrawlCelebrationMap {
+  if (!raw || typeof raw !== "object") return emptyCelebration();
+  const shownRaw = (raw as { shown?: unknown }).shown;
+  if (!shownRaw || typeof shownRaw !== "object") return emptyCelebration();
+  const shown: Record<string, string> = {};
+  for (const [key, value] of Object.entries(shownRaw as Record<string, unknown>)) {
+    const id = normaliseId(key);
+    if (!id || typeof value !== "string" || !value.trim()) continue;
+    shown[id] = value.trim();
+  }
+  return { shown };
+}
+
+function parseQuest(raw: unknown): CrawlQuestCredit {
+  if (!raw || typeof raw !== "object") return emptyQuest();
+  const row = raw as { completedCrawlIds?: unknown; placeStoryBandIds?: unknown };
+  return {
+    completedCrawlIds: Array.isArray(row.completedCrawlIds)
+      ? uniqueIds(row.completedCrawlIds.map((v) => String(v)))
+      : [],
+    placeStoryBandIds: Array.isArray(row.placeStoryBandIds)
+      ? uniqueIds(row.placeStoryBandIds.map((v) => String(v)))
+      : [],
+  };
+}
+
+function readJsonKey(key: string, storage?: Storage | null): unknown {
+  const store = resolveStorage(storage);
+  if (!store) return null;
+  try {
+    const raw = store.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function writeJsonKey(key: string, value: unknown, storage?: Storage | null): void {
+  const store = resolveStorage(storage);
+  if (!store) return;
+  try {
+    store.setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage full / disabled — silent degrade.
+  }
+}
+
+/** Read which crawl completions have already shown the celebration prompt. */
+export function readCelebration(storage?: Storage | null): CrawlCelebrationMap {
+  return parseCelebration(readJsonKey(CRAWL_CELEBRATION_KEY, storage));
+}
+
+/** True when the one-shot celebration for this crawl has already been claimed. */
+export function hasCelebrationBeenShown(
+  slugOrId: string,
+  storage?: Storage | null,
+): boolean {
+  const id = normaliseId(slugOrId);
+  if (!id) return false;
+  return Boolean(readCelebration(storage).shown[id]);
+}
+
+/**
+ * Persist that the celebration UI was shown for this crawl. Idempotent.
+ * Call when the prompt is displayed so remounts do not spam it.
+ */
+export function markCelebrationShown(
+  slugOrId: string,
+  storage?: Storage | null,
+): void {
+  const id = normaliseId(slugOrId);
+  if (!id) return;
+  const map = readCelebration(storage);
+  if (map.shown[id]) return;
+  map.shown[id] = new Date().toISOString();
+  writeJsonKey(CRAWL_CELEBRATION_KEY, map, storage);
+}
+
+/**
+ * Celebration eligibility: crawl is complete AND the one-shot flag is unset.
+ * Does not mutate storage — pair with `markCelebrationShown` when displaying.
+ */
+export function shouldCelebrateCompletion(
+  slugOrId: string,
+  entry?: CrawlProgressEntry | null,
+  storage?: Storage | null,
+): boolean {
+  const id = normaliseId(slugOrId);
+  if (!id) return false;
+  const progress = entry ?? readCrawl(id, storage);
+  if (!isComplete(progress)) return false;
+  return !hasCelebrationBeenShown(id, storage);
+}
+
+/** Read device-local crawl / Place-story quest credit. */
+export function readCrawlQuest(storage?: Storage | null): CrawlQuestCredit {
+  return parseQuest(readJsonKey(CRAWL_QUEST_KEY, storage));
+}
+
+/**
+ * Credit a completed crawl toward lightweight quest chips. Prefer breadth:
+ * distinct crawl ids + optional Place-story band ids. Idempotent per id.
+ */
+export function creditCrawlQuest(
+  slugOrId: string,
+  options?: { placeStoryBandId?: string | null },
+  storage?: Storage | null,
+): CrawlQuestCredit {
+  const id = normaliseId(slugOrId);
+  const band = normaliseId(options?.placeStoryBandId ?? "");
+  const quest = readCrawlQuest(storage);
+  if (!id) return quest;
+  if (!quest.completedCrawlIds.includes(id)) {
+    quest.completedCrawlIds = [...quest.completedCrawlIds, id];
+  }
+  if (band && !quest.placeStoryBandIds.includes(band)) {
+    quest.placeStoryBandIds = [...quest.placeStoryBandIds, band];
+  }
+  writeJsonKey(CRAWL_QUEST_KEY, quest, storage);
+  return quest;
+}
+
+/**
+ * Quest chips for passport / NextBadgeChips — crawl completion and Place-story
+ * breadth. Targets stay small (1) so the first walk feels like progress.
+ */
+export function crawlQuestChips(storage?: Storage | null): CrawlQuestChip[] {
+  const quest = readCrawlQuest(storage);
+  const crawls = quest.completedCrawlIds.length;
+  const stories = quest.placeStoryBandIds.length;
+  const chips: CrawlQuestChip[] = [];
+  if (crawls > 0) {
+    chips.push({
+      id: "crawl-complete",
+      current: crawls,
+      target: Math.max(1, crawls),
+      label: crawls === 1 ? "Crawl walked" : "Crawls walked",
+    });
+  }
+  if (stories > 0) {
+    chips.push({
+      id: "place-story-crawl",
+      current: stories,
+      target: Math.max(1, stories),
+      label: stories === 1 ? "Place story walked" : "Place stories walked",
+    });
+  }
+  return chips;
+}
+
+export type AcknowledgeCrawlCompletionResult = {
+  /** True only the first time a completed crawl claims the celebration. */
+  celebrate: boolean;
+  entry: CrawlProgressEntry | null;
+  quest: CrawlQuestCredit;
+};
+
+/**
+ * On crawl completion: credit quest progress and claim the one-shot celebration
+ * when eligible. Safe to call on every remount — celebration returns true once.
+ */
+export function acknowledgeCrawlCompletion(
+  slugOrId: string,
+  options?: { placeStoryBandId?: string | null },
+  storage?: Storage | null,
+): AcknowledgeCrawlCompletionResult {
+  const id = normaliseId(slugOrId);
+  const entry = id ? readCrawl(id, storage) : null;
+  if (!id || !isComplete(entry)) {
+    return { celebrate: false, entry, quest: readCrawlQuest(storage) };
+  }
+  const quest = creditCrawlQuest(id, options, storage);
+  const celebrate = shouldCelebrateCompletion(id, entry, storage);
+  if (celebrate) {
+    markCelebrationShown(id, storage);
+  }
+  return { celebrate, entry, quest };
 }
