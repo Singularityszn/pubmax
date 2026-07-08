@@ -48,6 +48,13 @@ import {
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { bandById } from "@/lib/storyBands";
+import {
+  bandChipDismissedKey,
+  shouldShowBandOnboardingChip,
+  shouldShowCuratedOnboarding,
+  truncateBandCopy,
+} from "@/lib/bandOnboardingChip";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -87,30 +94,6 @@ function shouldOpenPlanningInitially(
 ): boolean {
   return (
     seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|mode|q)=/.test(search)
-  );
-}
-
-// §4.5: the "Start with a story" overlay shows only on a clean first paint —
-// data loaded, nothing selected, suggest mode, no hand-built stops, no active
-// curated crawl, not a shared-link arrival, and not already dismissed this
-// session. Pure so its long AND-chain lives off PubMap's complexity budget.
-function shouldShowOnboarding(input: {
-  loaded: boolean;
-  onboardingDismissed: boolean;
-  arrivedWithCrawlParams: boolean;
-  mode: CrawlMode;
-  builtIdsCount: number;
-  hasActiveCrawl: boolean;
-  selectedVenueId: string;
-}): boolean {
-  return (
-    input.loaded &&
-    !input.onboardingDismissed &&
-    !input.arrivedWithCrawlParams &&
-    input.mode === "suggest" &&
-    input.builtIdsCount === 0 &&
-    !input.hasActiveCrawl &&
-    !input.selectedVenueId
   );
 }
 
@@ -420,6 +403,17 @@ function readOnboardingDismissed(): boolean {
   }
 }
 
+// G3: per-band session dismiss for the Place story deep-link chip. Distinct from
+// ONBOARDING_DISMISSED_KEY so dismissing one never silences the other.
+function readBandChipDismissed(bandId: string): boolean {
+  if (!bandId || typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(bandChipDismissedKey(bandId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export default function PubMap() {
   const searchParams = useSearchParams();
   useEffect(() => {
@@ -510,6 +504,13 @@ export default function PubMap() {
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
+  // G3: per-band dismiss set for the Place story deep-link chip. Seeded from the
+  // arrival band; grows when the viewer dismisses or switches to an already-
+  // dismissed band this session.
+  const [dismissedBandIds, setDismissedBandIds] = useState<Set<string>>(() => {
+    if (!seed.bandId || !readBandChipDismissed(seed.bandId)) return new Set();
+    return new Set([seed.bandId]);
+  });
   const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
@@ -771,6 +772,37 @@ export default function PubMap() {
     }
   }, []);
 
+  // G3: dismiss the band deep-link chip for this band id (session-scoped).
+  const dismissBandChip = useCallback(() => {
+    const id = activeBandId;
+    if (!id) return;
+    setDismissedBandIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem(bandChipDismissedKey(id), "1");
+      } catch {
+        // Best-effort; in-memory flag still closes the chip this session.
+      }
+    }
+  }, [activeBandId]);
+
+  // When the active band changes (URL sync / picker), honour a prior session dismiss.
+  useEffect(() => {
+    if (!activeBandId) return;
+    if (!readBandChipDismissed(activeBandId)) return;
+    setDismissedBandIds((prev) => {
+      if (prev.has(activeBandId)) return prev;
+      const next = new Set(prev);
+      next.add(activeBandId);
+      return next;
+    });
+  }, [activeBandId]);
+
   const filteredVenueCount = filteredVenues.length;
   const firstRouteId = route[0]?.id ?? "";
   const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
@@ -985,12 +1017,18 @@ export default function PubMap() {
 
   const detailOpen = Boolean(selectedVenueId && selectedVenue);
 
+  // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
+  // curated onboarding so the two never fight.
+  const activeBand = useMemo(() => bandById(activeBandId), [activeBandId]);
+  const showBandChip = shouldShowBandOnboardingChip({
+    loaded,
+    activeBandId,
+    bandResolved: Boolean(activeBand),
+    chipDismissed: dismissedBandIds.has(activeBandId),
+  });
   // §4.5: show the "Start with a story" onboarding overlay only on a clean first
-  // paint — data loaded, nothing selected, suggest mode, no hand-built stops, no
-  // active curated crawl, the page didn't arrive via a shared crawl link, and the
-  // viewer hasn't already dismissed it this session. Never blocks the map: it's a
-  // dismissible overlay, and it's the primary onboarding on mobile (rail hidden).
-  const showOnboarding = shouldShowOnboarding({
+  // paint — and never while the band deep-link chip is showing (G3 priority).
+  const showOnboarding = shouldShowCuratedOnboarding({
     loaded,
     onboardingDismissed,
     arrivedWithCrawlParams,
@@ -998,6 +1036,7 @@ export default function PubMap() {
     builtIdsCount: builtIds.length,
     hasActiveCrawl: Boolean(activeCrawl),
     selectedVenueId,
+    showBandChip,
   });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = curatedCrawls.slice(0, 4);
@@ -1150,6 +1189,27 @@ export default function PubMap() {
               <TrainFront size={14} aria-hidden="true" />
             </button>
             <button type="button" onClick={hideMappedRoute} aria-label="Hide mapped crawl">
+              <X size={14} aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
+        {/* G3: Place story deep-link chip — corridor title + one-line copy when
+            `?band=` resolves. Distinct dismiss key from curated onboarding;
+            suppresses that overlay while visible. */}
+        {showBandChip && activeBand ? (
+          <div className="bandOnboardingChip" role="status" aria-live="polite">
+            <div>
+              <strong>{activeBand.title}</strong>
+              <span>{truncateBandCopy(activeBand.copy)}</span>
+            </div>
+            <button type="button" onClick={dismissBandChip}>
+              Walk this story
+            </button>
+            <button
+              type="button"
+              onClick={dismissBandChip}
+              aria-label="Dismiss Place story intro"
+            >
               <X size={14} aria-hidden="true" />
             </button>
           </div>

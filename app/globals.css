@@ -801,6 +801,75 @@ input[type="range"] {
   color: var(--brass);
 }
 
+/* G3 — Place story deep-link onboarding chip (mirrors mappedRouteChip chrome). */
+.bandOnboardingChip {
+  position: absolute;
+  left: 50%;
+  bottom: 82px;
+  z-index: 545;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 9px 10px 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 94%, transparent), color-mix(in srgb, var(--surface-tint-lager) 62%, transparent)),
+    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  color: var(--ink);
+  box-shadow: var(--map-overlay-shadow);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  transform: translateX(-50%);
+}
+
+.bandOnboardingChip div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bandOnboardingChip strong,
+.bandOnboardingChip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bandOnboardingChip strong {
+  font-size: 0.82rem;
+}
+
+.bandOnboardingChip span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.bandOnboardingChip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.bandOnboardingChip button:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
 /* ── Map-first overlays: floating toolbar + sliding drawers ─────────────────*/
 .mapToolbar {
   position: absolute;
@@ -3942,6 +4011,7 @@ button:disabled {
   .appShell.detail-open .mapHeroCard,
   .appShell.detail-open .mapLegend,
   .appShell.detail-open .mappedRouteChip,
+  .appShell.detail-open .bandOnboardingChip,
   .appShell.detail-open .poiToggle,
   .appShell.detail-open .bandPicker,
   .appShell.route-mapped .mapHeroCard,
@@ -3950,6 +4020,7 @@ button:disabled {
   .appShell.planning-open .mapHeroCard,
   .appShell.planning-open .mapLegend,
   .appShell.planning-open .mappedRouteChip,
+  .appShell.planning-open .bandOnboardingChip,
   .appShell.planning-open .poiToggle,
   .appShell.planning-open .bandPicker,
   .appShell.planning-open .placeStoriesControl,
@@ -3963,7 +4034,8 @@ button:disabled {
     bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
   }
 
-  .mappedRouteChip {
+  .mappedRouteChip,
+  .bandOnboardingChip {
     left: 10px;
     right: 10px;
     bottom: calc(var(--mobile-tab-clearance) + 10px);
@@ -4006,6 +4078,7 @@ button:disabled {
   .mapFitLondonBtn,
   .mapRecenterBtn,
   .mappedRouteChip,
+  .bandOnboardingChip,
   .mapToolbar,
   .mapLoading,
   .poiToggle,
@@ -4030,14 +4103,16 @@ button:disabled {
   }
 
   .mapToolbar,
-  .mappedRouteChip {
+  .mappedRouteChip,
+  .bandOnboardingChip {
     background:
       linear-gradient(135deg, var(--panel-raised), color-mix(in srgb, var(--surface-tint-river) 36%, var(--panel-raised) 64%)),
       var(--panel-raised);
     box-shadow: var(--map-overlay-shadow);
   }
 
-  .mappedRouteChip {
+  .mappedRouteChip,
+  .bandOnboardingChip {
     border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
   }
 
@@ -4110,16 +4185,19 @@ button:disabled {
     font-size: 0.74rem;
   }
 
-  .mappedRouteChip {
+  .mappedRouteChip,
+  .bandOnboardingChip {
     gap: 8px;
     padding: 8px;
   }
 
-  .mappedRouteChip strong {
+  .mappedRouteChip strong,
+  .bandOnboardingChip strong {
     font-size: 0.78rem;
   }
 
-  .mappedRouteChip span {
+  .mappedRouteChip span,
+  .bandOnboardingChip span {
     font-size: 0.68rem;
   }
 

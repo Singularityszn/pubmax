@@ -532,7 +532,9 @@ export default function PubMapCanvas({
   // POI layer visibility — Transit + Parks + Sights on by default; denser
   // ambient categories stay off until the viewer opts in (Wave A chrome).
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(defaultPoiHidden);
-  const [placeStoriesOpen, setPlaceStoriesOpen] = useState(false);
+  // Open when a band is already active (e.g. `?band=` deep link) so the corridor
+  // picker matches the URL; otherwise stay closed until the viewer opts in.
+  const [placeStoriesOpen, setPlaceStoriesOpen] = useState(() => Boolean(activeBandId));
   const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
 
   const onVenueClickRef = useRef(onVenueClick);
@@ -551,6 +553,12 @@ export default function PubMapCanvas({
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
   }, [onVenueClick, onRouteStopClick, onVenuePrefetch, onLandmarkSelect]);
+
+  // G3 / deep link: keep the Place stories control open while a band is active
+  // so the corridor picker matches `?band=` (and chip "Walk this story").
+  useEffect(() => {
+    if (activeBandId) setPlaceStoriesOpen(true);
+  }, [activeBandId]);
 
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
