@@ -10,6 +10,8 @@
 import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { commentsStore } from "@/lib/commentsStore";
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 
 function forbidden(): Response {
@@ -18,6 +20,12 @@ function forbidden(): Response {
 
 export async function GET(request: Request): Promise<Response> {
   if (!isModerator(request)) return forbidden();
+
+  const ipKey = hashIp(clientIp(request));
+  if (await isLimited(`admin-comments:${ipKey}`, `admin-comments:${ipKey}`)) {
+    return jsonNoStore({ error: "Too many requests, slow down." }, { status: 429 });
+  }
+
   const status = new URL(request.url).searchParams.get("status");
   const queue = status === "pending" ? "pending" : "hidden";
   // listForReview is fail-soft (returns [] on any store error).

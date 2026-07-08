@@ -13,6 +13,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false };
 });
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/pint-drops/comments/route";
 import {

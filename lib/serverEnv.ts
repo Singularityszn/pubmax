@@ -13,6 +13,35 @@
 
 import { isSupabaseConfigured } from "@/lib/supabase";
 
+/** Dev default for RATE_LIMIT_SALT — must not be used in production. */
+export const DEV_RATE_LIMIT_SALT = "pubmax-rate-limit";
+
+/**
+ * In production, throw a clear FATAL error when moderation or rate-limit
+ * secrets are missing or still at dev defaults. Safe to call more than once.
+ */
+export function assertProductionSecrets(): void {
+  if (process.env.NODE_ENV !== "production") return;
+
+  const adminToken = process.env.ADMIN_TOKEN?.trim();
+  if (!adminToken) {
+    throw new Error(
+      "FATAL: ADMIN_TOKEN is not set in production. " +
+        "Moderation endpoints would be unreachable or misconfigured. " +
+        "Set a strong ADMIN_TOKEN and redeploy.",
+    );
+  }
+
+  const rateLimitSalt = process.env.RATE_LIMIT_SALT?.trim();
+  if (!rateLimitSalt || rateLimitSalt === DEV_RATE_LIMIT_SALT) {
+    throw new Error(
+      "FATAL: RATE_LIMIT_SALT is unset or still the dev default in production. " +
+        "IP/actor hashes would be computable from public code. " +
+        "Set a secret RATE_LIMIT_SALT and redeploy.",
+    );
+  }
+}
+
 /**
  * In production, throw a clear FATAL error unless Supabase is configured;
  * elsewhere, do nothing. Reuses isSupabaseConfigured() (lib/supabase.ts) so the
@@ -21,7 +50,10 @@ import { isSupabaseConfigured } from "@/lib/supabase";
  */
 export function assertServerEnv(): void {
   if (process.env.NODE_ENV !== "production") return;
-  if (isSupabaseConfigured()) return;
+  if (isSupabaseConfigured()) {
+    assertProductionSecrets();
+    return;
+  }
   throw new Error(
     "FATAL: Supabase is not configured in production " +
       "(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required). " +
