@@ -119,6 +119,7 @@ describe("crawlUrl", () => {
 
   it("seeds drink chooser links into map filters", () => {
     const cocktail = seedCrawlState("?drink=cocktail");
+    expect(cocktail.filters.requireCocktails).toBe(true);
     expect(cocktail.filters.drinkCategory).toBe("cocktail");
     expect(cocktail.filters.query).toBe("Cocktails");
 
@@ -128,8 +129,9 @@ describe("crawlUrl", () => {
 
     const wine = seedCrawlState("?drink=wine");
     expect(wine.filters.drinkCategory).toBe("wine");
-    expect(wine.filters.query).toBe("");
+    expect(wine.filters.query).toBe("Wine");
 
+    const gin = seedCrawlState("?drink=gin");
     expect(gin.filters.drinkCategory).toBe("gin");
     expect(gin.filters.query).toBe("Gin");
   });

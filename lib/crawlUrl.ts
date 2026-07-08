@@ -5,7 +5,7 @@ import {
   normalizeBrandQuery,
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
-import { categoryLabel } from "@/lib/drinks";
+import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
