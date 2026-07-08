@@ -131,7 +131,9 @@ export function decodeCrawl(
     out.altStyle = "mocktail";
   } else if (isDrinkCategory(drink)) {
     if (drink === "cocktail") filters.requireCocktails = true;
-    if (!filters.query && drink !== "beer") filters.query = categoryLabel(drink);
+    if (!filters.query && drink !== "beer" && drink !== "cocktail") {
+      filters.query = categoryLabel(drink);
+    }
   }
   if (Object.keys(filters).length) out.filters = filters;
 

@@ -120,6 +120,7 @@ describe("crawlUrl", () => {
   it("seeds drink chooser links into map filters", () => {
     const cocktail = seedCrawlState("?drink=cocktail");
     expect(cocktail.filters.requireCocktails).toBe(true);
+    expect(cocktail.filters.query).toBe("");
 
     const lowNo = seedCrawlState("?drink=low-no&low=1");
     expect(lowNo.filters.requireNonAlcoholic).toBe(true);

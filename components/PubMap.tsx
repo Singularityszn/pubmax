@@ -284,21 +284,21 @@ function filterMapVenues(
   // the initial map load. Treat detail-only filters as unknown/pass for those
   // pins; otherwise a drink/amenity choice such as Low/No or Cocktails would
   // blank the fast map before lazy venue detail has a chance to answer it.
-  const hasSlimPins = venues.some((venue) => venue.prices.length === 0);
-  const effectiveFilters = hasSlimPins
-    ? {
-        ...filters,
-        canonicalOnly: false,
-        requireBeerGarden: false,
-        requireNonAlcoholic: false,
-        requireLiveSports: false,
-        requireFood: false,
-        requireCocktails: false,
-        requireWater: false,
-        requireHeritage: false,
-      }
-    : filters;
-  return filterVenues(venues, effectiveFilters, hasPintDrops);
+  const slimPinFilters = {
+    ...filters,
+    canonicalOnly: false,
+    requireBeerGarden: false,
+    requireNonAlcoholic: false,
+    requireLiveSports: false,
+    requireFood: false,
+    requireCocktails: false,
+    requireWater: false,
+    requireHeritage: false,
+  };
+  return venues.filter((venue) => {
+    const effectiveFilters = venue.prices.length === 0 ? slimPinFilters : filters;
+    return filterVenues([venue], effectiveFilters, hasPintDrops).length > 0;
+  });
 }
 
 function readOnboardingDismissed(): boolean {
