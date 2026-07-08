@@ -26,6 +26,119 @@
   background: var(--line);
 }
 
+/* Venue detail hydration skeleton — keeps sheet geometry stable while the
+   lazy /api/venue/[id] payload arrives (Loop 1 perceived-speed pass). */
+.venueSheetSkeleton {
+  display: grid;
+  gap: 12px;
+  margin: 0 18px 14px;
+  padding: 12px 0 4px;
+}
+
+.venueSheetSkeletonLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.venueSheetSkeletonTitle,
+.venueSheetSkeletonMeta span,
+.venueSheetSkeletonTabs span,
+.venueSheetSkeletonStamp,
+.venueSheetSkeletonBody span {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--line-soft) 70%, transparent),
+    color-mix(in srgb, var(--brass) 12%, var(--panel)),
+    color-mix(in srgb, var(--line-soft) 70%, transparent)
+  );
+  background-size: 200% 100%;
+  animation: venueSheetSkeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.venueSheetSkeletonTitle {
+  width: 62%;
+  height: 22px;
+}
+
+.venueSheetSkeletonMeta {
+  display: flex;
+  gap: 8px;
+}
+
+.venueSheetSkeletonMeta span {
+  width: 72px;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.venueSheetSkeletonTabs {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.venueSheetSkeletonTabs span {
+  width: 58px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.venueSheetSkeletonStamp {
+  width: 112px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.venueSheetSkeletonBody {
+  display: grid;
+  gap: 8px;
+}
+
+.venueSheetSkeletonBody span {
+  height: 12px;
+}
+
+.venueSheetSkeletonBody span:nth-child(1) {
+  width: 94%;
+}
+
+.venueSheetSkeletonBody span:nth-child(2) {
+  width: 78%;
+}
+
+.venueSheetSkeletonBody span:nth-child(3) {
+  width: 66%;
+}
+
+@keyframes venueSheetSkeletonShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .venueSheetSkeletonTitle,
+  .venueSheetSkeletonMeta span,
+  .venueSheetSkeletonTabs span,
+  .venueSheetSkeletonStamp,
+  .venueSheetSkeletonBody span {
+    animation: none;
+  }
+}
+
 /* Horizontally-scrollable tab strip with comfortable touch targets. */
 .venueTabs {
   display: flex;

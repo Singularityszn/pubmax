@@ -783,6 +783,8 @@ input[type="range"] {
   align-items: center;
   justify-content: center;
   min-height: 32px;
+  min-width: 32px;
+  padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-raised);
@@ -792,15 +794,6 @@ input[type="range"] {
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
-}
-
-.mappedRouteChip button:first-of-type {
-  padding: 0 11px;
-}
-
-.mappedRouteChip button:last-of-type {
-  width: 32px;
-  padding: 0;
 }
 
 .mappedRouteChip button:hover {

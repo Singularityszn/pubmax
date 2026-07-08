@@ -1,26 +1,25 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// Mobile screenshots — design-QA artifacts, not assertions. Captures the five
-// key surfaces at 390×844 (iPhone-class width, the same viewport smoke.spec's
-// nav-overflow / mobile-sheet tests use) in BOTH themes, so a reviewer can eyeball
-// visual regressions without running the app locally.
+// Mobile screenshots — design-QA artifacts for Loop 0 demo gate. Captures key
+// surfaces at 390×844 and 430×932 in BOTH themes.
 //
-// NOT part of the default `npm run test:e2e` run — see playwright.config.ts's
-// `testIgnore`/`testMatch` split. Invoke explicitly:
+// NOT part of the default `npm run test:e2e` run — see playwright.config.ts.
+// Invoke explicitly:
 //
-//   npx playwright test --project=screenshots
+//   PW_SCREENSHOTS=1 npx playwright test --project=screenshots
 //
-// Output lands in e2e/screenshots/ (gitignored — these are local artifacts, not
-// checked-in fixtures). Each test only asserts the page loaded (status 200);
-// the screenshot itself is the deliverable, so there is nothing else to assert.
+// Primary deliverables land in docs/screenshots/ (committed reference PNGs).
+// A mirror also writes to e2e/screenshots/ (gitignored local artifacts).
 
-const VIEWPORT = { width: 390, height: 844 };
+const VIEWPORTS = [
+  { name: "390", width: 390, height: 844 },
+  { name: "430", width: 430, height: 932 },
+] as const;
+
+const DOCS_DIR = "docs/screenshots";
 const OUT_DIR = "e2e/screenshots";
 
 async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
-  // Matches e2e/smoke.spec.ts's documented storage key/behaviour: the ThemeToggle
-  // persists to localStorage and re-applies data-theme on mount. Setting it before
-  // navigation (addInitScript) avoids a flash and the toggle-click round trip.
   await page.addInitScript((t) => {
     window.localStorage.setItem("pubmax-theme", t);
   }, theme);
@@ -46,54 +45,85 @@ async function waitForMobileVenueSheet(page: Page): Promise<void> {
   });
 }
 
+async function shot(page: Page, basename: string, fullPage = false): Promise<void> {
+  await page.screenshot({ path: `${DOCS_DIR}/${basename}.png`, fullPage });
+  await page.screenshot({ path: `${OUT_DIR}/${basename}.png`, fullPage });
+}
+
 const THEMES: Array<"light" | "dark"> = ["light", "dark"];
+const ARNOS_ARMS_ID = "venue-xjf3n0";
 
-for (const theme of THEMES) {
-  test.describe(`screenshots @ 390x844 — ${theme} theme`, () => {
-    test.use({ viewport: VIEWPORT });
+for (const viewport of VIEWPORTS) {
+  for (const theme of THEMES) {
+    test.describe(`screenshots @ ${viewport.width}x${viewport.height} — ${theme}`, () => {
+      test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
-    test(`landing (${theme})`, async ({ page }) => {
-      await setTheme(page, theme);
-      const response = await page.goto("/");
-      expect(response?.status()).toBe(200);
-      await page.waitForLoadState("networkidle").catch(() => {});
-      await page.screenshot({ path: `${OUT_DIR}/landing-${theme}.png`, fullPage: true });
+      test(`landing (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/");
+        expect(response?.status()).toBe(200);
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `landing-${theme}-${viewport.name}`, true);
+      });
+
+      test(`map clean (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/map");
+        expect(response?.status()).toBe(200);
+        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
+        await page.waitForTimeout(1500);
+        await shot(page, `map-clean-${theme}-${viewport.name}`);
+      });
+
+      test(`map with sheet open (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+        expect(response?.status()).toBe(200);
+        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
+        await waitForMobileVenueSheet(page);
+        await shot(page, `map-sheet-${theme}-${viewport.name}`);
+      });
+
+      test(`map log intent (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/map?log=1");
+        expect(response?.status()).toBe(200);
+        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
+        await page.waitForTimeout(2000);
+        await shot(page, `map-log-${theme}-${viewport.name}`);
+      });
+
+      test(`feed (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/feed");
+        expect(response?.status()).toBe(200);
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `feed-${theme}-${viewport.name}`, true);
+      });
+
+      test(`crawls (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/crawls");
+        expect(response?.status()).toBe(200);
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `crawls-${theme}-${viewport.name}`, true);
+      });
+
+      test(`profile /u/you (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/u/you");
+        expect(response?.status()).toBe(200);
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `profile-you-${theme}-${viewport.name}`, true);
+      });
+
+      test(`activity (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/activity");
+        expect(response?.status()).toBe(200);
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `activity-${theme}-${viewport.name}`, true);
+      });
     });
-
-    test(`map with sheet open (${theme})`, async ({ page }) => {
-      await setTheme(page, theme);
-      // Same known seed venue id the other new specs deep-link to, so the sheet
-      // opens deterministically without a canvas pin click.
-      const ARNOS_ARMS_ID = "venue-xjf3n0"; // Arnos Arms — same FNV-1a id as e2e/smoke.spec.ts
-      const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-      expect(response?.status()).toBe(200);
-      await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
-      await waitForMobileVenueSheet(page);
-      await page.screenshot({ path: `${OUT_DIR}/map-sheet-${theme}.png` });
-    });
-
-    test(`feed (${theme})`, async ({ page }) => {
-      await setTheme(page, theme);
-      const response = await page.goto("/feed");
-      expect(response?.status()).toBe(200);
-      await page.waitForLoadState("networkidle").catch(() => {});
-      await page.screenshot({ path: `${OUT_DIR}/feed-${theme}.png`, fullPage: true });
-    });
-
-    test(`profile /u/you (${theme})`, async ({ page }) => {
-      await setTheme(page, theme);
-      const response = await page.goto("/u/you");
-      expect(response?.status()).toBe(200);
-      await page.waitForLoadState("networkidle").catch(() => {});
-      await page.screenshot({ path: `${OUT_DIR}/profile-you-${theme}.png`, fullPage: true });
-    });
-
-    test(`activity (${theme})`, async ({ page }) => {
-      await setTheme(page, theme);
-      const response = await page.goto("/activity");
-      expect(response?.status()).toBe(200);
-      await page.waitForLoadState("networkidle").catch(() => {});
-      await page.screenshot({ path: `${OUT_DIR}/activity-${theme}.png`, fullPage: true });
-    });
-  });
+  }
 }
