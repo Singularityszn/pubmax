@@ -1278,6 +1278,12 @@
     display: none;
   }
 
+  /* The hero keeps the primary "Open the map" CTA on phones. Keeping a second
+     copy in the sticky topbar crowds auth/theme controls and clips at 390px. */
+  .lp .navLinks a.topbarCta {
+    display: none;
+  }
+
   .lp .footerCols {
     gap: 32px;
   }
