@@ -219,10 +219,13 @@ export type FeedFilterContext = {
   // authored by a handle in this set survive. Undefined/empty ⇒ friends is empty
   // (the page shows a "follow people" state) rather than leaking the whole feed.
   followingHandles?: Set<string>;
-  // Signal for the `for-you` lane (issue #36) — the deterministic ranking inputs
-  // (now, reaction counts, story-pub venue ids). Undefined ⇒ For You degrades to
-  // a recency-only ranking with `now` taken at call time, so the lane still works
-  // before reaction summaries have loaded. See lib/forYou.ts.
+  // Signal for the `for-you` lane (issue #36 / Wave G4) — the deterministic
+  // ranking inputs (now, reaction counts, story-pub venue ids, followingHandles).
+  // Undefined ⇒ For You degrades to a recency-only ranking with `now` taken at
+  // call time, so the lane still works before reaction summaries have loaded.
+  // When forYou.followingHandles is omitted, applyFeedFilter falls back to
+  // ctx.followingHandles so Friends and For You share one follow set. See
+  // lib/forYou.ts.
   forYou?: ForYouContext;
 };
 
@@ -259,12 +262,17 @@ export function applyFeedFilter(
       // first-time visitor never lands on an empty feed.
       return [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     case "for-you": {
-      // The For-You lane (issue #36): the SAME visible set, re-ordered by a
-      // deterministic recency×quality score (lib/forYou.ts) — no new API, no ML,
-      // no drops removed. With no forYou context (summaries not loaded yet) we
-      // still rank on recency alone, taking `now` at call time so the lane is
-      // never empty. Client-side ranking over server-provided items.
-      const forYouCtx: ForYouContext = ctx?.forYou ?? { now: Date.now() };
+      // The For-You lane (issue #36 / Wave G4): the SAME visible set, re-ordered
+      // by a deterministic recency×quality score (lib/forYou.ts) — no new API,
+      // no ML, no drops removed. With no forYou context (summaries not loaded
+      // yet) we still rank on recency alone, taking `now` at call time so the
+      // lane is never empty. Friends boost (G4) reuses the same following set
+      // as the Friends lane when the caller hasn't put it on forYou yet.
+      const forYouCtx: ForYouContext = {
+        ...(ctx?.forYou ?? { now: Date.now() }),
+        followingHandles:
+          ctx?.forYou?.followingHandles ?? ctx?.followingHandles,
+      };
       return rankForYou(items, forYouCtx);
     }
     case "cheap":

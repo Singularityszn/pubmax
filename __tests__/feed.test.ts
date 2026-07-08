@@ -295,6 +295,26 @@ describe("applyFeedFilter", () => {
       const second = applyFeedFilter(items, "for-you", { forYou: { now: NOW } }).map((i) => i.id);
       expect(first).toEqual(second);
     });
+
+    it("Wave G4: falls back to ctx.followingHandles for friends boost", () => {
+      const friend = item({
+        id: "friend",
+        handle: "mabel",
+        createdAt: new Date(NOW).toISOString(),
+      });
+      const stranger = item({
+        id: "stranger",
+        handle: "ken",
+        createdAt: new Date(NOW).toISOString(),
+      });
+      // Same follow set as Friends — For You reorders, does not filter.
+      const result = applyFeedFilter([stranger, friend], "for-you", {
+        followingHandles: new Set(["mabel"]),
+        forYou: { now: NOW },
+      });
+      expect(result.map((i) => i.id)).toEqual(["friend", "stranger"]);
+      expect(result).toHaveLength(2);
+    });
   });
 
   it("the optional ctx never affects non-friends filters", () => {
@@ -303,8 +323,8 @@ describe("applyFeedFilter", () => {
       item({ id: "dear-b", handle: "gus", priceGbp: 9 }),
     ];
     const ctx = { followingHandles: new Set(["mabel"]) };
-    // A following set is ignored by cheap/tonight/golden-days/latest — the ctx is
-    // friends-only, so passing it must not change any other lane's output.
+    // A following set is ignored by cheap/tonight/golden-days/latest — For You
+    // (Wave G4) may use it for a boost, but these lanes must stay unchanged.
     expect(applyFeedFilter(items, "cheap", ctx).map((i) => i.id)).toEqual(
       applyFeedFilter(items, "cheap").map((i) => i.id),
     );
