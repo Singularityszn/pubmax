@@ -40,6 +40,17 @@ type ModeratorComment = {
 
 type AdminTab = "moderation" | "import";
 
+type ImportNoteRow = {
+  id: string;
+  body: string;
+  venueId: string | null;
+  venueName: string | null;
+  provenance: "sourced" | "contributor";
+  status: "queued" | "dismissed";
+  createdAt: string;
+  dismissedAt?: string;
+};
+
 const TOKEN_KEY = "pubmax_admin_token";
 
 function readStoredToken(): string {
@@ -68,7 +79,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
-  // Import-note stub form (Wave E) — client validates, POSTs to in-memory API.
+  // Import notes (Wave F3) — durable queue + dismiss/restore.
   const [importBody, setImportBody] = useState("");
   const [importVenueId, setImportVenueId] = useState("");
   const [importVenueName, setImportVenueName] = useState("");
@@ -77,6 +88,41 @@ export default function AdminPage() {
   );
   const [importPending, setImportPending] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importNotes, setImportNotes] = useState<ImportNoteRow[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importShowDismissed, setImportShowDismissed] = useState(false);
+  const [importActionId, setImportActionId] = useState<string | null>(null);
+
+  const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
+    const t = token.trim();
+    if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
+    setImportLoading(true);
+    setImportMsg(null);
+    const showDismissed = opts?.includeDismissed ?? importShowDismissed;
+    try {
+      const qs = showDismissed ? "?includeDismissed=1" : "";
+      const res = await fetch(`/api/admin/import-notes${qs}`, {
+        headers: { "x-admin-token": t },
+      });
+      if (res.status === 403) {
+        setImportNotes([]);
+        setImportMsg("Not authorised — check the admin token.");
+        return;
+      }
+      if (!res.ok) {
+        setImportNotes([]);
+        setImportMsg("Could not load import notes.");
+        return;
+      }
+      const body = (await res.json()) as { notes?: ImportNoteRow[] };
+      setImportNotes(body.notes ?? []);
+    } catch {
+      setImportNotes([]);
+      setImportMsg("Could not reach the server.");
+    } finally {
+      setImportLoading(false);
+    }
+  }, [token, importShowDismissed]);
 
   const load = useCallback(async () => {
     const t = token.trim();
@@ -223,14 +269,46 @@ export default function AdminPage() {
         setImportMsg(payload.error ?? "Could not queue the note.");
         return;
       }
-      setImportMsg(payload.message ?? "Queued for review (demo)");
+      setImportMsg(payload.message ?? "Queued for review");
       setImportBody("");
       setImportVenueId("");
       setImportVenueName("");
+      await loadImportNotes();
     } catch {
       setImportMsg("Could not reach the server.");
     } finally {
       setImportPending(false);
+    }
+  }
+
+  async function decideImportNote(id: string, action: "dismiss" | "restore") {
+    const t = token.trim();
+    setImportActionId(id);
+    setImportMsg(null);
+    try {
+      const res = await fetch("/api/admin/import-notes", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-admin-token": t },
+        body: JSON.stringify({ id, action }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+      };
+      if (res.status === 403) {
+        setImportMsg("Not authorised — check the admin token.");
+        return;
+      }
+      if (!res.ok) {
+        setImportMsg(payload.error ?? "Action failed — try again.");
+        return;
+      }
+      setImportMsg(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored."));
+      await loadImportNotes();
+    } catch {
+      setImportMsg("Could not reach the server.");
+    } finally {
+      setImportActionId(null);
     }
   }
 
@@ -261,7 +339,10 @@ export default function AdminPage() {
           role="tab"
           className={tab === "import" ? "admin-tab active" : "admin-tab"}
           aria-selected={tab === "import"}
-          onClick={() => setTab("import")}
+          onClick={() => {
+            setTab("import");
+            void loadImportNotes();
+          }}
         >
           Import note
         </button>
@@ -447,8 +528,9 @@ export default function AdminPage() {
             Import note
           </h2>
           <p className="admin-sub">
-            Queue a URL or research note for moderated review. Demo stub — no Reddit/X
-            polling; notes sit in memory until a real store is wired.
+            Queue a URL or research note for moderated review. Staff-entered only —
+            no Reddit/X polling. Notes persist on disk when the server can write
+            <code> .data/</code>.
           </p>
 
           {importMsg ? (
@@ -459,7 +541,8 @@ export default function AdminPage() {
                 importMsg.startsWith("Could not") ||
                 importMsg.includes("required") ||
                 importMsg.includes("too long") ||
-                importMsg.includes("Provenance")
+                importMsg.includes("Provenance") ||
+                importMsg.includes("failed")
                   ? "alert"
                   : "status"
               }
@@ -523,6 +606,85 @@ export default function AdminPage() {
               {importPending ? "Queuing…" : "Submit for review"}
             </button>
           </form>
+
+          <div className="admin-import-queue">
+            <div className="admin-import-queue-head">
+              <h3 className="admin-section" style={{ marginTop: 28 }}>
+                Review queue
+              </h3>
+              <div className="admin-import-queue-actions">
+                <label className="admin-field admin-inline-check">
+                  <input
+                    type="checkbox"
+                    checked={importShowDismissed}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setImportShowDismissed(checked);
+                      void loadImportNotes({ includeDismissed: checked });
+                    }}
+                  />
+                  <span>Show dismissed</span>
+                </label>
+                <button
+                  type="button"
+                  className="admin-btn"
+                  onClick={() => void loadImportNotes()}
+                  disabled={importLoading}
+                >
+                  {importLoading ? "Loading…" : "Refresh"}
+                </button>
+              </div>
+            </div>
+            {importNotes.length === 0 ? (
+              <p className="admin-sub" role="status">
+                {importLoading ? "Loading notes…" : "No notes in the queue."}
+              </p>
+            ) : (
+              <ul className="admin-import-list">
+                {importNotes.map((note) => (
+                  <li key={note.id} className="admin-import-item">
+                    <div className="admin-import-meta">
+                      <span className={`admin-import-status admin-import-status-${note.status}`}>
+                        {note.status}
+                      </span>
+                      <span className="admin-import-prov">{note.provenance}</span>
+                      <time dateTime={note.createdAt}>
+                        {new Date(note.createdAt).toLocaleString()}
+                      </time>
+                    </div>
+                    <p className="admin-import-body">{note.body}</p>
+                    {note.venueName || note.venueId ? (
+                      <p className="admin-import-venue">
+                        {note.venueName ?? "Venue"}
+                        {note.venueId ? ` · ${note.venueId}` : ""}
+                      </p>
+                    ) : null}
+                    <div className="admin-actions">
+                      {note.status === "queued" ? (
+                        <button
+                          type="button"
+                          className="admin-btn admin-keep"
+                          onClick={() => void decideImportNote(note.id, "dismiss")}
+                          disabled={importActionId === note.id}
+                        >
+                          {importActionId === note.id ? "Working…" : "Dismiss"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="admin-btn"
+                          onClick={() => void decideImportNote(note.id, "restore")}
+                          disabled={importActionId === note.id}
+                        >
+                          {importActionId === note.id ? "Working…" : "Restore"}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </>
       )}
     </main>

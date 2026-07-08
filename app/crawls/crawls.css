@@ -196,6 +196,12 @@
   color: var(--brass);
 }
 
+.curatedPlaceStoryChip {
+  border-color: color-mix(in srgb, var(--brass) 35%, var(--line));
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brass) 8%, transparent);
+}
+
 .curatedLink {
   margin-top: 2px;
   font-size: 14px;

@@ -183,6 +183,60 @@ const CATEGORY_HINT_TOKENS = [
   ["shot", ["shot", "shots", "tequila", "sambuca"]],
 ];
 
+// Soft cuisine tokens (mirrors lib/cuisineTags.ts KNOWN_CUISINE_TAGS).
+const CUISINE_HINT_TAGS = [
+  "roast",
+  "thai",
+  "pizza",
+  "burger",
+  "tapas",
+  "italian",
+  "indian",
+  "steak",
+  "grill",
+  "pie",
+  "fish",
+  "kitchen",
+  "gastropub",
+  "chinese",
+  "mexican",
+];
+
+// Hand-curated cuisine by stable venue id (mirrors CURATED_CUISINE_BY_VENUE_ID).
+const CURATED_CUISINE_BY_VENUE_ID = {
+  "venue-1ufn31x": ["roast", "gastropub"],
+  "venue-1t8siin": ["gastropub"],
+  "venue-xiesdn": ["gastropub"],
+  "venue-phqazo": ["gastropub"],
+  "venue-15i2wst": ["roast", "gastropub"],
+  "venue-1gs68ga": ["roast", "pie"],
+  "venue-2e3otf": ["gastropub"],
+  "venue-ral8ik": ["burger"],
+  "venue-140rjwt": ["tapas"],
+  "venue-xmy0sb": ["italian"],
+  "venue-17zuc81": ["italian"],
+  "venue-11lnj4t": ["steak"],
+  "venue-pzbwmw": ["burger", "kitchen"],
+  "venue-1226a9v": ["gastropub", "kitchen"],
+  "venue-1ie3w8u": ["grill"],
+  "venue-11n82fd": ["burger"],
+  "venue-1u2v4eh": ["burger"],
+  "venue-16s3et4": ["burger"],
+  "venue-1y5lg8a": ["pie"],
+  "venue-7g6jxt": ["pie"],
+  "venue-we3mzn": ["kitchen"],
+  "venue-5zogu6": ["kitchen"],
+  "venue-1yd70c7": ["gastropub", "roast"],
+  "venue-fr71bp": ["gastropub"],
+  "venue-gv8lwa": ["gastropub", "fish"],
+  "venue-1x50b6d": ["gastropub"],
+  "venue-16pnwmm": ["gastropub", "fish"],
+  "venue-ekvkuv": ["gastropub"],
+  "venue-1d8a5xb": ["gastropub"],
+  "venue-fpmfjs": ["gastropub"],
+  "venue-133uf6h": ["gastropub", "kitchen"],
+};
+
 function normaliseDrinkHaystack(value) {
   return String(value ?? "")
     .toLowerCase()
@@ -239,6 +293,28 @@ function buildDrinkHints(prices) {
   };
 }
 
+function cuisineTagsFromHaystack(hay) {
+  return CUISINE_HINT_TAGS.filter((tag) => {
+    const re = new RegExp(`(?:^|[^a-z])${tag}(?:[^a-z]|$)`);
+    return re.test(hay);
+  });
+}
+
+function buildCuisineHints(venueId, prices) {
+  const curated = CURATED_CUISINE_BY_VENUE_ID[venueId] ?? [];
+  const hay = normaliseDrinkHaystack(
+    [
+      prices[0]?.pub_name,
+      prices[0]?.description,
+      ...prices.map((price) => price.comment),
+      ...prices.map((price) => price.pint_name),
+    ].join(" "),
+  );
+  const fromText = cuisineTagsFromHaystack(hay);
+  const found = new Set([...curated, ...fromText]);
+  return CUISINE_HINT_TAGS.filter((tag) => found.has(tag));
+}
+
 // Mirrors the curated names in lib/curation.ts. Keep this compact: the slim
 // artifact only needs the derived filter booleans, not the display copy.
 const CURATED_VENUES = {
@@ -281,7 +357,7 @@ function buildCurationHints(prices) {
   };
 }
 
-function buildFilterHints(prices) {
+function buildFilterHints(prices, venueId) {
   const first = prices[0];
   const searchParts = new Set(
     [
@@ -296,6 +372,7 @@ function buildFilterHints(prices) {
   );
   const curation = buildCurationHints(prices);
   const drinkHints = buildDrinkHints(prices);
+  const cuisineTags = buildCuisineHints(venueId, prices);
 
   return {
     searchText: Array.from(searchParts).join(" "),
@@ -312,6 +389,7 @@ function buildFilterHints(prices) {
       ? { drinkCategories: drinkHints.drinkCategories }
       : {}),
     ...(drinkHints.drinkBrands.length ? { drinkBrands: drinkHints.drinkBrands } : {}),
+    ...(cuisineTags.length ? { cuisineTags } : {}),
   };
 }
 
@@ -370,7 +448,7 @@ async function main() {
       lng: Number(first.longitude),
       cheapestPrice,
       borough: String(first.primary_borough || ""),
-      filterHints: buildFilterHints(prices),
+      filterHints: buildFilterHints(prices, id),
     });
 
     const detailLine = `${JSON.stringify({ id, rows: prices })}\n`;

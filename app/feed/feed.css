@@ -869,6 +869,46 @@
   color: #d9cfba;
 }
 
+.feedTrainBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.feedTrainBadge[data-tone="safe"] {
+  color: color-mix(in srgb, var(--pint, #138a63) 85%, #fff);
+  background: color-mix(in srgb, var(--pint, #138a63) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pint, #138a63) 40%, transparent);
+}
+
+.feedTrainBadge[data-tone="risk"] {
+  color: color-mix(in srgb, var(--brick, #b45309) 90%, #fff);
+  background: color-mix(in srgb, var(--brick, #b45309) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brick, #b45309) 40%, transparent);
+}
+
+.feedSpill .feedTrainBadge[data-tone="safe"] {
+  color: #c8f0dc;
+  background: color-mix(in srgb, #138a63 45%, transparent);
+  border-color: color-mix(in srgb, #9ae6c0 50%, transparent);
+}
+
+.feedSpill .feedTrainBadge[data-tone="risk"] {
+  color: #fde68a;
+  background: color-mix(in srgb, #b45309 45%, transparent);
+  border-color: color-mix(in srgb, #fbbf24 45%, transparent);
+}
+
+.feedWho .feedTrainBadge {
+  margin-left: 6px;
+}
+
 .feedSpillVenueLink {
   color: var(--river-bright, #29b6f6);
   font-weight: 700;

@@ -24,8 +24,29 @@ import {
   categoryHasBrandCoverage,
 } from "@/lib/drinkBrands";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import { KNOWN_CUISINE_TAGS } from "@/lib/cuisineTags";
 import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
 import "./discover.css";
+
+const HUNGRY_HREF = "/map?food=1";
+
+/** Discover Hungry chips → map with food filter + cuisine hint in the query. */
+function hungryCuisineHref(tag: string): string {
+  const params = new URLSearchParams({ food: "1", q: tag });
+  return `/map?${params.toString()}`;
+}
+
+/** Cuisine chips shown on Discover — a short, scannable subset. */
+const DISCOVER_CUISINE_CHIPS = [
+  "roast",
+  "gastropub",
+  "burger",
+  "pizza",
+  "tapas",
+  "pie",
+  "thai",
+  "italian",
+] as const satisfies ReadonlyArray<(typeof KNOWN_CUISINE_TAGS)[number]>;
 
 // "Explore by drink" → /map deep-link. decodeCrawl (lib/crawlUrl) maps these:
 //   cocktail → requireCocktails + drinkCategory
@@ -288,6 +309,30 @@ export default function DiscoverPage() {
             )}
           </div>
         ) : null}
+      </section>
+
+      <section className="discoverSection" aria-labelledby="hungry-title">
+        <h2 id="hungry-title" className="discoverSectionTitle">
+          Hungry?
+        </h2>
+        <p className="discoverSectionDek">
+          Pubs that serve food — light cuisine tags only, not full menus. Open
+          the map already filtered, or jump to a plate style.
+        </p>
+        <div className="discoverHungryRow">
+          <Link className="discoverHungryCta" href={HUNGRY_HREF}>
+            Show pubs that serve food
+          </Link>
+          <ul className="discoverCuisineChips" aria-label="Cuisine filters">
+            {DISCOVER_CUISINE_CHIPS.map((tag) => (
+              <li key={tag}>
+                <Link className="discoverCuisineChip" href={hungryCuisineHref(tag)}>
+                  {tag}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section

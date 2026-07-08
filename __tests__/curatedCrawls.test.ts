@@ -97,4 +97,13 @@ describe("curated crawls", () => {
       expect(venueById.get(id)?.amenities.cocktails, `${id} cocktails`).toBe(true);
     }
   });
+
+  it("packages Place story corridors on key heritage crawls (Wave F2)", () => {
+    const byId = new Map(curatedCrawls.map((c) => [c.id, c]));
+    expect(byId.get("fleet-street-writers")?.placeStoryBandId).toBe("fleet-street-writers");
+    expect(byId.get("riverside-heritage")?.placeStoryBandId).toBe("thames-industrial");
+    expect(byId.get("borough-market-crawl")?.placeStoryBandId).toBe("markets-theatre");
+    expect(byId.get("bankside-riverside")?.placeStoryBandId).toBe("river-history");
+  });
 });
+

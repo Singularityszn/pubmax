@@ -11,6 +11,7 @@ import type { RoundState } from "@/lib/rounds";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
+import { bandById } from "@/lib/storyBands";
 import { routePacks } from "@/lib/routePacks";
 import SiteNav from "@/components/nav/SiteNav";
 import "./crawls.css";
@@ -42,6 +43,8 @@ function curatedCrawlHref(crawl: CuratedCrawl): string {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", crawl.venueIds.join(","));
+  // Wave F2: open the Place story corridor alongside the mapped stops.
+  if (crawl.placeStoryBandId) params.set("band", crawl.placeStoryBandId);
   return `/map?${params.toString()}`;
 }
 
@@ -119,14 +122,22 @@ export default function CrawlsPage() {
           <ul className="curatedGrid" aria-label="Curated crawls worth walking">
             {curatedCrawls.map((crawl) => {
               const originName = startLandmarkName(crawl);
+              const placeStory = crawl.placeStoryBandId
+                ? bandById(crawl.placeStoryBandId)
+                : undefined;
               return (
-                <li key={crawl.id} className="curatedCard">
+                <li key={crawl.id} id={crawl.id} className="curatedCard">
                   <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
                   <h2 className="curatedName">{crawl.name}</h2>
                   <p className="curatedBlurb">{crawl.blurb}</p>
                   {originName ? (
                     <span className="curatedOriginChip">
                       <Flag size={12} aria-hidden="true" /> Starts at {originName}
+                    </span>
+                  ) : null}
+                  {placeStory ? (
+                    <span className="curatedOriginChip curatedPlaceStoryChip">
+                      Place story · {placeStory.title}
                     </span>
                   ) : null}
                   <p className="curatedMeta">
