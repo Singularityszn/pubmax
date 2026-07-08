@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import SiteNav from "@/components/nav/SiteNav";
@@ -93,13 +93,14 @@ export default function AdminPage() {
   const [importShowDismissed, setImportShowDismissed] = useState(false);
   const [importActionId, setImportActionId] = useState<string | null>(null);
 
-  const loadImportNotes = useCallback(async () => {
+  const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
     const t = token.trim();
     if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
     setImportLoading(true);
     setImportMsg(null);
+    const showDismissed = opts?.includeDismissed ?? importShowDismissed;
     try {
-      const qs = importShowDismissed ? "?includeDismissed=1" : "";
+      const qs = showDismissed ? "?includeDismissed=1" : "";
       const res = await fetch(`/api/admin/import-notes${qs}`, {
         headers: { "x-admin-token": t },
       });
@@ -122,11 +123,6 @@ export default function AdminPage() {
       setImportLoading(false);
     }
   }, [token, importShowDismissed]);
-
-  useEffect(() => {
-    if (tab !== "import") return;
-    void loadImportNotes();
-  }, [tab, loadImportNotes]);
 
   const load = useCallback(async () => {
     const t = token.trim();
@@ -622,7 +618,9 @@ export default function AdminPage() {
                     type="checkbox"
                     checked={importShowDismissed}
                     onChange={(e) => {
-                      setImportShowDismissed(e.target.checked);
+                      const checked = e.target.checked;
+                      setImportShowDismissed(checked);
+                      void loadImportNotes({ includeDismissed: checked });
                     }}
                   />
                   <span>Show dismissed</span>
