@@ -328,7 +328,7 @@ export default function DiscoverPage() {
         ) : thenVsNow.length === 0 ? (
           <p className="discoverEmpty" role="status">
             Not enough community prices yet to compare.{" "}
-            <Link href="/map">Log a pint on the map</Link> to help fill this in.
+            <Link href="/map?log=1">Log a pint on the map</Link> to help fill this in.
           </p>
         ) : (
           <div className="tvnGrid">

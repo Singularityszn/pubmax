@@ -549,7 +549,7 @@ function AddStop({
           {error}
         </p>
       ) : null}
-      <Link href="/map" className="roundSecondaryBtn">
+      <Link href="/map?log=1" className="roundSecondaryBtn">
         <MapPin size={16} aria-hidden="true" /> Log a pint on the map
       </Link>
     </section>

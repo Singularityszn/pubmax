@@ -89,7 +89,7 @@ export default function PintPassport({ handle, displayName, data, isOwn }: PintP
               <Link className="passportCta passportCtaPrimary" href="/map">
                 Open the map
               </Link>
-              <Link className="passportCta" href="/map?compose=1">
+              <Link className="passportCta" href="/map?log=1">
                 Log a pint
               </Link>
             </div>

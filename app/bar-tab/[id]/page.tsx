@@ -160,7 +160,7 @@ export default async function BarTabPage({ params }: PageProps) {
           eyebrow="Quiet at the bar"
           title="No pints on the tab yet."
           body="Be the first to drop one here — snap your pint, log the price, pass down a story."
-          action={<Link href={venueMapUrl(id)}>Drop a pint here</Link>}
+          action={<Link href={`${venueMapUrl(id)}&log=1`}>Drop a pint here</Link>}
         />
       ) : (
         <ul className="barTabGrid" aria-label={`Recent pints at ${venue.name}`}>
