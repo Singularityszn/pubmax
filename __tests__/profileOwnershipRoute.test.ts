@@ -24,7 +24,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, requiresSupabaseStore: () => prodGuard.requiresSupabase };
 });
 
-import { PATCH } from "@/app/api/profiles/[handle]/route";
+import { DELETE, PATCH } from "@/app/api/profiles/[handle]/route";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/profiles";
@@ -36,6 +36,13 @@ function patch(handle: string, body: unknown): Promise<Response> {
     body: JSON.stringify(body),
   });
   return PATCH(request, { params: Promise.resolve({ handle }) });
+}
+
+function del(handle: string): Promise<Response> {
+  const request = new Request(`${URL_BASE}/${encodeURIComponent(handle)}`, {
+    method: "DELETE",
+  });
+  return DELETE(request, { params: Promise.resolve({ handle }) });
 }
 
 beforeEach(() => {
@@ -85,6 +92,38 @@ describe("PATCH /api/profiles/[handle] — ownership gate", () => {
     prodGuard.requiresSupabase = true;
     const res = await patch("ken", { displayName: "Cheap Pint Ken" });
     expect(res.status).toBe(503);
+  });
+});
+
+describe("DELETE /api/profiles/[handle] — soft-delete ownership gate", () => {
+  it("soft-deletes an UNLINKED handle anonymously (clears editable fields)", async () => {
+    await memoryProfileStore.ensure("ken");
+    await memoryProfileStore.update("ken", { displayName: "Ken", bio: "hi" });
+
+    const res = await del("ken");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.profile.handle).toBe("ken");
+    expect(body.profile.displayName).toBeUndefined();
+    expect(body.profile.bio).toBeUndefined();
+
+    const row = await memoryProfileStore.getByHandle("ken");
+    expect(row).not.toBeNull();
+    expect(row!.displayName).toBeUndefined();
+  });
+
+  it("REJECTS anonymous delete of a LINKED handle (403)", async () => {
+    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.update("ken", { displayName: "Ken" });
+
+    const res = await del("ken");
+    expect(res.status).toBe(403);
+    const row = await memoryProfileStore.getByHandle("ken");
+    expect(row?.displayName).toBe("Ken");
+  });
+
+  it("404s when the handle has no profile row", async () => {
+    expect((await del("ghost")).status).toBe(404);
   });
 });
 

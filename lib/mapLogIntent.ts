@@ -13,6 +13,30 @@ export type MapLogIntentResolution =
   | { status: "open"; venueId: string }
   | { status: "fallback" };
 
+export type LogNearbyCandidate = {
+  id: string;
+  name: string;
+  priceLabel: string;
+};
+
+// Cap the nearby-picker list so the log-intent fallback stays thumb-scannable.
+export const LOG_NEARBY_PICKER_LIMIT = 5;
+
+export function buildLogNearbyCandidates(
+  venues: Array<{ id: string; name: string; cheapestPrice?: number | null }>,
+  limit = LOG_NEARBY_PICKER_LIMIT,
+): LogNearbyCandidate[] {
+  const take = Math.max(0, Math.min(Math.floor(limit), venues.length));
+  return venues.slice(0, take).map((venue) => ({
+    id: venue.id,
+    name: venue.name,
+    priceLabel:
+      typeof venue.cheapestPrice === "number" && Number.isFinite(venue.cheapestPrice)
+        ? `£${venue.cheapestPrice.toFixed(2)}`
+        : "Price TBD",
+  }));
+}
+
 type QueryLike = string | { get(name: string): string | null };
 
 export function hasMapLogIntent(query: QueryLike): boolean {

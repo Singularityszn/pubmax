@@ -404,6 +404,34 @@ export default function FeedCard({
             or fire it into X / WhatsApp / a group chat. */}
         {!isOptimistic ? (
           <div className="feedCardFooter">
+            <nav className="feedCardActions" aria-label="Pub actions">
+              <Link
+                className="feedCardAction"
+                href={item.venueMapUrl || `/map?sel=${encodeURIComponent(item.venueId)}`}
+                onPointerEnter={() => prefetchVenue(item.venueId)}
+              >
+                Map
+              </Link>
+              {item.venueId ? (
+                <Link
+                  className="feedCardAction"
+                  href={`/map?log=1&sel=${encodeURIComponent(item.venueId)}`}
+                  onPointerEnter={() => prefetchVenue(item.venueId)}
+                >
+                  Drop
+                </Link>
+              ) : null}
+              <Link
+                className="feedCardAction"
+                href={
+                  item.venueId
+                    ? `/bar-tab/${encodeURIComponent(item.venueId)}`
+                    : item.venueMapUrl || "/map"
+                }
+              >
+                Pub
+              </Link>
+            </nav>
             <Link className="feedPermalink" href={`/p/${item.id}`}>
               Open pint
             </Link>

@@ -83,10 +83,26 @@ function cleanPatch(patch: ProfilePatch): ProfilePatch {
 export type ProfileStore = {
   /** Read a profile by handle, or null when none exists yet. */
   getByHandle(handle: string): Promise<ProfileRecord | null>;
+  /**
+   * Resolve the handle linked to an auth user id, or null when no profile has
+   * claimed that uid yet. Used by messaging (and similar) so an authenticated
+   * caller is identified by their linked profile rather than a self-asserted
+   * body handle.
+   */
+  getHandleByUserId(userId: string): Promise<string | null>;
   /** Get-or-create a minimal row for a handle. Never clobbers existing fields. */
   ensure(handle: string): Promise<ProfileRecord>;
   /** Apply a patch to an existing profile. Returns null when the handle is unknown. */
   update(handle: string, patch: ProfilePatch): Promise<ProfileRecord | null>;
+  /**
+   * Soft-delete a profile: clear editable display fields (bio/avatar/display
+   * name/home city) while keeping the row + handle + user_id so the social
+   * graph (follows, drops keyed by handle) is not cascade-destroyed. Returns
+   * null when the handle is unknown. There is no `deleted_at` column yet —
+   * clearing editable fields is the safe delete until a dedicated tombstone
+   * migration lands.
+   */
+  softDelete(handle: string): Promise<ProfileRecord | null>;
   /**
    * Link an authenticated user id onto a handle's row (account migration, story
    * 32): ensures the row exists, then stamps user_id when it is unset. Idempotent
@@ -151,6 +167,18 @@ export const supabaseProfileStore: ProfileStore = {
     return row ? fromRow(row as Record<string, unknown>) : null;
   },
 
+  async getHandleByUserId(userId) {
+    if (!userId) return null;
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("handle")
+      .eq("user_id", userId)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const row = (data ?? [])[0] as { handle?: unknown } | undefined;
+    return row?.handle ? normalizeHandle(String(row.handle)) || null : null;
+  },
+
   async ensure(handle) {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
@@ -190,6 +218,17 @@ export const supabaseProfileStore: ProfileStore = {
     if (error) throw new Error(error.message);
     const updated = (data ?? [])[0];
     return updated ? fromRow(updated as Record<string, unknown>) : null;
+  },
+
+  async softDelete(handle) {
+    // Prefer clearing editable fields over DELETE so follows/drops keyed by
+    // handle (and ON DELETE CASCADE edges) stay intact. No deleted_at column.
+    return this.update(handle, {
+      displayName: null,
+      avatarUrl: null,
+      homeCity: null,
+      bio: null,
+    });
   },
 
   async linkUser(handle, userId) {
@@ -239,6 +278,14 @@ export const memoryProfileStore: ProfileStore = {
     return memoryProfiles.get(normalizeHandle(handle)) ?? null;
   },
 
+  async getHandleByUserId(userId) {
+    if (!userId) return null;
+    for (const record of memoryProfiles.values()) {
+      if (record.userId === userId) return record.handle;
+    }
+    return null;
+  },
+
   async ensure(handle) {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
@@ -265,6 +312,15 @@ export const memoryProfileStore: ProfileStore = {
     };
     memoryProfiles.set(key, next);
     return next;
+  },
+
+  async softDelete(handle) {
+    return this.update(handle, {
+      displayName: null,
+      avatarUrl: null,
+      homeCity: null,
+      bio: null,
+    });
   },
 
   async linkUser(handle, userId) {

@@ -60,6 +60,18 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard â†
 
 > Note: the public bucket serves any object whose URL is known, including objects belonging to hidden drops (the DTO withholds URLs for hidden rows, but a previously-shared URL still resolves). A real takedown flow needs a private bucket + signed URLs. Fine for the demo; flagged for real public UGC.
 
+## Venue detail artifacts (build-time)
+
+`npm run prebuild` runs `build:slim`, which generates both the browser slim index and the server-only venue detail pack:
+
+| Output | Role |
+|---|---|
+| `public/data/venues_slim.json` | Map pins + filter hints (shipped to clients). |
+| `data/generated/venue_detail_index.json` | Byte-offset manifest for lazy detail reads. |
+| `data/generated/venue_details.jsonl` | Per-venue price rows (not committed â€” large). |
+
+Do not commit the `data/generated/` detail binaries. Vercel/CI regenerates them on every build via `prebuild`. If artifacts are absent locally, `lib/venueDetailIndex.ts` falls back to the raw dataset outside production so `/api/venue/[id]` still works in dev/test.
+
 ## Continuous integration and deployment checks
 
 `vercel.json` sets the build command to the full gate:

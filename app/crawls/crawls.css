@@ -59,6 +59,67 @@
   margin-bottom: 16px;
 }
 
+/* --- route packs (thematic groupings above featured routes) --------------- */
+
+.routePacks {
+  width: 100%;
+  margin: 0 0 28px;
+  text-align: left;
+}
+
+.routePackList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.routePackLink {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 220px;
+  padding: 10px 0;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid color-mix(in srgb, var(--brass) 35%, transparent);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.routePackLink:hover,
+.routePackLink:focus-visible {
+  border-bottom-color: var(--brass);
+  color: var(--brass);
+}
+
+.routePackTitle {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.routePackBlurb {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.routePackLink:hover .routePackBlurb,
+.routePackLink:focus-visible .routePackBlurb {
+  color: inherit;
+}
+
+.routePackMeta {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
 /* --- curated crawls (empty-state grid) ------------------------------------ */
 
 .curatedGrid {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "./theme.css";
@@ -58,6 +58,12 @@ export const metadata: Metadata = {
   },
   description:
     "Every pint has a story. PUBMAXXING is a price-aware, story-led London pub-crawl planner — real pint prices, heritage pubs, and community Pint Drops.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "PubMax",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "PUBMAXXING — Every pint has a story",
     description:
@@ -82,8 +88,24 @@ export const metadata: Metadata = {
     images: ["/og.png"],
   },
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/icon-192.svg", sizes: "192x192", type: "image/svg+xml" }],
   },
+};
+
+// theme_color matches --ink-deep (light tokens); viewport-fit=cover for
+// standalone PWA / notched phones.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#16122a" },
+    { media: "(prefers-color-scheme: dark)", color: "#090806" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

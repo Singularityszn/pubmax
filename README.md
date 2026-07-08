@@ -39,6 +39,16 @@ Useful scripts:
 | `npm test` | Vitest unit suite |
 | `npm run test:e2e` | Playwright smoke (builds, starts, drives Chromium) |
 | `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
+| `npm run build:slim` | Slim map index + **venue detail artifacts** (`data/generated/`) — also runs on `prebuild` |
+
+### Venue detail index
+
+`npm run build:slim` (`scripts/build_slim_index.mjs`) writes:
+
+- `public/data/venues_slim.json` — map pins (committed / shipped to the browser)
+- `data/generated/venue_detail_index.json` + `venue_details.jsonl` — server-side lazy detail for `/api/venue/[id]`
+
+Those generated detail files are gitignored (large). Local/dev falls back to the raw pint dataset when they are missing; production should run `prebuild` / `build:slim` so the index exists. See `docs/DEPLOYMENT.md`.
 
 ## Demo data
 

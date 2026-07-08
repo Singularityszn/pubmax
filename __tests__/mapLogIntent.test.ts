@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { hasMapLogIntent, resolveMapLogIntent, shouldRunMapLogIntent } from "@/lib/mapLogIntent";
+import {
+  buildLogNearbyCandidates,
+  hasMapLogIntent,
+  resolveMapLogIntent,
+  shouldRunMapLogIntent,
+} from "@/lib/mapLogIntent";
 
 describe("resolveMapLogIntent", () => {
   it("does nothing when the URL has no log intent", () => {
@@ -129,5 +134,29 @@ describe("shouldRunMapLogIntent", () => {
     expect(shouldRunMapLogIntent({ hasLogIntent: true, handled: false })).toBe(true);
     expect(shouldRunMapLogIntent({ hasLogIntent: true, handled: true })).toBe(false);
     expect(shouldRunMapLogIntent({ hasLogIntent: false, handled: false })).toBe(false);
+  });
+});
+
+describe("buildLogNearbyCandidates", () => {
+  it("formats nearby pubs for the log-intent picker", () => {
+    expect(
+      buildLogNearbyCandidates(
+        [
+          { id: "a", name: "Alpha Arms", cheapestPrice: 4.5 },
+          { id: "b", name: "Beta Bar", cheapestPrice: null },
+          { id: "c", name: "Gamma", cheapestPrice: 6 },
+          { id: "d", name: "Delta", cheapestPrice: 5 },
+          { id: "e", name: "Echo", cheapestPrice: 5.2 },
+          { id: "f", name: "Foxtrot", cheapestPrice: 5.5 },
+        ],
+        5,
+      ),
+    ).toEqual([
+      { id: "a", name: "Alpha Arms", priceLabel: "£4.50" },
+      { id: "b", name: "Beta Bar", priceLabel: "Price TBD" },
+      { id: "c", name: "Gamma", priceLabel: "£6.00" },
+      { id: "d", name: "Delta", priceLabel: "£5.00" },
+      { id: "e", name: "Echo", priceLabel: "£5.20" },
+    ]);
   });
 });

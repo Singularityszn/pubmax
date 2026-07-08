@@ -125,16 +125,20 @@ export function decodeCrawl(
   if (params.get("cocktails") === "1") filters.requireCocktails = true;
   const q = params.get("q")?.trim();
   if (q) filters.query = q.slice(0, 80);
+  // Discover → map drink deep-links (`?drink=` from exploreHref).
+  // Fully filterable against venue amenity / index data today:
+  //   low-no → requireNonAlcoholic (+ mocktail alt style)
+  //   cocktail → requireCocktails
+  // Soft-link only (text query; may return few/no pins until drink rows land):
+  //   wine → query "Wine" (pint dataset sometimes mentions wine lists)
+  // Not filterable yet (no inventing fake amenity flags) — open map without a
+  // blanking query: beer, whisky, gin, vodka, rum, shot, other.
   const drink = params.get("drink")?.trim();
   if (drink === "low-no") {
     filters.requireNonAlcoholic = true;
     out.altStyle = "mocktail";
   } else if (isDrinkCategory(drink)) {
     if (drink === "cocktail") filters.requireCocktails = true;
-    // The fast map index can currently answer wine text queries and the
-    // cocktail/low-no boolean filters. Other drink families remain valid
-    // discover intents, but turning them into text queries would blank the map
-    // because the base pint dataset has no vodka/rum/whisky/shot rows.
     if (!filters.query && drink === "wine") {
       filters.query = categoryLabel(drink);
     }

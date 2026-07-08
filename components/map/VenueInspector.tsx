@@ -436,6 +436,15 @@ export default function VenueInspector({
                   style={{ display: "block", marginTop: "8px" }}
                 >
                   {dropMsg.text}
+                  {dropMsg.ok && dropMsg.links && dropMsg.links.length > 0 ? (
+                    <span className="composerMsgLinks">
+                      {dropMsg.links.map((link) => (
+                        <Link key={link.href} href={link.href} className="composerMsgLink">
+                          {link.label}
+                        </Link>
+                      ))}
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
             </div>

@@ -65,6 +65,37 @@ Local parsed versions now equal the remote ledger set exactly (24 = 24), so
 `FindPendingMigrations` finds no unmatched remote version and the check passes.
 **No production schema or ledger was touched to achieve this.**
 
+## Intentional duplicate 0013 / 0014 / 0015 re-application files
+
+**Do not delete these migration files casually.** Supabase Preview compares the
+remote `schema_migrations` ledger to local filenames by leading version digits
+only. Preview currently has *two* ledger rows for each of 0013, 0014, and 0015:
+
+| Logical migration | Early ledger version | Later (re-apply) ledger version |
+| ----------------- | -------------------- | ------------------------------- |
+| 0013 comment replies | `20260707010745` | `20260707053307` |
+| 0014 realtime publication | `20260707010750` | `20260707053327` |
+| 0015 index cleanup | `20260707010941` | `20260707053355` |
+
+The repo therefore keeps **both** files for each pair (early + re-apply). The
+re-apply bodies are intentionally idempotent (`if not exists` / guarded `do $$`),
+so a fresh Preview branch that runs both is a no-op on the second pass.
+
+### How to reconcile Preview drift (actionable)
+
+1. **If Preview fails with `Remote migration versions not found in local migrations directory`:**
+   confirm every remote version in the table above still has a matching
+   `supabase/migrations/<version>_*.sql` file. Restore from git if a file was
+   removed — do **not** invent a new timestamp.
+2. **If a human wants a single ledger row per logical migration:** use the
+   optional `migration repair` steps below (remote edit only). After repair,
+   delete *only* the local files whose versions you marked `reverted`, and keep
+   the surviving set paired 1:1 with the ledger.
+3. **Never** delete one half of a duplicate pair while both versions remain in
+   the remote ledger — that reintroduces `ErrMissingLocal` on the next Preview.
+4. **Never** run `repair --status reverted` on a singular migration that has no
+   sibling copy (e.g. `0007_function_search_path`, `pub_presence`).
+
 ## Optional: collapse the duplicate ledger entries (remote edit — run by a human)
 
 The in-repo fix above is complete and requires nothing below. If you would

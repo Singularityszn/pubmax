@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { completedCrawlCount } from "@/lib/crawlCompletion";
 import {
   nextBadgeProgress,
   normalizeHandle,
@@ -21,12 +22,21 @@ import "./nextBadgeChips.css";
 //  • fetch failed → renders nothing (a guess is worse than silence);
 //  • every badge earned → renders nothing (no fake quests).
 // A `handle` prop skips the localStorage read when the parent already knows it.
+// Loop 2: optionally shows a "Crawls walked" count from local crawlCompletion
+// when `showCrawlsWalked` is set (own-device progress only).
 
 const HANDLE_KEY = "pubmax_handle";
 const MAX_CHIPS = 2;
 
-export default function NextBadgeChips({ handle }: { handle?: string }): React.JSX.Element | null {
+export default function NextBadgeChips({
+  handle,
+  showCrawlsWalked = false,
+}: {
+  handle?: string;
+  showCrawlsWalked?: boolean;
+}): React.JSX.Element | null {
   const [quests, setQuests] = useState<BadgeProgress[]>([]);
+  const [crawlsWalked, setCrawlsWalked] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -57,11 +67,24 @@ export default function NextBadgeChips({ handle }: { handle?: string }): React.J
     return () => controller.abort();
   }, [handle]);
 
-  if (quests.length === 0) return null;
+  useEffect(() => {
+    if (!showCrawlsWalked) return;
+    let active = true;
+    async function loadWalked() {
+      const next = completedCrawlCount();
+      if (active) setCrawlsWalked(next);
+    }
+    void loadWalked();
+    return () => {
+      active = false;
+    };
+  }, [showCrawlsWalked]);
+
+  if (quests.length === 0 && !(showCrawlsWalked && crawlsWalked > 0)) return null;
 
   return (
     <div className="questChips" aria-label="Next badge progress">
-      <span className="questChipsKicker">Next badge</span>
+      {quests.length > 0 ? <span className="questChipsKicker">Next badge</span> : null}
       {quests.slice(0, MAX_CHIPS).map((quest) => (
         <span key={quest.badge.id} className="questChip">
           <span className="questChipCount">
@@ -70,6 +93,12 @@ export default function NextBadgeChips({ handle }: { handle?: string }): React.J
           {quest.label}
         </span>
       ))}
+      {showCrawlsWalked && crawlsWalked > 0 ? (
+        <span className="questChip questChipWalked">
+          <span className="questChipCount">{crawlsWalked}</span>
+          Crawls walked
+        </span>
+      ) : null}
     </div>
   );
 }

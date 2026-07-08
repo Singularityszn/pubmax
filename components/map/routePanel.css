@@ -49,3 +49,25 @@
   margin-top: 0;
   margin-bottom: 12px;
 }
+
+/* Loop 2: local crawl-completion controls — light touch, reuses panel tokens. */
+.crawlProgressRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.crawlProgressStatus,
+.crawlProgressDone {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent, #e0b34a);
+}
+
+.crawlProgressDone {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent, #e0b34a) 40%, transparent);
+  border-radius: 8px;
+}

@@ -31,9 +31,68 @@ export type DropWithPhotos = PintDrop & {
 export type PhotoSlot = { file: File; previewUrl: string };
 export type PhotoSlotName = "pint" | "venue";
 
+/** Success/error banner after a drop — optional next-action links for Loop 2. */
+export type DropMsg = {
+  ok: boolean;
+  text: string;
+  links?: Array<{ href: string; label: string }>;
+};
+
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB — server re-validates.
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
+const ACTIVE_ROUND_KEY = "pubmax_active_round";
+
+/** Read the active Round code stamped by /rounds/[code] (Loop 2 stickiness). */
+function readActiveRoundCode(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return (window.localStorage.getItem(ACTIVE_ROUND_KEY) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Best-effort: append this venue as a stop on the open Round. Fail-soft — a
+ * miss (closed / network) must never undo a successful drop. Joins first so a
+ * viewer who stamped the Round from the page can append without a separate
+ * join step, then uses the existing `addStop` action.
+ */
+async function appendStopToActiveRound(input: {
+  code: string;
+  handle: string;
+  venueId: string;
+  venueName: string;
+  dropRef?: string;
+}): Promise<boolean> {
+  try {
+    const joinRes = await fetch(`/api/rounds/${encodeURIComponent(input.code)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "join", handle: input.handle }),
+    });
+    // Join may 409 if closed — still attempt addStop only on ok (idempotent join).
+    if (!joinRes.ok && joinRes.status !== 409) {
+      // Non-member / not found — don't pretend the stop landed.
+      // 409 closed is handled by addStop below returning false.
+    }
+    const res = await fetch(`/api/rounds/${encodeURIComponent(input.code)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "addStop",
+        handle: input.handle,
+        venueId: input.venueId,
+        venueName: input.venueName,
+        ...(input.dropRef ? { dropRef: input.dropRef } : {}),
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
@@ -63,7 +122,7 @@ export function usePintDrops() {
   const [pintPhoto, setPintPhoto] = useState<PhotoSlot | null>(null);
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [dropMsg, setDropMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [dropMsg, setDropMsg] = useState<DropMsg | null>(null);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   // Ref guard + optimistic removal is the whole "pending state" for reports —
@@ -338,9 +397,49 @@ export function usePintDrops() {
           // A successful Pint Drop should not become a failed post because
           // browser storage is blocked/full. The handle can be re-entered later.
         }
+
+        // Loop 2: if a Round is open, append this pub as a stop (existing
+        // addStop API). Fail-soft — the drop already landed.
+        const activeRound = readActiveRoundCode();
+        const dropId =
+          data.drop && typeof data.drop === "object" && typeof (data.drop as { id?: unknown }).id === "string"
+            ? (data.drop as { id: string }).id
+            : undefined;
+        let addedToNight = false;
+        if (activeRound && handle.trim()) {
+          addedToNight = await appendStopToActiveRound({
+            code: activeRound,
+            handle: handle.trim(),
+            venueId,
+            venueName: options?.venueName ?? "A London pub",
+            dropRef: dropId,
+          });
+        }
+
         resetComposer();
         setComposerOpen(false);
-        setDropMsg({ ok: true, text: "Cheers — your Pint Drop is live." });
+        // Post-drop "added to your night" moment — tasteful next actions, not a modal.
+        const links: NonNullable<DropMsg["links"]> = [
+          { href: "/feed", label: "See the feed" },
+        ];
+        if (activeRound || addedToNight) {
+          links.push({
+            href: `/bar-tab/${encodeURIComponent(venueId)}`,
+            label: "Bar tab",
+          });
+          const cleanHandle = handle.trim().replace(/^@+/, "");
+          if (cleanHandle) {
+            links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
+          }
+        }
+        setDropMsg({
+          ok: true,
+          text:
+            activeRound || addedToNight
+              ? "Cheers — added to your night."
+              : "Cheers — your Pint Drop is live.",
+          links,
+        });
       }
     } catch {
       const message = "Network or storage error — try again.";
