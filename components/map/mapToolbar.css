@@ -1,10 +1,100 @@
-/* Mobile thumb-reach pass for the floating map chrome (GH #17 user story 17).
-   Scoped entirely to ≤640px so desktop/tablet layout (owned by globals.css)
-   is untouched. `.mapToolbar` / `.mapLegend` themselves stay globals.css's —
-   this file only adds a collision-avoidance behavior driven by the sheet's
-   snap state, expressed as a `.sheet-full` class PubMap.tsx puts on the
-   shared `.appShell` ancestor (see components/PubMap.tsx) while the venue
-   bottom-sheet is at its most-expanded snap. */
+/* Drink-shape chips + mobile thumb-reach for floating map chrome.
+   Row layout + chips are additive on all widths; sheet collision rules stay
+   ≤640px so desktop layout from globals.css is otherwise untouched. */
+
+.mapToolbar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--brass) 28%, var(--line));
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--brass) 7%, var(--panel-raised)),
+      color-mix(in srgb, var(--panel-raised) 92%, transparent)
+    ),
+    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+}
+
+.mapToolbarRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.drinkShapeChips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 2px 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.drinkShapeChips::-webkit-scrollbar {
+  display: none;
+}
+
+.drinkShapeChip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 4px 10px 4px 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.drinkShapeChip:hover,
+.drinkShapeChip:focus-visible {
+  border-color: var(--brass);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+}
+
+.drinkShapeChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.drinkShapeChip.isOn {
+  border-color: var(--brass);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 28%, transparent);
+}
+
+.drinkShapeChipLabel {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .drinkShapeChip {
+    min-height: 40px;
+    padding: 5px 11px 5px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drinkShapeChip {
+    transition: none;
+  }
+}
+
 @media (max-width: 640px) {
   /* At the sheet's "full" snap it covers ~92% of the viewport height, so the
      floating toolbar (top) and legend (bottom) would otherwise sit uselessly

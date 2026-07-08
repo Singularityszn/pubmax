@@ -20,10 +20,10 @@
 
 .venueSheetGrab {
   display: block;
-  width: 38px;
-  height: 4px;
+  width: 42px;
+  height: 5px;
   border-radius: 999px;
-  background: var(--line);
+  background: color-mix(in srgb, var(--brass) 55%, var(--line));
 }
 
 /* Venue detail hydration skeleton — keeps sheet geometry stable while the
@@ -219,13 +219,14 @@
 
 .venueBaselinePhoto {
   position: relative;
-  aspect-ratio: 12 / 7;
+  aspect-ratio: 16 / 9;
   margin: 0 0 14px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--river) 28%, var(--line));
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--river) 7%, var(--panel));
-  box-shadow: 0 14px 30px color-mix(in srgb, var(--ink) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel)), color-mix(in srgb, var(--river) 8%, var(--panel)));
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--ink-deep) 14%, transparent);
 }
 
 .venueBaselinePhoto img {

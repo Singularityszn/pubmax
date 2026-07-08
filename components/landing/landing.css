@@ -249,209 +249,296 @@
   line-height: 1.6;
 }
 
-/* ── Hero ────────────────────────────────────────────────────────────── */
+/* ── Hero: full-bleed photo + brand-first composition ─────────────────── */
 .lp .hero {
-  padding-top: clamp(48px, 7vw, 84px);
   position: relative;
+  padding-top: clamp(28px, 5vw, 56px);
+  padding-bottom: clamp(36px, 6vw, 72px);
+  isolation: isolate;
 }
 
-.lp .hero::before {
+/* Edge-to-edge photographic plane behind the first viewport. */
+.lp .heroPhoto::before {
   content: "";
   position: absolute;
-  inset: 20px clamp(16px, 4vw, 42px) auto;
-  height: min(34vw, 420px);
-  z-index: -1;
-  border-radius: var(--radius);
+  inset: 0;
+  z-index: -2;
   background:
-    linear-gradient(104deg, transparent 0 18%, color-mix(in srgb, var(--brass) 9%, transparent) 18% 19%, transparent 19% 100%),
-    linear-gradient(156deg, transparent 0 62%, color-mix(in srgb, var(--river) 8%, transparent) 62% 63%, transparent 63% 100%);
+    url("/landing/hero-thames.jpg") center 42% / cover no-repeat;
+}
+
+.lp .heroPhoto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ink-deep) 55%, transparent) 0%,
+      color-mix(in srgb, var(--ink-deep) 28%, transparent) 38%,
+      color-mix(in srgb, var(--paper) 72%, transparent) 78%,
+      var(--paper) 100%
+    ),
+    linear-gradient(
+      105deg,
+      color-mix(in srgb, var(--brass) 28%, transparent) 0%,
+      transparent 48%
+    );
+  pointer-events: none;
 }
 
 .lp .heroGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: clamp(32px, 5vw, 72px);
+  gap: clamp(28px, 5vw, 64px);
   align-items: center;
 }
 
-.lp .heroCopy h1 {
-  font-family: var(--font-garamond, var(--serif));
-  font-weight: 600;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
-  font-size: clamp(2.6rem, 6vw, 4.4rem);
-  line-height: 1.02;
-  letter-spacing: -0.02em;
-  margin: 0 0 22px;
+.lp .heroBrand {
+  font-family: var(--font-display, var(--serif));
+  font-weight: 700;
+  font-size: clamp(2.8rem, 8vw, 4.8rem);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  margin: 0 0 14px;
+  color: var(--color-on-photo);
+  text-shadow: 0 12px 36px color-mix(in srgb, var(--ink-deep) 45%, transparent);
   text-wrap: balance;
 }
 
-.lp .heroCopy h1 em {
-  font-style: italic;
-  color: var(--brass);
-  text-shadow: 0 10px 30px color-mix(in srgb, var(--brass) 22%, transparent);
-}
-
-/* Nostalgic subhead directly under the H1 — italic serif, warm, not SaaS. */
 .lp .heroTagline {
-  max-width: 34ch;
-  margin: -8px 0 20px;
-  color: var(--river);
-  font-size: clamp(1.24rem, 2.4vw, 1.6rem);
+  max-width: 28ch;
+  margin: 0 0 16px;
+  color: color-mix(in srgb, var(--color-on-photo) 92%, var(--brass-bright));
+  font-size: clamp(1.2rem, 2.6vw, 1.55rem);
   font-style: italic;
+  font-weight: 500;
   line-height: 1.28;
   letter-spacing: -0.005em;
   text-wrap: balance;
+  text-shadow: 0 8px 24px color-mix(in srgb, var(--ink-deep) 35%, transparent);
 }
 
 .lp .heroLede {
-  max-width: 40ch;
-  margin: 0 0 30px;
-  color: var(--ink-soft);
-  font-size: 1.18rem;
+  max-width: 38ch;
+  margin: 0 0 26px;
+  color: var(--color-on-photo);
+  font-size: clamp(1.02rem, 2.1vw, 1.16rem);
   line-height: 1.55;
   text-wrap: pretty;
+  text-shadow:
+    0 1px 2px color-mix(in srgb, var(--ink-deep) 55%, transparent),
+    0 8px 20px color-mix(in srgb, var(--ink-deep) 45%, transparent);
 }
 
 .lp .heroActions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 32px;
+  margin-bottom: 8px;
 }
 
-.lp .statChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.lp .heroPhoto .btnGhost {
+  background: color-mix(in srgb, var(--panel-raised) 28%, transparent);
+  color: var(--color-on-photo);
+  border-color: color-mix(in srgb, var(--color-on-photo) 48%, transparent);
+  backdrop-filter: blur(8px);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--ink-deep) 40%, transparent);
+}
+
+.lp .heroPhoto .btnGhost:hover {
+  background: color-mix(in srgb, var(--panel-raised) 38%, transparent);
+  border-color: var(--brass-bright);
+  color: var(--color-on-photo);
+}
+
+.lp .heroFigure {
+  position: relative;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--color-on-photo) 18%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--ink-deep) 35%, transparent);
+  box-shadow:
+    0 28px 64px color-mix(in srgb, var(--ink-deep) 42%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--brass) 18%, transparent);
+  overflow: hidden;
+}
+
+/* Interactive photo plane with drink-shaped pubs */
+.lp .thamesHeroPhoto {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 560 / 400;
+  min-height: 280px;
+  overflow: hidden;
+  background: var(--ink-deep);
+}
+
+.lp .thamesHeroImg {
+  object-fit: cover;
+  object-position: center 40%;
+  transform: scale(1.02);
+  animation: lpHeroKen 18s ease-in-out infinite alternate;
+}
+
+.lp .thamesHeroScrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--brass) 22%, transparent), transparent 55%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ink-deep) 18%, transparent) 0%,
+      color-mix(in srgb, var(--ink-deep) 55%, transparent) 100%
+    );
+  pointer-events: none;
+}
+
+.lp .thamesHeroHint {
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  z-index: 2;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-deep) 55%, transparent);
+  color: var(--color-on-photo);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.lp .thamesHeroPins {
+  position: absolute;
+  inset: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.lp .statChip {
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
-  border-radius: 16px;
+.lp .thamesHeroPin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  animation: lpPinFloat 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--pin-i, 0) * 0.28s);
+}
+
+.lp .thamesHeroPinLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 72px;
+  text-decoration: none;
+  color: var(--color-on-photo);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.18s ease;
+}
+
+.lp .thamesHeroPinLink:hover,
+.lp .thamesHeroPinLink:focus-visible {
+  transform: translateY(-3px) scale(1.04);
+}
+
+.lp .thamesHeroPinLink:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
+.lp .thamesHeroPinLink:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.lp .thamesHeroPinGlyph {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--brass) 8%, var(--panel-raised)), var(--panel-raised));
-  transition: border-color 0.18s ease, background 0.18s ease,
-    transform 0.18s ease;
+    radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--panel-raised) 88%, transparent), color-mix(in srgb, var(--panel-raised) 72%, transparent));
+  border: 2px solid color-mix(in srgb, var(--brass-bright) 55%, transparent);
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--ink-deep) 45%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--brass) 18%, transparent);
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-.lp .statChip:hover {
-  border-color: var(--brass);
-  background: var(--panel-raised);
+.lp .thamesHeroPinLink:hover .thamesHeroPinGlyph,
+.lp .thamesHeroPinLink:focus-visible .thamesHeroPinGlyph {
+  border-color: var(--brass-bright);
+  box-shadow:
+    0 14px 28px color-mix(in srgb, var(--ink-deep) 50%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--brass) 28%, transparent);
 }
 
-.lp .statChip strong {
-  display: block;
-  font-family: var(--font-garamond, var(--serif));
+.lp .thamesHeroPinMeta {
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  padding: 5px 8px 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink-deep) 62%, transparent);
+  backdrop-filter: blur(8px);
+  max-width: 110px;
+  text-align: center;
+}
+
+.lp .thamesHeroPinCat {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brass-bright);
+}
+
+.lp .thamesHeroPinPlace {
+  font-family: var(--font-display, var(--serif));
+  font-size: 0.78rem;
   font-weight: 600;
-  font-variation-settings: "SOFT" 0;
-  font-size: 1.24rem;
+  line-height: 1.15;
+  color: var(--color-on-photo);
+}
+
+.lp .thamesHeroPinPrice {
+  font-size: 0.68rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.lp .statChip span {
-  display: block;
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 0.76rem;
-  font-weight: 500;
-}
-
-.lp .heroFigure {
-  position: relative;
-  padding: 20px;
-  border: 1px solid color-mix(in srgb, var(--line) 64%, var(--river) 36%);
-  border-radius: 24px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--river) 10%, var(--panel-raised)), color-mix(in srgb, var(--brass) 7%, var(--panel-raised))),
-    var(--panel-raised);
-  box-shadow: 0 24px 58px rgba(44, 30, 62, 0.16), 0 10px 30px rgba(40, 100, 216, 0.1);
-  overflow: hidden;
-}
-
-.lp .thamesHero {
-  display: block;
-  width: 100%;
-  height: auto;
-  /* Lock the box to the viewBox ratio (560×340) so the hero reserves its
-     final height before the SVG paints — no CLS/reflow on first render. */
-  aspect-ratio: 560 / 340;
+  color: color-mix(in srgb, var(--color-on-photo) 78%, transparent);
 }
 
 .lp .figCaption {
-  margin: 12px 4px 0;
-  color: var(--muted);
-  font-size: 0.78rem;
+  margin: 0;
+  padding: 10px 14px 12px;
+  color: color-mix(in srgb, var(--color-on-photo) 78%, transparent);
+  font-size: 0.76rem;
   font-style: italic;
+  background: color-mix(in srgb, var(--ink-deep) 55%, transparent);
 }
 
-.lp .crawlTicket {
-  position: absolute;
-  right: clamp(18px, 4vw, 34px);
-  bottom: clamp(48px, 7vw, 72px);
-  width: min(248px, calc(100% - 40px));
-  display: grid;
-  gap: 4px;
-  padding: 13px 15px;
-  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
-  border-radius: 18px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--panel-raised) 92%, transparent), color-mix(in srgb, var(--brass) 10%, var(--panel-raised))),
-    var(--panel-raised);
-  box-shadow: 0 16px 30px color-mix(in srgb, var(--ink-deep) 16%, transparent);
-  color: var(--ink);
+@keyframes lpHeroKen {
+  from {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1.08);
+  }
 }
 
-.lp .crawlTicket::before,
-.lp .crawlTicket::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  aspect-ratio: 1;
-  border-radius: 999px;
-  background: var(--panel-raised);
-  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
-  transform: translateY(-50%);
-}
-
-.lp .crawlTicket::before {
-  left: -7px;
-}
-
-.lp .crawlTicket::after {
-  right: -7px;
-}
-
-.lp .ticketLabel,
-.lp .ticketPrice {
-  color: var(--brass);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.lp .crawlTicket strong {
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 1.22rem;
-  font-weight: 600;
-  line-height: 1.05;
-}
-
-.lp .crawlTicket span:not(.ticketLabel, .ticketPrice) {
-  color: var(--muted);
-  font-size: 0.74rem;
-  line-height: 1.35;
-}
-
-.lp .ticketPrice {
-  margin-top: 5px;
+@keyframes lpPinFloat {
+  0%,
+  100% {
+    transform: translate(-50%, -50%);
+  }
+  50% {
+    transform: translate(-50%, calc(-50% - 5px));
+  }
 }
 
 .lp .illustrative {
@@ -1259,8 +1346,8 @@
     order: -1;
   }
 
-  .lp .crawlTicket {
-    bottom: clamp(44px, 8vw, 64px);
+  .lp .heroBrand {
+    font-size: clamp(2.6rem, 10vw, 3.6rem);
   }
 
   .lp .dropsGrid .dropsCopy {
@@ -1294,33 +1381,68 @@
    for tablets; here we put copy first as asked), grids are already single-col,
    and the top bar + footer condense without losing the CTA or theme toggle. */
 @media (max-width: 560px) {
-  /* Copy above the illustration — override the tablet figure-first order. */
+  /* On phones: brand + CTA first, then the interactive drink field. */
   .lp .heroFigure {
     order: 0;
   }
 
-  .lp .crawlTicket {
-    position: relative;
-    right: auto;
-    bottom: auto;
-    width: 100%;
-    margin-top: 12px;
+  .lp .hero {
+    padding-top: clamp(20px, 6vw, 36px);
+    padding-bottom: clamp(28px, 8vw, 48px);
   }
 
-  .lp .hero {
-    padding-top: clamp(28px, 8vw, 48px);
+  .lp .heroPhoto::after {
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--ink-deep) 62%, transparent) 0%,
+        color-mix(in srgb, var(--ink-deep) 35%, transparent) 42%,
+        color-mix(in srgb, var(--paper) 78%, transparent) 82%,
+        var(--paper) 100%
+      ),
+      linear-gradient(
+        105deg,
+        color-mix(in srgb, var(--brass) 32%, transparent) 0%,
+        transparent 55%
+      );
   }
 
   .lp .heroActions .btn {
     flex: 1 1 auto; /* full-width, thumb-friendly primary + ghost */
   }
 
-  .lp .statChips {
-    gap: 8px;
+  .lp .thamesHeroPhoto {
+    min-height: 300px;
+    aspect-ratio: 390 / 340;
   }
 
-  .lp .statChip {
-    flex: 1 1 40%;
+  .lp .thamesHeroPinGlyph {
+    width: 48px;
+    height: 48px;
+  }
+
+  .lp .thamesHeroPinMeta {
+    padding: 4px 7px 5px;
+    max-width: 96px;
+  }
+
+  .lp .thamesHeroPinPlace {
+    font-size: 0.72rem;
+  }
+
+  .lp .thamesHeroPinPrice {
+    font-size: 0.64rem;
+  }
+
+  .lp .thamesHeroHint {
+    font-size: 0.68rem;
+    max-width: calc(100% - 28px);
+  }
+
+  /* Hide the two densest pins on narrow phones so shapes stay tappable. */
+  .lp .thamesHeroPin:nth-child(5),
+  .lp .thamesHeroPin:nth-child(6) {
+    display: none;
   }
 
   /* Nav condenses to wordmark + CTA + theme toggle; keep the CTA reachable. */
@@ -1364,9 +1486,6 @@
     width: 100%;
   }
 
-  .lp .statChip {
-    flex-basis: 100%;
-  }
 }
 
 /* ── Motion (gated) ───────────────────────────────────────────────────
@@ -1441,12 +1560,12 @@
     transform: none;
   }
 
-  .lp .thamesLine {
-    stroke-dashoffset: 0;
+  .lp .thamesHeroImg {
+    animation: none !important;
+    transform: none;
   }
 
-  .lp .crawlRoute,
-  .lp .mapPin {
-    opacity: 1;
+  .lp .thamesHeroPin {
+    animation: none !important;
   }
 }
