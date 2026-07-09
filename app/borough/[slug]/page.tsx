@@ -8,6 +8,7 @@ import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
+import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 
 import "./borough.css";
 
@@ -292,6 +293,8 @@ export default async function BoroughPage({ params }: PageProps) {
           </ul>
         </section>
       ) : null}
+
+      <BoroughPassportSlice boroughName={name} venueIds={pubs.map((pub) => pub.id)} />
 
       <p className="boroughFootnote">
         Every pint has a story. <Link href="/borough">See every borough →</Link>

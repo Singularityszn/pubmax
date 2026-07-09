@@ -484,6 +484,12 @@ export const landmarks: Landmark[] = [
   },
 ];
 
+/** Look up one curated landmark by id (shareable chapter pages, deep links). */
+export function landmarkById(id: string | null | undefined): Landmark | undefined {
+  if (!id) return undefined;
+  return landmarks.find((landmark) => landmark.id === id);
+}
+
 // Wires the landmark layer into the heritage layer (PRD target #6): tapping a
 // landmark surfaces the nearest story pubs, not just a standalone history card.
 // Distances are straight-line (haversine) per the PRD's out-of-scope rules —

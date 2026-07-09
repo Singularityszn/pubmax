@@ -128,6 +128,7 @@ export default function RoutePanel({
   // Walking (or running) legs between stops (story 25) — pure math from
   // lib/routeLegs, honestly labelled "straight-line" throughout.
   const [pace, setPace] = useState<RoutePace>("walk");
+  const paceLabel = pace === "run" ? "Running" : "Walking";
   const legSummary = useMemo(() => buildRouteLegs(route, pace), [route, pace]);
 
   // "On the way" POI threading (story 26): garden/market/historic/viewpoint
@@ -407,12 +408,20 @@ export default function RoutePanel({
         </div>
       ) : null}
 
+      {legSummary.legs.length > 0 && pace === "run" ? (
+        <p className="routeSafetyNote" role="note">
+          Run pace is for getting between stops — drink water, keep to well-lit routes, and
+          never treat running as a reason to drink more.
+        </p>
+      ) : null}
+
       {route.length >= 2 ? (
         <div className={routeMapped ? "routeMapPrompt active" : "routeMapPrompt"}>
           <div>
             <strong>{routeMapped ? "Mapped on London" : "Map this crawl?"}</strong>
             <span>
-              {legSummary.totalKm.toFixed(1)} km, {legSummary.totalMinutes} min walk,
+              {legSummary.totalKm.toFixed(1)} km, {legSummary.totalMinutes} min{" "}
+              {pace === "run" ? "run" : "walk"},
               straight-line.
             </span>
             {typeof originDistanceKm === "number" ? (
@@ -468,7 +477,7 @@ export default function RoutePanel({
           ) : (
             <>
               <p className="crawlProgressStatus" role="status">
-                Walking · {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
+                {paceLabel} · {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
               </p>
               <button type="button" className="addStopBtn" onClick={handleMarkComplete}>
                 <Check size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />

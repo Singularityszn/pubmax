@@ -16,8 +16,13 @@
 // Styling: inline style objects, matching the rest of components/map/** (no
 // CSS module/import convention exists in this codebase — see styles below).
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
+import {
+  lastTrainFetchUrl,
+  readLastTrainDestination,
+  writeLastTrainDestination,
+} from "@/lib/lastTrainDestination";
 import type { LastPintDecision, LastPintDecisionKind, LastTrainResult } from "@/lib/tfl";
 
 type LastTrainCardProps = {
@@ -46,12 +51,14 @@ export function lastTrainRequestKey({
   lat,
   lng,
   venueName,
+  destination = "",
 }: {
   lat: number;
   lng: number;
   venueName?: string;
+  destination?: string;
 }): string {
-  return `${lat}:${lng}:${venueName ?? ""}`;
+  return `${lat}:${lng}:${venueName ?? ""}:${destination}`;
 }
 
 export function currentLastTrainState(
@@ -118,6 +125,11 @@ function formatLeaveBy(iso: string | null): string | null {
   }).format(d);
 }
 
+function readSessionDestination(): string {
+  if (typeof window === "undefined") return "";
+  return readLastTrainDestination(window.sessionStorage);
+}
+
 export default function LastTrainCard({
   lat,
   lng,
@@ -125,16 +137,34 @@ export default function LastTrainCard({
   onSelectVenue,
   onDecision,
 }: LastTrainCardProps) {
+  const destinationInputId = useId();
+  const [destination, setDestination] = useState(readSessionDestination);
+  const [destinationDraft, setDestinationDraft] = useState("");
+  const [editingDestination, setEditingDestination] = useState(false);
   const [state, setState] = useState<LastTrainCardState>({ status: "loading" });
-  const requestKey = lastTrainRequestKey({ lat, lng, venueName });
+  const requestKey = lastTrainRequestKey({ lat, lng, venueName, destination });
   const displayState = currentLastTrainState(state, requestKey);
+
+  function saveDestination(raw: string) {
+    const next =
+      typeof window === "undefined"
+        ? raw.trim()
+        : writeLastTrainDestination(raw, window.sessionStorage);
+    setDestination(next);
+    setDestinationDraft(next);
+    setEditingDestination(false);
+  }
+
+  function clearDestination() {
+    saveDestination("");
+  }
 
   useEffect(() => {
     const controller = new AbortController();
     // React 19: never setState synchronously in the effect body. The initial
-    // state is already "loading"; when lat/lng change we let the resolving fetch
-    // move us straight to the fresh ready/empty state below.
-    fetch(`/api/last-train?lat=${lat}&lng=${lng}`, { signal: controller.signal })
+    // state is already "loading"; when lat/lng/destination change we let the
+    // resolving fetch move us straight to the fresh ready/empty state below.
+    fetch(lastTrainFetchUrl(lat, lng, destination), { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((data: Partial<LastTrainResult> & { error?: string }) => {
         setState(toState(data, requestKey));
@@ -148,7 +178,7 @@ export default function LastTrainCard({
         setState({ status: "empty", requestKey });
       });
     return () => controller.abort();
-  }, [lat, lng, venueName, requestKey]);
+  }, [lat, lng, venueName, destination, requestKey]);
 
   const decision = displayState.status === "ready" ? displayState.data.decision : undefined;
 
@@ -163,6 +193,8 @@ export default function LastTrainCard({
   }, [decision, onDecision]);
 
   const leaveBy = decision ? formatLeaveBy(decision.leaveByIso) : null;
+  const destinationLabel =
+    decision?.destinationLabel?.trim() || destination.trim() || null;
   // Provenance honesty (H5): the Last Pint decision is timetable-based even when
   // next departures are live. Scope the live claim to departures only.
   const provenance =
@@ -184,12 +216,82 @@ export default function LastTrainCard({
         ) : null}
       </div>
 
+      <div style={styles.destinationBlock}>
+        {destinationLabel && !editingDestination ? (
+          <p style={styles.destinationSet}>
+            Heading to <strong>{destinationLabel}</strong>
+            <button
+              type="button"
+              style={styles.destinationAction}
+              onClick={() => {
+                setDestinationDraft(destinationLabel);
+                setEditingDestination(true);
+              }}
+            >
+              Change
+            </button>
+            <button type="button" style={styles.destinationAction} onClick={clearDestination}>
+              Clear
+            </button>
+          </p>
+        ) : (
+          <form
+            style={styles.destinationForm}
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveDestination(destinationDraft);
+            }}
+          >
+            <label style={styles.destinationLabel} htmlFor={destinationInputId}>
+              {destinationLabel ? "Update destination" : "Where are you heading?"}
+            </label>
+            <div style={styles.destinationRow}>
+              <input
+                id={destinationInputId}
+                type="text"
+                name="destination"
+                autoComplete="off"
+                enterKeyHint="done"
+                placeholder="Station, postcode, or area"
+                value={destinationDraft}
+                onChange={(event) => setDestinationDraft(event.target.value)}
+                style={styles.destinationInput}
+              />
+              <button type="submit" style={styles.destinationSubmit}>
+                {destinationLabel ? "Update" : "Set"}
+              </button>
+              {destinationLabel ? (
+                <button
+                  type="button"
+                  style={styles.destinationCancel}
+                  onClick={() => {
+                    setDestinationDraft(destinationLabel);
+                    setEditingDestination(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+            <p style={styles.destinationHint}>Session only — never saved to your profile.</p>
+          </form>
+        )}
+      </div>
+
       {displayState.status === "loading" ? (
         <p style={styles.note}>Checking trains from near {venueName ?? "here"}…</p>
       ) : null}
 
       {displayState.status === "empty" ? (
         <p style={styles.note}>Couldn&rsquo;t reach TfL just now — check before you head out.</p>
+      ) : null}
+
+      {displayState.status === "ready" &&
+      displayState.data.staticFallback &&
+      (!displayState.data.trains || displayState.data.trains.length === 0) ? (
+        <p style={styles.note}>
+          Station from our map — live train times unavailable until TfL responds again.
+        </p>
       ) : null}
 
       {decision ? (
@@ -419,6 +521,80 @@ const styles: Record<string, React.CSSProperties> = {
   provenance: {
     margin: "8px 0 0",
     fontSize: 11,
+    color: "var(--ink-soft, #6b726a)",
+  },
+  destinationBlock: {
+    margin: "0 0 10px",
+    paddingBottom: 8,
+    borderBottom: "1px solid var(--line, #d9d4c7)",
+  },
+  destinationSet: {
+    margin: 0,
+    fontSize: 12,
+    color: "var(--ink-soft, #6b726a)",
+  },
+  destinationAction: {
+    marginLeft: 8,
+    padding: 0,
+    border: "none",
+    background: "none",
+    color: "var(--accent-brass, #9b7a2a)",
+    font: "inherit",
+    fontSize: 12,
+    cursor: "pointer",
+    textDecoration: "underline",
+  },
+  destinationForm: {
+    margin: 0,
+  },
+  destinationLabel: {
+    display: "block",
+    marginBottom: 4,
+    fontSize: 11,
+    fontWeight: 600,
+    color: "var(--ink-soft, #6b726a)",
+  },
+  destinationRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    alignItems: "center",
+  },
+  destinationInput: {
+    flex: "1 1 140px",
+    minWidth: 0,
+    padding: "6px 8px",
+    borderRadius: "var(--radius-sm, 6px)",
+    border: "1px solid var(--line, #d9d4c7)",
+    background: "var(--paper, #fff)",
+    color: "var(--ink, #2a2a26)",
+    font: "inherit",
+    fontSize: 13,
+  },
+  destinationSubmit: {
+    padding: "6px 10px",
+    borderRadius: "var(--radius-sm, 6px)",
+    border: "1px solid var(--line, #d9d4c7)",
+    background: "var(--accent-brass, #9b7a2a)",
+    color: "var(--paper, #fff)",
+    font: "inherit",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  destinationCancel: {
+    padding: "6px 8px",
+    border: "none",
+    background: "none",
+    color: "var(--ink-soft, #6b726a)",
+    font: "inherit",
+    fontSize: 12,
+    cursor: "pointer",
+    textDecoration: "underline",
+  },
+  destinationHint: {
+    margin: "4px 0 0",
+    fontSize: 10,
     color: "var(--ink-soft, #6b726a)",
   },
 };

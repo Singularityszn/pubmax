@@ -13,6 +13,7 @@ import {
   type Badge,
   type ProfileDrop,
 } from "@/lib/profiles";
+import { slugifyBorough } from "@/lib/boroughs";
 
 // The distinct-drink signal. Drops carry an optional free-text `drink`
 // ("Guinness", "Neck Oil"…); we count DISTINCT non-empty drinks, case- and
@@ -79,6 +80,39 @@ function distinctPubs(drops: readonly ProfileDrop[]): number {
     if (id) seen.add(id);
   }
   return seen.size;
+}
+
+/** Keep drops whose venue sits in a borough chapter (by drop.borough or venueId). */
+export function filterDropsInBorough(
+  drops: readonly ProfileDrop[] | null | undefined,
+  boroughName: string,
+  venueIdsInBorough: readonly string[],
+): ProfileDrop[] {
+  const list = Array.isArray(drops) ? drops : [];
+  const target = slugifyBorough(boroughName);
+  if (!target) return [];
+  const venueSet = new Set(
+    venueIdsInBorough.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean),
+  );
+  return list.filter((drop) => {
+    const borough = typeof drop.borough === "string" ? drop.borough.trim() : "";
+    if (borough && slugifyBorough(borough) === target) return true;
+    const venueId = typeof drop.venueId === "string" ? drop.venueId.trim() : "";
+    return venueId ? venueSet.has(venueId) : false;
+  });
+}
+
+/**
+ * Borough-scoped passport slice — same shape as the profile passport, filtered
+ * to one London borough chapter (user story 29 / endgame roadmap P1).
+ */
+export function buildBoroughPassport(
+  drops: readonly ProfileDrop[] | null | undefined,
+  boroughName: string,
+  venueIdsInBorough: readonly string[],
+  counts: PassportCounts = {},
+): PassportData {
+  return buildPassport(filterDropsInBorough(drops, boroughName, venueIdsInBorough), counts);
 }
 
 /**
