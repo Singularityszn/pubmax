@@ -1,0 +1,156 @@
+/* Bottom-left Cost FAB — pairs with Layers (bottom-right) on mobile. */
+
+.mapPriceControl {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mapPriceControl {
+    display: block;
+    position: absolute;
+    left: 10px;
+    bottom: calc(var(--mobile-tab-clearance, 72px) + 10px);
+    z-index: 470;
+    pointer-events: none;
+  }
+
+  .mapPriceFab,
+  .mapPricePanel {
+    pointer-events: auto;
+  }
+
+  .mapPriceFab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 12px 0 10px;
+    border: 1px solid color-mix(in srgb, var(--pint) 34%, var(--line));
+    border-radius: 999px;
+    background: var(--panel-raised);
+    color: var(--ink);
+    font-size: 0.74rem;
+    font-weight: 800;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--ink-deep) 14%, transparent);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mapPriceFab.isActive {
+    background: linear-gradient(135deg, var(--pint), color-mix(in srgb, var(--pint) 70%, var(--amber)));
+    color: var(--color-on-accent);
+    border-color: transparent;
+  }
+
+  .mapPriceFab:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+  }
+
+  .mapPricePanel {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 10px);
+    width: min(260px, calc(100vw - 24px));
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--pint) 28%, var(--line));
+    border-radius: 16px;
+    background: var(--panel-raised);
+    box-shadow: 0 16px 36px color-mix(in srgb, var(--ink-deep) 20%, transparent);
+  }
+
+  .mapPricePanelHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .mapPricePanelHead strong {
+    font-family: var(--font-display, var(--serif));
+    font-size: 0.95rem;
+  }
+
+  .mapPriceClose {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--line-soft) 80%, transparent);
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .mapPriceHint {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.35;
+  }
+
+  .mapPriceOptions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .mapPriceChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 5px 10px;
+    border: 1px solid color-mix(in srgb, var(--line) 72%, var(--pint) 28%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--panel) 80%, var(--panel-raised));
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mapPriceChip.isOn {
+    border-color: var(--pint);
+    background: color-mix(in srgb, var(--pint) 16%, var(--panel-raised));
+    color: var(--ink);
+  }
+
+  .mapPriceDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .mapPriceDot.green {
+    background: var(--pint);
+  }
+
+  .mapPriceDot.amber {
+    background: var(--amber);
+  }
+
+  .mapPriceDot.red {
+    background: var(--brick);
+  }
+
+  .mapPriceDot.any {
+    background: color-mix(in srgb, var(--muted) 55%, transparent);
+  }
+
+  .appShell.sheet-full .mapPriceControl,
+  .appShell.planning-open .mapPriceControl,
+  .appShell.detail-open .mapPriceControl {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Price legend becomes redundant once Cost FAB owns the filter. */
+  .mapLegend {
+    display: none;
+  }
+}

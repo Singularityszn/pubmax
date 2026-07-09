@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, Newspaper, CirclePlus, User, Wine } from "lucide-react";
+import { Map, CirclePlus, User, Compass } from "lucide-react";
 import { useCallback } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { warmMapIntent } from "@/lib/mapWarmup";
@@ -33,12 +33,13 @@ const warmedTabs = new Set<string>();
 // The Profile tab's destination is the only auth-aware bit: signed-in users go
 // to /u/<their handle>, everyone else keeps the demo /u/you. `match: ["/u"]`
 // marks the tab active for any profile route in either case.
+// Map + Discover are the primary destinations; Drop stays the centre action;
+// You for profile. Stories lives in Discover/feed — not a fifth bottom tab.
 function buildTabs(profileHref: string): Tab[] {
   return [
     { href: "/map", label: "Map", Icon: Map, match: ["/map"] },
-    { href: "/feed", label: "Stories", Icon: Newspaper, match: ["/feed"] },
+    { href: "/discover", label: "Discover", Icon: Compass, match: ["/discover", "/feed", "/borough"] },
     { href: "/map?log=1", label: "Drop", Icon: CirclePlus, primary: true },
-    { href: "/discover", label: "Drinks", Icon: Wine, match: ["/discover"] },
     { href: profileHref, label: "You", Icon: User, match: ["/u"] },
   ];
 }
@@ -98,7 +99,7 @@ export default function MobileTabBar() {
                 onTouchStart={() => warmTab(tab.href)}
               >
                 <span className="mobileTabIcon" aria-hidden="true">
-                  <Icon size={tab.primary ? 26 : 22} strokeWidth={1.75} />
+                  <Icon size={tab.primary ? 20 : 18} strokeWidth={1.75} />
                 </span>
                 <span className="mobileTabLabel">{tab.label}</span>
               </Link>

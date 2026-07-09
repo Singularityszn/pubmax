@@ -1,6 +1,7 @@
 "use client";
 
-import { Route, Search, X } from "lucide-react";
+import { Route, Search, Wine, X } from "lucide-react";
+import { useState } from "react";
 
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
@@ -8,10 +9,8 @@ import type { Filters } from "@/lib/venues";
 
 import "./mapToolbar.css";
 
-// The only chrome on the clean, full-bleed map: search, drink lens (category →
-// brand / favorite pint), drink-shape chips, and a "Plan a crawl" toggle.
-// Everything else (filters, route, venue detail) lives in drawers that slide in
-// only when the user acts.
+// Compact map chrome: search + Plan on the first row; drink lens / chips stay
+// behind an optional expand so phones keep map mid-field free.
 type MapToolbarProps = {
   query: string;
   onQueryChange: (query: string) => void;
@@ -39,6 +38,13 @@ export default function MapToolbar({
   filters,
   onFiltersChange,
 }: MapToolbarProps) {
+  const [drinksOpen, setDrinksOpen] = useState(false);
+  const drinksActive =
+    Boolean(filters.query && /beer|wine|cocktail|whisky|gin|rum|vodka|shot/i.test(filters.query)) ||
+    filters.requireCocktails ||
+    Boolean(drinkCategory) ||
+    Boolean(favoritePint);
+
   return (
     <div className="mapToolbar" role="search">
       <div className="mapToolbarRow">
@@ -49,7 +55,7 @@ export default function MapToolbar({
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search a pub, area or drink…"
+            placeholder="Search pubs or area…"
             aria-label="Search pubs by name, area, borough or drink"
           />
           {query ? (
@@ -64,13 +70,31 @@ export default function MapToolbar({
           ) : null}
         </div>
 
-        <FavoritePintPicker
-          value={favoritePint}
-          onChange={onFavoritePintChange}
-          drinkCategory={drinkCategory}
-          drinkBrand={drinkBrand}
-          onDrinkLensChange={onDrinkLensChange}
-        />
+        <div className="mapToolbarDesktopExtras">
+          <FavoritePintPicker
+            value={favoritePint}
+            onChange={onFavoritePintChange}
+            drinkCategory={drinkCategory}
+            drinkBrand={drinkBrand}
+            onDrinkLensChange={onDrinkLensChange}
+          />
+        </div>
+
+        <button
+          type="button"
+          className={
+            drinksOpen || drinksActive
+              ? "mapToolbarDrinksBtn isActive"
+              : "mapToolbarDrinksBtn"
+          }
+          aria-pressed={drinksOpen}
+          aria-expanded={drinksOpen}
+          aria-label={drinksOpen ? "Hide drink filters" : "Show drink filters"}
+          onClick={() => setDrinksOpen((open) => !open)}
+        >
+          <Wine size={15} aria-hidden="true" />
+          <span>Drinks</span>
+        </button>
 
         <button
           type="button"
@@ -79,10 +103,23 @@ export default function MapToolbar({
           aria-pressed={planningOpen}
         >
           <Route size={15} aria-hidden="true" />
-          {planningOpen ? "Close planner" : "Plan a crawl"}
+          <span className="planBtnFull">{planningOpen ? "Close planner" : "Plan a crawl"}</span>
+          <span className="planBtnShort">{planningOpen ? "Close" : "Plan"}</span>
         </button>
       </div>
-      <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+
+      <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
+        <div className="mapToolbarDesktopExtras mapToolbarDrinksLens">
+          <FavoritePintPicker
+            value={favoritePint}
+            onChange={onFavoritePintChange}
+            drinkCategory={drinkCategory}
+            drinkBrand={drinkBrand}
+            onDrinkLensChange={onDrinkLensChange}
+          />
+        </div>
+        <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+      </div>
     </div>
   );
 }
