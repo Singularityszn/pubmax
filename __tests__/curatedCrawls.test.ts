@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { crawlShareMapHref, curatedCrawls } from "@/lib/curatedCrawls";
+import { crawlShareMapHref, curatedCrawlMapHref, curatedCrawls } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { ALT_CRAWL_STYLES } from "@/lib/crawlUrl";
 import { groupVenuePrices, type CrawlStyle, type VenuePrice } from "@/lib/venues";
@@ -106,6 +106,8 @@ describe("curated crawls", () => {
     expect(byId.get("westminster-civic")?.placeStoryBandId).toBe("royal-civic");
     expect(byId.get("barbican-coding-pint")?.placeStoryBandId).toBe("coding-pint");
     expect(byId.get("bankside-riverside")?.placeStoryBandId).toBe("river-history");
+    // Soho is not on the Westminster royal-civic corridor.
+    expect(byId.get("victorian-soho")?.placeStoryBandId).toBeUndefined();
   });
 
   it("builds a shareable crawl map URL with pubs and optional band (Wave H1)", () => {
@@ -118,8 +120,31 @@ describe("curated crawls", () => {
     });
     expect(href).toContain("mode=build");
     expect(href).toContain("pubs=");
+    expect(href).toContain("crawl=riverside-heritage");
     expect(href).toContain("band=thames-industrial");
     expect(href).toContain(riverside!.venueIds[0]);
+  });
+
+  it("builds a curated map-first href with crawl= and style/alt/band", () => {
+    const soho = curatedCrawls.find((c) => c.id === "victorian-soho");
+    expect(soho).toBeDefined();
+    const href = curatedCrawlMapHref(soho!);
+    expect(href.startsWith("/map?")).toBe(true);
+    expect(href).toContain("mode=build");
+    expect(href).toContain("pubs=");
+    expect(href).toContain("crawl=victorian-soho");
+    expect(href).toContain("style=heritage");
+    expect(href).toContain(soho!.venueIds[0]);
+    // Victorian Soho has no Place story band / alt style.
+    expect(href).not.toContain("band=");
+    expect(href).not.toContain("alt=");
+
+    const mocktail = curatedCrawls.find((c) => c.id === "leicester-mocktail-crawl");
+    expect(mocktail).toBeDefined();
+    const mockHref = curatedCrawlMapHref(mocktail!);
+    expect(mockHref).toContain("crawl=leicester-mocktail-crawl");
+    expect(mockHref).toContain("alt=mocktail");
+    expect(mockHref).toContain("band=royal-civic");
   });
 });
 

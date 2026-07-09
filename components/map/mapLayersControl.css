@@ -194,7 +194,14 @@
 @media (max-width: 640px) {
   .mapLayersControl {
     right: 10px;
-    bottom: calc(var(--mobile-tab-clearance, 72px) + 10px);
+    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 10px));
+  }
+
+  .mapLayersPanel {
+    max-height: min(
+      40vh,
+      calc(100vh - var(--map-top-clearance, 80px) - var(--mobile-tab-clearance, 72px) - 120px)
+    );
   }
 }
 

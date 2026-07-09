@@ -32,6 +32,27 @@ describe("crawlUrl", () => {
     expect(decoded.selectedVenueId).toBe("venue-abc");
   });
 
+  it("omits default crawl params so a fresh /map stays clean", () => {
+    const defaults: CrawlUrlState = {
+      mode: "suggest",
+      filters: { ...initialFilters },
+      builtIds: [],
+      selectedVenueId: "",
+    };
+    expect(encodeCrawl(defaults)).toBe("");
+    // Defaults still round-trip through seedCrawlState when the URL is bare.
+    expect(seedCrawlState("")).toMatchObject({
+      mode: "suggest",
+      filters: expect.objectContaining({
+        crawlStyle: "balanced",
+        maxPrice: 7,
+        stopCount: 6,
+        routeWindow: 20,
+      }),
+      builtIds: [],
+    });
+  });
+
   it("encodes requirePintDrops as drops=1 and omits it when off", () => {
     expect(encodeCrawl(sample)).toContain("drops=1");
     const off = encodeCrawl({ ...sample, filters: { ...sample.filters, requirePintDrops: false } });
@@ -65,7 +86,24 @@ describe("crawlUrl", () => {
       bandId: "", // additive story-band field, "" when no ?band= in the URL
       altStyle: "pint", // additive alt-style field, defaults to "pint" (issue #31)
       landmarkId: "",
+      crawlId: "",
     });
+  });
+
+  it("round-trips a curated crawl id via ?crawl=", () => {
+    const withCrawl = { ...sample, crawlId: "victorian-soho" };
+    const encoded = encodeCrawl(withCrawl);
+    expect(encoded).toContain("crawl=victorian-soho");
+    const decoded = decodeCrawl(new URLSearchParams(encoded));
+    expect(decoded.crawlId).toBe("victorian-soho");
+    expect(seedCrawlState(`?${encoded}`).crawlId).toBe("victorian-soho");
+    // Absent crawl= stays short; seed resolves to "".
+    expect(decodeCrawl(new URLSearchParams(encodeCrawl(sample))).crawlId).toBeUndefined();
+    expect(seedCrawlState(`?${encodeCrawl(sample)}`).crawlId).toBe("");
+    // Slug-ish normalize: trim, lowercase, strip junk.
+    expect(decodeCrawl(new URLSearchParams("crawl=Victorian%20Soho!")).crawlId).toBe(
+      "victorian-soho",
+    );
   });
 
   it("round-trips an active story band via ?band=", () => {

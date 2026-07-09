@@ -51,14 +51,13 @@ export function lastTrainRequestKey({
   lat,
   lng,
   venueName,
-  destination = "",
 }: {
   lat: number;
   lng: number;
   venueName?: string;
-  destination?: string;
 }): string {
-  return `${lat}:${lng}:${venueName ?? ""}:${destination}`;
+  // Destination is client-only display state — it must not change the TfL fetch key.
+  return `${lat}:${lng}:${venueName ?? ""}`;
 }
 
 export function currentLastTrainState(
@@ -142,7 +141,7 @@ export default function LastTrainCard({
   const [destinationDraft, setDestinationDraft] = useState("");
   const [editingDestination, setEditingDestination] = useState(false);
   const [state, setState] = useState<LastTrainCardState>({ status: "loading" });
-  const requestKey = lastTrainRequestKey({ lat, lng, venueName, destination });
+  const requestKey = lastTrainRequestKey({ lat, lng, venueName });
   const displayState = currentLastTrainState(state, requestKey);
 
   function saveDestination(raw: string) {
@@ -162,9 +161,10 @@ export default function LastTrainCard({
   useEffect(() => {
     const controller = new AbortController();
     // React 19: never setState synchronously in the effect body. The initial
-    // state is already "loading"; when lat/lng/destination change we let the
-    // resolving fetch move us straight to the fresh ready/empty state below.
-    fetch(lastTrainFetchUrl(lat, lng, destination), { signal: controller.signal })
+    // state is already "loading"; when lat/lng change we let the resolving fetch
+    // move us straight to the fresh ready/empty state below. Destination is
+    // session-only UI and is never sent to the API (privacy / user story 23).
+    fetch(lastTrainFetchUrl(lat, lng), { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((data: Partial<LastTrainResult> & { error?: string }) => {
         setState(toState(data, requestKey));
@@ -178,7 +178,7 @@ export default function LastTrainCard({
         setState({ status: "empty", requestKey });
       });
     return () => controller.abort();
-  }, [lat, lng, venueName, destination, requestKey]);
+  }, [lat, lng, venueName, requestKey]);
 
   const decision = displayState.status === "ready" ? displayState.data.decision : undefined;
 
@@ -193,8 +193,8 @@ export default function LastTrainCard({
   }, [decision, onDecision]);
 
   const leaveBy = decision ? formatLeaveBy(decision.leaveByIso) : null;
-  const destinationLabel =
-    decision?.destinationLabel?.trim() || destination.trim() || null;
+  // Destination label is sessionStorage-only — never echoed from the API.
+  const destinationLabel = destination.trim() || null;
   // Provenance honesty (H5): the Last Pint decision is timetable-based even when
   // next departures are live. Scope the live claim to departures only.
   const provenance =

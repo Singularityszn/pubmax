@@ -4063,6 +4063,15 @@ button:disabled {
     /* Compact top nav + single-row toolbar → more map mid-field. */
     --map-top-clearance: calc(52px + env(safe-area-inset-top, 0px));
     --map-overlay-top: calc(var(--map-top-clearance) + 52px);
+    /* Stack FABs above the tab bar; route/onboarding chips one row higher. */
+    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 10px);
+    --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);
+  }
+
+  /* Tab bar is hidden while planning/detail sheets own the bottom edge. */
+  .appShell.detail-open,
+  .appShell.planning-open {
+    --mobile-tab-clearance: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
   .mapCameraControls {
@@ -4084,9 +4093,9 @@ button:disabled {
     padding: 7px 10px;
   }
 
-  /* .mapToolbar / .mapLegend sheet-full, onboarding-open, and planning-open
-     hide rules live in mapToolbar.css (slide-out transforms). Keep other
-     floating chrome here so those overlays still clear the expanded sheet. */
+  /* .mapToolbar / .mapLegend sheet-full, onboarding-open, planning-open, and
+     detail-open hide rules live in mapToolbar.css (slide-out transforms).
+     Keep other floating chrome here so those overlays still clear the sheet. */
   .appShell.sheet-full .mapHeroCard,
   .appShell.sheet-full .mappedRouteChip,
   .appShell.sheet-full .bandOnboardingChip,
@@ -4100,7 +4109,9 @@ button:disabled {
   .appShell.planning-open .poiToggle,
   .appShell.planning-open .bandPicker,
   .appShell.planning-open .placeStoriesControl,
-  .appShell.sheet-full .placeStoriesControl {
+  .appShell.sheet-full .placeStoriesControl,
+  .appShell.detail-open .mappedRouteChip,
+  .appShell.detail-open .bandOnboardingChip {
     opacity: 0;
     pointer-events: none;
     transform: translateY(8px);
@@ -4109,7 +4120,7 @@ button:disabled {
   .mapLegend {
     left: 10px;
     right: auto;
-    bottom: calc(var(--mobile-tab-clearance) + 10px);
+    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance) + 10px));
     max-width: min(220px, calc(100vw - 120px));
     gap: 8px;
     padding: 8px 10px;
@@ -4120,7 +4131,7 @@ button:disabled {
   .bandOnboardingChip {
     left: 10px;
     right: 10px;
-    bottom: calc(var(--mobile-tab-clearance) + 10px);
+    bottom: var(--map-bottom-chip-row);
     max-width: none;
     transform: none;
   }

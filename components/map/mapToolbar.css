@@ -190,8 +190,9 @@
     padding: 4px 9px 4px 6px;
   }
 
-  /* Sheet / onboarding / planning collision */
-  .appShell.sheet-full .mapToolbar {
+  /* Sheet / onboarding / planning / detail collision */
+  .appShell.sheet-full .mapToolbar,
+  .appShell.detail-open .mapToolbar {
     transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
@@ -230,6 +231,7 @@
   .drinkShapeChip,
   .appShell.sheet-full .mapToolbar,
   .appShell.sheet-full .mapLegend,
+  .appShell.detail-open .mapToolbar,
   .appShell.onboarding-open .mapToolbar,
   .appShell.onboarding-open .mapLegend,
   .appShell.planning-open .mapToolbar,
