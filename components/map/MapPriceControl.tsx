@@ -22,9 +22,9 @@ type MapPriceControlProps = {
 };
 
 function activeLabel(maxPrice: number): string {
+  // Default product filter is ≤£7 — keep the FAB as "Prices" (not cryptic "≤£7").
+  // Only surface a £ range when the user tightens below the default band.
   if (maxPrice <= 5.5) return "≤£5.50";
-  if (maxPrice <= 7) return "≤£7";
-  // Wave J1 — "Prices" reads clearer than cryptic "Cost" / bare £ alone.
   return "Prices";
 }
 

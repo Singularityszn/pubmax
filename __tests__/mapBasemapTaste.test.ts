@@ -16,9 +16,17 @@ const tokens = {
 };
 
 describe("mapBasemapTaste (Wave J1)", () => {
-  it("applies land/water/road paints when layers exist", () => {
+  it("applies land/water/road/building paints when layers exist", () => {
     const paints: Array<[string, string, unknown]> = [];
-    const layers = new Set(["background", "park", "water", "road_major", "mystery"]);
+    const layers = new Set([
+      "background",
+      "park",
+      "water",
+      "road_major",
+      "building",
+      "landuse_residential",
+      "mystery",
+    ]);
     const map = {
       getLayer: (id: string) => (layers.has(id) ? { id } : undefined),
       setPaintProperty: (layerId: string, name: string, value: unknown) => {
@@ -30,6 +38,8 @@ describe("mapBasemapTaste (Wave J1)", () => {
           { id: "park", type: "fill" },
           { id: "water", type: "fill" },
           { id: "road_major", type: "line" },
+          { id: "building", type: "fill" },
+          { id: "landuse_residential", type: "fill" },
         ],
       }),
     };
@@ -42,6 +52,10 @@ describe("mapBasemapTaste (Wave J1)", () => {
     expect(paints.some(([id, prop]) => id === "park" && prop === "fill-color")).toBe(true);
     expect(paints.some(([id, prop]) => id === "water" && prop === "fill-color")).toBe(true);
     expect(paints.some(([id, prop]) => id === "road_major" && prop === "line-color")).toBe(true);
+    expect(paints.some(([id, prop]) => id === "building" && prop === "fill-color")).toBe(true);
+    expect(
+      paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
+    ).toBe(true);
   });
 
   it("skips missing layers without throwing", () => {
