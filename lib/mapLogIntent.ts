@@ -1,3 +1,5 @@
+import { haversineKm } from "@/lib/haversine";
+
 type ResolveMapLogIntentInput = {
   hasLogIntent: boolean;
   loaded: boolean;
@@ -17,23 +19,65 @@ export type LogNearbyCandidate = {
   id: string;
   name: string;
   priceLabel: string;
+  /** Straight-line km from origin when geo-sorted; omitted without a fix. */
+  distanceKm?: number;
 };
 
 // Cap the nearby-picker list so the log-intent fallback stays thumb-scannable.
 export const LOG_NEARBY_PICKER_LIMIT = 5;
 
+type LogNearbyVenue = {
+  id: string;
+  name: string;
+  cheapestPrice?: number | null;
+  latitude?: number;
+  longitude?: number;
+};
+
+type LogNearbyOrigin = { lat: number; lng: number };
+
+function priceLabelFor(venue: LogNearbyVenue): string {
+  return typeof venue.cheapestPrice === "number" && Number.isFinite(venue.cheapestPrice)
+    ? `£${venue.cheapestPrice.toFixed(2)}`
+    : "Price TBD";
+}
+
+/**
+ * Wave K0 — Drop nearby picker.
+ * With a GPS origin, sort by haversine nearest-first (venues missing coords sink).
+ * Without origin, preserve list order (filtered map order).
+ */
 export function buildLogNearbyCandidates(
-  venues: Array<{ id: string; name: string; cheapestPrice?: number | null }>,
+  venues: LogNearbyVenue[],
   limit = LOG_NEARBY_PICKER_LIMIT,
+  origin?: LogNearbyOrigin | null,
 ): LogNearbyCandidate[] {
   const take = Math.max(0, Math.min(Math.floor(limit), venues.length));
-  return venues.slice(0, take).map((venue) => ({
+  if (take === 0) return [];
+
+  const ranked = origin
+    ? [...venues]
+        .map((venue) => {
+          const hasCoords =
+            typeof venue.latitude === "number" &&
+            Number.isFinite(venue.latitude) &&
+            typeof venue.longitude === "number" &&
+            Number.isFinite(venue.longitude);
+          const distanceKm = hasCoords
+            ? haversineKm([origin.lng, origin.lat], [venue.longitude!, venue.latitude!])
+            : Number.POSITIVE_INFINITY;
+          return { venue, distanceKm };
+        })
+        .sort((a, b) => a.distanceKm - b.distanceKm)
+    : venues.map((venue) => ({ venue, distanceKm: undefined as number | undefined }));
+
+  return ranked.slice(0, take).map(({ venue, distanceKm }) => ({
     id: venue.id,
     name: venue.name,
-    priceLabel:
-      typeof venue.cheapestPrice === "number" && Number.isFinite(venue.cheapestPrice)
-        ? `£${venue.cheapestPrice.toFixed(2)}`
-        : "Price TBD",
+    priceLabel: priceLabelFor(venue),
+    ...(typeof distanceKm === "number" && Number.isFinite(distanceKm)
+      ? { distanceKm }
+      : {}),
   }));
 }
 
@@ -70,4 +114,11 @@ export function resolveMapLogIntent(input: ResolveMapLogIntentInput): MapLogInte
   void input.firstRouteId;
   void input.firstFilteredVenueId;
   return { status: "fallback" };
+}
+
+/** Format a short distance chip for the nearby picker (e.g. "120 m", "1.2 km"). */
+export function formatLogNearbyDistance(km: number): string {
+  if (!Number.isFinite(km) || km < 0) return "";
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  return `${km.toFixed(1)} km`;
 }
