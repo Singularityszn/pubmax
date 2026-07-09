@@ -40,6 +40,7 @@ import { loadSlimVenues } from "@/lib/venuesSlim";
 import { slimVenuesToPins } from "@/lib/slimPins";
 import { buildRouteLegs } from "@/lib/routeLegs";
 import { haversineKm } from "@/lib/haversine";
+import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
   buildLogNearbyCandidates,
   hasMapLogIntent,
@@ -364,10 +365,6 @@ function detailStatusFor(
   if (!selectedVenueId) return "idle";
   if (detailById.has(selectedVenueId)) return "ready";
   return detailStatusById.get(selectedVenueId) ?? "loading";
-}
-
-function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, Venue>): Venue[] {
-  return slimPins.map((pin) => detailById.get(pin.id) ?? pin);
 }
 
 function venueUpdateKey(venue: Venue): string {
