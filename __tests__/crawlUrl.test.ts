@@ -32,6 +32,27 @@ describe("crawlUrl", () => {
     expect(decoded.selectedVenueId).toBe("venue-abc");
   });
 
+  it("omits default crawl params so a fresh /map stays clean", () => {
+    const defaults: CrawlUrlState = {
+      mode: "suggest",
+      filters: { ...initialFilters },
+      builtIds: [],
+      selectedVenueId: "",
+    };
+    expect(encodeCrawl(defaults)).toBe("");
+    // Defaults still round-trip through seedCrawlState when the URL is bare.
+    expect(seedCrawlState("")).toMatchObject({
+      mode: "suggest",
+      filters: expect.objectContaining({
+        crawlStyle: "balanced",
+        maxPrice: 7,
+        stopCount: 6,
+        routeWindow: 20,
+      }),
+      builtIds: [],
+    });
+  });
+
   it("encodes requirePintDrops as drops=1 and omits it when off", () => {
     expect(encodeCrawl(sample)).toContain("drops=1");
     const off = encodeCrawl({ ...sample, filters: { ...sample.filters, requirePintDrops: false } });
