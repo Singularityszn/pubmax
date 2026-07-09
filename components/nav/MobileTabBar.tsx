@@ -99,7 +99,11 @@ export default function MobileTabBar() {
                 onTouchStart={() => warmTab(tab.href)}
               >
                 <span className="mobileTabIcon" aria-hidden="true">
-                  <Icon size={tab.primary ? 20 : 18} strokeWidth={1.75} />
+                  <Icon
+                    size={tab.primary ? 20 : 18}
+                    strokeWidth={active ? 2.25 : 1.75}
+                    fill="none"
+                  />
                 </span>
                 <span className="mobileTabLabel">{tab.label}</span>
               </Link>

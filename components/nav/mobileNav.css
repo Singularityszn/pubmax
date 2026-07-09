@@ -29,7 +29,9 @@
     );
     padding: 0 10px calc(4px + env(safe-area-inset-bottom, 0px));
     pointer-events: none;
-    transition: opacity 0.16s ease, transform 0.16s ease;
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
   }
 
   body:has(.appShell.detail-open) .mobileTabBar,
@@ -50,15 +52,13 @@
     list-style: none;
     border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));
     border-radius: 22px;
+    /* Wave J2 — solid raised chrome; Drop stays primary without glass stack. */
     background:
       linear-gradient(
         145deg,
         color-mix(in srgb, var(--brass) 8%, var(--panel-raised)),
-        color-mix(in srgb, var(--paper) 70%, var(--panel-raised))
-      ),
-      var(--panel-raised);
-    backdrop-filter: blur(14px) saturate(1.15);
-    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+        var(--panel-raised)
+      );
     box-shadow:
       0 -4px 14px color-mix(in srgb, var(--ink-deep) 10%, transparent),
       0 6px 18px color-mix(in srgb, var(--brass) 12%, transparent),
@@ -88,7 +88,10 @@
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1;
-    transition: color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+    transition:
+      color var(--duration-base) var(--ease-out),
+      background var(--duration-base) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
@@ -97,7 +100,9 @@
     display: grid;
     place-items: center;
     color: currentcolor;
-    transition: color 0.16s ease, transform 0.16s ease;
+    transition:
+      color var(--duration-base) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
   }
 
   .mobileTabLabel {
@@ -142,9 +147,9 @@
     color: var(--brass);
   }
 
-  /* ── Log: the emphasized centre action ────────────────────────────────── */
+  /* ── Drop: primary centre action — never reads as the "current page". ── */
   .mobileTabPrimary {
-    color: var(--brass);
+    color: var(--ink-soft);
     gap: 2px;
   }
 
@@ -162,12 +167,19 @@
   }
 
   .mobileTabPrimary .mobileTabLabel {
-    color: var(--brass);
+    color: var(--ink-soft);
+    font-weight: 700;
   }
 
   .mobileTabPrimary:hover,
   .mobileTabPrimary:focus-visible {
     background: color-mix(in srgb, var(--brass) 8%, transparent);
+    color: var(--brass);
+  }
+
+  .mobileTabPrimary:hover .mobileTabLabel,
+  .mobileTabPrimary:focus-visible .mobileTabLabel {
+    color: var(--brass);
   }
 
   .mobileTabPrimary:hover .mobileTabIcon,

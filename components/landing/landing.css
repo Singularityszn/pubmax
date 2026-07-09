@@ -32,10 +32,9 @@
 }
 
 .lp .lpSerif {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-weight: 600;
   font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
 }
 
 .lp .container {
@@ -83,10 +82,10 @@
 }
 
 .lp .wordmark .wordmarkText {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-size: 1.34rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .lp .navLinks {
@@ -232,7 +231,7 @@
 }
 
 .lp .sectionHead h2 {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-weight: 600;
   font-optical-sizing: auto;
   font-variation-settings: "SOFT" 0;
@@ -298,38 +297,52 @@
 .lp .heroBrand {
   font-family: var(--font-display, var(--serif));
   font-weight: 700;
-  font-size: clamp(2.8rem, 8vw, 4.8rem);
-  line-height: 0.98;
-  letter-spacing: -0.03em;
-  margin: 0 0 14px;
+  font-size: clamp(3.1rem, 9vw, 5.4rem);
+  line-height: 0.94;
+  letter-spacing: -0.035em;
+  margin: 0 0 12px;
   color: var(--color-on-photo);
   text-shadow: 0 12px 36px color-mix(in srgb, var(--ink-deep) 45%, transparent);
   text-wrap: balance;
+  animation: lpBrandIn var(--duration-slow) var(--ease-out) both;
 }
 
 .lp .heroTagline {
-  max-width: 28ch;
-  margin: 0 0 16px;
+  max-width: 26ch;
+  margin: 0 0 14px;
   color: color-mix(in srgb, var(--color-on-photo) 92%, var(--brass-bright));
-  font-size: clamp(1.2rem, 2.6vw, 1.55rem);
-  font-style: italic;
+  font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+  font-style: normal;
   font-weight: 500;
   line-height: 1.28;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
   text-wrap: balance;
   text-shadow: 0 8px 24px color-mix(in srgb, var(--ink-deep) 35%, transparent);
+  animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.06s both;
 }
 
 .lp .heroLede {
-  max-width: 38ch;
-  margin: 0 0 26px;
+  max-width: 36ch;
+  margin: 0 0 22px;
   color: var(--color-on-photo);
-  font-size: clamp(1.02rem, 2.1vw, 1.16rem);
-  line-height: 1.55;
+  font-size: clamp(0.98rem, 2vw, 1.1rem);
+  line-height: 1.5;
   text-wrap: pretty;
   text-shadow:
     0 1px 2px color-mix(in srgb, var(--ink-deep) 55%, transparent),
     0 8px 20px color-mix(in srgb, var(--ink-deep) 45%, transparent);
+  animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.1s both;
+}
+
+@keyframes lpBrandIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .lp .heroActions {
@@ -337,6 +350,7 @@
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 8px;
+  animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.14s both;
 }
 
 .lp .heroPhoto .btnGhost {
@@ -587,7 +601,7 @@
 }
 
 .lp .wedgeCard h3 {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-size: 1.4rem;
   margin: 0;
 }
@@ -755,7 +769,7 @@
 }
 
 .lp .dropSample .dropPrice {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-weight: 600;
   font-size: 1.14rem;
   font-variant-numeric: tabular-nums;
@@ -896,7 +910,7 @@
 }
 
 .lp .dropStripPrice {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-weight: 600;
   font-size: 1.14rem;
   font-variant-numeric: tabular-nums;
@@ -1041,7 +1055,7 @@
 }
 
 .lp .goldenCard h3 {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-weight: 600;
   font-optical-sizing: auto;
   font-variation-settings: "SOFT" 0;
@@ -1072,7 +1086,7 @@
 
 .lp .unityInner blockquote {
   margin: 0 0 22px;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-weight: 600;
   font-optical-sizing: auto;
   font-variation-settings: "SOFT" 0;
@@ -1135,7 +1149,7 @@
 }
 
 .lp .ctaInner h2 {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif));
   font-weight: 600;
   font-optical-sizing: auto;
   font-variation-settings: "SOFT" 0;

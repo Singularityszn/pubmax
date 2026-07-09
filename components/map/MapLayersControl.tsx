@@ -74,7 +74,12 @@ export default function MapLayersControl({
         }
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={open ? "Close map layers" : "Open map layers"}
+        aria-label={
+          open
+            ? "Close map layers"
+            : "Map layers — transit, parks, and place stories"
+        }
+        title="Transit, parks & place stories"
         onClick={() => setOpen((value) => !value)}
       >
         <Layers size={18} aria-hidden="true" />

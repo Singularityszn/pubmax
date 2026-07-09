@@ -71,8 +71,15 @@
   letter-spacing: 0.01em;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease,
-    transform 0.16s ease;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.drinkShapeChip:active {
+  transform: scale(0.96);
 }
 
 .drinkShapeChip:hover,
@@ -191,7 +198,9 @@
     transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition:
+      transform var(--duration-base) var(--ease-out),
+      opacity var(--duration-base) var(--ease-out);
   }
 
   .appShell.sheet-full .mapLegend,
@@ -200,7 +209,9 @@
     transform: translateY(120%);
     opacity: 0;
     pointer-events: none;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition:
+      transform var(--duration-base) var(--ease-out),
+      opacity var(--duration-base) var(--ease-out);
   }
 
   .appShell.onboarding-open .mapToolbar,
@@ -212,7 +223,9 @@
 
   .mapToolbar,
   .mapLegend {
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition:
+      transform var(--duration-base) var(--ease-out),
+      opacity var(--duration-base) var(--ease-out);
   }
 }
 

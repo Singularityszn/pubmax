@@ -24,7 +24,8 @@ type MapPriceControlProps = {
 function activeLabel(maxPrice: number): string {
   if (maxPrice <= 5.5) return "≤£5.50";
   if (maxPrice <= 7) return "≤£7";
-  return "Cost";
+  // Wave J1 — "Prices" reads clearer than cryptic "Cost" / bare £ alone.
+  return "Prices";
 }
 
 export default function MapPriceControl({
@@ -65,7 +66,10 @@ export default function MapPriceControl({
         className={open || filtered ? "mapPriceFab isActive" : "mapPriceFab"}
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={open ? "Close cost filter" : "Filter by pint cost"}
+        aria-label={
+          open ? "Close pint price filter" : "Filter pubs by pint price"
+        }
+        title="Filter by pint price"
         onClick={() => setOpen((value) => !value)}
       >
         <Coins size={16} aria-hidden="true" />
@@ -77,10 +81,10 @@ export default function MapPriceControl({
           id={panelId}
           className="mapPricePanel"
           role="dialog"
-          aria-label="Pint cost filter"
+          aria-label="Pint price filter"
         >
           <div className="mapPricePanelHead">
-            <strong>Cost</strong>
+            <strong>Prices</strong>
             <button
               type="button"
               className="mapPriceClose"

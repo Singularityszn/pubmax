@@ -1,6 +1,7 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import "./map/mapColor.css";
 
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { applyBasemapTaste, clusterCircleColorExpr } from "@/lib/mapBasemapTaste";
 import { landmarks, nearestStoryPubs, landmarkById, type Landmark } from "@/lib/landmarks";
 import {
   STORY_BANDS,
@@ -939,6 +941,10 @@ export default function PubMapCanvas({
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
 
+      // Wave J1 — warm paper/river/brass washes on the stock basemap before we
+      // add pub layers, so Liberty/Positron stop reading as generic grey GIS.
+      applyBasemapTaste(map, tokens, dark);
+
       // buildScene re-runs on every style.load. After a genuine setStyle swap
       // the old style's layers are gone (getLayer → undefined) so everything
       // re-adds with fresh tokens; on a duplicate pass the layer survives and
@@ -1378,21 +1384,14 @@ export default function PubMapCanvas({
         source: "pubs",
         filter: ["has", "point_count"],
         paint: {
-          // Brass-tinted well that deepens as more pubs pack in, with a
-          // slightly heavier ring on the big clusters.
-          "circle-color": [
-            "step",
-            ["get", "point_count"],
-            withAlpha(dark ? tokens.inkDeep : tokens.panelRaised, 0.9),
-            25,
-            withAlpha(dark ? tokens.ink : tokens.paper, 0.92),
-            100,
-            withAlpha(tokens.brass, dark ? 0.32 : 0.28),
-          ],
-          "circle-stroke-color": tokens.brass,
-          "circle-stroke-width": ["step", ["get", "point_count"], 1.5, 100, 2.5],
-          "circle-stroke-opacity": 0.85,
-          "circle-radius": ["step", ["get", "point_count"], 16, 25, 22, 100, 30],
+          // Wave J1 — pint → amber → brass by density (not ink-black discs).
+          "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
+          "circle-stroke-color": tokens.panelRaised,
+          "circle-stroke-width": ["step", ["get", "point_count"], 2, 40, 2.5, 100, 3],
+          "circle-stroke-opacity": 0.95,
+          "circle-radius": ["step", ["get", "point_count"], 17, 25, 23, 100, 31],
+          "circle-blur": ["step", ["get", "point_count"], 0.05, 40, 0.12, 100, 0.18],
+          "circle-opacity": 0.94,
         },
       });
       addLayerOnce({
@@ -1407,9 +1406,9 @@ export default function PubMapCanvas({
           "text-letter-spacing": 0.02,
         },
         paint: {
-          "text-color": tokens.ink,
-          "text-halo-color": withAlpha(tokens.paper, 0.6),
-          "text-halo-width": 0.8,
+          "text-color": dark ? tokens.paper : tokens.inkDeep,
+          "text-halo-color": withAlpha(tokens.panelRaised, 0.75),
+          "text-halo-width": 1,
         },
       });
 
