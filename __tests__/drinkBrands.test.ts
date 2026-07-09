@@ -61,6 +61,20 @@ describe("drinkBrands", () => {
     expect(brandMatchNeedles(hit!.brand).length).toBeGreaterThan(0);
   });
 
+  it("matches brand needles on word boundaries, not bare substrings", () => {
+    const jd = findBrand("jack-daniels");
+    expect(jd).not.toBeNull();
+    // Alias "jd" must not match inside unrelated words.
+    expect(haystackMatchesBrand("adjourned tasting notes", jd!.brand)).toBe(false);
+    expect(haystackMatchesBrand("JD and coke", jd!.brand)).toBe(true);
+
+    const moretti = findBrand("birra-moretti");
+    expect(moretti).not.toBeNull();
+    // Alias "moretti" must not match inside "amoretti".
+    expect(haystackMatchesBrand("amoretti biscuit stout", moretti!.brand)).toBe(false);
+    expect(haystackMatchesBrand("Birra Moretti pint", moretti!.brand)).toBe(true);
+  });
+
   it("matches category tokens in haystacks", () => {
     expect(haystackMatchesCategory("house red wine list", "wine")).toBe(true);
     expect(haystackMatchesCategory("vodka soda", "vodka")).toBe(true);

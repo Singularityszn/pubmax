@@ -162,6 +162,14 @@ export function decodeCrawl(
     }
   }
 
+  // `cocktails=1` alone (no `?drink=`) should still light the cocktail lens —
+  // same drinkCategory + soft query as `?drink=cocktail`, without overriding
+  // an explicit drink= category already applied above.
+  if (params.get("cocktails") === "1" && !filters.drinkCategory) {
+    filters.drinkCategory = "cocktail";
+    if (!filters.query) filters.query = categoryLabel("cocktail");
+  }
+
   const brandRaw = normalizeBrandQuery(params.get("brand"));
   if (brandRaw) {
     const hit = findBrand(brandRaw);

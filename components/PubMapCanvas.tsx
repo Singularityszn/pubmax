@@ -2221,6 +2221,7 @@ export default function PubMapCanvas({
             onClick={() => {
               if (activeBandId) {
                 onBandChange("");
+                setPlaceStoriesManualOpen(false);
                 return;
               }
               setPlaceStoriesManualOpen((open) => !open);

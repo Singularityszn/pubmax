@@ -364,8 +364,24 @@ export function creditCrawlQuest(
 }
 
 /**
+ * Forward quest milestones for crawl / Place-story chips. Incomplete chips must
+ * keep `target !== current` so NextBadgeChips can show honest `current/target`
+ * progress (never a fake "done" 1/1 after the first walk).
+ */
+export const CRAWL_QUEST_MILESTONES = [1, 3, 5, 10, 25] as const;
+
+/** Next milestone strictly above `current`, or `current + 1` past the last tier. */
+export function nextQuestTarget(current: number): number {
+  const n = Number.isFinite(current) ? Math.max(0, Math.floor(current)) : 0;
+  for (const milestone of CRAWL_QUEST_MILESTONES) {
+    if (n < milestone) return milestone;
+  }
+  return n + 1;
+}
+
+/**
  * Quest chips for passport / NextBadgeChips — crawl completion and Place-story
- * breadth. Targets stay small (1) so the first walk feels like progress.
+ * breadth. Targets are the next milestone so progress reads as forward-looking.
  */
 export function crawlQuestChips(storage?: Storage | null): CrawlQuestChip[] {
   const quest = readCrawlQuest(storage);
@@ -376,7 +392,7 @@ export function crawlQuestChips(storage?: Storage | null): CrawlQuestChip[] {
     chips.push({
       id: "crawl-complete",
       current: crawls,
-      target: Math.max(1, crawls),
+      target: nextQuestTarget(crawls),
       label: crawls === 1 ? "Crawl walked" : "Crawls walked",
     });
   }
@@ -384,7 +400,7 @@ export function crawlQuestChips(storage?: Storage | null): CrawlQuestChip[] {
     chips.push({
       id: "place-story-crawl",
       current: stories,
-      target: Math.max(1, stories),
+      target: nextQuestTarget(stories),
       label: stories === 1 ? "Place story walked" : "Place stories walked",
     });
   }

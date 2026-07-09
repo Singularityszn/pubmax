@@ -74,10 +74,10 @@ async function appendStopToActiveRound(input: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "join", handle: input.handle }),
     });
-    // Join may 409 if closed — still attempt addStop only on ok (idempotent join).
+    // Join may 409 if already a member — still attempt addStop (idempotent join).
+    // Other join failures must not call addStop or pretend the stop landed.
     if (!joinRes.ok && joinRes.status !== 409) {
-      // Non-member / not found — don't pretend the stop landed.
-      // 409 closed is handled by addStop below returning false.
+      return false;
     }
     const res = await fetch(`/api/rounds/${encodeURIComponent(input.code)}`, {
       method: "POST",
@@ -439,7 +439,7 @@ export function usePintDrops() {
         const links: NonNullable<DropMsg["links"]> = [
           { href: "/feed", label: "See the feed" },
         ];
-        if (activeRound || addedToNight) {
+        if (addedToNight) {
           links.push({
             href: `/bar-tab/${encodeURIComponent(venueId)}`,
             label: "Bar tab",
@@ -451,10 +451,9 @@ export function usePintDrops() {
         }
         setDropMsg({
           ok: true,
-          text:
-            activeRound || addedToNight
-              ? "Cheers — added to your night."
-              : "Cheers — your Pint Drop is live.",
+          text: addedToNight
+            ? "Cheers — added to your night."
+            : "Cheers — your Pint Drop is live.",
           links,
         });
       }

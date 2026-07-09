@@ -672,7 +672,7 @@ export default function AdminPage() {
                       ) : (
                         <button
                           type="button"
-                          className="admin-btn"
+                          className="admin-btn admin-restore"
                           onClick={() => void decideImportNote(note.id, "restore")}
                           disabled={importActionId === note.id}
                         >

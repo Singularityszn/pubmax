@@ -285,7 +285,17 @@ function buildDrinkHints(prices) {
   }
 
   for (const brand of DRINK_BRAND_HINTS) {
-    if (brand.needles.some((needle) => hay.includes(normaliseDrinkHaystack(needle)))) {
+    // Word-boundary brand needles (same approach as category tokens) so short
+    // aliases like "jd" do not match inside unrelated words.
+    if (
+      brand.needles.some((needle) => {
+        const n = normaliseDrinkHaystack(needle);
+        if (!n) return false;
+        if (n.includes(" ")) return hay.includes(n);
+        const re = new RegExp(`(^| )${n}( |$)`);
+        return re.test(hay);
+      })
+    ) {
       brands.add(brand.id);
       categories.add(brand.category);
     }

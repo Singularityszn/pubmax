@@ -92,7 +92,8 @@ export async function POST(request: Request): Promise<Response> {
     }
     const message = await store.send(conversationId, handle, messageBody);
     if (!message) {
-      return jsonNoStore({ error: "Couldn't send that message." }, { status: 400 });
+      // Store miss / write failure after validation — degraded dependency, not 400.
+      return jsonNoStore({ error: "Couldn't send that message." }, { status: 503 });
     }
     return jsonNoStore({ message, conversationId }, { status: 201 });
   }

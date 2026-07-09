@@ -23,16 +23,19 @@ export type VenueDetailArtifact = {
 
 const GENERATED_DIR =
   process.env.PUBMAX_VENUE_DETAIL_DIR ?? path.join(process.cwd(), "data", "generated");
-const DETAIL_INDEX_FILE = path.join(GENERATED_DIR, "venue_detail_index.json");
+const DEFAULT_DETAIL_INDEX_FILE = path.join(GENERATED_DIR, "venue_detail_index.json");
 const DEFAULT_DETAIL_ROWS_FILE = path.join(GENERATED_DIR, "venue_details.jsonl");
 const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
 
 const VENUE_ID_RE = /^venue-[a-z0-9]{1,12}$/;
 
 const cachedDetails = new Map<string, Venue>();
-let cachedManifest: VenueDetailManifest | null | undefined;
+/** Successful manifests only — failures stay unset so the next call can retry. */
+let cachedManifest: VenueDetailManifest | undefined;
+let detailIndexFile = DEFAULT_DETAIL_INDEX_FILE;
 let detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
 let fallbackIndex: Map<string, Venue> | null = null;
+let manifestReadAttemptsForTests = 0;
 
 function isTestRuntime(): boolean {
   return (
@@ -58,21 +61,23 @@ export function venueFromDetailArtifact(
 }
 
 async function readManifest(): Promise<VenueDetailManifest | null> {
-  if (cachedManifest !== undefined) return cachedManifest;
+  if (cachedManifest) return cachedManifest;
+  if (isTestRuntime()) manifestReadAttemptsForTests += 1;
   try {
-    const parsed = JSON.parse(await fs.readFile(DETAIL_INDEX_FILE, "utf8")) as VenueDetailManifest;
-    cachedManifest =
+    const parsed = JSON.parse(await fs.readFile(detailIndexFile, "utf8")) as VenueDetailManifest;
+    const valid =
       parsed.version === 1 &&
       parsed.detailsFile === "venue_details.jsonl" &&
       typeof parsed.count === "number" &&
       typeof parsed.venues === "object" &&
-      parsed.venues !== null
-        ? parsed
-        : null;
+      parsed.venues !== null;
+    if (!valid) return null;
+    cachedManifest = parsed;
+    return parsed;
   } catch {
-    cachedManifest = null;
+    // Leave cache unset so a later request can retry after a transient miss.
+    return null;
   }
-  return cachedManifest;
 }
 
 async function readVenueFromArtifact(id: string): Promise<Venue | null | undefined> {
@@ -136,12 +141,32 @@ export function resetVenueDetailCachesForTests(): void {
   if (!isTestRuntime()) return;
   cachedDetails.clear();
   cachedManifest = undefined;
+  detailIndexFile = DEFAULT_DETAIL_INDEX_FILE;
   detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
   fallbackIndex = null;
+  manifestReadAttemptsForTests = 0;
+}
+
+/** Clear venue entries only — leaves manifest cache as-is (for sticky-failure tests). */
+export function clearVenueDetailEntriesForTests(): void {
+  if (!isTestRuntime()) return;
+  cachedDetails.clear();
+  fallbackIndex = null;
+}
+
+export function setVenueDetailIndexFileForTests(file: string): void {
+  if (!isTestRuntime()) return;
+  cachedDetails.clear();
+  cachedManifest = undefined;
+  detailIndexFile = file;
 }
 
 export function setVenueDetailRowsFileForTests(file: string): void {
   if (!isTestRuntime()) return;
   cachedDetails.clear();
   detailRowsFile = file;
+}
+
+export function getManifestReadAttemptsForTests(): number {
+  return isTestRuntime() ? manifestReadAttemptsForTests : 0;
 }

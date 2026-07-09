@@ -23,14 +23,14 @@ export default defineConfig({
       // excluded; they're covered by the Playwright E2E suite instead.
       include: ["lib/**", "app/api/**"],
       // Regression gate, not a target. Thresholds sit ~2% under the measured
-      // numbers so CI stays green today (2026-07-07: lines 74.03%, functions
-      // 77.43%, statements 71.04% — up from 69.96/74.75/66.86 at first gate).
+      // numbers so CI stays green today (2026-07-09: lines 75.86%, functions
+      // 78.82%, statements 72.86% — up from 74.03/77.43/71.04).
       // RATCHET RULE: thresholds only ever rise; re-floor them after each wave
       // that lands fully-tested pure libs. The point is to PREVENT a drop.
       thresholds: {
-        lines: 72,
-        functions: 75,
-        statements: 69,
+        lines: 74,
+        functions: 77,
+        statements: 71,
       },
     },
   },

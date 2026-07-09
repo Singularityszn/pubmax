@@ -169,13 +169,15 @@
     transition: transform 0.2s ease, opacity 0.2s ease;
   }
 
-  .appShell.onboarding-open .mapToolbar {
+  .appShell.onboarding-open .mapToolbar,
+  .appShell.planning-open .mapToolbar {
     transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
   }
 
-  .appShell.onboarding-open .mapLegend {
+  .appShell.onboarding-open .mapLegend,
+  .appShell.planning-open .mapLegend {
     transform: translateY(120%);
     opacity: 0;
     pointer-events: none;
@@ -189,6 +191,10 @@
   @media (prefers-reduced-motion: reduce) {
     .appShell.sheet-full .mapToolbar,
     .appShell.sheet-full .mapLegend,
+    .appShell.onboarding-open .mapToolbar,
+    .appShell.onboarding-open .mapLegend,
+    .appShell.planning-open .mapToolbar,
+    .appShell.planning-open .mapLegend,
     .mapToolbar,
     .mapLegend {
       transition: none;

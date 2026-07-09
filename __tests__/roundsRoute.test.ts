@@ -12,6 +12,15 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
+const authState = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return {
+    ...actual,
+    callerUserId: async () => authState.userId,
+  };
+});
+
 // The store-outage (503) cases script a write failure at the store seam. Keep the
 // real module (memory store, validation, __resetMemoryRounds); a per-test hook can
 // override create()/join() to return the store-failure variant. When null (the
@@ -42,6 +51,7 @@ import { POST as CREATE } from "@/app/api/rounds/route";
 import { GET, POST } from "@/app/api/rounds/[code]/route";
 import { __resetMemoryRounds } from "@/lib/roundsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 import type { RoundState } from "@/lib/rounds";
 
 const CREATE_URL = "http://localhost/api/rounds";
@@ -72,6 +82,8 @@ async function newRound(handle = "ken"): Promise<RoundState> {
 
 beforeEach(() => {
   __resetMemoryRounds();
+  __resetMemoryProfiles();
+  authState.userId = null;
   // Clear the shared in-memory rate-limit window so per-handle create/action
   // budgets don't leak across cases (the limiter keys on handle + hashed IP).
   __resetPintDrops();
@@ -204,5 +216,27 @@ describe("POST /api/rounds/[code] — actions", () => {
       venueName: "The Ship",
     });
     expect(res.status).toBe(409);
+  });
+});
+
+describe("rounds auth ownership — linked handle wins over body handle", () => {
+  it("joins as the auth-linked handle, ignoring a spoofed body handle", async () => {
+    const { round } = await newRound("ken");
+    await memoryProfileStore.linkUser("ale", "user-ale");
+    authState.userId = "user-ale";
+
+    const res = await action(round.code, { action: "join", handle: "mallory" });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoundState;
+    expect(state.members.map((m) => m.handle).sort()).toEqual(["ale", "ken"]);
+  });
+
+  it("keeps the anonymous demo path when auth is absent", async () => {
+    const { round } = await newRound("ken");
+    authState.userId = null;
+    const res = await action(round.code, { action: "join", handle: "demo" });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoundState;
+    expect(state.members.map((m) => m.handle).sort()).toEqual(["demo", "ken"]);
   });
 });
