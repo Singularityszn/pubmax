@@ -62,6 +62,9 @@ function curatedCrawlHref(crawl: CuratedCrawl): string {
 // full pub list would make an unwieldy URL.
 const MAP_LINK_STOP_CAP = 12;
 
+/** Borough floor for Outer London honesty banner (Wave H4 / PRD P1). */
+const BOROUGH_COVERAGE_FLOOR = 15;
+
 // Browse the borough on the clean map via search (`?q=`), so outer areas like
 // Barnet open without resurrecting a hand-built crawl into the planner.
 function boroughBrowseMapUrl(name: string): string {
@@ -166,6 +169,13 @@ export default async function BoroughPage({ params }: PageProps) {
             </>
           )}
         </p>
+        {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
+          <p className="boroughThinBanner" role="status">
+            Thin coverage in {name} for now ({pubs.length} of {BOROUGH_COVERAGE_FLOOR}+
+            we&rsquo;re aiming for). Every pin is a real pub — we won&rsquo;t invent
+            denser streets.
+          </p>
+        ) : null}
         <div className="boroughMapLinks">
           <Link className="boroughCrawlLink" href={boroughBrowseMapUrl(name)}>
             {pubs.length > 0 ? `View ${name} on the map →` : "Open the map →"}

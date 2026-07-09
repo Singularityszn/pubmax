@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { curatedCrawls } from "@/lib/curatedCrawls";
+import { crawlShareMapHref, curatedCrawls } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { ALT_CRAWL_STYLES } from "@/lib/crawlUrl";
 import { groupVenuePrices, type CrawlStyle, type VenuePrice } from "@/lib/venues";
@@ -104,6 +104,20 @@ describe("curated crawls", () => {
     expect(byId.get("riverside-heritage")?.placeStoryBandId).toBe("thames-industrial");
     expect(byId.get("borough-market-crawl")?.placeStoryBandId).toBe("markets-theatre");
     expect(byId.get("bankside-riverside")?.placeStoryBandId).toBe("river-history");
+  });
+
+  it("builds a shareable crawl map URL with pubs and optional band (Wave H1)", () => {
+    const riverside = curatedCrawls.find((c) => c.id === "riverside-heritage");
+    expect(riverside).toBeDefined();
+    const href = crawlShareMapHref({
+      venueIds: riverside!.venueIds,
+      placeStoryBandId: riverside!.placeStoryBandId,
+      crawlId: riverside!.id,
+    });
+    expect(href).toContain("mode=build");
+    expect(href).toContain("pubs=");
+    expect(href).toContain("band=thames-industrial");
+    expect(href).toContain(riverside!.venueIds[0]);
   });
 });
 
