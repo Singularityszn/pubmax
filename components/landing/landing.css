@@ -750,27 +750,141 @@
 .lp .dropsGrid {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: clamp(32px, 5vw, 72px);
+  gap: clamp(36px, 5.5vw, 80px);
   align-items: center;
 }
 
-.lp .dropStack {
-  display: grid;
-  gap: 14px;
+/* Copy column: readable hierarchy on paper (not photo-scrim white). */
+.lp .dropsCopy .lpSerif {
+  font-size: clamp(1.85rem, 3.4vw, 2.55rem);
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+  margin: 0 0 16px;
+  color: var(--ink);
+}
+
+.lp .dropsCopy .heroLede {
+  max-width: 36ch;
+  margin: 0 0 14px;
+  /* Readable on paper: ink at ~0.82, not photo-scrim white / washed muted. */
+  color: color-mix(in srgb, var(--ink) 88%, transparent);
+  font-size: clamp(1.02rem, 1.8vw, 1.1rem);
+  font-weight: 450;
+  line-height: 1.65;
+  text-wrap: pretty;
+  text-shadow: none;
+  animation: none;
+}
+
+.lp .dropsCopy .dropsHanddown {
+  margin: 0 0 22px;
+  max-width: 34ch;
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.lp .dropsCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 2px;
+  color: var(--brass);
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: color 0.18s var(--ease-out), gap 0.18s var(--ease-out);
+}
+
+.lp .dropsCta:hover {
+  color: var(--brass-bright);
+  gap: 12px;
+}
+
+.lp .dropsCta:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* Vertical timeline: cards + connectors share one axis (generational hand-down). */
+.lp .dropTimeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 420px;
+}
+
+.lp .dropTimelineItem {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+}
+
+.lp .dropTimelineConnector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 42px;
+  margin: 0;
+  position: relative;
+}
+
+.lp .dropTimelineLine {
+  width: 1.5px;
+  flex: 1 1 auto;
+  min-height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brass) 70%, transparent),
+    color-mix(in srgb, var(--pint) 65%, transparent)
+  );
+}
+
+.lp .dropTimelineArrow {
+  width: 10px;
+  height: 10px;
+  margin-top: -1px;
+  border-right: 2px solid color-mix(in srgb, var(--pint) 55%, var(--brass));
+  border-bottom: 2px solid color-mix(in srgb, var(--pint) 55%, var(--brass));
+  transform: rotate(45deg);
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 
 .lp .dropSample {
-  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 168px;
+  padding: 18px 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--panel);
-  transition: border-color 0.18s ease, background 0.18s ease,
-    box-shadow 0.18s ease, transform 0.18s ease;
+  background: var(--panel-raised);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 4%, transparent);
+  transition:
+    border-color 0.18s var(--ease-out),
+    background 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out),
+    transform 0.18s var(--ease-out);
 }
 
-.lp .dropSample:hover {
-  border-color: var(--brass);
-  box-shadow: 0 10px 24px rgba(154, 106, 36, 0.12);
+@media (hover: hover) and (pointer: fine) {
+  .lp .dropSample:hover {
+    border-color: var(--brass);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--brass) 14%, transparent);
+  }
 }
 
 .lp .dropSample .dropTop {
@@ -778,42 +892,53 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 7px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .lp .dropSample .dropWho {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
 
 .lp .dropSample .dropPrice {
   font-family: var(--font-display, var(--serif));
   font-weight: 600;
-  font-size: 1.14rem;
+  font-size: 1.2rem;
   font-variant-numeric: tabular-nums;
   color: var(--pint);
+  letter-spacing: -0.02em;
 }
 
-.lp .dropSample p {
+.lp .dropSample .dropNote {
   margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.94rem;
+  flex: 1 1 auto;
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+  font-family: var(--font-display, var(--serif));
+  font-weight: 450;
+  font-size: 1.02rem;
   line-height: 1.55;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
 }
 
 .lp .dropSample small {
   display: block;
-  margin-top: 8px;
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .lp .dropSample .dropMeta {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+  flex-shrink: 0;
 }
 
 .lp .dropSample .dropMeta small {
@@ -822,21 +947,34 @@
 
 /* Honest labelling: sample content is marked, never passed off as live. */
 .lp .exampleTag {
-  display: inline-block;
-  padding: 1px 8px;
-  border: 1px solid color-mix(in srgb, var(--brass) 45%, transparent);
-  border-radius: 999px;
-  color: var(--brass);
-  font-size: 0.62rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--ink-soft) 28%, transparent);
+  border-radius: var(--radius-sm, 6px);
+  background: color-mix(in srgb, var(--ink) 5%, var(--panel));
+  color: var(--ink-soft);
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lp .dropSample .exampleTag {
+  border-color: color-mix(in srgb, var(--pint) 35%, var(--line));
+  background: color-mix(in srgb, var(--pint) 10%, var(--panel-raised));
+  color: color-mix(in srgb, var(--pint) 72%, var(--ink));
 }
 
 .lp .chatBar .exampleTag {
   margin: 0 0 0 auto;
   color: var(--brass-bright);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: transparent;
 }
 
 /* ── Live Pint Drops strip ───────────────────────────────────────────────
@@ -1390,8 +1528,22 @@
     font-size: clamp(2.6rem, 10vw, 3.6rem);
   }
 
+  .lp .dropsGrid {
+    gap: clamp(28px, 6vw, 48px);
+  }
+
   .lp .dropsGrid .dropsCopy {
     order: -1;
+  }
+
+  .lp .dropTimeline {
+    max-width: none;
+    width: 100%;
+  }
+
+  .lp .dropsCopy .heroLede,
+  .lp .dropsCopy .dropsHanddown {
+    max-width: none;
   }
 
   .lp .cardGrid,
@@ -1502,6 +1654,47 @@
   /* Section rhythm tightens so the page isn't endless scroll on a phone. */
   .lp .sectionHead {
     margin-bottom: 32px;
+  }
+
+  /* Pint Drops: copy leads, then timeline with generous vertical rhythm. */
+  .lp #drops {
+    padding-block: clamp(56px, 12vw, 96px);
+  }
+
+  .lp .dropsGrid {
+    gap: 32px;
+  }
+
+  .lp .dropsCopy .lpSerif {
+    font-size: clamp(1.7rem, 7.2vw, 2.15rem);
+    margin-bottom: 14px;
+  }
+
+  .lp .dropsCopy .heroLede {
+    font-size: 1.02rem;
+    line-height: 1.68;
+    margin-bottom: 12px;
+  }
+
+  .lp .dropsCopy .dropsHanddown {
+    margin-bottom: 18px;
+  }
+
+  .lp .dropTimelineConnector {
+    height: 40px;
+  }
+
+  .lp .dropSample {
+    min-height: 0;
+    padding: 18px 18px;
+  }
+
+  .lp .dropSample .dropNote {
+    font-size: 1rem;
+  }
+
+  .lp .dropsCta {
+    min-height: 48px;
   }
 
   /* Footer columns stack under the brand block. */
