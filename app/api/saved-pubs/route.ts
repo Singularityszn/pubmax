@@ -15,6 +15,7 @@
 // the demo, never gates it.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { isLimited } from "@/lib/pintDrops";
@@ -67,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
-  const handle = normalizeHandle((body.handle as string) ?? "");
+  const handle = await resolveMessageHandle(request, readString(body.handle));
   if (!handle) return jsonNoStore({ error: "Add a contributor handle." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);
@@ -80,10 +81,10 @@ export async function POST(request: Request): Promise<Response> {
   if (readString(body.action) === "createList") {
     const name = cleanListType(body.name ?? body.listType);
     if (!name) return jsonNoStore({ error: "A list name is required." }, { status: 400 });
-    if (await isLimited(`lists:${handle}`, `lists:${hashIp(clientIp(request))}`)) {
+    if (await isLimited(`lists:${ownership.handle}`, `lists:${hashIp(clientIp(request))}`)) {
       return jsonNoStore({ error: "Too many lists, slow down." }, { status: 429 });
     }
-    const lists = await savedListsStore().createList(handle, name);
+    const lists = await savedListsStore().createList(ownership.handle, name);
     return jsonNoStore({ lists }, { status: 200 });
   }
 
@@ -105,14 +106,14 @@ export async function POST(request: Request): Promise<Response> {
   // so one handle can't flood; the durable key leads with the actor (hashed IP)
   // so one device can't spam across handles. 429 when either budget is exhausted.
   const actorHash = hashIp(clientIp(request));
-  if (await isLimited(`saved:${handle}`, `saved:${actorHash}`)) {
+  if (await isLimited(`saved:${ownership.handle}`, `saved:${actorHash}`)) {
     return jsonNoStore({ error: "Too many saves, slow down." }, { status: 429 });
   }
 
   // toggleSaved is fail-soft: a store error returns the current list unchanged, so
   // the client keeps its localStorage fallback in play rather than seeing a 503.
   const saved = await savedPubsStore().toggleSaved({
-    handle,
+    handle: ownership.handle,
     venueId,
     listType,
     ...(note ? { note } : {}),

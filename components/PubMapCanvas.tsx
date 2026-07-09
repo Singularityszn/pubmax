@@ -1609,6 +1609,7 @@ export default function PubMapCanvas({
     });
 
     // Press-start / hover intent warms venue detail so the sheet opens warm.
+    // Also wire route-stops — those pins are the same venue ids.
     const prefetchFromEvent = (event: {
       features?: Array<{ properties?: Record<string, unknown> | null }> | undefined;
     }) => {
@@ -1616,9 +1617,11 @@ export default function PubMapCanvas({
       if (typeof id !== "string") return;
       onVenuePrefetchRef.current?.(id);
     };
-    map.on("mouseenter", "pubs-point", prefetchFromEvent);
-    map.on("mousedown", "pubs-point", prefetchFromEvent);
-    map.on("touchstart", "pubs-point", prefetchFromEvent);
+    for (const layer of ["pubs-point", "route-stops"] as const) {
+      map.on("mouseenter", layer, prefetchFromEvent);
+      map.on("mousedown", layer, prefetchFromEvent);
+      map.on("touchstart", layer, prefetchFromEvent);
+    }
 
     const onPubHover = (event: maplibregl.MapLayerMouseEvent) => {
       if (!hoverCapableRef.current) return;

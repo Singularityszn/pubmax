@@ -389,6 +389,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               displayName={profile.displayName}
               data={passport}
               isOwn={passportIsOwn}
+              hero={passportIsOwn}
             />
 
             {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
