@@ -1,9 +1,9 @@
 "use client";
 
 // App-wide auth context. Holds the current Supabase session/user (or null) and
-// exposes signInWithGoogle()/signOut(). Additive only: anonymous browsing is
-// unaffected — nothing here gates a route or blocks a render. A signed-in
-// session just establishes identity for future authed actions.
+// exposes signInWithGoogle()/signInWithMicrosoft()/signOut(). Additive only:
+// anonymous browsing is unaffected — nothing here gates a route or blocks a
+// render. A signed-in session just establishes identity for future authed actions.
 //
 // React 19 note: `react-hooks/set-state-in-effect` is an ERROR here, so we never
 // call setState synchronously in the effect body. The effect only SUBSCRIBES
@@ -76,11 +76,13 @@ export type AuthContextValue = {
   configured: boolean;
   /** Start the Google OAuth redirect. No-op (returns an error) when unconfigured. */
   signInWithGoogle: () => Promise<{ error: string | null }>;
+  /** Start the Microsoft (Azure) OAuth redirect. No-op when unconfigured. */
+  signInWithMicrosoft: () => Promise<{ error: string | null }>;
   /** Clear the local session. */
   signOut: () => Promise<void>;
   /**
-   * A normalized handle derived from the signed-in Google email local-part, or
-   * null when signed out. Used by the Profile tab to link to /u/<handle>.
+   * A normalized handle derived from the signed-in email local-part, or null
+   * when signed out. Used by the Profile tab to link to /u/<handle>.
    * Wave I2 also syncs this into `pubmax_handle` and PATCHes the profile so
    * `profiles.user_id` links on first signed-in session.
    */
@@ -89,7 +91,7 @@ export type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-/** Derive a stable handle from a signed-in user's Google email local-part. */
+/** Derive a stable handle from a signed-in user's email local-part. */
 function handleFromUser(user: User | null): string | null {
   if (!user) return null;
   const email = typeof user.email === "string" ? user.email : "";
@@ -177,6 +179,24 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     return { error: error ? error.message : null };
   }, []);
 
+  const signInWithMicrosoft = useCallback(async (): Promise<{ error: string | null }> => {
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      return { error: "Sign-in is not configured." };
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    // Supabase's Microsoft provider id is "azure". Request email so we can
+    // derive a handle the same way as Google.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "azure",
+      options: {
+        scopes: "email",
+        redirectTo: `${origin}/auth/callback`,
+      },
+    });
+    return { error: error ? error.message : null };
+  }, []);
+
   const signOut = useCallback(async (): Promise<void> => {
     const supabase = getSupabaseBrowser();
     if (!supabase) return;
@@ -192,10 +212,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       loading,
       configured,
       signInWithGoogle,
+      signInWithMicrosoft,
       signOut,
       handle: handleFromUser(user),
     };
-  }, [session, loading, configured, signInWithGoogle, signOut]);
+  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -211,6 +232,7 @@ export function useAuth(): AuthContextValue {
     loading: false,
     configured: false,
     signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
+    signInWithMicrosoft: async () => ({ error: "Sign-in is not configured." }),
     signOut: async () => {},
     handle: null,
   };
