@@ -25,7 +25,13 @@ export function useCrawlUrlSync(state: CrawlUrlState): void {
         params.set("log", "1");
       }
       const query = params.toString();
-      const url = `${window.location.pathname}?${query}${window.location.hash}`;
+      // Keep a clean pathname when nothing meaningful is encoded (no trailing `?`).
+      const url = query
+        ? `${window.location.pathname}?${query}${window.location.hash}`
+        : `${window.location.pathname}${window.location.hash}`;
+      if (`${window.location.pathname}${window.location.search}${window.location.hash}` === url) {
+        return;
+      }
       window.history.replaceState(window.history.state, "", url);
     }, DEBOUNCE_MS);
 
