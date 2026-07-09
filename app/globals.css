@@ -268,6 +268,11 @@ button {
   --mobile-tab-clearance: calc(72px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
   --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
+  /* Shared geometry for the floating Home bar + Search/Plan toolbar so they
+     align as matching chrome cards on phone/tablet map. */
+  --map-chrome-inset: 10px;
+  --map-chrome-radius: 14px;
+  --map-chrome-gap: 6px;
   height: 100vh;
   position: relative;
   overflow: hidden;
@@ -3993,16 +3998,17 @@ button:disabled {
     background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
   }
 
-  /* Toolbar hugs the top under the nav; wrap + full width on a phone. */
+  /* Toolbar hugs the top under the nav; same inset/radius as the floating Home bar. */
   .mapToolbar {
     top: var(--map-top-clearance);
-    left: 10px;
-    right: 10px;
+    left: var(--map-chrome-inset);
+    right: var(--map-chrome-inset);
     max-width: none;
     transform: none;
     flex-wrap: wrap;
     justify-content: center;
-    border-radius: 16px;
+    border-radius: var(--map-chrome-radius);
+    box-sizing: border-box;
   }
 
   .mapToolbarSearch input {
@@ -4060,9 +4066,11 @@ button:disabled {
     --map-mobile-legend-clearance: 40px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
-    /* Compact top nav + single-row toolbar → more map mid-field. */
-    --map-top-clearance: calc(52px + env(safe-area-inset-top, 0px));
-    --map-overlay-top: calc(var(--map-top-clearance) + 52px);
+    /* Compact matched chrome: nav (~40px with 32px controls) + gap + safe area. */
+    --map-top-clearance: calc(
+      10px + env(safe-area-inset-top, 0px) + 40px + var(--map-chrome-gap)
+    );
+    --map-overlay-top: calc(var(--map-top-clearance) + 46px);
     /* Stack FABs above the tab bar; route/onboarding chips one row higher. */
     --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 10px);
     --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);
@@ -4440,8 +4448,8 @@ html[data-legacy="1"] *::after {
   }
 
   .siteNavBarFloating .authSignIn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     justify-content: center;
     padding: 0;
   }

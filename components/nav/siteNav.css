@@ -29,7 +29,8 @@
 }
 
 /* Map variant: the shell is overflow-hidden + full-bleed, so the bar floats
-   across the top. Centred pill on desktop; full-width compact bar on mobile. */
+   across the top. Centred pill on desktop; full-width compact bar on phone
+   so it matches the Search/Plan toolbar width and inset. */
 .siteNavBarFloating {
   position: fixed;
   top: 12px;
@@ -38,6 +39,7 @@
   width: max-content;
   max-width: calc(100vw - 24px);
   transform: translateX(-50%);
+  box-sizing: border-box;
 }
 
 /* ── Wordmark ──────────────────────────────────────────────────────────── */
@@ -223,8 +225,9 @@
    the bar is trivially narrow and cannot overflow at 390px. */
 @media (max-width: 640px) {
   .siteNavBar {
-    gap: 8px;
-    padding: 5px 10px;
+    gap: 6px;
+    padding: 4px 8px;
+    min-height: 40px;
     background:
       linear-gradient(135deg, var(--panel-raised), color-mix(in srgb, var(--surface-tint-river) 32%, var(--panel-raised) 68%)),
       var(--panel-raised);
@@ -237,22 +240,24 @@
     display: none;
   }
 
-  /* On the map the floating bar spans the width so the wordmark sits left and
-     the actions sit right — a clean compact header, never a centred pill that
-     could clip. */
+  /* On the map the floating bar spans the same inset as .mapToolbar — a clean
+     compact header twin, never a centred pill that could clip. */
   .siteNavBarFloating {
-    left: 10px;
-    right: 10px;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    left: var(--map-chrome-inset, 10px);
+    right: var(--map-chrome-inset, 10px);
     width: auto;
     max-width: none;
     transform: none;
+    border-radius: var(--map-chrome-radius, 14px);
   }
 
   .siteNavBrand {
     flex: 0 0 auto;
     width: auto;
-    min-width: 68px;
-    height: 30px;
+    min-width: 64px;
+    min-height: 32px;
+    height: 32px;
     justify-content: center;
     padding: 0 10px;
     border-radius: 999px;
@@ -277,7 +282,19 @@
      of the compact bar, so the controls never compress or wrap. */
   .siteNavActions {
     flex: 0 0 auto;
-    gap: 6px;
+    gap: 4px;
+  }
+
+  .siteNavBell {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .siteNavBar .themeToggle {
+    width: 32px;
+    height: 32px;
   }
 
   .siteNavBar .authUser {
