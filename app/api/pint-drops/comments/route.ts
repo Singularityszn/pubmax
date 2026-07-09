@@ -24,6 +24,7 @@ import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsS
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -68,7 +69,9 @@ export async function POST(request: Request): Promise<Response> {
 
   // Server-authoritative validation — the client body is untrusted. Strips
   // HTML/control chars and caps length; rejects an empty/HTML-only body.
-  const cleaned = cleanComment(body.handle, body.body);
+  // JWT-linked handle wins over a self-asserted body handle when signed in.
+  const actorHandle = await resolveMessageHandle(request, readString(body.handle));
+  const cleaned = cleanComment(actorHandle, body.body);
   if (!cleaned.ok) return jsonNoStore({ error: cleaned.error }, { status: 400 });
 
   const ownership = await gateHandleAction(request, cleaned.handle);

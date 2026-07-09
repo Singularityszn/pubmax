@@ -28,7 +28,7 @@ import {
 import { ratingsStore } from "@/lib/ratingsStore";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle } from "@/lib/profiles";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -63,7 +63,7 @@ export async function POST(request: Request): Promise<Response> {
   const ref = cleanRef(body.ref) ?? (kind === "venue" ? cleanRef(body.venueId) : null);
   if (!ref) return jsonNoStore({ error: "Add a ref to rate." }, { status: 400 });
 
-  const handle = normalizeHandle(readString(body.handle) ?? "");
+  const handle = await resolveMessageHandle(request, readString(body.handle));
   if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);
@@ -80,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // Rate-limit per handle + hashed IP, like the app's other write routes.
-  const key = `rating:${handle}:${hashIp(clientIp(request))}`;
+  const key = `rating:${ownership.handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
     return jsonNoStore({ error: "Too many ratings, slow down." }, { status: 429 });
   }
@@ -90,7 +90,7 @@ export async function POST(request: Request): Promise<Response> {
       kind,
       ref,
       venueId: cleanRef(body.venueId) ?? undefined,
-      handle,
+      handle: ownership.handle,
       rating,
     });
     return jsonNoStore({ ref, summary }, { status: 200 });

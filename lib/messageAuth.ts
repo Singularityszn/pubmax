@@ -27,6 +27,9 @@ function profileStore(): ProfileStore {
  * Prefer the auth-linked handle when the request carries a valid JWT whose
  * user owns a profile; otherwise return the normalized asserted handle (or ""
  * when neither is available).
+ *
+ * Use this on every private write before `gateHandleAction` so a signed-in
+ * user cannot POST as a different unlinked handle while their JWT is present.
  */
 export async function resolveMessageHandle(
   request: Request,
