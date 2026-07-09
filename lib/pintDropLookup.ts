@@ -10,7 +10,8 @@ import {
   type ViewerContext,
   type Visibility,
 } from "@/lib/pintDrops";
-import { getSupabaseAdmin, isSupabaseConfigured, STORAGE_BUCKET } from "@/lib/supabase";
+import { resolveStorageUrl } from "@/lib/pintDropsStore";
+import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // Standalone Pint Drop permalink lookup (PRD §8). ONE public read: turn a drop
@@ -80,13 +81,9 @@ function toTags(value: unknown): string[] {
   return value.filter((t): t is string => typeof t === "string");
 }
 
-// Build a public Storage URL from a key. getPublicUrl is a pure string build (no
-// network), and only ever runs for a row we already know is visible.
-function publicUrl(key: string | null | undefined): string | null {
-  if (!key) return null;
-  const admin = getSupabaseAdmin();
-  if (!admin) return null;
-  return admin.storage.from(STORAGE_BUCKET).getPublicUrl(key).data.publicUrl;
+// Build a signed Storage URL from a key for a row we already know is visible.
+async function signedPhotoUrl(key: string | null | undefined): Promise<string | null> {
+  return resolveStorageUrl(key, true);
 }
 
 type EnrichFields = {
@@ -269,6 +266,10 @@ export async function getPintDropById(
           .maybeSingle();
         if (!error && data) {
           const row = data as unknown as VisibleRow;
+          const [pintPhotoUrl, venuePhotoUrl] = await Promise.all([
+            signedPhotoUrl(row.pint_photo_key),
+            signedPhotoUrl(row.venue_photo_key),
+          ]);
           return await enrich({
             id: String(row.id),
             venueId: String(row.venue_id),
@@ -281,8 +282,8 @@ export async function getPintDropById(
             createdAt: String(row.created_at ?? ""),
             vibeTags: toTags(row.vibe_tags),
             visibility: cleanVisibility(row.visibility),
-            pintPhotoUrl: publicUrl(row.pint_photo_key),
-            venuePhotoUrl: publicUrl(row.venue_photo_key),
+            pintPhotoUrl,
+            venuePhotoUrl,
           }, viewer);
         }
         // No row (unknown/hidden) or a query error → fall through to memory so a

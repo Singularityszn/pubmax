@@ -56,17 +56,15 @@ Quick post-migration smoke:
 Buckets are not SQL objects, so create it **out of band** (Supabase dashboard → Storage, or the Management API):
 
 - Name: **`pint-drops`** (or whatever `SUPABASE_STORAGE_BUCKET` is set to).
-- **Public read** — photo URLs are served publicly (paths are UUID-based and unguessable).
+- **Private bucket** — disable public read in the Supabase dashboard after deploying signed-URL support (migration `0021_private_pint_drops_storage.sql`). The server emits short-lived signed URLs via `resolveStorageUrl` in `lib/pintDropsStore.ts` and deletes Storage objects on hide/moderation takedown.
 
-> Note: the public bucket serves any object whose URL is known, including objects belonging to hidden drops (the DTO withholds URLs for hidden rows, but a previously-shared URL still resolves). **Current mitigation:** API DTOs return `null` photo URLs for hidden drops. **Next hardening (planned):** private/quarantine Storage with signed URLs, or delete/move objects on hide/takedown so a previously shared URL stops resolving. Fine for the demo; required before real public UGC.
->
-> **TODO (Phase 4 — storage hardening):** migrate the `pint-drops` bucket to private access and serve photos via short-lived signed URLs from API routes; quarantine or delete Storage objects on hide/takedown so previously shared URLs stop resolving. Deferred in the security-hardening wave — too invasive for a single PR alongside session/auth work.
+> **Storage takedown:** hidden drops return `null` photo URLs in DTOs; `deletePhotos` runs when a drop is moderated hidden or auto-hidden by reports so a previously shared signed URL cannot be reissued after takedown. Configure the bucket as **private** so raw object URLs never resolve without a fresh signature.
 
 ### Social privacy boundary
 
 - Public clients must use `/api/*` DTOs only. Social tables are RLS-protected (deny-all or public-read of non-sensitive columns); service-role writes stay server-side.
 - Mutable social/admin responses use `Cache-Control: no-store` via `jsonNoStore` (`lib/apiResponses.ts`) so private inboxes and ownership-gated writes are never CDN-cached.
-- Hidden Pint Drop photos: DTOs null out URLs today; private/quarantine Storage is the next takedown hardening step (see Storage bucket note above).
+- Hidden Pint Drop photos: DTOs null out URLs; Storage objects are deleted on takedown; bucket must be private (see Storage bucket note above).
 
 ## Venue detail artifacts (build-time)
 
