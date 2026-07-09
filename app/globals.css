@@ -4448,8 +4448,8 @@ html[data-legacy="1"] *::after {
   }
 
   .siteNavBarFloating .authSignIn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     justify-content: center;
     padding: 0;
   }
