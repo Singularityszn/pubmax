@@ -51,7 +51,7 @@ type NavLink = {
 // admin console.
 const LINKS: NavLink[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"], accent: "beer" },
-  { key: "feed", href: "/feed", label: "Stories", match: ["/feed"], accent: "cocktail" },
+  { key: "feed", href: "/feed", label: "Feed", match: ["/feed"], accent: "cocktail" },
   { key: "discover", href: "/discover", label: "Drinks", match: ["/discover"], accent: "gin" },
   { key: "borough", href: "/borough", label: "London", match: ["/borough"], accent: "wine" },
   { key: "crawls", href: "/crawls", label: "Crawls", match: ["/crawls"], accent: "rum" },

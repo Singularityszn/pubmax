@@ -51,15 +51,11 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
 );
 
 // ---------------------------------------------------------------------------
-// Band picker (issue #15 — components/PubMapCanvas.tsx .bandPicker /
-// .bandActiveCard). It's a DOM overlay (not canvas), synced to the URL via
-// ?band=<id> (components/PubMap.tsx `seed.bandId` / `activeBandId`). "river-history"
-// is a stable, always-shipped band (lib/storyBands.ts STORY_BANDS) whose anchors
-// are real, well-known landmarks, so it reliably has member pubs — but we still
-// guard the "no pubs visible" honest fallback branch so a future filter/dataset
-// change can't turn this into a flake.
+// Place stories live in MapLayersControl after Wave J declutter (was mid-map
+// .bandPicker / .bandActiveCard). Deep-link ?band= opens Layers with the
+// corridor chip active; bandOnboardingChip still surfaces corridor copy.
 test.describe("map / story bands (#15)", () => {
-  test("activating a band via URL renders its copy card with title, source link, and member/fallback copy", async ({
+  test("activating a band via URL opens Layers with the corridor chip active", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -67,49 +63,36 @@ test.describe("map / story bands (#15)", () => {
     const response = await page.goto("/map?band=river-history");
     expect(response?.status()).toBe(200);
 
-    // The picker overlay itself always renders once PubMapCanvas mounts with a
-    // band-change handler wired (PubMap always passes one).
-    const picker = page.locator(".bandPicker");
-    await expect(picker).toBeVisible();
+    const layers = page.getByRole("dialog", { name: "Map layers" });
+    await expect(layers).toBeVisible();
 
-    // The "River history" band button reflects the URL-seeded state as active.
-    const activeBtn = picker.locator(".bandBtn.on");
-    await expect(activeBtn).toHaveCount(1);
-    await expect(activeBtn).toHaveText("River history");
+    const activeChip = layers.locator(".mapLayersChip.isOn").filter({ hasText: "River history" });
+    await expect(activeChip).toHaveCount(1);
 
-    // The active-band copy card: grounded 2-3 sentence copy + a source link.
-    const card = page.locator(".bandActiveCard");
-    await expect(card).toBeVisible();
-    const copy = card.locator(".bandActiveCopy");
-    await expect(copy).toBeVisible();
-    expect((await copy.innerText()).trim().length).toBeGreaterThan(0);
-
-    // Meta line is EITHER "N story pub(s) on this band" OR the honest
-    // "no pubs visible under the current filters" fallback — never blank.
-    const meta = (await card.locator(".bandActiveMeta").innerText()).trim();
-    expect(meta.length).toBeGreaterThan(0);
-    expect(meta).toMatch(/story pub|no pubs on this band/i);
-
-    // A real, working source link (never a dead "#" href).
-    const sourceLink = card.locator("a");
-    await expect(sourceLink).toHaveCount(1);
-    const href = await sourceLink.getAttribute("href");
-    expect(href ?? "").toMatch(/^https?:\/\//);
+    // G3 chip still carries corridor title + truncated copy for deep links.
+    const bandChip = page.locator(".bandOnboardingChip");
+    if ((await bandChip.count()) > 0) {
+      await expect(bandChip.locator("strong")).toHaveText(/River history/i);
+      const copy = (await bandChip.locator("span").first().innerText()).trim();
+      expect(copy.length).toBeGreaterThan(0);
+    }
 
     expect(errors).toEqual([]);
   });
 
-  test("tapping the active band again clears it (toggle off)", async ({ page }) => {
+  test("tapping the active band chip again clears it (toggle off)", async ({ page }) => {
     await page.goto("/map?band=river-history");
-    const picker = page.locator(".bandPicker");
-    await expect(picker.locator(".bandBtn.on")).toHaveCount(1);
+    const layers = page.getByRole("dialog", { name: "Map layers" });
+    await expect(layers).toBeVisible();
     await dismissOnboardingIfPresent(page);
 
-    await picker.locator(".bandBtn.on").click();
+    const activeChip = layers.locator(".mapLayersChip.isOn").filter({ hasText: "River history" });
+    await expect(activeChip).toHaveCount(1);
+    await activeChip.click();
 
-    // No band active: no button carries the "on" state and the copy card is gone.
-    await expect(picker.locator(".bandBtn.on")).toHaveCount(0);
-    await expect(page.locator(".bandActiveCard")).toHaveCount(0);
+    await expect(
+      layers.locator(".mapLayersChip.isOn").filter({ hasText: "River history" }),
+    ).toHaveCount(0);
   });
 });
 

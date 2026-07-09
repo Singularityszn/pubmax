@@ -234,7 +234,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.24s ease;
+  transition: transform var(--duration-slow) var(--ease-out);
 }
 
 /* The address used to inherit its muted colour from `.venueInspector > p` in
@@ -465,10 +465,10 @@ html[data-legacy="1"] .venueTabPanel::before {
   color: var(--ink-soft);
   border-bottom: 0;
   transition:
-    background-color 0.16s ease,
-    box-shadow 0.16s ease,
-    color 0.16s ease,
-    transform 0.16s ease;
+    background-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .venueTab:hover,

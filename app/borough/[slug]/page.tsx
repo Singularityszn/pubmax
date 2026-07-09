@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
-import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
@@ -48,15 +48,6 @@ function crawlsTouchingBorough(
       );
     }),
   );
-}
-
-// Reproduce a curated crawl on the map — same share-URL shape the crawls page
-// uses (mode=build&pubs=id1,id2).
-function curatedCrawlHref(crawl: CuratedCrawl): string {
-  const params = new URLSearchParams();
-  params.set("mode", "build");
-  params.set("pubs", crawl.venueIds.join(","));
-  return `/map?${params.toString()}`;
 }
 
 // Cap the crawl deep-link to a shareable number of stops — a large borough's
@@ -282,7 +273,7 @@ export default async function BoroughPage({ params }: PageProps) {
                   <p>{crawl.blurb}</p>
                 </div>
                 <Link
-                  href={curatedCrawlHref(crawl)}
+                  href={curatedCrawlMapHref(crawl)}
                   className="boroughCrawlPlanLink"
                   aria-label={`Plan the ${crawl.name} crawl on the map`}
                 >

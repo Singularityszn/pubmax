@@ -23,8 +23,32 @@
   justify-content: flex-start;
 }
 
+/* Wave J declutter — Drinks behind a toggle on all viewports (Airbnb-clean). */
 .mapToolbarDrinksBtn {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex: 0 0 auto;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+
+.mapToolbarDrinksBtn.isActive {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--brass);
 }
 
 .planBtnShort {
@@ -32,9 +56,16 @@
 }
 
 .mapToolbarDrinks {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.mapToolbarDrinks.isOpen {
+  display: flex;
 }
 
 .mapToolbarDrinksLens {
@@ -71,8 +102,15 @@
   letter-spacing: 0.01em;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease,
-    transform 0.16s ease;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.drinkShapeChip:active {
+  transform: scale(0.96);
 }
 
 .drinkShapeChip:hover,
@@ -128,29 +166,6 @@
     display: none;
   }
 
-  .mapToolbarDrinksBtn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    min-height: 34px;
-    padding: 0 10px;
-    border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
-    color: var(--ink-soft);
-    font-size: 0.72rem;
-    font-weight: 800;
-    cursor: pointer;
-    touch-action: manipulation;
-    flex: 0 0 auto;
-  }
-
-  .mapToolbarDrinksBtn.isActive {
-    border-color: var(--brass);
-    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-    color: var(--brass);
-  }
-
   .planBtn {
     min-height: 34px;
     padding: 6px 11px;
@@ -166,17 +181,6 @@
     display: inline;
   }
 
-  .mapToolbarDrinks {
-    display: none;
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  }
-
-  .mapToolbarDrinks.isOpen {
-    display: flex;
-  }
-
   .mapToolbarDrinksLens {
     display: block;
   }
@@ -186,12 +190,15 @@
     padding: 4px 9px 4px 6px;
   }
 
-  /* Sheet / onboarding / planning collision */
-  .appShell.sheet-full .mapToolbar {
+  /* Sheet / onboarding / planning / detail collision */
+  .appShell.sheet-full .mapToolbar,
+  .appShell.detail-open .mapToolbar {
     transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition:
+      transform var(--duration-base) var(--ease-out),
+      opacity var(--duration-base) var(--ease-out);
   }
 
   .appShell.sheet-full .mapLegend,
@@ -200,7 +207,9 @@
     transform: translateY(120%);
     opacity: 0;
     pointer-events: none;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition:
+      transform var(--duration-base) var(--ease-out),
+      opacity var(--duration-base) var(--ease-out);
   }
 
   .appShell.onboarding-open .mapToolbar,
@@ -212,7 +221,9 @@
 
   .mapToolbar,
   .mapLegend {
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition:
+      transform var(--duration-base) var(--ease-out),
+      opacity var(--duration-base) var(--ease-out);
   }
 }
 
@@ -220,6 +231,7 @@
   .drinkShapeChip,
   .appShell.sheet-full .mapToolbar,
   .appShell.sheet-full .mapLegend,
+  .appShell.detail-open .mapToolbar,
   .appShell.onboarding-open .mapToolbar,
   .appShell.onboarding-open .mapLegend,
   .appShell.planning-open .mapToolbar,

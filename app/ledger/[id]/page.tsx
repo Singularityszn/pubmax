@@ -70,6 +70,8 @@ function pintDropStoreFor() {
   return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
 }
 
+// Same posture as /p/[id]: JWT-derived viewer preferred; ?viewer= is
+// development/test fallback only (never unlocks Family Table in production).
 async function resolveViewer(
   searchParams?: PageProps["searchParams"],
 ): Promise<ViewerContext | undefined> {

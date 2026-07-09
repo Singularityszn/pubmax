@@ -261,10 +261,26 @@ export function placeStoryMapHref(bandId: string, crawlId?: string): string {
     const params = new URLSearchParams();
     params.set("mode", "build");
     params.set("pubs", crawl.venueIds.join(","));
+    params.set("crawl", crawl.id);
     params.set("band", bandId);
     return `/map?${params.toString()}`;
   }
   const params = new URLSearchParams({ band: bandId });
+  return `/map?${params.toString()}`;
+}
+
+/**
+ * Map deep-link for a named curated crawl — map-first arrival (polyline + chip,
+ * planner closed). Carries crawl= so PubMap can hydrate the curated blurb.
+ */
+export function curatedCrawlMapHref(crawl: CuratedCrawl): string {
+  const params = new URLSearchParams();
+  params.set("mode", "build");
+  params.set("pubs", crawl.venueIds.join(","));
+  params.set("crawl", crawl.id);
+  if (crawl.crawlStyle) params.set("style", crawl.crawlStyle);
+  if (crawl.altStyle && crawl.altStyle !== "pint") params.set("alt", crawl.altStyle);
+  if (crawl.placeStoryBandId) params.set("band", crawl.placeStoryBandId);
   return `/map?${params.toString()}`;
 }
 
@@ -290,9 +306,11 @@ export function crawlShareMapHref(input: {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", ids.join(","));
+  const crawlId = input.crawlId?.trim();
+  if (crawlId) params.set("crawl", crawlId);
   const band =
     input.placeStoryBandId?.trim() ||
-    (input.crawlId ? curatedCrawlById(input.crawlId)?.placeStoryBandId : undefined);
+    (crawlId ? curatedCrawlById(crawlId)?.placeStoryBandId : undefined);
   if (band) params.set("band", band);
   return `/map?${params.toString()}`;
 }
