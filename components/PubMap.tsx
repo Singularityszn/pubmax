@@ -412,6 +412,9 @@ function filterMapVenues(
   // the initial map load. Treat detail-only filters as unknown/pass for those
   // pins; otherwise a drink/amenity choice such as Low/No or Cocktails would
   // blank the fast map before lazy venue detail has a chance to answer it.
+  //
+  // Batch through filterVenues once per cohort (slim vs hydrated) instead of
+  // calling filterVenues([venue], …) per pin — that was O(n) full filter passes.
   const slimPinFilters = {
     ...filters,
     canonicalOnly: false,
@@ -423,11 +426,16 @@ function filterMapVenues(
     requireWater: false,
     requireHeritage: false,
   };
-  return venues.filter((venue) => {
-    const effectiveFilters =
-      venue.prices.length === 0 && !venue.filterHints ? slimPinFilters : filters;
-    return filterVenues([venue], effectiveFilters, hasPintDrops).length > 0;
-  });
+  const slim: Venue[] = [];
+  const hydrated: Venue[] = [];
+  for (const venue of venues) {
+    if (venue.prices.length === 0 && !venue.filterHints) slim.push(venue);
+    else hydrated.push(venue);
+  }
+  return [
+    ...filterVenues(slim, slimPinFilters, hasPintDrops),
+    ...filterVenues(hydrated, filters, hasPintDrops),
+  ];
 }
 
 function readOnboardingDismissed(): boolean {

@@ -117,10 +117,16 @@ export default function AdminPage() {
     setImportMsg(null);
     const showDismissed = opts?.includeDismissed ?? importShowDismissed;
     try {
+      // Prefer the httpOnly session cookie (same as drop/comment moderation) —
+      // never send the raw ADMIN_TOKEN as a request header from the browser.
+      const authed = await establishSession(t);
+      if (!authed) {
+        setImportNotes([]);
+        setImportMsg("Not authorised — check the admin token.");
+        return;
+      }
       const qs = showDismissed ? "?includeDismissed=1" : "";
-      const res = await fetch(`/api/admin/import-notes${qs}`, {
-        headers: { "x-admin-token": t },
-      });
+      const res = await fetch(`/api/admin/import-notes${qs}`, SESSION_FETCH);
       if (res.status === 403) {
         setImportNotes([]);
         setImportMsg("Not authorised — check the admin token.");
@@ -260,9 +266,15 @@ export default function AdminPage() {
     setImportPending(true);
     setImportMsg(null);
     try {
+      const authed = await establishSession(t);
+      if (!authed) {
+        setImportMsg("Not authorised — check the admin token.");
+        return;
+      }
       const res = await fetch("/api/admin/import-notes", {
+        ...SESSION_FETCH,
         method: "POST",
-        headers: { "content-type": "application/json", "x-admin-token": t },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           body: importBody,
           venueId: importVenueId.trim() || undefined,
@@ -299,9 +311,15 @@ export default function AdminPage() {
     setImportActionId(id);
     setImportMsg(null);
     try {
+      const authed = await establishSession(t);
+      if (!authed) {
+        setImportMsg("Not authorised — check the admin token.");
+        return;
+      }
       const res = await fetch("/api/admin/import-notes", {
+        ...SESSION_FETCH,
         method: "PATCH",
-        headers: { "content-type": "application/json", "x-admin-token": t },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ id, action }),
       });
       const payload = (await res.json().catch(() => ({}))) as {
@@ -316,8 +334,7 @@ export default function AdminPage() {
         setImportMsg(payload.error ?? "Action failed — try again.");
         return;
       }
-      setImportMsg(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored."));
-      await loadImportNotes();
+      setImportMsg(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored."));      await loadImportNotes();
     } catch {
       setImportMsg("Could not reach the server.");
     } finally {

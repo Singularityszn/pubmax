@@ -17,7 +17,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `SUPABASE_STORAGE_BUCKET` | Storage bucket name for Pint Drop photos. Defaults to `pint-drops` if unset. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public Supabase URL used by browser auth/realtime. Usually the same value as `SUPABASE_URL`. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public browser key for Supabase Auth/Realtime. Safe to expose; do **not** use the service-role key. |
-| `ADMIN_TOKEN` | Moderator auth for `/admin` and moderation APIs. Sent as the `x-admin-token` header. If unset, moderation is open **only** in dev/test (`NODE_ENV`) — always set it anywhere reachable, including preview deployments. **Required in production:** `assertServerEnv()` refuses to start if this is unset (FATAL at route import). |
+| `ADMIN_TOKEN` | Moderator auth for `/admin` and moderation APIs. Prefer the httpOnly session cookie from `POST /api/admin/session` (the admin console never needs to keep sending the raw token). The `x-admin-token` header remains accepted for scripts/back-compat. If unset, moderation is open **only** in dev/test (`NODE_ENV`) — always set it anywhere reachable, including preview deployments. **Required in production:** `assertServerEnv()` refuses to start if this is unset (FATAL at route import). |
 | `RATE_LIMIT_SALT` | Salt for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs). Defaults to `pubmax-rate-limit` in dev — set a unique secret in production so hashes aren't computable from public code. **Required in production:** `assertServerEnv()` refuses to start if this is unset or still the dev default. |
 
 ### Optional — The Landlord (heritage Q&A)
@@ -56,9 +56,9 @@ Quick post-migration smoke:
 Buckets are not SQL objects, so create it **out of band** (Supabase dashboard → Storage, or the Management API):
 
 - Name: **`pint-drops`** (or whatever `SUPABASE_STORAGE_BUCKET` is set to).
-- **Private bucket** — disable public read in the Supabase dashboard after deploying signed-URL support (migration `0021_private_pint_drops_storage.sql`). The server emits short-lived signed URLs via `resolveStorageUrl` in `lib/pintDropsStore.ts` and deletes Storage objects on hide/moderation takedown.
+- **Private bucket** — public read is disabled. The server emits short-lived signed URLs via `resolveStorageUrl` / `createSignedUrls` in `lib/pintDropsStore.ts` and deletes Storage objects on hide/moderation takedown.
 
-> **Storage takedown:** hidden drops return `null` photo URLs in DTOs; `deletePhotos` runs when a drop is moderated hidden or auto-hidden by reports so a previously shared signed URL cannot be reissued after takedown. Configure the bucket as **private** so raw object URLs never resolve without a fresh signature.
+> **Storage takedown:** hidden drops return `null` photo URLs in DTOs; `deletePhotos` runs when a drop is moderated hidden or auto-hidden by reports so a previously shared signed URL cannot be reissued after takedown. The bucket must stay **private** so raw object URLs never resolve without a fresh signature.
 
 ### Social privacy boundary
 
@@ -123,6 +123,19 @@ Before pushing a branch:
 3. Push the branch.
 4. Check `gh run list --workflow CI --limit 5` and `gh pr checks <pr-number>` if a PR exists.
 5. Treat Vercel failures as blockers. Treat GitHub Actions `startup_failure`, Supabase Preview, and Greptile as separate integration/review queues.
+
+## Identity boundary (demo vs production private actions)
+
+Linked handles are JWT-gated via `gateHandleAction` / `requireLinkedActor`. Unlinked handles still allow the **demo / anonymous self-asserted** path for map drops and similar public writes — that is intentional product behaviour, not a privacy model.
+
+Production private actions that must not be forgeable:
+
+- Messages, notifications, profile edits, crawl story edit/delete
+- Comments / list-follows when the handle is linked
+- Friends-lane visibility (JWT viewer only; `?viewer=` ignored in production)
+- Admin moderation (httpOnly session cookie)
+
+See `lib/profileOwnership.ts` header comment for the exact decision table.
 
 ## Trust boundary: `x-forwarded-for`
 

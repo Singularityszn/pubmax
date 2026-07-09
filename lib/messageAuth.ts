@@ -40,7 +40,10 @@ export async function resolveMessageHandle(
     const linked = await profileStore().getHandleByUserId(userId);
     if (linked) return linked;
   } catch {
-    // Auth configured but profile lookup failed — keep the demo path alive.
+    // Valid JWT present but profile lookup failed — fail closed. Falling back
+    // to the body handle would let a spoofed handle ride a real session during
+    // a store outage.
+    return "";
   }
   return asserted;
 }

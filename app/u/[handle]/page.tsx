@@ -130,7 +130,10 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
 
     async function load() {
       try {
-        const res = await fetch("/api/pint-drops", { signal: controller.signal });
+        const res = await fetch(
+          `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`,
+          { signal: controller.signal },
+        );
         if (!res.ok) {
           setState("error");
           return;

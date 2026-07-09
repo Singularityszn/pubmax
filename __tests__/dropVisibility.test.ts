@@ -203,6 +203,24 @@ describe("store.listVisible — server-side visibility filtering", () => {
     const pub = await memoryPintDropStore.listVisible("the-crown", follower);
     expect(pub.map((d) => d.id)).not.toContain("leg");
   });
+
+  it("authorHandle scopes the public feed to one handle", async () => {
+    seedAllLanes();
+    addPintDrop(
+      makeDrop({
+        id: "other-pub",
+        handle: "other_ale",
+        visibility: "public",
+        createdAt: "2026-01-06T00:00:00.000Z",
+      }),
+    );
+    const mine = await memoryPintDropStore.listVisible("the-crown", undefined, "author_ale");
+    const ids = mine.map((d) => d.id);
+    expect(ids).toEqual(expect.arrayContaining(["pub", "anon"]));
+    expect(ids).not.toContain("other-pub");
+    expect(ids).not.toContain("fr");
+    expect(ids).not.toContain("leg");
+  });
 });
 
 // ── Anonymity: DTO-leak audit ────────────────────────────────────────────────

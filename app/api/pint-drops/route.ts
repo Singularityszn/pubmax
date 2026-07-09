@@ -312,7 +312,14 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const viewer = await resolveViewer(request);
     const params = new URL(request.url).searchParams;
-    const drops = await pintDropsStore().listVisible(params.get("venueId") ?? undefined, viewer);
+    // ?author= scopes the public feed to one handle (passport / profile). Distinct
+    // from ?viewer=, which only unlocks the friends visibility lane.
+    const author = params.get("author") ?? undefined;
+    const drops = await pintDropsStore().listVisible(
+      params.get("venueId") ?? undefined,
+      viewer,
+      author,
+    );
     return jsonNoStore({ drops: await withVenueNames(drops) }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {
