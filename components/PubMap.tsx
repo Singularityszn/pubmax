@@ -20,7 +20,10 @@ import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/pr
 import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
-import { curatedCrawlById, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlsForCity, curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
+import { landmarksForCity } from "@/lib/cityLandmarks";
+import { storyBandsForCity, bandByIdForCity } from "@/lib/cityStoryBands";
 import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
@@ -37,7 +40,13 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { getSaved } from "@/lib/savedPubs";
-import { loadSlimVenues } from "@/lib/venuesSlim";
+import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
+import {
+  cityMaxBounds,
+  DEFAULT_CITY_ID,
+  getCity,
+  type CityId,
+} from "@/lib/cities";
 import { slimVenuesToPins } from "@/lib/slimPins";
 import { buildRouteLegs } from "@/lib/routeLegs";
 import { haversineKm } from "@/lib/haversine";
@@ -50,7 +59,6 @@ import {
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
-import { bandById } from "@/lib/storyBands";
 import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
@@ -122,14 +130,16 @@ function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters 
 
 /** Resolve a curated crawl from ?crawl= or an exact pubs= stop list match. */
 function resolveSeededCuratedCrawl(
+  cityId: CityId,
   crawlId: string | undefined,
   builtIds: string[],
 ): CuratedCrawl | null {
-  const byId = curatedCrawlById(crawlId);
+  const byId = curatedCrawlByIdForCity(cityId, crawlId);
   if (byId) return byId;
   if (builtIds.length < 2) return null;
+  const cityCrawls = curatedCrawlsForCity(cityId);
   return (
-    curatedCrawls.find(
+    cityCrawls.find(
       (crawl) =>
         crawl.venueIds.length === builtIds.length &&
         crawl.venueIds.every((id, i) => id === builtIds[i]),
@@ -149,7 +159,7 @@ type MapSeed = ReturnType<typeof seedCrawlState> & {
  * Do NOT resurrect a previous hand-built crawl from localStorage on a clean
  * /map tab click — that bloated the address bar with stale ?pubs=… (PR #79).
  */
-function buildMapSeed(search: string): MapSeed {
+function buildMapSeed(search: string, cityId: CityId = DEFAULT_CITY_ID): MapSeed {
   const seeded = seedCrawlState(search);
   // Landing drink-shape taps should land on a clean filtered map.
   if (isDrinkShapeArrival(search)) {
@@ -157,7 +167,7 @@ function buildMapSeed(search: string): MapSeed {
   }
   // Curated / featured arrival: hydrate the named crawl so the polyline +
   // blurb show map-first (planner stays closed via shouldOpenPlanningInitially).
-  const activeCrawl = resolveSeededCuratedCrawl(seeded.crawlId, seeded.builtIds);
+  const activeCrawl = resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
   if (activeCrawl) {
     return {
       ...seeded,
@@ -458,7 +468,15 @@ function readBandChipDismissed(bandId: string): boolean {
   }
 }
 
-export default function PubMap() {
+export default function PubMap({
+  cityId = DEFAULT_CITY_ID,
+}: {
+  cityId?: CityId;
+}) {
+  const city = getCity(cityId);
+  const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
+  const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
+  const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
   const searchParams = useSearchParams();
   useEffect(() => {
     markPubmaxTiming("pubmax:map-chunk-ready");
@@ -469,7 +487,7 @@ export default function PubMap() {
   // URL is the only share/restore source — do NOT resurrect a previous hand-built
   // crawl from localStorage on a clean /map tab click (that bloated the address
   // bar with stale ?mode=build&pubs=… every time someone returned to Map).
-  const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch()));
+  const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch(), cityId));
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
@@ -581,9 +599,12 @@ export default function PubMap() {
   // Issue #35 — stage 1: paint pins from the slim index. This resolves in ~400 KB
   // (or instantly from IndexedDB), and is the ONLY initial venue payload for the
   // map. Full pub detail is fetched lazily via /api/venue/[id] when inspected.
+  // Non-London cities load `/data/cities/{id}/venues_slim.json` via CityConfig.
   useEffect(() => {
     let cancelled = false;
-    loadSlimVenues()
+    setLoaded(false);
+    setSlimPins([]);
+    loadSlimVenuesForCity(cityId)
       .then((slim) => {
         if (cancelled || slim.length === 0) return;
         setSlimPins(slimVenuesToPins(slim));
@@ -600,7 +621,7 @@ export default function PubMap() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [cityId]);
 
   useEffect(() => {
     if (!selectedVenueId || detailById.has(selectedVenueId)) return;
@@ -1064,7 +1085,10 @@ export default function PubMap() {
 
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
-  const activeBand = useMemo(() => bandById(activeBandId), [activeBandId]);
+  const activeBand = useMemo(
+    () => bandByIdForCity(cityId, activeBandId),
+    [cityId, activeBandId],
+  );
   const showBandChip = shouldShowBandOnboardingChip({
     loaded,
     activeBandId,
@@ -1085,7 +1109,7 @@ export default function PubMap() {
     showBandChip,
   });
   // Show the first four curated crawls as the onboarding picks.
-  const onboardingCrawls = curatedCrawls.slice(0, 4);
+  const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
 
   return (
     <main
@@ -1120,7 +1144,7 @@ export default function PubMap() {
             role="status"
             aria-busy="true"
             aria-live="polite"
-            aria-label="Checking cached pins, then pouring London's pubs onto the map."
+            aria-label={`Checking cached pins, then pouring ${city.displayName}'s pubs onto the map.`}
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -1133,7 +1157,7 @@ export default function PubMap() {
             </div>
             <div className="mapLoadingCopy">
               <span className="mapLoadingEyebrow">Cached pins</span>
-              <span>Pouring London&rsquo;s pubs onto the map.</span>
+              <span>Pouring {city.displayName}&rsquo;s pubs onto the map.</span>
             </div>
           </div>
         ) : null}
@@ -1155,6 +1179,12 @@ export default function PubMap() {
           onAskPubmaxxer={askPubmaxxerAtPub}
           initialLandmarkId={seed.landmarkId}
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
+          mapView={city.mapView}
+          maxBounds={cityMaxBounds(city)}
+          poisPath={city.poisPath}
+          transitLinesPath={city.transitLinesPath}
+          cityLandmarks={cityLandmarks}
+          cityStoryBands={cityStoryBands}
         />
         <MapToolbar
           query={filters.query}
@@ -1177,6 +1207,7 @@ export default function PubMap() {
           onTogglePlanning={() => setPlanningOpen((open) => !open)}
           filters={filters}
           onFiltersChange={setFilters}
+          cityId={cityId}
         />
         {logIntentFallbackVisible ? (
           <div style={LOG_INTENT_FALLBACK_STYLE} role="status" aria-live="polite">
@@ -1344,7 +1375,7 @@ export default function PubMap() {
               onClick={() => setPlanningOpen(false)}
             >
               <MapPinned size={16} aria-hidden="true" />
-              View London map
+              View {city.displayName} map
             </button>
             <ControlRail
               mode={mode}
@@ -1360,6 +1391,7 @@ export default function PubMap() {
               nearbyError={nearbyError}
               savedOnly={savedOnly}
               onSavedOnlyChange={changeSavedOnly}
+              curatedCrawls={cityCuratedCrawls}
             />
             <RoutePanel
               mode={mode}
@@ -1382,6 +1414,8 @@ export default function PubMap() {
               onSelectVenue={selectVenue}
               onToggleStop={toggleBuiltStop}
               onReverseRoute={reverseRoute}
+              cityDisplayName={city.displayName}
+              poisPath={city.poisPath}
             >
               {loaded && filteredVenues.length === 0 ? (
                 savedOnly && savedIds.size === 0 ? (
@@ -1490,6 +1524,9 @@ export default function PubMap() {
               onGrabDragMove={onSheetDragMove}
               onGrabDragEnd={onSheetDragEnd}
               onTabSelect={handleInspectorTabSelect}
+              cityLandmarks={cityLandmarks}
+              cityStoryBands={cityStoryBands}
+              cityCuratedCrawls={cityCuratedCrawls}
             />
           </>
         ) : null}

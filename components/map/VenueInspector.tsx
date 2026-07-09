@@ -24,10 +24,10 @@ import { venueMenuForInspector } from "@/lib/venueMenu";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
 import { directVenueImageUrl } from "@/lib/venueImages";
-import { bandsForVenue } from "@/lib/storyBands";
-import { nearestLandmarks } from "@/lib/landmarks";
+import { bandsForVenue, STORY_BANDS, type StoryBand } from "@/lib/storyBands";
+import { landmarks as londonLandmarks, nearestLandmarks, type Landmark } from "@/lib/landmarks";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
-import { curatedCrawlsForBand, placeStoryMapHref } from "@/lib/curatedCrawls";
+import { curatedCrawlsForBand, placeStoryMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
@@ -95,6 +95,12 @@ type VenueInspectorProps = {
   onGrabDragMove?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
   onTabSelect?: (key: TabKey) => void;
+  /** City landmark catalog for Lore "Around here". Defaults to London. */
+  cityLandmarks?: Landmark[];
+  /** City Place-story corridors. Defaults to London. */
+  cityStoryBands?: StoryBand[];
+  /** City curated crawls for Place-story deep links. Defaults to London. */
+  cityCuratedCrawls?: CuratedCrawl[];
 };
 
 export default function VenueInspector({
@@ -110,6 +116,9 @@ export default function VenueInspector({
   onGrabDragMove,
   onGrabDragEnd,
   onTabSelect,
+  cityLandmarks = londonLandmarks,
+  cityStoryBands = STORY_BANDS,
+  cityCuratedCrawls,
 }: VenueInspectorProps) {
   const { dropsByVenueId, composerOpen, setComposerOpen, dropMsg, reportDrop } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
@@ -229,10 +238,13 @@ export default function VenueInspector({
 
   // Place stories (Wave D): which curated corridors pass through this venue,
   // plus nearby landmark names for the Lore "Around here" section.
-  const placeStories = useMemo(() => bandsForVenue(venue), [venue]);
+  const placeStories = useMemo(
+    () => bandsForVenue(venue, cityStoryBands, cityLandmarks),
+    [venue, cityStoryBands, cityLandmarks],
+  );
   const aroundHere = useMemo(
-    () => nearestLandmarks([venue.longitude, venue.latitude], 3, 0.75),
-    [venue.latitude, venue.longitude],
+    () => nearestLandmarks([venue.longitude, venue.latitude], 3, 0.75, cityLandmarks),
+    [venue.latitude, venue.longitude, cityLandmarks],
   );
   // Soft cuisine chips (Wave E) — curated id map ∪ searchText keywords.
   const cuisineTags = useMemo(
@@ -670,7 +682,7 @@ export default function VenueInspector({
             <div className="placeStoryList">
               {placeStories.map((band) => {
                 const source = band.sources[0];
-                const storyCrawls = curatedCrawlsForBand(band.id);
+                const storyCrawls = curatedCrawlsForBand(band.id, cityCuratedCrawls);
                 const primaryCrawl = storyCrawls[0];
                 return (
                   <article key={band.id} className="placeStoryCard">

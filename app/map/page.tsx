@@ -1,6 +1,6 @@
 import PubMaxingShell from "@/components/PubMaxingShell";
 
-// The working planner lives at /map. The landing page owns / and links here.
+// /map stays London for back-compat bookmarks. Other cities live at /map/[city].
 export default function MapPage() {
-  return <PubMaxingShell />;
+  return <PubMaxingShell cityId="london" />;
 }

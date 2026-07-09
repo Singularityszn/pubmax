@@ -20,6 +20,8 @@
     "validate-data": "node scripts/validate-data.mjs",
     "export:data": "python3 scripts/export_app_dataset_json.py",
     "build:slim": "node scripts/build_slim_index.mjs",
+    "fetch:city-pubs": "node scripts/fetch_city_osm_pubs.mjs",
+    "build:city-slim": "node scripts/build_city_slim_index.mjs",
     "build:pubmaxxing-seed": "node scripts/build_pubmaxxing_seed.mjs",
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
