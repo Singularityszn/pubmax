@@ -66,6 +66,37 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 - Mutable social/admin responses use `Cache-Control: no-store` via `jsonNoStore` (`lib/apiResponses.ts`) so private inboxes and ownership-gated writes are never CDN-cached.
 - Hidden Pint Drop photos: DTOs null out URLs; Storage objects are deleted on takedown; bucket must be private (see Storage bucket note above).
 
+### 3. Browser sign-in (Google + Microsoft)
+
+The app calls Supabase Auth OAuth (`signInWithOAuth`) and finishes the PKCE exchange at `/auth/callback`. Secrets stay in the Supabase dashboard — the Next.js app only needs the public URL + publishable key above.
+
+#### Shared Supabase URL config
+
+Dashboard → Authentication → URL Configuration:
+
+| Setting | Value |
+|---|---|
+| Site URL | `https://pubmaxxing.com` (production) |
+| Redirect URLs | `https://pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback`, plus any preview hosts you use |
+
+#### Google
+
+1. Google Cloud Console → create an OAuth client (Web).
+2. Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback` (and optionally your site callback if you also list it there).
+3. Supabase → Authentication → Providers → **Google** → paste Client ID + Client Secret → Enable.
+
+#### Microsoft (Outlook / Entra)
+
+Supabase’s provider id is **Azure** (the app code uses `provider: "azure"`).
+
+1. Microsoft Entra admin center → App registrations → New registration.
+2. Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (so Outlook/Hotmail work, not only work tenants).
+3. Redirect URI (platform **Web**): `https://<project-ref>.supabase.co/auth/v1/callback`.
+4. Certificates & secrets → create a client secret; copy the **Application (client) ID** and the secret value.
+5. Supabase → Authentication → Providers → **Azure** → paste Client ID + Client Secret → Enable. Leave Tenant URL / ID as the default “common” multi-tenant endpoint unless you intentionally lock to one tenant.
+
+Until a provider is enabled in Supabase, its button opens the IdP and then fails the redirect — that is expected dashboard setup, not an app bug.
+
 ## Venue detail artifacts (build-time)
 
 `npm run prebuild` runs `build:slim`, which generates both the browser slim index and the server-only venue detail pack:

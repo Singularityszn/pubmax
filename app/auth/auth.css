@@ -1,5 +1,13 @@
 /* Auth UI — token-driven, matches the pub-guidebook surfaces. Scoped to the
-   sign-in button + signed-in menu so it can't leak into the rest of the app. */
+   sign-in buttons + signed-in menu so it can't leak into the rest of the app. */
+
+.authProviders {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
 
 .authSignIn {
   display: inline-flex;
@@ -26,19 +34,19 @@
 }
 
 /* Full vs. short label: only one renders at a time (both are real text, not a
-   display:none replacement of the accessible name — the button keeps its own
-   aria-label="Continue with Google" regardless of which is visible). Default
-   (room to spare) shows the full label; ≤480px swaps to "Sign in" so the
-   button never crowds or clips the nav at 390px alongside the wordmark and
-   theme toggle. */
+   display:none replacement of the accessible name — each button keeps its own
+   aria-label regardless of which is visible). Default (room to spare) shows
+   the full label; ≤720px swaps to short provider names so Google + Microsoft
+   never crowd or clip the nav at 390px alongside the wordmark and theme toggle. */
 .authSignInLabelShort {
   display: none;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 720px) {
   .authSignIn {
-    padding: 0.5rem 0.7rem;
-    font-size: 0.85rem;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.82rem;
+    gap: 0.35rem;
   }
 
   .authSignInLabelFull {
@@ -47,6 +55,22 @@
 
   .authSignInLabelShort {
     display: inline;
+  }
+}
+
+/* At phone widths, drop the text and keep the brand mark + aria-label so two
+   providers fit beside the wordmark without horizontal overflow. */
+@media (max-width: 480px) {
+  .authProviders {
+    gap: 0.3rem;
+  }
+
+  .authSignIn {
+    padding: 0.45rem;
+  }
+
+  .authSignInLabelShort {
+    display: none;
   }
 }
 
@@ -64,8 +88,8 @@
   cursor: not-allowed;
 }
 
-/* Google "G" keeps its own brand colours (never token-tinted). */
-.authGoogleMark {
+/* Provider marks keep their own brand colours (never token-tinted). */
+.authProviderMark {
   display: inline-block;
   flex: 0 0 auto;
   width: 18px;
@@ -77,6 +101,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .authAvatar {
@@ -142,4 +168,6 @@
 .authError {
   font-size: 0.8rem;
   color: var(--brick);
+  width: 100%;
+  text-align: right;
 }
