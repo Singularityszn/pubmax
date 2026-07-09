@@ -114,6 +114,9 @@ export function crawlPackCountForCity(cityId: CityId): number {
     case "manchester":
     case "glasgow":
     case "liverpool":
+    case "cambridge":
+    case "durham":
+    case "bristol":
       return curatedCrawlsForCity(cityId).length;
     default:
       return 0;

@@ -88,6 +88,10 @@ describe("buildCityRivalrySnapshot / cityRivalryLeaderboard", () => {
     expect(crawlPackCountForCity("liverpool")).toBeGreaterThanOrEqual(3);
     expect(crawlPackCountForCity("oxford")).toBe(0);
     expect(crawlPackCountForCity("glasgow")).toBeGreaterThanOrEqual(3);
+    expect(crawlPackCountForCity("cambridge")).toBeGreaterThanOrEqual(2);
+    expect(crawlPackCountForCity("durham")).toBeGreaterThanOrEqual(2);
+    expect(crawlPackCountForCity("bristol")).toBeGreaterThanOrEqual(2);
+    expect(crawlPackCountForCity("bath")).toBe(0);
   });
 
   it("cityRivalryLeaderboard aliases the snapshot", () => {

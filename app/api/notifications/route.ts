@@ -31,6 +31,10 @@ export async function GET(request: Request): Promise<Response> {
   if (!handle) return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
+    // Fail-soft on store outage: empty bell keeps chrome rendering.
+    if (ownership.status === 503) {
+      return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
+    }
     return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
   const inbox = await notificationsStore().list(handle);

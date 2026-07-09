@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import ShareBar from "@/components/share/ShareBar";
 import type { PassportData } from "@/lib/passport";
 
 // The Pint Passport (user story 29): a collectible field-guide "passport page"
@@ -24,6 +25,8 @@ type PintPassportProps = {
   // When true, this is the viewer's OWN passport (drives first-run CTA copy:
   // "start yours" vs a neutral empty state for someone else's fresh handle).
   isOwn?: boolean;
+  // When true, lift the passport into the profile hero (own profile /u/you).
+  hero?: boolean;
 };
 
 function formatGbp(value: number | null): string {
@@ -39,7 +42,13 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-export default function PintPassport({ handle, displayName, data, isOwn }: PintPassportProps) {
+export default function PintPassport({
+  handle,
+  displayName,
+  data,
+  isOwn,
+  hero = false,
+}: PintPassportProps) {
   const {
     pubs,
     boroughs,
@@ -52,8 +61,17 @@ export default function PintPassport({ handle, displayName, data, isOwn }: PintP
     isEmpty,
   } = data;
 
+  const shareUrl = `/u/${encodeURIComponent(handle)}`;
+  const shareTitle = `${displayName}'s Pint Passport — PUBMAXXING`;
+  const shareText = isEmpty
+    ? `Start a Pint Passport on PUBMAXXING — every pint stamps a page.`
+    : `${displayName} · ${pubs} pubs · ${boroughs.length} boroughs · ${pints} pints on PUBMAXXING`;
+
   return (
-    <section className="pintPassport" aria-labelledby="passportHeading">
+    <section
+      className={`pintPassport${hero ? " pintPassport--hero" : ""}`}
+      aria-labelledby="passportHeading"
+    >
       <header className="passportHead">
         <div>
           <p className="passportKicker" aria-hidden="true">
@@ -127,6 +145,12 @@ export default function PintPassport({ handle, displayName, data, isOwn }: PintP
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {!isEmpty || isOwn ? (
+        <div className="passportShare">
+          <ShareBar url={shareUrl} title={shareTitle} text={shareText} />
+        </div>
       ) : null}
     </section>
   );

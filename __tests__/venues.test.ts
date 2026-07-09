@@ -274,6 +274,32 @@ describe("filterVenues", () => {
     expect(filterVenues([beerOnly], makeFilters({ drinkBrand: "guinness" }))).toHaveLength(1);
   });
 
+  it("does not match drinkBrand against pub name buried in filterHints.searchText", () => {
+    const [base] = groupVenuePrices([makeRow({ pub_name: "The Gordon Arms", price_gbp: 5 })]);
+    const named = {
+      ...base,
+      prices: [],
+      cheapestPint: "",
+      amenities: { ...base.amenities, cocktails: false },
+      filterHints: {
+        // Slim index still puts pub_name into searchText for general query —
+        // drink brand matching must ignore it.
+        searchText: "the gordon arms lager",
+        amenities: {
+          food: false,
+          cocktails: false,
+          beerGarden: false,
+          liveSports: false,
+          nonAlcoholic: false,
+        },
+        curation: { nearWater: false, hasStory: false },
+        canonical: true,
+        drinkCategories: ["beer"],
+      },
+    };
+    expect(filterVenues([named], makeFilters({ drinkBrand: "gordon" }))).toHaveLength(0);
+  });
+
   it("treats cocktail amenity as a drinkCategory=cocktail match", () => {
     const [venue] = groupVenuePrices([
       makeRow({ pub_name: "Cocktail Corner", cocktails: "yes", price_gbp: 6 }),

@@ -44,6 +44,11 @@ export async function GET(request: Request): Promise<Response> {
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
+    // Fail-soft on store outage: empty inbox keeps the page rendering.
+    // Keep 401/403 as hard errors so ownership denials stay visible.
+    if (ownership.status === 503) {
+      return jsonNoStore({ conversations: [] }, { status: 200 });
+    }
     return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
   const conversations = await messagesStore().listConversations(handle);

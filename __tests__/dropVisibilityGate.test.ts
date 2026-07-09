@@ -15,12 +15,13 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
-import { GET as getComments } from "@/app/api/pint-drops/comments/route";
+import { GET as getComments, POST as postComment } from "@/app/api/pint-drops/comments/route";
 import { GET as getReactions, POST as postReaction } from "@/app/api/pint-drops/reactions/route";
 import { __addMemoryCommentForTest, __resetMemoryComments } from "@/lib/commentsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
-import { __resetMemoryReactions } from "@/lib/reactionsStore";
+import { __addMemoryReactionForTest, __resetMemoryReactions } from "@/lib/reactionsStore";
+import { hashActor } from "@/lib/supabase";
 
 const COMMENTS_URL = "http://localhost/api/pint-drops/comments";
 const REACTIONS_URL = "http://localhost/api/pint-drops/reactions";
@@ -135,16 +136,11 @@ describe("GET /api/pint-drops/comments — parent visibility gate (F3)", () => {
 
 describe("GET /api/pint-drops/reactions — parent visibility gate (F3)", () => {
   it("excludes hidden/legacy/friends ids from the batched summary, keeps visible ones", async () => {
-    // Toggle a reaction on each drop directly (the memory store has no FK, so
-    // any id is toggleable — the gate under test is on the batched GET).
+    // Seed via the memory store helper — POST is now gated and would 404
+    // hidden/legacy parents (the write-gate coverage lives below).
+    const actor = hashActor("dev-1");
     for (const id of ["drop-visible", "drop-hidden", "drop-legacy", "drop-anon"]) {
-      const res = await postReaction(
-        new Request(REACTIONS_URL, {
-          method: "POST",
-          body: JSON.stringify({ id, actor: "dev-1", reaction: "cheers" }),
-        }),
-      );
-      expect(res.status).toBe(200);
+      __addMemoryReactionForTest(id, actor, "cheers");
     }
 
     const res = await summaries(["drop-visible", "drop-hidden", "drop-legacy", "drop-friends", "drop-anon"]);
@@ -169,5 +165,55 @@ describe("GET /api/pint-drops/reactions — parent visibility gate (F3)", () => 
     const { summaries: map } = await res.json();
     expect(Object.keys(map).sort()).toEqual(["drop-visible", "mystery-1"]);
     expect(map["mystery-1"]).toEqual({ counts: {}, mine: [] });
+  });
+});
+
+describe("POST /api/pint-drops/comments — parent visibility gate (F3)", () => {
+  it("still accepts comments on a visible public drop", async () => {
+    const res = await postComment(
+      new Request(COMMENTS_URL, {
+        method: "POST",
+        body: JSON.stringify({ dropId: "drop-visible", handle: "ale", body: "cheers" }),
+      }),
+    );
+    expect(res.status).toBe(201);
+  });
+
+  it("404s comments on hidden/legacy/friends drops", async () => {
+    for (const id of ["drop-hidden", "drop-legacy", "drop-friends"]) {
+      const res = await postComment(
+        new Request(COMMENTS_URL, {
+          method: "POST",
+          body: JSON.stringify({ dropId: id, handle: "ale", body: "nope" }),
+        }),
+      );
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: "Pint drop not found." });
+    }
+  });
+});
+
+describe("POST /api/pint-drops/reactions — parent visibility gate (F3)", () => {
+  it("404s toggles on hidden/legacy/friends drops", async () => {
+    for (const id of ["drop-hidden", "drop-legacy", "drop-friends"]) {
+      const res = await postReaction(
+        new Request(REACTIONS_URL, {
+          method: "POST",
+          body: JSON.stringify({ id, actor: "dev-1", reaction: "cheers" }),
+        }),
+      );
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: "Pint drop not found." });
+    }
+  });
+
+  it("still accepts toggles on a visible public drop", async () => {
+    const res = await postReaction(
+      new Request(REACTIONS_URL, {
+        method: "POST",
+        body: JSON.stringify({ id: "drop-visible", actor: "dev-1", reaction: "cheers" }),
+      }),
+    );
+    expect(res.status).toBe(200);
   });
 });

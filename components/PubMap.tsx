@@ -58,6 +58,7 @@ import {
   shouldRunMapLogIntent,
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
+import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   bandChipDismissedKey,
@@ -389,10 +390,6 @@ const LOG_NEARBY_BTN_STYLE: CSSProperties = {
 
 type VenueDetailStatus = "idle" | "loading" | "ready" | "unavailable";
 
-type VenueDetailResponse = {
-  venue?: Venue;
-};
-
 type UserLocation = {
   lat: number;
   lng: number;
@@ -627,20 +624,16 @@ export default function PubMap({
 
   useEffect(() => {
     if (!selectedVenueId || detailById.has(selectedVenueId)) return;
+    // Always go through warmVenueDetail (cache hit → Promise.resolve) so we
+    // never setState synchronously in the effect body (react-hooks/set-state-in-effect).
     let cancelled = false;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-    fetch(`/api/venue/${encodeURIComponent(selectedVenueId)}`, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then((data: VenueDetailResponse) => {
+    warmVenueDetail(selectedVenueId)
+      .then((venue) => {
         if (cancelled) return;
-        if (data.venue?.id !== selectedVenueId) throw new Error("Bad venue detail payload");
+        if (!venue) throw new Error("Bad venue detail payload");
         setDetailById((current) => {
           const next = new Map(current);
-          next.set(selectedVenueId, data.venue!);
+          next.set(selectedVenueId, venue);
           return next;
         });
         setDetailStatusById((current) => {
@@ -656,14 +649,9 @@ export default function PubMap({
           next.set(selectedVenueId, "unavailable");
           return next;
         });
-      })
-      .finally(() => {
-        clearTimeout(timeout);
       });
     return () => {
       cancelled = true;
-      clearTimeout(timeout);
-      controller.abort();
     };
   }, [selectedVenueId, detailById]);
 
@@ -800,6 +788,8 @@ export default function PubMap({
 
   const prefetchVenueDetail = useCallback((id: string) => {
     prefetchVenue(id);
+    // Also populate the shared warm cache so select can skip a second fetch.
+    void warmVenueDetail(id);
   }, []);
 
   const logNearbyCandidates = useMemo(

@@ -188,7 +188,7 @@ export default function ProfileTimeline({
       const res = await fetch("/api/pint-drops/reactions", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ dropId, reaction, actor: actorId }),
+        body: JSON.stringify({ id: dropId, reaction, actor: actorId }),
       });
       if (res.status === 404) {
         localOnly.current.add(dropId);

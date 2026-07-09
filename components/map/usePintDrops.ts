@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { getAnonId } from "@/lib/anonId";
+import { authedFetch } from "@/lib/authedFetch";
 import type { CityId } from "@/lib/cities";
 import type { PintDropDTO } from "@/lib/feed";
 import {
@@ -333,6 +334,37 @@ export function usePintDrops(cityId: CityId = "london") {
       return next;
     });
 
+    // Instant post UX (IDEAS A2): close the composer immediately and reconcile
+    // in the background. Failures keep the optimistic card in a retryable state.
+    // Capture form fields BEFORE resetComposer clears them.
+    const submittedHandle = handle.trim();
+    const submittedDrink = dropForm.drink;
+    const submittedPrice = dropForm.price;
+    const submittedEra = dropForm.era;
+    const submittedVisibility = visibility;
+    const submittedVibeTags = [...vibeTags];
+    const submittedPintFile = pintPhoto?.file ?? null;
+    const submittedVenueFile = venuePhoto?.file ?? null;
+    clearPintDropDraft(
+      typeof window === "undefined" ? null : window.sessionStorage,
+      venueId,
+    );
+    try {
+      window.localStorage.setItem("pubmax_handle", submittedHandle);
+    } catch {
+      // Storage blocked — handle can be re-entered later.
+    }
+    resetComposer();
+    setComposerOpen(false);
+    setSubmitting(false);
+    setDropMsg({
+      ok: true,
+      text: publishToFeed
+        ? "Cheers — posting to the feed…"
+        : "Cheers — saving your Pint Drop…",
+      links: [{ href: "/feed", label: "See the feed" }],
+    });
+
     const markFailed = (message: string) => {
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
@@ -358,116 +390,99 @@ export function usePintDrops(cityId: CityId = "london") {
         );
         return next;
       });
+      setDropMsg({ ok: false, text: message });
     };
 
     try {
       // multipart/form-data — do NOT set Content-Type, the browser adds the boundary.
       const body = new FormData();
       body.set("venueId", venueId);
-      body.set("handle", handle);
-      body.set("drink", dropForm.drink);
-      body.set("priceGbp", dropForm.price);
+      body.set("handle", submittedHandle);
+      body.set("drink", submittedDrink);
+      body.set("priceGbp", submittedPrice);
       // "With" has no server column (frozen API contract) — folded into the
       // note as a structured suffix ("— with @sam, @priya") at submit time, so
       // every surface that renders passedDownNote gets it for free. See
       // lib/spill.ts for the exact format.
       body.set("passedDownNote", passedDownNote);
-      body.set("era", dropForm.era);
-      body.set("visibility", visibility);
+      body.set("era", submittedEra);
+      body.set("visibility", submittedVisibility);
       // Repeated field entries — the route also accepts one comma-separated
       // value; the server re-filters against its allowlist either way.
-      for (const tag of vibeTags) body.append("vibe_tags", tag);
+      for (const tag of submittedVibeTags) body.append("vibe_tags", tag);
       if (trainFields) {
         body.set("leaveByIso", trainFields.leaveByIso);
         body.set("lastTrainDecision", trainFields.lastTrainDecision);
       }
-      if (pintPhoto) body.set("pint_photo", pintPhoto.file);
-      if (venuePhoto) body.set("venue_photo", venuePhoto.file);
+      if (submittedPintFile) body.set("pint_photo", submittedPintFile);
+      if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
 
-      const response = await fetch("/api/pint-drops", { method: "POST", body });
+      const response = await authedFetch("/api/pint-drops", { method: "POST", body });
       const data = await response.json();
       if (!response.ok) {
-        const message = data.error ?? "Could not save that drop.";
-        markFailed(message);
-        setDropMsg({ ok: false, text: message });
-      } else {
-        const reconciledDrop = {
-          ...(data.drop as PintDropDTO),
-          venueName: options?.venueName,
-          venueMapUrl: `/map?sel=${encodeURIComponent(venueId)}`,
-        };
-        if (publishToFeed) {
-          updateOptimisticFeedStorage((current) =>
-            reconcileOptimisticSpill(current, clientRequestId, reconciledDrop),
-          );
-        }
-        setDropsByVenueId((current) => {
-          const next = new Map(current);
-          next.set(venueId, [
-            data.drop,
-            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
-          ]);
-          return next;
-        });
-        clearPintDropDraft(
-          typeof window === "undefined" ? null : window.sessionStorage,
-          venueId,
+        markFailed(data.error ?? "Could not save that drop.");
+        return;
+      }
+
+      const reconciledDrop = {
+        ...(data.drop as PintDropDTO),
+        venueName: options?.venueName,
+        venueMapUrl: `/map?sel=${encodeURIComponent(venueId)}`,
+      };
+      if (publishToFeed) {
+        updateOptimisticFeedStorage((current) =>
+          reconcileOptimisticSpill(current, clientRequestId, reconciledDrop),
         );
-        try {
-          window.localStorage.setItem("pubmax_handle", handle.trim());
-        } catch {
-          // A successful Pint Drop should not become a failed post because
-          // browser storage is blocked/full. The handle can be re-entered later.
-        }
+      }
+      setDropsByVenueId((current) => {
+        const next = new Map(current);
+        next.set(venueId, [
+          data.drop,
+          ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
+        ]);
+        return next;
+      });
 
-        // Loop 2: if a Round is open, append this pub as a stop (existing
-        // addStop API). Fail-soft — the drop already landed.
-        const activeRound = readActiveRoundCode();
-        const dropId =
-          data.drop && typeof data.drop === "object" && typeof (data.drop as { id?: unknown }).id === "string"
-            ? (data.drop as { id: string }).id
-            : undefined;
-        let addedToNight = false;
-        if (activeRound && handle.trim()) {
-          addedToNight = await appendStopToActiveRound({
-            code: activeRound,
-            handle: handle.trim(),
-            venueId,
-            venueName: options?.venueName ?? "A London pub",
-            dropRef: dropId,
-          });
-        }
-
-        resetComposer();
-        setComposerOpen(false);
-        // Post-drop "added to your night" moment — tasteful next actions, not a modal.
-        const links: NonNullable<DropMsg["links"]> = [
-          { href: "/feed", label: "See the feed" },
-        ];
-        if (addedToNight) {
-          links.push({
-            href: `/bar-tab/${encodeURIComponent(venueId)}`,
-            label: "Bar tab",
-          });
-          const cleanHandle = handle.trim().replace(/^@+/, "");
-          if (cleanHandle) {
-            links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
-          }
-        }
-        setDropMsg({
-          ok: true,
-          text: addedToNight
-            ? "Cheers — added to your night."
-            : "Cheers — your Pint Drop is live.",
-          links,
+      // Loop 2: if a Round is open, append this pub as a stop (existing
+      // addStop API). Fail-soft — the drop already landed.
+      const activeRound = readActiveRoundCode();
+      const dropId =
+        data.drop && typeof data.drop === "object" && typeof (data.drop as { id?: unknown }).id === "string"
+          ? (data.drop as { id: string }).id
+          : undefined;
+      let addedToNight = false;
+      if (activeRound && submittedHandle) {
+        addedToNight = await appendStopToActiveRound({
+          code: activeRound,
+          handle: submittedHandle,
+          venueId,
+          venueName: options?.venueName ?? "A London pub",
+          dropRef: dropId,
         });
       }
+
+      const links: NonNullable<DropMsg["links"]> = [
+        { href: "/feed", label: "See the feed" },
+      ];
+      if (addedToNight) {
+        links.push({
+          href: `/bar-tab/${encodeURIComponent(venueId)}`,
+          label: "Bar tab",
+        });
+        const cleanHandle = submittedHandle.replace(/^@+/, "");
+        if (cleanHandle) {
+          links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
+        }
+      }
+      setDropMsg({
+        ok: true,
+        text: addedToNight
+          ? "Cheers — added to your night."
+          : "Cheers — your Pint Drop is live.",
+        links,
+      });
     } catch {
-      const message = "Network or storage error — try again.";
-      markFailed(message);
-      setDropMsg({ ok: false, text: message });
-    } finally {
-      setSubmitting(false);
+      markFailed("Network or storage error — try again.");
     }
   }
 

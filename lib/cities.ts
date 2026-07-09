@@ -1,7 +1,7 @@
 // Multi-city map configuration foundation.
 // London stays the default flagship. Every city with a shipped OSM slim pack is
-// enabled for browse; Manchester, Glasgow, Oxford, and Liverpool also ship
-// editorial landmarks/crawls/POIs.
+// enabled for browse; Manchester, Glasgow, Oxford, Liverpool, Cambridge,
+// Durham, and Bristol also ship editorial landmarks/crawls/POIs.
 
 export type CityId =
   | "london"
@@ -141,7 +141,7 @@ export const CITIES: Record<CityId, CityConfig> = {
     bounds: { latMin: 54.76, latMax: 54.8, lonMin: -1.6, lonMax: -1.54 },
     mapView: { center: [-1.575, 54.78], zoom: 13 },
     slimVenuesPath: "/data/cities/durham/venues_slim.json",
-    poisPath: null,
+    poisPath: "/data/cities/durham/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
     enabled: true,
@@ -167,7 +167,7 @@ export const CITIES: Record<CityId, CityConfig> = {
     bounds: { latMin: 51.42, latMax: 51.5, lonMin: -2.65, lonMax: -2.52 },
     mapView: { center: [-2.59, 51.45], zoom: 11.8 },
     slimVenuesPath: "/data/cities/bristol/venues_slim.json",
-    poisPath: null,
+    poisPath: "/data/cities/bristol/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
     enabled: true,
@@ -180,7 +180,7 @@ export const CITIES: Record<CityId, CityConfig> = {
     bounds: { latMin: 52.18, latMax: 52.24, lonMin: 0.08, lonMax: 0.16 },
     mapView: { center: [0.12, 52.205], zoom: 12.4 },
     slimVenuesPath: "/data/cities/cambridge/venues_slim.json",
-    poisPath: null,
+    poisPath: "/data/cities/cambridge/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
     enabled: true,

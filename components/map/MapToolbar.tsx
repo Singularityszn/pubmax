@@ -65,11 +65,10 @@ export default function MapToolbar({
       onDrinkLensChange={onDrinkLensChange}
     />
   );
+  // Drive from real drink-lens state only — free-text "beer garden" must not
+  // light the Drinks control as if a drink filter were applied.
   const drinksActive =
-    Boolean(filters.query && /beer|wine|cocktail|whisky|gin|rum|vodka|shot/i.test(filters.query)) ||
-    filters.requireCocktails ||
-    Boolean(drinkCategory) ||
-    Boolean(favoritePint);
+    filters.requireCocktails || Boolean(drinkCategory) || Boolean(favoritePint);
 
   return (
     <div className="mapToolbar" role="search">
