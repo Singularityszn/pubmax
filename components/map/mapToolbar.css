@@ -168,8 +168,11 @@
 
   .mapToolbarDrinksBtn {
     min-height: 32px;
+    height: 32px;
     padding: 0 10px;
     font-size: 0.72rem;
+    line-height: 1;
+    box-sizing: border-box;
   }
 
   /* Desktop drink lens stays in the expand panel on phones. */
@@ -179,9 +182,13 @@
 
   .planBtn {
     min-height: 32px;
-    padding: 6px 12px;
+    height: 32px;
+    padding: 0 12px;
     font-size: 0.76rem;
+    line-height: 1;
     flex: 0 0 auto;
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--brass) 20%, transparent);
+    box-sizing: border-box;
   }
 
   .planBtnFull {

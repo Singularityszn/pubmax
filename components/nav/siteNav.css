@@ -228,10 +228,8 @@
     gap: 6px;
     padding: 4px 8px;
     min-height: 40px;
-    background:
-      linear-gradient(135deg, var(--panel-raised), color-mix(in srgb, var(--surface-tint-river) 32%, var(--panel-raised) 68%)),
-      var(--panel-raised);
-    box-shadow: 0 6px 16px rgba(44, 30, 62, 0.1);
+    background: var(--panel-raised);
+    box-shadow: var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12));
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }

@@ -265,7 +265,7 @@ button {
 .appShell {
   --map-top-clearance: 92px;
   --map-overlay-top: 108px;
-  --mobile-tab-clearance: calc(72px + env(safe-area-inset-bottom, 0px));
+  --mobile-tab-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
   --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
   /* Shared geometry for the floating Home bar + Search/Plan toolbar so they
@@ -932,17 +932,21 @@ input[type="range"] {
 .planBtn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px 15px;
+  min-height: 34px;
+  padding: 6px 14px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   color: var(--color-on-accent);
   font-size: 0.82rem;
   font-weight: 800;
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 9px 20px color-mix(in srgb, var(--brass) 24%, transparent);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--brass) 22%, transparent);
+  box-sizing: border-box;
 }
 
 .planBtn.active {
@@ -4097,8 +4101,10 @@ button:disabled {
 
   .mapFitLondonBtn,
   .mapRecenterBtn {
-    min-height: 36px;
-    padding: 7px 10px;
+    min-height: 30px;
+    padding: 5px 9px;
+    font-size: 0.68rem;
+    border-radius: 999px;
   }
 
   /* .mapToolbar / .mapLegend sheet-full, onboarding-open, planning-open, and

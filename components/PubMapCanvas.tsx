@@ -2086,11 +2086,11 @@ export default function PubMapCanvas({
           className="mapRecenterBtn"
           onClick={fitRoute}
           disabled={!canRecenter}
-          aria-label="Recenter route"
-          title="Recenter route"
+          aria-label={canRecenter ? "Recenter route" : "No route to recenter"}
+          title={canRecenter ? "Recenter route" : "No route"}
         >
           <Crosshair size={14} aria-hidden />
-          Recenter
+          {canRecenter ? "Recenter" : "No route"}
         </button>
       </div>
       {activeLandmark ? (
