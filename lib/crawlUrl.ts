@@ -100,11 +100,22 @@ function parseNum(raw: string | null, min: number, max: number): number | undefi
 export function encodeCrawl(state: CrawlUrlState): string {
   const { mode, filters, builtIds, selectedVenueId } = state;
   const params = new URLSearchParams();
-  params.set("mode", mode);
-  params.set("style", filters.crawlStyle);
-  params.set("max", String(filters.maxPrice));
-  params.set("stops", String(filters.stopCount));
-  params.set("win", String(filters.routeWindow));
+  // Omit defaults so a fresh /map tab stays `/map` instead of dumping
+  // ?mode=suggest&style=balanced&max=7&stops=6&win=20 into the address bar.
+  // Share links still round-trip anything that differs from initialFilters.
+  if (mode !== "suggest") params.set("mode", mode);
+  if (filters.crawlStyle !== initialFilters.crawlStyle) {
+    params.set("style", filters.crawlStyle);
+  }
+  if (filters.maxPrice !== initialFilters.maxPrice) {
+    params.set("max", String(filters.maxPrice));
+  }
+  if (filters.stopCount !== initialFilters.stopCount) {
+    params.set("stops", String(filters.stopCount));
+  }
+  if (filters.routeWindow !== initialFilters.routeWindow) {
+    params.set("win", String(filters.routeWindow));
+  }
   // Only the "on" case is encoded — off is the default, so a bare link stays short.
   if (filters.requirePintDrops) params.set("drops", "1");
   if (filters.requireNonAlcoholic) params.set("low", "1");
