@@ -198,15 +198,11 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
 });
 
 // ---------------------------------------------------------------------------
-// POI category toggles — flip a real aria-pressed state.
+// POI category toggles — flip a real aria-pressed state via MapLayersControl
+// (Wave J moved mid-map .poiToggle into the Layers popover).
 //
-// The POI toggle group (role="group" aria-label="Points of interest") is
-// rendered INSIDE the map canvas component (components/PubMapCanvas.tsx) and so
-// only exists when the WebGL map initialises. Under a headless box with software
-// WebGL it is present; on a truly GPU-less box the canvas falls back to the
-// "renderer unavailable" notice and the overlay is absent. We guard on that:
-// assert the toggle flips aria-pressed when present, skip-with-reason when the
-// fallback rendered (the overlay is genuinely unreachable there — never a flake).
+// Under a headless box with software WebGL the map canvas is present; on a
+// truly GPU-less box the canvas falls back and we skip cleanly.
 test("quality floor: a POI category toggle flips its aria-pressed state (when the map canvas renders)", async ({
   page,
 }) => {
@@ -216,31 +212,34 @@ test("quality floor: a POI category toggle flips its aria-pressed state (when th
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible();
 
-  // If the WebGL fallback rendered, the canvas overlays (POI toggles) don't
-  // exist — that's an honest headless dead-end, not a bug. Skip cleanly.
   if ((await page.locator(".mapFallback").count()) > 0) {
     test.skip(true, "no-WebGL fallback rendered: POI overlay is not present headlessly");
     return;
   }
 
-  // The POI toggle group + its buttons live in the canvas overlay.
-  const poiGroup = page.locator('.poiToggle[role="group"][aria-label="Points of interest"]');
-  // Web-first: the overlay mounts after the map's style loads, so wait for it.
+  const layersFab = page.getByRole("button", { name: /Map layers/i });
+  await expect(layersFab).toBeVisible();
+  await layersFab.click();
+
+  const layers = page.getByRole("dialog", { name: "Map layers" });
+  await expect(layers).toBeVisible();
+
+  const poiGroup = layers.getByRole("group", { name: "Points of interest" });
   await expect(poiGroup).toBeVisible();
 
-  const firstToggle = poiGroup.locator("button.poiToggleBtn").first();
+  const firstToggle = poiGroup.locator("button.mapLayersChip").first();
   await expect(firstToggle).toBeVisible();
 
-  // Everything is "on" by default (aria-pressed="true"); tapping hides that kind
-  // (aria-pressed flips to "false"). Assert the flip, then flip back.
-  await expect(firstToggle).toHaveAttribute("aria-pressed", "true");
+  const before = await firstToggle.getAttribute("aria-pressed");
+  expect(before === "true" || before === "false").toBe(true);
   await firstToggle.click();
-  await expect(firstToggle).toHaveAttribute("aria-pressed", "false");
+  await expect(firstToggle).toHaveAttribute(
+    "aria-pressed",
+    before === "true" ? "false" : "true",
+  );
   await firstToggle.click();
-  await expect(firstToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(firstToggle).toHaveAttribute("aria-pressed", before ?? "true");
 
-  // Regression guard (PRD): the toggle labels are human category names, never a
-  // raw internal venue id leaked into overlay text.
   const groupText = (await poiGroup.innerText()).trim();
   expect(groupText).not.toMatch(RAW_VENUE_ID);
 });
