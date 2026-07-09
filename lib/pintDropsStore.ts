@@ -7,16 +7,18 @@
 
 import sharp from "sharp";
 
+import type { CityId } from "@/lib/cities";
 import type { Provenance } from "@/lib/curation";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
-import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
+import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
   addPintDrop,
   ANON_HANDLE_LABEL,
   canViewOnPublicSurface,
   cleanVibeTags,
   cleanVisibility,
+  dropMatchesCityScope,
   keepHiddenPintDrop,
   listAllVisiblePintDrops,
   listByStatus,
@@ -113,6 +115,8 @@ export type PintDropStore = {
     venueId?: string,
     viewer?: ViewerContext,
     authorHandle?: string,
+    /** Scopes unscoped reads (no venueId) so Manchester demo seeds stay off London feeds. */
+    cityId?: CityId | null,
   ): Promise<PintDropDTO[]>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
@@ -414,8 +418,10 @@ export const memoryPintDropStore: PintDropStore = {
     addPintDrop(drop); // photos ignored: there is no Storage without Supabase
     return toDTO(drop);
   },
-  async listVisible(venueId, viewer, authorHandle) {
-    const rows = venueId ? listVisiblePintDrops(venueId) : listAllVisiblePintDrops();
+  async listVisible(venueId, viewer, authorHandle, cityId) {
+    const rows = venueId
+      ? listVisiblePintDrops(venueId)
+      : listAllVisiblePintDrops(cityId);
     const author = normalizeViewerHandle(authorHandle);
     // Visibility applied server-side (issue #29). Legacy is EXCLUDED from the
     // public surface for EVERYONE (including the author — they read it via the
@@ -576,7 +582,7 @@ export const supabasePintDropStore: PintDropStore = {
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
-  async listVisible(venueId, viewer, authorHandle) {
+  async listVisible(venueId, viewer, authorHandle, cityId) {
     const author = normalizeViewerHandle(authorHandle);
     // Base visible read, newest-first, capped. Split from the visibility filter
     // so we can retry WITHOUT it if migration 0012 isn't applied to this DB yet
@@ -605,15 +611,19 @@ export const supabasePintDropStore: PintDropStore = {
       ({ data, error } = await base());
     }
     if (error) throw new Error(error.message);
-    const seeds = (venueId ? demoDropsFor(venueId) : demoPintDrops).filter(
+    // Per-venue: all city seeds for that id. Unscoped: city-scoped seeds so
+    // Manchester demo drops never noise the London feed/landing.
+    const seeds = (venueId ? demoDropsFor(venueId) : demoPintDropsForCity(cityId)).filter(
       (d) => !author || normalizeViewerHandle(d.handle) === author,
     );
     // Apply the same pure predicate the memory store uses over the fetched page.
     // Legacy is already excluded above; public + anonymous always pass, friends
-    // gate on the viewer's follow graph.
+    // gate on the viewer's follow graph. Unscoped reads also city-scope organic
+    // rows by venue id prefix (venue-mcr- ↔ Manchester).
     const permitted = (data ?? [])
       .map(fromRow)
       .concat(seeds)
+      .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
       .filter((d) => canViewOnPublicSurface(d, viewer));
     const capped = newestFirstCapped(permitted);
     return toDTOsWithBatchedPhotos(capped);

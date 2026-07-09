@@ -15,17 +15,18 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { applyBasemapTaste, clusterCircleColorExpr } from "@/lib/mapBasemapTaste";
-import { landmarks, nearestStoryPubs, landmarkById, type Landmark } from "@/lib/landmarks";
+import { landmarks as londonLandmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
 import {
-  bandById,
   bandAnchors,
   bandMemberPubs,
+  STORY_BANDS as LONDON_STORY_BANDS,
   type StoryBand,
 } from "@/lib/storyBands";
 import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { priceForBeer } from "@/lib/beers";
 import {
-  loadPois,
+  loadPoisFromPath,
+  LONDON_POIS_PATH,
   POI_CATEGORY_META,
   TRANSPORT_CATEGORIES,
   type Poi,
@@ -53,7 +54,12 @@ import {
 import { formatPrice, type Venue } from "@/lib/venues";
 import { directVenueImageUrl } from "@/lib/venueImages";
 
-type VenueSignal = { hasPintDrops: boolean; latestContributorPrice: number | null };
+type VenueSignal = {
+  hasPintDrops: boolean;
+  latestContributorPrice: number | null;
+  /** Display-only demo price for pin colour when cheapestPrice is null. */
+  latestDemoPrice?: number | null;
+};
 type HoveredVenue = { id: string; name: string; x: number; y: number };
 type VenueDetailResponse = { venue?: Venue | null };
 type FailedHoverImage = { venueId: string; url: string };
@@ -86,6 +92,41 @@ type PubMapCanvasProps = {
   onAskPubmaxxer?: (venueId: string) => void;
   /** Deep-link a landmark history card open on arrival (`?landmark=`). */
   initialLandmarkId?: string;
+  /**
+   * Opening camera from CityConfig.mapView. Defaults to London for back-compat
+   * when the multi-city router has not wired a city yet.
+   */
+  mapView?: {
+    center: [number, number];
+    zoom: number;
+    pitch: number;
+    bearing: number;
+  };
+  /**
+   * MapLibre maxBounds [[west, south], [east, north]] from CityConfig.bounds
+   * (via cityMaxBounds). Defaults to Greater London.
+   */
+  maxBounds?: [[number, number], [number, number]];
+  /**
+   * Optional POI JSON path from CityConfig.poisPath. `null` skips the London
+   * POI fetch so non-London cities do not 404 on `/data/london_pois.json`.
+   * Omit / undefined keeps the London default for back-compat.
+   */
+  poisPath?: string | null;
+  /**
+   * Optional transit GeoJSON path from CityConfig.transitLinesPath. `null`
+   * skips TfL tube-line layers. Omit / undefined keeps London TfL default.
+   */
+  transitLinesPath?: string | null;
+  /**
+   * City landmark catalog (from landmarksForCity). Defaults to London.
+   * Empty array skips the landmark layer entirely.
+   */
+  cityLandmarks?: Landmark[];
+  /**
+   * City Place-story corridors (from storyBandsForCity). Defaults to London.
+   */
+  cityStoryBands?: StoryBand[];
 };
 
 // OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
@@ -260,9 +301,15 @@ function pubsToGeoJSON(
       // drink/brand lenses filter via filterVenues — never invent brand prices.
       const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
       const serves = !favoritePint || beerPrice !== null;
+      // Contributor price wins; then slim-index cheapestPrice; then an honest
+      // demo seed price so city packs with null cheapestPrice still colour pins.
+      // Demo never merges into venue.cheapestPrice (mergeVenueDrops ignores it).
       const price = favoritePint
         ? beerPrice
-        : signals?.latestContributorPrice ?? venue.cheapestPrice;
+        : signals?.latestContributorPrice ??
+          venue.cheapestPrice ??
+          signals?.latestDemoPrice ??
+          null;
       const bucket = priceBucket(price);
       // Prefer the active non-beer lens for the glyph so gin/wine/etc. read
       // honestly on the map; otherwise fall back to venue hint categories.
@@ -443,9 +490,12 @@ function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
 // A simple polyline joining the anchors in order: the map draws it as a soft,
 // low-opacity token-tinted stroke UNDER the pins so it hints at the walk without
 // fighting the price-colour fill. Empty when the band resolves to <2 anchors.
-function bandCorridorGeoJSON(band: StoryBand | undefined): GeoJSON.FeatureCollection {
+function bandCorridorGeoJSON(
+  band: StoryBand | undefined,
+  catalog: readonly Landmark[],
+): GeoJSON.FeatureCollection {
   if (!band) return { type: "FeatureCollection", features: [] };
-  const anchors = bandAnchors(band);
+  const anchors = bandAnchors(band, catalog);
   if (anchors.length < 2) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
@@ -462,21 +512,22 @@ function bandCorridorGeoJSON(band: StoryBand | undefined): GeoJSON.FeatureCollec
   };
 }
 
-// Each landmark carries its own pictogram id (lib/mapIcons, ns "lm") so the
-// symbol layer draws a recognisable Big Ben / dome / bridge / wheel silhouette
-// per feature rather than one generic glyph.
-const LANDMARKS_GEOJSON: GeoJSON.FeatureCollection = {
-  type: "FeatureCollection",
-  features: landmarks.map((landmark) => ({
-    type: "Feature",
-    properties: {
-      id: landmark.id,
-      name: landmark.name,
-      icon: iconId("lm", landmark.icon),
-    },
-    geometry: { type: "Point", coordinates: landmark.coordinates },
-  })),
-};
+function landmarksToGeoJSON(catalog: readonly Landmark[]): GeoJSON.FeatureCollection {
+  // Each landmark carries its own pictogram id (lib/mapIcons, ns "lm") so the
+  // symbol layer draws a recognisable silhouette per feature.
+  return {
+    type: "FeatureCollection",
+    features: catalog.map((landmark) => ({
+      type: "Feature",
+      properties: {
+        id: landmark.id,
+        name: landmark.name,
+        icon: iconId("lm", landmark.icon),
+      },
+      geometry: { type: "Point", coordinates: landmark.coordinates },
+    })),
+  };
+}
 
 // Register every designed marker image (landmark pictograms + TfL symbols) with
 // the map, re-tinting from the live theme tokens. Called from buildScene on the
@@ -505,7 +556,28 @@ export default function PubMapCanvas({
   onStartCrawl,
   onAskPubmaxxer,
   initialLandmarkId = "",
+  mapView = LONDON_VIEW,
+  maxBounds = LONDON_BOUNDS,
+  poisPath = LONDON_POIS_PATH,
+  transitLinesPath = "/data/tfl_lines.json",
+  cityLandmarks = londonLandmarks,
+  cityStoryBands = LONDON_STORY_BANDS,
 }: PubMapCanvasProps) {
+  const showLandmarks = cityLandmarks.length > 0;
+  const landmarkById = useCallback(
+    (id: string | null | undefined) =>
+      id ? cityLandmarks.find((lm) => lm.id === id) : undefined,
+    [cityLandmarks],
+  );
+  const bandById = useCallback(
+    (id: string | null | undefined) =>
+      id ? cityStoryBands.find((band) => band.id === id) : undefined,
+    [cityStoryBands],
+  );
+  const landmarksGeoJSON = useMemo(
+    () => landmarksToGeoJSON(cityLandmarks),
+    [cityLandmarks],
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -561,6 +633,7 @@ export default function PubMapCanvas({
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
+  const cityLandmarksRef = useRef(cityLandmarks);
   const hoverDetailLoadingRef = useRef<Set<string>>(new Set());
   const rememberHoverDetail = useCallback((id: string, venue: Venue | null) => {
     const next = withBoundedHoverDetailCache(hoverDetailsRef.current, id, venue);
@@ -572,7 +645,8 @@ export default function PubMapCanvas({
     onRouteStopClickRef.current = onRouteStopClick;
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
-  }, [onVenueClick, onRouteStopClick, onVenuePrefetch, onLandmarkSelect]);
+    cityLandmarksRef.current = cityLandmarks;
+  }, [onVenueClick, onRouteStopClick, onVenuePrefetch, onLandmarkSelect, cityLandmarks]);
 
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
@@ -673,7 +747,7 @@ export default function PubMapCanvas({
     if (map) {
       map.easeTo({ center: landmark.coordinates, zoom: 15, duration: 800 });
     }
-  }, [initialLandmarkId, mapReady]);
+  }, [initialLandmarkId, mapReady, landmarkById]);
 
   useEffect(() => {
     if (!hoveredVenueId) return;
@@ -798,8 +872,8 @@ export default function PubMapCanvas({
       map = new maplibregl.Map({
         container,
         style: MAP_STYLES[themeRef.current],
-        ...LONDON_VIEW,
-        maxBounds: LONDON_BOUNDS,
+        ...mapView,
+        maxBounds,
         // Attempt 2 drops to low-power: some drivers refuse a
         // high-performance context under load but grant the integrated GPU.
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
@@ -1004,80 +1078,78 @@ export default function PubMapCanvas({
         );
       }
 
-      // --- London Underground / Overground / DLR / Elizabeth / Tram lines: the
-      // real coloured transit network (open TfL/OSM geometry, official Colour
-      // Standard hexes baked into each feature). A soft casing lifts every line
-      // off the base; the colour layer sits under the pins. Northern's spec
-      // black is remapped to light grey on the night map so it stays visible.
-      // Toggled together with the Tube roundels.
-      if (!map.getSource("tube-lines")) {
-        map.addSource("tube-lines", {
-          type: "geojson",
-          data: "/data/tfl_lines.json",
-          attribution: "Rail lines © TfL / OpenStreetMap contributors (ODbL)",
+      // --- Transit lines (London TfL by default). Non-London cities pass
+      // transitLinesPath=null so we skip the source entirely (no 404).
+      if (transitLinesPath) {
+        if (!map.getSource("tube-lines")) {
+          map.addSource("tube-lines", {
+            type: "geojson",
+            data: transitLinesPath,
+            attribution: "Rail lines © TfL / OpenStreetMap contributors (ODbL)",
+          });
+        }
+        const tubeVisibility: "none" | "visible" = isTransitNetworkVisible(
+          poiHiddenRef.current,
+        )
+          ? "visible"
+          : "none";
+        addLayerOnce({
+          id: "tube-lines-casing",
+          type: "line",
+          source: "tube-lines",
+          minzoom: 9.5,
+          layout: { "line-cap": "round", "line-join": "round", visibility: tubeVisibility },
+          paint: {
+            "line-color": dark ? "rgba(9,15,12,0.6)" : "rgba(255,255,255,0.8)",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 2.4, 13, 5.5, 16, 9],
+            "line-opacity": 0.75,
+            // Fan the sub-surface lines apart (issue #16); centred for all others.
+            "line-offset": TUBE_LINE_OFFSET_EXPR,
+          },
+        });
+        addLayerOnce({
+          id: "tube-lines-color",
+          type: "line",
+          source: "tube-lines",
+          minzoom: 9.5,
+          layout: { "line-cap": "round", "line-join": "round", visibility: tubeVisibility },
+          paint: {
+            "line-color": [
+              "case",
+              ["==", ["get", "color"], "#000000"],
+              dark ? "#c9c9c9" : "#000000",
+              ["get", "color"],
+            ],
+            "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 1.1, 13, 3, 16, 5],
+            "line-opacity": ["interpolate", ["linear"], ["zoom"], 9.5, 0.7, 13, 0.95],
+            // Same fan offset as the casing so colour + casing move together.
+            "line-offset": TUBE_LINE_OFFSET_EXPR,
+          },
+        });
+        // Line names ride along the route once you zoom in — neutral, high-contrast
+        // text (not the line colour, which is unreadable for yellow/pink lines) so
+        // the network stays legible over the busy base.
+        addLayerOnce({
+          id: "tube-lines-label",
+          type: "symbol",
+          source: "tube-lines",
+          minzoom: 13,
+          layout: {
+            "symbol-placement": "line",
+            "symbol-spacing": 420,
+            "text-field": ["get", "line"],
+            "text-font": textFont,
+            "text-size": 9.5,
+            "text-letter-spacing": 0.02,
+            visibility: tubeVisibility,
+          },
+          paint: {
+            "text-color": dark ? tokens.paper : tokens.ink,
+            "text-halo-color": dark ? "rgba(9,15,12,0.92)" : "rgba(255,255,255,0.95)",
+            "text-halo-width": 1.7,
+          },
         });
       }
-      const tubeVisibility: "none" | "visible" = isTransitNetworkVisible(
-        poiHiddenRef.current,
-      )
-        ? "visible"
-        : "none";
-      addLayerOnce({
-        id: "tube-lines-casing",
-        type: "line",
-        source: "tube-lines",
-        minzoom: 9.5,
-        layout: { "line-cap": "round", "line-join": "round", visibility: tubeVisibility },
-        paint: {
-          "line-color": dark ? "rgba(9,15,12,0.6)" : "rgba(255,255,255,0.8)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 2.4, 13, 5.5, 16, 9],
-          "line-opacity": 0.75,
-          // Fan the sub-surface lines apart (issue #16); centred for all others.
-          "line-offset": TUBE_LINE_OFFSET_EXPR,
-        },
-      });
-      addLayerOnce({
-        id: "tube-lines-color",
-        type: "line",
-        source: "tube-lines",
-        minzoom: 9.5,
-        layout: { "line-cap": "round", "line-join": "round", visibility: tubeVisibility },
-        paint: {
-          "line-color": [
-            "case",
-            ["==", ["get", "color"], "#000000"],
-            dark ? "#c9c9c9" : "#000000",
-            ["get", "color"],
-          ],
-          "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 1.1, 13, 3, 16, 5],
-          "line-opacity": ["interpolate", ["linear"], ["zoom"], 9.5, 0.7, 13, 0.95],
-          // Same fan offset as the casing so colour + casing move together.
-          "line-offset": TUBE_LINE_OFFSET_EXPR,
-        },
-      });
-      // Line names ride along the route once you zoom in — neutral, high-contrast
-      // text (not the line colour, which is unreadable for yellow/pink lines) so
-      // the network stays legible over the busy base.
-      addLayerOnce({
-        id: "tube-lines-label",
-        type: "symbol",
-        source: "tube-lines",
-        minzoom: 13,
-        layout: {
-          "symbol-placement": "line",
-          "symbol-spacing": 420,
-          "text-field": ["get", "line"],
-          "text-font": textFont,
-          "text-size": 9.5,
-          "text-letter-spacing": 0.02,
-          visibility: tubeVisibility,
-        },
-        paint: {
-          "text-color": dark ? tokens.paper : tokens.ink,
-          "text-halo-color": dark ? "rgba(9,15,12,0.92)" : "rgba(255,255,255,0.95)",
-          "text-halo-width": 1.7,
-        },
-      });
 
       // --- Designed marker images: landmark pictograms + TfL symbols, re-tinted
       // from the live theme tokens (a setStyle wipes them, so re-register here).
@@ -1095,40 +1167,45 @@ export default function PubMapCanvas({
       };
       registerMapIcons(map, iconTokens);
 
-      // --- Landmarks + history layer: a recognisable pictogram per landmark
-      // (Big Ben, St Paul's dome, Tower Bridge…), tap for a sourced history card.
-      if (!map.getSource("landmarks")) {
-        map.addSource("landmarks", { type: "geojson", data: LANDMARKS_GEOJSON });
+      // --- Landmarks + history layer. Empty cityLandmarks skips the layer so
+      // London markers never appear over Manchester (and vice versa).
+      if (showLandmarks) {
+        if (!map.getSource("landmarks")) {
+          map.addSource("landmarks", { type: "geojson", data: landmarksGeoJSON });
+        } else {
+          (map.getSource("landmarks") as maplibregl.GeoJSONSource).setData(landmarksGeoJSON);
+        }
+        addLayerOnce({
+          id: "landmarks-icon",
+          type: "symbol",
+          source: "landmarks",
+          layout: {
+            "icon-image": ["get", "icon"],
+            "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.5, 13, 0.82, 16, 1],
+            "icon-allow-overlap": true,
+            "text-field": ["get", "name"],
+            "text-font": textFont,
+            "text-size": 10.5,
+            "text-letter-spacing": 0.04,
+            "text-offset": [0, 1.4],
+            "text-anchor": "top",
+            "text-optional": true,
+          },
+          paint: {
+            "text-color": tokens.ink,
+            "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+            "text-halo-width": 1.3,
+          },
+          minzoom: 9.5,
+        });
       }
-      addLayerOnce({
-        id: "landmarks-icon",
-        type: "symbol",
-        source: "landmarks",
-        layout: {
-          "icon-image": ["get", "icon"],
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.5, 13, 0.82, 16, 1],
-          "icon-allow-overlap": true,
-          "text-field": ["get", "name"],
-          "text-font": textFont,
-          "text-size": 10.5,
-          "text-letter-spacing": 0.04,
-          "text-offset": [0, 1.4],
-          "text-anchor": "top",
-          "text-optional": true,
-        },
-        paint: {
-          "text-color": tokens.ink,
-          "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-          "text-halo-width": 1.3,
-        },
-        minzoom: 9.5,
-      });
 
       // --- Points of interest. Transport (tube/rail/bus/river) render as their
       // real TfL / National Rail symbols on two zoom-gated layers: major
       // interchanges form the skeleton from a wide zoom, minor stops fade in as
       // you go deeper — a transit map revealing detail. Parks/sights stay soft
       // dots. All honour the category toggles (kept across theme rebuilds).
+      // Non-London cities keep an empty source (poisPath=null → no fetch).
       if (!map.getSource("pois")) {
         map.addSource("pois", { type: "geojson", data: poisDataRef.current });
       }
@@ -1579,7 +1656,7 @@ export default function PubMapCanvas({
       const landmarkHit = byLayer.get("landmarks-icon");
       if (landmarkHit) {
         const id = landmarkHit.properties?.id;
-        const landmark = landmarks.find((item) => item.id === id);
+        const landmark = cityLandmarksRef.current.find((item) => item.id === id);
         if (!landmark) return;
         setActivePoi(null);
         selectLandmark(landmark);
@@ -1748,7 +1825,34 @@ export default function PubMapCanvas({
         window.removeEventListener("focus", onFocus);
       }
     };
-  }, [cinematic, selectLandmark, initAttempt]);
+  }, [
+    cinematic,
+    selectLandmark,
+    initAttempt,
+    mapView,
+    maxBounds,
+    transitLinesPath,
+    showLandmarks,
+    landmarksGeoJSON,
+  ]);
+
+  // Keep landmark GeoJSON in sync when the city catalog changes (e.g. London → Manchester).
+  useEffect(() => {
+    if (!mapReady) return;
+    applyToMap("landmarks:data", (map) => {
+      const source = map.getSource("landmarks") as maplibregl.GeoJSONSource | undefined;
+      if (!showLandmarks) {
+        if (map.getLayer("landmarks-icon")) map.removeLayer("landmarks-icon");
+        if (source) map.removeSource("landmarks");
+        return;
+      }
+      if (source) {
+        source.setData(landmarksGeoJSON);
+      } else {
+        map.addSource("landmarks", { type: "geojson", data: landmarksGeoJSON });
+      }
+    });
+  }, [mapReady, applyToMap, showLandmarks, landmarksGeoJSON]);
 
   // Pubs data → source. Rebuilds when the favorite pint changes so the price
   // buckets + serves flags re-derive against that beer.
@@ -1768,9 +1872,10 @@ export default function PubMapCanvas({
   }, [venues, venueSignals, favoritePint, drinkCategory, mapReady, applyToMap]);
 
   // POIs load once (client fetch) and feed the "pois" source.
+  // Non-London cities pass poisPath=null → empty layer, no 404.
   useEffect(() => {
     let cancelled = false;
-    loadPois()
+    loadPoisFromPath(poisPath)
       .then((pois) => {
         if (cancelled) return;
         poisDataRef.current = poisToGeoJSON(pois);
@@ -1787,7 +1892,7 @@ export default function PubMapCanvas({
     return () => {
       cancelled = true;
     };
-  }, [mapReady, applyToMap]);
+  }, [mapReady, applyToMap, poisPath]);
 
   // POI category toggles → layer filters (kept in a ref for theme rebuilds).
   // Transport layers filter by category+rank; ambient dots by category only.
@@ -1875,16 +1980,16 @@ export default function PubMapCanvas({
       performance.now() + 900 + ORBIT_RESUME_MS,
     );
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    map.fitBounds(LONDON_BOUNDS, {
+    map.fitBounds(maxBounds, {
       padding: isPhone
         ? { top: 184, right: 24, bottom: 190, left: 24 }
         : 90,
       maxZoom: 11,
       duration: reducedRef.current ? 0 : 800,
-      pitch: LONDON_VIEW.pitch,
-      bearing: LONDON_VIEW.bearing,
+      pitch: mapView.pitch,
+      bearing: mapView.bearing,
     });
-  }, []);
+  }, [mapView.pitch, mapView.bearing, maxBounds]);
 
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere
@@ -1924,10 +2029,10 @@ export default function PubMapCanvas({
   // Resolve the active band + its member pubs under the CURRENT (filtered)
   // venue set. Member matching is a pure function (lib/storyBands); memoised so
   // it only recomputes when the band or the venue list actually changes.
-  const activeBand = useMemo(() => bandById(activeBandId), [activeBandId]);
+  const activeBand = useMemo(() => bandById(activeBandId), [activeBandId, bandById]);
   const bandMembers = useMemo(
-    () => (activeBand ? bandMemberPubs(activeBand, venues) : []),
-    [activeBand, venues],
+    () => (activeBand ? bandMemberPubs(activeBand, venues, cityLandmarks) : []),
+    [activeBand, venues, cityLandmarks],
   );
   // Resolve the band's token colour once per band (readTokens reads the live CSS
   // custom properties, so this re-runs on theme flips too via the dep on band).
@@ -1942,7 +2047,7 @@ export default function PubMapCanvas({
   // setPaintProperty. Everything is guarded by getLayer so a mid-setStyle swap
   // is a no-op (buildScene re-reads the refs on the next style.load).
   useEffect(() => {
-    bandCorridorRef.current = bandCorridorGeoJSON(activeBand);
+    bandCorridorRef.current = bandCorridorGeoJSON(activeBand, cityLandmarks);
     bandMemberIdsRef.current = bandMembers.map((m) => m.venue.id);
     if (bandColour) bandColorRef.current = bandColour;
     if (!mapReady) return;
@@ -1970,7 +2075,7 @@ export default function PubMapCanvas({
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [activeBand, bandMembers, bandColour, mapReady, applyToMap]);
+  }, [activeBand, bandMembers, bandColour, mapReady, applyToMap, cityLandmarks]);
 
   // H5: a tapped landmark surfaces its nearest story pubs (straight-line
   // distance — no routing, per PRD scope), wiring the history layer into the
@@ -2238,6 +2343,7 @@ export default function PubMapCanvas({
         onPoiHiddenChange={setPoiHidden}
         activeBandId={activeBandId}
         onBandChange={onBandChange}
+        storyBands={cityStoryBands}
       />
       {activePoi ? (
         <div className="poiLabelCard" role="status">

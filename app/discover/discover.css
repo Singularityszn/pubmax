@@ -279,6 +279,32 @@
   white-space: nowrap;
 }
 
+/* ── UK city energy (rivalry) ──────────────────────────────────────── */
+
+.cityRivalryLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cityRivalryLink:hover .leaderboardPub {
+  color: var(--river);
+  text-decoration: underline;
+}
+
+.cityRivalryLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.cityRivalryScoreNum {
+  display: inline-block;
+  min-width: 3.2ch;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--brass);
+}
+
 .priceStamp {
   display: inline-flex;
   align-items: center;
@@ -668,6 +694,10 @@
 
   .leaderboardArea {
     display: none;
+  }
+
+  .cityRivalry .cityRivalryDrops {
+    display: table-cell;
   }
 
   .editorialGrid,

@@ -11,6 +11,7 @@ import { isModerator } from "@/lib/adminAuth";
 // would only live in process memory.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { parseCityId } from "@/lib/cities";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -321,11 +322,16 @@ export async function GET(request: Request): Promise<Response> {
     const params = new URL(request.url).searchParams;
     // ?author= scopes the public feed to one handle (passport / profile). Distinct
     // from ?viewer=, which only unlocks the friends visibility lane.
+    // ?city= scopes unscoped demo seeds (and organic rows by venue id prefix)
+    // so Manchester demo drops never noise the London feed/landing. Defaults
+    // to London when omitted or unrecognised.
     const author = params.get("author") ?? undefined;
+    const cityId = parseCityId(params.get("city")) ?? undefined;
     const drops = await pintDropsStore().listVisible(
       params.get("venueId") ?? undefined,
       viewer,
       author,
+      cityId,
     );
     return jsonNoStore({ drops: await withVenueNames(drops) }, { status: 200 });
   } catch (err) {

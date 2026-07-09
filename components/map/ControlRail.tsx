@@ -19,7 +19,7 @@ import {
 import { useMemo } from "react";
 
 import { pubSources, writerProfile } from "@/lib/curation";
-import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import {
   accessibilityFilterSummary,
   isKnownAccessibleToilet,
@@ -84,6 +84,8 @@ type ControlRailProps = {
   // PubMap; rendered here alongside the other story filters.
   savedOnly: boolean;
   onSavedOnlyChange: (savedOnly: boolean) => void;
+  /** City curated crawls (from curatedCrawlsForCity). Defaults to London. */
+  curatedCrawls?: CuratedCrawl[];
 };
 
 export default function ControlRail({
@@ -100,6 +102,7 @@ export default function ControlRail({
   nearbyError,
   savedOnly,
   onSavedOnlyChange,
+  curatedCrawls = londonCuratedCrawls,
 }: ControlRailProps) {
   const cheapCount = filteredVenues.filter(
     (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,

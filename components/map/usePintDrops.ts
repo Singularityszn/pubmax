@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 
 import { getAnonId } from "@/lib/anonId";
 import { authedFetch } from "@/lib/authedFetch";
+import type { CityId } from "@/lib/cities";
 import type { PintDropDTO } from "@/lib/feed";
 import {
   buildOptimisticSpillDrop,
@@ -107,7 +108,9 @@ function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhoto
 
 // Owns all client-side /api/pint-drops interaction: fetch, per-venue refresh,
 // submit (multipart), report, composer form + photo slot state. API contract unchanged.
-export function usePintDrops() {
+// `cityId` scopes the unscoped map-layer fetch so Manchester demo seeds colour
+// Manchester pins without leaking into the London feed.
+export function usePintDrops(cityId: CityId = "london") {
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
@@ -132,14 +135,15 @@ export function usePintDrops() {
   // the button unmounts on click, so double-submit can't happen.
   const reportsInFlight = useRef(new Set<string>());
 
-  // Refresh the WHOLE drops layer from the public list (all venues). This is the
-  // same read the initial load uses — so #29 visibility filtering re-applies —
+  // Refresh the WHOLE drops layer from the public list (city-scoped). This is
+  // the same read the initial load uses — so #29 visibility filtering re-applies —
   // and re-groups by venue, which repaints every pin halo / venue signal. Live
   // updates (issue #37, useLiveDrops) call this on a new-drop signal. Fail-soft:
   // a failed refresh leaves the current layer intact (does NOT wipe it), so a
   // transient hiccup never blanks the map.
   const refreshAllDrops = useCallback(() => {
-    fetch("/api/pint-drops")
+    const qs = new URLSearchParams({ city: cityId });
+    fetch(`/api/pint-drops?${qs.toString()}`)
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
       .then((data: { drops?: DropWithPhotos[] }) =>
         setDropsByVenueId(groupDropsByVenueId(data.drops ?? [])),
@@ -148,16 +152,17 @@ export function usePintDrops() {
         // Keep the existing layer — a live refresh failure is not a reason to
         // blank the map (unlike the initial load, which has nothing to preserve).
       });
-  }, []);
+  }, [cityId]);
 
   useEffect(() => {
-    fetch("/api/pint-drops")
+    const qs = new URLSearchParams({ city: cityId });
+    fetch(`/api/pint-drops?${qs.toString()}`)
       .then((response) => (response.ok ? response.json() : { drops: [] }))
       .then((data: { drops?: DropWithPhotos[] }) =>
         setDropsByVenueId(groupDropsByVenueId(data.drops ?? [])),
       )
       .catch(() => setDropsByVenueId(new Map()));
-  }, []);
+  }, [cityId]);
 
   // Refresh one venue's drops; returns a cancel function for effect cleanup.
   const refreshVenueDrops = useCallback((venueId: string) => {
@@ -518,7 +523,13 @@ export function usePintDrops() {
   const venueSignals = useMemo(() => {
     const signals = new Map<
       string,
-      { hasPintDrops: boolean; dropCount: number; latestContributorPrice: number | null }
+      {
+        hasPintDrops: boolean;
+        dropCount: number;
+        latestContributorPrice: number | null;
+        /** Display-only demo price for pin colour when the slim index has null cheapestPrice. */
+        latestDemoPrice: number | null;
+      }
     >();
     for (const [venueId, venueDrops] of dropsByVenueId) {
       // Demo seeds never feed the "latest contributor price" signal — a seeded
@@ -527,12 +538,19 @@ export function usePintDrops() {
         venueDrops.find(
           (drop) => drop.provenance !== "demo" && typeof drop.priceGbp === "number",
         )?.priceGbp ?? null;
+      // Pin colour fallback only: when a city pack has null cheapestPrice,
+      // a demo seed can still tint the pin. Never merges into venue.cheapestPrice.
+      const latestDemoPrice =
+        venueDrops.find(
+          (drop) => drop.provenance === "demo" && typeof drop.priceGbp === "number",
+        )?.priceGbp ?? null;
       // dropCount/hasPintDrops match the map halo: any visible drop counts
       // (seeds included) so the "has drops" signal is consistent everywhere.
       signals.set(venueId, {
         hasPintDrops: venueDrops.length > 0,
         dropCount: venueDrops.length,
         latestContributorPrice,
+        latestDemoPrice,
       });
     }
     return signals;

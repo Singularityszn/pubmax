@@ -520,8 +520,9 @@ export function nearestLandmarks(
   coordinates: [number, number],
   limit = 3,
   maxKm = 0.75,
+  catalog: readonly Landmark[] = landmarks,
 ): NearbyLandmark[] {
-  return landmarks
+  return catalog
     .map((landmark) => ({
       landmark,
       km: haversineKm(landmark.coordinates, coordinates),
