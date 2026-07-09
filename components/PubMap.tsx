@@ -49,7 +49,7 @@ import {
   shouldRunMapLogIntent,
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
-import { getWarmedVenue, warmVenueDetail } from "@/lib/warmVenueDetail";
+import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { bandById } from "@/lib/storyBands";
 import {
@@ -593,21 +593,8 @@ export default function PubMap() {
 
   useEffect(() => {
     if (!selectedVenueId || detailById.has(selectedVenueId)) return;
-    // Prefer a session-warmed venue from prefetch-on-intent (IDEAS A1).
-    const warmed = getWarmedVenue(selectedVenueId);
-    if (warmed) {
-      setDetailById((current) => {
-        const next = new Map(current);
-        next.set(selectedVenueId, warmed);
-        return next;
-      });
-      setDetailStatusById((current) => {
-        const next = new Map(current);
-        next.delete(selectedVenueId);
-        return next;
-      });
-      return;
-    }
+    // Always go through warmVenueDetail (cache hit → Promise.resolve) so we
+    // never setState synchronously in the effect body (react-hooks/set-state-in-effect).
     let cancelled = false;
     warmVenueDetail(selectedVenueId)
       .then((venue) => {
