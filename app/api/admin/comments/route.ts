@@ -11,8 +11,11 @@ import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { commentsStore } from "@/lib/commentsStore";
 import { isLimited } from "@/lib/pintDrops";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 function forbidden(): Response {
   return jsonNoStore({ error: "Not authorised." }, { status: 403 });

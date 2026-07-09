@@ -15,6 +15,9 @@ import {
   restoreImportNote,
   validateImportNote,
 } from "@/lib/importNotesStore";
+import { assertServerEnv } from "@/lib/serverEnv";
+
+assertServerEnv();
 
 function forbidden(): Response {
   return jsonNoStore({ error: "Not authorised." }, { status: 403 });

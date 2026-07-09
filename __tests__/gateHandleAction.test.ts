@@ -71,4 +71,15 @@ describe("gateHandleAction", () => {
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) expect(gate.status).toBe(403);
   });
+
+  it("returns 409 when a concurrent claim races on an unlinked handle", async () => {
+    mockedCaller.mockResolvedValue("user-new");
+    const linkSpy = vi
+      .spyOn(memoryProfileStore, "linkUser")
+      .mockRejectedValueOnce(new Error("Handle is already linked to another account."));
+    const gate = await gateHandleAction(req({ method: "POST" }), "racy");
+    expect(gate.allowed).toBe(false);
+    if (!gate.allowed) expect(gate.status).toBe(409);
+    linkSpy.mockRestore();
+  });
 });

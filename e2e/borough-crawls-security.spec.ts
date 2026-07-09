@@ -110,4 +110,35 @@ test.describe("security headers", () => {
     expect(response.status()).toBeLessThan(500);
     expect(response.headers()["access-control-allow-origin"]).toBeUndefined();
   });
+
+  test("/ serves HSTS and Cross-Origin-Opener-Policy when configured", async ({ page }) => {
+    const response = await page.goto("/");
+    expect(response?.status()).toBe(200);
+    const headers = response?.headers() ?? {};
+    // HSTS is set in next.config.mjs for production; preview may omit it.
+    const hsts = headers["strict-transport-security"];
+    if (hsts) {
+      expect(hsts.toLowerCase()).toContain("max-age=");
+    }
+    const coop = headers["cross-origin-opener-policy"];
+    if (coop) {
+      expect(coop.toLowerCase()).toMatch(/same-origin/);
+    }
+  });
+
+  test("unauthenticated admin session probe does not leak a session", async ({ request }) => {
+    const response = await request.get("/api/admin/session");
+    expect(response.status()).toBeLessThan(500);
+    const body = (await response.json()) as { authenticated?: boolean };
+    expect(body.authenticated).toBe(false);
+  });
+
+  test("GET /api/messages without identity stays closed or empty (no CORS)", async ({ request }) => {
+    const response = await request.get("/api/messages");
+    expect(response.status()).toBeLessThan(500);
+    expect(response.headers()["access-control-allow-origin"]).toBeUndefined();
+    // Anonymous may get 200 empty inbox, 400/401/403 depending on Wave I gate —
+    // never a cross-origin allow header and never a 5xx from the ownership seam.
+    expect([200, 400, 401, 403]).toContain(response.status());
+  });
 });

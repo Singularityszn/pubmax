@@ -34,7 +34,10 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
         return;
       }
       try {
-        const res = await fetch("/api/pint-drops");
+        // Scope the feed to this handle via ?author= — never pull the global
+        // public feed just to filter client-side.
+        const qs = new URLSearchParams({ author: myHandle });
+        const res = await fetch(`/api/pint-drops?${qs.toString()}`);
         if (!res.ok) return;
         const body = (await res.json()) as { drops?: PublicDrop[] };
         const mine = (body.drops ?? []).filter(

@@ -11,11 +11,15 @@
 // Rules:
 //   • Unlinked handle (rowUserId == null): allowed for ANYONE — this preserves
 //     the demo/anonymous self-asserted-handle behaviour. An anonymous caller can
-//     still edit an unclaimed handle exactly as before.
+//     still edit an unclaimed handle exactly as before. Production private
+//     actions (messages, notifications, crawl edits, comments on linked
+//     handles) still require JWT via gateHandleAction / requireLinkedActor —
+//     the anonymous path is the documented demo boundary, not a privacy model.
 //   • Linked handle (rowUserId set): allowed ONLY when the caller is
 //     authenticated AND their uid matches. A non-owner — anonymous OR a different
 //     signed-in user — is rejected. This is the security win: once a handle is
 //     claimed by an account, it can't be hijacked by a self-asserted handle.
+//   • Concurrent claim of the same unlinked handle returns 409 (linkUser race).
 
 import { callerUserId } from "@/lib/authServer";
 import { profileStore } from "@/lib/profileStore";
@@ -127,7 +131,21 @@ export async function gateHandleAction(
     const claimOnUnlinked =
       options.claimOnUnlinked ?? !["GET", "HEAD"].includes(request.method.toUpperCase());
     if (claimOnUnlinked && shouldLinkUser(rowUserId, caller) && caller) {
-      await store.linkUser(key, caller);
+      try {
+        await store.linkUser(key, caller);
+      } catch (err) {
+        // Concurrent claim of the same unlinked handle — surface as 409 so the
+        // client can re-auth / pick another handle instead of a generic 503.
+        const message = err instanceof Error ? err.message : String(err);
+        if (/already linked/i.test(message)) {
+          return {
+            allowed: false,
+            status: 409,
+            error: "This handle was just claimed by another account. Sign in as its owner, or pick a different handle.",
+          };
+        }
+        throw err;
+      }
     }
 
     return { allowed: true, callerUserId: caller, handle: key };

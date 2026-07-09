@@ -3,6 +3,11 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/serverEnv", () => ({
+  assertServerEnv: () => {},
+  assertProductionSecrets: () => {},
+}));
+
 import { POST } from "@/app/api/heritage/route";
 import { answerHeritage, retrieveHeritage, __resetHeritageCache } from "@/lib/heritage";
 
