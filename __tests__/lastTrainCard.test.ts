@@ -114,4 +114,25 @@ describe("LastTrainCard venue switching", () => {
       status: "loading",
     });
   });
+
+  it("refetches when the session destination changes", () => {
+    const base = lastTrainRequestKey({
+      lat: 51.515,
+      lng: -0.142,
+      venueName: "The Current Pub",
+    });
+    const withDestination = lastTrainRequestKey({
+      lat: 51.515,
+      lng: -0.142,
+      venueName: "The Current Pub",
+      destination: "High Barnet",
+    });
+    expect(withDestination).not.toBe(base);
+    expect(
+      currentLastTrainState(
+        { status: "ready", requestKey: base, data: lastTrainResult("Oxford Circus") },
+        withDestination,
+      ),
+    ).toEqual({ status: "loading" });
+  });
 });

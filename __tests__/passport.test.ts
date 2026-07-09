@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPassport } from "@/lib/passport";
+import { buildPassport, buildBoroughPassport, filterDropsInBorough } from "@/lib/passport";
 import type { ProfileDrop } from "@/lib/profiles";
 
 // Pure aggregation for the Pint Passport render (user story 29). No DOM/network:
@@ -93,5 +93,30 @@ describe("buildPassport — aggregation", () => {
     expect(ids).toContain("cheap-legend");
     // Every returned badge is earned (the card shows accomplishments, not a ladder).
     expect(p.badges.every((b) => b.earned)).toBe(true);
+  });
+});
+
+describe("buildBoroughPassport — borough chapter slice", () => {
+  it("filters drops by venueId in the borough", () => {
+    const drops = [
+      drop({ venueId: "v-west", borough: "Westminster" }),
+      drop({ venueId: "v-cam", borough: "Camden" }),
+      drop({ venueId: "v-west-2", borough: "Westminster" }),
+    ];
+    const filtered = filterDropsInBorough(drops, "Westminster", ["v-west", "v-west-2", "v-other"]);
+    expect(filtered).toHaveLength(2);
+    const passport = buildBoroughPassport(drops, "Westminster", ["v-west", "v-west-2"]);
+    expect(passport.pubs).toBe(2);
+    expect(passport.pints).toBe(2);
+  });
+
+  it("is empty when no drops match the borough", () => {
+    const passport = buildBoroughPassport(
+      [drop({ venueId: "v-cam", borough: "Camden" })],
+      "Westminster",
+      ["v-west"],
+    );
+    expect(passport.isEmpty).toBe(true);
+    expect(passport.pubs).toBe(0);
   });
 });

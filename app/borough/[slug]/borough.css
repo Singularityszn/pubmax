@@ -403,10 +403,61 @@
 .boroughCrawlPlanLink:focus-visible,
 .boroughEmpty a:focus-visible,
 .boroughEyebrow a:focus-visible,
-.boroughFootnote a:focus-visible {
+.boroughFootnote a:focus-visible,
+.boroughPassportFoot a:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 3px;
   border-radius: 3px;
+}
+
+/* --- borough passport slice ----------------------------------------------- */
+
+.boroughPassportGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+
+.boroughPassportStat {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--panel-raised, #fbf9f2);
+}
+
+.boroughPassportStat dt {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.boroughPassportStat dd {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.boroughPassportFoot {
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.boroughPassportFoot a {
+  color: var(--brass);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.boroughPassportFoot a:hover {
+  text-decoration: underline;
 }
 
 /* Screen-reader-only utility (table caption). */
@@ -446,6 +497,10 @@
   .boroughCrawlCard {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .boroughPassportGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
