@@ -109,6 +109,30 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     expect(map.setPaintProperty).not.toHaveBeenCalled();
   });
 
+  it("does not force night-black casings in light mode", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layers = new Set(["highway_major_casing", "road_minor"]);
+    const map = {
+      getLayer: (id: string) => (layers.has(id) ? { id } : undefined),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      getStyle: () => ({
+        layers: [
+          { id: "highway_major_casing", type: "line" },
+          { id: "road_minor", type: "line" },
+        ],
+      }),
+    };
+
+    applyBasemapTaste(map, tokens, false);
+
+    expect(
+      paints.some(([id, prop]) => id === "highway_major_casing" && prop === "line-color"),
+    ).toBe(false);
+    expect(paints.some(([id, prop]) => id === "road_minor" && prop === "line-color")).toBe(true);
+  });
+
   it("builds a step expression for cluster colors using pint/amber/brass", () => {
     const expr = clusterCircleColorExpr(tokens, false) as unknown[];
     expect(expr[0]).toBe("step");

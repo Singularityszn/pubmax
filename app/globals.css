@@ -265,7 +265,7 @@ button {
 .appShell {
   --map-top-clearance: 92px;
   --map-overlay-top: 108px;
-  --mobile-tab-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
+  --mobile-tab-clearance: calc(68px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
   --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
   /* Shared geometry for the floating Home bar + Search/Plan toolbar so they
