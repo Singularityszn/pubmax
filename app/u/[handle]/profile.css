@@ -24,12 +24,7 @@
 }
 
 /* Wave I1/I3 — Memory Timeline reuses feed card styles */
-.profilePage .profileTimeline {
-  display: grid;
-  gap: 18px;
-  max-width: 560px;
-}
-
+.profilePage .profileTimeline,
 .profilePage .profileTimelineSkel {
   display: grid;
   gap: 18px;

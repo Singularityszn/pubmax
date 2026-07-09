@@ -504,7 +504,7 @@
   letter-spacing: 0.02em;
   box-shadow: var(--shadow, 0 4px 12px rgba(22, 18, 42, 0.12));
   transform: rotate(-2deg);
-  view-transition-name: feed-price-stamp;
+  /* view-transition-name must be unique per card — set inline on FeedCard. */
 }
 
 /* Receipt fallback — a typographic card when there is no photo. */

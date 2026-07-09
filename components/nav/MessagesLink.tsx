@@ -61,7 +61,10 @@ export default function MessagesLink(): React.JSX.Element {
   }, [handle, user, authHandle]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setUnread(0);
+      return;
+    }
     void Promise.resolve().then(() => refresh());
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);

@@ -146,7 +146,7 @@
   display: block;
   border-radius: 6px;
   background: color-mix(in srgb, var(--line-soft, var(--line)) 70%, var(--panel-raised));
-  animation: discoverSkelPulse 1.2s ease-in-out infinite;
+  animation: discover-skel-pulse 1.2s ease-in-out infinite;
 }
 
 .discoverSkelRank {
@@ -165,7 +165,7 @@
   width: 100%;
 }
 
-@keyframes discoverSkelPulse {
+@keyframes discover-skel-pulse {
   0%,
   100% {
     opacity: 0.55;

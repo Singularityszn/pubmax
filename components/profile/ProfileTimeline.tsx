@@ -130,6 +130,7 @@ export default function ProfileTimeline({
     fetch(`/api/pint-drops/reactions?${query}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((data: { summaries?: SummaryMap }) => {
+        if (controller.signal.aborted) return;
         const server = data.summaries ?? {};
         setSummaries((prev) => {
           const next = { ...prev };
@@ -144,6 +145,11 @@ export default function ProfileTimeline({
         });
       })
       .catch(() => {
+        // Cleanup aborts must not permanently mark ids local-only / summarized.
+        if (controller.signal.aborted) {
+          for (const id of fresh) summarizedIds.current.delete(id);
+          return;
+        }
         setSummaries((prev) => {
           const next = { ...prev };
           for (const id of fresh) {

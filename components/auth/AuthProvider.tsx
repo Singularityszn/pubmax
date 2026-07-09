@@ -21,32 +21,43 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
-import { getAccessToken, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { authedFetch } from "@/lib/authedFetch";
 import { normalizeHandle } from "@/lib/profiles";
 
 const HANDLE_KEY = "pubmax_handle";
+const SYNCED_USER_KEY = "pubmax_identity_synced_user";
 
 /** Wave I2: sync localStorage handle + claim/link profile on first signed-in session. */
 async function syncIdentityAfterSignIn(user: User): Promise<void> {
   const handle = handleFromUser(user);
   if (!handle || typeof window === "undefined") return;
+
+  // Dedupe: cold loads + SIGNED_IN (incl. tab focus rehydration) must not
+  // spam PATCH /api/profiles once this tab has already linked this user.
+  try {
+    if (window.sessionStorage.getItem(SYNCED_USER_KEY) === user.id) return;
+  } catch {
+    // sessionStorage blocked — fall through and still attempt once
+  }
+
   try {
     window.localStorage.setItem(HANDLE_KEY, handle);
   } catch {
     // storage disabled — still attempt the server link below
   }
   try {
-    const token = await getAccessToken();
-    if (!token) return;
-    await fetch(`/api/profiles/${encodeURIComponent(handle)}`, {
+    await authedFetch(`/api/profiles/${encodeURIComponent(handle)}`, {
       method: "PATCH",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-      },
+      headers: { "content-type": "application/json" },
       // Empty patch: gateHandleAction claimOnUnlinked links user_id on first write.
       body: JSON.stringify({}),
     });
+    try {
+      window.sessionStorage.setItem(SYNCED_USER_KEY, user.id);
+    } catch {
+      // best-effort dedupe marker
+    }
   } catch {
     // Best-effort — messaging UI still prompts sign-in if link fails.
   }
@@ -130,8 +141,16 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       setSession(nextSession ?? null);
       setLoading(false);
       // Wave I2: on sign-in, sync pubmax_handle + link profiles.user_id.
+      // Deduped in syncIdentityAfterSignIn so focus/rehydration SIGNED_IN is cheap.
       if (event === "SIGNED_IN" && nextSession?.user) {
         void syncIdentityAfterSignIn(nextSession.user);
+      }
+      if (event === "SIGNED_OUT") {
+        try {
+          window.sessionStorage.removeItem(SYNCED_USER_KEY);
+        } catch {
+          // ignore
+        }
       }
     });
 

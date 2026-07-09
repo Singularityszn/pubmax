@@ -213,7 +213,12 @@ export default function FeedCard({
 
           {/* Price stamp — top-right, the pressed-ink signature. */}
           {typeof item.priceGbp === "number" ? (
-            <span className="feedSpillPrice">{formatGbp(item.priceGbp)}</span>
+            <span
+              className="feedSpillPrice"
+              style={{ viewTransitionName: `feed-price-${item.id}` }}
+            >
+              {formatGbp(item.priceGbp)}
+            </span>
           ) : null}
 
           {/* Bottom scrim + overlaid content. The scrim is a FIXED dark gradient
