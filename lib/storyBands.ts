@@ -171,9 +171,14 @@ export const STORY_BANDS: StoryBand[] = [
 
 // Resolve a band's anchor ids to landmark coordinates, dropping any id that
 // doesn't match a real landmark (keeps the map from drawing to a ghost point).
-export function bandAnchors(band: StoryBand): Landmark[] {
+// Pass `catalog` for non-London cities (Manchester anchors live in a separate
+// landmark list); defaults to London's curated set for back-compat.
+export function bandAnchors(
+  band: StoryBand,
+  catalog: readonly Landmark[] = landmarks,
+): Landmark[] {
   return band.anchorLandmarkIds
-    .map((id) => landmarks.find((lm) => lm.id === id))
+    .map((id) => catalog.find((lm) => lm.id === id))
     .filter((lm): lm is Landmark => Boolean(lm));
 }
 
@@ -183,7 +188,10 @@ export function bandAnchors(band: StoryBand): Landmark[] {
 // present and coherent: real anchors, a positive radius, grounded copy, at
 // least one source, and a non-empty colour token. Returns the list of problems
 // (empty = valid) so the build-time check can report exactly what's wrong.
-export function validateStoryBand(band: StoryBand): string[] {
+export function validateStoryBand(
+  band: StoryBand,
+  catalog: readonly Landmark[] = landmarks,
+): string[] {
   const problems: string[] = [];
   if (!band.id.trim()) problems.push("missing id");
   if (!band.title.trim()) problems.push("missing title");
@@ -197,10 +205,10 @@ export function validateStoryBand(band: StoryBand): string[] {
   if (sentences < 2) problems.push(`copy needs 2-3 sentences (found ${sentences})`);
 
   if (band.anchorLandmarkIds.length < 2) problems.push("needs >= 2 anchors");
-  const resolved = bandAnchors(band);
+  const resolved = bandAnchors(band, catalog);
   if (resolved.length !== band.anchorLandmarkIds.length) {
     const missing = band.anchorLandmarkIds.filter(
-      (id) => !landmarks.some((lm) => lm.id === id),
+      (id) => !catalog.some((lm) => lm.id === id),
     );
     problems.push(`unknown anchor landmark id(s): ${missing.join(", ")}`);
   }
@@ -223,11 +231,14 @@ export function validateStoryBand(band: StoryBand): string[] {
 
 // Validate every shipped band at once — used by the build-time data check and
 // the unit test. Returns a map of bandId -> problems for any invalid band.
-export function validateAllStoryBands(bands: StoryBand[] = STORY_BANDS): Record<string, string[]> {
+export function validateAllStoryBands(
+  bands: StoryBand[] = STORY_BANDS,
+  catalog: readonly Landmark[] = landmarks,
+): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   const seen = new Set<string>();
   for (const band of bands) {
-    const problems = validateStoryBand(band);
+    const problems = validateStoryBand(band, catalog);
     if (seen.has(band.id)) problems.push("duplicate band id");
     seen.add(band.id);
     if (problems.length) out[band.id] = problems;
@@ -244,8 +255,12 @@ export type BandMember = { venue: Venue; km: number };
 // to the nearest anchor and sorted nearest-first. Only story pubs are eligible
 // so a band highlights heritage, not every boozer on the block. Pure — pass the
 // already-filtered venue list and the result reflects the live map filters.
-export function bandMemberPubs(band: StoryBand, venues: Venue[]): BandMember[] {
-  const anchors = bandAnchors(band);
+export function bandMemberPubs(
+  band: StoryBand,
+  venues: Venue[],
+  catalog: readonly Landmark[] = landmarks,
+): BandMember[] {
+  const anchors = bandAnchors(band, catalog);
   if (anchors.length === 0) return [];
   const members: BandMember[] = [];
   for (const venue of venues) {
@@ -263,8 +278,12 @@ export function bandMemberPubs(band: StoryBand, venues: Venue[]): BandMember[] {
 
 // Just the member ids — the map's halo filter wants a plain id list, and the
 // URL/fallback logic wants a fast "is there anything to show" count.
-export function bandMemberIds(band: StoryBand, venues: Venue[]): string[] {
-  return bandMemberPubs(band, venues).map((m) => m.venue.id);
+export function bandMemberIds(
+  band: StoryBand,
+  venues: Venue[],
+  catalog: readonly Landmark[] = landmarks,
+): string[] {
+  return bandMemberPubs(band, venues, catalog).map((m) => m.venue.id);
 }
 
 // Look up a band by id (URL state → band). Undefined for an unknown id so the
@@ -289,8 +308,12 @@ export type VenueBandPoint = {
 };
 
 /** Straight-line distance (km) from a venue to the nearest anchor of a band. */
-export function venueDistanceToBand(band: StoryBand, venue: VenueBandPoint): number | null {
-  const anchors = bandAnchors(band);
+export function venueDistanceToBand(
+  band: StoryBand,
+  venue: VenueBandPoint,
+  catalog: readonly Landmark[] = landmarks,
+): number | null {
+  const anchors = bandAnchors(band, catalog);
   if (anchors.length === 0) return null;
   const point: [number, number] = [venue.longitude, venue.latitude];
   let nearest = Infinity;
@@ -302,8 +325,12 @@ export function venueDistanceToBand(band: StoryBand, venue: VenueBandPoint): num
 }
 
 /** True when the venue sits within the band's radius of any anchor. */
-export function venueInBand(band: StoryBand, venue: VenueBandPoint): boolean {
-  const km = venueDistanceToBand(band, venue);
+export function venueInBand(
+  band: StoryBand,
+  venue: VenueBandPoint,
+  catalog: readonly Landmark[] = landmarks,
+): boolean {
+  const km = venueDistanceToBand(band, venue, catalog);
   return km !== null && km <= band.radiusKm;
 }
 
@@ -316,10 +343,11 @@ export function venueInBand(band: StoryBand, venue: VenueBandPoint): boolean {
 export function bandsForVenue(
   venue: VenueBandPoint,
   bands: StoryBand[] = STORY_BANDS,
+  catalog: readonly Landmark[] = landmarks,
 ): StoryBand[] {
   return bands
     .map((band) => {
-      const km = venueDistanceToBand(band, venue);
+      const km = venueDistanceToBand(band, venue, catalog);
       return km === null ? null : { band, km };
     })
     .filter((row): row is { band: StoryBand; km: number } => row !== null && row.km <= row.band.radiusKm)

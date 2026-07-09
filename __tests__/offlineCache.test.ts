@@ -178,4 +178,20 @@ describe("loadSlimVenues offline fallback (lib/venuesSlim.ts wiring)", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("loadSlimVenuesForCity uses the city slim path", async () => {
+    const { loadSlimVenuesForCity } = await import("@/lib/venuesSlim");
+    const originalFetch = globalThis.fetch;
+    const seen: string[] = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      seen.push(String(input));
+      return Promise.reject(new Error("cellar signal"));
+    }) as typeof fetch;
+    try {
+      await expect(loadSlimVenuesForCity("manchester")).rejects.toThrow("cellar signal");
+      expect(seen).toEqual(["/data/cities/manchester/venues_slim.json"]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

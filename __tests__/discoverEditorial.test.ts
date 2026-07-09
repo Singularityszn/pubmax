@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DISCOVER_EDITORIAL } from "@/app/discover/page";
+import { DISCOVER_EDITORIAL } from "@/app/discover/DiscoverPageClient";
 
 // Discover editorial CTAs must open map-first crawl/route URLs (polyline),
 // not bare /map or filter-only arrivals.

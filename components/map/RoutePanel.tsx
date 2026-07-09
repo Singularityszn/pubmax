@@ -21,7 +21,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { crawlSummary, formatPrice, type Filters, type Venue } from "@/lib/venues";
-import { loadPois, type Poi } from "@/lib/pois";
+import { loadPoisFromPath, LONDON_POIS_PATH, type Poi } from "@/lib/pois";
 import {
   buildRouteLegs,
   formatLeg,
@@ -81,6 +81,10 @@ type RoutePanelProps = {
   onToggleStop: (id: string) => void;
   onReverseRoute?: () => void;
   children?: React.ReactNode;
+  /** City display name for map-route chrome (defaults to London). */
+  cityDisplayName?: string;
+  /** Optional POI path; null skips London POI fetch for non-London cities. */
+  poisPath?: string | null;
 };
 
 // Trigger a client-side .ics download via a blob URL. Kept tiny + SSR-guarded.
@@ -119,6 +123,8 @@ export default function RoutePanel({
   onToggleStop,
   onReverseRoute,
   children,
+  cityDisplayName = "London",
+  poisPath = LONDON_POIS_PATH,
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
@@ -138,7 +144,7 @@ export default function RoutePanel({
   const [pois, setPois] = useState<Poi[]>([]);
   useEffect(() => {
     let cancelled = false;
-    loadPois()
+    loadPoisFromPath(poisPath)
       .then((loaded) => {
         if (!cancelled) setPois(loaded);
       })
@@ -148,7 +154,7 @@ export default function RoutePanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [poisPath]);
   const onTheWayByLeg = useMemo(
     () => poisOnRoute(legSummary.legs, pois),
     [legSummary.legs, pois],
@@ -418,7 +424,7 @@ export default function RoutePanel({
       {route.length >= 2 ? (
         <div className={routeMapped ? "routeMapPrompt active" : "routeMapPrompt"}>
           <div>
-            <strong>{routeMapped ? "Mapped on London" : "Map this crawl?"}</strong>
+            <strong>{routeMapped ? `Mapped on ${cityDisplayName}` : "Map this crawl?"}</strong>
             <span>
               {legSummary.totalKm.toFixed(1)} km, {legSummary.totalMinutes} min{" "}
               {pace === "run" ? "run" : "walk"},
