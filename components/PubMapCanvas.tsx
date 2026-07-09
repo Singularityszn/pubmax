@@ -40,7 +40,7 @@ import {
 import {
   POI_TOGGLE_GROUPS,
   defaultPoiHiddenForViewport,
-  isMobileMapViewport,
+  defaultPoiHiddenMobile,
   isPoiGroupOn,
   isTransitNetworkVisible,
   togglePoiGroup,
@@ -539,9 +539,19 @@ export default function PubMapCanvas({
     defaultPoiHiddenForViewport,
   );
   const [isMobileChrome, setIsMobileChrome] = useState(false);
+  const mobilePoiSeededRef = useRef(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
-    const sync = () => setIsMobileChrome(mq.matches);
+    const sync = () => {
+      const mobile = mq.matches;
+      setIsMobileChrome(mobile);
+      // First time we know we're on a phone, seed all POI layers off so the
+      // map mid-field stays clean (SSR/desktop defaults would leave Transit on).
+      if (mobile && !mobilePoiSeededRef.current) {
+        mobilePoiSeededRef.current = true;
+        setPoiHidden(defaultPoiHiddenMobile());
+      }
+    };
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);

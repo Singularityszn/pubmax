@@ -265,7 +265,7 @@ button {
 .appShell {
   --map-top-clearance: 92px;
   --map-overlay-top: 108px;
-  --mobile-tab-clearance: calc(104px + env(safe-area-inset-bottom, 0px));
+  --mobile-tab-clearance: calc(72px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
   --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
   height: 100vh;
@@ -4008,15 +4008,18 @@ button:disabled {
   .appShell {
     /* Declutter: chrome hugs corners; no mid-map POI/legend stack. */
     --map-mobile-hero-clearance: 0px;
-    --map-mobile-legend-clearance: 48px;
+    --map-mobile-legend-clearance: 40px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
+    /* Compact top nav + single-row toolbar → more map mid-field. */
+    --map-top-clearance: calc(52px + env(safe-area-inset-top, 0px));
+    --map-overlay-top: calc(var(--map-top-clearance) + 52px);
   }
 
   .mapCameraControls {
-    top: calc(var(--map-top-clearance) + 216px);
-    right: 12px;
-    gap: 5px;
+    top: calc(var(--map-top-clearance) + 58px);
+    right: 10px;
+    gap: 4px;
   }
 
   /* MapLibre's built-in zoom/compass control competes with the bottom tab bar

@@ -10,7 +10,7 @@
     display: block;
     position: absolute;
     right: 10px;
-    bottom: calc(var(--mobile-tab-clearance, 74px) + 10px);
+    bottom: calc(var(--mobile-tab-clearance, 72px) + 10px);
     z-index: 470;
     pointer-events: none;
   }
