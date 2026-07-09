@@ -4013,7 +4013,7 @@ button:disabled {
   }
 
   .mapCameraControls {
-    top: calc(var(--map-overlay-top) + 4px);
+    top: calc(var(--map-top-clearance) + 216px);
     right: 12px;
     gap: 5px;
   }
