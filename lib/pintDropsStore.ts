@@ -22,6 +22,7 @@ import {
   listByStatus,
   listLegacyPintDropsForVenue,
   listVisiblePintDrops,
+  normalizeViewerHandle,
   REPORT_HIDE_THRESHOLD,
   reportPintDrop,
   restorePintDrop,
@@ -103,7 +104,16 @@ export type PintDropStore = {
    * honest-best-effort courtesy curtain (self-asserted handles, no auth yet), the
    * same trust posture as lib/notifications.ts.
    */
-  listVisible(venueId?: string, viewer?: ViewerContext): Promise<PintDropDTO[]>;
+  /**
+   * @param authorHandle When set, only drops authored by this handle (normalized)
+   *   are returned — used by passport / profile surfaces so clients never pull
+   *   the global public feed just to filter client-side.
+   */
+  listVisible(
+    venueId?: string,
+    viewer?: ViewerContext,
+    authorHandle?: string,
+  ): Promise<PintDropDTO[]>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
    * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
@@ -350,15 +360,19 @@ export const memoryPintDropStore: PintDropStore = {
     addPintDrop(drop); // photos ignored: there is no Storage without Supabase
     return toDTO(drop);
   },
-  async listVisible(venueId, viewer) {
+  async listVisible(venueId, viewer, authorHandle) {
     const rows = venueId ? listVisiblePintDrops(venueId) : listAllVisiblePintDrops();
+    const author = normalizeViewerHandle(authorHandle);
     // Visibility applied server-side (issue #29). Legacy is EXCLUDED from the
     // public surface for EVERYONE (including the author — they read it via the
     // ledger's listLegacyForVenue, not the feed), matching the Supabase backend's
     // `.neq("visibility","legacy")`. Friends is then gated on the viewer's follow
     // graph; public + anonymous always pass (anonymous handle withheld at toDTO).
     const permitted = rows.filter(
-      (d) => visibilityOf(d) !== "legacy" && canViewOnPublicSurface(d, viewer),
+      (d) =>
+        visibilityOf(d) !== "legacy" &&
+        canViewOnPublicSurface(d, viewer) &&
+        (!author || normalizeViewerHandle(d.handle) === author),
     );
     return newestFirstCapped(permitted).map((d) => toDTO(d));
   },
@@ -508,7 +522,8 @@ export const supabasePintDropStore: PintDropStore = {
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
-  async listVisible(venueId, viewer) {
+  async listVisible(venueId, viewer, authorHandle) {
+    const author = normalizeViewerHandle(authorHandle);
     // Base visible read, newest-first, capped. Split from the visibility filter
     // so we can retry WITHOUT it if migration 0012 isn't applied to this DB yet
     // (pre-0012 every row is effectively `public`, so an unfiltered read is safe).
@@ -520,6 +535,7 @@ export const supabasePintDropStore: PintDropStore = {
         .order("created_at", { ascending: false })
         .limit(MAX_PUBLIC_DROPS);
       if (venueId) q = q.eq("venue_id", venueId);
+      if (author) q = q.eq("handle", author);
       return q;
     };
     // Legacy (family/heirloom) drops NEVER ride the public surface — they read
@@ -535,7 +551,9 @@ export const supabasePintDropStore: PintDropStore = {
       ({ data, error } = await base());
     }
     if (error) throw new Error(error.message);
-    const seeds = venueId ? demoDropsFor(venueId) : demoPintDrops;
+    const seeds = (venueId ? demoDropsFor(venueId) : demoPintDrops).filter(
+      (d) => !author || normalizeViewerHandle(d.handle) === author,
+    );
     // Apply the same pure predicate the memory store uses over the fetched page.
     // Legacy is already excluded above; public + anonymous always pass, friends
     // gate on the viewer's follow graph.
