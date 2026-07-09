@@ -39,8 +39,12 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    // Preserve leak-proof semantics: linked non-owner looks like "not found".
-    return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+    // 403 not-owner stays 404 so the endpoint never confirms a private thread.
+    // Surface 400/503 (and other gate failures) honestly — those are not leaks.
+    if (ownership.status === 403) {
+      return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+    }
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
 
   const messages = await messagesStore().listMessages(id, handle);
@@ -66,7 +70,10 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+    if (ownership.status === 403) {
+      return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+    }
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
 
   const store = messagesStore();
