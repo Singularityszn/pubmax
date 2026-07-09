@@ -513,7 +513,9 @@ export default function PubMapCanvas({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const onMapReadyRef = useRef(onMapReady);
-  onMapReadyRef.current = onMapReady;
+  useEffect(() => {
+    onMapReadyRef.current = onMapReady;
+  }, [onMapReady]);
   // The fallback is a real user-facing dead end, so it carries enough to be
   // honest about *why*: `kind` drives the copy (only "constructor" with a
   // confirmed-dead probe may claim "needs WebGL"), `detail` surfaces the raw
