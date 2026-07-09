@@ -3,8 +3,11 @@
 import { Route, Search, Wine, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import CitySwitcher from "@/components/map/CitySwitcher";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
+import type { CityId } from "@/lib/cities";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
 import type { Filters } from "@/lib/venues";
 
 import "./mapToolbar.css";
@@ -23,6 +26,8 @@ type MapToolbarProps = {
   onTogglePlanning: () => void;
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
+  /** Active city for the map switcher (defaults to London). */
+  cityId?: CityId;
 };
 
 export default function MapToolbar({
@@ -37,6 +42,7 @@ export default function MapToolbar({
   onTogglePlanning,
   filters,
   onFiltersChange,
+  cityId = DEFAULT_CITY_ID,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -117,6 +123,8 @@ export default function MapToolbar({
           <span className="planBtnFull">{planningOpen ? "Close planner" : "Plan a crawl"}</span>
           <span className="planBtnShort">{planningOpen ? "Close" : "Plan"}</span>
         </button>
+
+        <CitySwitcher cityId={cityId} />
       </div>
 
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>

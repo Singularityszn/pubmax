@@ -4,7 +4,6 @@ import {
   cleanVisibility,
   findPintDropsByIds,
   isPubliclyReadableDrop,
-  listAllVisiblePintDrops,
   visibilityOf,
   type PintDrop,
   type ViewerContext,
@@ -294,10 +293,11 @@ export async function getPintDropById(
     }
   }
 
-  // Memory / demo fallback: visible-only listing, find by id.
+  // Memory / demo fallback: visible-only listing across cities (id lookup must
+  // still resolve Manchester demo seeds even when unscoped feeds default to London).
   try {
-    const hit = listAllVisiblePintDrops().find((d) => d.id === dropId);
-    if (!hit) return null;
+    const hit = findPintDropsByIds([dropId]).get(dropId);
+    if (!hit || hit.status !== "visible") return null;
     return await enrich({
       id: hit.id,
       venueId: hit.venueId,
