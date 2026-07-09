@@ -1,10 +1,15 @@
 // Wave J1 — warm DESIGN_SYSTEM paint overrides on OpenFreeMap / CARTO basemaps.
 // Pure helpers: apply after style.load. Never invents a new tile host.
+//
+// Dark-mode contract: land must stay night-dark (`inkDeep` / `paper`), never the
+// cream `--ink` text token. Roads must stay bright so streets remain readable.
 
 export type BasemapTasteTokens = {
   paper: string;
   panelRaised: string;
   ink: string;
+  /** Near-black night land fill — required for dark basemap (not cream `--ink`). */
+  inkDeep: string;
   line: string;
   muted: string;
   pint: string;
@@ -47,16 +52,31 @@ function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown):
   }
 }
 
-function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
+/** Exported for unit tests — dark land must never equal cream ink. */
+export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
+  if (dark) {
+    // Night city: deep land, luminous brass/cream streets (OpenFreeMap dark
+    // Liberty uses highway_* ids — keep those bright against inkDeep).
+    return {
+      land: tokens.inkDeep || tokens.paper,
+      landSoft: withAlpha(tokens.brass, 0.14),
+      residential: withAlpha(tokens.brass, 0.12),
+      park: withAlpha(tokens.pint, 0.32),
+      building: withAlpha(tokens.brass, 0.28),
+      water: tokens.river,
+      road: withAlpha(tokens.ink, 0.72),
+      roadMajor: withAlpha(tokens.amber, 0.88),
+    };
+  }
   return {
-    land: dark ? tokens.ink : tokens.paper,
-    landSoft: dark ? withAlpha(tokens.brass, 0.12) : withAlpha(tokens.amber, 0.14),
-    residential: dark ? withAlpha(tokens.brass, 0.1) : withAlpha(tokens.pint, 0.1),
-    park: dark ? withAlpha(tokens.pint, 0.28) : withAlpha(tokens.pint, 0.26),
-    building: dark ? withAlpha(tokens.brass, 0.22) : withAlpha(tokens.amber, 0.22),
-    water: dark ? tokens.river : tokens.riverBright,
-    road: dark ? withAlpha(tokens.line, 0.65) : withAlpha(tokens.brass, 0.55),
-    roadMajor: dark ? withAlpha(tokens.brass, 0.55) : withAlpha(tokens.amber, 0.62),
+    land: tokens.paper,
+    landSoft: withAlpha(tokens.amber, 0.14),
+    residential: withAlpha(tokens.pint, 0.1),
+    park: withAlpha(tokens.pint, 0.26),
+    building: withAlpha(tokens.amber, 0.22),
+    water: tokens.riverBright,
+    road: withAlpha(tokens.brass, 0.55),
+    roadMajor: withAlpha(tokens.amber, 0.62),
   };
 }
 
@@ -79,6 +99,7 @@ const LAND_FILL_IDS = [
   "landuse_cemetery",
   "landuse_hospital",
   "landuse_school",
+  "landuse_park",
   "park",
   "park_national_park",
   "national_park",
@@ -108,9 +129,16 @@ const ROAD_LINE_IDS = [
   "road_secondary_tertiary",
   "road_trunk_primary",
   "road_path_pedestrian",
+  // OpenFreeMap dark Liberty highway stack (streets vanish if these stay unpainted).
   "highway_minor",
+  "highway_minor_casing",
   "highway_major",
+  "highway_major_casing",
+  "highway_major_inner",
   "highway_motorway",
+  "highway_motorway_casing",
+  "highway_path",
+  "highway_pedestrian",
   "road-path",
   "road-pedestrian",
   "bridge",
@@ -154,6 +182,11 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
   }
 
   for (const id of ROAD_LINE_IDS) {
+    // Casings stay near-black so the bright inner stroke reads as the street.
+    if (id.includes("casing")) {
+      tryPaint(map, id, "line-color", withAlpha("#090806", isMajorRoad(id) ? 0.55 : 0.4));
+      continue;
+    }
     tryPaint(map, id, "line-color", isMajorRoad(id) ? palette.roadMajor : palette.road);
   }
 }
@@ -188,13 +221,40 @@ function paintDiscoveredLine(map: PaintMap, layerId: string, id: string, palette
   }
   const isRoad =
     (id.includes("road") || id.includes("highway") || id.includes("street")) &&
-    !id.includes("casing") &&
     !id.includes("rail");
   if (!isRoad) return;
+  if (id.includes("casing")) {
+    tryPaint(map, layerId, "line-color", withAlpha("#090806", 0.45));
+    return;
+  }
   tryPaint(map, layerId, "line-color", isMajorRoad(id) ? palette.roadMajor : palette.road);
 }
 
-function paintDiscoveredLayers(map: PaintMap, palette: TastePalette): void {
+function paintDiscoveredSymbol(
+  map: PaintMap,
+  layerId: string,
+  id: string,
+  tokens: BasemapTasteTokens,
+  dark: boolean,
+): void {
+  // Retint basemap place/road labels so dark mode doesn't keep Liberty's
+  // washed-out grey (or light-theme ink) against night land.
+  if (!id.includes("label") && !id.includes("place") && !id.includes("name")) return;
+  if (id.includes("icon")) return;
+  const text = dark ? tokens.ink : tokens.inkDeep || tokens.ink;
+  const halo = dark ? tokens.inkDeep || tokens.paper : tokens.paper;
+  tryPaint(map, layerId, "text-color", text);
+  tryPaint(map, layerId, "text-halo-color", halo);
+  tryPaint(map, layerId, "text-halo-width", dark ? 1.4 : 1.1);
+  tryPaint(map, layerId, "text-opacity", dark ? 0.92 : 0.88);
+}
+
+function paintDiscoveredLayers(
+  map: PaintMap,
+  palette: TastePalette,
+  tokens: BasemapTasteTokens,
+  dark: boolean,
+): void {
   for (const layer of map.getStyle().layers ?? []) {
     const id = layer.id.toLowerCase();
     if (layer.type === "fill") {
@@ -203,6 +263,8 @@ function paintDiscoveredLayers(map: PaintMap, palette: TastePalette): void {
       paintDiscoveredLine(map, layer.id, id, palette);
     } else if (layer.type === "background") {
       tryPaint(map, layer.id, "background-color", palette.land);
+    } else if (layer.type === "symbol") {
+      paintDiscoveredSymbol(map, layer.id, id, tokens, dark);
     }
   }
 }
@@ -218,7 +280,7 @@ export function applyBasemapTaste(
 ): void {
   const palette = buildPalette(tokens, dark);
   paintKnownLayers(map, palette, dark);
-  paintDiscoveredLayers(map, palette);
+  paintDiscoveredLayers(map, palette, tokens, dark);
 }
 
 /** Cluster fill by point_count — pint (cheap density) → amber → brass. */

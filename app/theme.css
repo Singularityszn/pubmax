@@ -36,8 +36,8 @@ html[data-theme="dark"] {
   color-scheme: dark;
 
   --ink: #fff4e8;
-  --ink-soft: #d8cfc2;
-  --muted: #9c9388;
+  --ink-soft: #e4d9c8;
+  --muted: #b0a698;
   --line: #413a34;
   --line-soft: #302b27;
   --paper: #14110f;
@@ -65,6 +65,21 @@ html[data-theme="dark"] {
   --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.48), 0 0 14px rgba(255, 138, 61, 0.07);
   --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 194, 71, 0.14);
   --gradient-party: linear-gradient(135deg, var(--paper) 0%, #1b1714 48%, #101a1b 100%);
+
+  /* Dark type: slightly stronger secondary contrast so body copy stays crisp
+     on charcoal (thin muted greys wash out under night contrast). */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] .inspectorTitle,
+html[data-theme="dark"] .venueInspector h3 {
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
 
 /* Theme toggle. Base = the inline/nav variant: a quiet brass-hover icon button

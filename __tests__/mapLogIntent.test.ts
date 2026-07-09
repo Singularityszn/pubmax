@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildLogNearbyCandidates,
+  formatLogNearbyDistance,
   hasMapLogIntent,
   resolveMapLogIntent,
   shouldRunMapLogIntent,
@@ -159,5 +160,48 @@ describe("buildLogNearbyCandidates", () => {
       { id: "d", name: "Delta", priceLabel: "£5.00" },
       { id: "e", name: "Echo", priceLabel: "£5.20" },
     ]);
+  });
+
+  it("sorts by haversine distance when a GPS origin is provided (Wave K0)", () => {
+    // Origin near Covent Garden; Bravo is closer than Alpha.
+    const origin = { lat: 51.512, lng: -0.123 };
+    const ranked = buildLogNearbyCandidates(
+      [
+        {
+          id: "far",
+          name: "Far Arms",
+          cheapestPrice: 4,
+          latitude: 51.55,
+          longitude: -0.2,
+        },
+        {
+          id: "near",
+          name: "Near Arms",
+          cheapestPrice: 5,
+          latitude: 51.5125,
+          longitude: -0.1235,
+        },
+        {
+          id: "mid",
+          name: "Mid Arms",
+          cheapestPrice: 6,
+          latitude: 51.52,
+          longitude: -0.13,
+        },
+      ],
+      3,
+      origin,
+    );
+    expect(ranked.map((c) => c.id)).toEqual(["near", "mid", "far"]);
+    expect(ranked[0].distanceKm).toBeLessThan(ranked[1].distanceKm!);
+    expect(ranked[1].distanceKm).toBeLessThan(ranked[2].distanceKm!);
+  });
+});
+
+describe("formatLogNearbyDistance", () => {
+  it("formats metres under 1 km and one-decimal km above", () => {
+    expect(formatLogNearbyDistance(0.12)).toBe("120 m");
+    expect(formatLogNearbyDistance(1.25)).toBe("1.3 km");
+    expect(formatLogNearbyDistance(Number.NaN)).toBe("");
   });
 });

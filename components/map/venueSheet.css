@@ -318,7 +318,80 @@
    only need a modest breathing buffer at the sheet edge. */
 @media (max-width: 640px) {
   .logDropBar {
-    bottom: 8px !important;
+    /* In-tab sticky Drop yields to the sheet command bar on phones. */
+    display: none;
+  }
+}
+
+/* Wave K1 — sticky venue command bar (mobile only). */
+.venueSheetStickyBar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .venueInspector {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+
+  .venueSheetStickyBar {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 12px -4px 0;
+    padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 0%, transparent) 0%,
+      color-mix(in srgb, var(--panel) 92%, transparent) 28%,
+      var(--panel) 55%
+    );
+  }
+
+  .venueSheetStickyPrimary,
+  .venueSheetStickyGhost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 44px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm, 10px);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .venueSheetStickyPrimary {
+    flex: 1.2 1 0;
+    border: 1px solid var(--brass);
+    background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+    color: var(--color-on-accent);
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+  }
+
+  .venueSheetStickyGhost {
+    flex: 1 1 0;
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    color: var(--ink);
+  }
+
+  .venueSheetStickyGhost[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+    color: var(--brass);
+  }
+
+  .venueSheetStickyPrimary:focus-visible,
+  .venueSheetStickyGhost:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
   }
 }
 

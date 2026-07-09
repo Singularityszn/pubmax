@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { applyBasemapTaste, clusterCircleColorExpr } from "@/lib/mapBasemapTaste";
+import {
+  applyBasemapTaste,
+  buildPalette,
+  clusterCircleColorExpr,
+} from "@/lib/mapBasemapTaste";
 
 const tokens = {
   paper: "#f4efe4",
   panelRaised: "#ffffff",
   ink: "#1b2620",
+  inkDeep: "#0f1c16",
   line: "#ddd5c4",
   muted: "#6b726a",
   pint: "#2f8f5b",
@@ -15,7 +20,33 @@ const tokens = {
   riverBright: "#4f9ec4",
 };
 
-describe("mapBasemapTaste (Wave J1)", () => {
+const darkTokens = {
+  ...tokens,
+  paper: "#14110f",
+  panelRaised: "#241f1b",
+  ink: "#fff4e8",
+  inkDeep: "#090806",
+  line: "#413a34",
+  muted: "#9c9388",
+  pint: "#39d98a",
+  amber: "#ffc247",
+  brass: "#ff6b7a",
+  river: "#64b5ff",
+  riverBright: "#7dd3fc",
+};
+
+describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
+  it("keeps dark land near-black — never cream ink", () => {
+    const dark = buildPalette(darkTokens, true);
+    const light = buildPalette(tokens, false);
+    expect(dark.land).toBe(darkTokens.inkDeep);
+    expect(dark.land).not.toBe(darkTokens.ink);
+    expect(light.land).toBe(tokens.paper);
+    // Streets must stay luminous against night land.
+    expect(dark.road).toContain("255, 244, 232"); // cream ink rgb
+    expect(dark.roadMajor).toContain("255, 194, 71"); // amber
+  });
+
   it("applies land/water/road/building paints when layers exist", () => {
     const paints: Array<[string, string, unknown]> = [];
     const layers = new Set([
@@ -23,8 +54,11 @@ describe("mapBasemapTaste (Wave J1)", () => {
       "park",
       "water",
       "road_major",
+      "highway_minor",
+      "highway_major_inner",
       "building",
       "landuse_residential",
+      "landuse_park",
       "mystery",
     ]);
     const map = {
@@ -38,20 +72,27 @@ describe("mapBasemapTaste (Wave J1)", () => {
           { id: "park", type: "fill" },
           { id: "water", type: "fill" },
           { id: "road_major", type: "line" },
+          { id: "highway_minor", type: "line" },
+          { id: "highway_major_inner", type: "line" },
           { id: "building", type: "fill" },
           { id: "landuse_residential", type: "fill" },
+          { id: "landuse_park", type: "fill" },
         ],
       }),
     };
 
-    applyBasemapTaste(map, tokens, false);
+    applyBasemapTaste(map, darkTokens, true);
 
-    expect(paints.some(([id, prop]) => id === "background" && prop === "background-color")).toBe(
-      true,
-    );
+    const bg = paints.find(([id, prop]) => id === "background" && prop === "background-color");
+    expect(bg?.[2]).toBe(darkTokens.inkDeep);
+
     expect(paints.some(([id, prop]) => id === "park" && prop === "fill-color")).toBe(true);
     expect(paints.some(([id, prop]) => id === "water" && prop === "fill-color")).toBe(true);
     expect(paints.some(([id, prop]) => id === "road_major" && prop === "line-color")).toBe(true);
+    expect(paints.some(([id, prop]) => id === "highway_minor" && prop === "line-color")).toBe(true);
+    expect(
+      paints.some(([id, prop]) => id === "highway_major_inner" && prop === "line-color"),
+    ).toBe(true);
     expect(paints.some(([id, prop]) => id === "building" && prop === "fill-color")).toBe(true);
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
@@ -64,7 +105,7 @@ describe("mapBasemapTaste (Wave J1)", () => {
       setPaintProperty: vi.fn(),
       getStyle: () => ({ layers: [] }),
     };
-    expect(() => applyBasemapTaste(map, tokens, true)).not.toThrow();
+    expect(() => applyBasemapTaste(map, darkTokens, true)).not.toThrow();
     expect(map.setPaintProperty).not.toHaveBeenCalled();
   });
 

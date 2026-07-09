@@ -2,8 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, ExternalLink, Flag, MapPin, PlusCircle, Quote, Waves } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import {
+  BookOpen,
+  ExternalLink,
+  Flag,
+  MapPin,
+  PlusCircle,
+  Quote,
+  Route as RouteIcon,
+  Share2,
+  TrainFront,
+  Waves,
+} from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { COMMUNITY_PRICE_NOTE, formatFreshness, formatPrice, type Venue } from "@/lib/venues";
 import { buildVenueClaims, type ClaimKind, type Provenance } from "@/lib/curation";
@@ -180,6 +191,23 @@ export default function VenueInspector({
     onTabSelect?.(next);
     tabRefs.current[next]?.focus();
   }
+
+  const shareVenue = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/map?sel=${encodeURIComponent(venue.id)}`;
+    const title = venue.name;
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        await navigator.share({ title, url, text: `PUBMAXXING — ${title}` });
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch {
+      // User cancelled share sheet or clipboard blocked — silent.
+    }
+  }, [venue.id, venue.name]);
 
   function onTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, current: TabKey) {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -772,6 +800,54 @@ export default function VenueInspector({
             onDecision={setLastTrainDecision}
           />
         ) : null}
+      </div>
+
+      {/* Wave K1 — mobile sticky command bar (Drop / crawl / share / train).
+          Desktop keeps actions in-tab; this bar is CSS-hidden above 640px. */}
+      <div className="venueSheetStickyBar" role="toolbar" aria-label="Venue actions">
+        <button
+          type="button"
+          className="venueSheetStickyPrimary"
+          onClick={() => {
+            selectTab("pints");
+            setComposerOpen(true);
+          }}
+          aria-label={`Log a Pint Drop at ${venue.name}`}
+        >
+          <PlusCircle size={16} aria-hidden="true" />
+          Drop
+        </button>
+        {mode === "build" ? (
+          <button
+            type="button"
+            className="venueSheetStickyGhost"
+            aria-pressed={inCrawl}
+            onClick={() => onToggleStop(venue.id)}
+          >
+            <RouteIcon size={15} aria-hidden="true" />
+            {inCrawl ? "Remove" : "Crawl"}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="venueSheetStickyGhost"
+          onClick={() => {
+            void shareVenue();
+          }}
+          aria-label={`Share ${venue.name}`}
+        >
+          <Share2 size={15} aria-hidden="true" />
+          Share
+        </button>
+        <button
+          type="button"
+          className="venueSheetStickyGhost"
+          onClick={() => selectTab("getting-home")}
+          aria-label="Check last train"
+        >
+          <TrainFront size={15} aria-hidden="true" />
+          Train
+        </button>
       </div>
     </section>
   );

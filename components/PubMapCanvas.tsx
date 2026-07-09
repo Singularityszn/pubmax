@@ -930,7 +930,23 @@ export default function PubMapCanvas({
 
       // Wave J1 — warm paper/river/brass washes on the stock basemap before we
       // add pub layers, so Liberty/Positron stop reading as generic grey GIS.
-      applyBasemapTaste(map, tokens, dark);
+      applyBasemapTaste(
+        map,
+        {
+          paper: tokens.paper,
+          panelRaised: tokens.panelRaised,
+          ink: tokens.ink,
+          inkDeep: tokens.inkDeep,
+          line: tokens.line,
+          muted: tokens.muted,
+          pint: tokens.pint,
+          amber: tokens.amber,
+          brass: tokens.brass,
+          river: tokens.river,
+          riverBright: tokens.riverBright,
+        },
+        dark,
+      );
 
       // buildScene re-runs on every style.load. After a genuine setStyle swap
       // the old style's layers are gone (getLayer → undefined) so everything
@@ -1073,8 +1089,9 @@ export default function PubMapCanvas({
           visibility: tubeVisibility,
         },
         paint: {
-          "text-color": dark ? tokens.paper : tokens.ink,
-          "text-halo-color": dark ? "rgba(9,15,12,0.92)" : "rgba(255,255,255,0.95)",
+          // Dark `--paper` is a night surface — use cream `--ink` for labels.
+          "text-color": dark ? tokens.ink : tokens.inkDeep,
+          "text-halo-color": dark ? "rgba(9,8,6,0.92)" : "rgba(255,255,255,0.95)",
           "text-halo-width": 1.7,
         },
       });
@@ -1393,7 +1410,7 @@ export default function PubMapCanvas({
           "text-letter-spacing": 0.02,
         },
         paint: {
-          "text-color": dark ? tokens.paper : tokens.inkDeep,
+          "text-color": dark ? tokens.ink : tokens.inkDeep,
           "text-halo-color": withAlpha(tokens.panelRaised, 0.75),
           "text-halo-width": 1,
         },
