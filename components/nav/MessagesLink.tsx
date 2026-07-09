@@ -61,8 +61,9 @@ export default function MessagesLink(): React.JSX.Element {
   }, [handle, user, authHandle]);
 
   useEffect(() => {
+    // Never setState synchronously in the effect body (react-hooks/set-state-in-effect).
     if (!user) {
-      setUnread(0);
+      void Promise.resolve().then(() => setUnread(0));
       return;
     }
     void Promise.resolve().then(() => refresh());
