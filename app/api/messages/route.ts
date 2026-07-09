@@ -1,22 +1,21 @@
-// Messaging inbox + conversation open/send (PRD E4).
+// Messaging inbox + conversation open/send (PRD E4 / Wave I2).
 //   GET  ?handle=<handle>                          → { conversations: ConversationDTO[] }
 //   POST { action:"open", handle, other }          → { conversationId }
 //   POST { action:"send", handle, other, body }    → { message }   (opens if needed)
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// IDENTITY. Prefer a verified Supabase Auth JWT when present: if the auth user
-// has a linked profile, that handle is the actor (body handle is not trusted
-// alone). When auth is absent / unconfigured / unlinked, the self-asserted
-// handle still works — dual-backend demo path, same as profiles. The store
-// enforces the participant check; the DB denies all anon access (RLS-on /
-// no-policy, migration 0019). Keep content low-sensitivity by design.
+// IDENTITY (Wave I2). DMs require a signed-in actor. Prefer the auth-linked
+// handle when the JWT's user owns a profile; otherwise the asserted handle may
+// be claimed on first write via gateHandleAction. Unsigned requests get 401.
+// The store still enforces the participant check; the DB denies all anon access
+// (RLS-on / no-policy, migration 0019).
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Reads are fail-soft (the store returns an empty inbox on error) so an outage
 // never 500s the inbox. Sends are rate-limited per handle (~20/min).
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { resolveMessageHandle } from "@/lib/messageAuth";
+import { requireLinkedActor } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -27,17 +26,22 @@ import { readString } from "@/lib/textClean";
 
 assertServerEnv();
 
-// Sends are chattier than pint drops (a conversation is a back-and-forth), so the
-// budget is looser than the default 8/min — 20 sends/min per handle.
 const SEND_LIMIT = 20;
 const SEND_WINDOW_MS = 60_000;
 
 export async function GET(request: Request): Promise<Response> {
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
-  const handle = await resolveMessageHandle(request, asserted);
-  // Nothing to key on → an empty (but valid) inbox, so the page still renders.
+  const actor = await requireLinkedActor(request, asserted);
+  if (!actor.ok) {
+    // No JWT and no handle → empty inbox so the page still renders.
+    if (!asserted.trim()) {
+      return jsonNoStore({ conversations: [] }, { status: 200 });
+    }
+    return jsonNoStore({ error: actor.error }, { status: actor.status });
+  }
+  const handle = actor.handle;
   if (!handle) return jsonNoStore({ conversations: [] }, { status: 200 });
-  // Private inbox: a linked handle requires the matching signed-in owner.
+
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
     return jsonNoStore({ error: ownership.error }, { status: ownership.status });
@@ -55,7 +59,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const action = readString(body.action);
-  const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
+  const actor = await requireLinkedActor(request, readString(body.handle) ?? "");
+  if (!actor.ok) {
+    return jsonNoStore({ error: actor.error }, { status: actor.status });
+  }
+  const handle = actor.handle;
   const other = normalizeHandle(readString(body.other) ?? "");
   if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
   if (!other) return jsonNoStore({ error: "Add a recipient handle." }, { status: 400 });
@@ -79,7 +87,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (action === "send") {
-    // Rate-limit sends per handle + hashed IP (durable when configured).
     const key = `msg-send:${handle}:${hashIp(clientIp(request))}`;
     if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
       return jsonNoStore({ error: "Too many messages, slow down." }, { status: 429 });

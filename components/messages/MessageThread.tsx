@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import SignInButton from "@/components/auth/SignInButton";
+import { authedFetch } from "@/lib/authedFetch";
 import { linkifyMentions, MAX_MESSAGE_BODY, type MessageDTO } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
 import { normalizeHandle } from "@/lib/profiles";
@@ -54,6 +57,7 @@ export default function MessageThread({
 }: {
   conversationId: string;
 }): React.JSX.Element {
+  const { user, handle: authHandle } = useAuth();
   const [handle, setHandle] = useState("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
@@ -66,27 +70,38 @@ export default function MessageThread({
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => {
-      if (active) setHandle(readHandle());
+      if (!active) return;
+      const fromAuth = normalizeHandle(authHandle ?? "");
+      setHandle(fromAuth || readHandle());
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [authHandle]);
 
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
+  // Wave I2: 401 without sign-in → signedout; Bearer via authedFetch.
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
-      const h = readHandle();
+      if (!user) {
+        setState("signedout");
+        return;
+      }
+      const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!h) {
         setState("signedout");
         return;
       }
       try {
-        const res = await fetch(
+        const res = await authedFetch(
           `/api/messages/${encodeURIComponent(conversationId)}?handle=${encodeURIComponent(h)}`,
           { signal },
         );
+        if (res.status === 401) {
+          setState("signedout");
+          return;
+        }
         if (res.status === 404) {
           setState("notfound");
           return;
@@ -104,7 +119,7 @@ export default function MessageThread({
         // aborted / offline — keep what we have
       }
     },
-    [conversationId],
+    [conversationId, user, authHandle],
   );
 
   useEffect(() => {
@@ -137,17 +152,21 @@ export default function MessageThread({
   const canSend = draft.trim().length > 0 && !over && !sending;
 
   const send = useCallback(async () => {
-    const h = readHandle();
+    const h = normalizeHandle(authHandle ?? "") || readHandle();
     const bodyText = draft.trim();
-    if (!h || !bodyText || over) return;
+    if (!user || !h || !bodyText || over) return;
     setSending(true);
     setError("");
     try {
-      const res = await fetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
+      const res = await authedFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "send", handle: h, body: bodyText }),
       });
+      if (res.status === 401) {
+        setState("signedout");
+        return;
+      }
       if (res.status === 429) {
         setError("Too many messages, slow down.");
         return;
@@ -163,14 +182,14 @@ export default function MessageThread({
     } finally {
       setSending(false);
     }
-  }, [conversationId, draft, over, refresh]);
+  }, [conversationId, draft, over, refresh, user, authHandle]);
 
   const report = useCallback(
     async (messageId: string) => {
-      const h = readHandle();
-      if (!h) return;
+      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      if (!user || !h) return;
       try {
-        await fetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
+        await authedFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ action: "report", handle: h, messageId }),
@@ -180,14 +199,15 @@ export default function MessageThread({
         // best-effort — a failed report is non-fatal
       }
     },
-    [conversationId, refresh],
+    [conversationId, refresh, user, authHandle],
   );
 
   if (state === "signedout") {
     return (
-      <p className="conversationPreview">
-        Set a handle first (log a pint or claim a profile) to read your messages.
-      </p>
+      <div className="conversationPreview messagesSignInPrompt">
+        <p>Sign in to read and send messages.</p>
+        <SignInButton />
+      </div>
     );
   }
   if (state === "notfound") {

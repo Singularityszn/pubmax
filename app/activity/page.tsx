@@ -4,24 +4,21 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
+import { useAuth } from "@/components/auth/AuthProvider";
+import SignInButton from "@/components/auth/SignInButton";
 import SiteNav from "@/components/nav/SiteNav";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
+import { authedFetch } from "@/lib/authedFetch";
 import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
+import { normalizeHandle } from "@/lib/profiles";
 
 import "./activity.css";
-
-// The activity feed (story 34): a handle's notifications, newest-first. A simple
-// list built from the same feed-card idioms — a line per event with the actor,
-// what they did, and a link to the subject. Reads the viewer's self-asserted
-// `pubmax_handle` (the same key the rest of the app writes); a signed-out viewer
-// gets a friendly empty state rather than a broken page. Opening the page marks
-// everything read (the bell's badge clears on the next poll).
 
 const HANDLE_KEY = "pubmax_handle";
 
 function readHandle(): string {
   if (typeof window === "undefined") return "";
-  return (window.localStorage.getItem(HANDLE_KEY) ?? "").trim();
+  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
 }
 
 // A grounded one-liner per kind. Keeps the vocabulary in lockstep with the four
@@ -73,10 +70,7 @@ function timeAgo(iso: string): string {
 }
 
 export default function ActivityPage(): React.JSX.Element {
-  // Read the handle after mount (not a lazy initialiser) so the server render and
-  // hydration agree — reading localStorage during the first client render diverges
-  // from the server's empty string and trips a hydration mismatch. `handleReady`
-  // guards the empty-state flash until that post-mount read settles.
+  const { handle: authHandle } = useAuth();
   const [handle, setHandle] = useState("");
   const [handleReady, setHandleReady] = useState(false);
   const [items, setItems] = useState<NotificationDTO[]>([]);
@@ -87,19 +81,18 @@ export default function ActivityPage(): React.JSX.Element {
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
-      setHandle(readHandle());
+      const fromAuth = normalizeHandle(authHandle ?? "");
+      setHandle(fromAuth || readHandle());
       setHandleReady(true);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [authHandle]);
 
   const load = useCallback(async () => {
-    // Wait for the post-mount handle read before deciding anything — otherwise the
-    // initial empty handle would flip loading off and flash the empty state.
     if (!handleReady) return;
-    const h = handle.trim();
+    const h = normalizeHandle(authHandle ?? "") || handle.trim();
     if (!h) {
       setLoading(false);
       return;
@@ -107,16 +100,14 @@ export default function ActivityPage(): React.JSX.Element {
     setLoading(true);
     setFailed(false);
     try {
-      // Read the inbox, then mark it all read (best-effort) so the bell clears.
-      const res = await fetch(`/api/notifications?handle=${encodeURIComponent(h)}`);
+      const res = await authedFetch(`/api/notifications?handle=${encodeURIComponent(h)}`);
       if (!res.ok) {
         setFailed(true);
         return;
       }
       const body = (await res.json()) as { notifications?: NotificationDTO[] };
       setItems(Array.isArray(body.notifications) ? body.notifications : []);
-      // Fire-and-forget mark-read — a failure just leaves the badge up.
-      void fetch("/api/notifications", {
+      void authedFetch("/api/notifications", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: h }),
@@ -126,7 +117,7 @@ export default function ActivityPage(): React.JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [handle, handleReady]);
+  }, [handle, handleReady, authHandle]);
 
   useEffect(() => {
     // Defer through a promise callback so setState (inside load) never runs
@@ -158,13 +149,9 @@ export default function ActivityPage(): React.JSX.Element {
         ) : !handle.trim() ? (
           <EmptyState
             eyebrow="Activity"
-            title="Claim a handle to see your activity"
-            body="Drop a pint to set a handle — then follows, reactions, comments, and crawl saves show up here."
-            action={
-              <Link href="/map?log=1" className="activityCta">
-                Drop a pint
-              </Link>
-            }
+            title="Sign in or claim a handle"
+            body="Sign in with Google, or drop a pint to set a handle — then follows, reactions, comments, and crawl saves show up here."
+            action={<SignInButton />}
           />
         ) : failed ? (
           <EmptyState

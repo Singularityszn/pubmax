@@ -36,15 +36,27 @@ type Comment = {
   parentId: string | null;
 };
 
-const HANDLE_STORAGE_KEY = "pubmax:comment:handle";
+// Wave I1: same key as feed / profile / composer so comments don't invent a
+// second identity lane beside `pubmax_handle`.
+const HANDLE_STORAGE_KEY = "pubmax_handle";
+const LEGACY_HANDLE_STORAGE_KEY = "pubmax:comment:handle";
 const MAX_BODY = 500;
 
 // Lazy, guarded localStorage read — runs once in useState init, never in an
 // effect. Any access error (private mode / disabled storage) → empty handle.
+// Migrates the pre-Wave-I comment-only key so existing commenters keep identity.
 function readStoredHandle(): string {
   if (typeof window === "undefined") return "";
   try {
-    return window.localStorage.getItem(HANDLE_STORAGE_KEY) ?? "";
+    const current = window.localStorage.getItem(HANDLE_STORAGE_KEY);
+    if (current) return current;
+    const legacy = window.localStorage.getItem(LEGACY_HANDLE_STORAGE_KEY);
+    if (legacy) {
+      window.localStorage.setItem(HANDLE_STORAGE_KEY, legacy);
+      window.localStorage.removeItem(LEGACY_HANDLE_STORAGE_KEY);
+      return legacy;
+    }
+    return "";
   } catch {
     return "";
   }

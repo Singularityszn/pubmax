@@ -352,9 +352,20 @@ export default function DiscoverPage() {
             Tonight&rsquo;s prices load as you reach the rankings.
           </p>
         ) : status === "loading" ? (
-          <p className="discoverEmpty" role="status">
-            Loading tonight&rsquo;s prices…
-          </p>
+          <>
+            <span className="srOnly" role="status">
+              Loading tonight&rsquo;s prices…
+            </span>
+            <div className="discoverSkelList" aria-hidden="true">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="discoverSkelRow">
+                  <span className="discoverSkelRank" />
+                  <span className="discoverSkelLine" />
+                  <span className="discoverSkelPrice" />
+                </div>
+              ))}
+            </div>
+          </>
         ) : status === "error" ? (
           <p className="discoverEmpty" role="status">
             Couldn&rsquo;t load tonight&rsquo;s prices just now.{" "}

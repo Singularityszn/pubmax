@@ -2,55 +2,48 @@
 
 import { Bell } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Notification bell (story 34). A tiny client island in the site nav: it polls the
-// viewer's unread count and links to /activity. Cheap by design — no websockets:
-// it re-fetches on window focus and on a slow interval, and never more than the
-// unread count (one small GET). A signed-out viewer (no `pubmax_handle`) sees a
-// plain bell with no badge and the poll is skipped entirely.
-//
-// The handle is the same self-asserted `pubmax_handle` the rest of the app writes.
-// A fetch failure is swallowed (the badge just doesn't update) so a notifications
-// outage never breaks the nav.
+import { useAuth } from "@/components/auth/AuthProvider";
+import { authedFetch } from "@/lib/authedFetch";
+import { normalizeHandle } from "@/lib/profiles";
 
 const HANDLE_KEY = "pubmax_handle";
-const POLL_MS = 60_000; // slow poll — the bell is ambient, not real-time
+const POLL_MS = 60_000;
 
 function readHandle(): string {
   if (typeof window === "undefined") return "";
-  return (window.localStorage.getItem(HANDLE_KEY) ?? "").trim();
+  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
 }
 
 export default function NotificationBell(): React.JSX.Element {
-  // Read the handle after mount (not a lazy initialiser) so the server render and
-  // hydration agree — a lazy initialiser reads localStorage on the first client
-  // render only, diverging from the server's empty string and tripping a
-  // hydration mismatch. Mirrors the feed's `pubmax_handle` idiom.
+  const router = useRouter();
+  const { handle: authHandle } = useAuth();
   const [handle, setHandle] = useState("");
   const [unread, setUnread] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Post-hydration handle read (see above). setState runs inside the async step,
-  // not the synchronous effect body (react-hooks/set-state-in-effect).
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => {
-      if (active) setHandle(readHandle());
+      if (!active) return;
+      const fromAuth = normalizeHandle(authHandle ?? "");
+      setHandle(fromAuth || readHandle());
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [authHandle]);
 
   const refresh = useCallback(async () => {
-    const h = handle.trim();
+    const h = normalizeHandle(authHandle ?? "") || handle.trim();
     if (!h) return;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await fetch(`/api/notifications?handle=${encodeURIComponent(h)}`, {
+      const res = await authedFetch(`/api/notifications?handle=${encodeURIComponent(h)}`, {
         signal: controller.signal,
       });
       if (!res.ok) return;
@@ -59,15 +52,10 @@ export default function NotificationBell(): React.JSX.Element {
     } catch {
       // Aborted / offline — leave the badge as-is; the nav never breaks on this.
     }
-  }, [handle]);
+  }, [handle, authHandle]);
 
-  // Poll on mount, on window focus (cheap catch-up when you return to the tab),
-  // and on a slow interval. All three funnel through the one refresh(), whose
-  // setState only runs inside an async promise callback — never synchronously in
-  // the effect body (react-hooks/set-state-in-effect), so the mount poll is
-  // deferred through Promise.resolve().then like the rest of the app's fetchers.
   useEffect(() => {
-    if (!handle.trim()) return;
+    if (!handle.trim() && !authHandle) return;
     void Promise.resolve().then(() => refresh());
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
@@ -77,12 +65,24 @@ export default function NotificationBell(): React.JSX.Element {
       window.clearInterval(interval);
       abortRef.current?.abort();
     };
-  }, [handle, refresh]);
+  }, [handle, refresh, authHandle]);
 
   const label = unread > 0 ? `Activity — ${unread} unread` : "Activity";
 
   return (
-    <Link href="/activity" className="siteNavBell" aria-label={label} title={label}>
+    <Link
+      href="/activity"
+      className="siteNavBell"
+      aria-label={label}
+      title={label}
+      onPointerDown={() => {
+        try {
+          router.prefetch("/activity");
+        } catch {
+          // prefetch is best-effort
+        }
+      }}
+    >
       <Bell size={18} aria-hidden="true" />
       {unread > 0 ? (
         <span className="siteNavBellBadge" aria-hidden="true">

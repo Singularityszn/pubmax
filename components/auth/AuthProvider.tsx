@@ -22,7 +22,46 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { authedFetch } from "@/lib/authedFetch";
 import { normalizeHandle } from "@/lib/profiles";
+
+const HANDLE_KEY = "pubmax_handle";
+const SYNCED_USER_KEY = "pubmax_identity_synced_user";
+
+/** Wave I2: sync localStorage handle + claim/link profile on first signed-in session. */
+async function syncIdentityAfterSignIn(user: User): Promise<void> {
+  const handle = handleFromUser(user);
+  if (!handle || typeof window === "undefined") return;
+
+  // Dedupe: cold loads + SIGNED_IN (incl. tab focus rehydration) must not
+  // spam PATCH /api/profiles once this tab has already linked this user.
+  try {
+    if (window.sessionStorage.getItem(SYNCED_USER_KEY) === user.id) return;
+  } catch {
+    // sessionStorage blocked — fall through and still attempt once
+  }
+
+  try {
+    window.localStorage.setItem(HANDLE_KEY, handle);
+  } catch {
+    // storage disabled — still attempt the server link below
+  }
+  try {
+    await authedFetch(`/api/profiles/${encodeURIComponent(handle)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      // Empty patch: gateHandleAction claimOnUnlinked links user_id on first write.
+      body: JSON.stringify({}),
+    });
+    try {
+      window.sessionStorage.setItem(SYNCED_USER_KEY, user.id);
+    } catch {
+      // best-effort dedupe marker
+    }
+  } catch {
+    // Best-effort — messaging UI still prompts sign-in if link fails.
+  }
+}
 
 export type AuthContextValue = {
   /** Current session, or null when signed out / not yet loaded. */
@@ -40,8 +79,8 @@ export type AuthContextValue = {
   /**
    * A normalized handle derived from the signed-in Google email local-part, or
    * null when signed out. Used by the Profile tab to link to /u/<handle>.
-   * This is a best-effort CLIENT derivation only — it does NOT write
-   * profiles.user_id (server-side profile linking is a follow-up).
+   * Wave I2 also syncs this into `pubmax_handle` and PATCHes the profile so
+   * `profiles.user_id` links on first signed-in session.
    */
   handle: string | null;
 };
@@ -85,6 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         if (!active) return;
         setSession(data.session ?? null);
         setLoading(false);
+        // Wave I2: refresh identity sync for an already-persisted session.
+        if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
       })
       .catch(() => {
         if (!active) return;
@@ -95,10 +136,22 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     // the ONLY place these setStates run — never the effect body.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return;
       setSession(nextSession ?? null);
       setLoading(false);
+      // Wave I2: on sign-in, sync pubmax_handle + link profiles.user_id.
+      // Deduped in syncIdentityAfterSignIn so focus/rehydration SIGNED_IN is cheap.
+      if (event === "SIGNED_IN" && nextSession?.user) {
+        void syncIdentityAfterSignIn(nextSession.user);
+      }
+      if (event === "SIGNED_OUT") {
+        try {
+          window.sessionStorage.removeItem(SYNCED_USER_KEY);
+        } catch {
+          // ignore
+        }
+      }
     });
 
     return () => {

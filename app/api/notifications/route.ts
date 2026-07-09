@@ -1,10 +1,11 @@
-// A handle's notifications / activity inbox (story 34).
+// A handle's notifications / activity inbox (story 34 / Wave I2).
 //   GET  ?handle=<handle>            → { notifications: NotificationDTO[], unread }
 //   POST { handle, id? }             → { notifications, unread }   (marks read)
 //
-// Identity is the self-asserted `handle`, gated by gateHandleAction: linked
-// handles require the matching signed-in owner; unlinked/demo handles still
-// work anonymously. A notification carries only already-public feed signal
+// Wave I2: resolve the actor via resolveMessageHandle (JWT-linked handle wins)
+// then gateHandleAction — same ownership model as messages. Linked handles
+// require the matching signed-in owner; unlinked/demo handles still work
+// anonymously. A notification carries only already-public feed signal
 // (a follow, a reaction, a comment, a crawl save), so keying a read by
 // recipient handle is low-sensitivity — it can never reveal anything the feed
 // doesn't already show. See lib/notifications.ts and migration 0010.
@@ -14,9 +15,9 @@
 // usual seam: Supabase when configured, process-memory otherwise.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { notificationsStore } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -25,8 +26,8 @@ import { readString } from "@/lib/textClean";
 assertServerEnv();
 
 export async function GET(request: Request): Promise<Response> {
-  const handle = normalizeHandle(new URL(request.url).searchParams.get("handle") ?? "");
-  // Nothing to key on → an empty (but valid) inbox, so the bell/page still renders.
+  const asserted = new URL(request.url).searchParams.get("handle") ?? "";
+  const handle = await resolveMessageHandle(request, asserted);
   if (!handle) return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
@@ -44,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
-  const handle = normalizeHandle(readString(body.handle) ?? "");
+  const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
   if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);
@@ -52,13 +53,11 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
 
-  // Rate-limit mark-read per handle + hashed IP, like the app's other routes.
   const key = `notif-read:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
     return jsonNoStore({ error: "Too many updates, slow down." }, { status: 429 });
   }
 
-  // Mark one (id present) or all (id absent) of the handle's notifications read.
   const id = readString(body.id);
   const inbox = await notificationsStore().markRead(handle, id);
   return jsonNoStore(inbox, { status: 200 });

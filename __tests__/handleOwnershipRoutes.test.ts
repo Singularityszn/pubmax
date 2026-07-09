@@ -69,10 +69,10 @@ describe("linked-handle ownership — forged body/query handle is rejected", () 
     expect(del.status).toBe(403);
   });
 
-  it("403s messages inbox GET/POST for a linked handle without JWT", async () => {
+  it("401s messages inbox GET/POST for a linked handle without JWT (Wave I2)", async () => {
     await memoryProfileStore.linkUser("ken", "user-abc");
     const get = await GET_MESSAGES(new Request("http://localhost/api/messages?handle=ken"));
-    expect(get.status).toBe(403);
+    expect(get.status).toBe(401);
 
     const post = await POST_MESSAGES(
       new Request("http://localhost/api/messages", {
@@ -80,7 +80,7 @@ describe("linked-handle ownership — forged body/query handle is rejected", () 
         body: JSON.stringify({ action: "open", handle: "ken", other: "sam" }),
       }),
     );
-    expect(post.status).toBe(403);
+    expect(post.status).toBe(401);
   });
 
   it("403s notifications GET/POST for a linked handle without JWT", async () => {

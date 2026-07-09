@@ -191,6 +191,7 @@ export default function FeedCard({
             height={1280}
             loading="lazy"
             unoptimized
+            style={{ viewTransitionName: `feed-photo-${item.id}` }}
           />
           {/* Category-tinted gradient edge — a colour whisper of the drink family
               along the bottom edge, UNDER the fixed dark scrim so it never fights
@@ -212,7 +213,12 @@ export default function FeedCard({
 
           {/* Price stamp — top-right, the pressed-ink signature. */}
           {typeof item.priceGbp === "number" ? (
-            <span className="feedSpillPrice">{formatGbp(item.priceGbp)}</span>
+            <span
+              className="feedSpillPrice"
+              style={{ viewTransitionName: `feed-price-${item.id}` }}
+            >
+              {formatGbp(item.priceGbp)}
+            </span>
           ) : null}
 
           {/* Bottom scrim + overlaid content. The scrim is a FIXED dark gradient
