@@ -432,10 +432,10 @@ export async function GET(request: Request): Promise<Response> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return json({ error: "lat and lng are required numbers." }, { status: 400 });
   }
-  // Destination stays session-only end-to-end (user story 23): this route never
-  // persists it anywhere (no DB write, no cookie, no log of the label) — it's an
-  // optional, purely-passthrough label for the decision's `destinationLabel`.
-  const destinationLabel = params.get("destination")?.trim() || null;
+  // Destination is client-only (user story 23): the card keeps the label in
+  // sessionStorage and never sends it here. Ignore any legacy ?destination=
+  // query so home/station labels cannot land in access logs or edge caches.
+  const destinationLabel = null;
 
   // 1) Nearest station. Retried once for transient failures; any failure here is
   // graceful (200 + error, NOT cached), never a 500 — degrade per user story 24.

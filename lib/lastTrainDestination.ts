@@ -1,8 +1,8 @@
 // Session-only Last Pint destination label (user stories 14–15, 23).
 //
 // The drinker's "heading home to …" target never leaves the browser session:
-// no DB, no cookie, no server log. LastTrainCard reads/writes this key and
-// appends `?destination=` to /api/last-train as a passthrough label only.
+// no DB, no cookie, no query param, no server log. LastTrainCard reads/writes
+// this key for display only — /api/last-train is never told the label.
 
 export const LAST_TRAIN_DESTINATION_KEY = "pubmax:last-train-destination:v1";
 
@@ -41,11 +41,10 @@ export function writeLastTrainDestination(
   return trimmed;
 }
 
-export function lastTrainFetchUrl(lat: number, lng: number, destination: string): string {
+/** Build the Last Pint fetch URL. Destination stays client-only — never sent. */
+export function lastTrainFetchUrl(lat: number, lng: number): string {
   const params = new URLSearchParams();
   params.set("lat", String(lat));
   params.set("lng", String(lng));
-  const label = normalizeLastTrainDestination(destination);
-  if (label) params.set("destination", label);
   return `/api/last-train?${params.toString()}`;
 }
