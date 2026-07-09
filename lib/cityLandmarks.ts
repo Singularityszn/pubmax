@@ -1,10 +1,13 @@
 // City-keyed landmark selector. London keeps its curated set in lib/landmarks.ts;
-// Manchester / Glasgow (and later cities) ship under lib/cities/{id}/landmarks.ts.
+// Manchester / Glasgow / Oxford / Liverpool (and later cities) ship under
+// lib/cities/{id}/landmarks.ts.
 
 import { parseCityId, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { landmarks, landmarkById as londonLandmarkById, type Landmark } from "@/lib/landmarks";
 import { manchesterLandmarks } from "@/lib/cities/manchester/landmarks";
 import { glasgowLandmarks } from "@/lib/cities/glasgow/landmarks";
+import { oxfordLandmarks } from "@/lib/cities/oxford/landmarks";
+import { liverpoolLandmarks } from "@/lib/cities/liverpool/landmarks";
 
 function resolveCityId(cityId: CityId | string | null | undefined): CityId {
   return parseCityId(cityId) ?? DEFAULT_CITY_ID;
@@ -18,6 +21,10 @@ export function landmarksForCity(
       return manchesterLandmarks;
     case "glasgow":
       return glasgowLandmarks;
+    case "oxford":
+      return oxfordLandmarks;
+    case "liverpool":
+      return liverpoolLandmarks;
     case "london":
     default:
       return landmarks;

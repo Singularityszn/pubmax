@@ -1,6 +1,7 @@
 // Multi-city map configuration foundation.
 // London stays the default flagship. Every city with a shipped OSM slim pack is
-// enabled for browse; Manchester and Glasgow also ship editorial landmarks/crawls/POIs.
+// enabled for browse; Manchester, Glasgow, Oxford, and Liverpool also ship
+// editorial landmarks/crawls/POIs.
 
 export type CityId =
   | "london"
@@ -114,10 +115,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     bounds: { latMin: 53.35, latMax: 53.48, lonMin: -3.05, lonMax: -2.85 },
     mapView: { center: [-2.98, 53.41], zoom: 11.4 },
     slimVenuesPath: "/data/cities/liverpool/venues_slim.json",
-    poisPath: null,
+    poisPath: "/data/cities/liverpool/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
-    // OSM slim pack shipped — browseable; editorial crawls land in later waves.
     enabled: true,
   }),
   oxford: city({
@@ -128,7 +128,7 @@ export const CITIES: Record<CityId, CityConfig> = {
     bounds: { latMin: 51.72, latMax: 51.8, lonMin: -1.3, lonMax: -1.2 },
     mapView: { center: [-1.26, 51.75], zoom: 12.2 },
     slimVenuesPath: "/data/cities/oxford/venues_slim.json",
-    poisPath: null,
+    poisPath: "/data/cities/oxford/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
     enabled: true,

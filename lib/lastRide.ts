@@ -9,7 +9,12 @@
 import type { CityId } from "@/lib/cities";
 import type { LastTrainResult } from "@/lib/tfl";
 
-export type LastRideProviderId = "tfl" | "metrolink" | "static";
+export type LastRideProviderId =
+  | "tfl"
+  | "metrolink"
+  | "spt-subway"
+  | "merseyrail"
+  | "static";
 
 /** Same payload as LastTrainResult, plus optional provider provenance for UI. */
 export type LastRideResult = LastTrainResult & {
@@ -24,6 +29,10 @@ export function lastRideProviderForCity(cityId: CityId): LastRideProviderId {
   switch (cityId) {
     case "manchester":
       return "metrolink";
+    case "glasgow":
+      return "spt-subway";
+    case "liverpool":
+      return "merseyrail";
     case "london":
       return "tfl";
     default:
@@ -36,10 +45,14 @@ export function lastRideApiPath(cityId: CityId): string {
   switch (cityId) {
     case "manchester":
       return "/api/last-tram";
+    case "glasgow":
+      return "/api/last-subway";
+    case "liverpool":
+      return "/api/last-merseyrail";
     case "london":
     default:
       // Non-London cities without a dedicated provider still hit the London
-      // route today; only Manchester is wired as a sibling in this wave.
+      // route today; Manchester / Glasgow / Liverpool are wired siblings.
       return "/api/last-train";
   }
 }

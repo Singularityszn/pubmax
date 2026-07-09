@@ -21,14 +21,16 @@ afterEach(() => {
 });
 
 describe("lastRide routing", () => {
-  it("maps london → /api/last-train and manchester → /api/last-tram", () => {
+  it("maps london → /api/last-train, manchester → /api/last-tram, glasgow → /api/last-subway", () => {
     expect(lastRideApiPath("london")).toBe("/api/last-train");
     expect(lastRideApiPath("manchester")).toBe("/api/last-tram");
+    expect(lastRideApiPath("glasgow")).toBe("/api/last-subway");
     expect(lastRideFetchUrl("manchester", 53.48, -2.24)).toBe(
       "/api/last-tram?lat=53.48&lng=-2.24",
     );
     expect(lastRideTabLabel("Last Tram")).toBe("Tram");
     expect(lastRideTabLabel("Last Pint")).toBe("Pint");
+    expect(lastRideTabLabel("Last Subway")).toBe("Subway");
   });
 });
 

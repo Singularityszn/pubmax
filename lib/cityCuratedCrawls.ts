@@ -1,5 +1,6 @@
 // City-keyed curated crawl selector. London crawls stay in lib/curatedCrawls.ts;
-// Manchester / Glasgow packs live under lib/cities/{id}/curatedCrawls.ts.
+// Manchester / Glasgow / Oxford / Liverpool packs live under
+// lib/cities/{id}/curatedCrawls.ts.
 
 import { parseCityId, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import {
@@ -9,6 +10,8 @@ import {
 } from "@/lib/curatedCrawls";
 import { manchesterCuratedCrawls } from "@/lib/cities/manchester/curatedCrawls";
 import { glasgowCuratedCrawls } from "@/lib/cities/glasgow/curatedCrawls";
+import { oxfordCuratedCrawls } from "@/lib/cities/oxford/curatedCrawls";
+import { liverpoolCuratedCrawls } from "@/lib/cities/liverpool/curatedCrawls";
 
 function resolveCityId(cityId: CityId | string | null | undefined): CityId {
   return parseCityId(cityId) ?? DEFAULT_CITY_ID;
@@ -22,6 +25,10 @@ export function curatedCrawlsForCity(
       return manchesterCuratedCrawls;
     case "glasgow":
       return glasgowCuratedCrawls;
+    case "oxford":
+      return oxfordCuratedCrawls;
+    case "liverpool":
+      return liverpoolCuratedCrawls;
     case "london":
     default:
       return curatedCrawls;

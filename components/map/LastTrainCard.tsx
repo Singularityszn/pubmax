@@ -103,9 +103,13 @@ function decisionCopy(
     case "settle_up_now":
       return "Settle up now";
     case "train_risk":
-      return modeLabel === "tram" ? "Tram risk tonight" : "Train risk tonight";
+      if (modeLabel === "tram") return "Tram risk tonight";
+      if (modeLabel === "subway") return "Subway risk tonight";
+      return "Train risk tonight";
     case "live_data_unavailable":
       if (provider === "metrolink") return "Can't check Metrolink right now";
+      if (provider === "spt-subway") return "Can't check the Subway right now";
+      if (provider === "merseyrail") return "Can't check Merseyrail right now";
       return "Can't check TfL right now";
   }
 }
@@ -141,7 +145,9 @@ export function provenanceCopyForResult(
 
 function modeWord(data: Partial<LastRideResult> | undefined, cityId: CityId): string {
   if (data?.modeLabel) return data.modeLabel;
-  return cityId === "manchester" ? "tram" : "train";
+  if (cityId === "manchester") return "tram";
+  if (cityId === "glasgow") return "subway";
+  return "train";
 }
 
 function formatLeaveBy(iso: string | null): string | null {
@@ -162,13 +168,18 @@ function readSessionDestination(): string {
 }
 
 function emptyNoteForCity(cityId: CityId): string {
-  return cityId === "manchester"
-    ? "Couldn't check Metrolink just now — check before you head out."
-    : "Couldn't reach TfL just now — check before you head out.";
+  if (cityId === "manchester") {
+    return "Couldn't check Metrolink just now — check before you head out.";
+  }
+  if (cityId === "glasgow") {
+    return "Couldn't check the Subway just now — check before you head out.";
+  }
+  return "Couldn't reach TfL just now — check before you head out.";
 }
 
 function lastServiceLineLabel(lineName: string, mode: string): string {
-  return mode === "tram" ? `Last ${lineName}` : `Last ${lineName} line`;
+  if (mode === "tram" || mode === "subway") return `Last ${lineName}`;
+  return `Last ${lineName} line`;
 }
 
 function showLondonStaticFallback(
