@@ -3883,8 +3883,8 @@ button:disabled {
     transform: translateY(calc(100% + var(--mobile-tab-clearance)));
   }
 
-  .mapDrawer.left:not(.sheet-dragging),
-  .mapDrawer.right:not(.sheet-dragging) {
+  .mapDrawer.left:not(.open):not(.sheet-dragging),
+  .mapDrawer.right:not(.open):not(.sheet-dragging) {
     /* Production CSS bundling can place the desktop side-drawer transform after
        this mobile block. Keep the phone drawer on the vertical sheet axis. */
     transform: translateY(calc(100% + var(--mobile-tab-clearance))) !important;
