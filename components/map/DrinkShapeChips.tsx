@@ -29,6 +29,8 @@ type DrinkShapeChipsProps = {
 
 function activeCategory(filters: Filters): DrinkCategory | null {
   const q = filters.query.trim().toLowerCase();
+  const lens = filters.drinkCategory.trim().toLowerCase();
+  if (CHIP_CATEGORIES.includes(lens as DrinkCategory)) return lens as DrinkCategory;
   if (!q) {
     return filters.requireCocktails ? "cocktail" : null;
   }
@@ -39,6 +41,26 @@ function activeCategory(filters: Filters): DrinkCategory | null {
   return null;
 }
 
+export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Filters {
+  const active = activeCategory(filters);
+  if (active === cat) {
+    return {
+      ...filters,
+      query: "",
+      requireCocktails: false,
+      drinkCategory: "",
+      drinkBrand: "",
+    };
+  }
+  return {
+    ...filters,
+    query: categoryLabel(cat),
+    requireCocktails: cat === "cocktail",
+    drinkCategory: cat,
+    drinkBrand: "",
+  };
+}
+
 export default function DrinkShapeChips({
   filters,
   onFiltersChange,
@@ -46,19 +68,7 @@ export default function DrinkShapeChips({
   const active = activeCategory(filters);
 
   function select(cat: DrinkCategory) {
-    if (active === cat) {
-      onFiltersChange({
-        ...filters,
-        query: "",
-        requireCocktails: false,
-      });
-      return;
-    }
-    onFiltersChange({
-      ...filters,
-      query: categoryLabel(cat),
-      requireCocktails: cat === "cocktail",
-    });
+    onFiltersChange(nextDrinkShapeFilters(filters, cat));
   }
 
   return (

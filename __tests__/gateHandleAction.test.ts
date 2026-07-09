@@ -18,8 +18,8 @@ beforeEach(() => {
   mockedCaller.mockResolvedValue(null);
 });
 
-function req(): Request {
-  return new Request("http://localhost/api/test");
+function req(init?: RequestInit): Request {
+  return new Request("http://localhost/api/test", init);
 }
 
 describe("gateHandleAction", () => {
@@ -48,9 +48,17 @@ describe("gateHandleAction", () => {
     expect(gate.allowed).toBe(true);
   });
 
-  it("links on first authenticated touch of an unlinked handle", async () => {
+  it("does not link on authenticated read of an unlinked handle", async () => {
     mockedCaller.mockResolvedValue("user-new");
     const gate = await gateHandleAction(req(), "fresh");
+    expect(gate.allowed).toBe(true);
+    const row = await memoryProfileStore.getByHandle("fresh");
+    expect(row).toBeNull();
+  });
+
+  it("links on first authenticated write of an unlinked handle", async () => {
+    mockedCaller.mockResolvedValue("user-new");
+    const gate = await gateHandleAction(req({ method: "POST" }), "fresh");
     expect(gate.allowed).toBe(true);
     const row = await memoryProfileStore.getByHandle("fresh");
     expect(row?.userId).toBe("user-new");

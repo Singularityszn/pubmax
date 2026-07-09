@@ -4007,13 +4007,13 @@ button:disabled {
     padding: 7px 10px;
   }
 
-  .appShell.detail-open .mapToolbar,
-  .appShell.detail-open .mapHeroCard,
-  .appShell.detail-open .mapLegend,
-  .appShell.detail-open .mappedRouteChip,
-  .appShell.detail-open .bandOnboardingChip,
-  .appShell.detail-open .poiToggle,
-  .appShell.detail-open .bandPicker,
+  .appShell.sheet-full .mapToolbar,
+  .appShell.sheet-full .mapHeroCard,
+  .appShell.sheet-full .mapLegend,
+  .appShell.sheet-full .mappedRouteChip,
+  .appShell.sheet-full .bandOnboardingChip,
+  .appShell.sheet-full .poiToggle,
+  .appShell.sheet-full .bandPicker,
   .appShell.route-mapped .mapHeroCard,
   .appShell.planning-open .mapToolbar,
   .appShell.planning-open .mapCameraControls,
@@ -4024,7 +4024,7 @@ button:disabled {
   .appShell.planning-open .poiToggle,
   .appShell.planning-open .bandPicker,
   .appShell.planning-open .placeStoriesControl,
-  .appShell.detail-open .placeStoriesControl {
+  .appShell.sheet-full .placeStoriesControl {
     opacity: 0;
     pointer-events: none;
     transform: translateY(8px);

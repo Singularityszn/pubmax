@@ -235,6 +235,10 @@ const CURATED_CUISINE_BY_VENUE_ID = {
   "venue-1d8a5xb": ["gastropub"],
   "venue-fpmfjs": ["gastropub"],
   "venue-133uf6h": ["gastropub", "kitchen"],
+  "venue-dbukrn": ["gastropub"],
+  "venue-lrlyh8": ["gastropub", "roast"],
+  "venue-1sx1vco": ["gastropub"],
+  "venue-erabed": ["gastropub"],
 };
 
 function normaliseDrinkHaystack(value) {

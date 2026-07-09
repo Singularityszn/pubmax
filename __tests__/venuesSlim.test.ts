@@ -11,6 +11,7 @@ import {
   type Filters,
   type VenuePrice,
 } from "@/lib/venues";
+import { CURATED_CUISINE_BY_VENUE_ID, normaliseCuisineTags } from "@/lib/cuisineTags";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 
@@ -200,6 +201,19 @@ describe("venues_slim.json", () => {
       const fromHint = (hints?.drinkCategories ?? []).includes("gin");
       const fromText = (hints?.searchText ?? "").includes("gin");
       expect(fromHint || fromText).toBe(true);
+    }
+  });
+
+  it("carries every curated cuisine hint from the app cuisine source", () => {
+    const byId = new Map((slim as SlimVenue[]).map((row) => [row.id, row]));
+    for (const [id, rawTags] of Object.entries(CURATED_CUISINE_BY_VENUE_ID)) {
+      const venue = byId.get(id);
+      expect(venue, `${id} is curated but missing from venues_slim.json`).toBeDefined();
+      const expectedTags = normaliseCuisineTags(rawTags);
+      const shippedTags = venue?.filterHints?.cuisineTags ?? [];
+      for (const tag of expectedTags) {
+        expect(shippedTags, `${id} missing cuisine tag ${tag}`).toContain(tag);
+      }
     }
   });
 

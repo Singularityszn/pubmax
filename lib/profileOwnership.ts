@@ -28,6 +28,15 @@ export type HandleActionGate =
   | { allowed: true; callerUserId: string | null; handle: string }
   | { allowed: false; status: number; error: string };
 
+type HandleActionGateOptions = {
+  /**
+   * Whether an authenticated caller may stamp user_id onto an unlinked handle.
+   * Defaults to write-intent methods only; read-only private routes must never
+   * claim a handle merely because someone opened an inbox/list endpoint.
+   */
+  claimOnUnlinked?: boolean;
+};
+
 /**
  * Decide whether a caller may write to `handle`'s profile.
  *
@@ -85,6 +94,7 @@ export function shouldLinkUser(
 export async function gateHandleAction(
   request: Request,
   handle: string,
+  options: HandleActionGateOptions = {},
 ): Promise<HandleActionGate> {
   const key = typeof handle === "string" ? handle.trim() : "";
   if (!key) {
@@ -114,7 +124,9 @@ export async function gateHandleAction(
       };
     }
 
-    if (shouldLinkUser(rowUserId, caller) && caller) {
+    const claimOnUnlinked =
+      options.claimOnUnlinked ?? !["GET", "HEAD"].includes(request.method.toUpperCase());
+    if (claimOnUnlinked && shouldLinkUser(rowUserId, caller) && caller) {
       await store.linkUser(key, caller);
     }
 
