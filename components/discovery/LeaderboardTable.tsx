@@ -1,11 +1,16 @@
+import Link from "next/link";
+
 import PriceBadge from "@/components/PriceBadge";
+import prefetchVenue from "@/lib/prefetchVenue";
+import { venueMapUrl } from "@/lib/venueIndex";
 import { formatPrice } from "@/lib/venues";
 import type { LeaderboardEntry } from "@/lib/leaderboard";
 
 // Presentational, prop-driven leaderboard. A real semantic <table> (scoped
 // column headers, a caption for screen readers) so the ranking reads correctly
 // out of context. The price uses the shared stable data badge: tabular numerals,
-// fixed width, no stamp tilt.
+// fixed width, no stamp tilt. Pub names deep-link to /map?sel=… so Discover
+// taps land on the map with that venue selected.
 
 type LeaderboardTableProps = {
   entries: LeaderboardEntry[];
@@ -42,26 +47,36 @@ export default function LeaderboardTable({
         </tr>
       </thead>
       <tbody>
-        {entries.map((entry) => (
-          <tr key={entry.venue.id}>
-            <td className="leaderboardRank">
-              <span className="leaderboardRankNum" aria-hidden="true">
-                {entry.rank}
-              </span>
-              <span className="srOnly">Rank {entry.rank}</span>
-            </td>
-            <th scope="row" className="leaderboardName">
-              <span className="leaderboardPub">{entry.venue.name}</span>
-              {entry.venue.cheapestPint ? (
-                <span className="leaderboardPint">{entry.venue.cheapestPint}</span>
-              ) : null}
-            </th>
-            <td className="leaderboardArea">{entry.area}</td>
-            <td className="leaderboardPriceHead">
-              <PriceBadge variant="cheap">{formatPrice(entry.venue.cheapestPrice)}</PriceBadge>
-            </td>
-          </tr>
-        ))}
+        {entries.map((entry) => {
+          const href = venueMapUrl(entry.venue.id);
+          return (
+            <tr key={entry.venue.id}>
+              <td className="leaderboardRank">
+                <span className="leaderboardRankNum" aria-hidden="true">
+                  {entry.rank}
+                </span>
+                <span className="srOnly">Rank {entry.rank}</span>
+              </td>
+              <th scope="row" className="leaderboardName">
+                <Link
+                  href={href}
+                  className="leaderboardPub"
+                  onPointerEnter={() => prefetchVenue(entry.venue.id)}
+                  onTouchStart={() => prefetchVenue(entry.venue.id)}
+                >
+                  {entry.venue.name}
+                </Link>
+                {entry.venue.cheapestPint ? (
+                  <span className="leaderboardPint">{entry.venue.cheapestPint}</span>
+                ) : null}
+              </th>
+              <td className="leaderboardArea">{entry.area}</td>
+              <td className="leaderboardPriceHead">
+                <PriceBadge variant="cheap">{formatPrice(entry.venue.cheapestPrice)}</PriceBadge>
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

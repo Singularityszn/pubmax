@@ -139,20 +139,25 @@
 @media (max-width: 640px) {
   .mapToolbar {
     overflow: hidden;
-    padding: 6px 7px;
+    /* Match .siteNavBarFloating padding/radius so the two chrome cards read as twins. */
+    padding: 4px 8px;
     gap: 0;
-    border-radius: 14px;
+    min-height: 40px;
+    border-radius: var(--map-chrome-radius, 14px);
+    box-sizing: border-box;
   }
 
   .mapToolbarRow {
     width: 100%;
-    gap: 5px;
+    gap: 6px;
+    min-height: 32px;
   }
 
   .mapToolbarSearch {
     min-width: 0;
     flex: 1 1 auto;
-    padding: 2px 6px;
+    min-height: 32px;
+    padding: 2px 8px;
   }
 
   .mapToolbarSearch input {
@@ -161,14 +166,20 @@
     font-size: 0.8rem;
   }
 
+  .mapToolbarDrinksBtn {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 0.72rem;
+  }
+
   /* Desktop drink lens stays in the expand panel on phones. */
   .mapToolbarDesktopExtras {
     display: none;
   }
 
   .planBtn {
-    min-height: 34px;
-    padding: 6px 11px;
+    min-height: 32px;
+    padding: 6px 12px;
     font-size: 0.76rem;
     flex: 0 0 auto;
   }

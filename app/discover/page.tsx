@@ -26,6 +26,8 @@ import {
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import { KNOWN_CUISINE_TAGS } from "@/lib/cuisineTags";
 import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
+import { curatedCrawlById, curatedCrawlMapHref } from "@/lib/curatedCrawls";
+import { getRoutePack, routePackMapHref } from "@/lib/routePacks";
 import "./discover.css";
 
 const HUNGRY_HREF = "/map?food=1";
@@ -61,15 +63,27 @@ function exploreHref(category: DrinkCategory, brandId?: string): string {
 
 const LOW_NO_HREF = "/map?drink=low-no&low=1&alt=mocktail";
 
-// Static editorial lanes. Real content, real links into the planner — the copy
-// is nostalgic/cultural but each card is a genuine anchor into /map or /crawls.
+/** Map-first crawl href, or /map if the curated id is missing. */
+function crawlMapHref(crawlId: string): string {
+  const crawl = curatedCrawlById(crawlId);
+  return crawl ? curatedCrawlMapHref(crawl) : "/map";
+}
+
+/** Map-first pack lead crawl, or /map if the pack is empty. */
+function packMapHref(packId: string): string {
+  const pack = getRoutePack(packId);
+  return pack ? routePackMapHref(pack) : "/map";
+}
+
+// Static editorial lanes. Each CTA opens /map with a real crawl polyline
+// (curatedCrawlMapHref / routePackMapHref) — not a bare filter or list page.
 const EDITORIAL: EditorialCardData[] = [
   {
     id: "golden-days",
     eyebrow: "Golden days",
     title: "The old guard, still standing",
     dek: "Victorian gin palaces, listed snugs, and the bar Dickens actually leaned on — a walk through the London that refuses to close.",
-    href: "/map?style=heritage",
+    href: crawlMapHref("victorian-soho"),
     cta: "Walk the heritage route",
   },
   {
@@ -77,7 +91,7 @@ const EDITORIAL: EditorialCardData[] = [
     eyebrow: "Coding pint",
     title: "A quiet table and a slow pint",
     dek: "Sockets, decent Wi-Fi, and a late-afternoon lull — the pubs that double as the best co-working room in the city.",
-    href: "/map",
+    href: crawlMapHref("barbican-coding-pint"),
     cta: "Find a working pint",
   },
   {
@@ -85,7 +99,7 @@ const EDITORIAL: EditorialCardData[] = [
     eyebrow: "Then vs now",
     title: "What a pint used to cost",
     dek: "The cheapest taps in town, ranked. Proof the good £4 pint isn't extinct — you just have to know where to walk.",
-    href: "/crawls",
+    href: packMapHref("cheap-chaos"),
     cta: "Build a cheap crawl",
   },
   {
@@ -93,7 +107,7 @@ const EDITORIAL: EditorialCardData[] = [
     eyebrow: "Tonight",
     title: "Tonight's crawl, sorted",
     dek: "Pick a borough, set your price, and let the river do the routing. Every pin is a pint worth knowing about.",
-    href: "/map",
+    href: crawlMapHref("victorian-soho"),
     cta: "Plan tonight",
   },
 ];
