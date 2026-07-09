@@ -1,5 +1,6 @@
 import { buildVenueClaims, type ClaimDrop, type Provenance, type VenueClaim } from "@/lib/curation";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
+import { normalizeHandle } from "@/lib/profiles";
 
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
 // voice-friendly logbook rendering of a venue's Pint Drops — "the story of
@@ -179,6 +180,34 @@ export function redactFamilyTableEntries(entries: FamilyTableEntry[]): RedactedF
     void _note;
     void _price;
     return { ...safe, handle: redactHandle(entry.handle) };
+  });
+}
+
+/** True when the viewer is the author of a legacy/family-table drop. */
+export function isFamilyTableOwner(
+  dropHandle: string,
+  viewerHandle?: string | null,
+): boolean {
+  const owner = normalizeHandle(handleOnly(dropHandle));
+  const viewer = viewerHandle ? normalizeHandle(viewerHandle) : "";
+  return Boolean(owner && viewer && owner === viewer);
+}
+
+/**
+ * Resolve Family Table rows for the public ledger page: the drop's author sees
+ * the full entry; everyone else gets initials-style redaction with no note/price.
+ * Pure — unit-testable with plain fixtures.
+ */
+export function resolveFamilyTableDisplay(
+  entries: FamilyTableEntry[],
+  sources: ReadonlyArray<{ id: string; handle: string }>,
+  viewerHandle?: string | null,
+): Array<FamilyTableEntry | RedactedFamilyEntry> {
+  const handleById = new Map(sources.map((s) => [s.id, s.handle]));
+  return entries.map((entry) => {
+    const sourceHandle = handleById.get(entry.id) ?? entry.handle;
+    if (isFamilyTableOwner(sourceHandle, viewerHandle)) return entry;
+    return redactFamilyTableEntries([entry])[0];
   });
 }
 

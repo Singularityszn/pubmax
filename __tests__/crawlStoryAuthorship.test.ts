@@ -12,11 +12,13 @@ import {
   isAuthor,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetCrawlStories();
+  __resetMemoryProfiles();
 });
 
 async function makeStory(authorHandle?: string) {
@@ -61,6 +63,14 @@ describe("isAuthor — the edit/delete gate", () => {
 
   it("is false for an unknown slug", async () => {
     expect(await isAuthor("no-such-slug", "ken")).toBe(false);
+  });
+
+  it("requires matching JWT owner when the author handle is linked", async () => {
+    const { slug } = await makeStory("ken");
+    await memoryProfileStore.linkUser("ken", "user-abc");
+    expect(await isAuthor(slug, "ken")).toBe(false);
+    expect(await isAuthor(slug, "ken", "user-xyz")).toBe(false);
+    expect(await isAuthor(slug, "ken", "user-abc")).toBe(true);
   });
 });
 

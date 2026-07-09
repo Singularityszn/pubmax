@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Drop visibility & privacy (issue #29, PRD § "The Spill"). Covers:
 //   • the pure model: cleanVisibility, visibilityOf, the friends direction, the
@@ -10,9 +10,25 @@ import { beforeEach, describe, expect, it } from "vitest";
 // FORCE the memory path: clear Supabase env so the store + lookup use the
 // in-memory backend deterministically offline (repo convention — see
 // pintDropLookup.test.ts). Every assertion here runs without a live project.
-beforeEach(() => {
-  delete process.env.SUPABASE_URL;
-  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return {
+    ...actual,
+    isSupabaseConfigured: () => false,
+    requiresSupabaseStore: () => false,
+  };
+});
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return {
+    ...actual,
+    callerUserId: vi.fn().mockResolvedValue(null),
+  };
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
 });
 
 import {
@@ -31,6 +47,19 @@ import {
 } from "@/lib/pintDrops";
 import { memoryPintDropStore, toDTO, type PersistableDrop } from "@/lib/pintDropsStore";
 import { getPintDropById } from "@/lib/pintDropLookup";
+import { GET as getPintDrops } from "@/app/api/pint-drops/route";
+import { callerUserId } from "@/lib/authServer";
+import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
+import { followStore } from "@/lib/followStore";
+import { memoryProfileStore } from "@/lib/profileStore";
+
+beforeEach(() => {
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  vi.stubEnv("NODE_ENV", "test");
+  vi.mocked(callerUserId).mockReset();
+  vi.mocked(callerUserId).mockResolvedValue(null);
+});
 
 // A base drop for gate/DTO tests — override per case.
 function makeDrop(overrides: Partial<PintDrop> = {}): PintDrop {
@@ -238,5 +267,59 @@ describe("permalink — getPintDropById respects visibility", () => {
     addPintDrop(makeDrop({ id: "old1", visibility: undefined }));
     expect(await getPintDropById("pub1")).not.toBeNull();
     expect(await getPintDropById("old1", stranger)).not.toBeNull();
+  });
+});
+
+// ── JWT-derived viewer: spoofed ?viewer= must not unlock friends in production ─
+describe("friends visibility — verified viewer only in production", () => {
+  beforeEach(() => __resetPintDrops());
+
+  it("resolveViewerContextFromRequest ignores spoofed ?viewer= in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    addPintDrop(makeDrop({ id: "fr-spoof", visibility: "friends" }));
+    await followStore().follow("mate_bob", "author_ale");
+
+    const viewer = await resolveViewerContextFromRequest(
+      new Request("http://localhost/api/pint-drops"),
+      "mate_bob",
+    );
+    expect(viewer).toBeUndefined();
+    expect(await getPintDropById("fr-spoof", viewer)).toBeNull();
+  });
+
+  it("resolveViewerContextFromRequest uses JWT profile handle in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    addPintDrop(makeDrop({ id: "fr-jwt", visibility: "friends" }));
+    await memoryProfileStore.ensure("mate_bob");
+    await memoryProfileStore.linkUser("mate_bob", "user-bob");
+    await followStore().follow("mate_bob", "author_ale");
+
+    vi.mocked(callerUserId).mockResolvedValueOnce("user-bob");
+
+    const viewer = await resolveViewerContextFromRequest(
+      new Request("http://localhost/api/pint-drops", {
+        headers: { Authorization: "Bearer fake.jwt.token" },
+      }),
+      "rando",
+    );
+    expect(viewer?.handle).toBe("mate_bob");
+    expect(viewer?.followingHandles?.has("author_ale")).toBe(true);
+    expect(await getPintDropById("fr-jwt", viewer)).not.toBeNull();
+  });
+
+  it("GET /api/pint-drops omits friends drops when only ?viewer= is spoofed in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    addPintDrop(makeDrop({ id: "fr-api", visibility: "friends" }));
+    addPintDrop(makeDrop({ id: "pub-api", visibility: "public" }));
+    await followStore().follow("mate_bob", "author_ale");
+
+    const res = await getPintDrops(
+      new Request("http://localhost/api/pint-drops?viewer=mate_bob"),
+    );
+    expect(res.status).toBe(200);
+    const { drops } = await res.json();
+    const ids = drops.map((d: { id: string }) => d.id);
+    expect(ids).toContain("pub-api");
+    expect(ids).not.toContain("fr-api");
   });
 });

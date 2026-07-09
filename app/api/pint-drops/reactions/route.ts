@@ -14,6 +14,7 @@ import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { assertServerEnv } from "@/lib/serverEnv";
 import {
   isReactionKey,
   reactionsStore,
@@ -21,6 +22,8 @@ import {
 } from "@/lib/reactionsStore";
 import { hashActor } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 // Cap how many drops one feed page can summarise in a single request.
 const MAX_IDS = 100;

@@ -154,6 +154,13 @@ describe("subscribeToComments", () => {
     expect(() => unsub()).not.toThrow();
   });
 
+  it("is a no-op when enabled is false (gated drop — no refetch subscription)", () => {
+    const nudge = vi.fn();
+    const unsub = subscribeToComments("drop-1", nudge, { enabled: false });
+    expect(capturedHandler).toBeNull();
+    expect(() => unsub()).not.toThrow();
+  });
+
   it("nudges (payload-free) on a comment INSERT", () => {
     const nudge = vi.fn();
     subscribeToComments("drop-1", nudge);

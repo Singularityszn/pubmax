@@ -1,19 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 
 // Mock the Supabase admin so toDTO/deletePhotos exercise Storage without a live
-// project. getPublicUrl is a pure string build in the real client; we mirror it.
+// project. createSignedUrl returns deterministic test URLs.
 const removeMock = vi.fn(async () => ({ data: [], error: null }));
-const getPublicUrl = vi.fn((key: string) => ({
-  data: { publicUrl: `https://cdn.test/pint-drops/${key}` },
+const createSignedUrl = vi.fn(async (key: string) => ({
+  data: { signedUrl: `https://cdn.test/signed/pint-drops/${key}` },
+  error: null,
 }));
 const rpcMock = vi.fn();
 // Table insert mock (create() → admin().from(TABLE).insert(row)). Each test sets
 // its own resolved value(s); a from() call returns a fresh object every time so
 // the two inserts of a resilience retry each hit the queued mock in order.
 const insertMock = vi.fn();
+const selectChain = {
+  eq: vi.fn(() => ({
+    maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),
+  })),
+  in: vi.fn(async () => ({ data: [], error: null })),
+};
 const mockAdmin = () => ({
-  from: () => ({ insert: insertMock }),
-  storage: { from: () => ({ getPublicUrl, remove: removeMock }) },
+  from: () => ({
+    insert: insertMock,
+    select: vi.fn(() => selectChain),
+    update: vi.fn(() => ({ eq: vi.fn(() => ({ select: vi.fn(async () => ({ data: [{ id: "x" }], error: null })) })) })),
+  }),
+  storage: { from: () => ({ createSignedUrl, remove: removeMock }) },
   rpc: rpcMock,
 });
 vi.mock("@/lib/supabase", () => ({
@@ -22,7 +33,7 @@ vi.mock("@/lib/supabase", () => ({
   STORAGE_BUCKET: "pint-drops",
 }));
 
-import { validatePhoto, magicBytesOk, toDTO, deletePhotos, supabasePintDropStore } from "@/lib/pintDropsStore";
+import { validatePhoto, magicBytesOk, toDTO, toDTOWithPhotos, deletePhotos, supabasePintDropStore } from "@/lib/pintDropsStore";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
 import { REPORT_HIDE_THRESHOLD } from "@/lib/pintDrops";
 
@@ -96,12 +107,12 @@ function drop(overrides: Partial<PersistableDrop> = {}): PersistableDrop {
 }
 
 describe("toDTO", () => {
-  it("maps storage keys to public URLs and never leaks the keys", () => {
-    const dto = toDTO(
+  it("maps storage keys to signed URLs and never leaks the keys", async () => {
+    const dto = await toDTOWithPhotos(
       drop({ pintPhotoKey: "the-crown/d1/pint.jpg", venuePhotoKey: "the-crown/d1/venue.png" }),
     );
-    expect(dto.pintPhotoUrl).toBe("https://cdn.test/pint-drops/the-crown/d1/pint.jpg");
-    expect(dto.venuePhotoUrl).toBe("https://cdn.test/pint-drops/the-crown/d1/venue.png");
+    expect(dto.pintPhotoUrl).toBe("https://cdn.test/signed/pint-drops/the-crown/d1/pint.jpg");
+    expect(dto.venuePhotoUrl).toBe("https://cdn.test/signed/pint-drops/the-crown/d1/venue.png");
     expect(dto).not.toHaveProperty("pintPhotoKey");
     expect(dto).not.toHaveProperty("venuePhotoKey");
   });

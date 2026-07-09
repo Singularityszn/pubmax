@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
-import { memoryFollowStore, supabaseFollowStore } from "@/lib/followStore";
+import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { displayHandle } from "@/lib/handleDisplay";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
-import { normalizeViewerHandle, type ViewerContext } from "@/lib/pintDrops";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { type ViewerContext } from "@/lib/pintDrops";
 
 import "./permalink.css";
 
@@ -23,36 +23,25 @@ import "./permalink.css";
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  // A `?viewer=<handle>` search param carries the requester's self-asserted
-  // handle for a friends-gated permalink (issue #29). The server can't read the
-  // client's localStorage handle, so a friends/legacy link is shared WITH this
-  // param (or the viewer arrives with it). No param ⇒ anonymous viewer ⇒ a
-  // friends/legacy drop resolves to null and renders "not on the wall" — an
-  // honest block that never confirms the drop exists. Self-asserted, no auth yet:
-  // a courtesy curtain, not cryptographic privacy (same posture as notifications).
+  // Optional `?viewer=` is a dev/test fallback only — production friends-gating
+  // requires a verified JWT (Authorization header) that resolves to a profile
+  // handle. Without auth, friends/legacy drops render "not on the wall".
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// Resolve the self-asserted viewer + their follow graph for friends-gating.
-// Fail-soft: any follow-lookup hiccup degrades to an author-only viewer (they
-// still see their own drops), never a 500. Returns undefined for no handle.
+// Resolve the verified viewer + follow graph for friends-gating on the permalink.
 async function resolveViewer(
   searchParams?: PageProps["searchParams"],
 ): Promise<ViewerContext | undefined> {
+  const h = await headers();
+  const auth = h.get("authorization") ?? h.get("Authorization") ?? "";
+  const reqHeaders: Record<string, string> = {};
+  if (auth) reqHeaders.Authorization = auth;
+  const request = new Request("http://localhost/p", { headers: reqHeaders });
   const params = searchParams ? await searchParams : undefined;
   const raw = params?.viewer;
-  const handle = normalizeViewerHandle(Array.isArray(raw) ? raw[0] : raw);
-  if (!handle) return undefined;
-  const follows = isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
-  try {
-    const following = await follows.listFollowing(handle);
-    return {
-      handle,
-      followingHandles: new Set(following.map(normalizeViewerHandle).filter(Boolean)),
-    };
-  } catch {
-    return { handle };
-  }
+  const queryViewer = Array.isArray(raw) ? raw[0] : raw;
+  return resolveViewerContextFromRequest(request, queryViewer);
 }
 
 function formatGbp(value: number | null): string | null {

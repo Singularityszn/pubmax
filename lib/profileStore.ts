@@ -90,6 +90,8 @@ export type ProfileStore = {
    * body handle.
    */
   getHandleByUserId(userId: string): Promise<string | null>;
+  /** Read a profile by linked auth user id, or null when none exists. */
+  getByUserId(userId: string): Promise<ProfileRecord | null>;
   /** Get-or-create a minimal row for a handle. Never clobbers existing fields. */
   ensure(handle: string): Promise<ProfileRecord>;
   /** Apply a patch to an existing profile. Returns null when the handle is unknown. */
@@ -175,6 +177,15 @@ export const supabaseProfileStore: ProfileStore = {
     if (error) throw new Error(error.message);
     const row = (data ?? [])[0] as { handle?: unknown } | undefined;
     return row?.handle ? normalizeHandle(String(row.handle)) || null : null;
+  },
+
+  async getByUserId(userId) {
+    const key = typeof userId === "string" ? userId.trim() : "";
+    if (!key) return null;
+    const { data, error } = await admin().from(TABLE).select("*").eq("user_id", key).limit(1);
+    if (error) throw new Error(error.message);
+    const row = (data ?? [])[0];
+    return row ? fromRow(row as Record<string, unknown>) : null;
   },
 
   async ensure(handle) {
@@ -280,6 +291,15 @@ export const memoryProfileStore: ProfileStore = {
     if (!userId) return null;
     for (const record of memoryProfiles.values()) {
       if (record.userId === userId) return record.handle;
+    }
+    return null;
+  },
+
+  async getByUserId(userId) {
+    const key = typeof userId === "string" ? userId.trim() : "";
+    if (!key) return null;
+    for (const profile of memoryProfiles.values()) {
+      if (profile.userId === key) return profile;
     }
     return null;
   },

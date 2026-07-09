@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyFeedFilter,
   cursorOf,
+  filterFeedItemsToPermittedIds,
   normalizePintDrop,
   paginate,
   type FeedItem,
@@ -334,5 +335,21 @@ describe("applyFeedFilter", () => {
     expect(applyFeedFilter(items, "tonight", ctx).map((i) => i.id)).toEqual(
       applyFeedFilter(items, "tonight").map((i) => i.id),
     );
+  });
+});
+
+describe("filterFeedItemsToPermittedIds (defensive visibility gate)", () => {
+  it("keeps only items whose ids survived the server gate", () => {
+    const items = [
+      item({ id: "visible-1" }),
+      item({ id: "gated-1" }),
+      item({ id: "visible-2" }),
+    ];
+    const kept = filterFeedItemsToPermittedIds(items, new Set(["visible-1", "visible-2"]));
+    expect(kept.map((i) => i.id)).toEqual(["visible-1", "visible-2"]);
+  });
+
+  it("returns [] when the permitted set is empty", () => {
+    expect(filterFeedItemsToPermittedIds([item({ id: "x" })], new Set())).toEqual([]);
   });
 });

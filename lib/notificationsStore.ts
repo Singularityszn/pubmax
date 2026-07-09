@@ -21,6 +21,14 @@ import {
   type NotificationDTO,
   type NotificationKind,
 } from "@/lib/notifications";
+import {
+  canViewOnPublicSurface,
+  cleanVisibility,
+  findPintDropsByIds,
+  type PintDrop,
+  type PintDropStatus,
+  type ViewerContext,
+} from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -43,8 +51,110 @@ export type NotificationsStore = {
 
 const TABLE = "notifications";
 
+// Kinds whose subjectRef points at a pint drop id — parent-drop visibility
+// must cascade here so a hidden/friends/legacy drop never surfaces via inbox.
+const DROP_LINKED_KINDS: ReadonlySet<NotificationKind> = new Set(["reaction", "comment"]);
+
 function admin() {
   return requireSupabaseAdmin();
+}
+
+function isDropLinkedKind(kind: NotificationKind): boolean {
+  return DROP_LINKED_KINDS.has(kind);
+}
+
+/** Resolve drops for the notification gate — ANY status so hidden parents gate. */
+async function lookupPintDropsByIds(ids: readonly string[]): Promise<Map<string, PintDrop>> {
+  const wanted = [...new Set(ids.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean))];
+  const found = findPintDropsByIds(wanted);
+  if (!isSupabaseConfigured()) return found;
+
+  const missing = wanted.filter((id) => !found.has(id));
+  if (missing.length === 0) return found;
+
+  try {
+    const { data, error } = await admin()
+      .from("visit_reports")
+      .select("id,status,visibility,handle")
+      .in("id", missing);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) {
+      const id = String((row as { id?: unknown }).id ?? "");
+      if (!id) continue;
+      found.set(id, {
+        id,
+        venueId: "",
+        handle: String((row as { handle?: unknown }).handle ?? ""),
+        drink: "",
+        priceGbp: null,
+        passedDownNote: "",
+        era: "",
+        provenance: "anecdote",
+        status: String((row as { status?: unknown }).status ?? "") as PintDropStatus,
+        visibility: cleanVisibility((row as { visibility?: unknown }).visibility),
+        createdAt: new Date(0).toISOString(),
+      });
+    }
+  } catch {
+    // Fail closed: treat unresolved ids as gated when Supabase lookup fails.
+    for (const id of missing) found.set(id, { ...GATED_STUB, id });
+  }
+  return found;
+}
+
+// Minimal stub used only when a Supabase lookup fails — status hidden so the
+// parent-child gate drops any notification referencing the id.
+const GATED_STUB: PintDrop = {
+  id: "",
+  venueId: "",
+  handle: "",
+  drink: "",
+  priceGbp: null,
+  passedDownNote: "",
+  era: "",
+  provenance: "anecdote",
+  status: "hidden",
+  visibility: "public",
+  createdAt: new Date(0).toISOString(),
+};
+
+function isDropNotificationPermitted(drop: PintDrop, recipientHandle: string): boolean {
+  if (drop.status !== "visible") return false;
+  const viewer: ViewerContext = { handle: normalizeHandle(recipientHandle) };
+  return canViewOnPublicSurface(drop, viewer);
+}
+
+/** Parent-child visibility gate for drop-linked inbox rows. Pure over resolved drops. */
+export function filterDropLinkedNotifications(
+  dtos: NotificationDTO[],
+  resolved: ReadonlyMap<string, PintDrop>,
+  recipientHandle: string,
+): NotificationDTO[] {
+  const viewer: ViewerContext = { handle: normalizeHandle(recipientHandle) };
+  return dtos.filter((n) => {
+    if (!isDropLinkedKind(n.kind) || !n.subjectRef) return true;
+    const drop = resolved.get(n.subjectRef);
+    // Unresolvable id — nothing to leak; keep for demo ergonomics.
+    if (!drop) return true;
+    if (drop.status !== "visible") return false;
+    return canViewOnPublicSurface(drop, viewer);
+  });
+}
+
+async function gatedInbox(dtos: NotificationDTO[], recipientHandle: string): Promise<Inbox> {
+  const dropIds = dtos
+    .filter((n) => isDropLinkedKind(n.kind) && n.subjectRef)
+    .map((n) => n.subjectRef as string);
+  const resolved = dropIds.length > 0 ? await lookupPintDropsByIds(dropIds) : new Map<string, PintDrop>();
+  return inboxFrom(filterDropLinkedNotifications(dtos, resolved, recipientHandle));
+}
+
+async function dropLinkedEmitPermitted(clean: NewNotification): Promise<boolean> {
+  if (!isDropLinkedKind(clean.kind) || !clean.subjectRef) return true;
+  const resolved = await lookupPintDropsByIds([clean.subjectRef]);
+  const drop = resolved.get(clean.subjectRef);
+  if (!drop) return true;
+  return isDropNotificationPermitted(drop, clean.recipientHandle);
 }
 
 // Map a raw row → the public DTO. The single choke point that shapes the inbox.
@@ -71,6 +181,7 @@ export const supabaseNotificationsStore: NotificationsStore = {
   async emit(input) {
     const clean = cleanNotification(input);
     if (!clean) return false;
+    if (!(await dropLinkedEmitPermitted(clean))) return false;
     try {
       const { error } = await admin().from(TABLE).insert({
         recipient_handle: clean.recipientHandle,
@@ -105,7 +216,7 @@ export const supabaseNotificationsStore: NotificationsStore = {
       const dtos = (data ?? [])
         .map((r) => toDTO(r as Record<string, unknown>))
         .filter((d): d is NotificationDTO => d !== null);
-      return inboxFrom(dtos);
+      return gatedInbox(dtos, key);
     } catch (err) {
       console.error(
         "[notifications] list failed — returning empty inbox:",
@@ -168,6 +279,7 @@ export const memoryNotificationsStore: NotificationsStore = {
   async emit(input) {
     const clean = cleanNotification(input);
     if (!clean) return false;
+    if (!(await dropLinkedEmitPermitted(clean))) return false;
     const row: MemoryRow = {
       id: `n${++memorySeq}`,
       actorHandle: clean.actorHandle,
@@ -193,7 +305,7 @@ export const memoryNotificationsStore: NotificationsStore = {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)) // newest-first
       .slice(0, MAX_NOTIFICATIONS)
       .map(memoryToDTO);
-    return inboxFrom(rows);
+    return gatedInbox(rows, key);
   },
 
   async markRead(recipientHandle, id) {

@@ -24,7 +24,7 @@
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
-    "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage",
+    "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && npm audit --audit-level=high",
     "ci": "npm run verify && npm run build",
     "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'"
   },
