@@ -4066,11 +4066,11 @@ button:disabled {
     --map-mobile-legend-clearance: 40px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
-    /* Compact matched chrome: nav (~40px) + gap + safe area → toolbar clearance. */
+    /* Compact matched chrome: nav (~40px with 32px controls) + gap + safe area. */
     --map-top-clearance: calc(
       10px + env(safe-area-inset-top, 0px) + 40px + var(--map-chrome-gap)
     );
-    --map-overlay-top: calc(var(--map-top-clearance) + 48px);
+    --map-overlay-top: calc(var(--map-top-clearance) + 46px);
     /* Stack FABs above the tab bar; route/onboarding chips one row higher. */
     --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 10px);
     --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);

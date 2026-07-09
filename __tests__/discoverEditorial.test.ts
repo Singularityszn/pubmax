@@ -1,37 +1,36 @@
 import { describe, expect, it } from "vitest";
 
-import { curatedCrawlById, curatedCrawlMapHref } from "@/lib/curatedCrawls";
-import { getRoutePack, routePackMapHref } from "@/lib/routePacks";
+import { DISCOVER_EDITORIAL } from "@/app/discover/page";
 
 // Discover editorial CTAs must open map-first crawl/route URLs (polyline),
-// not bare /map or filter-only arrivals. Mirrors the hrefs in app/discover/page.tsx.
+// not bare /map or filter-only arrivals.
 
 describe("Discover editorial map deep-links", () => {
-  it("heritage card opens Victorian Soho with crawl= + pubs=", () => {
-    const crawl = curatedCrawlById("victorian-soho");
-    expect(crawl).toBeDefined();
-    const href = curatedCrawlMapHref(crawl!);
-    expect(href).toMatch(/^\/map\?/);
-    expect(href).toContain("crawl=victorian-soho");
-    expect(href).toContain("mode=build");
-    expect(href).toContain("pubs=");
+  it("every editorial card opens /map with a built crawl polyline", () => {
+    expect(DISCOVER_EDITORIAL.length).toBeGreaterThanOrEqual(4);
+    for (const card of DISCOVER_EDITORIAL) {
+      expect(card.href, card.id).toMatch(/^\/map\?/);
+      expect(card.href, card.id).toContain("mode=build");
+      expect(card.href, card.id).toContain("crawl=");
+      expect(card.href, card.id).toContain("pubs=");
+    }
   });
 
-  it("coding pint card opens barbican-coding-pint on the map", () => {
-    const crawl = curatedCrawlById("barbican-coding-pint");
-    expect(crawl).toBeDefined();
-    const href = curatedCrawlMapHref(crawl!);
-    expect(href).toContain("crawl=barbican-coding-pint");
-    expect(href).toContain("mode=build");
+  it("heritage card opens Victorian Soho", () => {
+    const card = DISCOVER_EDITORIAL.find((c) => c.id === "golden-days");
+    expect(card?.href).toContain("crawl=victorian-soho");
   });
 
-  it("cheap crawl card opens cheap-chaos pack lead on the map", () => {
-    const pack = getRoutePack("cheap-chaos");
-    expect(pack).toBeDefined();
-    const href = routePackMapHref(pack!);
-    expect(href).toMatch(/^\/map\?/);
-    expect(href).toContain("crawl=");
-    expect(href).toContain("pubs=");
-    expect(href).toContain("mode=build");
+  it("coding pint card opens barbican-coding-pint", () => {
+    const card = DISCOVER_EDITORIAL.find((c) => c.id === "coding-pint");
+    expect(card?.href).toContain("crawl=barbican-coding-pint");
+  });
+
+  it("cheap crawl and tonight cards open distinct pack lead crawls", () => {
+    const cheap = DISCOVER_EDITORIAL.find((c) => c.id === "then-vs-now");
+    const tonight = DISCOVER_EDITORIAL.find((c) => c.id === "tonights-crawl");
+    expect(cheap?.href).toMatch(/crawl=/);
+    expect(tonight?.href).toMatch(/crawl=/);
+    expect(cheap?.href).not.toBe(tonight?.href);
   });
 });

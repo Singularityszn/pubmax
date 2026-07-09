@@ -29,30 +29,17 @@
 }
 
 /* Map variant: the shell is overflow-hidden + full-bleed, so the bar floats
-   across the top. Centred pill on desktop; full-width compact bar on phone/
-   tablet so it matches the Search/Plan toolbar width and inset. */
+   across the top. Centred pill on desktop; full-width compact bar on phone
+   so it matches the Search/Plan toolbar width and inset. */
 .siteNavBarFloating {
   position: fixed;
-  top: calc(10px + env(safe-area-inset-top, 0px));
+  top: 12px;
   left: 50%;
   z-index: 1200;
   width: max-content;
   max-width: calc(100vw - 24px);
   transform: translateX(-50%);
   box-sizing: border-box;
-}
-
-/* Match the map toolbar's full-bleed chrome from tablet widths down — same
-   inset, radius, and horizontal span as .mapToolbar (see --map-chrome-*). */
-@media (max-width: 768px) {
-  .siteNavBarFloating {
-    left: var(--map-chrome-inset, 10px);
-    right: var(--map-chrome-inset, 10px);
-    width: auto;
-    max-width: none;
-    transform: none;
-    border-radius: var(--map-chrome-radius, 14px);
-  }
 }
 
 /* ── Wordmark ──────────────────────────────────────────────────────────── */
@@ -253,6 +240,18 @@
     display: none;
   }
 
+  /* On the map the floating bar spans the same inset as .mapToolbar — a clean
+     compact header twin, never a centred pill that could clip. */
+  .siteNavBarFloating {
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    left: var(--map-chrome-inset, 10px);
+    right: var(--map-chrome-inset, 10px);
+    width: auto;
+    max-width: none;
+    transform: none;
+    border-radius: var(--map-chrome-radius, 14px);
+  }
+
   .siteNavBrand {
     flex: 0 0 auto;
     width: auto;
@@ -287,15 +286,15 @@
   }
 
   .siteNavBell {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
   }
 
   .siteNavBar .themeToggle {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 
   .siteNavBar .authUser {

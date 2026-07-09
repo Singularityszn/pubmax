@@ -107,10 +107,13 @@ const EDITORIAL: EditorialCardData[] = [
     eyebrow: "Tonight",
     title: "Tonight's crawl, sorted",
     dek: "Pick a borough, set your price, and let the river do the routing. Every pin is a pint worth knowing about.",
-    href: crawlMapHref("victorian-soho"),
+    href: packMapHref("late-train"),
     cta: "Plan tonight",
   },
 ];
+
+/** Exported for unit tests — Discover editorial CTAs must stay map-first. */
+export const DISCOVER_EDITORIAL = EDITORIAL;
 
 // Narrow the public /api/pint-drops payload to the drop shape our compute
 // helpers read. The returned TonightDrop carries {venueId, priceGbp, createdAt}
