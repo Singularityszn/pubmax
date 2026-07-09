@@ -30,8 +30,10 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 const VENUE_ID_RE = /^venue-[a-z0-9]{1,12}$/;
 
 const cachedDetails = new Map<string, Venue>();
-/** Successful manifests only — failures stay unset so the next call can retry. */
-let cachedManifest: VenueDetailManifest | undefined;
+/** Successful manifests only — I/O failures stay unset so the next call can retry.
+ * Schema-invalid manifests are cached as INVALID_MANIFEST (warn once). */
+const INVALID_MANIFEST = Symbol("invalid-venue-detail-manifest");
+let cachedManifest: VenueDetailManifest | typeof INVALID_MANIFEST | undefined;
 let detailIndexFile = DEFAULT_DETAIL_INDEX_FILE;
 let detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
 let fallbackIndex: Map<string, Venue> | null = null;
@@ -60,7 +62,9 @@ export function venueFromDetailArtifact(
   return venue?.id === expectedId ? venue : null;
 }
 
+/** Sentinel: schema-invalid manifest is permanent for this process (do not re-read). */
 async function readManifest(): Promise<VenueDetailManifest | null> {
+  if (cachedManifest === INVALID_MANIFEST) return null;
   if (cachedManifest) return cachedManifest;
   if (isTestRuntime()) manifestReadAttemptsForTests += 1;
   try {
@@ -71,7 +75,14 @@ async function readManifest(): Promise<VenueDetailManifest | null> {
       typeof parsed.count === "number" &&
       typeof parsed.venues === "object" &&
       parsed.venues !== null;
-    if (!valid) return null;
+    if (!valid) {
+      // Permanently malformed build artifact — cache the miss and warn once.
+      cachedManifest = INVALID_MANIFEST;
+      console.warn(
+        "[venueDetailIndex] venue_detail_index.json failed schema validation; venue detail lookups disabled until restart",
+      );
+      return null;
+    }
     cachedManifest = parsed;
     return parsed;
   } catch {

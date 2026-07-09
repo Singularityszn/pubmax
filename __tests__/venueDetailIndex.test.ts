@@ -84,8 +84,7 @@ describe("venueDetailIndex", () => {
     await getVenueDetail(SEED_VENUE_ID);
     expect(getManifestReadAttemptsForTests()).toBe(1);
 
-    // Leave the sticky failure cache in place; only clear venue entries so the
-    // next call must consult the manifest again.
+    // I/O failures leave the manifest cache unset, so the next call re-reads.
     clearVenueDetailEntriesForTests();
     await getVenueDetail(SEED_VENUE_ID);
     expect(getManifestReadAttemptsForTests()).toBe(2);
