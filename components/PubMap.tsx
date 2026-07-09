@@ -474,6 +474,9 @@ export default function PubMap() {
   // and synced back so a band link reproduces. The band overlay + picker live
   // inside PubMapCanvas; PubMap only owns the shareable state.
   const [activeBandId, setActiveBandId] = useState<string>(seed.bandId);
+  // Live landmark selection for shareable ?landmark= URLs (seeded once, then
+  // updated when the user opens/dismisses a landmark card on the map).
+  const [activeLandmarkId, setActiveLandmarkId] = useState<string>(seed.landmarkId ?? "");
   // Map-first layout: the planner (left drawer) is hidden until the user asks
   // for it — but a shared/restored crawl link opens straight into planning so
   // the route isn't invisible on arrival.
@@ -697,9 +700,9 @@ export default function PubMap() {
         selectedVenueId,
         bandId: activeBandId,
         altStyle,
-        landmarkId: seed.landmarkId,
+        landmarkId: activeLandmarkId,
       }),
-      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle, seed.landmarkId],
+      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle, activeLandmarkId],
     ),
   );
 
@@ -1117,6 +1120,7 @@ export default function PubMap() {
           onStartCrawl={startCrawlFromPubs}
           onAskPubmaxxer={askPubmaxxerAtPub}
           initialLandmarkId={seed.landmarkId}
+          onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
         />
         <MapToolbar
           query={filters.query}

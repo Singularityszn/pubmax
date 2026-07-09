@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Copy, MapPin, Flag, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 
 import { normalizeHandle } from "@/lib/profiles";
 import type { RoundState } from "@/lib/rounds";
@@ -60,24 +60,23 @@ function planCrawlHref(story: CrawlStory): string {
   return `/map?${params.toString()}`;
 }
 
-export default function CrawlsPage() {
-  const activePackId = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    return new URLSearchParams(window.location.search).get("pack");
-  }, []);
+function CrawlsPageInner() {
+  // useSearchParams so client navigations between ?pack= links re-filter the
+  // curated grid (a mount-only window.location read would stick on the first pack).
+  const searchParams = useSearchParams();
+  const activePackId = searchParams.get("pack");
   const activePack = activePackId ? getRoutePack(activePackId) : undefined;
   const activePackCrawlIds = activePack ? new Set(activePack.crawlIds) : null;
   const visibleCrawls = activePackCrawlIds
     ? curatedCrawls.filter((crawl) => activePackCrawlIds.has(crawl.id))
     : curatedCrawls;
 
-  // Read ?s= once, lazily, from the URL. Never on an effect (react-hooks rule);
+  // Read ?s= from the live search params so client navigations stay in sync.
   // decode never throws, so a garbage param falls through to the empty state.
-  const story = useMemo<CrawlStory | null>(() => {
-    if (typeof window === "undefined") return null;
-    const param = new URLSearchParams(window.location.search).get("s");
-    return decodeCrawlStory(param);
-  }, []);
+  const story = useMemo<CrawlStory | null>(
+    () => decodeCrawlStory(searchParams.get("s")),
+    [searchParams],
+  );
 
   const [copied, setCopied] = useState(false);
   async function copyShareLink() {
@@ -344,5 +343,15 @@ function CrawlPoster({
 
       <p className="crawlFootnote">Every pint has a story.</p>
     </article>
+  );
+}
+
+export default function CrawlsPage() {
+  // Suspense boundary required by Next.js when a client page uses useSearchParams
+  // during static prerender — without it, /crawls fails the production build.
+  return (
+    <Suspense fallback={<main className="crawlsShell" aria-busy="true" />}>
+      <CrawlsPageInner />
+    </Suspense>
   );
 }

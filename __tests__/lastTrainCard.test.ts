@@ -115,24 +115,24 @@ describe("LastTrainCard venue switching", () => {
     });
   });
 
-  it("refetches when the session destination changes", () => {
+  it("keeps the same request key when only the session destination changes", () => {
+    // Destination is client-only display state — changing it must not refetch TfL.
     const base = lastTrainRequestKey({
       lat: 51.515,
       lng: -0.142,
       venueName: "The Current Pub",
     });
-    const withDestination = lastTrainRequestKey({
+    const again = lastTrainRequestKey({
       lat: 51.515,
       lng: -0.142,
       venueName: "The Current Pub",
-      destination: "High Barnet",
     });
-    expect(withDestination).not.toBe(base);
-    expect(
-      currentLastTrainState(
-        { status: "ready", requestKey: base, data: lastTrainResult("Oxford Circus") },
-        withDestination,
-      ),
-    ).toEqual({ status: "loading" });
+    expect(again).toBe(base);
+    const readyState: LastTrainCardState = {
+      status: "ready",
+      requestKey: base,
+      data: lastTrainResult("Oxford Circus"),
+    };
+    expect(currentLastTrainState(readyState, again)).toBe(readyState);
   });
 });

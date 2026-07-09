@@ -52,7 +52,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-15i2wst", // Golden Lion (Soho) — 51 Dean Street
     ],
     startLandmarkId: "piccadilly-circus",
-    placeStoryBandId: "royal-civic",
+    // No placeStoryBandId: Soho is not on the Westminster royal-civic corridor.
   },
   {
     id: "fleet-street-writers",

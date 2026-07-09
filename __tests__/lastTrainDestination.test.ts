@@ -38,10 +38,8 @@ describe("lastTrainDestination", () => {
     expect(storage.getItem(LAST_TRAIN_DESTINATION_KEY)).toBeNull();
   });
 
-  it("builds fetch URLs with optional destination passthrough", () => {
-    expect(lastTrainFetchUrl(51.5, -0.12, "")).toBe("/api/last-train?lat=51.5&lng=-0.12");
-    expect(lastTrainFetchUrl(51.5, -0.12, "Home station")).toBe(
-      "/api/last-train?lat=51.5&lng=-0.12&destination=Home+station",
-    );
+  it("builds fetch URLs without destination (client-only privacy)", () => {
+    expect(lastTrainFetchUrl(51.5, -0.12)).toBe("/api/last-train?lat=51.5&lng=-0.12");
+    expect(lastTrainFetchUrl(51.5, -0.12)).not.toContain("destination");
   });
 });
