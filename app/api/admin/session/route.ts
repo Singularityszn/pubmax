@@ -9,6 +9,14 @@ import {
   verifyAdminToken,
 } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { isLimited } from "@/lib/pintDrops";
+import { assertServerEnv } from "@/lib/serverEnv";
+import { clientIp, hashIp } from "@/lib/supabase";
+
+assertServerEnv();
+
+const SESSION_ATTEMPT_LIMIT = 10;
+const SESSION_ATTEMPT_WINDOW_MS = 60_000;
 
 function setSessionCookie(token: string): Headers {
   const headers = new Headers();
@@ -22,9 +30,10 @@ function setSessionCookie(token: string): Headers {
 
 function clearSessionCookie(): Headers {
   const headers = new Headers();
+  const secure = process.env.NODE_ENV === "production";
   headers.append(
     "Set-Cookie",
-    `${ADMIN_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+    `${ADMIN_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`,
   );
   return headers;
 }
@@ -34,6 +43,18 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const ipKey = hashIp(clientIp(request));
+  if (
+    await isLimited(
+      `admin-session:${ipKey}`,
+      `admin-session:${ipKey}`,
+      SESSION_ATTEMPT_LIMIT,
+      SESSION_ATTEMPT_WINDOW_MS,
+    )
+  ) {
+    return jsonNoStore({ error: "Too many attempts, slow down." }, { status: 429 });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

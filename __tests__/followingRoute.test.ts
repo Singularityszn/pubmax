@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Handler-level coverage for the GET of
 // app/api/profiles/[handle]/following/route.ts — the read that powers the
@@ -16,6 +16,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 //
 // We seed follows through the memory followStore's PUBLIC api (follow(...)) — the
 // same seam the route reads from — never by reaching into store internals.
+
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET } from "@/app/api/profiles/[handle]/following/route";
 import { memoryFollowStore, __resetMemoryFollows } from "@/lib/followStore";

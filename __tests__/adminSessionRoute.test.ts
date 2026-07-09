@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/serverEnv", () => ({
+  assertServerEnv: () => {},
+  assertProductionSecrets: () => {},
+}));
+
 const ORIGINAL_ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
 beforeEach(() => {

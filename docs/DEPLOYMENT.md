@@ -56,9 +56,9 @@ Quick post-migration smoke:
 Buckets are not SQL objects, so create it **out of band** (Supabase dashboard → Storage, or the Management API):
 
 - Name: **`pint-drops`** (or whatever `SUPABASE_STORAGE_BUCKET` is set to).
-- **Private bucket** — disable public read in the Supabase dashboard after deploying signed-URL support (migration `0021_private_pint_drops_storage.sql`). The server emits short-lived signed URLs via `resolveStorageUrl` in `lib/pintDropsStore.ts` and deletes Storage objects on hide/moderation takedown.
+- **Private bucket** — public read is disabled. The server emits short-lived signed URLs via `resolveStorageUrl` / `createSignedUrls` in `lib/pintDropsStore.ts` and deletes Storage objects on hide/moderation takedown.
 
-> **Storage takedown:** hidden drops return `null` photo URLs in DTOs; `deletePhotos` runs when a drop is moderated hidden or auto-hidden by reports so a previously shared signed URL cannot be reissued after takedown. Configure the bucket as **private** so raw object URLs never resolve without a fresh signature.
+> **Storage takedown:** hidden drops return `null` photo URLs in DTOs; `deletePhotos` runs when a drop is moderated hidden or auto-hidden by reports so a previously shared signed URL cannot be reissued after takedown. The bucket must stay **private** so raw object URLs never resolve without a fresh signature.
 
 ### Social privacy boundary
 

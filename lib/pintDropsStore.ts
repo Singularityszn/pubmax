@@ -253,26 +253,80 @@ export async function resolveStorageUrl(
   }
 }
 
+/** Resolve many Storage keys to signed URLs in one (or few) Storage API calls. */
+export async function resolveStorageUrlsBatch(
+  keys: readonly (string | null | undefined)[],
+): Promise<Map<string, string>> {
+  const unique = [...new Set(keys.filter((k): k is string => typeof k === "string" && k.length > 0))];
+  const out = new Map<string, string>();
+  if (unique.length === 0) return out;
+
+  const CHUNK = 100;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    try {
+      const { data, error } = await admin()
+        .storage.from(STORAGE_BUCKET)
+        .createSignedUrls(chunk, SIGNED_URL_TTL_SEC);
+      if (error || !data) continue;
+      for (const row of data) {
+        if (row.path && row.signedUrl && !row.error) out.set(row.path, row.signedUrl);
+      }
+    } catch {
+      // Fall through — callers treat missing keys as null URLs.
+    }
+  }
+  return out;
+}
+
 export async function resolveDropPhotoUrls(
   drop: PersistableDrop,
   grant: boolean,
+  urlByKey?: Map<string, string>,
 ): Promise<{ pint: string | null; venue: string | null }> {
+  if (!grant) return { pint: null, venue: null };
+  if (urlByKey) {
+    return {
+      pint: drop.pintPhotoKey ? (urlByKey.get(drop.pintPhotoKey) ?? null) : null,
+      venue: drop.venuePhotoKey ? (urlByKey.get(drop.venuePhotoKey) ?? null) : null,
+    };
+  }
   const [pint, venue] = await Promise.all([
-    resolveStorageUrl(drop.pintPhotoKey, grant),
-    resolveStorageUrl(drop.venuePhotoKey, grant),
+    resolveStorageUrl(drop.pintPhotoKey, true),
+    resolveStorageUrl(drop.venuePhotoKey, true),
   ]);
   return { pint, venue };
 }
 
 /** Public DTO with signed photo URLs (Supabase path). */
-export async function toDTOWithPhotos(drop: PersistableDrop): Promise<PintDropDTO> {
+export async function toDTOWithPhotos(
+  drop: PersistableDrop,
+  urlByKey?: Map<string, string>,
+): Promise<PintDropDTO> {
   const grant = drop.status === "visible";
-  return toDTO(drop, await resolveDropPhotoUrls(drop, grant));
+  return toDTO(drop, await resolveDropPhotoUrls(drop, grant, urlByKey));
 }
 
 /** Moderator DTO with signed photo URLs (evidence must resolve for review). */
-export async function toModeratorDTOWithPhotos(drop: PersistableDrop): Promise<ModeratorDrop> {
-  return toModeratorDTO(drop, await resolveDropPhotoUrls(drop, true));
+export async function toModeratorDTOWithPhotos(
+  drop: PersistableDrop,
+  urlByKey?: Map<string, string>,
+): Promise<ModeratorDrop> {
+  return toModeratorDTO(drop, await resolveDropPhotoUrls(drop, true, urlByKey));
+}
+
+async function toDTOsWithBatchedPhotos(drops: PersistableDrop[]): Promise<PintDropDTO[]> {
+  const keys = drops.flatMap((d) =>
+    d.status === "visible" ? [d.pintPhotoKey, d.venuePhotoKey] : [],
+  );
+  const urlByKey = await resolveStorageUrlsBatch(keys);
+  return Promise.all(drops.map((d) => toDTOWithPhotos(d, urlByKey)));
+}
+
+async function toModeratorDTOsWithBatchedPhotos(drops: PersistableDrop[]): Promise<ModeratorDrop[]> {
+  const keys = drops.flatMap((d) => [d.pintPhotoKey, d.venuePhotoKey]);
+  const urlByKey = await resolveStorageUrlsBatch(keys);
+  return Promise.all(drops.map((d) => toModeratorDTOWithPhotos(d, urlByKey)));
 }
 
 /** Public DTO: strip Storage keys AND report/moderation metadata, emit photo
@@ -542,7 +596,7 @@ export const supabasePintDropStore: PintDropStore = {
       .concat(seeds)
       .filter((d) => canViewOnPublicSurface(d, viewer));
     const capped = newestFirstCapped(permitted);
-    return Promise.all(capped.map((d) => toDTOWithPhotos(d)));
+    return toDTOsWithBatchedPhotos(capped);
   },
 
   /** The LEGACY lane for one venue (ledger-only capability for issue #27).
@@ -559,7 +613,7 @@ export const supabasePintDropStore: PintDropStore = {
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     const rows = newestFirstCapped((data ?? []).map(fromRow));
-    return Promise.all(rows.map((d) => toDTOWithPhotos(d)));
+    return toDTOsWithBatchedPhotos(rows);
   },
 
   async listForReview(status) {
@@ -570,7 +624,7 @@ export const supabasePintDropStore: PintDropStore = {
       .is("moderated_at", null)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return Promise.all((data ?? []).map(fromRow).map((d) => toModeratorDTOWithPhotos(d)));
+    return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
   },
 
   /** ONE atomic RPC (migration 0017) writes the per-actor report ledger

@@ -7,6 +7,14 @@ const createSignedUrl = vi.fn(async (key: string) => ({
   data: { signedUrl: `https://cdn.test/signed/pint-drops/${key}` },
   error: null,
 }));
+const createSignedUrls = vi.fn(async (keys: string[]) => ({
+  data: keys.map((path) => ({
+    path,
+    signedUrl: `https://cdn.test/signed/pint-drops/${path}`,
+    error: null,
+  })),
+  error: null,
+}));
 const rpcMock = vi.fn();
 // Table insert mock (create() → admin().from(TABLE).insert(row)). Each test sets
 // its own resolved value(s); a from() call returns a fresh object every time so
@@ -24,7 +32,7 @@ const mockAdmin = () => ({
     select: vi.fn(() => selectChain),
     update: vi.fn(() => ({ eq: vi.fn(() => ({ select: vi.fn(async () => ({ data: [{ id: "x" }], error: null })) })) })),
   }),
-  storage: { from: () => ({ createSignedUrl, remove: removeMock }) },
+  storage: { from: () => ({ createSignedUrl, createSignedUrls, remove: removeMock }) },
   rpc: rpcMock,
 });
 vi.mock("@/lib/supabase", () => ({
