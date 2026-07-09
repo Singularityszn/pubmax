@@ -31,7 +31,7 @@ export const routePacks: RoutePack[] = [
     "old-london",
     "Old London",
     "Heritage corridors — Victorian Soho snugs, riverside wharves, and the South Bank tide.",
-    ["victorian-soho", "riverside-heritage", "bankside-riverside"],
+    ["victorian-soho", "riverside-heritage", "bankside-riverside", "westminster-civic"],
   ),
   pack(
     "thames",
@@ -61,7 +61,7 @@ export const routePacks: RoutePack[] = [
     "coding-pint",
     "Coding pint",
     "City-fringe rounds from Leadenhall to Liverpool Street — the after-work pint between the Square Mile and the East End.",
-    ["pint-park-view"],
+    ["pint-park-view", "barbican-coding-pint"],
   ),
   pack(
     "cheap-chaos",

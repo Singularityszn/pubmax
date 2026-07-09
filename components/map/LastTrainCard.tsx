@@ -286,6 +286,14 @@ export default function LastTrainCard({
         <p style={styles.note}>Couldn&rsquo;t reach TfL just now — check before you head out.</p>
       ) : null}
 
+      {displayState.status === "ready" &&
+      displayState.data.staticFallback &&
+      (!displayState.data.trains || displayState.data.trains.length === 0) ? (
+        <p style={styles.note}>
+          Station from our map — live train times unavailable until TfL responds again.
+        </p>
+      ) : null}
+
       {decision ? (
         <div style={styles.decision}>
           <p style={{ ...styles.decisionLine, color: DECISION_COLOUR[decision.decision] }}>

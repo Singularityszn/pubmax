@@ -26,7 +26,13 @@ describe("GET /api/last-train", () => {
     const res = await GET(new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12"));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.station).toBeNull();
+    // Static fallback: bundled station near Westminster when TfL is down.
+    expect(body.staticFallback).toBe(true);
+    expect(body.station).toEqual(
+      expect.objectContaining({ name: expect.any(String), distanceM: expect.any(Number) }),
+    );
+    expect(body.station.name).not.toBe("Nearest station");
+    expect(body.nearestPubs).toEqual(expect.any(Array));
     expect(body.decision.decision).toBe("live_data_unavailable");
     expect(body.error).toMatch(/TfL/i);
     expect(res.headers.get("cache-control")).toBe("no-store");

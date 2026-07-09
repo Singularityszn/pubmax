@@ -38,7 +38,9 @@ describe("routePacks", () => {
     expect(getRoutePack("writers")?.crawlIds).toEqual(
       expect.arrayContaining(["fleet-street-writers", "bloomsbury-literary"]),
     );
-    expect(getRoutePack("coding-pint")?.crawlIds).toEqual(["pint-park-view"]);
+    expect(getRoutePack("coding-pint")?.crawlIds).toEqual(
+      expect.arrayContaining(["pint-park-view", "barbican-coding-pint"]),
+    );
     expect(getRoutePack("old-london")?.crawlIds).toEqual(
       expect.arrayContaining(["victorian-soho", "bankside-riverside"]),
     );

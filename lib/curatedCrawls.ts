@@ -190,6 +190,38 @@ export const curatedCrawls: CuratedCrawl[] = [
     startLandmarkId: "piccadilly-circus",
   },
   {
+    id: "westminster-civic",
+    name: "Westminster & Whitehall",
+    blurb:
+      "From the Admiralty to Trafalgar Square — the pubs civil servants and tourists share when Parliament is in session and the bells are ringing.",
+    crawlStyle: "heritage",
+    venueIds: [
+      "venue-1t2cfa2", // The Admiralty
+      "venue-698bu3", // The Old Spades
+      "venue-gk2fp9", // Sherlock Holmes
+      "venue-196albe", // The Sir Michael Balcon — JD Wetherspoon
+      "venue-11iolkd", // The Lemon Tree
+    ],
+    startLandmarkId: "big-ben",
+    placeStoryBandId: "royal-civic",
+  },
+  {
+    id: "barbican-coding-pint",
+    name: "Barbican coding pint",
+    blurb:
+      "A Barbican-to-Old-Street loop through the City fringe — the after-work standup pint between the Square Mile studios and Silicon Roundabout.",
+    crawlStyle: "balanced",
+    venueIds: [
+      "venue-1h8gb3j", // The Jugged Hare
+      "venue-qtavbf", // The Two Brewers
+      "venue-1pq1x5j", // The Shakespeare
+      "venue-myhgdk", // The Artillery Arms
+      "venue-10ilrk3", // The Masque Haunt
+    ],
+    startLandmarkId: "barbican",
+    placeStoryBandId: "coding-pint",
+  },
+  {
     id: "leicester-mocktail-crawl",
     name: "Leicester Square soft round",
     blurb:
