@@ -103,8 +103,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static data JSON: cache-first, revalidated in the background.
+  // Static data JSON: cache-first for most assets, but price_updates must be
+  // network-first so a sourced price refresh is not stuck behind a stale SW cache.
   if (sameOrigin && url.pathname.startsWith("/data/") && url.pathname.endsWith(".json")) {
+    if (
+      url.pathname.includes("/price_updates/") ||
+      url.pathname.includes("/drink_price_updates/")
+    ) {
+      event.respondWith(networkFirstWithCache(event, request));
+      return;
+    }
     event.respondWith(cacheFirstWithRevalidate(event, request));
     return;
   }
@@ -171,6 +179,25 @@ async function cacheFirstWithRevalidate(event, request) {
     status: 503,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/** Prefer network for freshness-sensitive JSON; fall back to cache when offline. */
+async function networkFirstWithCache(event, request) {
+  const cache = await caches.open(DATA_CACHE);
+  try {
+    const response = await fetch(request);
+    if (isCacheable(response)) {
+      event.waitUntil(cache.put(request, response.clone()));
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    return new Response("[]", {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
 
 async function staleWhileRevalidate(event, request) {
