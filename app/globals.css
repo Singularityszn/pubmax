@@ -4035,18 +4035,17 @@ button:disabled {
     padding: 7px 10px;
   }
 
-  .appShell.sheet-full .mapToolbar,
+  /* .mapToolbar / .mapLegend sheet-full, onboarding-open, and planning-open
+     hide rules live in mapToolbar.css (slide-out transforms). Keep other
+     floating chrome here so those overlays still clear the expanded sheet. */
   .appShell.sheet-full .mapHeroCard,
-  .appShell.sheet-full .mapLegend,
   .appShell.sheet-full .mappedRouteChip,
   .appShell.sheet-full .bandOnboardingChip,
   .appShell.sheet-full .poiToggle,
   .appShell.sheet-full .bandPicker,
   .appShell.route-mapped .mapHeroCard,
-  .appShell.planning-open .mapToolbar,
   .appShell.planning-open .mapCameraControls,
   .appShell.planning-open .mapHeroCard,
-  .appShell.planning-open .mapLegend,
   .appShell.planning-open .mappedRouteChip,
   .appShell.planning-open .bandOnboardingChip,
   .appShell.planning-open .poiToggle,

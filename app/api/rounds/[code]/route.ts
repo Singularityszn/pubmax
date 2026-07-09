@@ -9,13 +9,16 @@
 // polling, the repo convention (the notifications bell polls; no websockets). It is
 // fail-soft: a store outage renders as 404 (not found), never a 500.
 //
-// Identity is the self-asserted `handle`. The code IS the capability — anyone who
-// knows it can read + (as a member) build the Round; that's the design (see
-// supabase/migrations/0011_rounds.sql). Writes are rate-limited per handle + IP.
+// Identity: prefer a verified Supabase Auth JWT when present — if the auth user
+// has a linked profile, that handle is the actor (body handle is not trusted
+// alone). When auth is absent / unconfigured / unlinked, the self-asserted
+// handle still works (demo path), same as messages. The code IS the capability —
+// anyone who knows it can read + (as a member) build the Round. Writes are
+// rate-limited per handle + IP.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { isValidRoundCode } from "@/lib/rounds";
 import { roundsStore, type RoundWriteError } from "@/lib/roundsStore";
@@ -66,7 +69,7 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
   }
 
   const action = readString(body.action);
-  const handle = normalizeHandle(readString(body.handle) ?? "");
+  const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
   if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);

@@ -281,6 +281,39 @@ describe("filterVenues", () => {
     expect(filterVenues([venue], makeFilters({ drinkCategory: "cocktail" }))).toHaveLength(1);
     expect(filterVenues([venue], makeFilters({ drinkCategory: "vodka" }))).toHaveLength(0);
   });
+
+  it("matches beer via pint tokens / hints, not any priced row", () => {
+    const lager = groupVenuePrices([
+      makeRow({ pub_name: "The Lager House", pint_name: "House Lager", price_gbp: 5 }),
+    ]);
+    const wineOnly = groupVenuePrices([
+      makeRow({
+        pub_name: "The Wine Bar",
+        address: "9 Vine Lane",
+        pint_name: "House Red Wine",
+        price_gbp: 7,
+      }),
+    ]);
+    expect(filterVenues(lager, makeFilters({ drinkCategory: "beer" }))).toHaveLength(1);
+    expect(filterVenues(wineOnly, makeFilters({ drinkCategory: "beer" }))).toHaveLength(0);
+  });
+
+  it("does not match drink brands from the venue name alone", () => {
+    const named = groupVenuePrices([
+      makeRow({
+        pub_name: "The Guinness Arms",
+        pint_name: "House Red Wine",
+        price_gbp: 6,
+      }),
+    ]);
+    expect(filterVenues(named, makeFilters({ drinkBrand: "guinness" }))).toHaveLength(0);
+    expect(filterVenues(named, makeFilters({ drinkCategory: "beer" }))).toHaveLength(0);
+  });
+
+  it("rejects unknown drinkBrand ids instead of no-opping", () => {
+    const venues = groupVenuePrices([makeRow({ pint_name: "Lager", price_gbp: 5 })]);
+    expect(filterVenues(venues, makeFilters({ drinkBrand: "not-a-real-brand" }))).toHaveLength(0);
+  });
 });
 
 describe("scoreVenue", () => {

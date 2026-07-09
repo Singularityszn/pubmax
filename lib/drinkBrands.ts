@@ -160,11 +160,18 @@ export function brandMatchNeedles(brand: DrinkBrand): string[] {
   return out;
 }
 
-/** True when haystack contains any brand needle (longest-first not required). */
+/** True when haystack contains any brand needle as a word-ish token. */
 export function haystackMatchesBrand(haystack: string, brand: DrinkBrand): boolean {
   const hay = normalizeDrinkHaystack(haystack);
   if (!hay) return false;
-  return brandMatchNeedles(brand).some((needle) => hay.includes(needle));
+  return brandMatchNeedles(brand).some((needle) => {
+    if (!needle) return false;
+    // Multi-word needles stay substring (same as category tokens); single
+    // tokens use word boundaries so "jd" does not match inside "adjourned".
+    if (needle.includes(" ")) return hay.includes(needle);
+    const re = new RegExp(`(^| )${needle}( |$)`);
+    return re.test(hay);
+  });
 }
 
 /** True when haystack mentions the category via curated tokens (word-ish). */

@@ -137,7 +137,6 @@ export function decodeCrawl(
   // Only "1" turns it on; any other/absent value leaves it at the default (off).
   if (params.get("drops") === "1") filters.requirePintDrops = true;
   if (params.get("low") === "1") filters.requireNonAlcoholic = true;
-  if (params.get("cocktails") === "1") filters.requireCocktails = true;
   if (params.get("food") === "1") filters.requireFood = true;
   const q = params.get("q")?.trim();
   if (q) filters.query = q.slice(0, 80);
@@ -146,6 +145,11 @@ export function decodeCrawl(
   //   low-no / non-alcoholic → requireNonAlcoholic (+ mocktail alt style)
   //   cocktail → requireCocktails + drinkCategory
   //   wine/vodka/gin/… → drinkCategory (+ optional drinkBrand)
+  // `cocktails=1` alone lights the cocktail lens when `drink=` is absent;
+  // an explicit `drink=` category always wins.
+  const cocktailsFlag = params.get("cocktails") === "1";
+  if (cocktailsFlag) filters.requireCocktails = true;
+
   const drinkRaw = params.get("drink")?.trim().toLowerCase() ?? "";
   if (drinkRaw === "low-no" || drinkRaw === "non-alcoholic") {
     filters.requireNonAlcoholic = true;
@@ -159,6 +163,9 @@ export function decodeCrawl(
       if (!filters.query) {
         filters.query = categoryLabel(drinkCategory);
       }
+    } else if (cocktailsFlag) {
+      filters.drinkCategory = "cocktail";
+      if (!filters.query) filters.query = categoryLabel("cocktail");
     }
   }
 

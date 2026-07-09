@@ -2,15 +2,17 @@
 // builds itself live).
 //   POST { title?, handle } → 201 { round, members, stops }   (RoundState)
 //
-// Identity is the self-asserted `handle` (no auth yet — same trust boundary as the
-// rest of the social layer). The creator is the first member of their own Round.
-// Store choice is the usual seam: Supabase when configured, process-memory
-// otherwise. Writes are rate-limited per handle + hashed IP, like the app's other
-// write routes.
+// Identity: prefer a verified Supabase Auth JWT when present — if the auth user
+// has a linked profile, that handle is the actor (body handle is not trusted
+// alone). When auth is absent / unconfigured / unlinked, the self-asserted
+// handle still works (demo path), same as messages. The creator is the first
+// member of their own Round. Store choice is the usual seam: Supabase when
+// configured, process-memory otherwise. Writes are rate-limited per handle +
+// hashed IP, like the app's other write routes.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { roundsStore } from "@/lib/roundsStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -27,7 +29,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
-  const handle = normalizeHandle(readString(body.handle) ?? "");
+  const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
   if (!handle) return jsonNoStore({ error: "Add a handle to start a Round." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);

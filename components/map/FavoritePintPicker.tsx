@@ -69,7 +69,9 @@ export default function FavoritePintPicker({
   const category: DrinkCategory | "" =
     drinkCategory && isDrinkCategory(drinkCategory) ? drinkCategory : "";
   const brands = category ? brandsForCategory(category) : [];
-  const showBrandSelect = category !== "" && category !== "shot";
+  // Shot (and other thin-coverage categories) share the brand / thin-coverage
+  // path — do not special-case shot out of the picker.
+  const showBrandSelect = category !== "";
   const useBeerPintPath = category === "beer" || category === "";
 
   return (

@@ -514,8 +514,7 @@ export default function VenueInspector({
                 const trainBadge = lastTrainBadge(
                   drop.createdAt,
                   drop.leaveByIso ?? lastTrainDecision?.leaveByIso,
-                  (drop.lastTrainDecision as LastPintDecision["decision"] | null | undefined) ??
-                    lastTrainDecision?.decision,
+                  drop.lastTrainDecision ?? lastTrainDecision?.decision,
                 );
                 return (
                   <article

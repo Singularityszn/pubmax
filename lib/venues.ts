@@ -414,10 +414,14 @@ function matchesCanonicalFilter(venue: Venue, canonicalOnly: boolean): boolean {
 }
 
 function venueDrinkHaystack(venue: Venue): string {
+  // Intentionally omit venue.name — pub brands ("The Guinness Arms") must not
+  // false-positive drink brand / category matching.
   const parts = [
-    venue.name,
     venue.cheapestPint,
+    venue.description,
     ...venue.prices.map((price) => price.pint_name),
+    ...venue.prices.map((price) => price.comment),
+    ...venue.prices.map((price) => price.description),
     venue.filterHints?.searchText ?? "",
   ];
   return parts.join(" ");
@@ -436,20 +440,17 @@ function matchesDrinkCategory(venue: Venue, drinkCategory: string): boolean {
     if (hasSlimFlag(venue, (hints) => hints.amenities.cocktails)) return true;
   }
 
-  // Beer is the dataset spine — any priced pint row (or beer hint) counts.
-  if (category === "beer") {
-    if (venue.prices.length > 0) return true;
-    if (hasSlimFlag(venue, (hints) => (hints.drinkCategories ?? []).includes("beer"))) {
-      return true;
-    }
-  }
-
+  // Beer matches like every other category: hints above, else haystack tokens
+  // (lager / ale / ipa / …) — never a universal pass on any priced row.
   return haystackMatchesCategory(venueDrinkHaystack(venue), category);
 }
 
 function matchesDrinkBrand(venue: Venue, drinkBrand: string): boolean {
-  const hit = findBrand(drinkBrand);
-  if (!hit) return true;
+  const needle = drinkBrand.trim();
+  if (!needle) return true;
+  const hit = findBrand(needle);
+  // Unknown brand ids must not no-op — treat as no match.
+  if (!hit) return false;
 
   const hinted = venue.filterHints?.drinkBrands;
   if (Array.isArray(hinted) && hinted.includes(hit.brand.id)) return true;

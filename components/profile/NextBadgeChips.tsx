@@ -125,7 +125,9 @@ export default function NextBadgeChips({
       {showCrawlsWalked
         ? crawlQuests.map((chip) => (
             <span key={chip.id} className="questChip questChipWalked">
-              <span className="questChipCount">{chip.current}</span>
+              <span className="questChipCount">
+                {chip.current}/{chip.target}
+              </span>
               {chip.label}
             </span>
           ))

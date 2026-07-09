@@ -146,9 +146,8 @@ export function validatePintDrop(input: unknown): ValidationResult {
     typeof raw.lastTrainDecision === "string" ? raw.lastTrainDecision.trim() : "";
   const leaveByOk =
     leaveByIsoRaw !== "" && !Number.isNaN(Date.parse(leaveByIsoRaw));
-  const lastTrainOk = isLiveLastTrainDecision(lastTrainDecisionRaw);
   const lastTrainFields =
-    leaveByOk && lastTrainOk
+    leaveByOk && isLiveLastTrainDecision(lastTrainDecisionRaw)
       ? { leaveByIso: leaveByIsoRaw, lastTrainDecision: lastTrainDecisionRaw }
       : {};
 

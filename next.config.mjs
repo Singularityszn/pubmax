@@ -116,7 +116,8 @@ const nextConfig = {
   poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   outputFileTracingIncludes: {
-    "/api/venue/*": [
+    // App Router dynamic segment — must match app/api/venue/[id]/route.ts.
+    "/api/venue/[id]": [
       "./data/generated/venue_detail_index.json",
       "./data/generated/venue_details.jsonl",
     ],

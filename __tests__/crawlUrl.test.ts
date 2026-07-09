@@ -136,6 +136,19 @@ describe("crawlUrl", () => {
     expect(gin.filters.query).toBe("Gin");
   });
 
+  it("decodes cocktails=1 into the cocktail drink lens (not amenity alone)", () => {
+    const seeded = seedCrawlState("?cocktails=1");
+    expect(seeded.filters.requireCocktails).toBe(true);
+    expect(seeded.filters.drinkCategory).toBe("cocktail");
+    expect(seeded.filters.query).toBe("Cocktails");
+
+    // Explicit drink= wins over the cocktails=1 soft lens fill-in.
+    const winePlus = seedCrawlState("?drink=wine&cocktails=1");
+    expect(winePlus.filters.drinkCategory).toBe("wine");
+    expect(winePlus.filters.requireCocktails).toBe(true);
+    expect(winePlus.filters.query).toBe("Wine");
+  });
+
   it("round-trips drink + brand query params", () => {
     const encoded = encodeCrawl({
       ...sample,

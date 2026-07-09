@@ -10,6 +10,7 @@
 // exact same browser-safe-twin pattern.
 
 import type { Provenance } from "@/lib/curation";
+import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // A Pint Drop is one object with optional parts: a price log, a passed-down
 // memory, or both. Photos are deferred to the Storage-backed adapter (see
@@ -113,7 +114,7 @@ export type PintDrop = {
    * Honest leave-by + decision kind for feed/venue stamps — never invent these.
    */
   leaveByIso?: string | null;
-  lastTrainDecision?: string | null;
+  lastTrainDecision?: LastPintDecisionKind | null;
 };
 
 export type ValidationResult =
