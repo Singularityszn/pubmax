@@ -20,6 +20,17 @@ type PaintMap = {
   getStyle: () => { layers?: Array<{ id: string; type?: string }> };
 };
 
+type TastePalette = {
+  land: string;
+  landSoft: string;
+  residential: string;
+  park: string;
+  building: string;
+  water: string;
+  road: string;
+  roadMajor: string;
+};
+
 export function withAlpha(hex: string, alpha: number): string {
   const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
   if (!match) return hex;
@@ -34,6 +45,19 @@ function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown):
   } catch {
     // Layer exists but property unsupported for its type — skip.
   }
+}
+
+function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
+  return {
+    land: dark ? tokens.ink : tokens.paper,
+    landSoft: dark ? withAlpha(tokens.brass, 0.12) : withAlpha(tokens.amber, 0.14),
+    residential: dark ? withAlpha(tokens.brass, 0.1) : withAlpha(tokens.pint, 0.1),
+    park: dark ? withAlpha(tokens.pint, 0.28) : withAlpha(tokens.pint, 0.26),
+    building: dark ? withAlpha(tokens.brass, 0.22) : withAlpha(tokens.amber, 0.22),
+    water: dark ? tokens.river : tokens.riverBright,
+    road: dark ? withAlpha(tokens.line, 0.65) : withAlpha(tokens.brass, 0.55),
+    roadMajor: dark ? withAlpha(tokens.brass, 0.55) : withAlpha(tokens.amber, 0.62),
+  };
 }
 
 /** Explicit OpenFreeMap Liberty + CARTO Positron / Dark Matter ids. */
@@ -93,6 +117,96 @@ const ROAD_LINE_IDS = [
   "tunnel",
 ];
 
+function isParkish(id: string): boolean {
+  return id.includes("park") || id.includes("grass") || id.includes("wood");
+}
+
+function isResidentialish(id: string): boolean {
+  return id.includes("residential") || id.includes("school") || id.includes("hospital");
+}
+
+function isMajorRoad(id: string): boolean {
+  return /motorway|trunk|primary|major|highway_major/i.test(id);
+}
+
+function landFillColor(id: string, palette: TastePalette): string {
+  if (isParkish(id)) return palette.park;
+  if (isResidentialish(id)) return palette.residential;
+  if (id.includes("landcover") || id.includes("landuse")) return palette.landSoft;
+  return palette.land;
+}
+
+function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): void {
+  tryPaint(map, "background", "background-color", palette.land);
+
+  for (const id of LAND_FILL_IDS) {
+    tryPaint(map, id, "fill-color", landFillColor(id, palette));
+  }
+
+  for (const id of BUILDING_FILL_IDS) {
+    tryPaint(map, id, "fill-color", palette.building);
+    tryPaint(map, id, "fill-opacity", dark ? 0.55 : 0.7);
+  }
+
+  for (const id of WATER_FILL_IDS) {
+    tryPaint(map, id, "fill-color", palette.water);
+    tryPaint(map, id, "line-color", palette.water);
+  }
+
+  for (const id of ROAD_LINE_IDS) {
+    tryPaint(map, id, "line-color", isMajorRoad(id) ? palette.roadMajor : palette.road);
+  }
+}
+
+function paintDiscoveredFill(map: PaintMap, layerId: string, id: string, palette: TastePalette): void {
+  if (id.includes("building")) {
+    tryPaint(map, layerId, "fill-color", palette.building);
+    return;
+  }
+  if (isParkish(id)) {
+    tryPaint(map, layerId, "fill-color", palette.park);
+    return;
+  }
+  if (id.includes("water") && !id.includes("label")) {
+    tryPaint(map, layerId, "fill-color", palette.water);
+    return;
+  }
+  if (isResidentialish(id)) {
+    tryPaint(map, layerId, "fill-color", palette.residential);
+    return;
+  }
+  if ((id.includes("land") || id.includes("earth") || id === "background") && !id.includes("label")) {
+    const soft = id.includes("landcover") || id.includes("landuse");
+    tryPaint(map, layerId, "fill-color", soft ? palette.landSoft : palette.land);
+  }
+}
+
+function paintDiscoveredLine(map: PaintMap, layerId: string, id: string, palette: TastePalette): void {
+  if (id.includes("water")) {
+    tryPaint(map, layerId, "line-color", palette.water);
+    return;
+  }
+  const isRoad =
+    (id.includes("road") || id.includes("highway") || id.includes("street")) &&
+    !id.includes("casing") &&
+    !id.includes("rail");
+  if (!isRoad) return;
+  tryPaint(map, layerId, "line-color", isMajorRoad(id) ? palette.roadMajor : palette.road);
+}
+
+function paintDiscoveredLayers(map: PaintMap, palette: TastePalette): void {
+  for (const layer of map.getStyle().layers ?? []) {
+    const id = layer.id.toLowerCase();
+    if (layer.type === "fill") {
+      paintDiscoveredFill(map, layer.id, id, palette);
+    } else if (layer.type === "line") {
+      paintDiscoveredLine(map, layer.id, id, palette);
+    } else if (layer.type === "background") {
+      tryPaint(map, layer.id, "background-color", palette.land);
+    }
+  }
+}
+
 /**
  * Tint basemap fills/lines toward candle-lit paper / river / brass.
  * Best-effort: unknown layer ids are skipped. Safe to call on every style.load.
@@ -102,85 +216,9 @@ export function applyBasemapTaste(
   tokens: BasemapTasteTokens,
   dark: boolean,
 ): void {
-  // Stronger washes so Liberty stops reading as generic grey GIS.
-  const land = dark ? tokens.ink : tokens.paper;
-  const landSoft = dark
-    ? withAlpha(tokens.brass, 0.12)
-    : withAlpha(tokens.amber, 0.14);
-  const residential = dark
-    ? withAlpha(tokens.brass, 0.1)
-    : withAlpha(tokens.pint, 0.1);
-  const park = dark ? withAlpha(tokens.pint, 0.28) : withAlpha(tokens.pint, 0.26);
-  const building = dark
-    ? withAlpha(tokens.brass, 0.22)
-    : withAlpha(tokens.amber, 0.22);
-  const water = dark ? tokens.river : tokens.riverBright;
-  const road = dark ? withAlpha(tokens.line, 0.65) : withAlpha(tokens.brass, 0.55);
-  const roadMajor = dark ? withAlpha(tokens.brass, 0.55) : withAlpha(tokens.amber, 0.62);
-
-  tryPaint(map, "background", "background-color", land);
-
-  for (const id of LAND_FILL_IDS) {
-    if (id.includes("park") || id.includes("wood") || id.includes("grass")) {
-      tryPaint(map, id, "fill-color", park);
-    } else if (id.includes("residential") || id.includes("school") || id.includes("hospital")) {
-      tryPaint(map, id, "fill-color", residential);
-    } else if (id.includes("landcover") || id.includes("landuse")) {
-      tryPaint(map, id, "fill-color", landSoft);
-    } else {
-      tryPaint(map, id, "fill-color", land);
-    }
-  }
-
-  for (const id of BUILDING_FILL_IDS) {
-    tryPaint(map, id, "fill-color", building);
-    tryPaint(map, id, "fill-opacity", dark ? 0.55 : 0.7);
-  }
-
-  for (const id of WATER_FILL_IDS) {
-    tryPaint(map, id, "fill-color", water);
-    tryPaint(map, id, "line-color", water);
-  }
-
-  for (const id of ROAD_LINE_IDS) {
-    const major = /motorway|trunk|primary|major|highway_major/i.test(id);
-    tryPaint(map, id, "line-color", major ? roadMajor : road);
-  }
-
-  // Walk style layers for Liberty/Positron ids the explicit lists missed.
-  const layers = map.getStyle().layers ?? [];
-  for (const layer of layers) {
-    const id = layer.id.toLowerCase();
-    if (layer.type === "fill") {
-      if (id.includes("building")) {
-        tryPaint(map, layer.id, "fill-color", building);
-      } else if (id.includes("park") || id.includes("grass") || id.includes("wood")) {
-        tryPaint(map, layer.id, "fill-color", park);
-      } else if (id.includes("water") && !id.includes("label")) {
-        tryPaint(map, layer.id, "fill-color", water);
-      } else if (id.includes("residential") || id.includes("school") || id.includes("hospital")) {
-        tryPaint(map, layer.id, "fill-color", residential);
-      } else if (
-        (id.includes("land") || id.includes("earth") || id === "background") &&
-        !id.includes("label")
-      ) {
-        tryPaint(map, layer.id, "fill-color", id.includes("landcover") || id.includes("landuse") ? landSoft : land);
-      }
-    } else if (layer.type === "line") {
-      if (id.includes("water")) {
-        tryPaint(map, layer.id, "line-color", water);
-      } else if (
-        (id.includes("road") || id.includes("highway") || id.includes("street")) &&
-        !id.includes("casing") &&
-        !id.includes("rail")
-      ) {
-        const major = /motorway|trunk|primary|major/.test(id);
-        tryPaint(map, layer.id, "line-color", major ? roadMajor : road);
-      }
-    } else if (layer.type === "background") {
-      tryPaint(map, layer.id, "background-color", land);
-    }
-  }
+  const palette = buildPalette(tokens, dark);
+  paintKnownLayers(map, palette, dark);
+  paintDiscoveredLayers(map, palette);
 }
 
 /** Cluster fill by point_count — pint (cheap density) → amber → brass. */
