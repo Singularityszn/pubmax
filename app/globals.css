@@ -4006,8 +4006,9 @@ button:disabled {
 
 @media (max-width: 640px) {
   .appShell {
-    --map-mobile-hero-clearance: 154px;
-    --map-mobile-legend-clearance: 62px;
+    /* Declutter: chrome hugs corners; no mid-map POI/legend stack. */
+    --map-mobile-hero-clearance: 0px;
+    --map-mobile-legend-clearance: 48px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
   }
@@ -4055,7 +4056,13 @@ button:disabled {
   }
 
   .mapLegend {
-    bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
+    left: 10px;
+    right: auto;
+    bottom: calc(var(--mobile-tab-clearance) + 10px);
+    max-width: min(220px, calc(100vw - 120px));
+    gap: 8px;
+    padding: 8px 10px;
+    justify-content: flex-start;
   }
 
   .mappedRouteChip,
@@ -4067,34 +4074,11 @@ button:disabled {
     transform: none;
   }
 
-  .poiToggle {
-    left: 10px;
-    right: 10px;
-    max-width: calc(100vw - 20px);
-    overflow-x: auto;
-    overflow-y: hidden;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    bottom: calc(
-      var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance) + var(--map-mobile-legend-clearance)
-    );
-    scrollbar-width: none;
-  }
-
-  .poiToggle::-webkit-scrollbar {
-    display: none;
-  }
-
-  .poiToggleBtn {
-    flex: 0 0 auto;
-    min-height: 32px;
-    padding: 4px 9px;
-  }
-
-  .placeStoriesControl {
-    bottom: calc(
-      var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance) + var(--map-mobile-legend-clearance) + 44px
-    );
+  /* Mobile: hide the mid-map POI strip + place-stories chrome.
+     Layers live in the corner MapLayersControl instead. */
+  .poiToggleDesktop,
+  .placeStoriesDesktop {
+    display: none !important;
   }
 }
 

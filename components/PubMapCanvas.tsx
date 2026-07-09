@@ -39,11 +39,12 @@ import {
 } from "@/lib/mapIcons";
 import {
   POI_TOGGLE_GROUPS,
-  defaultPoiHidden,
+  defaultPoiHiddenForViewport,
   isPoiGroupOn,
   isTransitNetworkVisible,
   togglePoiGroup,
 } from "@/lib/poiToggleGroups";
+import MapLayersControl from "@/components/map/MapLayersControl";
 import {
   CATEGORY_COLORS,
   categoryVar,
@@ -104,12 +105,14 @@ const FALLBACK_STYLES = {
 } as const;
 const STYLE_LOAD_TIMEOUT_MS = 8000;
 
-// Wider first view so more of Greater London reads at a glance (Wave B).
+// Wider first view so outer boroughs (Barnet, Croydon, …) read at a glance —
+// still centred on the river, but zoomed out enough that Zone 1 isn't the
+// whole story on first paint (outer-London coverage P0).
 const LONDON_VIEW = {
-  center: [-0.118, 51.512] as [number, number],
-  zoom: 10.1,
-  pitch: 48,
-  bearing: -15,
+  center: [-0.12, 51.52] as [number, number],
+  zoom: 9.85,
+  pitch: 42,
+  bearing: -12,
 };
 const LONDON_BOUNDS: [[number, number], [number, number]] = [
   [-0.55, 51.28],
@@ -531,7 +534,9 @@ export default function PubMapCanvas({
   const [failedHoverImage, setFailedHoverImage] = useState<FailedHoverImage | null>(null);
   // POI layer visibility — Transit + Parks + Sights on by default; denser
   // ambient categories stay off until the viewer opts in (Wave A chrome).
-  const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(defaultPoiHidden);
+  const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(
+    defaultPoiHiddenForViewport,
+  );
   // Open when a band is already active (e.g. `?band=` deep link) so the corridor
   // picker matches the URL; otherwise stay closed until the viewer opts in.
   const [placeStoriesManualOpen, setPlaceStoriesManualOpen] = useState(false);
@@ -2192,8 +2197,8 @@ export default function PubMapCanvas({
           </button>
         </aside>
       ) : null}
-      {/* POI category toggles — Transit merges Tube+Rail; denser layers opt-in. */}
-      <div className="poiToggle" role="group" aria-label="Points of interest">
+      {/* Desktop: bottom-right POI pill row. Mobile uses MapLayersControl instead. */}
+      <div className="poiToggle poiToggleDesktop" role="group" aria-label="Points of interest">
         {POI_TOGGLE_GROUPS.map((group) => {
           const on = isPoiGroupOn(poiHidden, group);
           return (
@@ -2210,9 +2215,9 @@ export default function PubMapCanvas({
           );
         })}
       </div>
-      {/* Place stories — off by default; open to emphasise heritage corridors. */}
+      {/* Desktop place stories. Mobile: same bands live inside Layers. */}
       {onBandChange ? (
-        <div className="placeStoriesControl">
+        <div className="placeStoriesControl placeStoriesDesktop">
           <button
             type="button"
             className={placeStoriesOpen ? "placeStoriesToggle on" : "placeStoriesToggle"}
@@ -2263,6 +2268,12 @@ export default function PubMapCanvas({
           ) : null}
         </div>
       ) : null}
+      <MapLayersControl
+        poiHidden={poiHidden}
+        onPoiHiddenChange={setPoiHidden}
+        activeBandId={activeBandId}
+        onBandChange={onBandChange}
+      />
       {activePoi ? (
         <div className="poiLabelCard" role="status">
           <span

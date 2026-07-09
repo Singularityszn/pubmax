@@ -1213,7 +1213,7 @@ export default function PubMap() {
             </button>
           </div>
         ) : null}
-        <div className="mapLegend">
+        <div className="mapLegend" aria-label="Pint price key">
           <span>
             <i className="green" /> ≤ £5.50
           </span>
@@ -1222,12 +1222,6 @@ export default function PubMap() {
           </span>
           <span>
             <i className="red" /> £7+
-          </span>
-          <span>
-            <i className="brassRing" /> heritage
-          </span>
-          <span>
-            <i className="gold" /> writer
           </span>
         </div>
 

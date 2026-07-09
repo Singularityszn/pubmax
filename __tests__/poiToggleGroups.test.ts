@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   POI_TOGGLE_GROUPS,
   defaultPoiHidden,
+  defaultPoiHiddenMobile,
   isPoiGroupOn,
   isTransitNetworkVisible,
   togglePoiGroup,
@@ -15,7 +16,7 @@ describe("poiToggleGroups", () => {
     expect(transit?.label).toBe("Transit");
   });
 
-  it("defaults Transit, Parks, and Sights on", () => {
+  it("defaults Transit, Parks, and Sights on for desktop", () => {
     const hidden = defaultPoiHidden();
     expect(hidden.tube).toBe(false);
     expect(hidden.rail).toBe(false);
@@ -23,6 +24,13 @@ describe("poiToggleGroups", () => {
     expect(hidden.sight).toBe(false);
     expect(hidden.bus).toBe(true);
     expect(hidden.historic).toBe(true);
+  });
+
+  it("hides every POI layer on mobile by default", () => {
+    const hidden = defaultPoiHiddenMobile();
+    for (const value of Object.values(hidden)) {
+      expect(value).toBe(true);
+    }
   });
 
   it("toggles Transit as a pair", () => {

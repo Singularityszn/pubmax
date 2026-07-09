@@ -53,15 +53,26 @@
   font-size: 17px;
 }
 
+.boroughMapLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 18px;
+}
+
 .boroughCrawlLink {
   display: inline-flex;
   align-items: center;
   min-height: 40px;
-  margin-top: 18px;
   color: var(--brass);
   font-weight: 600;
   font-size: 15px;
   text-decoration: none;
+}
+
+.boroughCrawlLinkSecondary {
+  color: var(--ink-soft);
+  font-weight: 500;
 }
 
 .boroughCrawlLink:hover {
