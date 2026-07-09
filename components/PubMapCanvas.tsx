@@ -40,6 +40,7 @@ import {
 import {
   POI_TOGGLE_GROUPS,
   defaultPoiHiddenForViewport,
+  isMobileMapViewport,
   isPoiGroupOn,
   isTransitNetworkVisible,
   togglePoiGroup,
@@ -532,11 +533,19 @@ export default function PubMapCanvas({
   );
   const hoverDetailsRef = useRef(hoverDetails);
   const [failedHoverImage, setFailedHoverImage] = useState<FailedHoverImage | null>(null);
-  // POI layer visibility — Transit + Parks + Sights on by default; denser
-  // ambient categories stay off until the viewer opts in (Wave A chrome).
+  // POI layer visibility — desktop keeps Transit/Parks/Sights on; mobile starts
+  // all-hidden and opts in via the corner Layers control.
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(
     defaultPoiHiddenForViewport,
   );
+  const [isMobileChrome, setIsMobileChrome] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const sync = () => setIsMobileChrome(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
   // Open when a band is already active (e.g. `?band=` deep link) so the corridor
   // picker matches the URL; otherwise stay closed until the viewer opts in.
   const [placeStoriesManualOpen, setPlaceStoriesManualOpen] = useState(false);
@@ -2198,25 +2207,27 @@ export default function PubMapCanvas({
         </aside>
       ) : null}
       {/* Desktop: bottom-right POI pill row. Mobile uses MapLayersControl instead. */}
-      <div className="poiToggle poiToggleDesktop" role="group" aria-label="Points of interest">
-        {POI_TOGGLE_GROUPS.map((group) => {
-          const on = isPoiGroupOn(poiHidden, group);
-          return (
-            <button
-              key={group.id}
-              type="button"
-              className={on ? "poiToggleBtn on" : "poiToggleBtn"}
-              aria-pressed={on}
-              onClick={() => setPoiHidden((hidden) => togglePoiGroup(hidden, group))}
-            >
-              <span className="poiSwatch" style={{ background: group.color }} />
-              {group.label}
-            </button>
-          );
-        })}
-      </div>
+      {!isMobileChrome ? (
+        <div className="poiToggle poiToggleDesktop" role="group" aria-label="Points of interest">
+          {POI_TOGGLE_GROUPS.map((group) => {
+            const on = isPoiGroupOn(poiHidden, group);
+            return (
+              <button
+                key={group.id}
+                type="button"
+                className={on ? "poiToggleBtn on" : "poiToggleBtn"}
+                aria-pressed={on}
+                onClick={() => setPoiHidden((hidden) => togglePoiGroup(hidden, group))}
+              >
+                <span className="poiSwatch" style={{ background: group.color }} />
+                {group.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       {/* Desktop place stories. Mobile: same bands live inside Layers. */}
-      {onBandChange ? (
+      {!isMobileChrome && onBandChange ? (
         <div className="placeStoriesControl placeStoriesDesktop">
           <button
             type="button"
@@ -2268,12 +2279,14 @@ export default function PubMapCanvas({
           ) : null}
         </div>
       ) : null}
-      <MapLayersControl
-        poiHidden={poiHidden}
-        onPoiHiddenChange={setPoiHidden}
-        activeBandId={activeBandId}
-        onBandChange={onBandChange}
-      />
+      {isMobileChrome ? (
+        <MapLayersControl
+          poiHidden={poiHidden}
+          onPoiHiddenChange={setPoiHidden}
+          activeBandId={activeBandId}
+          onBandChange={onBandChange}
+        />
+      ) : null}
       {activePoi ? (
         <div className="poiLabelCard" role="status">
           <span
