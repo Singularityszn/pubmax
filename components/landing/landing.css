@@ -271,18 +271,22 @@
   position: absolute;
   inset: 0;
   z-index: -1;
+  /* Keep the copy column on a dark scrim so --color-on-photo stays readable;
+     only fade to paper below the first viewport. */
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--ink-deep) 55%, transparent) 0%,
-      color-mix(in srgb, var(--ink-deep) 28%, transparent) 38%,
-      color-mix(in srgb, var(--paper) 72%, transparent) 78%,
+      color-mix(in srgb, var(--ink-deep) 72%, transparent) 0%,
+      color-mix(in srgb, var(--ink-deep) 58%, transparent) 42%,
+      color-mix(in srgb, var(--ink-deep) 38%, transparent) 68%,
+      color-mix(in srgb, var(--paper) 70%, transparent) 88%,
       var(--paper) 100%
     ),
     linear-gradient(
       105deg,
-      color-mix(in srgb, var(--brass) 28%, transparent) 0%,
-      transparent 48%
+      color-mix(in srgb, var(--ink-deep) 45%, transparent) 0%,
+      color-mix(in srgb, var(--brass) 18%, transparent) 28%,
+      transparent 58%
     );
   pointer-events: none;
 }
@@ -301,36 +305,50 @@
   line-height: 0.94;
   letter-spacing: -0.035em;
   margin: 0 0 12px;
-  color: var(--color-on-photo);
-  text-shadow: 0 12px 36px color-mix(in srgb, var(--ink-deep) 45%, transparent);
+  color: var(--ink);
   text-wrap: balance;
-  animation: lpBrandIn var(--duration-slow) var(--ease-out) both;
 }
 
 .lp .heroTagline {
   max-width: 26ch;
   margin: 0 0 14px;
-  color: color-mix(in srgb, var(--color-on-photo) 92%, var(--brass-bright));
+  color: var(--ink-soft);
   font-size: clamp(1.15rem, 2.4vw, 1.45rem);
   font-style: normal;
   font-weight: 500;
   line-height: 1.28;
   letter-spacing: -0.01em;
   text-wrap: balance;
-  text-shadow: 0 8px 24px color-mix(in srgb, var(--ink-deep) 35%, transparent);
-  animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.06s both;
 }
 
+/* Shared lede class — default ink for paper sections (landlord / drops).
+   Photo-hero overrides below keep white text only on the dark scrim. */
 .lp .heroLede {
   max-width: 36ch;
   margin: 0 0 22px;
-  color: var(--color-on-photo);
+  color: color-mix(in srgb, var(--ink) 88%, transparent);
   font-size: clamp(0.98rem, 2vw, 1.1rem);
-  line-height: 1.5;
+  line-height: 1.55;
   text-wrap: pretty;
+}
+
+.lp .heroPhoto .heroBrand {
+  color: var(--color-on-photo);
+  text-shadow: 0 12px 36px color-mix(in srgb, var(--ink-deep) 55%, transparent);
+  animation: lpBrandIn var(--duration-slow) var(--ease-out) both;
+}
+
+.lp .heroPhoto .heroTagline {
+  color: color-mix(in srgb, var(--color-on-photo) 94%, var(--brass-bright));
+  text-shadow: 0 8px 24px color-mix(in srgb, var(--ink-deep) 45%, transparent);
+  animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.06s both;
+}
+
+.lp .heroPhoto .heroLede {
+  color: color-mix(in srgb, var(--color-on-photo) 96%, transparent);
   text-shadow:
-    0 1px 2px color-mix(in srgb, var(--ink-deep) 55%, transparent),
-    0 8px 20px color-mix(in srgb, var(--ink-deep) 45%, transparent);
+    0 1px 2px color-mix(in srgb, var(--ink-deep) 65%, transparent),
+    0 8px 20px color-mix(in srgb, var(--ink-deep) 50%, transparent);
   animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.1s both;
 }
 
@@ -357,7 +375,7 @@
 .lp .heroActions .btnGhost {
   background: transparent;
   border-color: transparent;
-  color: color-mix(in srgb, var(--color-on-photo) 88%, transparent);
+  color: var(--ink-soft);
   backdrop-filter: none;
   box-shadow: none;
   text-decoration: underline;
@@ -368,6 +386,15 @@
 .lp .heroActions .btnGhost:hover {
   background: transparent;
   border-color: transparent;
+  color: var(--ink);
+}
+
+.lp .heroPhoto .heroActions .btnGhost {
+  color: color-mix(in srgb, var(--color-on-photo) 92%, transparent);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--ink-deep) 55%, transparent);
+}
+
+.lp .heroPhoto .heroActions .btnGhost:hover {
   color: var(--color-on-photo);
 }
 
@@ -1587,15 +1614,17 @@
     background:
       linear-gradient(
         180deg,
-        color-mix(in srgb, var(--ink-deep) 62%, transparent) 0%,
-        color-mix(in srgb, var(--ink-deep) 35%, transparent) 42%,
-        color-mix(in srgb, var(--paper) 78%, transparent) 82%,
+        color-mix(in srgb, var(--ink-deep) 78%, transparent) 0%,
+        color-mix(in srgb, var(--ink-deep) 62%, transparent) 48%,
+        color-mix(in srgb, var(--ink-deep) 40%, transparent) 72%,
+        color-mix(in srgb, var(--paper) 78%, transparent) 90%,
         var(--paper) 100%
       ),
       linear-gradient(
         105deg,
-        color-mix(in srgb, var(--brass) 32%, transparent) 0%,
-        transparent 55%
+        color-mix(in srgb, var(--ink-deep) 42%, transparent) 0%,
+        color-mix(in srgb, var(--brass) 22%, transparent) 36%,
+        transparent 62%
       );
   }
 
