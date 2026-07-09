@@ -101,7 +101,10 @@ function shouldOpenPlanningInitially(
   seededMode: CrawlMode,
   search: string,
 ): boolean {
-  if (isDrinkShapeArrival(search) && seededBuiltIds.length === 0) return false;
+  // Drink-shape deep-links always stay on the clean map (chips + search), even
+  // when style=/mode=/q= would otherwise open the planner. Keep this in the
+  // initializer — do not force-close via useEffect (react-hooks/set-state-in-effect).
+  if (isDrinkShapeArrival(search)) return false;
   return (
     seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|mode|q)=/.test(search)
   );
