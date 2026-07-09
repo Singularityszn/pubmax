@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { curatedCrawls } from "@/lib/curatedCrawls";
-import { allPackCrawlIds, getRoutePack, routePacks } from "@/lib/routePacks";
+import { curatedCrawlMapHref, curatedCrawls } from "@/lib/curatedCrawls";
+import {
+  allPackCrawlIds,
+  getRoutePack,
+  routePackMapHref,
+  routePackPrimaryCrawl,
+  routePacks,
+} from "@/lib/routePacks";
 
 const curatedIds = new Set(curatedCrawls.map((c) => c.id));
 
@@ -44,6 +50,28 @@ describe("routePacks", () => {
     expect(getRoutePack("old-london")?.crawlIds).toEqual(
       expect.arrayContaining(["victorian-soho", "bankside-riverside"]),
     );
+  });
+
+  it("deep-links Old London to Victorian Soho on the map", () => {
+    const pack = getRoutePack("old-london");
+    expect(pack).toBeDefined();
+    const primary = routePackPrimaryCrawl(pack!);
+    expect(primary?.id).toBe("victorian-soho");
+    const href = routePackMapHref(pack!);
+    expect(href).toBe(curatedCrawlMapHref(primary!));
+    expect(href).toContain("crawl=victorian-soho");
+    expect(href.startsWith("/map?")).toBe(true);
+  });
+
+  it("falls back to /map when a pack has no resolvable lead crawl", () => {
+    expect(
+      routePackMapHref({
+        id: "empty",
+        title: "Empty",
+        blurb: "No routes",
+        crawlIds: [],
+      }),
+    ).toBe("/map");
   });
 
   it("exposes a deduped union of pack crawl ids", () => {

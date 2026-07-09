@@ -76,27 +76,66 @@
   gap: 10px 14px;
 }
 
+.routePackCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 240px;
+  padding: 10px 0 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--brass) 35%, transparent);
+  transition: border-color 0.15s ease;
+}
+
+.routePackCard.isActive {
+  border-bottom-color: var(--brass);
+}
+
 .routePackLink {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 220px;
-  padding: 10px 0;
   text-decoration: none;
   color: inherit;
-  border-bottom: 1px solid color-mix(in srgb, var(--brass) 35%, transparent);
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .routePackLink:hover,
 .routePackLink:focus-visible {
-  border-bottom-color: var(--brass);
   color: var(--brass);
 }
 
-.routePackLink.isActive {
-  border-bottom-color: var(--brass);
+.routePackLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.routePackBrowse {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.routePackBrowse:hover,
+.routePackBrowse:focus-visible {
   color: var(--brass);
+  text-decoration: underline;
+}
+
+.routePackBrowse:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.routePackCard.isActive .routePackBrowse {
+  color: var(--brass);
+  font-weight: 700;
 }
 
 .routePackActiveNote {
@@ -129,10 +168,10 @@
 }
 
 .routePackMeta {
-  font-size: 11px;
+  margin-top: 2px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--brass);
 }
 
@@ -218,22 +257,37 @@
   background: color-mix(in srgb, var(--brass) 8%, transparent);
 }
 
-.curatedLink {
-  margin-top: 2px;
+.curatedLink,
+.curatedPlanBtn {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--brass);
+  background: var(--brass);
+  color: var(--panel-raised);
   font-size: 14px;
   font-weight: 700;
-  color: var(--brass);
+  text-decoration: none;
+  text-align: center;
+  box-sizing: border-box;
+  transition: filter 0.15s ease;
+}
+
+.curatedLink:hover,
+.curatedPlanBtn:hover {
+  filter: brightness(1.05);
   text-decoration: none;
 }
 
-.curatedLink:hover {
-  text-decoration: underline;
-}
-
-.curatedLink:focus-visible {
+.curatedLink:focus-visible,
+.curatedPlanBtn:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
-  border-radius: 4px;
 }
 
 /* --- poster --------------------------------------------------------------- */

@@ -1,4 +1,9 @@
-import { curatedCrawls } from "@/lib/curatedCrawls";
+import {
+  curatedCrawlById,
+  curatedCrawlMapHref,
+  curatedCrawls,
+  type CuratedCrawl,
+} from "@/lib/curatedCrawls";
 
 // Named route packs — thematic groupings of curated crawls for the /crawls
 // page. Packs may share crawl ids; membership is by curated crawl `id` only
@@ -86,6 +91,17 @@ export const routePacks: RoutePack[] = [
 /** Look up a pack by id, or undefined when unknown. */
 export function getRoutePack(id: string): RoutePack | undefined {
   return routePacks.find((p) => p.id === id);
+}
+
+/** Lead curated crawl for a pack (first crawlId that still resolves). */
+export function routePackPrimaryCrawl(pack: RoutePack): CuratedCrawl | undefined {
+  return curatedCrawlById(pack.crawlIds[0]);
+}
+
+/** Map-first deep-link for a pack's lead crawl (Old London → Victorian Soho). */
+export function routePackMapHref(pack: RoutePack): string {
+  const primary = routePackPrimaryCrawl(pack);
+  return primary ? curatedCrawlMapHref(primary) : "/map";
 }
 
 /** Every curated crawl id that appears in at least one pack. */
