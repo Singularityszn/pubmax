@@ -584,7 +584,7 @@ export default function PubMap({
   const dismissSheet = useCallback(() => {
     setSelectedVenueId("");
     closeComposer();
-  }, [closeComposer]);
+  }, [closeComposer, setSelectedVenueId]);
   const {
     sheetSnap,
     setSheetSnap,
@@ -599,10 +599,15 @@ export default function PubMap({
   // (or instantly from IndexedDB), and is the ONLY initial venue payload for the
   // map. Full pub detail is fetched lazily via /api/venue/[id] when inspected.
   // Non-London cities load `/data/cities/{id}/venues_slim.json` via CityConfig.
+  // City switches reset pins asynchronously so we never setState in the effect
+  // body (react-hooks/set-state-in-effect) — same pattern as MapToolbar.
   useEffect(() => {
     let cancelled = false;
-    setLoaded(false);
-    setSlimPins([]);
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setLoaded(false);
+      setSlimPins([]);
+    });
     loadSlimVenuesForCity(cityId)
       .then((slim) => {
         if (cancelled || slim.length === 0) return;
@@ -783,7 +788,7 @@ export default function PubMap({
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
     },
-    [closeComposer, setSheetSnap, setSheetDragY],
+    [closeComposer, setPlanningOpen, setSelectedVenueId, setSheetSnap, setSheetDragY],
   );
 
   const prefetchVenueDetail = useCallback((id: string) => {
@@ -810,7 +815,14 @@ export default function PubMap({
       }
       selectVenue(firstStopId);
     },
-    [closeComposer, selectVenue, setSheetDragY, setSheetSnap],
+    [
+      closeComposer,
+      selectVenue,
+      setPlanningOpen,
+      setSelectedVenueId,
+      setSheetDragY,
+      setSheetSnap,
+    ],
   );
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
@@ -875,7 +887,7 @@ export default function PubMap({
     setFilters(seedCrawlState("").filters);
     setPlanningOpen(false);
     focusMapSearch();
-  }, [focusMapSearch]);
+  }, [focusMapSearch, setFilters, setPlanningOpen]);
 
   const openComposerForLog = useCallback(() => {
     setPlanningOpen(false);
@@ -883,7 +895,7 @@ export default function PubMap({
     setSheetDragY(null);
     dismissOnboarding();
     setComposerOpen(true);
-  }, [dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
+  }, [dismissOnboarding, setComposerOpen, setPlanningOpen, setSheetDragY, setSheetSnap]);
 
   const pickLogNearbyVenue = useCallback(
     (venueId: string) => {
@@ -999,7 +1011,16 @@ export default function PubMap({
       showLoadedRoute(crawl.venueIds[0] ?? "");
       dismissOnboarding(); // picking a crawl from the overlay closes + remembers it
     },
-    [dismissOnboarding, showLoadedRoute],
+    [
+      dismissOnboarding,
+      setActiveCrawl,
+      setAltStyle,
+      setBuiltIds,
+      setFilters,
+      setMode,
+      setRouteMapped,
+      showLoadedRoute,
+    ],
   );
 
   // Issue #15: "Start a crawl here" from a landmark card. The canvas hands us the
@@ -1053,25 +1074,36 @@ export default function PubMap({
         setNearbyError("Couldn't get your location. Grant access and try again.");
       },
     );
-  }, [filteredVenues, filters.stopCount, showLoadedRoute]);
+  }, [
+    filteredVenues,
+    filters.stopCount,
+    setActiveCrawl,
+    setBuiltIds,
+    setMode,
+    setNearbyError,
+    setNearbyLoading,
+    setRouteMapped,
+    setUserLocation,
+    showLoadedRoute,
+  ]);
 
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
     setRouteMapped(true);
     dismissOnboarding();
     if (isMobileViewport()) setPlanningOpen(false);
-  }, [route.length, dismissOnboarding]);
+  }, [route.length, dismissOnboarding, setPlanningOpen, setRouteMapped]);
 
   const hideMappedRoute = useCallback(() => {
     setRouteMapped(false);
-  }, []);
+  }, [setRouteMapped]);
 
   const checkLastTrainAtRouteEnd = useCallback(() => {
     const finalStop = route[route.length - 1];
     if (!finalStop) return;
     setPlanningOpen(false);
     selectVenue(finalStop.id, "getting-home");
-  }, [route, selectVenue]);
+  }, [route, selectVenue, setPlanningOpen]);
 
   const detailOpen = Boolean(selectedVenueId && selectedVenue);
 
