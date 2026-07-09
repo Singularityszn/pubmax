@@ -3883,9 +3883,33 @@ button:disabled {
     transform: translateY(calc(100% + var(--mobile-tab-clearance)));
   }
 
+  .mapDrawer.left:not(.sheet-dragging),
+  .mapDrawer.right:not(.sheet-dragging) {
+    /* Production CSS bundling can place the desktop side-drawer transform after
+       this mobile block. Keep the phone drawer on the vertical sheet axis. */
+    transform: translateY(calc(100% + var(--mobile-tab-clearance))) !important;
+  }
+
   .mapDrawer.left.open,
   .mapDrawer.right.open {
     transform: translateY(0);
+  }
+
+  .mapDrawer.left.open:not(.sheet-dragging),
+  .mapDrawer.right.open:not(.sheet-dragging) {
+    transform: translateY(0) !important;
+  }
+
+  .mapDrawer.right.open.sheet-half:not(.sheet-dragging) {
+    transform: translateY(27vh) !important;
+  }
+
+  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
+    transform: translateY(68vh) !important;
+  }
+
+  .mapDrawer.right.open.sheet-full:not(.sheet-dragging) {
+    transform: translateY(0) !important;
   }
 
   .appShell.planning-open .mapDrawer.left.open {
