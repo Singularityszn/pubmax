@@ -73,8 +73,11 @@ export default function FavoritePintPicker({
   const useBeerPintPath = category === "beer" || category === "";
 
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-      <label style={shellStyle}>
+    <div
+      className="favoritePintPicker"
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}
+    >
+      <label className="favoritePintControl" style={shellStyle}>
         <GlassWater size={15} style={{ color: "var(--brass)", flexShrink: 0 }} aria-hidden />
         <span className="srOnlyOrInline" style={{ color: "var(--ink-soft)" }}>
           Drink
@@ -82,6 +85,7 @@ export default function FavoritePintPicker({
         <select
           aria-label="Drink category"
           value={category}
+          className="favoritePintSelect"
           onChange={(event) => {
             const next = event.target.value;
             if (!next) {
@@ -107,7 +111,7 @@ export default function FavoritePintPicker({
 
       {showBrandSelect ? (
         useBeerPintPath ? (
-          <label style={shellStyle}>
+          <label className="favoritePintControl" style={shellStyle}>
             <Beer size={15} style={{ color: "var(--brass)", flexShrink: 0 }} aria-hidden />
             <span className="srOnlyOrInline" style={{ color: "var(--ink-soft)" }}>
               My pint
@@ -115,6 +119,7 @@ export default function FavoritePintPicker({
             <select
               aria-label="Favourite pint or beer brand"
               value={drinkBrand || value || CLEAR_VALUE}
+              className="favoritePintSelect"
               onChange={(event) => {
                 const next = event.target.value;
                 if (!next) {
@@ -138,13 +143,14 @@ export default function FavoritePintPicker({
             </select>
           </label>
         ) : categoryHasBrandCoverage(category) ? (
-          <label style={shellStyle}>
+          <label className="favoritePintControl" style={shellStyle}>
             <span className="srOnlyOrInline" style={{ color: "var(--ink-soft)" }}>
               Brand
             </span>
             <select
               aria-label={`${CATEGORY_META[category].label} brand`}
               value={drinkBrand || CLEAR_VALUE}
+              className="favoritePintSelect"
               onChange={(event) => {
                 const next = event.target.value;
                 onDrinkLensChange({

@@ -169,6 +169,32 @@ test("nav does not overflow at 390px — sign-in button never clips (GH #18)", a
   }
 });
 
+test("mobile map toolbar controls stay inside the search card at 390px", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  const toolbar = page.locator(".mapToolbar").first();
+  await expect(toolbar).toBeVisible({ timeout: 20_000 });
+
+  const toolbarBox = await toolbar.boundingBox();
+  expect(toolbarBox).not.toBeNull();
+  if (!toolbarBox) return;
+
+  for (const selector of [".mapToolbarSearch", ".favoritePintPicker", ".planBtn"]) {
+    const control = page.locator(selector).first();
+    await expect(control).toBeVisible();
+    const box = await control.boundingBox();
+    expect(box, `${selector} has a box`).not.toBeNull();
+    if (!box) continue;
+    expect(box.x, `${selector} left edge`).toBeGreaterThanOrEqual(toolbarBox.x - 1);
+    expect(box.x + box.width, `${selector} right edge`).toBeLessThanOrEqual(
+      toolbarBox.x + toolbarBox.width + 1,
+    );
+  }
+});
+
 // Mirrors lib/venues.ts venueGroupingKey + stableVenueIdFromKey exactly (a
 // tiny, stable, public hash) so this test can deep-link straight to a known
 // seed pub's detail sheet without depending on canvas pin clicks — headless
