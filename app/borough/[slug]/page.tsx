@@ -58,16 +58,21 @@ function curatedCrawlHref(crawl: CuratedCrawl): string {
   return `/map?${params.toString()}`;
 }
 
-// Cap the transport-hint link to a shareable number of stops — a large
-// borough's full pub list would make an unwieldy URL, and the point is "here's
-// the corner of the map", not every last venue.
+// Cap the crawl deep-link to a shareable number of stops — a large borough's
+// full pub list would make an unwieldy URL.
 const MAP_LINK_STOP_CAP = 12;
 
-// The map, scoped to this borough's cheapest pubs by pre-building the same
-// share-URL shape a hand-built crawl uses (mode=build&pubs=id1,id2) — the
-// "transport hint": open the map already centred on where the borough's pubs
-// are, rather than a bespoke transit widget the app has no data to back.
-// Honest: this is "here's where they are", not a routed transit itinerary.
+// Browse the borough on the clean map via search (`?q=`), so outer areas like
+// Barnet open without resurrecting a hand-built crawl into the planner.
+function boroughBrowseMapUrl(name: string): string {
+  const params = new URLSearchParams();
+  params.set("q", name);
+  return `/map?${params.toString()}`;
+}
+
+// Optional crawl deep-link: pre-build the same share-URL shape a hand-built
+// crawl uses (mode=build&pubs=id1,id2). Honest: "here's where they are", not
+// a routed transit itinerary.
 function boroughMapUrl(pubs: Venue[]): string {
   if (pubs.length === 0) return "/map";
   const params = new URLSearchParams();
@@ -161,9 +166,16 @@ export default async function BoroughPage({ params }: PageProps) {
             </>
           )}
         </p>
-        <Link className="boroughCrawlLink" href={boroughMapUrl(pubs)}>
-          {pubs.length > 0 ? `See ${name} on the map →` : "Plan a crawl here →"}
-        </Link>
+        <div className="boroughMapLinks">
+          <Link className="boroughCrawlLink" href={boroughBrowseMapUrl(name)}>
+            {pubs.length > 0 ? `View ${name} on the map →` : "Open the map →"}
+          </Link>
+          {pubs.length > 0 ? (
+            <Link className="boroughCrawlLink boroughCrawlLinkSecondary" href={boroughMapUrl(pubs)}>
+              Start a crawl from cheapest pubs →
+            </Link>
+          ) : null}
+        </div>
       </header>
 
       {pubs.length === 0 ? (

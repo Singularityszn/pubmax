@@ -25,6 +25,7 @@ import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 import MapToolbar from "@/components/map/MapToolbar";
+import MapPriceControl from "@/components/map/MapPriceControl";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag, sheetSnapTranslateYPx } from "@/components/map/useSheetDrag";
@@ -1213,7 +1214,8 @@ export default function PubMap() {
             </button>
           </div>
         ) : null}
-        <div className="mapLegend">
+        {/* Desktop keeps a static price key; mobile uses MapPriceControl (Cost). */}
+        <div className="mapLegend" aria-label="Pint price key">
           <span>
             <i className="green" /> ≤ £5.50
           </span>
@@ -1223,13 +1225,8 @@ export default function PubMap() {
           <span>
             <i className="red" /> £7+
           </span>
-          <span>
-            <i className="brassRing" /> heritage
-          </span>
-          <span>
-            <i className="gold" /> writer
-          </span>
         </div>
+        <MapPriceControl filters={filters} onFiltersChange={setFilters} />
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
             offers curated crawls on a clean first paint. It's the mobile
