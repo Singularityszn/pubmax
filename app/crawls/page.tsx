@@ -12,7 +12,12 @@ import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { bandById } from "@/lib/storyBands";
-import { routePacks, getRoutePack } from "@/lib/routePacks";
+import {
+  getRoutePack,
+  routePackMapHref,
+  routePackPrimaryCrawl,
+  routePacks,
+} from "@/lib/routePacks";
 import SiteNav from "@/components/nav/SiteNav";
 import "./crawls.css";
 
@@ -100,22 +105,36 @@ function CrawlsPageInner() {
             </p>
             <ul className="routePackList">
               {routePacks.map((pack) => {
-                const href = `/crawls?pack=${encodeURIComponent(pack.id)}`;
-                const isActive = activePackId === pack.id;
+                const primary = routePackPrimaryCrawl(pack);
+                const mapHref = routePackMapHref(pack);
+                const browseHref = `/crawls?pack=${encodeURIComponent(pack.id)}`;
+                const isBrowsing = activePackId === pack.id;
+                const n = pack.crawlIds.length;
+                const ariaLabel = primary
+                  ? `Plan ${pack.title} on the map — ${primary.name}`
+                  : `Plan ${pack.title} on the map`;
                 return (
                   <li key={pack.id}>
-                    <Link
-                      href={href}
-                      className={isActive ? "routePackLink isActive" : "routePackLink"}
-                      aria-label={`Show ${pack.title} pack routes`}
-                      aria-current={isActive ? "true" : undefined}
-                    >
-                      <span className="routePackTitle">{pack.title}</span>
-                      <span className="routePackBlurb">{pack.blurb}</span>
-                      <span className="routePackMeta">
-                        {pack.crawlIds.length} route{pack.crawlIds.length === 1 ? "" : "s"}
-                      </span>
-                    </Link>
+                    <div className={isBrowsing ? "routePackCard isActive" : "routePackCard"}>
+                      <Link
+                        href={mapHref}
+                        className="routePackLink"
+                        aria-label={ariaLabel}
+                      >
+                        <span className="routePackTitle">{pack.title}</span>
+                        <span className="routePackBlurb">{pack.blurb}</span>
+                        <span className="routePackMeta">Open on map →</span>
+                      </Link>
+                      {n > 1 ? (
+                        <Link
+                          href={browseHref}
+                          className="routePackBrowse"
+                          aria-current={isBrowsing ? "true" : undefined}
+                        >
+                          Browse {n} routes
+                        </Link>
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}
@@ -154,7 +173,7 @@ function CrawlsPageInner() {
                   </p>
                   <Link
                     href={curatedCrawlMapHref(crawl)}
-                    className="curatedLink"
+                    className="curatedLink curatedPlanBtn"
                     aria-label={`Plan the ${crawl.name} crawl on the map`}
                   >
                     Plan this crawl →

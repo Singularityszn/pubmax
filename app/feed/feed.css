@@ -6,15 +6,15 @@
 .feedShell {
   --feed-max: 620px;
   --feed-card-max: 520px;
-  --feed-glass: color-mix(in srgb, var(--panel-raised) 88%, transparent);
-  --feed-glass-solid: color-mix(in srgb, var(--panel-raised) 96%, var(--paper) 4%);
+  --feed-glass: var(--panel-raised);
+  --feed-glass-solid: var(--panel-raised);
   --feed-border: color-mix(in srgb, var(--line) 72%, var(--panel-raised) 28%);
   --feed-coral-wash: color-mix(in srgb, var(--brass) 11%, var(--panel-raised));
   --feed-blue-wash: color-mix(in srgb, var(--river) 9%, var(--panel-raised));
   --feed-green-wash: color-mix(in srgb, var(--pint) 9%, var(--panel-raised));
   --feed-gold-wash: color-mix(in srgb, var(--amber) 12%, var(--panel-raised));
-  --feed-shadow: 0 18px 45px rgba(44, 30, 62, 0.1),
-    0 8px 18px color-mix(in srgb, var(--brass) 8%, transparent);
+  --feed-shadow: 0 14px 32px color-mix(in srgb, var(--ink-deep) 10%, transparent),
+    0 6px 14px color-mix(in srgb, var(--brass) 8%, transparent);
 
   min-height: 100vh;
   background:
@@ -60,7 +60,8 @@
   color: var(--brass);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .feedTitle {
@@ -68,7 +69,7 @@
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 2.65rem;
   line-height: 1.05;
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
 }
 
 .feedLede {
@@ -80,28 +81,8 @@
 }
 
 .feedDropCta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  margin-top: 16px;
-  padding: 0 20px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright, var(--brass)));
-  color: var(--color-on-accent, #fdfaf2);
-  font-size: 0.92rem;
-  font-weight: 700;
-  text-decoration: none;
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--brass) 24%, transparent);
-}
-
-.feedDropCta:hover {
-  filter: brightness(1.04);
-}
-
-.feedDropCta:focus-visible {
-  outline: 2px solid var(--ink-deep);
-  outline-offset: 2px;
+  /* Drop lives on the map / tab bar — hide duplicate header CTA everywhere. */
+  display: none;
 }
 
 /* ── "Live tonight" presence strip (PRD §1.5 / §5.1 tonight loop) ───────────
@@ -118,10 +99,8 @@
   padding: 10px 15px;
   border: 1px solid var(--feed-border);
   border-radius: 999px;
-  background: var(--feed-glass);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 10px 30px rgba(44, 30, 62, 0.08);
+  background: var(--panel-raised);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink-deep) 8%, transparent);
   overflow: hidden;
 }
 
@@ -329,10 +308,8 @@
 /* ── Card ─────────────────────────────────────────────────────────────── */
 .feedCard {
   border: 1px solid var(--feed-border);
-  border-radius: 24px;
-  background: var(--feed-glass-solid);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  border-radius: 20px;
+  background: var(--panel-raised);
   overflow: hidden;
   box-shadow: var(--feed-shadow);
 }
@@ -736,26 +713,26 @@
   line-height: 1;
 }
 
-/* Price stamp — top-right pressed-ink signature, on the photo. */
+/* Price stamp — dominant pressed-ink signature on the photo (Wave J3). */
 .feedSpillPrice {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 2;
-  padding: 7px 13px;
-  border: 1px solid color-mix(in srgb, #ffffff 38%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, #ffffff 82%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: color-mix(in srgb, var(--pint) 72%, var(--ink));
+  padding: 8px 14px;
+  border: var(--ink-stamp-border, 1.5px solid var(--brass));
+  border-radius: var(--ink-stamp-radius, 6px);
+  background: color-mix(in srgb, var(--panel-raised) 94%, var(--pint) 6%);
+  color: color-mix(in srgb, var(--pint) 78%, var(--ink));
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
-  font-size: 1.16rem;
-  font-weight: 700;
+  font-size: 1.28rem;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  transform: rotate(var(--ink-stamp-tilt, -1.5deg));
   box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    0 12px 28px rgba(0, 0, 0, 0.28),
+    var(--ink-stamp-shadow, inset 0 1px 2px rgba(22, 18, 42, 0.28));
 }
 
 /* Bottom scrim — a FIXED dark gradient (never theme-mixed) so overlaid text is
@@ -1094,6 +1071,11 @@
     gap: 18px;
   }
 
+  /* Wave I/J — Drop lives in the tab bar / map; header CTA stays hidden. */
+  .feedDropCta {
+    display: none;
+  }
+
   .feedFilters {
     justify-content: flex-start;
     flex-wrap: nowrap;
@@ -1113,6 +1095,11 @@
     width: 100%;
     margin-left: 0;
     justify-content: space-between;
+  }
+
+  .feedSpillPrice {
+    font-size: 1.2rem;
+    padding: 7px 12px;
   }
 }
 

@@ -81,7 +81,11 @@ function currentSearch(): string {
 // Module-level (pure) so the branch lives off PubMap's complexity budget.
 // `drink=` counts (landing drink-shape taps) but is NOT a planner-open signal.
 function hasCrawlArrivalParams(search: string): boolean {
-  return /[?&](pubs|sel|style|mode|q|drink|cocktails)=/.test(search);
+  // Intentional deep links (landmark/band/food/log/etc.) must also suppress
+  // curated onboarding — not only crawl planner params (#79 follow-up).
+  return /[?&](pubs|sel|style|mode|q|drink|cocktails|landmark|band|food|max|alt|log|crawl)=/.test(
+    search,
+  );
 }
 
 function isMobileViewport(): boolean {
@@ -1252,18 +1256,8 @@ export default function PubMap() {
             </button>
           </div>
         ) : null}
-        {/* Desktop keeps a static price key; mobile uses MapPriceControl (Cost). */}
-        <div className="mapLegend" aria-label="Pint price key">
-          <span>
-            <i className="green" /> ≤ £5.50
-          </span>
-          <span>
-            <i className="amber" /> £5.50-£7
-          </span>
-          <span>
-            <i className="red" /> £7+
-          </span>
-        </div>
+        {/* Wave J declutter: Prices control owns the key on all viewports
+            (pin colours + popover). Static mid-map legend removed. */}
         <MapPriceControl filters={filters} onFiltersChange={setFilters} />
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that

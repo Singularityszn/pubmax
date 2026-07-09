@@ -53,7 +53,7 @@
 
 .discoverTitle {
   margin: 0 0 14px;
-  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-family: var(--font-display, var(--serif));
   font-size: clamp(30px, 5vw, 46px);
   line-height: 1.05;
   font-weight: 700;
@@ -78,7 +78,7 @@
   margin: 0 0 4px;
   padding-left: 12px;
   border-left: 3px solid var(--brass);
-  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-family: var(--font-display, var(--serif));
   font-size: 24px;
   font-weight: 700;
   color: var(--ink);
@@ -448,7 +448,7 @@
 
 .tvnName {
   margin: 0;
-  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-family: var(--font-display, var(--serif));
   font-size: 17px;
   font-weight: 700;
   line-height: 1.18;
@@ -556,7 +556,7 @@
 
 .editorialTitle {
   margin: 0 0 8px;
-  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-family: var(--font-display, var(--serif));
   font-size: 19px;
   font-weight: 700;
   color: var(--ink);
@@ -824,7 +824,7 @@
 
 .discoverBrandTitle {
   margin: 0;
-  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-family: var(--font-display, var(--serif));
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--ink);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { FEED_FILTERS, type FeedFilter } from "@/lib/feed";
 
 type FeedFiltersProps = {
@@ -7,14 +8,25 @@ type FeedFiltersProps = {
   onChange: (filter: FeedFilter) => void;
 };
 
-// The InstaPint lane switcher. A single-select radiogroup of chips, fully
-// controlled by the page (active + onChange). Real <button>s so it is keyboard-
-// operable; aria-pressed tracks the active lane for assistive tech. Demo-only
-// lanes carry a small honest badge so we never imply a capability we lack.
+// Airbnb-clean lane switcher: primary lanes first; demo / niche lanes behind More.
+const PRIMARY_FILTERS = FEED_FILTERS.filter(
+  (f) =>
+    f.id === "latest" ||
+    f.id === "for-you" ||
+    f.id === "tonight" ||
+    f.id === "friends" ||
+    f.id === "cheap",
+);
+const MORE_FILTERS = FEED_FILTERS.filter((f) => !PRIMARY_FILTERS.some((p) => p.id === f.id));
+
 export default function FeedFilters({ active, onChange }: FeedFiltersProps) {
+  const moreActive = MORE_FILTERS.some((f) => f.id === active);
+  const [moreOpen, setMoreOpen] = useState(moreActive);
+  const visible = moreOpen ? FEED_FILTERS : PRIMARY_FILTERS;
+
   return (
     <div className="feedFilters" role="group" aria-label="Feed lanes">
-      {FEED_FILTERS.map((filter) => {
+      {visible.map((filter) => {
         const isActive = filter.id === active;
         return (
           <button
@@ -33,6 +45,25 @@ export default function FeedFilters({ active, onChange }: FeedFiltersProps) {
           </button>
         );
       })}
+      {!moreOpen ? (
+        <button
+          type="button"
+          className={`feedFilterChip feedFilterMore${moreActive ? " isActive" : ""}`}
+          aria-expanded={false}
+          onClick={() => setMoreOpen(true)}
+        >
+          More
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="feedFilterChip feedFilterMore"
+          aria-expanded={true}
+          onClick={() => setMoreOpen(false)}
+        >
+          Less
+        </button>
+      )}
     </div>
   );
 }

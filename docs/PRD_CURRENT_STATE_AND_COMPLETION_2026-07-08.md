@@ -17,12 +17,18 @@ Date: 2026-07-08
 > for shareable crawl memories, trusted Drop nearby picker, place-quest events,
 > and Outer London P1 coverage ([`PRD_OUTER_LONDON_COVERAGE.md`](./PRD_OUTER_LONDON_COVERAGE.md)).
 > **Shipped on main:** #63 (Layers declutter), #65 (Wave H), #67 (security
-> Phases 1–4), #69 (message gate status). Do not rebuild them.
+> Phases 1–4), #69 (message gate status), #76 (Wave J map taste/fluidity).
+> Do not rebuild them.
 >
 > **Wave I (2026-07-09):** see
 > [`PRD_MEMORY_TIMELINE_SOCIAL_UX_WAVE_2026-07-09.md`](./PRD_MEMORY_TIMELINE_SOCIAL_UX_WAVE_2026-07-09.md)
 > for Memory Timeline, trusted DMs (`authedFetch` + linked actor), and UX
-> declutter/speed. Coordinate with open #68/#70; close superseded #64/#66.
+> declutter/speed.
+>
+> **Wave J (2026-07-09):** see
+> [`PRD_MAP_TASTE_FLUIDITY_WAVE_2026-07-09.md`](./PRD_MAP_TASTE_FLUIDITY_WAVE_2026-07-09.md)
+> for Taste/Emil skills install, warmer colorful map, Cost/Layers affordances,
+> ease-out fluidity, and landing/feed taste within DESIGN_SYSTEM.
 
 ## Problem Statement
 
