@@ -1868,8 +1868,11 @@ export default function PubMapCanvas({
       holdUntilRef.current,
       performance.now() + 900 + ORBIT_RESUME_MS,
     );
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
     map.fitBounds(bounds, {
-      padding: 90,
+      padding: isPhone
+        ? { top: 160, right: 28, bottom: 200, left: 28 }
+        : 90,
       maxZoom: 15,
       duration: reducedRef.current ? 0 : 800,
     });
