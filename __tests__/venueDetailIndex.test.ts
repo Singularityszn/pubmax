@@ -5,9 +5,12 @@ import path from "node:path";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  clearVenueDetailEntriesForTests,
+  getManifestReadAttemptsForTests,
   getVenueDetail,
   isVenueDetailId,
   resetVenueDetailCachesForTests,
+  setVenueDetailIndexFileForTests,
   setVenueDetailRowsFileForTests,
   venueFromDetailArtifact,
 } from "@/lib/venueDetailIndex";
@@ -72,5 +75,18 @@ describe("venueDetailIndex", () => {
     await expect(getVenueDetail("venue-does-not-exist")).resolves.toBeNull();
     const venue = await getVenueDetail(SEED_VENUE_ID);
     expect(venue?.id).toBe(SEED_VENUE_ID);
+  });
+
+  it("retries a failed manifest read instead of caching null forever", async () => {
+    setVenueDetailIndexFileForTests(
+      path.join(ROOT, "data", "generated", "missing-venue-detail-index.json"),
+    );
+    await getVenueDetail(SEED_VENUE_ID);
+    expect(getManifestReadAttemptsForTests()).toBe(1);
+
+    // I/O failures leave the manifest cache unset, so the next call re-reads.
+    clearVenueDetailEntriesForTests();
+    await getVenueDetail(SEED_VENUE_ID);
+    expect(getManifestReadAttemptsForTests()).toBe(2);
   });
 });

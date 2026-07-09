@@ -1,5 +1,6 @@
 import type { PintDropDTO } from "@/lib/feed";
 import type { Visibility } from "@/lib/spill";
+import type { LastPintDecisionKind } from "@/lib/tfl";
 
 export const OPTIMISTIC_SPILL_STORAGE_KEY = "pubmax:optimistic-spill-posts:v1";
 export const OPTIMISTIC_SPILL_EVENT = "pubmax:optimistic-spill-posts-changed";
@@ -26,7 +27,7 @@ export type OptimisticSpillInput = {
   createdAt: string;
   /** Wave G1: optional Last Train context when a live decision was on screen. */
   leaveByIso?: string;
-  lastTrainDecision?: string;
+  lastTrainDecision?: LastPintDecisionKind;
 };
 
 export type OptimisticSpillRetryPayload = {
@@ -42,7 +43,7 @@ export type OptimisticSpillRetryPayload = {
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
   leaveByIso?: string;
-  lastTrainDecision?: string;
+  lastTrainDecision?: LastPintDecisionKind;
 };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;

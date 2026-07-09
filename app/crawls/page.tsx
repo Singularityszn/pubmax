@@ -12,7 +12,7 @@ import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { bandById } from "@/lib/storyBands";
-import { routePacks } from "@/lib/routePacks";
+import { routePacks, getRoutePack } from "@/lib/routePacks";
 import SiteNav from "@/components/nav/SiteNav";
 import "./crawls.css";
 
@@ -61,6 +61,16 @@ function planCrawlHref(story: CrawlStory): string {
 }
 
 export default function CrawlsPage() {
+  const activePackId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("pack");
+  }, []);
+  const activePack = activePackId ? getRoutePack(activePackId) : undefined;
+  const activePackCrawlIds = activePack ? new Set(activePack.crawlIds) : null;
+  const visibleCrawls = activePackCrawlIds
+    ? curatedCrawls.filter((crawl) => activePackCrawlIds.has(crawl.id))
+    : curatedCrawls;
+
   // Read ?s= once, lazily, from the URL. Never on an effect (react-hooks rule);
   // decode never throws, so a garbage param falls through to the empty state.
   const story = useMemo<CrawlStory | null>(() => {
@@ -102,11 +112,16 @@ export default function CrawlsPage() {
             </p>
             <ul className="routePackList">
               {routePacks.map((pack) => {
-                const first = curatedCrawls.find((c) => c.id === pack.crawlIds[0]);
-                const href = first ? curatedCrawlHref(first) : "/map";
+                const href = `/crawls?pack=${encodeURIComponent(pack.id)}`;
+                const isActive = activePackId === pack.id;
                 return (
                   <li key={pack.id}>
-                    <Link href={href} className="routePackLink" aria-label={`Open ${pack.title} pack`}>
+                    <Link
+                      href={href}
+                      className={isActive ? "routePackLink isActive" : "routePackLink"}
+                      aria-label={`Show ${pack.title} pack routes`}
+                      aria-current={isActive ? "true" : undefined}
+                    >
                       <span className="routePackTitle">{pack.title}</span>
                       <span className="routePackBlurb">{pack.blurb}</span>
                       <span className="routePackMeta">
@@ -117,10 +132,16 @@ export default function CrawlsPage() {
                 );
               })}
             </ul>
+            {activePack ? (
+              <p className="routePackActiveNote">
+                Showing {activePack.title} routes.{" "}
+                <Link href="/crawls">Show all crawls</Link>
+              </p>
+            ) : null}
           </div>
 
           <ul className="curatedGrid" aria-label="Curated crawls worth walking">
-            {curatedCrawls.map((crawl) => {
+            {visibleCrawls.map((crawl) => {
               const originName = startLandmarkName(crawl);
               const placeStory = crawl.placeStoryBandId
                 ? bandById(crawl.placeStoryBandId)

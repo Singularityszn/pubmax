@@ -186,7 +186,7 @@
     padding: 4px 9px 4px 6px;
   }
 
-  /* Sheet / onboarding collision */
+  /* Sheet / onboarding / planning collision */
   .appShell.sheet-full .mapToolbar {
     transform: translateY(-120%);
     opacity: 0;
@@ -195,14 +195,16 @@
   }
 
   .appShell.sheet-full .mapLegend,
-  .appShell.onboarding-open .mapLegend {
+  .appShell.onboarding-open .mapLegend,
+  .appShell.planning-open .mapLegend {
     transform: translateY(120%);
     opacity: 0;
     pointer-events: none;
     transition: transform 0.2s ease, opacity 0.2s ease;
   }
 
-  .appShell.onboarding-open .mapToolbar {
+  .appShell.onboarding-open .mapToolbar,
+  .appShell.planning-open .mapToolbar {
     transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
@@ -216,6 +218,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .drinkShapeChip,
+  .appShell.sheet-full .mapToolbar,
+  .appShell.sheet-full .mapLegend,
+  .appShell.onboarding-open .mapToolbar,
+  .appShell.onboarding-open .mapLegend,
+  .appShell.planning-open .mapToolbar,
+  .appShell.planning-open .mapLegend,
   .mapToolbar,
   .mapLegend {
     transition: none;

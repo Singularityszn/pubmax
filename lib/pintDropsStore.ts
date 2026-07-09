@@ -39,6 +39,7 @@ function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
   return tags.length ? tags : undefined;
 }
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 
 const TABLE = "visit_reports";
 
@@ -224,9 +225,10 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     moderatedAt: row.moderated_at ? String(row.moderated_at) : undefined,
     moderatorNote: row.moderator_note ? String(row.moderator_note) : undefined,
     leaveByIso: row.leave_by_iso ? String(row.leave_by_iso) : undefined,
-    lastTrainDecision: row.last_train_decision
-      ? String(row.last_train_decision)
-      : undefined,
+    lastTrainDecision: (() => {
+      const raw = row.last_train_decision ? String(row.last_train_decision) : "";
+      return isLiveLastTrainDecision(raw) ? raw : undefined;
+    })(),
   };
 }
 

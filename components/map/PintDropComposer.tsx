@@ -373,7 +373,11 @@ export default function PintDropComposer({
 
   if (!draftReady) {
     return (
-      <form className="dropComposer spillComposer" aria-busy="true">
+      <form
+        className="dropComposer spillComposer"
+        aria-busy="true"
+        aria-label="Pint Drop composer"
+      >
         <p className="description muted">Loading saved Pint Drop draft...</p>
       </form>
     );
@@ -382,6 +386,7 @@ export default function PintDropComposer({
   return (
     <form
       className="dropComposer spillComposer"
+      aria-label="Pint Drop composer"
       onSubmit={(event) => submitDrop(event, venueId, { venueName, lastTrainDecision })}
     >
       <div className="spillComposerIntro">

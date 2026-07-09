@@ -165,6 +165,8 @@ export type LastTrainResult = {
   departures?: NextDepartures[];
   decision?: LastPintDecision;
   nearestPubs?: NearestPub[];
+  /** True when station context came from bundled static data, not live TfL. */
+  staticFallback?: boolean;
 };
 
 // --- Last Pint decision (user stories 19, 21, 23, 24) ---------------------

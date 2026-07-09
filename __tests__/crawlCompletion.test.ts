@@ -14,6 +14,7 @@ import {
   markCelebrationShown,
   markCrawlComplete,
   markStopVisited,
+  nextQuestTarget,
   parseProgress,
   readCrawl,
   readCrawlQuest,
@@ -222,6 +223,37 @@ describe("Wave G2 celebration eligibility + one-shot flag", () => {
       "crawl-complete",
       "place-story-crawl",
     ]);
+    expect(crawlQuestChips(storage)).toEqual([
+      {
+        id: "crawl-complete",
+        current: 1,
+        target: 3,
+        label: "Crawl walked",
+      },
+      {
+        id: "place-story-crawl",
+        current: 1,
+        target: 3,
+        label: "Place story walked",
+      },
+    ]);
+  });
+
+  it("crawlQuestChips uses the next milestone so target !== current", () => {
+    const storage = makeMemoryStorage();
+    creditCrawlQuest("a", undefined, storage);
+    expect(crawlQuestChips(storage)[0]).toMatchObject({ current: 1, target: 3 });
+    creditCrawlQuest("b", undefined, storage);
+    creditCrawlQuest("c", undefined, storage);
+    expect(crawlQuestChips(storage)[0]).toMatchObject({ current: 3, target: 5 });
+  });
+
+  it("nextQuestTarget steps through tiers then current+1", () => {
+    expect(nextQuestTarget(0)).toBe(1);
+    expect(nextQuestTarget(1)).toBe(3);
+    expect(nextQuestTarget(2)).toBe(3);
+    expect(nextQuestTarget(5)).toBe(10);
+    expect(nextQuestTarget(25)).toBe(26);
   });
 
   it("creditCrawlQuest is idempotent and skips Place story when unset", () => {

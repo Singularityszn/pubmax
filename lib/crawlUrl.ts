@@ -57,6 +57,8 @@ export type CrawlUrlState = {
   // Additive (issue #31 alt crawl styles): the "kind of night" label. "pint" is
   // the default and is omitted from the URL; unknown values decode back to pint.
   altStyle?: AltCrawlStyle;
+  /** Shareable landmark chapter deep link (`?landmark=big-ben`). */
+  landmarkId?: string;
 };
 
 // The bounds mirror the sliders in ControlRail.tsx — keep in sync.
@@ -110,6 +112,7 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
   if (state.bandId) params.set("band", state.bandId);
+  if (state.landmarkId) params.set("landmark", state.landmarkId);
   // Only encode an alt style when it isn't the default "pint".
   if (state.altStyle && state.altStyle !== "pint") params.set("alt", state.altStyle);
   return params.toString();
@@ -137,7 +140,6 @@ export function decodeCrawl(
   // Only "1" turns it on; any other/absent value leaves it at the default (off).
   if (params.get("drops") === "1") filters.requirePintDrops = true;
   if (params.get("low") === "1") filters.requireNonAlcoholic = true;
-  if (params.get("cocktails") === "1") filters.requireCocktails = true;
   if (params.get("food") === "1") filters.requireFood = true;
   const q = params.get("q")?.trim();
   if (q) filters.query = q.slice(0, 80);
@@ -146,6 +148,11 @@ export function decodeCrawl(
   //   low-no / non-alcoholic → requireNonAlcoholic (+ mocktail alt style)
   //   cocktail → requireCocktails + drinkCategory
   //   wine/vodka/gin/… → drinkCategory (+ optional drinkBrand)
+  // `cocktails=1` alone lights the cocktail lens when `drink=` is absent;
+  // an explicit `drink=` category always wins.
+  const cocktailsFlag = params.get("cocktails") === "1";
+  if (cocktailsFlag) filters.requireCocktails = true;
+
   const drinkRaw = params.get("drink")?.trim().toLowerCase() ?? "";
   if (drinkRaw === "low-no" || drinkRaw === "non-alcoholic") {
     filters.requireNonAlcoholic = true;
@@ -159,6 +166,9 @@ export function decodeCrawl(
       if (!filters.query) {
         filters.query = categoryLabel(drinkCategory);
       }
+    } else if (cocktailsFlag) {
+      filters.drinkCategory = "cocktail";
+      if (!filters.query) filters.query = categoryLabel("cocktail");
     }
   }
 
@@ -187,6 +197,9 @@ export function decodeCrawl(
   const band = params.get("band");
   if (band) out.bandId = band.trim();
 
+  const landmark = params.get("landmark");
+  if (landmark) out.landmarkId = landmark.trim();
+
   const alt = params.get("alt");
   if (alt && ALT_CRAWL_STYLES.includes(alt as AltCrawlStyle)) {
     out.altStyle = alt as AltCrawlStyle;
@@ -203,6 +216,7 @@ export function seedCrawlState(search: string): {
   selectedVenueId: string;
   bandId: string;
   altStyle: AltCrawlStyle;
+  landmarkId: string;
 } {
   const decoded = decodeCrawl(new URLSearchParams(search));
   return {
@@ -212,5 +226,6 @@ export function seedCrawlState(search: string): {
     selectedVenueId: decoded.selectedVenueId ?? "",
     bandId: decoded.bandId ?? "",
     altStyle: decoded.altStyle ?? "pint",
+    landmarkId: decoded.landmarkId ?? "",
   };
 }

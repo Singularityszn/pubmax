@@ -1716,11 +1716,20 @@ input[type="range"] {
   line-height: 1.25;
 }
 
+.landmarkChapterLink {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--brass);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .landmarkCardHead button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: auto;
+  margin-left: 6px;
   width: 26px;
   height: 26px;
   border: 1px solid var(--line);
@@ -2987,6 +2996,13 @@ input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 
+.routeSafetyNote {
+  margin: -4px 0 12px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
 .routeMapPrompt {
   display: flex;
   align-items: center;
@@ -4035,18 +4051,17 @@ button:disabled {
     padding: 7px 10px;
   }
 
-  .appShell.sheet-full .mapToolbar,
+  /* .mapToolbar / .mapLegend sheet-full, onboarding-open, and planning-open
+     hide rules live in mapToolbar.css (slide-out transforms). Keep other
+     floating chrome here so those overlays still clear the expanded sheet. */
   .appShell.sheet-full .mapHeroCard,
-  .appShell.sheet-full .mapLegend,
   .appShell.sheet-full .mappedRouteChip,
   .appShell.sheet-full .bandOnboardingChip,
   .appShell.sheet-full .poiToggle,
   .appShell.sheet-full .bandPicker,
   .appShell.route-mapped .mapHeroCard,
-  .appShell.planning-open .mapToolbar,
   .appShell.planning-open .mapCameraControls,
   .appShell.planning-open .mapHeroCard,
-  .appShell.planning-open .mapLegend,
   .appShell.planning-open .mappedRouteChip,
   .appShell.planning-open .bandOnboardingChip,
   .appShell.planning-open .poiToggle,

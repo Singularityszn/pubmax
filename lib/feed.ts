@@ -6,7 +6,9 @@
 
 import type { Provenance } from "@/lib/curation";
 import { rankForYou, type ForYouContext } from "@/lib/forYou";
+import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { normalizeHandle } from "@/lib/profiles";
+import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // The public read shape as it arrives over the wire from GET /api/pint-drops
 // ({ drops: [...] }). Kept structural (not imported from the store's DTO type)
@@ -39,7 +41,7 @@ export type PintDropDTO = {
    * drops — never invent these client-side.
    */
   leaveByIso?: string | null;
-  lastTrainDecision?: string | null;
+  lastTrainDecision?: LastPintDecisionKind | null;
 };
 
 export type OptimisticSpillState = {
@@ -81,7 +83,7 @@ export type FeedItem = {
   /** Optional Last Train leave-by ISO from the drop DTO (Wave F0). */
   leaveByIso?: string | null;
   /** Optional Last Pint decision kind from the drop DTO (Wave F0). */
-  lastTrainDecision?: string | null;
+  lastTrainDecision?: LastPintDecisionKind | null;
 };
 
 // The friendly label shown when an id has no resolvable pub name — kept here so
@@ -163,7 +165,7 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
   if (dto.leaveByIso != null && dto.leaveByIso !== "") {
     item.leaveByIso = dto.leaveByIso;
   }
-  if (dto.lastTrainDecision != null && dto.lastTrainDecision !== "") {
+  if (isLiveLastTrainDecision(dto.lastTrainDecision)) {
     item.lastTrainDecision = dto.lastTrainDecision;
   }
   const optimistic = normalizeOptimistic(dto.optimistic);

@@ -101,7 +101,10 @@ function shouldOpenPlanningInitially(
   seededMode: CrawlMode,
   search: string,
 ): boolean {
-  if (isDrinkShapeArrival(search) && seededBuiltIds.length === 0) return false;
+  // Drink-shape deep-links always stay on the clean map (chips + search), even
+  // when style=/mode=/q= would otherwise open the planner. Keep this in the
+  // initializer — do not force-close via useEffect (react-hooks/set-state-in-effect).
+  if (isDrinkShapeArrival(search)) return false;
   return (
     seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|mode|q)=/.test(search)
   );
@@ -687,8 +690,16 @@ export default function PubMap() {
   // Keep the URL in sync so "Copy link" shares the current crawl.
   useCrawlUrlSync(
     useMemo(
-      () => ({ mode, filters, builtIds, selectedVenueId, bandId: activeBandId, altStyle }),
-      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle],
+      () => ({
+        mode,
+        filters,
+        builtIds,
+        selectedVenueId,
+        bandId: activeBandId,
+        altStyle,
+        landmarkId: seed.landmarkId,
+      }),
+      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle, seed.landmarkId],
     ),
   );
 
@@ -1105,6 +1116,7 @@ export default function PubMap() {
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}
           onAskPubmaxxer={askPubmaxxerAtPub}
+          initialLandmarkId={seed.landmarkId}
         />
         <MapToolbar
           query={filters.query}

@@ -27,7 +27,7 @@ describe("curated crawls", () => {
     // then 2 alt-style crawls (issue #31) — 10 is the new ceiling, still small
     // enough to hand-curate honestly.
     expect(curatedCrawls.length).toBeGreaterThanOrEqual(3);
-    expect(curatedCrawls.length).toBeLessThanOrEqual(10);
+    expect(curatedCrawls.length).toBeLessThanOrEqual(12);
     expect(new Set(curatedCrawls.map((c) => c.id)).size).toBe(curatedCrawls.length);
   });
 
@@ -103,6 +103,8 @@ describe("curated crawls", () => {
     expect(byId.get("fleet-street-writers")?.placeStoryBandId).toBe("fleet-street-writers");
     expect(byId.get("riverside-heritage")?.placeStoryBandId).toBe("thames-industrial");
     expect(byId.get("borough-market-crawl")?.placeStoryBandId).toBe("markets-theatre");
+    expect(byId.get("westminster-civic")?.placeStoryBandId).toBe("royal-civic");
+    expect(byId.get("barbican-coding-pint")?.placeStoryBandId).toBe("coding-pint");
     expect(byId.get("bankside-riverside")?.placeStoryBandId).toBe("river-history");
   });
 

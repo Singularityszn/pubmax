@@ -19,7 +19,6 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
-import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
 // canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
@@ -169,7 +168,7 @@ export default function FeedCard({
   const trainBadge = lastTrainBadge(
     item.createdAt,
     item.leaveByIso,
-    item.lastTrainDecision as LastPintDecisionKind | null | undefined,
+    item.lastTrainDecision,
   );
 
   return (

@@ -1,4 +1,5 @@
 import type { PintDrop } from "@/lib/pintDropShared";
+import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // Seeded demo Pint Drops for the curated heritage pubs (lib/curation.ts,
 // seeds/heritage.md). They exist so the community layer reads as alive on
@@ -24,7 +25,7 @@ type SeedSpec = {
   minutesAgo: number;
   /** Optional honest Last Train context for feed stamps (Wave F0). */
   leaveByIso?: string;
-  lastTrainDecision?: string;
+  lastTrainDecision?: LastPintDecisionKind;
 };
 
 const MINUTE_MS = 60_000;

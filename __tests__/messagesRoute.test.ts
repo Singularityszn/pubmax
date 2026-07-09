@@ -124,6 +124,27 @@ describe("POST /api/messages — open + send validation", () => {
     asUser("user-ken");
     expect((await postInbox({ action: "poke", handle: "ken", other: "sam" })).status).toBe(400);
   });
+
+  it("503s when the store fails to send after validation", async () => {
+    asUser("user-ken");
+    const { messagesStore } = await import("@/lib/messagesStore");
+    const store = messagesStore();
+    const openSpy = vi.spyOn(store, "openConversation").mockResolvedValue("conv-fail");
+    const sendSpy = vi.spyOn(store, "send").mockResolvedValue(null);
+    try {
+      const res = await postInbox({
+        action: "send",
+        handle: "ken",
+        other: "sam",
+        body: "should fail soft",
+      });
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: "Couldn't send that message." });
+    } finally {
+      openSpy.mockRestore();
+      sendSpy.mockRestore();
+    }
+  });
 });
 
 describe("GET /api/messages/[id] — participant gating (the leak test)", () => {

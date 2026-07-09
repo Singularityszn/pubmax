@@ -57,6 +57,7 @@ import {
   type NextDepartures,
 } from "@/lib/tfl";
 import { haversineKm } from "@/lib/haversine";
+import { nearestStaticStation } from "@/lib/staticStations";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
 export const runtime = "nodejs";
@@ -444,6 +445,36 @@ export async function GET(request: Request): Promise<Response> {
   const stops = await tflGet<StopPointResponse>(stopUrl, 1);
   const nearest = stops?.stopPoints?.[0];
   if (!nearest?.id) {
+    const staticStation = nearestStaticStation(lat, lng);
+    if (staticStation) {
+      const walkMinutesEstimate = walkMinutesForKm(staticStation.distanceKm);
+      const nearestPubs = await nearestPubsToStation(staticStation.lat, staticStation.lon);
+      const decision = computeLastPintDecision({
+        minutesUntilLastTrain: null,
+        walkMinutesEstimate,
+        stationName: staticStation.name,
+        lineNames: staticStation.lines,
+        disruptionOnNeededLine: false,
+        destinationLabel,
+        live: false,
+      });
+      return json({
+        error:
+          "Couldn't reach TfL just now — showing the nearest known station from our map. Check live times before you head out.",
+        station: {
+          id: staticStation.id,
+          name: staticStation.name,
+          distanceM: Math.round(staticStation.distanceM),
+        },
+        trains: [],
+        departures: [],
+        decision,
+        nearestPubs,
+        generatedAt: new Date().toISOString(),
+        staticFallback: true,
+      });
+    }
+
     const decision = computeLastPintDecision({
       minutesUntilLastTrain: null,
       walkMinutesEstimate: 0,

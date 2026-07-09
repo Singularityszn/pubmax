@@ -3,7 +3,16 @@
 //   POST { handle, id? }             → { notifications, unread }   (marks read)
 //
 // Wave I2: resolve the actor via resolveMessageHandle (JWT-linked handle wins)
-// then gateHandleAction — same ownership model as messages.
+// then gateHandleAction — same ownership model as messages. Linked handles
+// require the matching signed-in owner; unlinked/demo handles still work
+// anonymously. A notification carries only already-public feed signal
+// (a follow, a reaction, a comment, a crawl save), so keying a read by
+// recipient handle is low-sensitivity — it can never reveal anything the feed
+// doesn't already show. See lib/notifications.ts and migration 0010.
+//
+// Reads are fail-soft (the store returns an empty inbox on any error), so a
+// notifications outage can never 500 the bell / activity page. Store choice is the
+// usual seam: Supabase when configured, process-memory otherwise.
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";

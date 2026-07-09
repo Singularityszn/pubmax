@@ -2,6 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import {
   Crosshair,
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { landmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
+import { landmarks, nearestStoryPubs, landmarkById, type Landmark } from "@/lib/landmarks";
 import {
   STORY_BANDS,
   bandById,
@@ -85,6 +86,8 @@ type PubMapCanvasProps = {
   onStartCrawl?: (pubIds: string[]) => void;
   /** "Ask the PUBMAXXER" from a landmark card — receives the nearest story pub id. */
   onAskPubmaxxer?: (venueId: string) => void;
+  /** Deep-link a landmark history card open on arrival (`?landmark=`). */
+  initialLandmarkId?: string;
 };
 
 // OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
@@ -503,6 +506,7 @@ export default function PubMapCanvas({
   onBandChange,
   onStartCrawl,
   onAskPubmaxxer,
+  initialLandmarkId = "",
 }: PubMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -524,7 +528,9 @@ export default function PubMapCanvas({
   // constructor throw) and again on the user's Retry click. The cleanup fully
   // tears the map down, so each bump is a clean re-init.
   const [initAttempt, setInitAttempt] = useState(0);
-  const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(null);
+  const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(() =>
+    initialLandmarkId ? landmarkById(initialLandmarkId) ?? null : null,
+  );
   const [heroDismissed, setHeroDismissed] = useState(false);
   const [hoveredVenue, setHoveredVenue] = useState<HoveredVenue | null>(null);
   const hoveredVenueId = hoveredVenue?.id ?? null;
@@ -669,6 +675,16 @@ export default function PubMapCanvas({
     setActiveLandmark(landmark);
     onLandmarkSelectRef.current?.(landmark);
   }, []);
+
+  useEffect(() => {
+    if (!initialLandmarkId || !mapReady) return;
+    const landmark = landmarkById(initialLandmarkId);
+    if (!landmark) return;
+    const map = mapRef.current;
+    if (map) {
+      map.easeTo({ center: landmark.coordinates, zoom: 15, duration: 800 });
+    }
+  }, [initialLandmarkId, mapReady]);
 
   useEffect(() => {
     if (!hoveredVenueId) return;
@@ -2088,6 +2104,12 @@ export default function PubMapCanvas({
           <div className="landmarkCardHead">
             <LandmarkIcon size={15} />
             <strong>{activeLandmark.name}</strong>
+            <Link
+              className="landmarkChapterLink"
+              href={`/landmark/${encodeURIComponent(activeLandmark.id)}`}
+            >
+              Open chapter
+            </Link>
             <button
               type="button"
               onClick={() => selectLandmark(null)}
@@ -2247,6 +2269,7 @@ export default function PubMapCanvas({
             onClick={() => {
               if (activeBandId) {
                 onBandChange("");
+                setPlaceStoriesManualOpen(false);
                 return;
               }
               setPlaceStoriesManualOpen((open) => !open);
