@@ -117,6 +117,12 @@
   background: transparent;
 }
 
+button.crawlCelebrationCopyBtn {
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+
 .crawlCelebrationLink:hover {
   background: color-mix(in srgb, var(--brass, #9a6a24) 14%, transparent);
 }

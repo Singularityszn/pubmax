@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   completedCrawlCount,
   crawlQuestChips,
+  placeQuestEventChips,
   type CrawlQuestChip,
 } from "@/lib/crawlCompletion";
 import {
@@ -42,6 +43,7 @@ export default function NextBadgeChips({
   const [quests, setQuests] = useState<BadgeProgress[]>([]);
   const [crawlsWalked, setCrawlsWalked] = useState(0);
   const [crawlQuests, setCrawlQuests] = useState<CrawlQuestChip[]>([]);
+  const [eventQuests, setEventQuests] = useState<CrawlQuestChip[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -78,9 +80,11 @@ export default function NextBadgeChips({
     async function loadWalked() {
       const next = completedCrawlCount();
       const chips = crawlQuestChips();
+      const events = placeQuestEventChips();
       if (active) {
         setCrawlsWalked(next);
         setCrawlQuests(chips);
+        setEventQuests(events);
       }
     }
     void loadWalked();
@@ -90,7 +94,8 @@ export default function NextBadgeChips({
   }, [showCrawlsWalked]);
 
   const hasWalkedChip =
-    showCrawlsWalked && (crawlsWalked > 0 || crawlQuests.length > 0);
+    showCrawlsWalked &&
+    (crawlsWalked > 0 || crawlQuests.length > 0 || eventQuests.length > 0);
   if (quests.length === 0 && !hasWalkedChip) return null;
 
   return (
@@ -104,6 +109,19 @@ export default function NextBadgeChips({
           {quest.label}
         </span>
       ))}
+      {showCrawlsWalked
+        ? eventQuests.map((chip) => (
+            <span key={chip.id} className="questChip questChipEvent">
+              <span className="questChipCount">
+                {chip.current}/{chip.target}
+              </span>
+              {chip.label}
+              {chip.windowLabel ? (
+                <span className="questChipWindow"> · {chip.windowLabel}</span>
+              ) : null}
+            </span>
+          ))
+        : null}
       {showCrawlsWalked
         ? crawlQuests.map((chip) => (
             <span key={chip.id} className="questChip questChipWalked">

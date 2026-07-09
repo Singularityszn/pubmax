@@ -232,12 +232,49 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
   };
 }
 
-// A Storage key becomes a public URL only for visible rows — hidden/pending
+// A Storage key becomes a signed URL only when access is granted — hidden/pending
 // drops read as null so a reported photo stops being served. Keys never reach
-// the client; getPublicUrl is a pure string build (no network call).
-function publicUrl(key: string | undefined, visible: boolean): string | null {
-  if (!key || !visible) return null;
-  return admin().storage.from(STORAGE_BUCKET).getPublicUrl(key).data.publicUrl;
+// the client. Signed URLs expire (SIGNED_URL_TTL_SEC) so a previously-shared
+// public URL cannot keep working after takedown once the bucket is private.
+export const SIGNED_URL_TTL_SEC = 3600;
+
+/** Resolve one Storage object to a short-lived signed URL, or null when denied. */
+export async function resolveStorageUrl(
+  key: string | null | undefined,
+  grant: boolean,
+): Promise<string | null> {
+  if (!key || !grant) return null;
+  try {
+    const { data, error } = await admin()
+      .storage.from(STORAGE_BUCKET)
+      .createSignedUrl(key, SIGNED_URL_TTL_SEC);
+    if (error || !data?.signedUrl) return null;
+    return data.signedUrl;
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveDropPhotoUrls(
+  drop: PersistableDrop,
+  grant: boolean,
+): Promise<{ pint: string | null; venue: string | null }> {
+  const [pint, venue] = await Promise.all([
+    resolveStorageUrl(drop.pintPhotoKey, grant),
+    resolveStorageUrl(drop.venuePhotoKey, grant),
+  ]);
+  return { pint, venue };
+}
+
+/** Public DTO with signed photo URLs (Supabase path). */
+export async function toDTOWithPhotos(drop: PersistableDrop): Promise<PintDropDTO> {
+  const grant = drop.status === "visible";
+  return toDTO(drop, await resolveDropPhotoUrls(drop, grant));
+}
+
+/** Moderator DTO with signed photo URLs (evidence must resolve for review). */
+export async function toModeratorDTOWithPhotos(drop: PersistableDrop): Promise<ModeratorDrop> {
+  return toModeratorDTO(drop, await resolveDropPhotoUrls(drop, true));
 }
 
 /** Public DTO: strip Storage keys AND report/moderation metadata, emit photo
@@ -245,8 +282,11 @@ function publicUrl(key: string | undefined, visible: boolean): string | null {
  *  transparency exception — surfaced ONLY as a bare count, ONLY on a visible
  *  drop that has actually been reported (> 0), so a reporter sees their report
  *  land. Reasons, reporter metadata, moderator notes, and hidden photos are
- *  never exposed. */
-export function toDTO(drop: PersistableDrop): PintDropDTO {
+ *  never exposed. Pass `photoUrls` from resolveDropPhotoUrls on the Supabase path. */
+export function toDTO(
+  drop: PersistableDrop,
+  photoUrls?: { pint: string | null; venue: string | null },
+): PintDropDTO {
   const visible = drop.status === "visible";
   const visibility = visibilityOf(drop);
   // ANONYMITY GUARANTEE (issue #29): an `anonymous` drop's real handle NEVER
@@ -268,8 +308,8 @@ export function toDTO(drop: PersistableDrop): PintDropDTO {
     status: drop.status,
     visibility,
     createdAt: drop.createdAt,
-    pintPhotoUrl: publicUrl(drop.pintPhotoKey, visible),
-    venuePhotoUrl: publicUrl(drop.venuePhotoKey, visible),
+    pintPhotoUrl: visible ? (photoUrls?.pint ?? null) : null,
+    venuePhotoUrl: visible ? (photoUrls?.venue ?? null) : null,
   };
   // Vibe tags are public, safe content — always exposed when present. Kept
   // additive (absent, not []) so the public JSON shape stays backward-compatible.
@@ -282,12 +322,15 @@ export function toDTO(drop: PersistableDrop): PintDropDTO {
 
 /** Moderator DTO: strip Storage keys but resolve photos even on hidden rows —
  *  the reviewer must see the evidence. Report metadata rides along. */
-export function toModeratorDTO(drop: PersistableDrop): ModeratorDrop {
+export function toModeratorDTO(
+  drop: PersistableDrop,
+  photoUrls?: { pint: string | null; venue: string | null },
+): ModeratorDrop {
   const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
   return {
     ...rest,
-    pintPhotoUrl: publicUrl(pintPhotoKey, true),
-    venuePhotoUrl: publicUrl(venuePhotoKey, true),
+    pintPhotoUrl: photoUrls?.pint ?? null,
+    venuePhotoUrl: photoUrls?.venue ?? null,
   };
 }
 
@@ -317,13 +360,13 @@ export const memoryPintDropStore: PintDropStore = {
     const permitted = rows.filter(
       (d) => visibilityOf(d) !== "legacy" && canViewOnPublicSurface(d, viewer),
     );
-    return newestFirstCapped(permitted).map(toDTO);
+    return newestFirstCapped(permitted).map((d) => toDTO(d));
   },
   async listLegacyForVenue(venueId) {
-    return newestFirstCapped(listLegacyPintDropsForVenue(venueId)).map(toDTO);
+    return newestFirstCapped(listLegacyPintDropsForVenue(venueId)).map((d) => toDTO(d));
   },
   async listForReview(status) {
-    return listByStatus(status).map(toModeratorDTO);
+    return listByStatus(status).map((d) => toModeratorDTO(d));
   },
   async report(id, reason, actorHash) {
     return reportPintDrop(id, reason, actorHash);
@@ -374,6 +417,27 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+
+/** After a hide/takedown, delete Storage objects so a previously shared URL stops resolving. */
+async function purgeHiddenDropPhotos(id: string): Promise<void> {
+  try {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("status,pint_photo_key,venue_photo_key")
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data || data.status !== "hidden") return;
+    const keys = [data.pint_photo_key, data.venue_photo_key].filter(
+      (k): k is string => typeof k === "string" && k.length > 0,
+    );
+    await deletePhotos(keys);
+  } catch (err) {
+    log("warn", "pint_drops.photo_purge_skipped", {
+      dropId: id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
@@ -439,7 +503,7 @@ export const supabasePintDropStore: PintDropStore = {
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
     }
-    return toDTO(persistable);
+    return toDTOWithPhotos(persistable);
   },
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
@@ -479,7 +543,8 @@ export const supabasePintDropStore: PintDropStore = {
       .map(fromRow)
       .concat(seeds)
       .filter((d) => canViewOnPublicSurface(d, viewer));
-    return newestFirstCapped(permitted).map(toDTO);
+    const capped = newestFirstCapped(permitted);
+    return Promise.all(capped.map((d) => toDTOWithPhotos(d)));
   },
 
   /** The LEGACY lane for one venue (ledger-only capability for issue #27).
@@ -495,7 +560,8 @@ export const supabasePintDropStore: PintDropStore = {
       .limit(MAX_PUBLIC_DROPS);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    return newestFirstCapped((data ?? []).map(fromRow)).map(toDTO);
+    const rows = newestFirstCapped((data ?? []).map(fromRow));
+    return Promise.all(rows.map((d) => toDTOWithPhotos(d)));
   },
 
   async listForReview(status) {
@@ -506,7 +572,7 @@ export const supabasePintDropStore: PintDropStore = {
       .is("moderated_at", null)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).map(fromRow).map(toModeratorDTO);
+    return Promise.all((data ?? []).map(fromRow).map((d) => toModeratorDTOWithPhotos(d)));
   },
 
   /** ONE atomic RPC (migration 0017) writes the per-actor report ledger
@@ -524,7 +590,11 @@ export const supabasePintDropStore: PintDropStore = {
       p_reason: reason ?? null,
       p_hide_threshold: REPORT_HIDE_THRESHOLD,
     });
-    if (!v2Error) return v2Data !== null && v2Data !== undefined;
+    if (!v2Error) {
+      const reported = v2Data !== null && v2Data !== undefined;
+      if (reported) await purgeHiddenDropPhotos(id);
+      return reported;
+    }
     console.warn(
       "[pint-drops] report_pint_drop_v2 RPC unavailable — falling back to report_pint_drop without per-actor uniqueness (apply migration 0017):",
       v2Error.message,
@@ -558,12 +628,27 @@ export const supabasePintDropStore: PintDropStore = {
         })
         .eq("id", id);
       if (updateError) throw new Error(updateError.message);
+      await purgeHiddenDropPhotos(id);
       return true;
     }
+    if (data !== null && data !== undefined) await purgeHiddenDropPhotos(id);
     return data !== null && data !== undefined;
   },
 
   async moderate(id, status, note) {
+    let keysToPurge: string[] = [];
+    if (status !== "visible") {
+      const { data: row } = await admin()
+        .from(TABLE)
+        .select("pint_photo_key,venue_photo_key")
+        .eq("id", id)
+        .maybeSingle();
+      if (row) {
+        keysToPurge = [row.pint_photo_key, row.venue_photo_key].filter(
+          (k): k is string => typeof k === "string" && k.length > 0,
+        );
+      }
+    }
     const { data, error } = await admin()
       .from(TABLE)
       .update({
@@ -574,7 +659,9 @@ export const supabasePintDropStore: PintDropStore = {
       .eq("id", id)
       .select("id");
     if (error) throw new Error(error.message);
-    return (data ?? []).length > 0;
+    const ok = (data ?? []).length > 0;
+    if (ok && keysToPurge.length) await deletePhotos(keysToPurge);
+    return ok;
   },
 };
 

@@ -33,10 +33,15 @@ export type CrawlCelebrationMap = {
 /**
  * Device-local quest credit for completing crawls (breadth of places/stories,
  * not drink volume). Idempotent per crawl id / Place-story band id.
+ * Wave H3 adds completion timestamps for time-boxed place quests.
  */
 export type CrawlQuestCredit = {
   completedCrawlIds: string[];
   placeStoryBandIds: string[];
+  /** ISO timestamps keyed by crawl id (Wave H3 weekly quests). */
+  completedAtByCrawlId?: Record<string, string>;
+  /** ISO timestamps keyed by Place-story band id (Wave H3). */
+  completedAtByBandId?: Record<string, string>;
 };
 
 /** Ready-to-render quest chip for NextBadgeChips / celebration copy. */
@@ -45,7 +50,12 @@ export type CrawlQuestChip = {
   current: number;
   target: number;
   label: string;
+  /** Optional window hint, e.g. "this week" (Wave H3). */
+  windowLabel?: string;
 };
+
+/** Seven-day window for place/crawl breadth quests (Wave H3). */
+export const PLACE_QUEST_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function emptyProgress(): CrawlProgressMap {
   return { crawls: {} };
@@ -236,10 +246,6 @@ function emptyCelebration(): CrawlCelebrationMap {
   return { shown: {} };
 }
 
-function emptyQuest(): CrawlQuestCredit {
-  return { completedCrawlIds: [], placeStoryBandIds: [] };
-}
-
 function parseCelebration(raw: unknown): CrawlCelebrationMap {
   if (!raw || typeof raw !== "object") return emptyCelebration();
   const shownRaw = (raw as { shown?: unknown }).shown;
@@ -253,9 +259,34 @@ function parseCelebration(raw: unknown): CrawlCelebrationMap {
   return { shown };
 }
 
+function emptyQuest(): CrawlQuestCredit {
+  return {
+    completedCrawlIds: [],
+    placeStoryBandIds: [],
+    completedAtByCrawlId: {},
+    completedAtByBandId: {},
+  };
+}
+
+function parseTimestampMap(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const id = normaliseId(key);
+    if (!id || typeof value !== "string" || !value.trim()) continue;
+    out[id] = value.trim();
+  }
+  return out;
+}
+
 function parseQuest(raw: unknown): CrawlQuestCredit {
   if (!raw || typeof raw !== "object") return emptyQuest();
-  const row = raw as { completedCrawlIds?: unknown; placeStoryBandIds?: unknown };
+  const row = raw as {
+    completedCrawlIds?: unknown;
+    placeStoryBandIds?: unknown;
+    completedAtByCrawlId?: unknown;
+    completedAtByBandId?: unknown;
+  };
   return {
     completedCrawlIds: Array.isArray(row.completedCrawlIds)
       ? uniqueIds(row.completedCrawlIds.map((v) => String(v)))
@@ -263,6 +294,8 @@ function parseQuest(raw: unknown): CrawlQuestCredit {
     placeStoryBandIds: Array.isArray(row.placeStoryBandIds)
       ? uniqueIds(row.placeStoryBandIds.map((v) => String(v)))
       : [],
+    completedAtByCrawlId: parseTimestampMap(row.completedAtByCrawlId),
+    completedAtByBandId: parseTimestampMap(row.completedAtByBandId),
   };
 }
 
@@ -346,21 +379,78 @@ export function readCrawlQuest(storage?: Storage | null): CrawlQuestCredit {
  */
 export function creditCrawlQuest(
   slugOrId: string,
-  options?: { placeStoryBandId?: string | null },
+  options?: { placeStoryBandId?: string | null; nowIso?: string },
   storage?: Storage | null,
 ): CrawlQuestCredit {
   const id = normaliseId(slugOrId);
   const band = normaliseId(options?.placeStoryBandId ?? "");
   const quest = readCrawlQuest(storage);
   if (!id) return quest;
+  const nowIso = options?.nowIso?.trim() || new Date().toISOString();
   if (!quest.completedCrawlIds.includes(id)) {
     quest.completedCrawlIds = [...quest.completedCrawlIds, id];
+    quest.completedAtByCrawlId = { ...(quest.completedAtByCrawlId ?? {}), [id]: nowIso };
   }
-  if (band && !quest.placeStoryBandIds.includes(band)) {
-    quest.placeStoryBandIds = [...quest.placeStoryBandIds, band];
+  if (band) {
+    if (!quest.placeStoryBandIds.includes(band)) {
+      quest.placeStoryBandIds = [...quest.placeStoryBandIds, band];
+      quest.completedAtByBandId = { ...(quest.completedAtByBandId ?? {}), [band]: nowIso };
+    }
   }
   writeJsonKey(CRAWL_QUEST_KEY, quest, storage);
   return quest;
+}
+
+function countInWindow(
+  timestamps: Record<string, string> | undefined,
+  nowMs: number,
+  windowMs: number,
+): number {
+  if (!timestamps) return 0;
+  let n = 0;
+  for (const iso of Object.values(timestamps)) {
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) continue;
+    if (nowMs - t <= windowMs && nowMs - t >= 0) n += 1;
+  }
+  return n;
+}
+
+/**
+ * Time-boxed place/crawl breadth quests (Wave H3 / IDEAS B2-lite).
+ * Never rewards drink volume — only crawls walked and Place stories explored.
+ */
+export function placeQuestEventChips(
+  nowMs: number = Date.now(),
+  storage?: Storage | null,
+): CrawlQuestChip[] {
+  const quest = readCrawlQuest(storage);
+  const crawlsThisWeek = countInWindow(
+    quest.completedAtByCrawlId,
+    nowMs,
+    PLACE_QUEST_WEEK_MS,
+  );
+  const storiesThisWeek = countInWindow(
+    quest.completedAtByBandId,
+    nowMs,
+    PLACE_QUEST_WEEK_MS,
+  );
+  const chips: CrawlQuestChip[] = [];
+  chips.push({
+    id: "quest-crawl-week",
+    current: Math.min(crawlsThisWeek, 1),
+    target: 1,
+    label: "Finish a crawl",
+    windowLabel: "this week",
+  });
+  chips.push({
+    id: "quest-stories-week",
+    current: Math.min(storiesThisWeek, 2),
+    target: 2,
+    label: "Walk Place stories",
+    windowLabel: "this week",
+  });
+  return chips;
 }
 
 /**
@@ -382,6 +472,7 @@ export function nextQuestTarget(current: number): number {
 /**
  * Quest chips for passport / NextBadgeChips — crawl completion and Place-story
  * breadth. Targets are the next milestone so progress reads as forward-looking.
+ * Wave H3 appends time-boxed event chips via placeQuestEventChips.
  */
 export function crawlQuestChips(storage?: Storage | null): CrawlQuestChip[] {
   const quest = readCrawlQuest(storage);

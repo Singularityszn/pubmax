@@ -1,12 +1,10 @@
-/* Drink-shape chips + mobile thumb-reach for floating map chrome.
-   Row layout + chips are additive on all widths; sheet collision rules stay
-   ≤640px so desktop layout from globals.css is otherwise untouched. */
+/* Compact map toolbar — map-first on phones; drink filters opt-in. */
 
 .mapToolbar {
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
-  border-radius: 18px;
+  gap: 6px;
+  border-radius: 16px;
   border-color: color-mix(in srgb, var(--brass) 28%, var(--line));
   background:
     linear-gradient(
@@ -20,9 +18,27 @@
 .mapToolbarRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+
+.mapToolbarDrinksBtn {
+  display: none;
+}
+
+.planBtnShort {
+  display: none;
+}
+
+.mapToolbarDrinks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mapToolbarDrinksLens {
+  display: none;
 }
 
 .drinkShapeChips {
@@ -44,13 +60,13 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 36px;
-  padding: 4px 10px 4px 7px;
+  min-height: 34px;
+  padding: 3px 9px 3px 6px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
   background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -85,76 +101,92 @@
 @media (max-width: 640px) {
   .mapToolbar {
     overflow: hidden;
-    padding: 10px;
+    padding: 6px 7px;
+    gap: 0;
+    border-radius: 14px;
   }
 
   .mapToolbarRow {
     width: 100%;
-    justify-content: stretch;
+    gap: 5px;
   }
 
   .mapToolbarSearch {
     min-width: 0;
-    flex: 1 1 170px;
+    flex: 1 1 auto;
+    padding: 2px 6px;
   }
 
   .mapToolbarSearch input {
     min-width: 0;
     width: 100%;
+    font-size: 0.8rem;
   }
 
-  .favoritePintPicker {
-    min-width: 0;
-    flex: 1 1 150px;
+  /* Desktop drink lens stays in the expand panel on phones. */
+  .mapToolbarDesktopExtras {
+    display: none;
   }
 
-  .favoritePintControl {
-    min-width: 0;
-    max-width: 100%;
-    flex: 1 1 auto;
+  .mapToolbarDrinksBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+    flex: 0 0 auto;
   }
 
-  .favoritePintSelect {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .drinkShapeChip {
-    min-height: 40px;
-    padding: 5px 11px 5px 8px;
-  }
-}
-
-@media (max-width: 420px) {
-  .mapToolbarRow {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-  }
-
-  .favoritePintPicker,
-  .planBtn {
-    width: 100%;
+  .mapToolbarDrinksBtn.isActive {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+    color: var(--brass);
   }
 
   .planBtn {
-    justify-content: center;
+    min-height: 34px;
+    padding: 6px 11px;
+    font-size: 0.76rem;
+    flex: 0 0 auto;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
+  .planBtnFull {
+    display: none;
+  }
+
+  .planBtnShort {
+    display: inline;
+  }
+
+  .mapToolbarDrinks {
+    display: none;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  }
+
+  .mapToolbarDrinks.isOpen {
+    display: flex;
+  }
+
+  .mapToolbarDrinksLens {
+    display: block;
+  }
+
   .drinkShapeChip {
-    transition: none;
+    min-height: 34px;
+    padding: 4px 9px 4px 6px;
   }
-}
 
-@media (max-width: 640px) {
-  /* At the sheet's "full" snap it covers ~92% of the viewport height, so the
-     floating toolbar (top) and legend (bottom) would otherwise sit uselessly
-     behind it — an unreachable, overlapping control a thumb can't get to.
-     Sliding the toolbar up and out and fading the legend keeps the map's
-     floating chrome from ever fighting the expanded sheet for space, and
-     both slide right back the moment the sheet drops to half/peek. */
+  /* Sheet / onboarding / planning collision */
   .appShell.sheet-full .mapToolbar {
     transform: translateY(-120%);
     opacity: 0;
@@ -162,7 +194,9 @@
     transition: transform 0.2s ease, opacity 0.2s ease;
   }
 
-  .appShell.sheet-full .mapLegend {
+  .appShell.sheet-full .mapLegend,
+  .appShell.onboarding-open .mapLegend,
+  .appShell.planning-open .mapLegend {
     transform: translateY(120%);
     opacity: 0;
     pointer-events: none;
@@ -176,28 +210,22 @@
     pointer-events: none;
   }
 
-  .appShell.onboarding-open .mapLegend,
-  .appShell.planning-open .mapLegend {
-    transform: translateY(120%);
-    opacity: 0;
-    pointer-events: none;
-  }
-
   .mapToolbar,
   .mapLegend {
     transition: transform 0.2s ease, opacity 0.2s ease;
   }
+}
 
-  @media (prefers-reduced-motion: reduce) {
-    .appShell.sheet-full .mapToolbar,
-    .appShell.sheet-full .mapLegend,
-    .appShell.onboarding-open .mapToolbar,
-    .appShell.onboarding-open .mapLegend,
-    .appShell.planning-open .mapToolbar,
-    .appShell.planning-open .mapLegend,
-    .mapToolbar,
-    .mapLegend {
-      transition: none;
-    }
+@media (prefers-reduced-motion: reduce) {
+  .drinkShapeChip,
+  .appShell.sheet-full .mapToolbar,
+  .appShell.sheet-full .mapLegend,
+  .appShell.onboarding-open .mapToolbar,
+  .appShell.onboarding-open .mapLegend,
+  .appShell.planning-open .mapToolbar,
+  .appShell.planning-open .mapLegend,
+  .mapToolbar,
+  .mapLegend {
+    transition: none;
   }
 }

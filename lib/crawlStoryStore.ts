@@ -13,6 +13,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { totalGbp, VIBE_TAGS, type CrawlStory } from "@/lib/crawlStory";
 import { normalizeHandle } from "@/lib/profiles";
+import { profileStore } from "@/lib/profileStore";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
@@ -533,22 +534,46 @@ export async function countStoriesByAuthor(handle: string): Promise<number> {
 }
 
 /** Is `handle` the author of `slug`? False for an anonymous story (no author to
- *  match), an unknown slug, or a mismatch. THE edit/delete gate (see seam note). */
-export async function isAuthor(slug: string, handle: string): Promise<boolean> {
+ *  match), an unknown slug, or a mismatch. When the author's handle is linked to
+ *  an auth account, `callerUserId` must match that owner (defense in depth —
+ *  the API route runs gateHandleAction first). THE edit/delete gate. */
+export async function isAuthor(
+  slug: string,
+  handle: string,
+  callerUserId?: string | null,
+): Promise<boolean> {
   const claimant = normalizeHandle(handle ?? "");
   if (!claimant) return false;
   const author = await getStoryAuthor(slug);
-  return author !== null && author === claimant;
+  if (author === null || author !== claimant) return false;
+
+  try {
+    const profile = await profileStore().getByHandle(author);
+    const linkedTo = profile?.userId ?? null;
+    if (linkedTo) {
+      const caller =
+        typeof callerUserId === "string" && callerUserId ? callerUserId : null;
+      if (!caller || caller !== linkedTo) return false;
+    }
+  } catch {
+    return false;
+  }
+
+  return true;
 }
 
 /** Delete a story (and its stops via ON DELETE CASCADE) IFF `handle` is the
  *  author. Returns true when a row was removed; false on a not-author / unknown
  *  slug. The route has already 403'd a non-author; this re-checks as defence in
  *  depth so the store method is safe called directly. */
-export async function deleteCrawlStory(slug: string, handle: string): Promise<boolean> {
+export async function deleteCrawlStory(
+  slug: string,
+  handle: string,
+  callerUserId?: string | null,
+): Promise<boolean> {
   const key = typeof slug === "string" ? slug.trim() : "";
   if (!key) return false;
-  if (!(await isAuthor(key, handle))) return false;
+  if (!(await isAuthor(key, handle, callerUserId))) return false;
   if (isSupabaseConfigured()) {
     try {
       const { error } = await admin().from(STORIES_TABLE).delete().eq("slug", key);
@@ -579,10 +604,11 @@ export async function updateCrawlStory(
   slug: string,
   handle: string,
   patch: CrawlStoryPatch,
+  callerUserId?: string | null,
 ): Promise<DurableStory | null> {
   const key = typeof slug === "string" ? slug.trim() : "";
   if (!key) return null;
-  if (!(await isAuthor(key, handle))) return null;
+  if (!(await isAuthor(key, handle, callerUserId))) return null;
 
   const next: Record<string, unknown> = {};
   if (patch.title !== undefined) {

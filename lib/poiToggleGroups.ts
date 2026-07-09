@@ -74,8 +74,8 @@ export const POI_TOGGLE_GROUPS: readonly PoiToggleGroup[] = [
   },
 ];
 
-// Default: Transit + Parks + Sights on; denser ambient categories off until
-// the viewer opts in (reduces first-paint dot soup).
+// Desktop default: Transit + Parks + Sights on; denser ambient categories off
+// until the viewer opts in (reduces first-paint dot soup).
 export function defaultPoiHidden(): Record<PoiCategory, boolean> {
   return {
     tube: false,
@@ -89,6 +89,31 @@ export function defaultPoiHidden(): Record<PoiCategory, boolean> {
     viewpoint: true,
     sight: false,
   };
+}
+
+// Mobile default: every POI layer hidden so the map mid-field stays clean.
+// Viewers opt in via the corner Layers control.
+export function defaultPoiHiddenMobile(): Record<PoiCategory, boolean> {
+  return {
+    tube: true,
+    rail: true,
+    bus: true,
+    river: true,
+    park: true,
+    garden: true,
+    market: true,
+    historic: true,
+    viewpoint: true,
+    sight: true,
+  };
+}
+
+export function isMobileMapViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
+}
+
+export function defaultPoiHiddenForViewport(): Record<PoiCategory, boolean> {
+  return isMobileMapViewport() ? defaultPoiHiddenMobile() : defaultPoiHidden();
 }
 
 export function isPoiGroupOn(

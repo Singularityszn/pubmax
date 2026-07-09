@@ -42,3 +42,13 @@
 .questChipWalked {
   border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
 }
+
+.questChipEvent {
+  border-color: color-mix(in srgb, var(--river, var(--brass)) 35%, var(--line));
+  background: color-mix(in srgb, var(--river, var(--brass)) 6%, var(--panel-raised));
+}
+
+.questChipWindow {
+  font-weight: 500;
+  color: var(--muted, var(--ink-soft));
+}

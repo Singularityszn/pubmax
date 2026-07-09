@@ -153,6 +153,17 @@ describe("GET /api/messages/[id] — participant gating (the leak test)", () => 
     expect((await getThread("nope", "handle=ken")).status).toBe(404);
     expect((await getThread("nope")).status).toBe(400);
   });
+
+  it("surfaces a 503 from the ownership gate instead of collapsing to 404", async () => {
+    const id = await seed();
+    const spy = vi
+      .spyOn(memoryProfileStore, "getByHandle")
+      .mockRejectedValueOnce(new Error("store down"));
+    const res = await getThread(id, "handle=ken");
+    spy.mockRestore();
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Profile storage is unavailable." });
+  });
 });
 
 describe("POST /api/messages/[id] — send + report gating", () => {

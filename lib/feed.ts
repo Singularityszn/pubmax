@@ -399,3 +399,16 @@ export function paginate(
   const nextCursor = last && !reachedEnd ? cursorOf(last) : null;
   return { items: page, nextCursor };
 }
+
+/**
+ * Defensive filter for feed aggregation: keep only items whose ids survived a
+ * server-side visibility gate (filterPubliclyReadableDropIds /
+ * canViewOnPublicSurface). Pure — the caller passes the permitted id set.
+ */
+export function filterFeedItemsToPermittedIds(
+  items: FeedItem[],
+  permittedIds: ReadonlySet<string>,
+): FeedItem[] {
+  if (permittedIds.size === 0) return [];
+  return items.filter((item) => permittedIds.has(item.id));
+}

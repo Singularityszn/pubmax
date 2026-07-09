@@ -34,7 +34,7 @@ describe("resolveMapLogIntent", () => {
     ).toEqual({ status: "pending" });
   });
 
-  it("preserves selected, route, then first-visible venue priority", () => {
+  it("preserves selected venue for auto-open, otherwise shows the nearby picker", () => {
     expect(
       resolveMapLogIntent({
         hasLogIntent: true,
@@ -46,6 +46,7 @@ describe("resolveMapLogIntent", () => {
       }),
     ).toEqual({ status: "open", venueId: "selected" });
 
+    // Wave H2: never auto-pick first route / first filtered venue.
     expect(
       resolveMapLogIntent({
         hasLogIntent: true,
@@ -55,7 +56,7 @@ describe("resolveMapLogIntent", () => {
         firstRouteId: "route",
         firstFilteredVenueId: "visible",
       }),
-    ).toEqual({ status: "open", venueId: "route" });
+    ).toEqual({ status: "fallback" });
 
     expect(
       resolveMapLogIntent({
@@ -66,7 +67,7 @@ describe("resolveMapLogIntent", () => {
         firstRouteId: "",
         firstFilteredVenueId: "visible",
       }),
-    ).toEqual({ status: "open", venueId: "visible" });
+    ).toEqual({ status: "fallback" });
   });
 
   it("asks for a pub selection when log intent cannot resolve a venue", () => {
@@ -82,7 +83,7 @@ describe("resolveMapLogIntent", () => {
     ).toEqual({ status: "fallback" });
   });
 
-  it("falls back from an unresolved selected venue to route then visible venues", () => {
+  it("falls back when the selected venue is unresolved (Wave H2 trust)", () => {
     expect(
       resolveMapLogIntent({
         hasLogIntent: true,
@@ -92,7 +93,7 @@ describe("resolveMapLogIntent", () => {
         firstRouteId: "route",
         firstFilteredVenueId: "visible",
       }),
-    ).toEqual({ status: "open", venueId: "route" });
+    ).toEqual({ status: "fallback" });
 
     expect(
       resolveMapLogIntent({
@@ -103,7 +104,7 @@ describe("resolveMapLogIntent", () => {
         firstRouteId: "",
         firstFilteredVenueId: "visible",
       }),
-    ).toEqual({ status: "open", venueId: "visible" });
+    ).toEqual({ status: "fallback" });
   });
 
   it("shows fallback instead of handling an unresolved selected venue with no fallback venue", () => {

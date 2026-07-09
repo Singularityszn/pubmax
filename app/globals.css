@@ -265,7 +265,7 @@ button {
 .appShell {
   --map-top-clearance: 92px;
   --map-overlay-top: 108px;
-  --mobile-tab-clearance: calc(104px + env(safe-area-inset-bottom, 0px));
+  --mobile-tab-clearance: calc(72px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
   --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
   height: 100vh;
@@ -4006,16 +4006,20 @@ button:disabled {
 
 @media (max-width: 640px) {
   .appShell {
-    --map-mobile-hero-clearance: 154px;
-    --map-mobile-legend-clearance: 62px;
+    /* Declutter: chrome hugs corners; no mid-map POI/legend stack. */
+    --map-mobile-hero-clearance: 0px;
+    --map-mobile-legend-clearance: 40px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
+    /* Compact top nav + single-row toolbar → more map mid-field. */
+    --map-top-clearance: calc(52px + env(safe-area-inset-top, 0px));
+    --map-overlay-top: calc(var(--map-top-clearance) + 52px);
   }
 
   .mapCameraControls {
-    top: calc(var(--map-top-clearance) + 216px);
-    right: 12px;
-    gap: 5px;
+    top: calc(var(--map-top-clearance) + 58px);
+    right: 10px;
+    gap: 4px;
   }
 
   /* MapLibre's built-in zoom/compass control competes with the bottom tab bar
@@ -4054,7 +4058,13 @@ button:disabled {
   }
 
   .mapLegend {
-    bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
+    left: 10px;
+    right: auto;
+    bottom: calc(var(--mobile-tab-clearance) + 10px);
+    max-width: min(220px, calc(100vw - 120px));
+    gap: 8px;
+    padding: 8px 10px;
+    justify-content: flex-start;
   }
 
   .mappedRouteChip,
@@ -4066,34 +4076,11 @@ button:disabled {
     transform: none;
   }
 
-  .poiToggle {
-    left: 10px;
-    right: 10px;
-    max-width: calc(100vw - 20px);
-    overflow-x: auto;
-    overflow-y: hidden;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    bottom: calc(
-      var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance) + var(--map-mobile-legend-clearance)
-    );
-    scrollbar-width: none;
-  }
-
-  .poiToggle::-webkit-scrollbar {
-    display: none;
-  }
-
-  .poiToggleBtn {
-    flex: 0 0 auto;
-    min-height: 32px;
-    padding: 4px 9px;
-  }
-
-  .placeStoriesControl {
-    bottom: calc(
-      var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance) + var(--map-mobile-legend-clearance) + 44px
-    );
+  /* Mobile: hide the mid-map POI strip + place-stories chrome.
+     Layers live in the corner MapLayersControl instead. */
+  .poiToggleDesktop,
+  .placeStoriesDesktop {
+    display: none !important;
   }
 }
 

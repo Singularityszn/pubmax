@@ -8,6 +8,7 @@ import {
   completedCrawlCount,
   creditCrawlQuest,
   crawlQuestChips,
+  placeQuestEventChips,
   hasCelebrationBeenShown,
   isComplete,
   markCelebrationShown,
@@ -257,16 +258,59 @@ describe("Wave G2 celebration eligibility + one-shot flag", () => {
 
   it("creditCrawlQuest is idempotent and skips Place story when unset", () => {
     const storage = makeMemoryStorage();
-    creditCrawlQuest("hand-built", undefined, storage);
-    creditCrawlQuest("hand-built", { placeStoryBandId: "  " }, storage);
-    expect(readCrawlQuest(storage)).toEqual({
-      completedCrawlIds: ["hand-built"],
-      placeStoryBandIds: [],
-    });
-    creditCrawlQuest("hand-built", { placeStoryBandId: "river-history" }, storage);
-    creditCrawlQuest("hand-built", { placeStoryBandId: "river-history" }, storage);
+    creditCrawlQuest("hand-built", { nowIso: "2026-07-09T12:00:00.000Z" }, storage);
+    creditCrawlQuest("hand-built", { placeStoryBandId: "  ", nowIso: "2026-07-09T12:00:00.000Z" }, storage);
+    const quest = readCrawlQuest(storage);
+    expect(quest.completedCrawlIds).toEqual(["hand-built"]);
+    expect(quest.placeStoryBandIds).toEqual([]);
+    expect(quest.completedAtByCrawlId?.["hand-built"]).toBe("2026-07-09T12:00:00.000Z");
+    creditCrawlQuest(
+      "hand-built",
+      { placeStoryBandId: "river-history", nowIso: "2026-07-09T12:00:00.000Z" },
+      storage,
+    );
+    creditCrawlQuest(
+      "hand-built",
+      { placeStoryBandId: "river-history", nowIso: "2026-07-09T12:00:00.000Z" },
+      storage,
+    );
     expect(readCrawlQuest(storage).placeStoryBandIds).toEqual(["river-history"]);
     expect(storage.getItem(CRAWL_QUEST_KEY)).toContain("river-history");
+  });
+
+  it("creditCrawlQuest preserves the first completion timestamp on repeat credits", () => {
+    const storage = makeMemoryStorage();
+    creditCrawlQuest("hand-built", { nowIso: "2026-07-01T12:00:00.000Z" }, storage);
+    creditCrawlQuest("hand-built", { nowIso: "2026-07-09T18:00:00.000Z" }, storage);
+    expect(readCrawlQuest(storage).completedAtByCrawlId?.["hand-built"]).toBe(
+      "2026-07-01T12:00:00.000Z",
+    );
+  });
+
+  it("placeQuestEventChips counts breadth quests inside a weekly window (Wave H3)", () => {
+    const storage = makeMemoryStorage();
+    const now = Date.parse("2026-07-09T18:00:00.000Z");
+    creditCrawlQuest(
+      "riverside-heritage",
+      { placeStoryBandId: "thames-industrial", nowIso: "2026-07-08T12:00:00.000Z" },
+      storage,
+    );
+    creditCrawlQuest(
+      "bankside-riverside",
+      { placeStoryBandId: "river-history", nowIso: "2026-07-09T10:00:00.000Z" },
+      storage,
+    );
+    // Outside the week — must not count.
+    creditCrawlQuest(
+      "old-crawl",
+      { placeStoryBandId: "markets-theatre", nowIso: "2026-06-01T12:00:00.000Z" },
+      storage,
+    );
+    const chips = placeQuestEventChips(now, storage);
+    const crawlWeek = chips.find((c) => c.id === "quest-crawl-week");
+    const storiesWeek = chips.find((c) => c.id === "quest-stories-week");
+    expect(crawlWeek).toMatchObject({ current: 1, target: 1, windowLabel: "this week" });
+    expect(storiesWeek).toMatchObject({ current: 2, target: 2, windowLabel: "this week" });
   });
 
   it("acknowledge does not celebrate incomplete crawls", () => {

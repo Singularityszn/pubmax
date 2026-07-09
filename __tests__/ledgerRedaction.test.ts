@@ -7,11 +7,19 @@ import { describe, expect, it } from "vitest";
 import {
   buildFamilyTableEntries,
   buildLedgerEntries,
+  isFamilyTableOwner,
   REDACTED_ANON_LABEL,
   redactFamilyTableEntries,
   redactHandle,
+  resolveFamilyTableDisplay,
   type LedgerSourceDrop,
 } from "@/lib/ledger";
+
+function isFullFamilyEntry(
+  entry: ReturnType<typeof resolveFamilyTableDisplay>[number],
+): entry is ReturnType<typeof buildFamilyTableEntries>[number] {
+  return "note" in entry;
+}
 
 function makeDrop(overrides: Partial<LedgerSourceDrop> = {}): LedgerSourceDrop {
   return {
@@ -106,5 +114,38 @@ describe("redactFamilyTableEntries (public Family Table)", () => {
     expect(entry.handle).toBe("@karan_m");
     expect(entry.note).toContain("Grandad");
     expect(entry.priceLabel).toBe("£6.10");
+  });
+});
+
+describe("resolveFamilyTableDisplay (viewer-aware ledger privacy)", () => {
+  const sources = [
+    makeDrop({ id: "legacy-1", handle: "@karan_m" }),
+    makeDrop({ id: "legacy-2", handle: "@other_hand", passedDownNote: "Secret family lore." }),
+  ];
+  const entries = buildFamilyTableEntries(sources);
+
+  it("redacts every entry when no viewer is supplied", () => {
+    const display = resolveFamilyTableDisplay(entries, sources);
+    expect(display).toHaveLength(2);
+    for (const row of display) {
+      expect("note" in row).toBe(false);
+    }
+    expect(display[0].handle).toBe("K. M.");
+  });
+
+  it("shows the full entry to the drop author via ?viewer=", () => {
+    const display = resolveFamilyTableDisplay(entries, sources, "karan_m");
+    const mine = display[0];
+    const theirs = display[1];
+    expect(isFullFamilyEntry(mine)).toBe(true);
+    if (isFullFamilyEntry(mine)) expect(mine.note).toContain("Grandad");
+    expect(isFullFamilyEntry(theirs)).toBe(false);
+  });
+
+  it("isFamilyTableOwner matches normalised handles only", () => {
+    expect(isFamilyTableOwner("@karan_m", "karan_m")).toBe(true);
+    expect(isFamilyTableOwner("karan_m", "@Karan_M")).toBe(true);
+    expect(isFamilyTableOwner("@karan_m", "other")).toBe(false);
+    expect(isFamilyTableOwner("", null)).toBe(false);
   });
 });

@@ -24,8 +24,12 @@ import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsS
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+
+assertServerEnv();
 
 export async function GET(request: Request): Promise<Response> {
   const dropId = new URL(request.url).searchParams.get("dropId");
@@ -60,6 +64,11 @@ export async function POST(request: Request): Promise<Response> {
   const cleaned = cleanComment(body.handle, body.body);
   if (!cleaned.ok) return jsonNoStore({ error: cleaned.error }, { status: 400 });
 
+  const ownership = await gateHandleAction(request, cleaned.handle);
+  if (!ownership.allowed) {
+    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+  }
+
   // Optional parentId → this is a one-level reply. Empty/absent means top-level
   // (today's behaviour). The store validates existence/same-drop/top-level and
   // throws InvalidParentError, which we map to a 400 below.
@@ -79,7 +88,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const comment = await commentsStore().addComment({
       pintDropId: dropId,
-      handle: cleaned.handle,
+      handle: ownership.handle,
       body: cleaned.body,
       actorHash,
       parentId,
@@ -92,7 +101,7 @@ export async function POST(request: Request): Promise<Response> {
       if (!owner) return;
       return emitNotification({
         recipientHandle: owner,
-        actorHandle: cleaned.handle,
+        actorHandle: ownership.handle,
         kind: "comment",
         subjectRef: dropId,
         subjectLabel: cleaned.body.slice(0, 80),

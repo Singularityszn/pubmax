@@ -3,13 +3,15 @@
 //   POST { action, id }           → { ok: true }   action ∈ restore | keep_hidden
 //
 // Same review-action shape as the Pint Drop queue (restore → visible, keep_hidden
-// → hidden). Reuses the admin token gate AS-IS (x-admin-token header; see
-// lib/adminAuth.ts). A comment's actor_hash is NEVER exposed — the moderator DTO
+// → hidden). Reuses the admin gate (x-admin-token header OR httpOnly session
+// cookie; see lib/adminAuth.ts). A comment's actor_hash is NEVER exposed — the moderator DTO
 // carries only { id, pintDropId, handle, body, status, createdAt }.
 
 import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { commentsStore } from "@/lib/commentsStore";
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 
 function forbidden(): Response {
@@ -18,6 +20,12 @@ function forbidden(): Response {
 
 export async function GET(request: Request): Promise<Response> {
   if (!isModerator(request)) return forbidden();
+
+  const ipKey = hashIp(clientIp(request));
+  if (await isLimited(`admin-comments:${ipKey}`, `admin-comments:${ipKey}`)) {
+    return jsonNoStore({ error: "Too many requests, slow down." }, { status: 429 });
+  }
+
   const status = new URL(request.url).searchParams.get("status");
   const queue = status === "pending" ? "pending" : "hidden";
   // listForReview is fail-soft (returns [] on any store error).

@@ -46,7 +46,7 @@ import {
   startCrawl,
   type CrawlProgressEntry,
 } from "@/lib/crawlCompletion";
-import { curatedCrawlById } from "@/lib/curatedCrawls";
+import { curatedCrawlById, crawlShareMapHref } from "@/lib/curatedCrawls";
 import "@/components/map/routePanel.css";
 
 // ponytail: cap the keyboard picker render; search narrows the rest.
@@ -240,7 +240,27 @@ export default function RoutePanel({
     route.length > 0
       ? `/map?log=1&sel=${encodeURIComponent(route[route.length - 1]!.id)}`
       : "/map?log=1";
-  const shareHref = "/crawls";
+  // Wave H1: share the walked route as a map deep-link (pubs + optional band).
+  const shareMapHref = crawlShareMapHref({
+    venueIds: route.map((v) => v.id),
+    placeStoryBandId,
+    crawlId,
+  });
+  const [shareCopied, setShareCopied] = useState(false);
+
+  async function copyShareLink() {
+    const absolute =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${shareMapHref}`
+        : shareMapHref;
+    try {
+      await navigator.clipboard.writeText(absolute);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // Clipboard denied — still offer the openable link below.
+    }
+  }
 
   function addToCalendar() {
     const crawl = {
@@ -472,8 +492,20 @@ export default function RoutePanel({
                 <Link className="crawlCelebrationLink" href={dropHref}>
                   Drop a pint
                 </Link>
-                <Link className="crawlCelebrationLink" href={shareHref}>
-                  Share crawl
+                <button
+                  type="button"
+                  className="crawlCelebrationLink crawlCelebrationCopyBtn"
+                  onClick={() => void copyShareLink()}
+                  data-testid="crawl-share-copy"
+                >
+                  {shareCopied ? "Link copied" : "Copy link"}
+                </button>
+                <Link
+                  className="crawlCelebrationLink"
+                  href={shareMapHref}
+                  data-testid="crawl-share-open"
+                >
+                  Open shared crawl
                 </Link>
                 <Link className="crawlCelebrationLink" href="/u/you">
                   View passport
