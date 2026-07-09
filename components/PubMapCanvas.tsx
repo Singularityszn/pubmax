@@ -512,6 +512,8 @@ export default function PubMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  // Keep the latest parent callback without reading/writing refs during render
+  // (react-hooks/refs). Build/event handlers read this when mapReady flips.
   const onMapReadyRef = useRef(onMapReady);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
