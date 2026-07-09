@@ -1,7 +1,7 @@
 "use client";
 
 import { Route, Search, Wine, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
@@ -39,6 +39,26 @@ export default function MapToolbar({
   onFiltersChange,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const sync = () => {
+      // Defer setState out of the effect body (react-hooks/set-state-in-effect).
+      void Promise.resolve().then(() => setIsMobile(mq.matches));
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  const favoritePicker = (
+    <FavoritePintPicker
+      value={favoritePint}
+      onChange={onFavoritePintChange}
+      drinkCategory={drinkCategory}
+      drinkBrand={drinkBrand}
+      onDrinkLensChange={onDrinkLensChange}
+    />
+  );
   const drinksActive =
     Boolean(filters.query && /beer|wine|cocktail|whisky|gin|rum|vodka|shot/i.test(filters.query)) ||
     filters.requireCocktails ||
@@ -70,15 +90,7 @@ export default function MapToolbar({
           ) : null}
         </div>
 
-        <div className="mapToolbarDesktopExtras">
-          <FavoritePintPicker
-            value={favoritePint}
-            onChange={onFavoritePintChange}
-            drinkCategory={drinkCategory}
-            drinkBrand={drinkBrand}
-            onDrinkLensChange={onDrinkLensChange}
-          />
-        </div>
+        {!isMobile ? <div className="mapToolbarDesktopExtras">{favoritePicker}</div> : null}
 
         <button
           type="button"
@@ -109,15 +121,7 @@ export default function MapToolbar({
       </div>
 
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
-        <div className="mapToolbarDesktopExtras mapToolbarDrinksLens">
-          <FavoritePintPicker
-            value={favoritePint}
-            onChange={onFavoritePintChange}
-            drinkCategory={drinkCategory}
-            drinkBrand={drinkBrand}
-            onDrinkLensChange={onDrinkLensChange}
-          />
-        </div>
+        {isMobile ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
         <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
       </div>
     </div>
