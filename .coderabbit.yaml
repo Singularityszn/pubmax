@@ -2,6 +2,12 @@
 language: en-US
 reviews:
   profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
   # path_filters: bare globs INCLUDE; prefix with ! to EXCLUDE (gitignore-style inverted).
   path_filters:
     - "!data/generated/**"
