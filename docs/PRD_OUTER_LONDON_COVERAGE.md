@@ -33,7 +33,7 @@ Pipeline: `extract_pint_prices.py` → `build_app_dataset.py` → `export_app_da
 
 - **Borough floor:** every borough has ≥ N trustworthy map pins (propose N=15 for P1, N=40 for P2).
 - **Outer share:** ≥ 35% of map pins outside a Zone-1 bounding box (define in analytics later).
-- **Deep-link:** `/map?q=Barnet` (and borough “View on the map”) shows the borough’s existing pins without opening the planner.
+- **Deep-link:** `/map?q=Barnet` (and borough “View on the map”) shows the borough’s existing pins without opening the planner (`shouldOpenPlanningInitially` ignores bare `q=`).
 - **Honesty:** no invented pubs; every pin keeps provenance.
 
 ## Phased delivery

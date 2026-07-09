@@ -57,6 +57,7 @@ import {
   shouldShowCuratedOnboarding,
   truncateBandCopy,
 } from "@/lib/bandOnboardingChip";
+import { isDrinkShapeArrival, shouldOpenPlanningInitially } from "@/lib/mapArrival";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -83,31 +84,8 @@ function hasCrawlArrivalParams(search: string): boolean {
   return /[?&](pubs|sel|style|mode|q|drink|cocktails)=/.test(search);
 }
 
-function isDrinkShapeArrival(search: string): boolean {
-  return /[?&]drink=/.test(search) || /[?&]cocktails=1/.test(search);
-}
-
 function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
-}
-
-// The planner (left drawer) starts open when a shared/restored crawl means the
-// route would otherwise be invisible on arrival. Pure so its three-way OR lives
-// off PubMap's complexity budget.
-// Drink-shape deep-links stay on the clean map (chips + search) — opening the
-// planner would hide the drink metaphor the visitor just tapped.
-function shouldOpenPlanningInitially(
-  seededBuiltIds: string[],
-  seededMode: CrawlMode,
-  search: string,
-): boolean {
-  // Drink-shape deep-links always stay on the clean map (chips + search), even
-  // when style=/mode=/q= would otherwise open the planner. Keep this in the
-  // initializer — do not force-close via useEffect (react-hooks/set-state-in-effect).
-  if (isDrinkShapeArrival(search)) return false;
-  return (
-    seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|mode|q)=/.test(search)
-  );
 }
 
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
