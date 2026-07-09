@@ -38,7 +38,7 @@ describe("GET /api/last-train", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("passes destination through without persisting it (session-only label)", async () => {
+  it("ignores legacy ?destination= so labels stay client-only", async () => {
     global.fetch = vi.fn(async () => new Response("service unavailable", { status: 503 }));
 
     const res = await GET(
@@ -48,7 +48,8 @@ describe("GET /api/last-train", () => {
     );
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.decision.destinationLabel).toBe("Home station");
+    expect(body.decision.destinationLabel).toBeNull();
+    expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
   it("resolves a post-midnight last train against the prior service day", async () => {

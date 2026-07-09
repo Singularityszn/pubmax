@@ -106,6 +106,8 @@ describe("curated crawls", () => {
     expect(byId.get("westminster-civic")?.placeStoryBandId).toBe("royal-civic");
     expect(byId.get("barbican-coding-pint")?.placeStoryBandId).toBe("coding-pint");
     expect(byId.get("bankside-riverside")?.placeStoryBandId).toBe("river-history");
+    // Soho is not on the Westminster royal-civic corridor.
+    expect(byId.get("victorian-soho")?.placeStoryBandId).toBeUndefined();
   });
 
   it("builds a shareable crawl map URL with pubs and optional band (Wave H1)", () => {
