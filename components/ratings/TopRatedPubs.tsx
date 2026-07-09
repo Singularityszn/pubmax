@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { percentileFrame, type TopRatedEntry } from "@/lib/ratings";
-import { venueMapUrl } from "@/lib/venueIndex";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import StarRating from "./StarRating";
 import "./topRatedPubs.css";

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-import { buildVenueIndex, venueMapUrl, type VenueRef } from "@/lib/venueIndex";
+import { venueMapUrl } from "@/lib/venueMapUrl";
+import { buildVenueIndex, type VenueRef } from "@/lib/venueIndex";
 import type { Venue } from "@/lib/venues";
 
 // buildVenueIndex only reads id/name/primaryBorough/latitude/longitude, so a

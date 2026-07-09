@@ -1,7 +1,10 @@
 import { promises as fs } from "fs";
 import path from "path";
 
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+
+export { venueMapUrl };
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
 // ids (content-hashed, e.g. "venue-1ufn31x"); no public feed/profile/permalink
@@ -66,8 +69,3 @@ export async function venueLabel(id: string): Promise<string> {
   return (await resolveVenue(id))?.name ?? "A London pub";
 }
 
-// The canonical "open this pub on the map" link — ?sel is read by seedCrawlState
-// (lib/crawlUrl.ts) and selects the venue on load.
-export function venueMapUrl(id: string): string {
-  return `/map?sel=${encodeURIComponent(id)}`;
-}

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import PriceBadge from "@/components/PriceBadge";
 import prefetchVenue from "@/lib/prefetchVenue";
-import { venueMapUrl } from "@/lib/venueIndex";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { formatPrice } from "@/lib/venues";
 import type { LeaderboardEntry } from "@/lib/leaderboard";
 
