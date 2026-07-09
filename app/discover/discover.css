@@ -572,11 +572,30 @@
    so the pub name and its price stamp stay legible on a 375px screen. */
 @media (max-width: 560px) {
   .discoverPage {
-    padding: 20px 14px calc(142px + env(safe-area-inset-bottom, 0px));
+    padding: 20px 14px calc(188px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .discoverHead {
+    margin: 14px 0 4px;
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .discoverTitle {
+    font-size: 29px;
+  }
+
+  .discoverLede {
+    font-size: 16px;
+    line-height: 1.42;
   }
 
   .discoverSection {
-    margin-top: 36px;
+    margin-top: 22px;
+  }
+
+  .discoverExplore {
+    margin-bottom: 42px;
   }
 
   .leaderboard td,

@@ -734,6 +734,10 @@
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 560px) {
+  .profilePage .profileMain {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
   .profilePage .profileIdentity {
     flex-direction: column;
     align-items: flex-start;

@@ -9,11 +9,12 @@
 }
 
 @media (max-width: 640px) {
-  /* Keep the fixed bar from covering page content / footers. The bar is
-     ~74px tall plus the safe-area inset; this padding lives on the body so it
+  /* Keep the fixed bar from covering page content / footers. The raised Drop
+     action makes the effective clearance larger than the visual pill; this
+     padding lives on the body so it
      applies to every route the bar renders over. */
   body {
-    padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   }
 
   .mobileTabBar {
@@ -31,6 +32,14 @@
     );
     padding: 0 9px calc(7px + env(safe-area-inset-bottom, 0px));
     pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+
+  body:has(.appShell.detail-open) .mobileTabBar,
+  body:has(.appShell.planning-open) .mobileTabBar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(110%);
   }
 
   .mobileTabList {
@@ -212,7 +221,8 @@
    drop them entirely for visitors who ask for reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   .mobileTab,
-  .mobileTabIcon {
+  .mobileTabIcon,
+  .mobileTabBar {
     transition: none;
   }
 }

@@ -1133,7 +1133,7 @@
      card clear of the fixed bottom tab bar (body already carries the inset;
      this is breathing room above it). */
   .feedShell {
-    padding: 18px 12px calc(132px + env(safe-area-inset-bottom, 0px));
+    padding: 18px 12px calc(178px + env(safe-area-inset-bottom, 0px));
     gap: 18px;
   }
 

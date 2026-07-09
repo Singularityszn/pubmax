@@ -274,8 +274,8 @@
   }
 
   .mapDrawer.right.open.sheet-half {
-    /* Reveal ~55vh of the 82vh-tall sheet. */
-    transform: translateY(27vh);
+    /* Reveal more of the selected venue above the fixed mobile tab bar. */
+    transform: translateY(18vh);
   }
 
   .mapDrawer.right.open.sheet-peek {
