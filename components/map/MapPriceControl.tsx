@@ -35,8 +35,9 @@ export default function MapPriceControl({
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-  // Default product filter is ≤£7 — only treat tighter/wider as "filtered on".
-  const filtered = filters.maxPrice < 7 || filters.maxPrice > 7;
+  // Default is ≤£7; "Any" (9) is the wide/unfiltered option — neither looks "on".
+  // Only a tightened band (≤£5.50) marks the FAB as actively filtered.
+  const filtered = filters.maxPrice <= 5.5;
 
   useEffect(() => {
     if (!open) return;

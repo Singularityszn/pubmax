@@ -81,7 +81,11 @@ function currentSearch(): string {
 // Module-level (pure) so the branch lives off PubMap's complexity budget.
 // `drink=` counts (landing drink-shape taps) but is NOT a planner-open signal.
 function hasCrawlArrivalParams(search: string): boolean {
-  return /[?&](pubs|sel|style|mode|q|drink|cocktails)=/.test(search);
+  // Intentional deep links (landmark/band/food/log/etc.) must also suppress
+  // curated onboarding — not only crawl planner params (#79 follow-up).
+  return /[?&](pubs|sel|style|mode|q|drink|cocktails|landmark|band|food|max|alt|log|crawl)=/.test(
+    search,
+  );
 }
 
 function isMobileViewport(): boolean {

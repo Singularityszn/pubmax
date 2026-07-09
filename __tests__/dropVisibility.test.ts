@@ -322,4 +322,15 @@ describe("friends visibility — verified viewer only in production", () => {
     expect(ids).toContain("pub-api");
     expect(ids).not.toContain("fr-api");
   });
+
+  it("ledger shares the same production ?viewer= posture as permalinks", async () => {
+    // /ledger/[id] must call resolveViewerContextFromRequest — spoofed query
+    // alone never unlocks Family Table rows in production.
+    vi.stubEnv("NODE_ENV", "production");
+    const viewer = await resolveViewerContextFromRequest(
+      new Request("http://localhost/ledger/ten-bells"),
+      "ledger_spoof",
+    );
+    expect(viewer).toBeUndefined();
+  });
 });
