@@ -1242,7 +1242,8 @@ input[type="range"] {
 .mapLoadingScene {
   position: relative;
   width: min(72vw, 390px);
-  aspect-ratio: 16 / 9;
+  /* Match .mapSkeletonMap (380×240 → 19:12) so route→canvas handoff doesn't jump. */
+  aspect-ratio: 19 / 12;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--brass-bright) 46%, transparent);
   border-radius: var(--radius-sm);

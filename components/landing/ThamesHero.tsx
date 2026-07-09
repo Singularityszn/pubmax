@@ -7,10 +7,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import type { DrinkCategory } from "@/lib/drinks";
 import { categoryLabel } from "@/lib/drinks";
-import { warmMapIntent } from "@/lib/mapWarmup";
+import { warmMapRoute } from "@/lib/mapWarmup";
 
 export type HeroPub = {
   id: string;
@@ -83,13 +85,15 @@ const HERO_PUBS: HeroPub[] = [
   },
 ];
 
-const mapWarmProps = {
-  onPointerEnter: warmMapIntent,
-  onTouchStart: warmMapIntent,
-  onFocus: warmMapIntent,
-};
-
 export default function ThamesHero() {
+  const router = useRouter();
+  const warmMap = useCallback(() => warmMapRoute(router), [router]);
+  const mapWarmProps = {
+    onPointerDown: warmMap,
+    onPointerEnter: warmMap,
+    onTouchStart: warmMap,
+    onFocus: warmMap,
+  };
   return (
     <div className="thamesHeroPhoto" role="region" aria-label="London pubs as drink shapes — tap one to open the map">
       <Image

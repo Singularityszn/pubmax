@@ -1063,17 +1063,36 @@
     display: none;
   }
 
-  /* Tighten the outer gutters so the cards get the width, but keep the last
-     card clear of the fixed bottom tab bar (body already carries the inset;
-     this is breathing room above it). */
+  /* Wave K3 — denser mobile stream: smaller title, tighter cards, tab clearance. */
   .feedShell {
-    padding: 18px 12px calc(178px + env(safe-area-inset-bottom, 0px));
-    gap: 18px;
+    padding: 16px 12px calc(var(--mobile-tab-clearance, 72px) + 48px);
+    gap: 14px;
   }
 
-  /* Wave I/J — Drop lives in the tab bar / map; header CTA stays hidden. */
-  .feedDropCta {
-    display: none;
+  .feedTitle {
+    font-size: clamp(1.85rem, 8vw, 2.35rem);
+    margin-bottom: 6px;
+  }
+
+  .feedLede {
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+
+  .feedList {
+    gap: 14px;
+  }
+
+  .feedCardHead {
+    padding: 12px 14px;
+  }
+
+  .feedCardBody {
+    padding: 12px;
+  }
+
+  .feedSpill {
+    max-height: min(62vh, 520px);
   }
 
   .feedFilters {

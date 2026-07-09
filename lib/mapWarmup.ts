@@ -69,3 +69,31 @@ export function warmMapIntent(): void {
     seen: sessionSeen,
   });
 }
+
+/** Session-deduped route prefetch + slim-data warm (landing CTAs + tab bar). */
+const warmedRoutes = new Set<string>();
+
+export type MapRoutePrefetcher = {
+  prefetch: (href: string) => void;
+};
+
+/**
+ * Wave K2 — warm `/map` navigation on intent.
+ * Prefetches the Next.js route chunk and the slim map payloads once per session.
+ * Does not prefetch full venue detail.
+ */
+export function warmMapRoute(
+  router: MapRoutePrefetcher,
+  href = "/map",
+  seen: Set<string> = warmedRoutes,
+): void {
+  const prefetchHref = href.split("?")[0] || href;
+  if (seen.has(prefetchHref)) return;
+  seen.add(prefetchHref);
+  try {
+    router.prefetch(prefetchHref);
+  } catch {
+    // Best-effort — navigation must never depend on prefetch.
+  }
+  if (prefetchHref === "/map") warmMapIntent();
+}

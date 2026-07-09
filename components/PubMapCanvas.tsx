@@ -86,6 +86,8 @@ type PubMapCanvasProps = {
   onAskPubmaxxer?: (venueId: string) => void;
   /** Deep-link a landmark history card open on arrival (`?landmark=`). */
   initialLandmarkId?: string;
+  /** Wave K2 — parent keeps the loading chrome until WebGL style + scene are ready. */
+  onMapReady?: (ready: boolean) => void;
 };
 
 // OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
@@ -505,10 +507,13 @@ export default function PubMapCanvas({
   onStartCrawl,
   onAskPubmaxxer,
   initialLandmarkId = "",
+  onMapReady,
 }: PubMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const onMapReadyRef = useRef(onMapReady);
+  onMapReadyRef.current = onMapReady;
   // The fallback is a real user-facing dead end, so it carries enough to be
   // honest about *why*: `kind` drives the copy (only "constructor" with a
   // confirmed-dead probe may claim "needs WebGL"), `detail` surfaces the raw
@@ -1464,6 +1469,7 @@ export default function PubMapCanvas({
       }
 
       setMapReady(true);
+      onMapReadyRef.current?.(true);
     };
     // --- Basemap fallback: OpenFreeMap is community-run, so if the primary style
     // hasn't loaded within a timeout (or errors before first load), swap to
@@ -1742,6 +1748,7 @@ export default function PubMapCanvas({
       map.remove();
       mapRef.current = null;
       setMapReady(false);
+      onMapReadyRef.current?.(false);
     };
     } // end construct()
 

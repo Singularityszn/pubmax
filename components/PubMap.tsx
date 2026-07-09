@@ -433,6 +433,9 @@ export default function PubMap() {
   // `loaded` means the slim map index has settled. The full price dataset is no
   // longer fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
+  // Wave K2 — WebGL style + scene ready. Keep loading chrome until both slim
+  // pins and the basemap have arrived (warmup can make slim arrive first).
+  const [mapCanvasReady, setMapCanvasReady] = useState(false);
   // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
   // ~400 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
   // the ~5.6 MB full dataset lands so the first interactive pin appears fast.
@@ -1060,20 +1063,17 @@ export default function PubMap() {
 
       {/* Full-bleed map is the base layer; every panel slides in over it. */}
       <section className="mapStage">
-        {/* Issue #35 — skeleton continuity. Show the loading chip ONLY until the
-            first optimistic pins paint (slim index resolved). It continues the
-            loading.tsx dot idiom — a small row of price-coloured dots, not a
-            plain spinner — so the route-skeleton → canvas transition is seamless.
-            Once slim pins are up the map is already interactive, so the chip
-            retires even while the full dataset is still hydrating in the
-            background. */}
-        {slimPins.length === 0 && !loaded ? (
+        {/* Wave K2 / Issue #35 — keep the pitched-London loading chrome until
+            BOTH the slim pin index and WebGL basemap scene are ready. Warmup
+            can make slim pins arrive before tiles; retiring early left a blank
+            canvas. Copy matches MapLoadingSkeleton for a seamless handoff. */}
+        {!mapCanvasReady || (slimPins.length === 0 && !loaded) ? (
           <div
             className="mapLoading"
             role="status"
             aria-busy="true"
             aria-live="polite"
-            aria-label="Checking cached pins, then pouring London's pubs onto the map."
+            aria-label="Loading the London pub map. Checking cached pins, then warming live prices."
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -1085,8 +1085,8 @@ export default function PubMap() {
               <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
             </div>
             <div className="mapLoadingCopy">
-              <span className="mapLoadingEyebrow">Cached pins</span>
-              <span>Pouring London&rsquo;s pubs onto the map.</span>
+              <span className="mapLoadingEyebrow">London pub map</span>
+              <span>Checking cached pins, then warming live prices.</span>
             </div>
           </div>
         ) : null}
@@ -1108,6 +1108,7 @@ export default function PubMap() {
           onAskPubmaxxer={askPubmaxxerAtPub}
           initialLandmarkId={seed.landmarkId}
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
+          onMapReady={setMapCanvasReady}
         />
         <MapToolbar
           query={filters.query}
