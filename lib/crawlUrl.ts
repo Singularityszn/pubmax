@@ -59,7 +59,19 @@ export type CrawlUrlState = {
   altStyle?: AltCrawlStyle;
   /** Shareable landmark chapter deep link (`?landmark=big-ben`). */
   landmarkId?: string;
+  /** Named curated crawl id (`?crawl=victorian-soho`) for map-first hydration. */
+  crawlId?: string;
 };
+
+/** Normalize a crawl= param to a slug-ish id (defensive; never throws). */
+function normalizeCrawlId(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
 
 // The bounds mirror the sliders in ControlRail.tsx — keep in sync.
 const CROSS_STYLES = new Set<CrawlStyle>([
@@ -126,6 +138,7 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (state.landmarkId) params.set("landmark", state.landmarkId);
   // Only encode an alt style when it isn't the default "pint".
   if (state.altStyle && state.altStyle !== "pint") params.set("alt", state.altStyle);
+  if (state.crawlId) params.set("crawl", state.crawlId);
   return params.toString();
 }
 
@@ -211,6 +224,12 @@ export function decodeCrawl(
   const landmark = params.get("landmark");
   if (landmark) out.landmarkId = landmark.trim();
 
+  const crawl = params.get("crawl");
+  if (crawl) {
+    const crawlId = normalizeCrawlId(crawl);
+    if (crawlId) out.crawlId = crawlId;
+  }
+
   const alt = params.get("alt");
   if (alt && ALT_CRAWL_STYLES.includes(alt as AltCrawlStyle)) {
     out.altStyle = alt as AltCrawlStyle;
@@ -228,6 +247,7 @@ export function seedCrawlState(search: string): {
   bandId: string;
   altStyle: AltCrawlStyle;
   landmarkId: string;
+  crawlId: string;
 } {
   const decoded = decodeCrawl(new URLSearchParams(search));
   return {
@@ -238,5 +258,6 @@ export function seedCrawlState(search: string): {
     bandId: decoded.bandId ?? "",
     altStyle: decoded.altStyle ?? "pint",
     landmarkId: decoded.landmarkId ?? "",
+    crawlId: decoded.crawlId ?? "",
   };
 }

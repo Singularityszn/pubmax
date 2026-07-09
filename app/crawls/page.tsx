@@ -9,7 +9,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import type { RoundState } from "@/lib/rounds";
 
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
-import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { bandById } from "@/lib/storyBands";
 import { routePacks, getRoutePack } from "@/lib/routePacks";
@@ -35,17 +35,6 @@ function styleLabel(style: string): string {
   return style
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/^./, (char) => char.toUpperCase());
-}
-
-// Reproduce a curated crawl on the map — same share-URL shape as planCrawlHref,
-// but the ids come straight off the pinned curated entry (no story to unpack).
-function curatedCrawlHref(crawl: CuratedCrawl): string {
-  const params = new URLSearchParams();
-  params.set("mode", "build");
-  params.set("pubs", crawl.venueIds.join(","));
-  // Wave F2: open the Place story corridor alongside the mapped stops.
-  if (crawl.placeStoryBandId) params.set("band", crawl.placeStoryBandId);
-  return `/map?${params.toString()}`;
 }
 
 // Reproduce a crawl on the map from a story's stop ids, matching the existing
@@ -164,7 +153,7 @@ function CrawlsPageInner() {
                     {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
                   </p>
                   <Link
-                    href={curatedCrawlHref(crawl)}
+                    href={curatedCrawlMapHref(crawl)}
                     className="curatedLink"
                     aria-label={`Plan the ${crawl.name} crawl on the map`}
                   >

@@ -20,7 +20,7 @@ import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/pr
 import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
-import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlById, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
@@ -113,6 +113,61 @@ function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters 
     ...current,
     crawlStyle: crawl.crawlStyle,
     requireNonAlcoholic: crawl.altStyle === "mocktail" ? true : current.requireNonAlcoholic,
+  };
+}
+
+/** Resolve a curated crawl from ?crawl= or an exact pubs= stop list match. */
+function resolveSeededCuratedCrawl(
+  crawlId: string | undefined,
+  builtIds: string[],
+): CuratedCrawl | null {
+  const byId = curatedCrawlById(crawlId);
+  if (byId) return byId;
+  if (builtIds.length < 2) return null;
+  return (
+    curatedCrawls.find(
+      (crawl) =>
+        crawl.venueIds.length === builtIds.length &&
+        crawl.venueIds.every((id, i) => id === builtIds[i]),
+    ) ?? null
+  );
+}
+
+type MapSeed = ReturnType<typeof seedCrawlState> & {
+  activeCrawl: CuratedCrawl | null;
+  routeMapped: boolean;
+};
+
+/**
+ * One-shot mount seed from the shareable URL only.
+ * Pure module helper so PubMap can lazy-init state without a useMemo that the
+ * React Compiler cannot preserve (react-hooks/preserve-manual-memoization).
+ * Do NOT resurrect a previous hand-built crawl from localStorage on a clean
+ * /map tab click — that bloated the address bar with stale ?pubs=… (PR #79).
+ */
+function buildMapSeed(search: string): MapSeed {
+  const seeded = seedCrawlState(search);
+  // Landing drink-shape taps should land on a clean filtered map.
+  if (isDrinkShapeArrival(search)) {
+    return { ...seeded, activeCrawl: null, routeMapped: false };
+  }
+  // Curated / featured arrival: hydrate the named crawl so the polyline +
+  // blurb show map-first (planner stays closed via shouldOpenPlanningInitially).
+  const activeCrawl = resolveSeededCuratedCrawl(seeded.crawlId, seeded.builtIds);
+  if (activeCrawl) {
+    return {
+      ...seeded,
+      filters: filtersForCuratedCrawl(seeded.filters, activeCrawl),
+      altStyle: activeCrawl.altStyle ?? seeded.altStyle,
+      crawlId: activeCrawl.id,
+      activeCrawl,
+      routeMapped: true,
+    };
+  }
+  return {
+    ...seeded,
+    activeCrawl: null,
+    routeMapped: seeded.builtIds.length >= 2,
   };
 }
 
@@ -397,21 +452,18 @@ export default function PubMap() {
     markPubmaxTiming("pubmax:map-chunk-ready");
   }, []);
   // Seed the crawl from the shareable URL (falls back to defaults / honors
-  // ?style=heritage from the landing page). Lazy init keeps this off effects.
+  // ?style=heritage from the landing page). Lazy useState keeps this off effects
+  // and avoids a mount-only useMemo the React Compiler cannot preserve.
   // URL is the only share/restore source — do NOT resurrect a previous hand-built
   // crawl from localStorage on a clean /map tab click (that bloated the address
   // bar with stale ?mode=build&pubs=… every time someone returned to Map).
-  const seed = useMemo(() => {
-    const search = typeof window === "undefined" ? "" : window.location.search;
-    return seedCrawlState(search);
-  }, []);
+  const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch()));
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
   // If any of these are present, the arrival is intentional and we never onboard.
-  const arrivedWithCrawlParams = useMemo(
+  const [arrivedWithCrawlParams] = useState(
     () => hasCrawlArrivalParams(currentSearch()) || hasMapLogIntent(currentSearch()),
-    [],
   );
   // `loaded` means the slim map index has settled. The full price dataset is no
   // longer fetched on /map mount; full details arrive lazily per selected venue.
@@ -439,15 +491,15 @@ export default function PubMap() {
   // updated when the user opens/dismisses a landmark card on the map).
   const [activeLandmarkId, setActiveLandmarkId] = useState<string>(seed.landmarkId ?? "");
   // Map-first layout: the planner (left drawer) is hidden until the user asks
-  // for it — but a shared/restored crawl link opens straight into planning so
-  // the route isn't invisible on arrival.
+  // for it. Curated crawl arrivals stay map-first (polyline + chip); other
+  // shared/restored crawl links still open straight into planning.
   const [planningOpen, setPlanningOpen] = useState<boolean>(() =>
     shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch()),
   );
   // Explicit route mapping: a suggested crawl can exist without drawing on the
   // clean first map. Once the user chooses "Map route" (or a curated/nearby
   // crawl), keep the line visible even if the mobile planner closes.
-  const [routeMapped, setRouteMapped] = useState<boolean>(seed.builtIds.length >= 2);
+  const [routeMapped, setRouteMapped] = useState<boolean>(seed.routeMapped);
   // Favorite pint: re-prices the map to one beer. Persisted per-device.
   // A beer brand deep-link (`?drink=beer&brand=guinness`) seeds the same path.
   const [favoritePint, setFavoritePintState] = useState<string | null>(() => {
@@ -469,9 +521,9 @@ export default function PubMap() {
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  // The curated crawl whose blurb is shown under the route title. Cleared the
-  // moment the user manually mutates the stops (add/remove/reverse/clear).
-  const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(null);
+  // The curated crawl whose blurb is shown under the route title. Seeded from
+  // ?crawl= / matching pubs= on curated arrival; cleared when the user mutates stops.
+  const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(seed.activeCrawl);
   // Issue #31 alt crawl style ("kind of night" label). Seeded from the URL and
   // synced back so a shared link reproduces it. Only shapes copy + the .ics
   // export noun; the scoring crawlStyle is untouched.
@@ -661,8 +713,18 @@ export default function PubMap() {
         bandId: activeBandId,
         altStyle,
         landmarkId: activeLandmarkId,
+        crawlId: activeCrawl?.id ?? "",
       }),
-      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle, activeLandmarkId],
+      [
+        mode,
+        filters,
+        builtIds,
+        selectedVenueId,
+        activeBandId,
+        altStyle,
+        activeLandmarkId,
+        activeCrawl?.id,
+      ],
     ),
   );
 

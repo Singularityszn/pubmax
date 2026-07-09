@@ -6,11 +6,19 @@ export function isDrinkShapeArrival(search: string): boolean {
 }
 
 /**
+ * Curated / featured crawl deep-links (`?crawl=` or `?pubs=` + `mode=build`).
+ * Map-first: show the polyline + mapped-route chip; keep the planner closed.
+ */
+export function isCuratedCrawlArrival(search: string): boolean {
+  return /[?&]crawl=/.test(search) || (/[?&]pubs=/.test(search) && /[?&]mode=build/.test(search));
+}
+
+/**
  * Whether the planner (left drawer) should open on first paint.
  *
- * Opens for shared/restored crawls (`builtIds`, `mode=build`, `style=` / `mode=`).
- * Stays closed for drink-shape arrivals and borough browse deep-links (`?q=` only)
- * so `/map?q=Barnet` filters pins without covering the map (outer-London PRD).
+ * Opens for shared/restored crawls (`builtIds` from storage, bare `mode=build`,
+ * `style=` / `mode=`). Stays closed for drink-shape arrivals, curated crawl
+ * arrivals (map-first polyline), and borough browse deep-links (`?q=` only).
  */
 export function shouldOpenPlanningInitially(
   seededBuiltIds: string[],
@@ -20,6 +28,8 @@ export function shouldOpenPlanningInitially(
   // Keep this in the initializer — do not force-close via useEffect
   // (react-hooks/set-state-in-effect).
   if (isDrinkShapeArrival(search)) return false;
+  // Curated check before mode=build — curated URLs always carry mode=build.
+  if (isCuratedCrawlArrival(search)) return false;
   return (
     seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|mode)=/.test(search)
   );
