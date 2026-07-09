@@ -87,15 +87,17 @@ Dashboard → Authentication → URL Configuration:
 
 #### Microsoft (Outlook / Entra)
 
-Supabase’s provider id is **Azure** (the app code uses `provider: "azure"`).
+Supabase’s provider id is **Azure** (the app code uses `provider: "azure"` with `scopes: "email"`).
 
 1. Microsoft Entra admin center → App registrations → New registration.
 2. Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (so Outlook/Hotmail work, not only work tenants).
-3. Redirect URI (platform **Web**): `https://<project-ref>.supabase.co/auth/v1/callback`.
+3. Redirect URI (platform **Web**): `https://<project-ref>.supabase.co/auth/v1/callback` only — the IdP must redirect to Supabase, not the Next.js `/auth/callback`.
 4. Certificates & secrets → create a client secret; copy the **Application (client) ID** and the secret value.
-5. Supabase → Authentication → Providers → **Azure** → paste Client ID + Client Secret → Enable. Leave Tenant URL / ID as the default “common” multi-tenant endpoint unless you intentionally lock to one tenant.
+5. API permissions → Microsoft Graph → Delegated: `openid`, `profile`, `email`, `User.Read` (grant admin consent if your tenant requires it). Without `email`, Supabase often fails with “Error getting user email from external provider”.
+6. Token configuration → optional claims → ID token: add `email` and `xms_edov` (helps Supabase treat email as verified and avoid unsafe account linking).
+7. Supabase → Authentication → Providers → **Azure** → paste Client ID + Client Secret → Enable. Leave Tenant URL / ID as the default “common” multi-tenant endpoint unless you intentionally lock to one tenant.
 
-Until a provider is enabled in Supabase, its button opens the IdP and then fails the redirect — that is expected dashboard setup, not an app bug.
+Until a provider is enabled in Supabase, its button opens the IdP and then fails the redirect — that is expected dashboard setup, not an app bug. The nav shows both Google and Microsoft whenever the public Supabase env is set; enable each provider when you are ready.
 
 ## Venue detail artifacts (build-time)
 

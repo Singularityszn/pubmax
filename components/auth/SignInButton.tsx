@@ -6,17 +6,9 @@
 // ──────────────────────────────────────────────────────────────────────────
 // OWNER MANUAL STEPS (required for either button to actually log anyone in):
 //
-// Google — Dashboard → Authentication → Providers → Google — with a Google
-// Cloud OAuth client ID + secret. In the Google Cloud OAuth client, add BOTH:
-//   1. <site>/auth/callback           (e.g. https://pubmaxxing.com/auth/callback)
-//   2. https://<project-ref>.supabase.co/auth/v1/callback
-//
-// Microsoft — Dashboard → Authentication → Providers → Azure — with an Entra
-// (Azure AD) app registration Application (client) ID + client secret. In the
-// Entra app, set redirect URI (Web) to:
-//   https://<project-ref>.supabase.co/auth/v1/callback
-// and allow personal + organizational accounts if you want Outlook/Hotmail.
-// Also add <site>/auth/callback under Supabase Auth → URL Configuration.
+// Full checklist: docs/DEPLOYMENT.md → "Browser sign-in (Google + Microsoft)".
+// IdP redirect URI is always https://<project-ref>.supabase.co/auth/v1/callback.
+// Site callback (<site>/auth/callback) is allowlisted in Supabase URL Configuration.
 //
 // Until those dashboard steps are done the buttons open the IdP and then FAIL
 // the redirect — that failure is EXPECTED and is not a bug in this code.

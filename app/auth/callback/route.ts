@@ -1,6 +1,6 @@
-// OAuth callback landing. Google (via Supabase Auth) redirects here with a
-// `?code=` after the user approves. We hand that code back to the browser so the
-// browser Supabase client — which holds the PKCE code-verifier in its own
+// OAuth callback landing. Supabase Auth (Google / Azure / etc.) redirects here
+// with a `?code=` after the user approves. We hand that code back to the browser
+// so the browser Supabase client — which holds the PKCE code-verifier in its own
 // localStorage — completes `exchangeCodeForSession` on load (see
 // lib/authClient.ts `detectSessionInUrl` and components/auth/AuthProvider.tsx).
 //
@@ -11,7 +11,7 @@
 // exchanges it and then strips it from the URL. If @supabase/ssr is adopted
 // later, a cookie-based `exchangeCodeForSession(code)` can move here unchanged.
 //
-// Errors (no code, or Google returned ?error=) degrade to /?authError=1 so the
+// Errors (no code, or the IdP returned ?error=) degrade to /?authError=1 so the
 // app always lands somewhere valid — anonymous browsing is never blocked.
 
 import { NextResponse } from "next/server";
