@@ -571,7 +571,9 @@ export default function PubMap({
   const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
-  const pintDrops = usePintDrops();
+  // City-scoped so Manchester demo seeds colour Manchester pins without
+  // leaking into the London feed/landing.
+  const pintDrops = usePintDrops(cityId);
   const { dropsByVenueId, venueSignals, refreshVenueDrops, closeComposer, setComposerOpen } =
     pintDrops;
   // Live map pins (issue #37): refetch the drops layer on a new-drop signal (or
@@ -1527,6 +1529,7 @@ export default function PubMap({
               cityLandmarks={cityLandmarks}
               cityStoryBands={cityStoryBands}
               cityCuratedCrawls={cityCuratedCrawls}
+              cityId={cityId}
             />
           </>
         ) : null}

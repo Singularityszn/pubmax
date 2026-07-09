@@ -43,3 +43,13 @@ describe("lastTrainDestination", () => {
     expect(lastTrainFetchUrl(51.5, -0.12)).not.toContain("destination");
   });
 });
+
+describe("lastTrainRequestKey city scoping", () => {
+  it("includes cityId so London and Manchester do not share cache keys", async () => {
+    const { lastTrainRequestKey } = await import("@/components/map/LastTrainCard");
+    expect(
+      lastTrainRequestKey({ lat: 53.48, lng: -2.24, venueName: "Pub", cityId: "manchester" }),
+    ).toContain("manchester");
+    expect(lastTrainRequestKey({ lat: 51.5, lng: -0.12, venueName: "Pub" })).toContain("london");
+  });
+});

@@ -18,8 +18,9 @@
 
 import { useEffect, useId, useState } from "react";
 
+import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
+import { lastRideFetchUrl, type LastRideResult } from "@/lib/lastRide";
 import {
-  lastTrainFetchUrl,
   readLastTrainDestination,
   writeLastTrainDestination,
 } from "@/lib/lastTrainDestination";
@@ -29,6 +30,8 @@ type LastTrainCardProps = {
   lat: number;
   lng: number;
   venueName?: string;
+  /** Drives provider path + Last Pint / Last Tram copy. Defaults to London. */
+  cityId?: CityId;
   // Optional: when provided, tapping one of the 3 station pubs calls this
   // instead of just rendering a plain list. Backward-compatible — VenueInspector
   // (owned by another wave) doesn't pass this today and doesn't need to.
@@ -51,13 +54,15 @@ export function lastTrainRequestKey({
   lat,
   lng,
   venueName,
+  cityId,
 }: {
   lat: number;
   lng: number;
   venueName?: string;
+  cityId?: CityId;
 }): string {
-  // Destination is client-only display state — it must not change the TfL fetch key.
-  return `${lat}:${lng}:${venueName ?? ""}`;
+  // Destination is client-only display state — it must not change the fetch key.
+  return `${cityId ?? DEFAULT_CITY_ID}:${lat}:${lng}:${venueName ?? ""}`;
 }
 
 export function currentLastTrainState(
@@ -85,13 +90,25 @@ function toState(
 
 // Pub-voice copy for each decision state (user story 21) — this is the whole
 // point: it should read like PUBMAXXING, not a transit dashboard.
-const DECISION_COPY: Record<LastPintDecisionKind, string> = {
-  order_one_more: "Order one more",
-  half_pint_only: "Half pint only",
-  settle_up_now: "Settle up now",
-  train_risk: "Train risk tonight",
-  live_data_unavailable: "Can't check TfL right now",
-};
+function decisionCopy(
+  kind: LastPintDecisionKind,
+  modeLabel: string,
+  provider: string | undefined,
+): string {
+  switch (kind) {
+    case "order_one_more":
+      return "Order one more";
+    case "half_pint_only":
+      return "Half pint only";
+    case "settle_up_now":
+      return "Settle up now";
+    case "train_risk":
+      return modeLabel === "tram" ? "Tram risk tonight" : "Train risk tonight";
+    case "live_data_unavailable":
+      if (provider === "metrolink") return "Can't check Metrolink right now";
+      return "Can't check TfL right now";
+  }
+}
 
 // A colour cue per state (brass/warm for relaxed, ink for urgent) using the
 // same CSS custom properties the rest of the map panel reads from.
@@ -112,6 +129,21 @@ export function provenanceCopyForDepartures(
     : "Scheduled times from TfL - not a live feed.";
 }
 
+export function provenanceCopyForResult(
+  data: Partial<LastRideResult> | LastTrainResult,
+): string {
+  const ride = data as Partial<LastRideResult>;
+  if (typeof ride.provenance === "string" && ride.provenance.trim()) {
+    return ride.provenance;
+  }
+  return provenanceCopyForDepartures(ride.departures);
+}
+
+function modeWord(data: Partial<LastRideResult> | undefined, cityId: CityId): string {
+  if (data?.modeLabel) return data.modeLabel;
+  return cityId === "manchester" ? "tram" : "train";
+}
+
 function formatLeaveBy(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -129,19 +161,42 @@ function readSessionDestination(): string {
   return readLastTrainDestination(window.sessionStorage);
 }
 
+function emptyNoteForCity(cityId: CityId): string {
+  return cityId === "manchester"
+    ? "Couldn't check Metrolink just now — check before you head out."
+    : "Couldn't reach TfL just now — check before you head out.";
+}
+
+function lastServiceLineLabel(lineName: string, mode: string): string {
+  return mode === "tram" ? `Last ${lineName}` : `Last ${lineName} line`;
+}
+
+function showLondonStaticFallback(
+  cityId: CityId,
+  data: LastTrainResult | undefined,
+): boolean {
+  return (
+    cityId === "london" &&
+    Boolean(data?.staticFallback) &&
+    (!data?.trains || data.trains.length === 0)
+  );
+}
+
 export default function LastTrainCard({
   lat,
   lng,
   venueName,
+  cityId = DEFAULT_CITY_ID,
   onSelectVenue,
   onDecision,
 }: LastTrainCardProps) {
   const destinationInputId = useId();
+  const rideLabel = getCity(cityId).lastRideLabel;
   const [destination, setDestination] = useState(readSessionDestination);
   const [destinationDraft, setDestinationDraft] = useState("");
   const [editingDestination, setEditingDestination] = useState(false);
   const [state, setState] = useState<LastTrainCardState>({ status: "loading" });
-  const requestKey = lastTrainRequestKey({ lat, lng, venueName });
+  const requestKey = lastTrainRequestKey({ lat, lng, venueName, cityId });
   const displayState = currentLastTrainState(state, requestKey);
 
   function saveDestination(raw: string) {
@@ -154,19 +209,15 @@ export default function LastTrainCard({
     setEditingDestination(false);
   }
 
-  function clearDestination() {
-    saveDestination("");
-  }
-
   useEffect(() => {
     const controller = new AbortController();
     // React 19: never setState synchronously in the effect body. The initial
     // state is already "loading"; when lat/lng change we let the resolving fetch
     // move us straight to the fresh ready/empty state below. Destination is
     // session-only UI and is never sent to the API (privacy / user story 23).
-    fetch(lastTrainFetchUrl(lat, lng), { signal: controller.signal })
+    fetch(lastRideFetchUrl(cityId, lat, lng), { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: Partial<LastTrainResult> & { error?: string }) => {
+      .then((data: Partial<LastRideResult> & { error?: string }) => {
         setState(toState(data, requestKey));
       })
       .catch((err: unknown) => {
@@ -178,7 +229,7 @@ export default function LastTrainCard({
         setState({ status: "empty", requestKey });
       });
     return () => controller.abort();
-  }, [lat, lng, venueName, requestKey]);
+  }, [lat, lng, venueName, cityId, requestKey]);
 
   const decision = displayState.status === "ready" ? displayState.data.decision : undefined;
 
@@ -195,22 +246,22 @@ export default function LastTrainCard({
   const leaveBy = decision ? formatLeaveBy(decision.leaveByIso) : null;
   // Destination label is sessionStorage-only — never echoed from the API.
   const destinationLabel = destination.trim() || null;
-  // Provenance honesty (H5): the Last Pint decision is timetable-based even when
-  // next departures are live. Scope the live claim to departures only.
-  const provenance =
-    displayState.status === "ready"
-      ? provenanceCopyForDepartures(displayState.data.departures)
-      : null;
+  const readyData =
+    displayState.status === "ready" ? (displayState.data as LastRideResult) : undefined;
+  const mode = modeWord(readyData, cityId);
+  // Provenance honesty (H5): prefer provider-supplied copy (Metrolink static);
+  // London still scopes the live claim to departures only.
+  const provenance = readyData ? provenanceCopyForResult(readyData) : null;
 
   return (
-    <section aria-label="Last Pint" style={styles.card}>
+    <section aria-label={rideLabel} style={styles.card}>
       <div style={styles.header}>
-        <span style={styles.eyebrow}>Last Pint</span>
-        {displayState.status === "ready" ? (
+        <span style={styles.eyebrow}>{rideLabel}</span>
+        {readyData ? (
           <span style={styles.station}>
-            {displayState.data.station.name}
-            {displayState.data.station.distanceM > 0 ? (
-              <span style={styles.distance}> · ~{displayState.data.station.distanceM} m away</span>
+            {readyData.station.name}
+            {readyData.station.distanceM > 0 ? (
+              <span style={styles.distance}> · ~{readyData.station.distanceM} m away</span>
             ) : null}
           </span>
         ) : null}
@@ -230,7 +281,7 @@ export default function LastTrainCard({
             >
               Change
             </button>
-            <button type="button" style={styles.destinationAction} onClick={clearDestination}>
+            <button type="button" style={styles.destinationAction} onClick={() => saveDestination("")}>
               Clear
             </button>
           </p>
@@ -279,16 +330,14 @@ export default function LastTrainCard({
       </div>
 
       {displayState.status === "loading" ? (
-        <p style={styles.note}>Checking trains from near {venueName ?? "here"}…</p>
+        <p style={styles.note}>Checking {mode}s from near {venueName ?? "here"}…</p>
       ) : null}
 
       {displayState.status === "empty" ? (
-        <p style={styles.note}>Couldn&rsquo;t reach TfL just now — check before you head out.</p>
+        <p style={styles.note}>{emptyNoteForCity(cityId)}</p>
       ) : null}
 
-      {displayState.status === "ready" &&
-      displayState.data.staticFallback &&
-      (!displayState.data.trains || displayState.data.trains.length === 0) ? (
+      {readyData && showLondonStaticFallback(cityId, readyData) ? (
         <p style={styles.note}>
           Station from our map — live train times unavailable until TfL responds again.
         </p>
@@ -297,10 +346,12 @@ export default function LastTrainCard({
       {decision ? (
         <div style={styles.decision}>
           <p style={{ ...styles.decisionLine, color: DECISION_COLOUR[decision.decision] }}>
-            {DECISION_COPY[decision.decision]}
+            {decisionCopy(decision.decision, mode, readyData?.provider)}
           </p>
           {leaveBy && decision.decision !== "live_data_unavailable" ? (
-            <p style={styles.leaveBy}>Leave by {leaveBy} for the last train.</p>
+            <p style={styles.leaveBy}>
+              Leave by {leaveBy} for the last {mode}.
+            </p>
           ) : null}
           {decision.disruptionSummary ? (
             <p style={styles.disruption}>{decision.disruptionSummary}</p>
@@ -308,11 +359,9 @@ export default function LastTrainCard({
         </div>
       ) : null}
 
-      {displayState.status === "ready" &&
-      displayState.data.departures &&
-      displayState.data.departures.length > 0 ? (
+      {readyData?.departures && readyData.departures.length > 0 ? (
         <ul style={styles.list}>
-          {displayState.data.departures.map((line) => (
+          {readyData.departures.map((line) => (
             <li key={line.lineId} style={styles.row}>
               <span aria-hidden="true" style={{ ...styles.dot, background: line.colour }} />
               <span style={styles.lineName}>{line.lineName}</span>
@@ -325,12 +374,12 @@ export default function LastTrainCard({
         </ul>
       ) : null}
 
-      {displayState.status === "ready" && displayState.data.trains.length > 0 ? (
+      {readyData && readyData.trains.length > 0 ? (
         <ul style={styles.list}>
-          {displayState.data.trains.map((train) => (
+          {readyData.trains.map((train) => (
             <li key={train.lineId} style={styles.row}>
               <span aria-hidden="true" style={{ ...styles.dot, background: train.colour }} />
-              <span style={styles.lineName}>Last {train.lineName} line</span>
+              <span style={styles.lineName}>{lastServiceLineLabel(train.lineName, mode)}</span>
               <span style={styles.clock}>
                 {train.clock}
                 {train.pastMidnight ? <span style={styles.tomorrow}> (tomorrow)</span> : null}
@@ -340,13 +389,11 @@ export default function LastTrainCard({
         </ul>
       ) : null}
 
-      {displayState.status === "ready" &&
-      displayState.data.nearestPubs &&
-      displayState.data.nearestPubs.length > 0 ? (
+      {readyData?.nearestPubs && readyData.nearestPubs.length > 0 ? (
         <div style={styles.pubsBlock}>
           <span style={styles.eyebrow}>One more by the platform</span>
           <ul style={styles.pubList}>
-            {displayState.data.nearestPubs.map((pub) =>
+            {readyData.nearestPubs.map((pub) =>
               onSelectVenue ? (
                 <li key={pub.id}>
                   <button
@@ -373,9 +420,7 @@ export default function LastTrainCard({
         </div>
       ) : null}
 
-      {displayState.status === "ready" ? (
-        <p style={styles.provenance}>{provenance}</p>
-      ) : null}
+      {readyData ? <p style={styles.provenance}>{provenance}</p> : null}
     </section>
   );
 }

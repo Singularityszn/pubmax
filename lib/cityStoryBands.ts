@@ -1,5 +1,5 @@
 // City-keyed Place-story corridor selector. London bands stay in lib/storyBands.ts;
-// Manchester corridors live under lib/cities/manchester/storyBands.ts.
+// Manchester / Glasgow corridors live under lib/cities/{id}/storyBands.ts.
 
 import { parseCityId, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { landmarksForCity } from "@/lib/cityLandmarks";
@@ -9,6 +9,7 @@ import {
   type StoryBand,
 } from "@/lib/storyBands";
 import { manchesterStoryBands } from "@/lib/cities/manchester/storyBands";
+import { glasgowStoryBands } from "@/lib/cities/glasgow/storyBands";
 import type { Landmark } from "@/lib/landmarks";
 
 function resolveCityId(cityId: CityId | string | null | undefined): CityId {
@@ -21,6 +22,8 @@ export function storyBandsForCity(
   switch (resolveCityId(cityId)) {
     case "manchester":
       return manchesterStoryBands;
+    case "glasgow":
+      return glasgowStoryBands;
     case "london":
     default:
       return STORY_BANDS;

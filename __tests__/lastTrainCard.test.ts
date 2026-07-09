@@ -4,6 +4,7 @@ import {
   currentLastTrainState,
   lastTrainRequestKey,
   provenanceCopyForDepartures,
+  provenanceCopyForResult,
   type LastTrainCardState,
 } from "@/components/map/LastTrainCard";
 import type { LastTrainResult, NextDepartures } from "@/lib/tfl";
@@ -59,6 +60,15 @@ describe("LastTrainCard provenance copy", () => {
     expect(provenanceCopyForDepartures([departure({ live: true })])).toBe(
       "Live departures from TfL; last train uses the timetable.",
     );
+  });
+
+  it("prefers provider provenance for Metrolink static answers", () => {
+    expect(
+      provenanceCopyForResult({
+        provenance: "Typical Metrolink last service (static)",
+        departures: [departure({ live: false })],
+      }),
+    ).toBe("Typical Metrolink last service (static)");
   });
 });
 

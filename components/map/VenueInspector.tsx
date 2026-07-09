@@ -28,6 +28,8 @@ import { bandsForVenue, STORY_BANDS, type StoryBand } from "@/lib/storyBands";
 import { landmarks as londonLandmarks, nearestLandmarks, type Landmark } from "@/lib/landmarks";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import { curatedCrawlsForBand, placeStoryMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
+import { lastRideTabLabel } from "@/lib/lastRide";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
@@ -38,14 +40,21 @@ import "./accessibilityFilters.css";
 // a transport card built by another agent — we only render its mount point here.
 export type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-home";
 
-const TABS: { key: TabKey; label: string; shortLabel: string }[] = [
+const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
   { key: "overview", label: "Pub", shortLabel: "Pub" },
   { key: "pints", label: "Drops", shortLabel: "Drops" },
   { key: "menu", label: "Menu", shortLabel: "Menu" },
   { key: "story", label: "Lore", shortLabel: "Lore" },
   { key: "ask", label: "Ask", shortLabel: "Ask" },
-  { key: "getting-home", label: "Train", shortLabel: "Train" },
 ];
+
+function tabsForCity(cityId: CityId): { key: TabKey; label: string; shortLabel: string }[] {
+  const ride = lastRideTabLabel(getCity(cityId).lastRideLabel);
+  return [
+    ...BASE_TABS,
+    { key: "getting-home", label: ride, shortLabel: ride },
+  ];
+}
 
 const DEFAULT_TAB: TabKey = "pints";
 
@@ -101,6 +110,8 @@ type VenueInspectorProps = {
   cityStoryBands?: StoryBand[];
   /** City curated crawls for Place-story deep links. Defaults to London. */
   cityCuratedCrawls?: CuratedCrawl[];
+  /** Active map city — drives Last Pint / Last Tram provider. Defaults to London. */
+  cityId?: CityId;
 };
 
 export default function VenueInspector({
@@ -119,9 +130,11 @@ export default function VenueInspector({
   cityLandmarks = londonLandmarks,
   cityStoryBands = STORY_BANDS,
   cityCuratedCrawls,
+  cityId = DEFAULT_CITY_ID,
 }: VenueInspectorProps) {
   const { dropsByVenueId, composerOpen, setComposerOpen, dropMsg, reportDrop } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
+  const TABS = useMemo(() => tabsForCity(cityId), [cityId]);
 
   // "I'm here tonight" presence (PRD §1.5 / §5.1 — the tonight loop). Opt-in: it
   // only ever fires from a deliberate tap of this button — NO auto-tracking, NO
@@ -776,10 +789,11 @@ export default function VenueInspector({
       >
         {tab === "getting-home" ? (
           <LastTrainCard
-            key={`${venue.id}:${venue.latitude}:${venue.longitude}:${venue.name}`}
+            key={`${cityId}:${venue.id}:${venue.latitude}:${venue.longitude}:${venue.name}`}
             lat={venue.latitude}
             lng={venue.longitude}
             venueName={venue.name}
+            cityId={cityId}
             onSelectVenue={onSelectVenue}
             onDecision={setLastTrainDecision}
           />

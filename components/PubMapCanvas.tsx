@@ -54,7 +54,12 @@ import {
 import { formatPrice, type Venue } from "@/lib/venues";
 import { directVenueImageUrl } from "@/lib/venueImages";
 
-type VenueSignal = { hasPintDrops: boolean; latestContributorPrice: number | null };
+type VenueSignal = {
+  hasPintDrops: boolean;
+  latestContributorPrice: number | null;
+  /** Display-only demo price for pin colour when cheapestPrice is null. */
+  latestDemoPrice?: number | null;
+};
 type HoveredVenue = { id: string; name: string; x: number; y: number };
 type VenueDetailResponse = { venue?: Venue | null };
 type FailedHoverImage = { venueId: string; url: string };
@@ -296,9 +301,15 @@ function pubsToGeoJSON(
       // drink/brand lenses filter via filterVenues — never invent brand prices.
       const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
       const serves = !favoritePint || beerPrice !== null;
+      // Contributor price wins; then slim-index cheapestPrice; then an honest
+      // demo seed price so city packs with null cheapestPrice still colour pins.
+      // Demo never merges into venue.cheapestPrice (mergeVenueDrops ignores it).
       const price = favoritePint
         ? beerPrice
-        : signals?.latestContributorPrice ?? venue.cheapestPrice;
+        : signals?.latestContributorPrice ??
+          venue.cheapestPrice ??
+          signals?.latestDemoPrice ??
+          null;
       const bucket = priceBucket(price);
       // Prefer the active non-beer lens for the glyph so gin/wine/etc. read
       // honestly on the map; otherwise fall back to venue hint categories.
