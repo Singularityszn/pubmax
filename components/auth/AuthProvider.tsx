@@ -47,12 +47,14 @@ async function syncIdentityAfterSignIn(user: User): Promise<void> {
     // storage disabled — still attempt the server link below
   }
   try {
-    await authedFetch(`/api/profiles/${encodeURIComponent(handle)}`, {
+    const res = await authedFetch(`/api/profiles/${encodeURIComponent(handle)}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       // Empty patch: gateHandleAction claimOnUnlinked links user_id on first write.
       body: JSON.stringify({}),
     });
+    // Only mark synced on success — a 4xx/5xx must not suppress retries this tab.
+    if (!res.ok) return;
     try {
       window.sessionStorage.setItem(SYNCED_USER_KEY, user.id);
     } catch {

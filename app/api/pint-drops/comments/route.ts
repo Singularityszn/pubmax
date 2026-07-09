@@ -59,6 +59,13 @@ export async function POST(request: Request): Promise<Response> {
   const dropId = readString(body.dropId);
   if (!dropId) return jsonNoStore({ error: "Missing pint drop id." }, { status: 400 });
 
+  // F3 write gate: mirror GET — do not accept comments on hidden/friends/legacy
+  // parents. 404 matches the unknown-drop posture (no existence oracle).
+  const readable = await filterPubliclyReadableDropIds([dropId]);
+  if (readable.length === 0) {
+    return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
+  }
+
   // Server-authoritative validation — the client body is untrusted. Strips
   // HTML/control chars and caps length; rejects an empty/HTML-only body.
   const cleaned = cleanComment(body.handle, body.body);

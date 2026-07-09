@@ -78,6 +78,13 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Unknown reaction." }, { status: 400 });
   }
 
+  // F3 write gate: mirror GET — reject toggles on hidden/friends/legacy parents.
+  // 404 matches UnknownDropError so gated ids are not an existence oracle.
+  const readable = await filterPubliclyReadableDropIds([id]);
+  if (readable.length === 0) {
+    return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
+  }
+
   const actorHash = hashActor(readString(body.actor));
 
   // Flood guard per hashed actor. Mirrors comments/saved-pubs, but with a
