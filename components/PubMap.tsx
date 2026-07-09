@@ -20,7 +20,7 @@ import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/pr
 import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
-import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlById, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import RoutePanel from "@/components/map/RoutePanel";
 import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
@@ -112,6 +112,23 @@ function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters 
     crawlStyle: crawl.crawlStyle,
     requireNonAlcoholic: crawl.altStyle === "mocktail" ? true : current.requireNonAlcoholic,
   };
+}
+
+/** Resolve a curated crawl from ?crawl= or an exact pubs= stop list match. */
+function resolveSeededCuratedCrawl(
+  crawlId: string | undefined,
+  builtIds: string[],
+): CuratedCrawl | null {
+  const byId = curatedCrawlById(crawlId);
+  if (byId) return byId;
+  if (builtIds.length < 2) return null;
+  return (
+    curatedCrawls.find(
+      (crawl) =>
+        crawl.venueIds.length === builtIds.length &&
+        crawl.venueIds.every((id, i) => id === builtIds[i]),
+    ) ?? null
+  );
 }
 
 // Issue #15: the landmark card's two journey actions, hoisted into their own
@@ -415,12 +432,32 @@ export default function PubMap() {
     const seeded = seedCrawlState(search);
     // Landing drink-shape taps should land on a clean filtered map — never
     // resurrect a previous hand-built crawl from localStorage over the drink.
-    if (isDrinkShapeArrival(search)) return seeded;
+    if (isDrinkShapeArrival(search)) {
+      return { ...seeded, activeCrawl: null as CuratedCrawl | null, routeMapped: false };
+    }
+    let next = seeded;
     if (seeded.builtIds.length === 0) {
       const stored = readStoredBuiltIds();
-      if (stored.length) return { ...seeded, mode: "build" as const, builtIds: stored };
+      if (stored.length) next = { ...seeded, mode: "build" as const, builtIds: stored };
     }
-    return seeded;
+    // Curated / featured arrival: hydrate the named crawl so the polyline +
+    // blurb show map-first (planner stays closed via shouldOpenPlanningInitially).
+    const activeCrawl = resolveSeededCuratedCrawl(next.crawlId, next.builtIds);
+    if (activeCrawl) {
+      return {
+        ...next,
+        filters: filtersForCuratedCrawl(next.filters, activeCrawl),
+        altStyle: activeCrawl.altStyle ?? next.altStyle,
+        crawlId: activeCrawl.id,
+        activeCrawl,
+        routeMapped: true,
+      };
+    }
+    return {
+      ...next,
+      activeCrawl: null as CuratedCrawl | null,
+      routeMapped: next.builtIds.length >= 2,
+    };
   }, []);
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
@@ -456,15 +493,15 @@ export default function PubMap() {
   // updated when the user opens/dismisses a landmark card on the map).
   const [activeLandmarkId, setActiveLandmarkId] = useState<string>(seed.landmarkId ?? "");
   // Map-first layout: the planner (left drawer) is hidden until the user asks
-  // for it — but a shared/restored crawl link opens straight into planning so
-  // the route isn't invisible on arrival.
+  // for it. Curated crawl arrivals stay map-first (polyline + chip); other
+  // shared/restored crawl links still open straight into planning.
   const [planningOpen, setPlanningOpen] = useState<boolean>(() =>
     shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch()),
   );
   // Explicit route mapping: a suggested crawl can exist without drawing on the
   // clean first map. Once the user chooses "Map route" (or a curated/nearby
   // crawl), keep the line visible even if the mobile planner closes.
-  const [routeMapped, setRouteMapped] = useState<boolean>(seed.builtIds.length >= 2);
+  const [routeMapped, setRouteMapped] = useState<boolean>(seed.routeMapped);
   // Favorite pint: re-prices the map to one beer. Persisted per-device; the
   // guard mirrors readStoredBuiltIds so SSR and hydration read the same source.
   // A beer brand deep-link (`?drink=beer&brand=guinness`) seeds the same path.
@@ -487,9 +524,9 @@ export default function PubMap() {
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  // The curated crawl whose blurb is shown under the route title. Cleared the
-  // moment the user manually mutates the stops (add/remove/reverse/clear).
-  const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(null);
+  // The curated crawl whose blurb is shown under the route title. Seeded from
+  // ?crawl= / matching pubs= on curated arrival; cleared when the user mutates stops.
+  const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(seed.activeCrawl);
   // Issue #31 alt crawl style ("kind of night" label). Seeded from the URL and
   // synced back so a shared link reproduces it. Only shapes copy + the .ics
   // export noun; the scoring crawlStyle is untouched.
@@ -679,8 +716,18 @@ export default function PubMap() {
         bandId: activeBandId,
         altStyle,
         landmarkId: activeLandmarkId,
+        crawlId: activeCrawl?.id ?? "",
       }),
-      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle, activeLandmarkId],
+      [
+        mode,
+        filters,
+        builtIds,
+        selectedVenueId,
+        activeBandId,
+        altStyle,
+        activeLandmarkId,
+        activeCrawl?.id,
+      ],
     ),
   );
 
