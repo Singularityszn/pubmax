@@ -11,6 +11,12 @@ Date: 2026-07-08
 > [`PRD_STICKINESS_MEMORY_WAVE_2026-07-08.md`](./PRD_STICKINESS_MEMORY_WAVE_2026-07-08.md)
 > for Last Train at compose time, crawl-complete memory prompt, Place story
 > deep-link onboarding, and For You friends boost.
+>
+> **Wave H (2026-07-09):** see
+> [`PRD_MEMORY_SHARE_OUTER_LONDON_WAVE_2026-07-09.md`](./PRD_MEMORY_SHARE_OUTER_LONDON_WAVE_2026-07-09.md)
+> for shareable crawl memories, trusted Drop nearby picker, place-quest events,
+> and Outer London P1 coverage ([`PRD_OUTER_LONDON_COVERAGE.md`](./PRD_OUTER_LONDON_COVERAGE.md)).
+> Coordinate with open #63 (map declutter) and #64 (security) — do not rebuild them.
 
 ## Problem Statement
 

@@ -63,6 +63,19 @@ function curatedCrawlHref(crawl: CuratedCrawl): string {
 // the corner of the map", not every last venue.
 const MAP_LINK_STOP_CAP = 12;
 
+/** Borough floor for Outer London honesty banner (Wave H4 / PRD P1). */
+const BOROUGH_COVERAGE_FLOOR = 15;
+
+/**
+ * Browse deep-link: open the map filtered to this borough name (Wave H4).
+ * Prefer this over pre-building a crawl so thin boroughs still open a search.
+ */
+function boroughBrowseMapUrl(name: string): string {
+  const params = new URLSearchParams();
+  params.set("q", name);
+  return `/map?${params.toString()}`;
+}
+
 // The map, scoped to this borough's cheapest pubs by pre-building the same
 // share-URL shape a hand-built crawl uses (mode=build&pubs=id1,id2) — the
 // "transport hint": open the map already centred on where the borough's pubs
@@ -161,9 +174,23 @@ export default async function BoroughPage({ params }: PageProps) {
             </>
           )}
         </p>
-        <Link className="boroughCrawlLink" href={boroughMapUrl(pubs)}>
-          {pubs.length > 0 ? `See ${name} on the map →` : "Plan a crawl here →"}
-        </Link>
+        {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
+          <p className="boroughThinBanner" role="status">
+            Thin coverage in {name} for now ({pubs.length} of {BOROUGH_COVERAGE_FLOOR}+
+            we&rsquo;re aiming for). Every pin is a real pub — we won&rsquo;t invent
+            denser streets.
+          </p>
+        ) : null}
+        <div className="boroughMapLinks">
+          <Link className="boroughCrawlLink" href={boroughBrowseMapUrl(name)}>
+            View {name} on the map →
+          </Link>
+          {pubs.length > 0 ? (
+            <Link className="boroughCrawlLink boroughCrawlLinkSecondary" href={boroughMapUrl(pubs)}>
+              Plan a crawl from these pubs →
+            </Link>
+          ) : null}
+        </div>
       </header>
 
       {pubs.length === 0 ? (

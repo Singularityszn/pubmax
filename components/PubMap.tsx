@@ -1132,8 +1132,8 @@ export default function PubMap() {
             <div>
               <strong>Pick a pub to log a Pint Drop</strong>
               <p className="description" style={{ margin: "6px 0 0", color: "inherit" }}>
-                Choose a nearby pub, search, or tap one on the map — then we&rsquo;ll open the
-                existing Pint Drop composer.
+                We won&rsquo;t guess which pub you&rsquo;re in. Choose one nearby, search, or
+                tap the map — then we&rsquo;ll open the Pint Drop composer.
               </p>
             </div>
             {logNearbyCandidates.length > 0 ? (

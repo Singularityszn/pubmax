@@ -52,12 +52,22 @@ export function shouldRunMapLogIntent(input: {
   return input.hasLogIntent && !input.handled;
 }
 
+/**
+ * Wave H2 — Drop intent trust:
+ * Only auto-open the composer when the URL (or an already-selected sheet)
+ * names a resolvable pub (`sel=`). Never silently attach a Spill to the first
+ * filtered / first route venue — that was the wrong-pub failure mode.
+ * Without a resolvable selection → `fallback` (nearby picker).
+ */
 export function resolveMapLogIntent(input: ResolveMapLogIntentInput): MapLogIntentResolution {
   if (!input.hasLogIntent) return { status: "inactive" };
   if (!input.loaded) return { status: "pending" };
 
   const selectedVenueId =
     input.selectedVenueId && input.selectedVenueResolvable ? input.selectedVenueId : "";
-  const venueId = selectedVenueId || input.firstRouteId || input.firstFilteredVenueId;
-  return venueId ? { status: "open", venueId } : { status: "fallback" };
+  if (selectedVenueId) return { status: "open", venueId: selectedVenueId };
+  // firstRouteId / firstFilteredVenueId are intentionally ignored for auto-open.
+  void input.firstRouteId;
+  void input.firstFilteredVenueId;
+  return { status: "fallback" };
 }

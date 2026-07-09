@@ -231,3 +231,27 @@ export function placeStoryMapHref(bandId: string, crawlId?: string): string {
   const params = new URLSearchParams({ band: bandId });
   return `/map?${params.toString()}`;
 }
+
+/**
+ * Shareable map URL for a completed crawl (Wave H1).
+ * Same shape the map already seeds: mode=build&pubs=… (+ band= for Place stories).
+ */
+export function crawlShareMapHref(input: {
+  venueIds: readonly string[];
+  placeStoryBandId?: string | null;
+  crawlId?: string | null;
+}): string {
+  const ids = input.venueIds.map((id) => id.trim()).filter(Boolean);
+  if (ids.length === 0) {
+    const band = input.placeStoryBandId?.trim();
+    return band ? `/map?band=${encodeURIComponent(band)}` : "/map";
+  }
+  const params = new URLSearchParams();
+  params.set("mode", "build");
+  params.set("pubs", ids.join(","));
+  const band =
+    input.placeStoryBandId?.trim() ||
+    (input.crawlId ? curatedCrawlById(input.crawlId)?.placeStoryBandId : undefined);
+  if (band) params.set("band", band);
+  return `/map?${params.toString()}`;
+}
