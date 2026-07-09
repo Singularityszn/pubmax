@@ -17,7 +17,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyBasemapTaste, clusterCircleColorExpr } from "@/lib/mapBasemapTaste";
 import { landmarks, nearestStoryPubs, landmarkById, type Landmark } from "@/lib/landmarks";
 import {
-  STORY_BANDS,
   bandById,
   bandAnchors,
   bandMemberPubs,
@@ -41,12 +40,9 @@ import {
   type IconTokens,
 } from "@/lib/mapIcons";
 import {
-  POI_TOGGLE_GROUPS,
   defaultPoiHiddenForViewport,
   defaultPoiHiddenMobile,
-  isPoiGroupOn,
   isTransitNetworkVisible,
-  togglePoiGroup,
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import {
@@ -546,16 +542,13 @@ export default function PubMapCanvas({
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(
     defaultPoiHiddenForViewport,
   );
-  const [isMobileChrome, setIsMobileChrome] = useState(false);
   const mobilePoiSeededRef = useRef(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
     const sync = () => {
-      const mobile = mq.matches;
-      setIsMobileChrome(mobile);
       // First time we know we're on a phone, seed all POI layers off so the
       // map mid-field stays clean (SSR/desktop defaults would leave Transit on).
-      if (mobile && !mobilePoiSeededRef.current) {
+      if (mq.matches && !mobilePoiSeededRef.current) {
         mobilePoiSeededRef.current = true;
         setPoiHidden(defaultPoiHiddenMobile());
       }
@@ -564,10 +557,8 @@ export default function PubMapCanvas({
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
-  // Open when a band is already active (e.g. `?band=` deep link) so the corridor
-  // picker matches the URL; otherwise stay closed until the viewer opts in.
-  const [placeStoriesManualOpen, setPlaceStoriesManualOpen] = useState(false);
-  const placeStoriesOpen = Boolean(activeBandId) || placeStoriesManualOpen;
+  // Open when a band is already active (e.g. `?band=` deep link). Layers owns
+  // the corridor picker UI; canvas only paints the active corridor.
   const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
 
   const onVenueClickRef = useRef(onVenueClick);
@@ -2237,88 +2228,15 @@ export default function PubMapCanvas({
           </button>
         </aside>
       ) : null}
-      {/* Desktop: bottom-right POI pill row. Mobile uses MapLayersControl instead. */}
-      {!isMobileChrome ? (
-        <div className="poiToggle poiToggleDesktop" role="group" aria-label="Points of interest">
-          {POI_TOGGLE_GROUPS.map((group) => {
-            const on = isPoiGroupOn(poiHidden, group);
-            return (
-              <button
-                key={group.id}
-                type="button"
-                className={on ? "poiToggleBtn on" : "poiToggleBtn"}
-                aria-pressed={on}
-                onClick={() => setPoiHidden((hidden) => togglePoiGroup(hidden, group))}
-              >
-                <span className="poiSwatch" style={{ background: group.color }} />
-                {group.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-      {/* Desktop place stories. Mobile: same bands live inside Layers. */}
-      {!isMobileChrome && onBandChange ? (
-        <div className="placeStoriesControl placeStoriesDesktop">
-          <button
-            type="button"
-            className={placeStoriesOpen ? "placeStoriesToggle on" : "placeStoriesToggle"}
-            aria-pressed={placeStoriesOpen}
-            aria-expanded={placeStoriesOpen}
-            onClick={() => {
-              if (activeBandId) {
-                onBandChange("");
-                setPlaceStoriesManualOpen(false);
-                return;
-              }
-              setPlaceStoriesManualOpen((open) => !open);
-            }}
-          >
-            Place stories
-          </button>
-          {placeStoriesOpen ? (
-            <div className="bandPicker" role="group" aria-label="Place stories">
-              <span className="bandPickerLabel">Around London</span>
-              <div className="bandPickerRow">
-                {STORY_BANDS.map((band) => (
-                  <button
-                    key={band.id}
-                    type="button"
-                    className={activeBandId === band.id ? "bandBtn on" : "bandBtn"}
-                    aria-pressed={activeBandId === band.id}
-                    title={band.copy}
-                    onClick={() => onBandChange(activeBandId === band.id ? "" : band.id)}
-                  >
-                    {band.title}
-                  </button>
-                ))}
-              </div>
-              {activeBand ? (
-                <div className="bandActiveCard">
-                  <p className="bandActiveCopy">{activeBand.copy}</p>
-                  <p className="bandActiveMeta">
-                    {bandMembers.length > 0
-                      ? `${bandMembers.length} story pub${bandMembers.length === 1 ? "" : "s"} on this corridor`
-                      : "No pubs on this corridor under the current filters — widen them to see its stops."}
-                  </p>
-                  <a href={activeBand.sources[0].url} target="_blank" rel="noreferrer">
-                    Source: {activeBand.sources[0].label}
-                    <ExternalLink size={11} />
-                  </a>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      {isMobileChrome ? (
-        <MapLayersControl
-          poiHidden={poiHidden}
-          onPoiHiddenChange={setPoiHidden}
-          activeBandId={activeBandId}
-          onBandChange={onBandChange}
-        />
-      ) : null}
+      {/* Wave J declutter: one Layers control on all viewports (Airbnb-clean).
+          Desktop mid-map POI strip + Place stories stack removed — same content
+          lives in the Layers popover. Do not rebuild #63 structure. */}
+      <MapLayersControl
+        poiHidden={poiHidden}
+        onPoiHiddenChange={setPoiHidden}
+        activeBandId={activeBandId}
+        onBandChange={onBandChange}
+      />
       {activePoi ? (
         <div className="poiLabelCard" role="status">
           <span

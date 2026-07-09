@@ -35,7 +35,8 @@ export default function MapPriceControl({
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-  const filtered = filters.maxPrice < 9;
+  // Default product filter is ≤£7 — only treat tighter/wider as "filtered on".
+  const filtered = filters.maxPrice < 7 || filters.maxPrice > 7;
 
   useEffect(() => {
     if (!open) return;

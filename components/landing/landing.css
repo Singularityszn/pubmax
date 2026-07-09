@@ -353,6 +353,24 @@
   animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.14s both;
 }
 
+/* Airbnb-clean: one primary CTA in the hero; secondary is a quiet text link. */
+.lp .heroActions .btnGhost {
+  background: transparent;
+  border-color: transparent;
+  color: color-mix(in srgb, var(--color-on-photo) 88%, transparent);
+  backdrop-filter: none;
+  box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  padding-inline: 4px;
+}
+
+.lp .heroActions .btnGhost:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-on-photo);
+}
+
 .lp .heroPhoto .btnGhost {
   background: color-mix(in srgb, var(--panel-raised) 28%, transparent);
   color: var(--color-on-photo);
@@ -1365,7 +1383,7 @@
   }
 
   .lp .heroFigure {
-    order: -1;
+    order: 0;
   }
 
   .lp .heroBrand {

@@ -1,7 +1,7 @@
 "use client";
 
-// Corner Layers control for the mobile map. Keeps Tube/Parks/story bands out of
-// the mid-map strip; opens a compact popover above the tab bar.
+// Corner Layers control — all viewports (Wave J declutter). Keeps Tube/Parks/
+// story bands out of the mid-map strip; opens a compact popover.
 
 import { Layers, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -60,7 +60,6 @@ export default function MapLayersControl({
     onPoiHiddenChange(togglePoiGroup(poiHidden, group));
   }
 
-  const anyLayerOn = POI_TOGGLE_GROUPS.some((group) => isPoiGroupOn(poiHidden, group));
   const storiesActive = Boolean(activeBandId);
 
   return (
@@ -68,9 +67,7 @@ export default function MapLayersControl({
       <button
         type="button"
         className={
-          open || anyLayerOn || storiesActive
-            ? "mapLayersFab isActive"
-            : "mapLayersFab"
+          open || storiesActive ? "mapLayersFab isActive" : "mapLayersFab"
         }
         aria-expanded={open}
         aria-controls={panelId}
@@ -105,7 +102,9 @@ export default function MapLayersControl({
             </button>
           </div>
 
-          <p className="mapLayersHint">Optional place markers — off by default on phones.</p>
+          <p className="mapLayersHint">
+            Transit, parks, and story corridors — opt in when you need them.
+          </p>
 
           <div className="mapLayersGroup" role="group" aria-label="Points of interest">
             {POI_TOGGLE_GROUPS.map((group) => {

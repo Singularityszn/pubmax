@@ -286,7 +286,7 @@ export default function ControlRail({
               }
             />
             <div className="rangeLine">
-              <span>Route Window</span>
+              <span>Max walk between stops</span>
               <strong>{filters.routeWindow} min</strong>
             </div>
             <input
@@ -409,7 +409,7 @@ export default function ControlRail({
               onFiltersChange({ ...filters, canonicalOnly: event.target.checked })
             }
           />
-          Clean borough rows
+          Verified listings only
         </label>
       </section>
 
