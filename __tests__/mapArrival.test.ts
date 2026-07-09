@@ -10,6 +10,7 @@ describe("isDrinkShapeArrival", () => {
   it("detects drink= and cocktails=1 deep-links", () => {
     expect(isDrinkShapeArrival("?drink=beer")).toBe(true);
     expect(isDrinkShapeArrival("?cocktails=1")).toBe(true);
+    expect(isDrinkShapeArrival("?cocktails=10")).toBe(false);
     expect(isDrinkShapeArrival("?q=Barnet")).toBe(false);
   });
 });

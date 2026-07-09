@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { promises as fs } from "fs";
 
-import { buildVenueIndex, venueMapUrl, type VenueRef } from "@/lib/venueIndex";
+import { afterEach, describe, it, expect, vi } from "vitest";
+
+import { buildVenueIndex, getVenueIndex, venueMapUrl, type VenueRef } from "@/lib/venueIndex";
 import type { Venue } from "@/lib/venues";
 
 // buildVenueIndex only reads id/name/primaryBorough/latitude/longitude, so a
@@ -18,6 +20,10 @@ function v(over: Partial<Venue> & { id: string; name: string }): Venue {
   } as Venue;
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("buildVenueIndex", () => {
   it("maps ids to name/borough/coords and falls back to London with no borough", () => {
     const index = buildVenueIndex([
@@ -31,6 +37,34 @@ describe("buildVenueIndex", () => {
     expect(a.lng).toBe(-0.13);
     expect(index.get("venue-b")?.borough).toBe("London");
     expect(index.has("venue-unknown")).toBe(false);
+  });
+});
+
+describe("getVenueIndex", () => {
+  it("does not cache an empty index after a read failure", async () => {
+    const readFile = vi.spyOn(fs, "readFile");
+    readFile
+      .mockRejectedValueOnce(new Error("missing index"))
+      .mockResolvedValueOnce(
+        JSON.stringify([
+          {
+            id: "venue-retry",
+            name: "The Retry Arms",
+            borough: "Camden",
+            lat: 51.52,
+            lng: -0.14,
+          },
+        ]),
+      );
+
+    expect(await getVenueIndex()).toEqual(new Map());
+    const retried = await getVenueIndex();
+
+    expect(retried.get("venue-retry")).toMatchObject({
+      name: "The Retry Arms",
+      borough: "Camden",
+    });
+    expect(readFile).toHaveBeenCalledTimes(2);
   });
 });
 

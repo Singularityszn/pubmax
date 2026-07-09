@@ -63,7 +63,7 @@ export default function MapLayersControl({
     }
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onPointer);
-    window.addEventListener("touchstart", onPointer);
+    window.addEventListener("touchstart", onPointer, { passive: true });
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onPointer);

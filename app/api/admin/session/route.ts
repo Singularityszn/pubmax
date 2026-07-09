@@ -23,7 +23,7 @@ function setSessionCookie(token: string): Headers {
   const secure = process.env.NODE_ENV === "production";
   headers.append(
     "Set-Cookie",
-    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(hashAdminSession(token))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${ADMIN_SESSION_MAX_AGE_SEC}${secure ? "; Secure" : ""}`,
+    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(hashAdminSession(token))}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${ADMIN_SESSION_MAX_AGE_SEC}${secure ? "; Secure" : ""}`,
   );
   return headers;
 }
@@ -33,7 +33,7 @@ function clearSessionCookie(): Headers {
   const secure = process.env.NODE_ENV === "production";
   headers.append(
     "Set-Cookie",
-    `${ADMIN_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`,
+    `${ADMIN_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure ? "; Secure" : ""}`,
   );
   return headers;
 }

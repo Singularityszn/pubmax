@@ -106,7 +106,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
   const venueId = clean(raw.venueId, 64);
   if (!venueId) return { ok: false, error: "A venue is required." };
 
-  const handle = clean(raw.handle, MAX_HANDLE);
+  const handle = normalizeViewerHandle(clean(raw.handle, MAX_HANDLE));
   if (!handle) return { ok: false, error: "Add a contributor handle." };
 
   const note = clean(raw.passedDownNote, MAX_NOTE);
