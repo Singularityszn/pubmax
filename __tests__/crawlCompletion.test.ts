@@ -246,6 +246,15 @@ describe("Wave G2 celebration eligibility + one-shot flag", () => {
     expect(storage.getItem(CRAWL_QUEST_KEY)).toContain("river-history");
   });
 
+  it("creditCrawlQuest preserves the first completion timestamp on repeat credits", () => {
+    const storage = makeMemoryStorage();
+    creditCrawlQuest("hand-built", { nowIso: "2026-07-01T12:00:00.000Z" }, storage);
+    creditCrawlQuest("hand-built", { nowIso: "2026-07-09T18:00:00.000Z" }, storage);
+    expect(readCrawlQuest(storage).completedAtByCrawlId?.["hand-built"]).toBe(
+      "2026-07-01T12:00:00.000Z",
+    );
+  });
+
   it("placeQuestEventChips counts breadth quests inside a weekly window (Wave H3)", () => {
     const storage = makeMemoryStorage();
     const now = Date.parse("2026-07-09T18:00:00.000Z");

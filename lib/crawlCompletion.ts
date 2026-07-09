@@ -389,13 +389,13 @@ export function creditCrawlQuest(
   const nowIso = options?.nowIso?.trim() || new Date().toISOString();
   if (!quest.completedCrawlIds.includes(id)) {
     quest.completedCrawlIds = [...quest.completedCrawlIds, id];
+    quest.completedAtByCrawlId = { ...(quest.completedAtByCrawlId ?? {}), [id]: nowIso };
   }
-  quest.completedAtByCrawlId = { ...(quest.completedAtByCrawlId ?? {}), [id]: nowIso };
   if (band) {
     if (!quest.placeStoryBandIds.includes(band)) {
       quest.placeStoryBandIds = [...quest.placeStoryBandIds, band];
+      quest.completedAtByBandId = { ...(quest.completedAtByBandId ?? {}), [band]: nowIso };
     }
-    quest.completedAtByBandId = { ...(quest.completedAtByBandId ?? {}), [band]: nowIso };
   }
   writeJsonKey(CRAWL_QUEST_KEY, quest, storage);
   return quest;
