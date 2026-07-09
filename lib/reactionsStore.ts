@@ -196,3 +196,12 @@ export function reactionsStore(): ReactionsStore {
 export function __resetMemoryReactions(): void {
   memoryRows.clear();
 }
+
+/** Test-only: seed a reaction without going through the HTTP POST gate. */
+export function __addMemoryReactionForTest(
+  dropId: string,
+  actorHash: string,
+  reaction: ReactionKey,
+): void {
+  memoryRows.add(rowKey(dropId, actorHash, reaction));
+}

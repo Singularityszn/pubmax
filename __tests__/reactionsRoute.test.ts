@@ -265,6 +265,17 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
   });
 
   it("503s any other store failure (reactions are non-critical)", async () => {
+    // Visibility gate must pass so we reach the store — stub it open for this
+    // contract (Supabase admin isn't real in this suite).
+    vi.doMock("@/lib/pintDropLookup", async () => {
+      const actual =
+        await vi.importActual<typeof import("@/lib/pintDropLookup")>("@/lib/pintDropLookup");
+      return {
+        ...actual,
+        filterPubliclyReadableDropIds: async (ids: readonly string[]) =>
+          ids.map((id) => id.trim()).filter(Boolean),
+      };
+    });
     vi.doMock("@/lib/reactionsStore", async () => {
       const actual =
         await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
@@ -288,6 +299,7 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ error: "Reactions are unavailable." });
     vi.doUnmock("@/lib/reactionsStore");
+    vi.doUnmock("@/lib/pintDropLookup");
   });
 
   it("GET degrades to an empty summaries map on a store error (feed stays up)", async () => {
