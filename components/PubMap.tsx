@@ -131,6 +131,48 @@ function resolveSeededCuratedCrawl(
   );
 }
 
+type MapSeed = ReturnType<typeof seedCrawlState> & {
+  activeCrawl: CuratedCrawl | null;
+  routeMapped: boolean;
+};
+
+/**
+ * One-shot mount seed from the shareable URL (+ localStorage refresh net).
+ * Pure module helper so PubMap can lazy-init state without a useMemo that the
+ * React Compiler cannot preserve (react-hooks/preserve-manual-memoization).
+ */
+function buildMapSeed(search: string): MapSeed {
+  const seeded = seedCrawlState(search);
+  // Landing drink-shape taps should land on a clean filtered map — never
+  // resurrect a previous hand-built crawl from localStorage over the drink.
+  if (isDrinkShapeArrival(search)) {
+    return { ...seeded, activeCrawl: null, routeMapped: false };
+  }
+  let next = seeded;
+  if (seeded.builtIds.length === 0) {
+    const stored = readStoredBuiltIds();
+    if (stored.length) next = { ...seeded, mode: "build" as const, builtIds: stored };
+  }
+  // Curated / featured arrival: hydrate the named crawl so the polyline +
+  // blurb show map-first (planner stays closed via shouldOpenPlanningInitially).
+  const activeCrawl = resolveSeededCuratedCrawl(next.crawlId, next.builtIds);
+  if (activeCrawl) {
+    return {
+      ...next,
+      filters: filtersForCuratedCrawl(next.filters, activeCrawl),
+      altStyle: activeCrawl.altStyle ?? next.altStyle,
+      crawlId: activeCrawl.id,
+      activeCrawl,
+      routeMapped: true,
+    };
+  }
+  return {
+    ...next,
+    activeCrawl: null,
+    routeMapped: next.builtIds.length >= 2,
+  };
+}
+
 // Issue #15: the landmark card's two journey actions, hoisted into their own
 // hook so their branches live off PubMap's complexity budget.
 //   • startCrawlFromPubs — drop the nearest pubs into Build mode (shareable via
@@ -424,48 +466,17 @@ export default function PubMap() {
     markPubmaxTiming("pubmax:map-chunk-ready");
   }, []);
   // Seed the crawl from the shareable URL (falls back to defaults / honors
-  // ?style=heritage from the landing page). Lazy init keeps this off effects.
+  // ?style=heritage from the landing page). Lazy useState keeps this off effects
+  // and avoids a mount-only useMemo the React Compiler cannot preserve.
   // If the URL carries no hand-built crawl but localStorage does, seed from it —
   // a refresh-safety net that never fights the URL (URL wins when present).
-  const seed = useMemo(() => {
-    const search = typeof window === "undefined" ? "" : window.location.search;
-    const seeded = seedCrawlState(search);
-    // Landing drink-shape taps should land on a clean filtered map — never
-    // resurrect a previous hand-built crawl from localStorage over the drink.
-    if (isDrinkShapeArrival(search)) {
-      return { ...seeded, activeCrawl: null as CuratedCrawl | null, routeMapped: false };
-    }
-    let next = seeded;
-    if (seeded.builtIds.length === 0) {
-      const stored = readStoredBuiltIds();
-      if (stored.length) next = { ...seeded, mode: "build" as const, builtIds: stored };
-    }
-    // Curated / featured arrival: hydrate the named crawl so the polyline +
-    // blurb show map-first (planner stays closed via shouldOpenPlanningInitially).
-    const activeCrawl = resolveSeededCuratedCrawl(next.crawlId, next.builtIds);
-    if (activeCrawl) {
-      return {
-        ...next,
-        filters: filtersForCuratedCrawl(next.filters, activeCrawl),
-        altStyle: activeCrawl.altStyle ?? next.altStyle,
-        crawlId: activeCrawl.id,
-        activeCrawl,
-        routeMapped: true,
-      };
-    }
-    return {
-      ...next,
-      activeCrawl: null as CuratedCrawl | null,
-      routeMapped: next.builtIds.length >= 2,
-    };
-  }, []);
+  const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch()));
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
   // If any of these are present, the arrival is intentional and we never onboard.
-  const arrivedWithCrawlParams = useMemo(
+  const [arrivedWithCrawlParams] = useState(
     () => hasCrawlArrivalParams(currentSearch()) || hasMapLogIntent(currentSearch()),
-    [],
   );
   // `loaded` means the slim map index has settled. The full price dataset is no
   // longer fetched on /map mount; full details arrive lazily per selected venue.
