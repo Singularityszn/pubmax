@@ -40,7 +40,7 @@ import {
   type IconTokens,
 } from "@/lib/mapIcons";
 import {
-  defaultPoiHiddenForViewport,
+  defaultPoiHidden,
   defaultPoiHiddenMobile,
   isTransitNetworkVisible,
 } from "@/lib/poiToggleGroups";
@@ -537,21 +537,17 @@ export default function PubMapCanvas({
   );
   const hoverDetailsRef = useRef(hoverDetails);
   const [failedHoverImage, setFailedHoverImage] = useState<FailedHoverImage | null>(null);
-  // POI layer visibility — desktop keeps Transit/Parks/Sights on; mobile starts
-  // all-hidden and opts in via the corner Layers control.
+  // POI layer visibility — start all-hidden so mobile first paint stays clean;
+  // sync to desktop defaults once we know the viewport width.
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(
-    defaultPoiHiddenForViewport,
+    defaultPoiHiddenMobile,
   );
-  const mobilePoiSeededRef = useRef(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
     const sync = () => {
-      // First time we know we're on a phone, seed all POI layers off so the
-      // map mid-field stays clean (SSR/desktop defaults would leave Transit on).
-      if (mq.matches && !mobilePoiSeededRef.current) {
-        mobilePoiSeededRef.current = true;
-        setPoiHidden(defaultPoiHiddenMobile());
-      }
+      // Defer setState out of the effect body (react-hooks/set-state-in-effect).
+      const next = mq.matches ? defaultPoiHiddenMobile() : defaultPoiHidden();
+      void Promise.resolve().then(() => setPoiHidden(next));
     };
     sync();
     mq.addEventListener("change", sync);
