@@ -139,7 +139,7 @@ const drops = [
   {
     who: "@meridian_w4",
     price: "£4.10",
-    note: "Cask Landlord, poured properly. My grandad drank here after his shifts at the brewery — same corner table, still the cheapest in Chiswick.",
+    note: "Cask Landlord, poured properly. My grandad drank here after his shifts at the brewery - same corner table, still the cheapest in Chiswick.",
     when: "Added 2 days ago · Chiswick",
   },
   {
@@ -341,21 +341,29 @@ export default function LandingPage() {
         {/* ── Pint Drops ────────────────────────────────────────── */}
         <section id="drops" className="container" aria-labelledby="drops-title">
           <div className="dropsGrid">
-            <div className="dropStack reveal">
-              {drops.map((d) => (
-                <article className="dropSample" key={d.who}>
-                  <div className="dropTop">
-                    <span className="dropWho">{d.who}</span>
-                    <span className="dropPrice">{d.price}</span>
-                  </div>
-                  <p>{d.note}</p>
-                  <div className="dropMeta">
-                    <small>{d.when}</small>
-                    <span className="exampleTag">Demo</span>
-                  </div>
-                </article>
+            <ol className="dropTimeline reveal" aria-label="Sample Pint Drops">
+              {drops.map((d, i) => (
+                <li className="dropTimelineItem" key={d.who}>
+                  {i > 0 ? (
+                    <div className="dropTimelineConnector" aria-hidden="true">
+                      <span className="dropTimelineLine" />
+                      <span className="dropTimelineArrow" />
+                    </div>
+                  ) : null}
+                  <article className="dropSample">
+                    <div className="dropTop">
+                      <span className="dropWho">{d.who}</span>
+                      <span className="dropPrice">{d.price}</span>
+                    </div>
+                    <p className="dropNote">{d.note}</p>
+                    <div className="dropMeta">
+                      <small>{d.when}</small>
+                      <span className="exampleTag">Sample</span>
+                    </div>
+                  </article>
+                </li>
               ))}
-            </div>
+            </ol>
             <div className="dropsCopy reveal">
               <p className="eyebrow">
                 <HandCoins size={15} strokeWidth={1.5} aria-hidden="true" />
@@ -365,14 +373,18 @@ export default function LandingPage() {
                 The price you paid, and the note you pass down.
               </h2>
               <p className="heroLede">
-                Log what your pint actually cost and leave a line worth keeping —
+                Log what your pint actually cost and leave a line worth keeping -
                 the corner your dad favoured, the garden that ruins you for other
                 gardens. Prices keep the map honest; the notes keep it human.
               </p>
-              <p style={{ color: "var(--ink-soft)", lineHeight: 1.6, margin: 0 }}>
+              <p className="dropsHanddown">
                 One generation hands its pub knowledge to the next, one drop at a
                 time.
               </p>
+              <Link href="/map" className="dropsCta" {...mapWarmProps}>
+                Leave a Pint Drop
+                <ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" />
+              </Link>
             </div>
           </div>
 
