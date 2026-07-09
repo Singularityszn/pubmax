@@ -16,7 +16,12 @@ Date: 2026-07-08
 > [`PRD_MEMORY_SHARE_OUTER_LONDON_WAVE_2026-07-09.md`](./PRD_MEMORY_SHARE_OUTER_LONDON_WAVE_2026-07-09.md)
 > for shareable crawl memories, trusted Drop nearby picker, place-quest events,
 > and Outer London P1 coverage ([`PRD_OUTER_LONDON_COVERAGE.md`](./PRD_OUTER_LONDON_COVERAGE.md)).
-> Coordinate with open #63 (map declutter) and #64 (security) — do not rebuild them.
+> **Shipped on main:** #63 Layers declutter, Wave H, security Phases 1–4 — do not rebuild.
+>
+> **Wave J (2026-07-09):** see
+> [`PRD_MAP_TASTE_FLUIDITY_WAVE_2026-07-09.md`](./PRD_MAP_TASTE_FLUIDITY_WAVE_2026-07-09.md)
+> for Taste/Emil skills install, warmer colorful map, Cost/Layers affordances,
+> ease-out fluidity, and landing/feed taste within DESIGN_SYSTEM.
 
 ## Problem Statement
 

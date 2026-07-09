@@ -32,3 +32,7 @@ skill_disabled.md
 skill_in_pub.md
 skills_used_global.md
 .data/
+
+# Wave J — commit Taste/Emil skills under skills/ (not machine .agents/)
+!skills/
+!skills/**

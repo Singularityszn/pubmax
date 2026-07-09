@@ -636,7 +636,7 @@ export default function FeedPage() {
       <SiteNav active="feed" />
 
       <header className="feedHeader">
-        <p className="feedEyebrow">InstaPint</p>
+        <p className="feedEyebrow">Pint stories</p>
         <h1 className="feedTitle">The Pint Feed</h1>
         <p className="feedLede">
           Every pint logged in London tonight — prices, selfies, and the stories

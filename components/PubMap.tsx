@@ -1252,18 +1252,8 @@ export default function PubMap() {
             </button>
           </div>
         ) : null}
-        {/* Desktop keeps a static price key; mobile uses MapPriceControl (Cost). */}
-        <div className="mapLegend" aria-label="Pint price key">
-          <span>
-            <i className="green" /> ≤ £5.50
-          </span>
-          <span>
-            <i className="amber" /> £5.50-£7
-          </span>
-          <span>
-            <i className="red" /> £7+
-          </span>
-        </div>
+        {/* Wave J declutter: Prices control owns the key on all viewports
+            (pin colours + popover). Static mid-map legend removed. */}
         <MapPriceControl filters={filters} onFiltersChange={setFilters} />
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
