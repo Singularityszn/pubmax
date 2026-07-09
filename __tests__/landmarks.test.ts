@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { landmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
+import { landmarks, landmarkById, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
 import type { Venue } from "@/lib/venues";
 
 // nearestStoryPubs only reads latitude/longitude/hasStory; a partial cast keeps
@@ -18,6 +18,11 @@ describe("landmarks data", () => {
     for (const landmark of landmarks) {
       expect(landmark.source.url, `${landmark.id} source.url`).toMatch(/^https?:\/\//);
     }
+  });
+
+  it("landmarkById resolves known ids", () => {
+    expect(landmarkById("tower-bridge")?.name).toBe("Tower Bridge");
+    expect(landmarkById("not-real")).toBeUndefined();
   });
 });
 

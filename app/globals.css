@@ -1716,11 +1716,20 @@ input[type="range"] {
   line-height: 1.25;
 }
 
+.landmarkChapterLink {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--brass);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .landmarkCardHead button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: auto;
+  margin-left: 6px;
   width: 26px;
   height: 26px;
   border: 1px solid var(--line);
@@ -2985,6 +2994,13 @@ input[type="range"] {
   font-size: 0.78rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.routeSafetyNote {
+  margin: -4px 0 12px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
 }
 
 .routeMapPrompt {

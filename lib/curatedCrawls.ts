@@ -52,6 +52,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-15i2wst", // Golden Lion (Soho) — 51 Dean Street
     ],
     startLandmarkId: "piccadilly-circus",
+    placeStoryBandId: "royal-civic",
   },
   {
     id: "fleet-street-writers",
@@ -119,6 +120,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-1mr5its", // Railway (beer garden) — 15 Liverpool Street
     ],
     startLandmarkId: "leadenhall-market",
+    placeStoryBandId: "coding-pint",
   },
   {
     id: "borough-market-crawl",
@@ -167,6 +169,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-1d1tez", // The Dublin Castle — 94 Parkway
     ],
     startLandmarkId: "camden-lock",
+    placeStoryBandId: "markets-theatre",
   },
   {
     id: "soho-food-crawl",
@@ -203,6 +206,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-1jmwk6r", // Round Table — 26-27 St Martins Court (cocktails)
     ],
     startLandmarkId: "piccadilly-circus",
+    placeStoryBandId: "royal-civic",
   },
 ];
 

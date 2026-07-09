@@ -6,9 +6,19 @@ import { allPackCrawlIds, getRoutePack, routePacks } from "@/lib/routePacks";
 const curatedIds = new Set(curatedCrawls.map((c) => c.id));
 
 describe("routePacks", () => {
-  it("ships the five named packs", () => {
+  it("ships the named London route packs", () => {
     expect(routePacks.map((p) => p.id).sort()).toEqual(
-      ["cheap-chaos", "late-train", "quiet-table", "thames", "writers"].sort(),
+      [
+        "cheap-chaos",
+        "coding-pint",
+        "late-train",
+        "markets-late-trains",
+        "music-theatre",
+        "old-london",
+        "quiet-table",
+        "thames",
+        "writers",
+      ].sort(),
     );
   });
 
@@ -21,12 +31,16 @@ describe("routePacks", () => {
     }
   });
 
-  it("maps Thames / writers membership to the expected crawls", () => {
+  it("maps Thames / writers / coding pint membership to the expected crawls", () => {
     expect(getRoutePack("thames")?.crawlIds).toEqual(
       expect.arrayContaining(["riverside-heritage", "bankside-riverside"]),
     );
     expect(getRoutePack("writers")?.crawlIds).toEqual(
       expect.arrayContaining(["fleet-street-writers", "bloomsbury-literary"]),
+    );
+    expect(getRoutePack("coding-pint")?.crawlIds).toEqual(["pint-park-view"]);
+    expect(getRoutePack("old-london")?.crawlIds).toEqual(
+      expect.arrayContaining(["victorian-soho", "bankside-riverside"]),
     );
   });
 

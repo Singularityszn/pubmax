@@ -687,8 +687,16 @@ export default function PubMap() {
   // Keep the URL in sync so "Copy link" shares the current crawl.
   useCrawlUrlSync(
     useMemo(
-      () => ({ mode, filters, builtIds, selectedVenueId, bandId: activeBandId, altStyle }),
-      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle],
+      () => ({
+        mode,
+        filters,
+        builtIds,
+        selectedVenueId,
+        bandId: activeBandId,
+        altStyle,
+        landmarkId: seed.landmarkId,
+      }),
+      [mode, filters, builtIds, selectedVenueId, activeBandId, altStyle, seed.landmarkId],
     ),
   );
 
@@ -1105,6 +1113,7 @@ export default function PubMap() {
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}
           onAskPubmaxxer={askPubmaxxerAtPub}
+          initialLandmarkId={seed.landmarkId}
         />
         <MapToolbar
           query={filters.query}

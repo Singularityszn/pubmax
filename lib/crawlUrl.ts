@@ -57,6 +57,8 @@ export type CrawlUrlState = {
   // Additive (issue #31 alt crawl styles): the "kind of night" label. "pint" is
   // the default and is omitted from the URL; unknown values decode back to pint.
   altStyle?: AltCrawlStyle;
+  /** Shareable landmark chapter deep link (`?landmark=big-ben`). */
+  landmarkId?: string;
 };
 
 // The bounds mirror the sliders in ControlRail.tsx — keep in sync.
@@ -110,6 +112,7 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
   if (state.bandId) params.set("band", state.bandId);
+  if (state.landmarkId) params.set("landmark", state.landmarkId);
   // Only encode an alt style when it isn't the default "pint".
   if (state.altStyle && state.altStyle !== "pint") params.set("alt", state.altStyle);
   return params.toString();
@@ -187,6 +190,9 @@ export function decodeCrawl(
   const band = params.get("band");
   if (band) out.bandId = band.trim();
 
+  const landmark = params.get("landmark");
+  if (landmark) out.landmarkId = landmark.trim();
+
   const alt = params.get("alt");
   if (alt && ALT_CRAWL_STYLES.includes(alt as AltCrawlStyle)) {
     out.altStyle = alt as AltCrawlStyle;
@@ -203,6 +209,7 @@ export function seedCrawlState(search: string): {
   selectedVenueId: string;
   bandId: string;
   altStyle: AltCrawlStyle;
+  landmarkId: string;
 } {
   const decoded = decodeCrawl(new URLSearchParams(search));
   return {
@@ -212,5 +219,6 @@ export function seedCrawlState(search: string): {
     selectedVenueId: decoded.selectedVenueId ?? "",
     bandId: decoded.bandId ?? "",
     altStyle: decoded.altStyle ?? "pint",
+    landmarkId: decoded.landmarkId ?? "",
   };
 }

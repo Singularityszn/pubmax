@@ -94,6 +94,22 @@
   color: var(--brass);
 }
 
+.routePackLink.isActive {
+  border-bottom-color: var(--brass);
+  color: var(--brass);
+}
+
+.routePackActiveNote {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.routePackActiveNote a {
+  color: var(--brass);
+  font-weight: 700;
+}
+
 .routePackTitle {
   font-family: var(--serif);
   font-size: 17px;

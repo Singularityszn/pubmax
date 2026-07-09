@@ -28,16 +28,40 @@ function pack(
 
 export const routePacks: RoutePack[] = [
   pack(
+    "old-london",
+    "Old London",
+    "Heritage corridors — Victorian Soho snugs, riverside wharves, and the South Bank tide.",
+    ["victorian-soho", "riverside-heritage", "bankside-riverside"],
+  ),
+  pack(
     "thames",
-    "Thames",
+    "Thames-side",
     "River walks and waterside taverns — Bankside to Limehouse along the tide.",
     ["riverside-heritage", "bankside-riverside"],
   ),
   pack(
     "writers",
-    "Writers",
+    "Writers & Fleet Street",
     "Press-strip snugs and Bloomsbury reading-room rounds for the literary crawl.",
     ["fleet-street-writers", "bloomsbury-literary"],
+  ),
+  pack(
+    "music-theatre",
+    "Music & theatre",
+    "Market arches, Camden lock, and West End soft rounds — playhouse nights with a pint between acts.",
+    ["camden-market-crawl", "borough-market-crawl", "leicester-mocktail-crawl"],
+  ),
+  pack(
+    "markets-late-trains",
+    "Markets & late trains",
+    "Market loops and tight central clusters when the night should stay loud and you still need the last train.",
+    ["borough-market-crawl", "camden-market-crawl", "victorian-soho", "leicester-mocktail-crawl"],
+  ),
+  pack(
+    "coding-pint",
+    "Coding pint",
+    "City-fringe rounds from Leadenhall to Liverpool Street — the after-work pint between the Square Mile and the East End.",
+    ["pint-park-view"],
   ),
   pack(
     "cheap-chaos",

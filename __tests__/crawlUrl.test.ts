@@ -64,6 +64,7 @@ describe("crawlUrl", () => {
       selectedVenueId: sample.selectedVenueId,
       bandId: "", // additive story-band field, "" when no ?band= in the URL
       altStyle: "pint", // additive alt-style field, defaults to "pint" (issue #31)
+      landmarkId: "",
     });
   });
 
@@ -75,6 +76,13 @@ describe("crawlUrl", () => {
     const bare = decodeCrawl(new URLSearchParams(encodeCrawl(sample)));
     expect(bare.bandId).toBeUndefined();
     expect(seedCrawlState(`?${encodeCrawl(withBand)}`).bandId).toBe("river-history");
+  });
+
+  it("round-trips a landmark chapter via ?landmark=", () => {
+    const withLandmark = { ...sample, landmarkId: "tower-bridge" };
+    const decoded = decodeCrawl(new URLSearchParams(encodeCrawl(withLandmark)));
+    expect(decoded.landmarkId).toBe("tower-bridge");
+    expect(seedCrawlState(`?${encodeCrawl(withLandmark)}`).landmarkId).toBe("tower-bridge");
   });
 
   it("round-trips an alt crawl style via ?alt= (issue #31)", () => {
