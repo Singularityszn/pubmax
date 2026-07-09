@@ -39,56 +39,6 @@
   box-sizing: border-box;
 }
 
-/* ── Nav ──────────────────────────────────────────────────────────────── */
-.feedNav {
-  width: 100%;
-  max-width: var(--feed-max);
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 6px;
-  border: 1px solid var(--feed-border);
-  border-radius: 999px;
-  background: var(--feed-glass);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 10px 28px rgba(44, 30, 62, 0.08);
-}
-
-.feedNav a {
-  padding: 8px 12px;
-  border-radius: 999px;
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-  font-weight: 650;
-  text-decoration: none;
-  transition: color 0.18s ease, background 0.18s ease;
-}
-
-.feedNav a:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-}
-
-.feedNav a[aria-current="page"] {
-  color: var(--brass);
-  font-weight: 700;
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-}
-
-.feedNav a:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-/* Sign-in slot sits at the end of the nav, pushed to the right so the tabs
-   read as one group and the account action as another. */
-.feedNavAuth {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-}
-
 /* ── Header ───────────────────────────────────────────────────────────── */
 .feedHeader {
   width: 100%;
@@ -322,13 +272,16 @@
   padding: 8px 14px;
   border: 1px solid var(--feed-border);
   border-radius: 999px;
-  background: var(--feed-glass);
+  /* Wave I3: solid raised panel — less stacked glass on non-map pages */
+  background: var(--panel-raised, var(--panel));
   color: var(--ink-soft);
   font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
-  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  box-shadow: var(--shadow, 0 2px 8px rgba(22, 18, 42, 0.05));
+  transition: border-color var(--duration-base, 0.15s) var(--ease-out, ease),
+    background var(--duration-base, 0.15s) var(--ease-out, ease),
+    color var(--duration-base, 0.15s) var(--ease-out, ease);
 }
 
 .feedFilterChip:hover {
@@ -535,24 +488,23 @@
 }
 
 .feedPriceStamp {
+  /* Wave I3: DESIGN_SYSTEM ink-stamp — brass price stamp, not a glass pill. */
   position: absolute;
   right: 12px;
   bottom: 12px;
-  padding: 7px 13px;
-  border: 1px solid color-mix(in srgb, var(--panel-raised) 82%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  padding: 6px 12px;
+  border: 1.5px solid color-mix(in srgb, var(--brass) 55%, var(--ink));
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--panel-raised) 92%, var(--brass) 8%);
   color: color-mix(in srgb, var(--pint) 72%, var(--ink));
-  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
-  font-size: 1.16rem;
+  font-family: var(--font-data, var(--font-display), ui-monospace, monospace);
+  font-size: 1.05rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  box-shadow:
-    0 10px 24px rgba(22, 18, 42, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.58);
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow, 0 4px 12px rgba(22, 18, 42, 0.12));
+  transform: rotate(-2deg);
+  view-transition-name: feed-price-stamp;
 }
 
 /* Receipt fallback — a typographic card when there is no photo. */
@@ -1129,6 +1081,11 @@
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  /* Wave I1: tab bar centre Drop owns compose — hide the redundant header CTA. */
+  .feedDropCta {
+    display: none;
+  }
+
   /* Tighten the outer gutters so the cards get the width, but keep the last
      card clear of the fixed bottom tab bar (body already carries the inset;
      this is breathing room above it). */

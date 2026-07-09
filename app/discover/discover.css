@@ -53,7 +53,7 @@
 
 .discoverTitle {
   margin: 0 0 14px;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: clamp(30px, 5vw, 46px);
   line-height: 1.05;
   font-weight: 700;
@@ -78,7 +78,7 @@
   margin: 0 0 4px;
   padding-left: 12px;
   border-left: 3px solid var(--brass);
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 24px;
   font-weight: 700;
   color: var(--ink);
@@ -119,6 +119,68 @@
   color: var(--river);
   font-weight: 700;
   text-decoration: underline;
+}
+
+/* Wave I3 — layout-matched loading skeleton for tonight rankings */
+.discoverSkelList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.discoverSkelRow {
+  display: grid;
+  grid-template-columns: 28px 1fr 64px;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.discoverSkelRank,
+.discoverSkelLine,
+.discoverSkelPrice {
+  display: block;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--line-soft, var(--line)) 70%, var(--panel-raised));
+  animation: discoverSkelPulse 1.2s ease-in-out infinite;
+}
+
+.discoverSkelRank {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.discoverSkelLine {
+  height: 14px;
+  width: 72%;
+}
+
+.discoverSkelPrice {
+  height: 14px;
+  width: 100%;
+}
+
+@keyframes discoverSkelPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discoverSkelRank,
+  .discoverSkelLine,
+  .discoverSkelPrice {
+    animation: none;
+  }
 }
 
 /* ── Leaderboard table ─────────────────────────────────────────────── */
@@ -386,7 +448,7 @@
 
 .tvnName {
   margin: 0;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 17px;
   font-weight: 700;
   line-height: 1.18;
@@ -494,7 +556,7 @@
 
 .editorialTitle {
   margin: 0 0 8px;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 19px;
   font-weight: 700;
   color: var(--ink);
@@ -762,7 +824,7 @@
 
 .discoverBrandTitle {
   margin: 0;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--ink);

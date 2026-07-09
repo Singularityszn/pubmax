@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
@@ -11,9 +9,9 @@ import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
+import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import SavedPubList from "@/components/profile/SavedPubList";
 import SiteNav from "@/components/nav/SiteNav";
-import { VENUE_FALLBACK_LABEL } from "@/lib/feed";
 import type { FollowCounts } from "@/lib/followStore";
 import { buildPassport } from "@/lib/passport";
 import {
@@ -62,10 +60,6 @@ type PublicDrop = ProfileDrop & {
 };
 
 type LoadState = "loading" | "ready" | "error";
-
-function formatGbp(value: number | null | undefined): string | null {
-  return typeof value === "number" && Number.isFinite(value) ? `£${value.toFixed(2)}` : null;
-}
 
 // localStorage fallback → DTO groups. The client has no server venue index, so a
 // local-only save renders its id as the name (the demo degrade for a signed-out /
@@ -424,58 +418,26 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
 
             <section className="profileDropsSection" aria-labelledby="dropsHeading">
               <h2 id="dropsHeading" className="profileSectionHeading">
-                Recent Pint Drops
+                Timeline
               </h2>
 
               {state === "loading" ? (
-                <p className="profileEmpty">Loading pints…</p>
+                <div className="profileTimelineSkel feedList" aria-hidden="true">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="feedCard feedCardSkeleton">
+                      <div className="feedSkelHead">
+                        <span className="feedSkelAvatar" />
+                        <span className="feedSkelLine feedSkelLineShort" />
+                      </div>
+                      <div className="feedSkelPhoto" />
+                      <div className="feedSkelLine" />
+                    </div>
+                  ))}
+                </div>
               ) : drops.length === 0 ? (
                 <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
               ) : (
-                <ul className="profileDropsGrid">
-                  {drops.map((drop, i) => {
-                    const price = formatGbp(drop.priceGbp);
-                    const photo = drop.pintPhotoUrl || drop.venuePhotoUrl || null;
-                    const key = (drop.id as string | undefined) ?? `${drop.venueId}:${i}`;
-                    // The human pub name (never the raw venue id): prefer the
-                    // server-enriched venueName, fall back to the friendly label.
-                    const venueLabel = drop.venueName || VENUE_FALLBACK_LABEL;
-                    // Tapping the venue opens the map with it selected (§9). Use
-                    // the enriched map url, or build the same ?sel=<id> fallback.
-                    const venueHref =
-                      drop.venueMapUrl ?? `/map?sel=${encodeURIComponent(drop.venueId)}`;
-                    return (
-                      <li className="profileDropCard" key={key}>
-                        {photo ? (
-                          <div className="profileDropPhoto">
-                            <Image
-                              src={photo}
-                              alt={drop.drink ? `${drop.drink} at ${venueLabel}` : ""}
-                              width={320}
-                              height={220}
-                              unoptimized
-                            />
-                          </div>
-                        ) : (
-                          <div className="profileDropPhoto profileDropPhotoEmpty" aria-hidden="true">
-                            🍺
-                          </div>
-                        )}
-                        <div className="profileDropBody">
-                          <div className="profileDropTop">
-                            <Link className="profileDropVenue" href={venueHref}>
-                              {venueLabel}
-                            </Link>
-                            {price ? <span className="profileDropPrice">{price}</span> : null}
-                          </div>
-                          {drop.passedDownNote ? (
-                            <p className="profileDropNote">{drop.passedDownNote}</p>
-                          ) : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <ProfileTimeline drops={drops as Array<Record<string, unknown>>} />
               )}
             </section>
 

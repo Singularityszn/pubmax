@@ -192,14 +192,15 @@ export type FeedFilterDef = {
 };
 
 // Order matters — this is the on-screen chip order.
+// Wave I1: demo lanes `nearby` / `crawls` stay in the FeedFilter union +
+// applyFeedFilter (pass-through) but are hidden from chips until real geo /
+// crawl-linkage signals exist — they looked like product lanes and weren't.
 export const FEED_FILTERS: FeedFilterDef[] = [
   { id: "latest", label: "Latest", demo: false },
   { id: "for-you", label: "For You", demo: false },
   { id: "tonight", label: "Tonight", demo: false },
   { id: "friends", label: "Friends", demo: false },
-  { id: "nearby", label: "Near Me", demo: true },
   { id: "cheap", label: "Cheap Legends", demo: false },
-  { id: "crawls", label: "Crawls", demo: true },
   { id: "golden-days", label: "Golden Days", demo: false },
 ];
 

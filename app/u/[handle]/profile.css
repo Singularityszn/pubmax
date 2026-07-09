@@ -8,59 +8,6 @@
   min-height: 100dvh;
 }
 
-/* ── Top bar ─────────────────────────────────────────────────────────── */
-.profilePage .profileTopbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.profilePage .profileTopbarInner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  min-height: 64px;
-}
-
-.profilePage .profileWordmark {
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 1.28rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.profilePage .profileNav {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.profilePage .profileNav a {
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: color 0.18s ease, background 0.18s ease;
-}
-
-.profilePage .profileNav a:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-}
-
-.profilePage .profileNav a:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
 /* ── Main scaffolding ────────────────────────────────────────────────── */
 .profilePage .profileMain {
   padding-block: clamp(32px, 6vw, 64px);
@@ -70,10 +17,23 @@
 
 .profilePage .profileSectionHeading,
 .profilePage .savedHeading {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: clamp(1.4rem, 3vw, 1.9rem);
   letter-spacing: -0.015em;
   margin: 0 0 20px;
+}
+
+/* Wave I1/I3 — Memory Timeline reuses feed card styles */
+.profilePage .profileTimeline {
+  display: grid;
+  gap: 18px;
+  max-width: 560px;
+}
+
+.profilePage .profileTimelineSkel {
+  display: grid;
+  gap: 18px;
+  max-width: 560px;
 }
 
 /* Error state reuses the header, then a quiet inline notice below it. Keep the
@@ -132,7 +92,7 @@
   place-items: center;
   background: var(--ink-deep);
   color: var(--brass-bright);
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 2.2rem;
   font-weight: 600;
 }
@@ -142,7 +102,7 @@
 }
 
 .profilePage .profileDisplayName {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: clamp(1.7rem, 4vw, 2.4rem);
   line-height: 1.08;
   letter-spacing: -0.02em;
@@ -263,7 +223,7 @@
 
 .profilePage .profileStat dd {
   margin: 4px 0 0;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.5rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -352,7 +312,7 @@
 }
 
 .profilePage .profileDropPrice {
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-weight: 600;
   font-size: 1.1rem;
   font-variant-numeric: tabular-nums;
@@ -383,7 +343,7 @@
 
 .profilePage .savedListName {
   margin: 0 0 12px;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.2rem;
 }
 
@@ -464,7 +424,7 @@
 
 .profilePage .followedListName {
   width: fit-content;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.12rem;
   font-weight: 700;
 }
@@ -510,7 +470,7 @@
 
 .profilePage .listDetailTitle {
   margin: 0;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: clamp(2rem, 5vw, 3.2rem);
   line-height: 1.02;
 }
@@ -735,7 +695,8 @@
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 560px) {
   .profilePage .profileMain {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    /* Wave I3: align with mobile tab bar clearance token */
+    padding-bottom: calc(var(--mobile-tab-clearance, 104px) + 16px + env(safe-area-inset-bottom, 0px));
   }
 
   .profilePage .profileIdentity {
@@ -810,7 +771,7 @@
 
 .profilePage .passportHolder {
   margin: 0;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -845,7 +806,7 @@
 
 .profilePage .passportFirstRunLead {
   margin: 0 0 6px;
-  font-family: var(--font-garamond, var(--serif));
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--ink);

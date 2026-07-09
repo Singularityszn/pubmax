@@ -4,65 +4,82 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
+import { useAuth } from "@/components/auth/AuthProvider";
+import SignInButton from "@/components/auth/SignInButton";
 import SiteNav from "@/components/nav/SiteNav";
+import { authedFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
+import { normalizeHandle } from "@/lib/profiles";
 
 import "./messages.css";
 
-// The messaging inbox (PRD E4): a handle's conversations, newest-first, with an
-// unread badge per thread. Reads the viewer's self-asserted `pubmax_handle` (the
-// same key the rest of the app writes); a signed-out viewer gets a friendly empty
-// state, never a broken page. Reads are fail-soft — an outage renders as an empty
-// inbox. Polls on focus + a slow interval so a new message surfaces without a
-// reload (the thread page carries the faster realtime/polling).
-//
-// COURTESY-CURTAIN, NOT PRIVACY: identity is the self-asserted handle (no auth
-// yet) — see lib/messages.ts + migration 0019.
+// The messaging inbox (PRD E4 / Wave I2): conversations for the signed-in
+// linked actor. Bearer via authedFetch; unsigned viewers get a sign-in prompt.
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 20_000;
 
 function readHandle(): string {
   if (typeof window === "undefined") return "";
-  return (window.localStorage.getItem(HANDLE_KEY) ?? "").trim();
+  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
 }
 
 export default function MessagesInboxPage(): React.JSX.Element {
+  const { user, handle: authHandle } = useAuth();
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
 
-  // Post-hydration handle read (avoids a server/client mismatch — mirrors the
-  // NotificationBell idiom). setState runs inside the async step.
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => {
-      if (active) setHandle(readHandle());
+      if (!active) return;
+      const fromAuth = normalizeHandle(authHandle ?? "");
+      setHandle(fromAuth || readHandle());
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [authHandle]);
 
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    const h = readHandle();
-    if (h !== handle) setHandle(h);
-    if (!h) {
-      setConversations([]);
-      setLoaded(true);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/messages?handle=${encodeURIComponent(h)}`, { signal });
-      if (!res.ok) return;
-      const body = (await res.json()) as { conversations?: ConversationDTO[] };
-      setConversations(Array.isArray(body.conversations) ? body.conversations : []);
-    } catch {
-      // aborted / offline — leave the list as-is; the inbox never breaks on this.
-    } finally {
-      setLoaded(true);
-    }
-  }, [handle]);
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!user) {
+        setConversations([]);
+        setNeedsSignIn(true);
+        setLoaded(true);
+        return;
+      }
+      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      if (h !== handle) setHandle(h);
+      if (!h) {
+        setConversations([]);
+        setNeedsSignIn(true);
+        setLoaded(true);
+        return;
+      }
+      try {
+        const res = await authedFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
+          signal,
+        });
+        if (res.status === 401) {
+          setNeedsSignIn(true);
+          setConversations([]);
+          return;
+        }
+        if (!res.ok) return;
+        setNeedsSignIn(false);
+        const body = (await res.json()) as { conversations?: ConversationDTO[] };
+        setConversations(Array.isArray(body.conversations) ? body.conversations : []);
+      } catch {
+        // aborted / offline — leave the list as-is; the inbox never breaks on this.
+      } finally {
+        setLoaded(true);
+      }
+    },
+    [handle, user, authHandle],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -83,12 +100,18 @@ export default function MessagesInboxPage(): React.JSX.Element {
       <main className="container messagesMain">
         <h1 className="messagesHeading">Messages</h1>
         <p className="messagesCourtesyNote">
-          Handles are self-asserted for now — messages are a courtesy, not
-          encrypted privacy. Keep it low-stakes; report anything off.
+          Messages require a signed-in account. Keep it low-stakes; report anything
+          off.
         </p>
 
         {!loaded ? (
           <p className="conversationPreview">Loading…</p>
+        ) : needsSignIn || !user ? (
+          <EmptyState
+            title="Sign in to message"
+            body="Private messages need a Google-linked account so nobody can read or send as your handle."
+            action={<SignInButton />}
+          />
         ) : conversations.length === 0 ? (
           <EmptyState
             title="No conversations yet"

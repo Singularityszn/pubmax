@@ -155,7 +155,8 @@ export default function RootLayout({
               prerender: [
                 {
                   source: "list",
-                  urls: ["/crawls", "/discover"],
+                  /* Wave I3: include /feed (Stories) — light RSC, no WebGL. */
+                  urls: ["/crawls", "/discover", "/feed"],
                   eagerness: "moderate",
                 },
                 {

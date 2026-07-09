@@ -16,7 +16,13 @@ Date: 2026-07-08
 > [`PRD_MEMORY_SHARE_OUTER_LONDON_WAVE_2026-07-09.md`](./PRD_MEMORY_SHARE_OUTER_LONDON_WAVE_2026-07-09.md)
 > for shareable crawl memories, trusted Drop nearby picker, place-quest events,
 > and Outer London P1 coverage ([`PRD_OUTER_LONDON_COVERAGE.md`](./PRD_OUTER_LONDON_COVERAGE.md)).
-> Coordinate with open #63 (map declutter) and #64 (security) — do not rebuild them.
+> **Shipped on main:** #63 (Layers declutter), #65 (Wave H), #67 (security
+> Phases 1–4), #69 (message gate status). Do not rebuild them.
+>
+> **Wave I (2026-07-09):** see
+> [`PRD_MEMORY_TIMELINE_SOCIAL_UX_WAVE_2026-07-09.md`](./PRD_MEMORY_TIMELINE_SOCIAL_UX_WAVE_2026-07-09.md)
+> for Memory Timeline, trusted DMs (`authedFetch` + linked actor), and UX
+> declutter/speed. Coordinate with open #68/#70; close superseded #64/#66.
 
 ## Problem Statement
 

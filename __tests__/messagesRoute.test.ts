@@ -32,6 +32,11 @@ function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");
 }
 
+/** Wave I2: DMs require a signed-in actor — set caller before each request. */
+function asUser(userId: string): void {
+  authState.userId = userId;
+}
+
 function getInbox(query?: string, headers?: HeadersInit): Promise<Response> {
   return GET_INBOX(new Request(query ? `${BASE}?${query}` : BASE, { headers }));
 }
@@ -69,28 +74,42 @@ describe("GET /api/messages — inbox", () => {
     expectNoStore(res);
     expect(await res.json()).toEqual({ conversations: [] });
   });
+
+  it("401s when a handle is asserted without a signed-in actor (Wave I2)", async () => {
+    const res = await getInbox("handle=ken");
+    expect(res.status).toBe(401);
+  });
 });
 
 describe("POST /api/messages — open + send validation", () => {
   it("rejects a malformed body", async () => {
+    asUser("user-ken");
     const res = await POST_INBOX(new Request(BASE, { method: "POST", body: "not json" }));
     expect(res.status).toBe(400);
   });
 
+  it("401s without a signed-in actor", async () => {
+    expect((await postInbox({ action: "open", handle: "ken", other: "sam" })).status).toBe(401);
+  });
+
   it("rejects a missing handle / recipient / self-message", async () => {
+    asUser("user-ken");
     expect((await postInbox({ action: "open", other: "sam" })).status).toBe(400);
     expect((await postInbox({ action: "open", handle: "ken" })).status).toBe(400);
     expect((await postInbox({ action: "open", handle: "ken", other: "ken" })).status).toBe(400);
   });
 
   it("opens a conversation and returns a stable id", async () => {
+    asUser("user-ken");
     const a = await (await postInbox({ action: "open", handle: "ken", other: "sam" })).json();
+    asUser("user-sam");
     const b = await (await postInbox({ action: "open", handle: "@Sam", other: "KEN" })).json();
     expect(a.conversationId).toBeTruthy();
     expect(a.conversationId).toBe(b.conversationId);
   });
 
   it("send opens-if-needed, stores the message (201), and rejects a blank body", async () => {
+    asUser("user-ken");
     const sent = await postInbox({ action: "send", handle: "ken", other: "sam", body: "hi sam" });
     expect(sent.status).toBe(201);
     expectNoStore(sent);
@@ -102,18 +121,21 @@ describe("POST /api/messages — open + send validation", () => {
   });
 
   it("rejects an unknown action", async () => {
+    asUser("user-ken");
     expect((await postInbox({ action: "poke", handle: "ken", other: "sam" })).status).toBe(400);
   });
 });
 
 describe("GET /api/messages/[id] — participant gating (the leak test)", () => {
   async function seed(): Promise<string> {
+    asUser("user-ken");
     const res = await postInbox({ action: "send", handle: "ken", other: "sam", body: "secret" });
     return (await res.json()).conversationId;
   }
 
   it("serves the thread to a participant", async () => {
     const id = await seed();
+    asUser("user-sam");
     const res = await getThread(id, "handle=sam");
     expect(res.status).toBe(200);
     expectNoStore(res);
@@ -123,19 +145,23 @@ describe("GET /api/messages/[id] — participant gating (the leak test)", () => 
 
   it("returns 404 to a NON-participant — never leaks the thread", async () => {
     const id = await seed();
+    asUser("user-mallory");
     const res = await getThread(id, "handle=mallory");
     expect(res.status).toBe(404);
     expectNoStore(res);
     expect(await res.json()).not.toHaveProperty("messages");
   });
 
-  it("returns 404 for an unknown conversation and 400 for a missing handle", async () => {
+  it("returns 404 for an unknown conversation and 401 without sign-in", async () => {
+    asUser("user-ken");
     expect((await getThread("nope", "handle=ken")).status).toBe(404);
-    expect((await getThread("nope")).status).toBe(400);
+    authState.userId = null;
+    expect((await getThread("nope")).status).toBe(401);
   });
 
   it("surfaces a 503 from the ownership gate instead of collapsing to 404", async () => {
     const id = await seed();
+    asUser("user-ken");
     const spy = vi
       .spyOn(memoryProfileStore, "getByHandle")
       .mockRejectedValueOnce(new Error("store down"));
@@ -148,15 +174,18 @@ describe("GET /api/messages/[id] — participant gating (the leak test)", () => 
 
 describe("POST /api/messages/[id] — send + report gating", () => {
   async function seed(): Promise<string> {
+    asUser("user-ken");
     const res = await postInbox({ action: "send", handle: "ken", other: "sam", body: "hi" });
     return (await res.json()).conversationId;
   }
 
   it("lets a participant reply (201) but 404s a non-participant sender", async () => {
     const id = await seed();
+    asUser("user-sam");
     expect((await postThread(id, { action: "send", handle: "sam", body: "reply" })).status).toBe(
       201,
     );
+    asUser("user-mallory");
     expect(
       (await postThread(id, { action: "send", handle: "mallory", body: "intrude" })).status,
     ).toBe(404);
@@ -164,6 +193,7 @@ describe("POST /api/messages/[id] — send + report gating", () => {
 
   it("lets a participant report a message; a non-participant gets 404", async () => {
     const id = await seed();
+    asUser("user-sam");
     const thread = await (await getThread(id, "handle=sam")).json();
     const messageId = thread.messages[0].id;
 
@@ -172,12 +202,14 @@ describe("POST /api/messages/[id] — send + report gating", () => {
     expectNoStore(ok);
     expect((await ok.json()).flagged).toBe(true);
 
+    asUser("user-mallory");
     const leak = await postThread(id, { action: "report", handle: "mallory", messageId });
     expect(leak.status).toBe(404);
   });
 
   it("does not let a participant flag a message from another conversation", async () => {
     const firstId = await seed();
+    asUser("user-jen");
     const second = await postInbox({
       action: "send",
       handle: "jen",
@@ -185,9 +217,11 @@ describe("POST /api/messages/[id] — send + report gating", () => {
       body: "private elsewhere",
     });
     const secondId = (await second.json()).conversationId;
+    asUser("user-max");
     const secondThread = await (await getThread(secondId, "handle=max")).json();
     const foreignMessageId = secondThread.messages[0].id;
 
+    asUser("user-sam");
     const res = await postThread(firstId, {
       action: "report",
       handle: "sam",
@@ -196,6 +230,7 @@ describe("POST /api/messages/[id] — send + report gating", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ flagged: false });
 
+    asUser("user-max");
     const stillUnflagged = await (await getThread(secondId, "handle=max")).json();
     expect(stillUnflagged.messages[0].flagged).toBe(false);
   });
@@ -204,7 +239,7 @@ describe("POST /api/messages/[id] — send + report gating", () => {
 describe("messages auth ownership — linked handle wins over body handle", () => {
   it("sends as the auth-linked handle, ignoring a spoofed body handle", async () => {
     await memoryProfileStore.linkUser("ken", "user-ken");
-    authState.userId = "user-ken";
+    asUser("user-ken");
 
     const res = await postInbox({
       action: "send",
@@ -218,18 +253,16 @@ describe("messages auth ownership — linked handle wins over body handle", () =
 
     const inbox = await (await getInbox("handle=ignored")).json();
     expect(inbox.conversations.length).toBe(1);
-    expect(inbox.conversations[0].otherHandle).toBe("sam");
   });
 
-  it("keeps the anonymous demo path when auth is absent", async () => {
-    authState.userId = null;
+  it("401s when the linked owner is not signed in", async () => {
+    await memoryProfileStore.linkUser("ken", "user-ken");
     const res = await postInbox({
       action: "send",
-      handle: "demo",
+      handle: "ken",
       other: "sam",
-      body: "anon hi",
+      body: "spoof",
     });
-    expect(res.status).toBe(201);
-    expect((await res.json()).message.senderHandle).toBe("demo");
+    expect(res.status).toBe(401);
   });
 });

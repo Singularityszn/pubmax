@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import FeedCard from "@/components/feed/FeedCard";
 import FeedFilters from "@/components/feed/FeedFilters";
 import PresenceStrip from "@/components/feed/PresenceStrip";
@@ -153,6 +154,9 @@ export default function FeedPage() {
   // they power the Friends lane: null handle or an empty set ⇒ the lane is empty
   // and the page shows a "follow people" prompt. `null` following = not yet
   // loaded (so we don't flash the empty state before the fetch resolves).
+  // Wave I1: prefer the signed-in auth handle when present so Friends/For You
+  // match the Google-linked identity instead of a stale localStorage claim.
+  const { handle: authHandle } = useAuth();
   const [myHandle, setMyHandle] = useState("");
   const [followingHandles, setFollowingHandles] = useState<Set<string> | null>(null);
 
@@ -278,12 +282,18 @@ export default function FeedPage() {
   );
 
   // Read the viewer's own handle after mount (the server can't know
-  // localStorage). Done in an async step, not the synchronous effect body, so it
+  // localStorage). Prefer the signed-in auth handle when present (Wave I1).
+  // Done in an async step, not the synchronous effect body, so it
   // satisfies react-hooks/set-state-in-effect (mirrors the /u/[handle] page).
   useEffect(() => {
     let active = true;
     async function loadHandle() {
       try {
+        const fromAuth = normalizeHandle(authHandle ?? "");
+        if (fromAuth) {
+          if (active) setMyHandle(fromAuth);
+          return;
+        }
         const handle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
         if (active) setMyHandle(handle);
       } catch {
@@ -294,7 +304,7 @@ export default function FeedPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authHandle]);
 
   // Fetch the handles the viewer follows once their handle is known. Best-effort
   // and fail-soft: any failure (or no handle) resolves to an empty set, so the

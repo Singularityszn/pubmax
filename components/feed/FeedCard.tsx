@@ -192,6 +192,7 @@ export default function FeedCard({
             height={1280}
             loading="lazy"
             unoptimized
+            style={{ viewTransitionName: `feed-photo-${item.id}` }}
           />
           {/* Category-tinted gradient edge — a colour whisper of the drink family
               along the bottom edge, UNDER the fixed dark scrim so it never fights

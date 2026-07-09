@@ -36,7 +36,9 @@ type Comment = {
   parentId: string | null;
 };
 
-const HANDLE_STORAGE_KEY = "pubmax:comment:handle";
+// Wave I1: same key as feed / profile / composer so comments don't invent a
+// second identity lane beside `pubmax_handle`.
+const HANDLE_STORAGE_KEY = "pubmax_handle";
 const MAX_BODY = 500;
 
 // Lazy, guarded localStorage read — runs once in useState init, never in an
