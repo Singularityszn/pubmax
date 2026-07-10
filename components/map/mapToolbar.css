@@ -138,26 +138,29 @@
 
 @media (max-width: 640px) {
   .mapToolbar {
-    overflow: hidden;
+    /* Visible so CitySwitcher dropdown can escape; clip only the search field. */
+    overflow: visible;
     /* Match .siteNavBarFloating padding/radius so the two chrome cards read as twins. */
-    padding: 3px 7px;
+    padding: 2px 7px;
     gap: 0;
-    min-height: 36px;
+    min-height: 40px;
     border-radius: var(--map-chrome-radius, 14px);
     box-sizing: border-box;
   }
 
   .mapToolbarRow {
     width: 100%;
-    gap: 5px;
-    min-height: 28px;
+    gap: 4px;
+    min-height: 36px;
   }
 
   .mapToolbarSearch {
     min-width: 0;
     flex: 1 1 auto;
-    min-height: 28px;
-    padding: 1px 7px;
+    min-height: 36px;
+    padding: 2px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .mapToolbarSearch input {
@@ -167,8 +170,8 @@
   }
 
   .mapToolbarDrinksBtn {
-    min-height: 28px;
-    height: 28px;
+    min-height: 36px;
+    height: 36px;
     padding: 0 8px;
     font-size: 0.66rem;
     line-height: 1;
@@ -181,8 +184,8 @@
   }
 
   .planBtn {
-    min-height: 28px;
-    height: 28px;
+    min-height: 36px;
+    height: 36px;
     padding: 0 10px;
     font-size: 0.7rem;
     line-height: 1;
@@ -204,7 +207,7 @@
   }
 
   .drinkShapeChip {
-    min-height: 34px;
+    min-height: 36px;
     padding: 4px 9px 4px 6px;
   }
 

@@ -3959,16 +3959,24 @@ button:disabled {
     transform: translateY(0) !important;
   }
 
+  /* Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css. */
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging) {
-    transform: translateY(18vh) !important;
+    transform: translateY(45vh) !important;
   }
 
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
-    transform: translateY(68vh) !important;
+    transform: translateY(86vh) !important;
   }
 
   .mapDrawer.right.open.sheet-full:not(.sheet-dragging) {
-    transform: translateY(0) !important;
+    transform: translateY(8vh) !important;
+  }
+
+  .mapDrawer.right.open.sheet-full:not(.sheet-dragging),
+  .mapDrawer.right.open.sheet-half:not(.sheet-dragging),
+  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
+    height: 100vh;
+    max-height: none;
   }
 
   .appShell.planning-open .mapDrawer.left.open {
@@ -4077,14 +4085,14 @@ button:disabled {
     --map-mobile-legend-clearance: 0px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
-    /* Compact matched chrome: nav (~36px with 28px controls) + gap + safe area. */
+    /* Compact matched chrome: nav (~40px) + gap + safe area; toolbar twins at ~40px. */
     --map-top-clearance: calc(
-      10px + env(safe-area-inset-top, 0px) + 36px + var(--map-chrome-gap)
+      10px + env(safe-area-inset-top, 0px) + 40px + var(--map-chrome-gap)
     );
-    --map-overlay-top: calc(var(--map-top-clearance) + 42px);
+    --map-overlay-top: calc(var(--map-top-clearance) + 46px);
     /* Stack FABs clearly above the compact tab bar; chips one row higher. */
-    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 14px);
-    --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 58px);
+    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 18px);
+    --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);
   }
 
   /* Tab bar is hidden while planning/detail sheets own the bottom edge. */
@@ -4099,10 +4107,11 @@ button:disabled {
     gap: 4px;
   }
 
-  /* MapLibre's built-in zoom/compass control competes with the bottom tab bar
-     on phones. The app-owned London/Recenter controls remain visible above. */
+  /* MapLibre's built-in zoom/compass/attribution compete with the bottom tab
+     bar and corner FABs on phones. App-owned London/Recenter stay visible. */
   .maplibregl-ctrl-top-right,
-  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group {
+  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group,
+  .maplibregl-ctrl-bottom-right {
     display: none;
   }
 
@@ -4141,7 +4150,7 @@ button:disabled {
   .mapLegend {
     left: 10px;
     right: auto;
-    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance) + 10px));
+    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance) + 18px));
     max-width: min(220px, calc(100vw - 120px));
     gap: 8px;
     padding: 8px 10px;

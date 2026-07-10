@@ -5,7 +5,8 @@
   position: absolute;
   left: max(16px, env(safe-area-inset-left));
   right: max(16px, env(safe-area-inset-right));
-  bottom: calc(88px + env(safe-area-inset-bottom));
+  /* Sit on the shared FAB row so the panel clears the mobile tab bar. */
+  bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 18px));
   z-index: 545;
   display: grid;
   gap: 10px;
@@ -95,7 +96,7 @@
 
 @media (max-width: 640px) {
   .logIntentFallback {
-    bottom: calc(96px + env(safe-area-inset-bottom));
+    /* --map-bottom-fab-row is set on .appShell at this breakpoint. */
     padding: 12px;
   }
 }

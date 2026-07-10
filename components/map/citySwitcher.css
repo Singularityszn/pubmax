@@ -39,6 +39,10 @@
   white-space: nowrap;
 }
 
+.citySwitcherLabelShort {
+  display: none;
+}
+
 .citySwitcherCaret {
   width: 0;
   height: 0;
@@ -84,12 +88,29 @@
 }
 
 @media (max-width: 640px) {
-  .citySwitcherLabel {
-    max-width: 5.5rem;
+  .citySwitcherTrigger {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 8px;
+    font-size: 0.66rem;
+    line-height: 1;
+    box-sizing: border-box;
+  }
+
+  /* Full name on wider phones; short code frees width for Search/Drinks/Plan. */
+  .citySwitcherLabelFull {
+    display: none;
+  }
+
+  .citySwitcherLabelShort {
+    display: inline;
+    max-width: none;
+    letter-spacing: 0.04em;
   }
 
   .citySwitcherList {
-    right: auto;
-    left: 0;
+    right: 0;
+    left: auto;
+    z-index: 50;
   }
 }

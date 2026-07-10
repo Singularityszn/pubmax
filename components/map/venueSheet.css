@@ -258,29 +258,33 @@
    rules below apply (no .sheet-* class is ever added by PubMap on desktop
    widths, but we still scope by media query as a hard belt-and-braces cut). */
 @media (max-width: 640px) {
-  /* .mapDrawer.right already owns position/width/the base transition and a
-     `max-height: 82vh` ceiling (globals.css, ≤768px) — here we only add the
-     resting transform for each snap state, so the sheet settles to
-     peek/half/full instead of just open/closed. globals.css's own
-     `transform: translateY(100%)` (closed) and `.open { transform:
-     translateY(0) }` still apply while detailOpen is false / as the base
-     "open" position — these rules fire once `.open` is also present (i.e.
-     detailOpen is true), overriding its translateY per snap. Values are
-     translateY DOWN from that 82vh-tall box's own top, so "full" is 0 (the
-     whole 82vh shows, same as the pre-existing default) and smaller snaps
-     push it further down to reveal only a slice of it. */
+  /* Resting transforms must match lib/sheetSnap.ts SHEET_SNAP_FRACTIONS
+     (revealed: peek 0.14 / half 0.55 / full 0.92 → translateY 86vh / 45vh /
+     8vh). The sheet is viewport-tall (height: 100vh below); translateY pushes
+     it down so only the revealed fraction stays on-screen. globals.css's
+     closed/open base transforms still apply when detailOpen is false; these
+     rules override once `.open.sheet-*` is present. Keep in sync with
+     globals.css's ≤768px `.sheet-*` overrides. */
   .mapDrawer.right.open.sheet-full {
-    transform: translateY(0);
+    transform: translateY(8vh);
   }
 
   .mapDrawer.right.open.sheet-half {
-    /* Reveal more of the selected venue above the fixed mobile tab bar. */
-    transform: translateY(18vh);
+    /* Reveal ~55vh of venue detail above the fixed mobile tab bar. */
+    transform: translateY(45vh);
   }
 
   .mapDrawer.right.open.sheet-peek {
     /* Reveal ~14vh — grabber + title + price, per the PRD's "peek" spec. */
-    transform: translateY(68vh);
+    transform: translateY(86vh);
+  }
+
+  /* Viewport-tall so translateY(vh) reveals exactly SHEET_SNAP_FRACTIONS. */
+  .mapDrawer.right.open.sheet-full,
+  .mapDrawer.right.open.sheet-half,
+  .mapDrawer.right.open.sheet-peek {
+    height: 100vh;
+    max-height: none;
   }
 
   /* While actively dragging, PubMap sets an inline transform (a live px
@@ -329,8 +333,10 @@
 }
 
 @media (max-width: 640px) {
+  /* Tab bar is hidden on detail-open; --mobile-tab-clearance shrinks to a
+     safe-area breathing buffer (see globals.css). Don't hardcode tab height. */
   .venueInspector {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--mobile-tab-clearance, 12px) + 8px);
   }
 
   .venueSheetStickyBar {

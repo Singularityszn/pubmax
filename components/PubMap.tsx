@@ -33,7 +33,8 @@ import MapPriceControl from "@/components/map/MapPriceControl";
 import CitySuggestBanner from "@/components/map/CitySuggestBanner";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
-import { useSheetDrag, sheetSnapTranslateYPx } from "@/components/map/useSheetDrag";
+import { useSheetDrag } from "@/components/map/useSheetDrag";
+import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import {
@@ -1489,7 +1490,7 @@ export default function PubMap({
         style={
           sheetDragY !== null
             ? {
-                transform: `translateY(${Math.max(0, sheetSnapTranslateYPx(sheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + sheetDragY)}px)`,
+                transform: `translateY(${Math.max(0, sheetTranslateY(sheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + sheetDragY)}px)`,
                 transition: "none",
               }
             : undefined
