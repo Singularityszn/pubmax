@@ -105,6 +105,8 @@ export type Venue = {
     nonAlcoholic: boolean;
   };
   website: string;
+  /** First non-empty booking_link from price rows — table booking CTA. */
+  bookingLink: string;
   imageUrl: string;
   description: string;
   dataQualityNotes: string[];
@@ -274,6 +276,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         nonAlcoholic: hasNonAlcoholic(prices.map((price) => price.pint_name)),
       },
       website: prices.find((price) => price.website)?.website ?? "",
+      bookingLink: prices.find((price) => price.booking_link)?.booking_link ?? "",
       imageUrl: prices.find((price) => price.image_url)?.image_url ?? "",
       description: prices.find((price) => price.description)?.description ?? "",
       dataQualityNotes: Array.from(dataQualityNotes),

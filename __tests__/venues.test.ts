@@ -97,6 +97,20 @@ describe("groupVenuePrices", () => {
     expect(venues[0].prices).toHaveLength(2);
   });
 
+  
+  it("aggregates bookingLink from the first non-empty booking_link row", () => {
+    const venues = groupVenuePrices([
+      makeRow({ booking_link: "", website: "https://a.example" }),
+      makeRow({
+        pint_name: "Ale",
+        price_gbp: 5,
+        booking_link: "https://book.example/table",
+      }),
+    ]);
+    expect(venues[0].bookingLink).toBe("https://book.example/table");
+    expect(venues[0].website).toBe("https://a.example");
+  });
+
   it("cheapestPrice is the min numeric price and a null never wins", () => {
     const venues = groupVenuePrices([
       makeRow({ price_gbp: 7 }),
