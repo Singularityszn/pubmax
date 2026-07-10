@@ -16,19 +16,40 @@
 
 import { NextResponse } from "next/server";
 
-// Only same-origin, absolute-path `next` values are honoured, so the redirect
-// can never be pointed at an external site (open-redirect guard).
-function safeNext(raw: string | null): string {
+/**
+ * Only same-origin absolute paths are honoured.
+ *
+ * Rejects:
+ *   - protocol-relative `//evil.com`
+ *   - backslash scheme tricks (`/\evil.com` → `https://evil.com/` in WHATWG URL)
+ *   - encoded variants after URLSearchParams decoding (`/%5cevil.com`)
+ *   - embedded credentials / host overrides
+ *
+ * WHATWG `new URL("/\\evil.com", origin)` treats `\` as `/`, so a bare
+ * startsWith("/") check is NOT sufficient — resolve against the request origin
+ * and require the result to stay on that origin.
+ */
+export function safeNext(raw: string | null, origin: string): string {
   if (!raw) return "/";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
-  return raw;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes("\\")) {
+    return "/";
+  }
+  try {
+    const dest = new URL(trimmed, origin);
+    if (dest.origin !== new URL(origin).origin) return "/";
+    // Preserve path + query + hash only — never an absolute external URL.
+    return `${dest.pathname}${dest.search}${dest.hash}` || "/";
+  } catch {
+    return "/";
+  }
 }
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const oauthError = url.searchParams.get("error");
-  const next = safeNext(url.searchParams.get("next"));
+  const next = safeNext(url.searchParams.get("next"), url.origin);
 
   // Google/Supabase reported a failure, or no code came back → land on the app
   // with a flag the UI can read, rather than a dead callback page.
