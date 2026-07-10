@@ -11,6 +11,7 @@ import { promises as fs } from "fs";
 import path from "path";
 
 import { haversineKm } from "@/lib/haversine";
+import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import {
   computeMetrolinkLastRide,
   METROLINK_PROVENANCE,
@@ -98,6 +99,9 @@ export async function GET(request: Request): Promise<Response> {
     const lng = Number.parseFloat(params.get("lng") ?? "");
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return json({ error: "lat and lng are required numbers." }, { status: 400 });
+    }
+    if (await isLastRideLimited(request, "last-tram")) {
+      return json({ error: "Too many requests, slow down." }, { status: 429 });
     }
 
     // Destination is client-only — ignore any legacy ?destination= query.

@@ -56,7 +56,9 @@ import {
   type NearestPub,
   type NextDepartures,
 } from "@/lib/tfl";
+import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { haversineKm } from "@/lib/haversine";
+import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
@@ -65,7 +67,8 @@ export const runtime = "nodejs";
 // several seconds from a serverless region; give the function room to finish.
 export const maxDuration = 30;
 
-const TFL_BASE = "https://api.tfl.gov.uk";
+const TFL_HOST = "api.tfl.gov.uk";
+const TFL_BASE = `https://${TFL_HOST}`;
 const STATION_RADIUS_M = 1500;
 // Broad coverage: metro + national-rail stations, across the modes a Londoner
 // heading home actually uses. modes narrows StopPoint results to real options.
@@ -79,10 +82,24 @@ const LINE_CAP = 4;
 const CALL_TIMEOUT_MS = 9000;
 
 // app_key is optional — the keyless API works fine. Only append it when present.
-function withKey(url: string): string {
+function withKey(url: URL): string {
   const key = process.env.TFL_APP_KEY;
-  if (!key) return url;
-  return url + (url.includes("?") ? "&" : "?") + `app_key=${encodeURIComponent(key)}`;
+  if (!key) return url.href;
+  const keyed = new URL(url.href);
+  keyed.searchParams.set("app_key", key);
+  return keyed.href;
+}
+
+function resolveTflUrl(path: string): URL | null {
+  try {
+    const url = new URL(path, TFL_BASE);
+    if (url.protocol !== "https:" || url.hostname !== TFL_HOST) return null;
+    if (url.port && url.port !== "443") return null;
+    if (url.username || url.password) return null;
+    return url;
+  } catch {
+    return null;
+  }
 }
 
 // One TfL GET, JSON-parsed, with a hard per-call timeout. Returns null on ANY
@@ -91,7 +108,8 @@ function withKey(url: string): string {
 // a genuine 4xx (other than 429) is not retried. A descriptive User-Agent keeps
 // us on the right side of TfL's fair-use expectations.
 async function tflGet<T>(path: string, retries = 0): Promise<T | null> {
-  const url = path.startsWith("http") ? path : `${TFL_BASE}${path}`;
+  const url = resolveTflUrl(path);
+  if (!url) return null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
@@ -431,6 +449,29 @@ export async function GET(request: Request): Promise<Response> {
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return json({ error: "lat and lng are required numbers." }, { status: 400 });
+  }
+  if (!pointInCityBounds(lat, lng, CITIES.london)) {
+    const decision = computeLastPintDecision({
+      minutesUntilLastTrain: null,
+      walkMinutesEstimate: 0,
+      stationName: "Nearest station",
+      lineNames: [],
+      disruptionOnNeededLine: false,
+      destinationLabel: null,
+      live: false,
+    });
+    return json({
+      error: "Last Pint is only available for London pubs right now.",
+      station: null,
+      trains: [],
+      departures: [],
+      decision,
+      nearestPubs: [],
+      generatedAt: new Date().toISOString(),
+    });
+  }
+  if (await isLastRideLimited(request, "last-train")) {
+    return json({ error: "Too many requests, slow down." }, { status: 429 });
   }
   // Destination is client-only (user story 23): the card keeps the label in
   // sessionStorage and never sends it here. Ignore any legacy ?destination=
