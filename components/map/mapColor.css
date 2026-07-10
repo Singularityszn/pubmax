@@ -1,47 +1,40 @@
-/* Map colour polish + documented pin-by-category patch (D3).
+/* Map colour polish + documented pin-by-category patch (Wave J / D3).
    ---------------------------------------------------------------------------
-   Scoped, map-owned CSS so the D3 colour pass never edits app/globals.css
-   (D1 owns the .poiToggle/.poiSwatch base) or the codex-hot canvas paint.
+   Scoped, map-owned CSS so the colour pass never edits app/globals.css or the
+   canvas paint. Imported from PubMapCanvas + ControlRail.
 
-   This file is intentionally small: the honest, shippable map-colour change in
-   D3 is (a) the additive `--cat-*` read in PubMapCanvas.tsx's readTokens() (done
-   — see the `cat` field on Tokens), and (b) a subtle POI-toggle swatch ring so
-   the already-coloured category dots read crisply on the frosted toggle pill in
-   both themes. Colouring a PIN by drink category is documented below as a
-   ready-to-apply patch, NOT applied — because there is no honest data to drive
-   it yet (see "Why the pin paint is deferred").
+   Live rules polish Layers popover swatches (Wave J moved mid-map .poiToggle
+   into MapLayersControl). Pin-by-category paint stays documented below — not
+   applied until Venue carries an honest dominantCategory. */
 
-   To load: import "./mapColor.css" from a map-owned client component the
-   integrator controls (NOT VenueInspector.tsx). Until imported, none of the
-   rules below apply — the file is safe to land unwired. */
-
-/* ── POI-toggle swatch polish ────────────────────────────────────────────────
-   globals.css already fills each `.poiSwatch` with its category colour inline
-   (POI_CATEGORY_META[cat].color). On the frosted, translucent toggle pill a bare
-   9px dot can wash out against a busy basemap showing through; a hairline ring
-   in the panel colour lifts every swatch off the frost without changing its hue.
-   Additive: it only adds a box-shadow ring, never overrides the inline colour. */
-.poiToggle .poiSwatch {
+/* ── Layers swatch polish (Wave J1) ─────────────────────────────────────────
+   Each .mapLayersSwatch is filled with its category colour inline. On the solid
+   panel-raised Layers popover a bare 9px dot can still wash out; a hairline ring
+   in the panel colour lifts every swatch without changing its hue. */
+.mapLayersChip .mapLayersSwatch {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
 }
 
-/* The "on" button already inverts to an ink-deep fill; give its active swatch a
-   touch more presence with a brighter ring so the enabled categories read at a
-   glance. */
-.poiToggleBtn.on .poiSwatch {
+/* Active (isOn) chips invert to brass fill — give the swatch a brighter ring. */
+.mapLayersChip.isOn .mapLayersSwatch {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
 }
 
-/* Legacy Mode / forced-colors: drop the decorative rings so the swatches stay
-   flat, high-contrast chips. */
-html[data-legacy="1"] .poiToggle .poiSwatch,
-html[data-legacy="1"] .poiToggleBtn.on .poiSwatch {
+/* Tapped-POI label card still uses .poiSwatch — same ring treatment. */
+.poiLabelCard .poiSwatch {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
+}
+
+html[data-legacy="1"] .mapLayersChip .mapLayersSwatch,
+html[data-legacy="1"] .mapLayersChip.isOn .mapLayersSwatch,
+html[data-legacy="1"] .poiLabelCard .poiSwatch {
   box-shadow: none;
 }
 
 @media (forced-colors: active) {
-  .poiToggle .poiSwatch,
-  .poiToggleBtn.on .poiSwatch {
+  .mapLayersChip .mapLayersSwatch,
+  .mapLayersChip.isOn .mapLayersSwatch,
+  .poiLabelCard .poiSwatch {
     box-shadow: none;
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-// Compact bottom-corner Cost control — keeps price filtering near the map
+// Compact bottom-corner Prices control — keeps price filtering near the map
 // without a mid-screen legend strip. Toggles maxPrice on Filters.
 
 import { Coins, X } from "lucide-react";
@@ -90,7 +90,7 @@ export default function MapPriceControl({
             <button
               type="button"
               className="mapPriceClose"
-              aria-label="Close cost filter"
+              aria-label="Close prices filter"
               onClick={() => setOpen(false)}
             >
               <X size={16} aria-hidden="true" />

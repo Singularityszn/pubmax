@@ -1599,20 +1599,21 @@ input[type="range"] {
   }
 }
 
-/* POI category toggles — a small pill stack, bottom-right of the map. */
+/* POI category toggles — LEGACY (Wave J moved mid-map strip into Layers FAB).
+   No TSX renders .poiToggle anymore; keep selectors only so old mobile clearance
+   rules that still name the class stay harmless. Do not reintroduce the strip. */
 .poiToggle {
+  display: none;
   position: absolute;
   right: 10px;
   bottom: 14px;
   z-index: 455;
-  display: flex;
   gap: 5px;
   padding: 5px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+  background: var(--panel-raised);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(8px);
 }
 
 .poiToggleBtn {
@@ -2077,13 +2078,11 @@ input[type="range"] {
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--line) 68%, var(--pint) 32%);
   border-radius: 18px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--panel-raised) 94%, transparent), color-mix(in srgb, var(--surface-tint-pint) 76%, transparent)),
-    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  /* Wave J2 — solid panel-raised (no frost) so hover previews match landmark/hero cards. */
+  background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: 0 18px 42px rgba(44, 30, 62, 0.18), 0 8px 18px color-mix(in srgb, var(--pint) 12%, transparent);
+  box-shadow: var(--shadow-sm, 0 8px 18px color-mix(in srgb, var(--pint) 12%, transparent));
   pointer-events: none;
-  backdrop-filter: blur(14px) saturate(1.12);
 }
 
 .venueHoverPhoto,
