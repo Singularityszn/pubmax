@@ -427,6 +427,9 @@ export default function PubMap({
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
   const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
+  // Stable identity — a fresh cityMaxBounds() array every render remounts MapLibre
+  // (PubMapCanvas init effect depends on maxBounds) and flickers the loading chrome.
+  const cityBounds = useMemo(() => cityMaxBounds(city), [city]);
   const searchParams = useSearchParams();
   useEffect(() => {
     markPubmaxTiming("pubmax:map-chunk-ready");
@@ -1159,7 +1162,7 @@ export default function PubMap({
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
           onMapReady={setMapCanvasReady}
           mapView={city.mapView}
-          maxBounds={cityMaxBounds(city)}
+          maxBounds={cityBounds}
           poisPath={city.poisPath}
           transitLinesPath={city.transitLinesPath}
           cityLandmarks={cityLandmarks}

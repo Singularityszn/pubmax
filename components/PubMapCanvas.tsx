@@ -582,6 +582,16 @@ export default function PubMapCanvas({
     () => landmarksToGeoJSON(cityLandmarks),
     [cityLandmarks],
   );
+  // Refs for camera/bounds + landmark seed so the MapLibre mount effect does not
+  // tear down on parent re-renders that only change object identity.
+  const mapViewRef = useRef(mapView);
+  const maxBoundsRef = useRef(maxBounds);
+  const landmarksGeoJSONRef = useRef(landmarksGeoJSON);
+  useEffect(() => {
+    mapViewRef.current = mapView;
+    maxBoundsRef.current = maxBounds;
+    landmarksGeoJSONRef.current = landmarksGeoJSON;
+  }, [mapView, maxBounds, landmarksGeoJSON]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -634,14 +644,20 @@ export default function PubMapCanvas({
   const [failedHoverImage, setFailedHoverImage] = useState<FailedHoverImage | null>(null);
   // POI layer visibility — seed from the live viewport so desktop doesn't flash
   // all-hidden, while mobile first paint stays clean (all categories off).
+  // Only rewrite defaults when the viewport band actually changes — never on
+  // every mount tick (a fresh object would re-filter layers and look like flicker).
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(
     defaultPoiHiddenForViewport,
   );
+  const poiViewportMobileRef = useRef<boolean | null>(null);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
     const sync = () => {
+      const isMobile = mq.matches;
+      if (poiViewportMobileRef.current === isMobile) return;
+      poiViewportMobileRef.current = isMobile;
+      const next = isMobile ? defaultPoiHiddenMobile() : defaultPoiHidden();
       // Defer setState out of the effect body (react-hooks/set-state-in-effect).
-      const next = mq.matches ? defaultPoiHiddenMobile() : defaultPoiHidden();
       void Promise.resolve().then(() => setPoiHidden(next));
     };
     sync();
@@ -895,8 +911,8 @@ export default function PubMapCanvas({
       map = new maplibregl.Map({
         container,
         style: MAP_STYLES[themeRef.current],
-        ...mapView,
-        maxBounds,
+        ...mapViewRef.current,
+        maxBounds: maxBoundsRef.current,
         // Attempt 2 drops to low-power: some drivers refuse a
         // high-performance context under load but grant the integrated GPU.
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
@@ -1231,9 +1247,14 @@ export default function PubMapCanvas({
       // London markers never appear over Manchester (and vice versa).
       if (showLandmarks) {
         if (!map.getSource("landmarks")) {
-          map.addSource("landmarks", { type: "geojson", data: landmarksGeoJSON });
+          map.addSource("landmarks", {
+            type: "geojson",
+            data: landmarksGeoJSONRef.current,
+          });
         } else {
-          (map.getSource("landmarks") as maplibregl.GeoJSONSource).setData(landmarksGeoJSON);
+          (map.getSource("landmarks") as maplibregl.GeoJSONSource).setData(
+            landmarksGeoJSONRef.current,
+          );
         }
         addLayerOnce({
           id: "landmarks-icon",
@@ -1916,14 +1937,15 @@ export default function PubMapCanvas({
       }
     };
   }, [
+    // Intentionally omit mapView / maxBounds / landmarksGeoJSON — those are
+    // read via refs so parent re-renders (new array identity) cannot remount
+    // MapLibre and flicker the loading chrome. City switches change
+    // transitLinesPath / showLandmarks and still remount cleanly.
     cinematic,
     selectLandmark,
     initAttempt,
-    mapView,
-    maxBounds,
     transitLinesPath,
     showLandmarks,
-    landmarksGeoJSON,
     publishMapReady,
     reportMapError,
   ]);
@@ -2072,16 +2094,17 @@ export default function PubMapCanvas({
       performance.now() + 900 + ORBIT_RESUME_MS,
     );
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    map.fitBounds(maxBounds, {
+    const view = mapViewRef.current;
+    map.fitBounds(maxBoundsRef.current, {
       padding: isPhone
         ? { top: 184, right: 24, bottom: 190, left: 24 }
         : 90,
       maxZoom: 11,
       duration: reducedRef.current ? 0 : 800,
-      pitch: mapView.pitch,
-      bearing: mapView.bearing,
+      pitch: view.pitch,
+      bearing: view.bearing,
     });
-  }, [mapView.pitch, mapView.bearing, maxBounds]);
+  }, []);
 
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere
