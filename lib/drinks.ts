@@ -1,3 +1,4 @@
+import { BEERS, normalizeBeer } from "@/lib/beers";
 import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 
 // The all-drinks data model (PRD E1 — "extend, do not fork"). A venue today
@@ -205,12 +206,25 @@ export function legacyPricesToDrinks(
   const drinks: Drink[] = [];
   for (const price of prices) {
     if (typeof price.price_gbp !== "number") continue;
+    const name = price.pint_name || "Pint";
+    // Attach catalog ABV when the pint name resolves to a known beer — so the
+    // venue Menu shows "Guinness · 4.2%". Unknown names stay ABV-less so
+    // alcoholTypeForDrink can still mark low/no from the name alone.
+    const beerId = normalizeBeer(name);
+    const catalogAbv = beerId
+      ? BEERS.find((beer) => beer.id === beerId)?.abv
+      : undefined;
+    const abv =
+      typeof catalogAbv === "number" && Number.isFinite(catalogAbv)
+        ? catalogAbv
+        : undefined;
     drinks.push({
       id: `beer-${price.app_price_id}`,
       category: "beer",
-      name: price.pint_name || "Pint",
+      name,
       servingSize: "pint",
-      alcoholType: alcoholTypeForDrink({ name: price.pint_name || "Pint" }),
+      ...(abv != null ? { abv } : {}),
+      alcoholType: alcoholTypeForDrink({ name, abv }),
       priceGbp: price.price_gbp,
       provenance: {
         source: "app-dataset",

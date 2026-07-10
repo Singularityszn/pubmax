@@ -144,6 +144,13 @@ describe("legacyPricesToDrinks", () => {
       servingSize: "pint",
       priceGbp: 6.4,
     });
+    // Unknown brand → no invented ABV (keeps low/no name matching honest).
+    expect(drinks[0].abv).toBeUndefined();
+    expect(drinks[1]).toMatchObject({
+      id: "beer-p2",
+      name: "Guinness",
+      abv: 4.2,
+    });
     expect(drinks[0].provenance).toEqual({
       source: "app-dataset",
       licence: "first-party",
