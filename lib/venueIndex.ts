@@ -77,7 +77,7 @@ export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
     const rows = JSON.parse(await fs.readFile(file, "utf8")) as SlimRow[];
     cached = buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
   } catch {
-    cached = new Map();
+    return new Map();
   }
   return cached;
 }

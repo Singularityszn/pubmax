@@ -33,6 +33,7 @@ describe("POST /api/admin/session", () => {
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("pubmax_admin_session=");
     expect(setCookie.toLowerCase()).toContain("httponly");
+    expect(setCookie).toContain("SameSite=Strict");
   });
 
   it("returns 403 for a wrong token", async () => {
@@ -93,6 +94,7 @@ describe("DELETE /api/admin/session", () => {
     expect(res.status).toBe(200);
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("Max-Age=0");
+    expect(setCookie).toContain("SameSite=Strict");
   });
 
   it("includes Secure on the cleared cookie in production", async () => {

@@ -74,6 +74,16 @@ describe("routePacks", () => {
     ).toBe("/map");
   });
 
+  it("uses the first resolvable crawl when earlier ids are stale", () => {
+    const primary = routePackPrimaryCrawl({
+      id: "stale-first",
+      title: "Stale first",
+      blurb: "One stale id, one valid id",
+      crawlIds: ["missing-crawl", "victorian-soho"],
+    });
+    expect(primary?.id).toBe("victorian-soho");
+  });
+
   it("exposes a deduped union of pack crawl ids", () => {
     const ids = allPackCrawlIds();
     expect(new Set(ids).size).toBe(ids.length);
