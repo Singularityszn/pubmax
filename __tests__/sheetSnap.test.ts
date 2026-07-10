@@ -3,11 +3,27 @@ import { describe, expect, it } from "vitest";
 import {
   resolveSheetSnap,
   sheetTranslateY,
+  sheetTranslateYFraction,
   SHEET_SNAP_FRACTIONS,
   SHEET_SNAP_ORDER,
+  SHEET_SNAP_TRANSLATE_FRACTIONS,
 } from "@/lib/sheetSnap";
 
 const VH = 800; // a plausible phone viewport height in px
+
+describe("SHEET_SNAP_TRANSLATE_FRACTIONS", () => {
+  it("is 1 − revealed fraction for every snap (CSS vh source of truth)", () => {
+    expect(SHEET_SNAP_TRANSLATE_FRACTIONS.full).toBeCloseTo(0.08);
+    expect(SHEET_SNAP_TRANSLATE_FRACTIONS.half).toBeCloseTo(0.45);
+    expect(SHEET_SNAP_TRANSLATE_FRACTIONS.peek).toBeCloseTo(0.86);
+    for (const snap of SHEET_SNAP_ORDER) {
+      expect(SHEET_SNAP_TRANSLATE_FRACTIONS[snap]).toBeCloseTo(
+        1 - SHEET_SNAP_FRACTIONS[snap],
+      );
+      expect(sheetTranslateYFraction(snap)).toBe(SHEET_SNAP_TRANSLATE_FRACTIONS[snap]);
+    }
+  });
+});
 
 describe("sheetTranslateY", () => {
   it("returns a larger translateY (more hidden) for smaller snaps", () => {
@@ -19,9 +35,9 @@ describe("sheetTranslateY", () => {
   });
 
   it("matches the documented vh fractions", () => {
-    expect(sheetTranslateY("full", VH)).toBeCloseTo(VH * (1 - SHEET_SNAP_FRACTIONS.full));
-    expect(sheetTranslateY("half", VH)).toBeCloseTo(VH * (1 - SHEET_SNAP_FRACTIONS.half));
-    expect(sheetTranslateY("peek", VH)).toBeCloseTo(VH * (1 - SHEET_SNAP_FRACTIONS.peek));
+    expect(sheetTranslateY("full", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.full);
+    expect(sheetTranslateY("half", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.half);
+    expect(sheetTranslateY("peek", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.peek);
   });
 });
 

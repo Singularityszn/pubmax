@@ -15,6 +15,19 @@ type CitySwitcherProps = {
   cityId?: CityId;
 };
 
+/** Narrow-chrome abbreviations — keeps the map toolbar row usable at ~390px. */
+const CITY_SHORT_LABELS: Record<CityId, string> = {
+  london: "LDN",
+  manchester: "MAN",
+  liverpool: "LPL",
+  oxford: "OXF",
+  durham: "DUR",
+  glasgow: "GLA",
+  bristol: "BRS",
+  cambridge: "CAM",
+  bath: "BTH",
+};
+
 /**
  * Compact city picker for map chrome. Lists enabled cities as links to
  * `/map/{id}` (London uses `/map` for back-compat bookmarks).
@@ -26,7 +39,10 @@ export default function CitySwitcher({
   const listId = useId();
   const [open, setOpen] = useState(false);
   const current =
-    cities.find((c) => c.id === cityId) ?? cities[0] ?? { id: "london", displayName: "London" };
+    cities.find((c) => c.id === cityId) ?? cities[0] ?? { id: "london" as CityId, displayName: "London" };
+  const shortLabel =
+    CITY_SHORT_LABELS[current.id as CityId] ??
+    current.displayName.slice(0, 3).toUpperCase();
 
   if (cities.length < 2) return null;
 
@@ -38,9 +54,13 @@ export default function CitySwitcher({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        aria-label={`City map: ${current.displayName}`}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="citySwitcherLabel">{current.displayName}</span>
+        <span className="citySwitcherLabel citySwitcherLabelFull">{current.displayName}</span>
+        <span className="citySwitcherLabel citySwitcherLabelShort" aria-hidden="true">
+          {shortLabel}
+        </span>
         <span className="citySwitcherCaret" aria-hidden="true" />
       </button>
       {open ? (

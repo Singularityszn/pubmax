@@ -13,16 +13,9 @@ import { resolveSheetSnap, type SheetSnap } from "@/lib/sheetSnap";
 //
 // PubMap owns WHICH snap is default on a fresh pick (it resets to "half" there);
 // this hook owns the live drag → snap resolution and the mid-drag px offset.
-
-// The sheet's resting translateY as a fraction of the VIEWPORT height (not the
-// drawer's own 82vh-capped height — see venueSheet.css's `.sheet-*` rules, which
-// these mirror exactly so a live drag lines up with the CSS-driven resting
-// position it settles into on release).
-const SHEET_SNAP_VH: Record<SheetSnap, number> = { full: 0, half: 0.27, peek: 0.68 };
-
-export function sheetSnapTranslateYPx(snap: SheetSnap, viewportHeight: number): number {
-  return SHEET_SNAP_VH[snap] * viewportHeight;
-}
+// Mid-drag translateY px use `sheetTranslateY` from lib/sheetSnap.ts (same
+// fractions as CSS `.sheet-*` and resolveSheetSnap) — do not reintroduce a
+// local VH map.
 
 // The drag gesture is only active ≤640px.
 const SHEET_GESTURE_MAX_WIDTH = 640;

@@ -23,6 +23,24 @@ export type SheetSnap = keyof typeof SHEET_SNAP_FRACTIONS;
 // Ordered peek → full so callers can walk "the next snap up/down".
 export const SHEET_SNAP_ORDER: SheetSnap[] = ["peek", "half", "full"];
 
+/**
+ * Resting translateY as a fraction of viewport height (DOWN from a full-
+ * viewport-tall sheet at translateY(0)). Derived from SHEET_SNAP_FRACTIONS so
+ * CSS (`Nv h`), drag px offsets, and resolveSheetSnap all share one source:
+ *   translateFraction = 1 - revealedFraction
+ *   → full 0.08, half 0.45, peek 0.86
+ */
+export const SHEET_SNAP_TRANSLATE_FRACTIONS = {
+  peek: 1 - SHEET_SNAP_FRACTIONS.peek,
+  half: 1 - SHEET_SNAP_FRACTIONS.half,
+  full: 1 - SHEET_SNAP_FRACTIONS.full,
+} as const;
+
+/** translateY fraction of viewport for a snap (same units as CSS `vh`). */
+export function sheetTranslateYFraction(snap: SheetSnap): number {
+  return SHEET_SNAP_TRANSLATE_FRACTIONS[snap];
+}
+
 // A flick faster than this (px/ms, i.e. px per millisecond) is treated as a
 // deliberate gesture that should move at least one snap step beyond the
 // nearest-by-distance snap, in the direction of the flick — not just settle
@@ -53,13 +71,9 @@ export type ResolveSnapResult = {
 };
 
 function snapToY(snap: SheetSnap, viewportHeight: number): number {
-  // The sheet's own height *at that snap* is `fraction * viewportHeight`; its
-  // translateY (distance the top of the sheet sits below the very bottom-most
-  // "full" position) is the remaining space above it, i.e. how much of the
-  // viewport height is NOT covered at that snap versus full coverage's own
-  // extent. We measure position as "px of sheet height revealed", so smaller
-  // snap = less revealed = larger translateY from the sheet's fully-open top.
-  return viewportHeight * (1 - SHEET_SNAP_FRACTIONS[snap]);
+  // Sheet is modeled as viewport-tall; translateY pushes it down so only
+  // `SHEET_SNAP_FRACTIONS[snap]` of the viewport stays revealed.
+  return viewportHeight * sheetTranslateYFraction(snap);
 }
 
 /**

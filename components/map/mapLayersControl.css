@@ -104,13 +104,14 @@
 .mapLayersClose {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 10%, transparent);
   color: var(--ink-soft);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .mapLayersHint {
@@ -140,8 +141,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
-  padding: 5px 10px;
+  min-height: 40px;
+  padding: 6px 12px;
   border: 1px solid color-mix(in srgb, var(--line) 72%, var(--brass) 28%);
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel) 80%, var(--panel-raised));
@@ -194,7 +195,7 @@
 @media (max-width: 640px) {
   .mapLayersControl {
     right: 10px;
-    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 10px));
+    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 18px));
   }
 
   .mapLayersPanel {
