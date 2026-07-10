@@ -64,14 +64,28 @@ function saveDataPreferred(): boolean {
 
 type ClientFlags = { geoAvailable: boolean; saveData: boolean };
 
-function readClientFlags(): ClientFlags {
+/** Stable SSR/getServerSnapshot — a fresh object each call would trip React #185. */
+const SSR_CLIENT_FLAGS: ClientFlags = { geoAvailable: false, saveData: true };
+
+/**
+ * Cached client snapshot for useSyncExternalStore.
+ * getSnapshot must return the same reference when data is unchanged; returning
+ * a new `{…}` every read caused infinite re-renders (React #185) and crashed /map.
+ */
+let cachedClientFlags: ClientFlags | null = null;
+
+/** @internal Exported for regression tests — prefer the hook path in app code. */
+export function readClientFlags(): ClientFlags {
+  if (cachedClientFlags) return cachedClientFlags;
   if (typeof navigator === "undefined") {
-    return { geoAvailable: false, saveData: true };
+    cachedClientFlags = SSR_CLIENT_FLAGS;
+    return cachedClientFlags;
   }
-  return {
+  cachedClientFlags = {
     geoAvailable: Boolean(navigator.geolocation),
     saveData: saveDataPreferred(),
   };
+  return cachedClientFlags;
 }
 
 /** One-shot client snapshot — navigator flags do not change mid-session. */
@@ -95,7 +109,7 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
   const flags = useSyncExternalStore(
     subscribeClientFlags,
     readClientFlags,
-    () => ({ geoAvailable: false, saveData: true }),
+    () => SSR_CLIENT_FLAGS,
   );
 
   const [suggested, setSuggested] = useState<CityId | null>(null);

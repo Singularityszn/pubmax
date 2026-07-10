@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearPreferredCity,
@@ -60,6 +60,17 @@ describe("preferred city storage", () => {
     expect(readPreferredCity()).toBe("bristol");
     clearPreferredCity();
     expect(readPreferredCity()).toBeNull();
+  });
+
+  it("skips storage write when the same city is already stored", () => {
+    const storage = makeMemoryStorage();
+    installWindow(storage);
+    writePreferredCity("oxford");
+    const setItem = vi.spyOn(storage, "setItem");
+    writePreferredCity("oxford");
+    expect(setItem).not.toHaveBeenCalled();
+    writePreferredCity("glasgow");
+    expect(setItem).toHaveBeenCalledWith(STORAGE_KEY, "glasgow");
   });
 
   it("mapHrefForCity mirrors city share paths", () => {

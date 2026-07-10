@@ -47,6 +47,9 @@ export function writePreferredCity(cityId: CityId | string): void {
   const id = enabledCityId(cityId);
   if (!id) return;
   try {
+    // Skip no-op writes so Map mount (always re-asserts cityId) does not
+    // notify useSyncExternalStore subscribers on every visit.
+    if (window.localStorage.getItem(STORAGE_KEY) === id) return;
     window.localStorage.setItem(STORAGE_KEY, id);
     notifyPreferredCityChange();
   } catch {
