@@ -4,7 +4,8 @@
   position: absolute;
   top: 58px;
   left: 50%;
-  z-index: 540;
+  /* Below map toolbar / CitySwitcher dropdown (560) so city picks stay tappable. */
+  z-index: 515;
   display: flex;
   align-items: center;
   gap: 8px;

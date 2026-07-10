@@ -881,7 +881,9 @@ input[type="range"] {
   top: var(--map-top-clearance);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 520;
+  /* Above camera controls (530) + city-suggest banner so the city dropdown
+     stays tappable on the right edge of the toolbar. */
+  z-index: 560;
   display: flex;
   align-items: center;
   gap: 8px;

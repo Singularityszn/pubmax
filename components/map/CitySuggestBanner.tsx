@@ -84,6 +84,7 @@ function subscribeClientFlags(onStoreChange: () => void): () => void {
  * Opt-in geolocation city nudge. Does NOT call getCurrentPosition on mount —
  * the viewer taps "Near me?" first. Honours Save-Data and a session dismiss.
  * Fail-soft (permission denied / timeout / no geo) → no switch offer.
+ * Kept below the CitySwitcher dropdown in z-order so city picks stay tappable.
  */
 export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
   const dismissed = useSyncExternalStore(
@@ -145,7 +146,7 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
     return null;
   }
 
-  if (suggested) {
+  if (suggested && suggested !== cityId) {
     const city = getCity(suggested);
     const href = cityMapShareUrl(suggested);
 
