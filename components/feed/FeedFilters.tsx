@@ -22,7 +22,13 @@ const MORE_FILTERS = FEED_FILTERS.filter((f) => !PRIMARY_FILTERS.some((p) => p.i
 export default function FeedFilters({ active, onChange }: FeedFiltersProps) {
   const moreActive = MORE_FILTERS.some((f) => f.id === active);
   const [moreOpen, setMoreOpen] = useState(moreActive);
-  const visible = moreOpen ? FEED_FILTERS : PRIMARY_FILTERS;
+  // When a More-lane filter is active but the strip is collapsed, keep that
+  // chip visible so the active lane isn't hidden behind a lit "More" only.
+  const visible = moreOpen
+    ? FEED_FILTERS
+    : moreActive
+      ? [...PRIMARY_FILTERS, ...MORE_FILTERS.filter((f) => f.id === active)]
+      : PRIMARY_FILTERS;
 
   return (
     <div className="feedFilters" role="group" aria-label="Feed lanes">

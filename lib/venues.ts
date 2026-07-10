@@ -414,15 +414,15 @@ function matchesCanonicalFilter(venue: Venue, canonicalOnly: boolean): boolean {
 }
 
 function venueDrinkHaystack(venue: Venue): string {
-  // Intentionally omit venue.name — pub brands ("The Guinness Arms") must not
-  // false-positive drink brand / category matching.
+  // Intentionally omit venue.name AND filterHints.searchText — the slim index
+  // still puts pub_name into searchText for general map query, which would
+  // false-positive drink brand matching (e.g. "Gordon" in "The Gordon Arms").
   const parts = [
     venue.cheapestPint,
     venue.description,
     ...venue.prices.map((price) => price.pint_name),
     ...venue.prices.map((price) => price.comment),
     ...venue.prices.map((price) => price.description),
-    venue.filterHints?.searchText ?? "",
   ];
   return parts.join(" ");
 }

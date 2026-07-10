@@ -13,6 +13,7 @@ import {
 } from "@/lib/venues";
 import { CURATED_CUISINE_BY_VENUE_ID, normaliseCuisineTags } from "@/lib/cuisineTags";
 import { slimVenueToPin } from "@/lib/slimPins";
+import { CITIES } from "@/lib/cities";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
@@ -115,6 +116,16 @@ function matchingIdsFromFull(filters: Filters): string[] {
 describe("venues_slim.json", () => {
   it("is the payload URL used by the map loader", () => {
     expect(SLIM_VENUES_PATH).toBe("/data/venues_slim.json");
+    expect(CITIES.london.slimVenuesPath).toBe(SLIM_VENUES_PATH);
+  });
+
+  it("non-London cities point at /data/cities/{id}/venues_slim.json", () => {
+    expect(CITIES.manchester.slimVenuesPath).toBe(
+      "/data/cities/manchester/venues_slim.json",
+    );
+    expect(CITIES.glasgow.slimVenuesPath).toBe(
+      "/data/cities/glasgow/venues_slim.json",
+    );
   });
 
   it("parses to a non-empty array", () => {
