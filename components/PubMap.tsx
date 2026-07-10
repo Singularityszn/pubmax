@@ -622,13 +622,11 @@ export default function PubMap({
   }, [selectedVenueId, detailById]);
 
   // Sourced price-refresh layer (issue #23): London-only JSON; community drops
-  // always outrank it inside mergePriceUpdates. Skip the fetch for other cities.
+  // always outrank it inside mergePriceUpdates. Skip the fetch for other cities
+  // and ignore any stale London updates while viewing them (no setState clear).
   const [priceUpdates, setPriceUpdates] = useState<PriceUpdate[]>([]);
   useEffect(() => {
-    if (cityId !== "london") {
-      setPriceUpdates([]);
-      return;
-    }
+    if (cityId !== "london") return;
     let cancelled = false;
     fetch("/data/price_updates/latest.json")
       .then((response) => (response.ok ? response.json() : null))
@@ -647,8 +645,12 @@ export default function PubMap({
   const baseVenues = useMemo(() => mergeLazyDetailPins(slimPins, detailById), [slimPins, detailById]);
   const venues = useMemo<Venue[]>(
     () =>
-      mergePriceUpdates(mergeVenueDrops(baseVenues, dropsByVenueId), priceUpdates, venueUpdateKey),
-    [baseVenues, dropsByVenueId, priceUpdates],
+      mergePriceUpdates(
+        mergeVenueDrops(baseVenues, dropsByVenueId),
+        cityId === "london" ? priceUpdates : [],
+        venueUpdateKey,
+      ),
+    [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Base narrowing: the existing filter pipeline (story filters, price, query,
