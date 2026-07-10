@@ -94,9 +94,9 @@ export default function MapLayersControl({
         aria-label={
           open
             ? "Close map layers"
-            : "Map layers — transit, parks, and place stories"
+            : "Map layers — Tube, parks, and place stories"
         }
-        title="Transit, parks & place stories"
+        title="Tube, parks & place stories"
         onClick={() => (open ? closePanel() : openPanel())}
       >
         <Layers size={18} aria-hidden="true" />
@@ -123,7 +123,7 @@ export default function MapLayersControl({
           </div>
 
           <p className="mapLayersHint">
-            Transit, parks, and story corridors — opt in when you need them.
+            Tube, parks, and story corridors — opt in when you need them.
           </p>
 
           <div className="mapLayersGroup" role="group" aria-label="Points of interest">

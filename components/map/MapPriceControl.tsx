@@ -1,7 +1,7 @@
 "use client";
 
-// Compact bottom-corner Cost control — keeps price filtering near the map
-// without a mid-screen legend strip. Toggles maxPrice on Filters.
+// Compact bottom-left price chrome — always-visible colour key (plan: ≤£5.50 /
+// £5.50–£7 / £7+) plus an optional filter popover. No heritage/writer rows.
 
 import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -16,6 +16,12 @@ const PRICE_OPTIONS: { label: string; maxPrice: number }[] = [
   { label: "≤ £7", maxPrice: 7 },
 ];
 
+const PRICE_LEGEND = [
+  { label: "≤ £5.50", tone: "green" as const },
+  { label: "£5.50–£7", tone: "amber" as const },
+  { label: "£7+", tone: "red" as const },
+];
+
 type MapPriceControlProps = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
@@ -23,7 +29,7 @@ type MapPriceControlProps = {
 
 function activeLabel(maxPrice: number): string {
   // Default product filter is ≤£7 — keep the FAB as "Prices" (not cryptic "≤£7").
-  // Only surface a £ range when the user tightens below the default band.
+  // Only surface a £ label when the user tightens below the default band.
   if (maxPrice <= 5.5) return "≤£5.50";
   return "Prices";
 }
@@ -63,6 +69,16 @@ export default function MapPriceControl({
 
   return (
     <div className="mapPriceControl" ref={rootRef}>
+      {/* Always-visible colour key — plan: small bottom-left price legend. */}
+      <div className="mapPriceLegend" aria-label="Pint price colour key">
+        {PRICE_LEGEND.map((row) => (
+          <span key={row.label}>
+            <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
+            {row.label}
+          </span>
+        ))}
+      </div>
+
       <button
         type="button"
         className={open || filtered ? "mapPriceFab isActive" : "mapPriceFab"}
