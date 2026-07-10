@@ -733,7 +733,12 @@ export default function VenueInspector({
                     <div className="placeStoryActions">
                       <Link
                         className="placeStoryWalk"
-                        href={placeStoryMapHref(band.id, primaryCrawl?.id)}
+                        href={placeStoryMapHref(
+                          band.id,
+                          primaryCrawl?.id,
+                          cityId,
+                          cityCuratedCrawls,
+                        )}
                       >
                         Walk this story
                       </Link>

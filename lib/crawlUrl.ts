@@ -5,7 +5,7 @@ import {
   normalizeBrandQuery,
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
-import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
+import { isDrinkCategory } from "@/lib/drinks";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -184,15 +184,13 @@ export function decodeCrawl(
   } else {
     const drinkCategory = parseDrinkCategoryParam(drinkRaw);
     if (drinkCategory) {
+      // Lens via drinkCategory only — do NOT also set filters.query to the
+      // category label. That AND'd with drinkCategory and dropped slim pins
+      // whose wine/gin hints don't appear in name/searchText (false negatives).
       filters.drinkCategory = drinkCategory;
       if (drinkCategory === "cocktail") filters.requireCocktails = true;
-      // Soft text query mirrors landing drink-shape taps when no explicit q=.
-      if (!filters.query) {
-        filters.query = categoryLabel(drinkCategory);
-      }
     } else if (cocktailsFlag) {
       filters.drinkCategory = "cocktail";
-      if (!filters.query) filters.query = categoryLabel("cocktail");
     }
   }
 

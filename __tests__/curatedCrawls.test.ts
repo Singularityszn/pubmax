@@ -118,11 +118,36 @@ describe("curated crawls", () => {
       placeStoryBandId: riverside!.placeStoryBandId,
       crawlId: riverside!.id,
     });
+    expect(href.startsWith("/map?")).toBe(true);
     expect(href).toContain("mode=build");
     expect(href).toContain("pubs=");
     expect(href).toContain("crawl=riverside-heritage");
     expect(href).toContain("band=thames-industrial");
     expect(href).toContain(riverside!.venueIds[0]);
+  });
+
+  it("routes city-prefixed venue shares onto /map/{city}", () => {
+    const href = crawlShareMapHref({
+      venueIds: ["venue-oxf-16404bl", "venue-oxf-n2un97"],
+      crawlId: "freshers-first-night",
+      cityId: "oxford",
+    });
+    expect(href.startsWith("/map/oxford?")).toBe(true);
+    expect(href).toContain("pubs=venue-oxf-16404bl");
+    expect(href).toContain("crawl=freshers-first-night");
+  });
+
+  it("infers /map/{city} from venue id prefixes when cityId is omitted", () => {
+    const href = curatedCrawlMapHref({
+      id: "freshers-first-night",
+      name: "Freshers first night",
+      blurb: "test",
+      crawlStyle: "balanced",
+      venueIds: ["venue-oxf-16404bl", "venue-oxf-n2un97"],
+      placeStoryBandId: "freshers-first-night",
+    });
+    expect(href.startsWith("/map/oxford?")).toBe(true);
+    expect(href).toContain("band=freshers-first-night");
   });
 
   it("builds a curated map-first href with crawl= and style/alt/band", () => {

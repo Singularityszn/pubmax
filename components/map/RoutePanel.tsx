@@ -46,7 +46,14 @@ import {
   startCrawl,
   type CrawlProgressEntry,
 } from "@/lib/crawlCompletion";
-import { curatedCrawlById, crawlShareMapHref } from "@/lib/curatedCrawls";
+import type { CityId } from "@/lib/cities";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { cityIdFromVenueId } from "@/lib/cityVenueIds";
+import {
+  curatedCrawlByIdForCity,
+  curatedCrawlsForCity,
+} from "@/lib/cityCuratedCrawls";
+import { cityAwareMapPath, crawlShareMapHref } from "@/lib/curatedCrawls";
 import "@/components/map/routePanel.css";
 
 // ponytail: cap the keyboard picker render; search narrows the rest.
@@ -83,6 +90,8 @@ type RoutePanelProps = {
   children?: React.ReactNode;
   /** City display name for map-route chrome (defaults to London). */
   cityDisplayName?: string;
+  /** Active map city — drives share / log deep-links off London. */
+  cityId?: CityId;
   /** Optional POI path; null skips London POI fetch for non-London cities. */
   poisPath?: string | null;
 };
@@ -124,6 +133,7 @@ export default function RoutePanel({
   onReverseRoute,
   children,
   cityDisplayName = "London",
+  cityId = DEFAULT_CITY_ID,
   poisPath = LONDON_POIS_PATH,
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
@@ -182,7 +192,7 @@ export default function RoutePanel({
   // present, else a stable title slug so hand-built routes still track.
   const progressKey = (crawlId || crawlTitle).trim();
   const placeStoryBandId = crawlId
-    ? curatedCrawlById(crawlId)?.placeStoryBandId
+    ? curatedCrawlByIdForCity(cityId, crawlId)?.placeStoryBandId
     : undefined;
   const [crawlProgress, setCrawlProgress] = useState<CrawlProgressEntry | null>(null);
   // Wave G2: one-shot celebration after 100% — claimed via acknowledgeCrawlCompletion.
@@ -243,15 +253,22 @@ export default function RoutePanel({
   }
 
   const crawlDone = isComplete(crawlProgress);
-  const dropHref =
-    route.length > 0
-      ? `/map?log=1&sel=${encodeURIComponent(route[route.length - 1]!.id)}`
-      : "/map?log=1";
+  const lastStopId = route.length > 0 ? route[route.length - 1]!.id : "";
+  const dropHrefCity =
+    cityIdFromVenueId(lastStopId) ?? cityId;
+  const dropHref = lastStopId
+    ? cityAwareMapPath(
+        dropHrefCity,
+        new URLSearchParams({ log: "1", sel: lastStopId }),
+      )
+    : cityAwareMapPath(cityId, new URLSearchParams({ log: "1" }));
   // Wave H1: share the walked route as a map deep-link (pubs + optional band).
   const shareMapHref = crawlShareMapHref({
     venueIds: route.map((v) => v.id),
     placeStoryBandId,
     crawlId,
+    cityId,
+    crawls: curatedCrawlsForCity(cityId),
   });
   const [shareCopied, setShareCopied] = useState(false);
 

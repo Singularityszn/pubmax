@@ -37,8 +37,9 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     cheapestPrice: slim.cheapestPrice,
     cheapestPint: "",
     averagePrice: null,
-    // No story signal in the slim index → no brass ring until hydration.
-    hasStory: false,
+    // Prefer slim filterHints so heritage rings paint before full detail loads
+    // (critical for non-London cities that have no detail artifact yet).
+    hasStory: Boolean(slim.filterHints?.curation.hasStory),
     latestContributorPrice: null,
     latestContributorAt: null,
     amenities: {

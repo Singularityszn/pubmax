@@ -93,4 +93,11 @@ describe("venueDetailIndex", () => {
     await getVenueDetail(SEED_VENUE_ID);
     expect(getManifestReadAttemptsForTests()).toBe(2);
   });
+
+  it("synthesizes non-London detail from the city slim pack when no artifact exists", async () => {
+    const venue = await getVenueDetail("venue-oxf-16404bl");
+    expect(venue?.id).toBe("venue-oxf-16404bl");
+    expect(venue?.name).toBeTruthy();
+    expect(venue?.prices).toEqual([]);
+  });
 });

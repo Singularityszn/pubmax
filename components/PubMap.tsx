@@ -1403,6 +1403,7 @@ export default function PubMap({
               onToggleStop={toggleBuiltStop}
               onReverseRoute={reverseRoute}
               cityDisplayName={city.displayName}
+              cityId={cityId}
               poisPath={city.poisPath}
             >
               {loaded && filteredVenues.length === 0 ? (

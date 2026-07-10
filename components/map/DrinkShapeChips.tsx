@@ -2,8 +2,9 @@
 
 // Compact drink-shape filter chips for the map toolbar — continues the
 // landing-page alcohol-shape metaphor without inventing pin categories.
-// Tapping a glyph sets the same soft query / cocktail amenity filters that
-// /map?drink=… deep-links use (see lib/crawlUrl.ts).
+// Tapping a glyph sets the same drinkCategory lens that /map?drink=… deep-links
+// use (see lib/crawlUrl.ts). Do NOT also set filters.query — that AND'd with
+// drinkCategory and dropped slim pins whose category isn't in name/searchText.
 
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import {
@@ -28,17 +29,9 @@ type DrinkShapeChipsProps = {
 };
 
 function activeCategory(filters: Filters): DrinkCategory | null {
-  const q = filters.query.trim().toLowerCase();
   const lens = filters.drinkCategory.trim().toLowerCase();
   if (CHIP_CATEGORIES.includes(lens as DrinkCategory)) return lens as DrinkCategory;
-  if (!q) {
-    return filters.requireCocktails ? "cocktail" : null;
-  }
-  for (const cat of CHIP_CATEGORIES) {
-    const label = categoryLabel(cat).toLowerCase();
-    if (q === label || q === cat) return cat;
-  }
-  return null;
+  return filters.requireCocktails ? "cocktail" : null;
 }
 
 export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Filters {
@@ -46,7 +39,6 @@ export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Fil
   if (active === cat) {
     return {
       ...filters,
-      query: "",
       requireCocktails: false,
       drinkCategory: "",
       drinkBrand: "",
@@ -54,7 +46,6 @@ export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Fil
   }
   return {
     ...filters,
-    query: categoryLabel(cat),
     requireCocktails: cat === "cocktail",
     drinkCategory: cat,
     drinkBrand: "",

@@ -34,3 +34,28 @@ export function venueIdMatchesCity(venueId: string, cityId: CityId): boolean {
   if (cityId === "london") return prefix === null;
   return prefix === CITY_VENUE_ID_PREFIX[cityId];
 }
+
+/** Friendly label when a venue id cannot be resolved from the slim index. */
+export function unresolvedVenueLabel(venueId?: string | null): string {
+  const cityId = venueId ? cityIdFromVenueId(venueId) : null;
+  switch (cityId) {
+    case "manchester":
+      return "A Manchester pub";
+    case "liverpool":
+      return "A Liverpool pub";
+    case "oxford":
+      return "An Oxford pub";
+    case "durham":
+      return "A Durham pub";
+    case "glasgow":
+      return "A Glasgow pub";
+    case "bristol":
+      return "A Bristol pub";
+    case "cambridge":
+      return "A Cambridge pub";
+    case "bath":
+      return "A Bath pub";
+    default:
+      return "A London pub";
+  }
+}

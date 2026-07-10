@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { getAnonId } from "@/lib/anonId";
 import { authedFetch } from "@/lib/authedFetch";
 import type { CityId } from "@/lib/cities";
+import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 import type { PintDropDTO } from "@/lib/feed";
 import {
   buildOptimisticSpillDrop,
@@ -135,6 +136,9 @@ export function usePintDrops(cityId: CityId = "london") {
   // Ref guard + optimistic removal is the whole "pending state" for reports —
   // the button unmounts on click, so double-submit can't happen.
   const reportsInFlight = useRef(new Set<string>());
+  // Abort in-flight city-scoped list fetches when city changes or a newer
+  // refresh supersedes an older one (avoids stale London drops painting Manchester).
+  const cityListAbortRef = useRef<AbortController | null>(null);
 
   // Refresh the WHOLE drops layer from the public list (city-scoped). This is
   // the same read the initial load uses — so #29 visibility filtering re-applies —
@@ -143,26 +147,39 @@ export function usePintDrops(cityId: CityId = "london") {
   // a failed refresh leaves the current layer intact (does NOT wipe it), so a
   // transient hiccup never blanks the map.
   const refreshAllDrops = useCallback(() => {
+    cityListAbortRef.current?.abort();
+    const ac = new AbortController();
+    cityListAbortRef.current = ac;
     const qs = new URLSearchParams({ city: cityId });
-    fetch(`/api/pint-drops?${qs.toString()}`)
+    fetch(`/api/pint-drops?${qs.toString()}`, { signal: ac.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
-      .then((data: { drops?: DropWithPhotos[] }) =>
-        setDropsByVenueId(groupDropsByVenueId(data.drops ?? [])),
-      )
+      .then((data: { drops?: DropWithPhotos[] }) => {
+        if (!ac.signal.aborted) {
+          setDropsByVenueId(groupDropsByVenueId(data.drops ?? []));
+        }
+      })
       .catch(() => {
-        // Keep the existing layer — a live refresh failure is not a reason to
-        // blank the map (unlike the initial load, which has nothing to preserve).
+        // Keep the existing layer — a live refresh failure / abort is not a
+        // reason to blank the map (unlike the initial load).
       });
   }, [cityId]);
 
   useEffect(() => {
+    cityListAbortRef.current?.abort();
+    const ac = new AbortController();
+    cityListAbortRef.current = ac;
     const qs = new URLSearchParams({ city: cityId });
-    fetch(`/api/pint-drops?${qs.toString()}`)
+    fetch(`/api/pint-drops?${qs.toString()}`, { signal: ac.signal })
       .then((response) => (response.ok ? response.json() : { drops: [] }))
-      .then((data: { drops?: DropWithPhotos[] }) =>
-        setDropsByVenueId(groupDropsByVenueId(data.drops ?? [])),
-      )
-      .catch(() => setDropsByVenueId(new Map()));
+      .then((data: { drops?: DropWithPhotos[] }) => {
+        if (!ac.signal.aborted) {
+          setDropsByVenueId(groupDropsByVenueId(data.drops ?? []));
+        }
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setDropsByVenueId(new Map());
+      });
+    return () => ac.abort();
   }, [cityId]);
 
   // Refresh one venue's drops; returns a cancel function for effect cleanup.
@@ -457,7 +474,7 @@ export function usePintDrops(cityId: CityId = "london") {
           code: activeRound,
           handle: submittedHandle,
           venueId,
-          venueName: options?.venueName ?? "A London pub",
+          venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
           dropRef: dropId,
         });
       }

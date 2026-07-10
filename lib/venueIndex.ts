@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 
 import { listEnabledCities } from "@/lib/cities";
+import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 import type { Venue } from "@/lib/venues";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
@@ -104,8 +105,10 @@ export async function resolveVenue(id: string): Promise<VenueRef | null> {
 // A display label that never surfaces a raw id: the pub name, or a friendly
 // fallback for an id the dataset no longer carries.
 export async function venueLabel(id: string): Promise<string> {
-  return (await resolveVenue(id))?.name ?? "A London pub";
+  return (await resolveVenue(id))?.name ?? unresolvedVenueLabel(id);
 }
+
+export { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 
 export function resetVenueIndexForTests(): void {
   if (

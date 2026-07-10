@@ -45,11 +45,13 @@ async function manchesterSlimVenues(): Promise<SlimVenueRow[]> {
       "venues_slim.json",
     );
     const rows = JSON.parse(await fs.readFile(file, "utf8")) as SlimVenueRow[];
-    cachedSlim = Array.isArray(rows) ? rows : [];
+    const next = Array.isArray(rows) ? rows : [];
+    // Only cache successful reads — a transient I/O miss must not stick forever.
+    cachedSlim = next;
+    return next;
   } catch {
-    cachedSlim = [];
+    return [];
   }
-  return cachedSlim;
 }
 
 async function nearestPubsToStation(
