@@ -94,4 +94,12 @@ describe("preferredCityMapHref", () => {
       "/map/glasgow?log=1",
     );
   });
+
+  it("deep-link write sticks so Map/Drop do not bounce to London", () => {
+    writePreferredCity("manchester");
+    expect(preferredCityMapHref()).toBe("/map/manchester");
+    expect(preferredCityMapHref(new URLSearchParams({ log: "1" }))).toBe(
+      "/map/manchester?log=1",
+    );
+  });
 });
