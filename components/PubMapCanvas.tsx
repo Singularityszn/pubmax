@@ -92,6 +92,8 @@ type PubMapCanvasProps = {
   onAskPubmaxxer?: (venueId: string) => void;
   /** Deep-link a landmark history card open on arrival (`?landmark=`). */
   initialLandmarkId?: string;
+  /** Wave K2 — parent keeps the loading chrome until WebGL style + scene are ready. */
+  onMapReady?: (ready: boolean) => void;
   /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
@@ -556,6 +558,7 @@ export default function PubMapCanvas({
   onStartCrawl,
   onAskPubmaxxer,
   initialLandmarkId = "",
+  onMapReady,
   mapView = LONDON_VIEW,
   maxBounds = LONDON_BOUNDS,
   poisPath = LONDON_POIS_PATH,
@@ -581,6 +584,12 @@ export default function PubMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  // Keep the latest parent callback without reading/writing refs during render
+  // (react-hooks/refs). Build/event handlers read this when mapReady flips.
+  const onMapReadyRef = useRef(onMapReady);
+  useEffect(() => {
+    onMapReadyRef.current = onMapReady;
+  }, [onMapReady]);
   // The fallback is a real user-facing dead end, so it carries enough to be
   // honest about *why*: `kind` drives the copy (only "constructor" with a
   // confirmed-dead probe may claim "needs WebGL"), `detail` surfaces the raw
@@ -1541,6 +1550,7 @@ export default function PubMapCanvas({
       }
 
       setMapReady(true);
+      onMapReadyRef.current?.(true);
     };
     // --- Basemap fallback: OpenFreeMap is community-run, so if the primary style
     // hasn't loaded within a timeout (or errors before first load), swap to
@@ -1822,6 +1832,7 @@ export default function PubMapCanvas({
       map.remove();
       mapRef.current = null;
       setMapReady(false);
+      onMapReadyRef.current?.(false);
     };
     } // end construct()
 

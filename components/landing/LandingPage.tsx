@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Beer,
   Coins,
@@ -24,7 +25,7 @@ import {
   wedgeCategory,
   type WedgeKey,
 } from "@/lib/surfaceAccent";
-import { warmMapIntent } from "@/lib/mapWarmup";
+import { warmMapRoute } from "@/lib/mapWarmup";
 import "./landing.css";
 
 function PintDropStripLoading() {
@@ -170,10 +171,15 @@ const goldenDays = [
 
 export default function LandingPage() {
   const ref = useReveal();
+  const router = useRouter();
+  // Wave K2 — mirror the tab bar: prefetch /map + slim payloads on intent
+  // (pointerDown fires before navigation on phones; enter/focus cover desktop).
+  const warmMap = useCallback(() => warmMapRoute(router), [router]);
   const mapWarmProps = {
-    onPointerEnter: warmMapIntent,
-    onTouchStart: warmMapIntent,
-    onFocus: warmMapIntent,
+    onPointerDown: warmMap,
+    onPointerEnter: warmMap,
+    onTouchStart: warmMap,
+    onFocus: warmMap,
   };
 
   return (

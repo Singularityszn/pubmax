@@ -100,3 +100,26 @@ describe("warmMapIntentData", () => {
     ).not.toThrow();
   });
 });
+
+describe("warmMapRoute", () => {
+  it("prefetches the route once and warms map data for /map", async () => {
+    const { warmMapRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+    warmMapRoute({ prefetch }, "/map?log=1", seen);
+    warmMapRoute({ prefetch }, "/map", seen);
+    expect(prefetch).toHaveBeenCalledTimes(1);
+    expect(prefetch).toHaveBeenCalledWith("/map");
+    expect(seen.has("/map")).toBe(true);
+  });
+
+  it("still marks non-map routes as warmed without calling warmMapIntent paths twice", async () => {
+    const { warmMapRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+    warmMapRoute({ prefetch }, "/discover", seen);
+    warmMapRoute({ prefetch }, "/discover", seen);
+    expect(prefetch).toHaveBeenCalledTimes(1);
+    expect(prefetch).toHaveBeenCalledWith("/discover");
+  });
+});

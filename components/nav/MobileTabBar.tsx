@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Map, CirclePlus, User, Compass } from "lucide-react";
 import { useCallback } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { warmMapIntent } from "@/lib/mapWarmup";
+import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import "./mobileNav.css";
 
@@ -63,10 +63,13 @@ export default function MobileTabBar() {
   const warmTab = useCallback(
     (href: string) => {
       const prefetchHref = href.split("?")[0] || href;
+      if (prefetchHref === "/map") {
+        warmMapRoute(router, href, warmedTabs);
+        return;
+      }
       if (warmedTabs.has(prefetchHref)) return;
       warmedTabs.add(prefetchHref);
       router.prefetch(prefetchHref);
-      if (prefetchHref === "/map") warmMapIntent();
     },
     [router],
   );

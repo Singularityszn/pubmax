@@ -83,7 +83,7 @@ export default function MapLoadingSkeleton() {
         <div className="mapSkeletonCopy" id="mapSkeletonStatus" role="status">
           <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
           <div>
-            <h1>Loading the London pub map</h1>
+            <h1>London pub map</h1>
             <p>Checking cached pins, then warming live prices.</p>
           </div>
         </div>

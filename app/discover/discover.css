@@ -668,30 +668,42 @@
    so the pub name and its price stamp stay legible on a 375px screen. */
 @media (max-width: 560px) {
   .discoverPage {
-    padding: 20px 14px calc(188px + env(safe-area-inset-bottom, 0px));
+    padding: 18px 14px calc(var(--mobile-tab-clearance, 72px) + 48px);
   }
 
   .discoverHead {
-    margin: 14px 0 4px;
-    padding: 18px;
-    border-radius: 20px;
+    margin: 12px 0 4px;
+    padding: 16px 18px;
+    border-radius: 18px;
   }
 
   .discoverTitle {
-    font-size: 29px;
+    font-size: 26px;
   }
 
   .discoverLede {
-    font-size: 16px;
-    line-height: 1.42;
+    font-size: 15px;
+    line-height: 1.4;
   }
 
   .discoverSection {
-    margin-top: 22px;
+    margin-top: 18px;
+  }
+
+  .discoverSectionTitle {
+    font-size: 21px;
+  }
+
+  .discoverBrandPanel {
+    padding: 14px 16px;
+  }
+
+  .tonightRow {
+    padding: 10px 12px;
   }
 
   .discoverExplore {
-    margin-bottom: 42px;
+    margin-bottom: 36px;
   }
 
   .leaderboard td,
@@ -789,12 +801,12 @@
 
 @media (max-width: 560px) {
   .discoverHead {
-    padding: 22px 18px;
+    padding: 16px 18px;
     border-radius: 16px;
   }
 
   .discoverLede {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .discoverExplore.catShowcase {
@@ -987,4 +999,26 @@
 .discoverCuisineChip:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+/* Wave K3 — after base wrap rule so mobile horizontal scroll wins. */
+@media (max-width: 560px) {
+  .discoverCuisineChips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 2px 4px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .discoverCuisineChips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .discoverCuisineChip {
+    flex: 0 0 auto;
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
 }
