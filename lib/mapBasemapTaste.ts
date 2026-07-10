@@ -64,11 +64,12 @@ export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePa
       landSoft: withAlpha(tokens.brass, 0.14),
       residential: withAlpha(tokens.brass, 0.12),
       park: withAlpha(tokens.pint, 0.32),
-      // Cool mid-gray massing — readable footprints on near-black land.
-      building: "#4a5160",
+      // Cool mid-gray massing — OFM dark ships buildings at rgb(10,10,10)
+      // which vanish into inkDeep; lift well above land so footprints read.
+      building: "#6e778a",
       water: tokens.river,
-      road: withAlpha(tokens.ink, 0.82),
-      roadMajor: withAlpha(tokens.amber, 0.94),
+      road: withAlpha(tokens.ink, 0.88),
+      roadMajor: withAlpha(tokens.amber, 0.96),
     };
   }
   return {
@@ -176,7 +177,11 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
 
   for (const id of BUILDING_FILL_IDS) {
     tryPaint(map, id, "fill-color", palette.building);
-    tryPaint(map, id, "fill-opacity", dark ? 0.88 : 0.7);
+    tryPaint(map, id, "fill-opacity", dark ? 0.92 : 0.7);
+    // OFM dark outline is rgb(27,27,29) — lift it so edges separate from land.
+    if (dark) {
+      tryPaint(map, id, "fill-outline-color", "#9aa3b5");
+    }
   }
 
   for (const id of WATER_FILL_IDS) {
@@ -205,7 +210,10 @@ function paintDiscoveredFill(
 ): void {
   if (id.includes("building")) {
     tryPaint(map, layerId, "fill-color", palette.building);
-    tryPaint(map, layerId, "fill-opacity", dark ? 0.88 : 0.7);
+    tryPaint(map, layerId, "fill-opacity", dark ? 0.92 : 0.7);
+    if (dark) {
+      tryPaint(map, layerId, "fill-outline-color", "#9aa3b5");
+    }
     return;
   }
   if (isParkish(id)) {
