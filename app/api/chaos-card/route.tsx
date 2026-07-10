@@ -1,8 +1,9 @@
 import { ImageResponse } from "next/og";
 
 import { clampParam, resolveChaosCardParams } from "@/lib/chaosCardParams";
+import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 const size = {
   width: 1200,
@@ -39,6 +40,9 @@ function ChaosGlyph() {
 }
 
 export async function GET(request: Request) {
+  const limited = await ogCardRateLimitedResponse(request, "og-chaos-card");
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const title = clampParam(searchParams.get("title"), 64, "A London crawl");
   const { score, grade, oneLiner } = resolveChaosCardParams(searchParams);

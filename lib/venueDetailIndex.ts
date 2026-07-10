@@ -1,7 +1,11 @@
 import { promises as fs } from "fs";
 import path from "path";
 
+import { listEnabledCities } from "@/lib/cities";
+import { cityIdFromVenueId } from "@/lib/cityVenueIds";
+import { slimVenueToPin } from "@/lib/slimPins";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import type { SlimVenue } from "@/lib/venuesSlim";
 
 export type VenueDetailManifestEntry = {
   offset: number;
@@ -27,7 +31,7 @@ const DEFAULT_DETAIL_INDEX_FILE = path.join(GENERATED_DIR, "venue_detail_index.j
 const DEFAULT_DETAIL_ROWS_FILE = path.join(GENERATED_DIR, "venue_details.jsonl");
 const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
 
-const VENUE_ID_RE = /^venue-[a-z0-9]{1,12}$/;
+const VENUE_ID_RE = /^venue-(?:[a-z]{3}-)?[a-z0-9]{1,12}$/;
 
 const cachedDetails = new Map<string, Venue>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
@@ -134,15 +138,60 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   return fallbackIndex;
 }
 
+/** Successful city slim packs only — I/O failures stay unset so the next call can retry. */
+let cachedCitySlimPins: Map<string, Venue> | null | undefined;
+
+function publicDataPath(publicPath: string): string {
+  return path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
+}
+
+async function getCitySlimPinIndex(): Promise<Map<string, Venue>> {
+  if (cachedCitySlimPins) return cachedCitySlimPins;
+  const index = new Map<string, Venue>();
+  let loadedAny = false;
+  for (const city of listEnabledCities()) {
+    if (city.id === "london") continue;
+    try {
+      const rows = JSON.parse(
+        await fs.readFile(publicDataPath(city.slimVenuesPath), "utf8"),
+      ) as SlimVenue[];
+      loadedAny = true;
+      if (!Array.isArray(rows)) continue;
+      for (const row of rows) {
+        if (
+          typeof row?.id === "string" &&
+          typeof row.name === "string" &&
+          Number.isFinite(row.lat) &&
+          Number.isFinite(row.lng)
+        ) {
+          index.set(row.id, slimVenueToPin(row));
+        }
+      }
+    } catch {
+      // One missing/corrupt city pack must not wipe the rest; leave cache unset
+      // only when every city fails so a later request can retry.
+    }
+  }
+  if (!loadedAny) return new Map();
+  cachedCitySlimPins = index;
+  return index;
+}
+
 export async function getVenueDetail(id: string): Promise<Venue | null> {
   if (!isVenueDetailId(id)) return null;
   if (cachedDetails.has(id)) return cachedDetails.get(id) ?? null;
 
   const artifactVenue = await readVenueFromArtifact(id);
-  const venue =
+  let venue: Venue | null =
     artifactVenue === undefined && process.env.NODE_ENV !== "production"
       ? (await getFallbackIndex()).get(id) ?? null
       : artifactVenue ?? null;
+
+  // Non-London packs ship slim pins only today — synthesize a minimal Venue so
+  // /api/venue/[id] does not 404 every Manchester/Oxford/etc. open.
+  if (!venue && cityIdFromVenueId(id)) {
+    venue = (await getCitySlimPinIndex()).get(id) ?? null;
+  }
 
   if (venue) cachedDetails.set(id, venue);
   return venue;
@@ -155,6 +204,7 @@ export function resetVenueDetailCachesForTests(): void {
   detailIndexFile = DEFAULT_DETAIL_INDEX_FILE;
   detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
   fallbackIndex = null;
+  cachedCitySlimPins = undefined;
   manifestReadAttemptsForTests = 0;
 }
 
@@ -163,6 +213,7 @@ export function clearVenueDetailEntriesForTests(): void {
   if (!isTestRuntime()) return;
   cachedDetails.clear();
   fallbackIndex = null;
+  cachedCitySlimPins = undefined;
 }
 
 export function setVenueDetailIndexFileForTests(file: string): void {

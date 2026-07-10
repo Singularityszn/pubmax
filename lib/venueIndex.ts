@@ -1,6 +1,8 @@
 import { promises as fs } from "fs";
 import path from "path";
 
+import { listEnabledCities } from "@/lib/cities";
+import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 import type { Venue } from "@/lib/venues";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
@@ -66,19 +68,39 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
 
 let cached: Map<string, VenueRef> | null = null;
 
+function publicDataPath(publicPath: string): string {
+  return path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
+}
+
+async function readSlimIndex(publicPath: string): Promise<Map<string, VenueRef>> {
+  const rows = JSON.parse(await fs.readFile(publicDataPath(publicPath), "utf8")) as SlimRow[];
+  return buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
+}
+
 // Read the slim index once and memoize. Never throws: a read/parse failure
 // yields an empty index so name resolution degrades to the friendly fallback
 // rather than 500-ing a page. Prefer venues_slim.json (~400 KB) over the full
 // ~6 MB price dataset — name/borough/coords are all the social DTOs need.
+//
+// Per-city try/catch: one missing/corrupt city pack must not wipe London (or
+// any other city that loaded). Only cache when at least one city succeeded so
+// a total miss can retry on the next call.
 export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   if (cached) return cached;
-  try {
-    const file = path.join(process.cwd(), "public", "data", "venues_slim.json");
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as SlimRow[];
-    cached = buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
-  } catch {
-    return new Map();
+  const index = new Map<string, VenueRef>();
+  let loadedAny = false;
+  for (const city of listEnabledCities()) {
+    try {
+      for (const [id, ref] of await readSlimIndex(city.slimVenuesPath)) {
+        index.set(id, ref);
+      }
+      loadedAny = true;
+    } catch {
+      // Skip this city; keep whatever already loaded.
+    }
   }
+  if (!loadedAny) return new Map();
+  cached = index;
   return cached;
 }
 
@@ -90,7 +112,19 @@ export async function resolveVenue(id: string): Promise<VenueRef | null> {
 // A display label that never surfaces a raw id: the pub name, or a friendly
 // fallback for an id the dataset no longer carries.
 export async function venueLabel(id: string): Promise<string> {
-  return (await resolveVenue(id))?.name ?? "A London pub";
+  return (await resolveVenue(id))?.name ?? unresolvedVenueLabel(id);
+}
+
+export { unresolvedVenueLabel } from "@/lib/cityVenueIds";
+
+export function resetVenueIndexForTests(): void {
+  if (
+    process.env.NODE_ENV === "test" ||
+    Boolean(process.env.VITEST) ||
+    Boolean(process.env.VITEST_WORKER_ID)
+  ) {
+    cached = null;
+  }
 }
 
 // Re-export the client-safe helper so existing server imports keep working.

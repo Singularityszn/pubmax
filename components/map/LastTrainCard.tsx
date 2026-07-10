@@ -19,7 +19,7 @@
 import { useEffect, useId, useState } from "react";
 
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
-import { lastRideFetchUrl, type LastRideResult } from "@/lib/lastRide";
+import { lastRideFetchUrl, lastRideProviderForCity, type LastRideResult } from "@/lib/lastRide";
 import {
   readLastTrainDestination,
   writeLastTrainDestination,
@@ -168,6 +168,9 @@ function readSessionDestination(): string {
 }
 
 function emptyNoteForCity(cityId: CityId): string {
+  if (!lastRideProviderForCity(cityId)) {
+    return `No ${getCity(cityId).lastRideLabel.toLowerCase()} provider is available for ${getCity(cityId).displayName} yet.`;
+  }
   if (cityId === "manchester") {
     return "Couldn't check Metrolink just now — check before you head out.";
   }
@@ -221,12 +224,17 @@ export default function LastTrainCard({
   }
 
   useEffect(() => {
+    const fetchUrl = lastRideFetchUrl(cityId, lat, lng);
+    if (!fetchUrl) {
+      void Promise.resolve().then(() => setState({ status: "empty", requestKey }));
+      return;
+    }
     const controller = new AbortController();
     // React 19: never setState synchronously in the effect body. The initial
     // state is already "loading"; when lat/lng change we let the resolving fetch
     // move us straight to the fresh ready/empty state below. Destination is
     // session-only UI and is never sent to the API (privacy / user story 23).
-    fetch(lastRideFetchUrl(cityId, lat, lng), { signal: controller.signal })
+    fetch(fetchUrl, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
       .then((data: Partial<LastRideResult> & { error?: string }) => {
         setState(toState(data, requestKey));

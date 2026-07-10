@@ -17,8 +17,8 @@ import {
   isAuthor,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -47,7 +47,8 @@ export async function PATCH(
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
-  const handle = normalizeHandle(readString(body.handle) ?? "");
+  // JWT-linked handle wins over a self-asserted body.handle when signed in.
+  const handle = await resolveMessageHandle(request, readString(body.handle));
   if (!handle) return forbidden();
 
   // Linked-handle ownership: a claimed handle cannot be forged via body.handle.
@@ -57,7 +58,7 @@ export async function PATCH(
   }
 
   // Rate-limit edits per handle + hashed IP so the edit path can't be hammered.
-  const key = `crawl-edit:${handle}:${hashIp(clientIp(request))}`;
+  const key = `crawl-edit:${ownership.handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
     return jsonNoStore({ error: "Too many edits, slow down." }, { status: 429 });
   }
@@ -89,8 +90,10 @@ export async function DELETE(
   } catch {
     // A DELETE may carry no body; the handle can still arrive via a query param.
   }
-  const handle = normalizeHandle(
-    readString(body.handle) ?? readString(new URL(request.url).searchParams.get("handle")) ?? "",
+  // JWT-linked handle wins over a self-asserted body/query handle when signed in.
+  const handle = await resolveMessageHandle(
+    request,
+    readString(body.handle) ?? readString(new URL(request.url).searchParams.get("handle")),
   );
   if (!handle) return forbidden();
 
@@ -99,7 +102,7 @@ export async function DELETE(
     return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
 
-  const key = `crawl-del:${handle}:${hashIp(clientIp(request))}`;
+  const key = `crawl-del:${ownership.handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
     return jsonNoStore({ error: "Too many deletes, slow down." }, { status: 429 });
   }

@@ -29,28 +29,28 @@ function filters(overrides: Partial<Filters> = {}): Filters {
 }
 
 describe("nextDrinkShapeFilters", () => {
-  it("sets the drink lens and clears a stale brand when a shape is selected", () => {
+  it("sets the drink lens and clears a stale brand when a shape is selected (leaves text query alone)", () => {
     expect(
       nextDrinkShapeFilters(
         filters({ query: "Guinness", drinkCategory: "beer", drinkBrand: "guinness" }),
         "wine",
       ),
     ).toMatchObject({
-      query: "Wine",
+      query: "Guinness",
       requireCocktails: false,
       drinkCategory: "wine",
       drinkBrand: "",
     });
   });
 
-  it("clears both visible and hidden drink filters when the active shape is toggled off", () => {
+  it("clears drink lens filters when the active shape is toggled off (leaves text query alone)", () => {
     expect(
       nextDrinkShapeFilters(
-        filters({ query: "Gin", drinkCategory: "gin", drinkBrand: "sipsmith" }),
+        filters({ query: "borough", drinkCategory: "gin", drinkBrand: "sipsmith" }),
         "gin",
       ),
     ).toMatchObject({
-      query: "",
+      query: "borough",
       requireCocktails: false,
       drinkCategory: "",
       drinkBrand: "",
@@ -59,7 +59,7 @@ describe("nextDrinkShapeFilters", () => {
 
   it("keeps cocktail amenity in sync with the cocktail shape", () => {
     expect(nextDrinkShapeFilters(filters(), "cocktail")).toMatchObject({
-      query: "Cocktails",
+      query: "",
       requireCocktails: true,
       drinkCategory: "cocktail",
       drinkBrand: "",

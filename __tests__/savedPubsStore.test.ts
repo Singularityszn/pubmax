@@ -171,6 +171,18 @@ describe("DTO enrichment — venue name, not raw id", () => {
     expect(dto.venueMapUrl).toBe(`/map?sel=${encodeURIComponent(id)}`);
   });
 
+  it("carries city-scoped map urls for known non-London venues", async () => {
+    const store = savedPubsStore();
+    const [dto] = await store.toggleSaved({
+      handle: "ken",
+      venueId: "venue-oxf-16404bl",
+      listType: "Historic",
+    });
+
+    expect(dto.venueName).toBe("Turf Tavern");
+    expect(dto.venueMapUrl).toBe("/map/oxford?sel=venue-oxf-16404bl");
+  });
+
   it("falls back to a friendly label (never the raw id) for an unknown venue", async () => {
     const store = savedPubsStore();
     const [dto] = await store.toggleSaved({

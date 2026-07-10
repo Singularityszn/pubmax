@@ -43,8 +43,17 @@ describe("slimVenueToPin", () => {
     expect(pin.cheapestPrice).toBeNull();
   });
 
-  it("degrades hasStory to false until hydration (no brass ring)", () => {
-    expect(slimVenueToPin(slim).hasStory).toBe(false);
+  it("lights hasStory from slim filterHints so heritage rings paint before detail", () => {
+    expect(slimVenueToPin(slim).hasStory).toBe(true);
+    expect(
+      slimVenueToPin({
+        ...slim,
+        filterHints: {
+          ...slim.filterHints!,
+          curation: { nearWater: false, hasStory: false },
+        },
+      }).hasStory,
+    ).toBe(false);
   });
 
   it("degrades prices to [] so priceForBeer returns null (favorite-pint dims until hydration)", () => {

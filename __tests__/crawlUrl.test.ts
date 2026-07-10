@@ -163,11 +163,11 @@ describe("crawlUrl", () => {
     expect(seeded.builtIds).toEqual([]);
   });
 
-  it("seeds drink chooser links into map filters", () => {
+  it("seeds drink chooser links into map filters (lens only, not text query)", () => {
     const cocktail = seedCrawlState("?drink=cocktail");
     expect(cocktail.filters.requireCocktails).toBe(true);
     expect(cocktail.filters.drinkCategory).toBe("cocktail");
-    expect(cocktail.filters.query).toBe("Cocktails");
+    expect(cocktail.filters.query).toBe("");
 
     const lowNo = seedCrawlState("?drink=low-no&low=1");
     expect(lowNo.filters.requireNonAlcoholic).toBe(true);
@@ -175,24 +175,30 @@ describe("crawlUrl", () => {
 
     const wine = seedCrawlState("?drink=wine");
     expect(wine.filters.drinkCategory).toBe("wine");
-    expect(wine.filters.query).toBe("Wine");
+    expect(wine.filters.query).toBe("");
 
     const gin = seedCrawlState("?drink=gin");
     expect(gin.filters.drinkCategory).toBe("gin");
-    expect(gin.filters.query).toBe("Gin");
+    expect(gin.filters.query).toBe("");
   });
 
   it("decodes cocktails=1 into the cocktail drink lens (not amenity alone)", () => {
     const seeded = seedCrawlState("?cocktails=1");
     expect(seeded.filters.requireCocktails).toBe(true);
     expect(seeded.filters.drinkCategory).toBe("cocktail");
-    expect(seeded.filters.query).toBe("Cocktails");
+    expect(seeded.filters.query).toBe("");
 
     // Explicit drink= wins over the cocktails=1 soft lens fill-in.
     const winePlus = seedCrawlState("?drink=wine&cocktails=1");
     expect(winePlus.filters.drinkCategory).toBe("wine");
     expect(winePlus.filters.requireCocktails).toBe(true);
-    expect(winePlus.filters.query).toBe("Wine");
+    expect(winePlus.filters.query).toBe("");
+  });
+
+  it("drink deep-link leaves an explicit query untouched", () => {
+    const seeded = seedCrawlState("?drink=wine&q=borough");
+    expect(seeded.filters.drinkCategory).toBe("wine");
+    expect(seeded.filters.query).toBe("borough");
   });
 
   it("round-trips drink + brand query params", () => {

@@ -48,7 +48,11 @@ afterEach(() => {
 describe("venueDetailIndex", () => {
   it("rejects ids that cannot be generated venue ids", async () => {
     expect(isVenueDetailId("venue-16pnwmm")).toBe(true);
+    expect(isVenueDetailId("venue-mcr-1lwo5lo")).toBe(true);
+    expect(isVenueDetailId("venue-oxf-16404bl")).toBe(true);
+    expect(isVenueDetailId("venue-glw-dsoj3p")).toBe(true);
     expect(isVenueDetailId(`venue-${"a".repeat(13)}`)).toBe(false);
+    expect(isVenueDetailId("venue-mcr-")).toBe(false);
     expect(isVenueDetailId("../venue-16pnwmm")).toBe(false);
     expect(isVenueDetailId("venue-16pnwmm.json")).toBe(false);
     await expect(getVenueDetail("../venue-16pnwmm")).resolves.toBeNull();
@@ -88,5 +92,12 @@ describe("venueDetailIndex", () => {
     clearVenueDetailEntriesForTests();
     await getVenueDetail(SEED_VENUE_ID);
     expect(getManifestReadAttemptsForTests()).toBe(2);
+  });
+
+  it("synthesizes non-London detail from the city slim pack when no artifact exists", async () => {
+    const venue = await getVenueDetail("venue-oxf-16404bl");
+    expect(venue?.id).toBe("venue-oxf-16404bl");
+    expect(venue?.name).toBeTruthy();
+    expect(venue?.prices).toEqual([]);
   });
 });

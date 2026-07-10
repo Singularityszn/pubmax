@@ -14,6 +14,7 @@ import {
   type CreateCrawlStoryInput,
 } from "@/lib/crawlStoryStore";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -106,16 +107,20 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Too many crawls saved, slow down." }, { status: 429 });
   }
 
-  // Author attribution (story 35): the self-asserted device handle. Optional —
-  // an anonymous save leaves it null. Cleaned + normalized before it reaches the
-  // store (which re-normalizes as defence in depth).
-  const authorHandle = normalizeHandle(readString(body.authorHandle ?? body.handle, MAX_HANDLE));
-
-  if (authorHandle) {
+  // Author attribution (story 35): optional — an anonymous save leaves it unset.
+  // When present, JWT-linked handle wins over a self-asserted body handle.
+  const assertedAuthor = readString(body.authorHandle ?? body.handle, MAX_HANDLE);
+  let authorHandle = "";
+  if (assertedAuthor) {
+    authorHandle = await resolveMessageHandle(request, assertedAuthor);
+    if (!authorHandle) {
+      return jsonNoStore({ error: "Add a handle first." }, { status: 400 });
+    }
     const ownership = await gateHandleAction(request, authorHandle);
     if (!ownership.allowed) {
       return jsonNoStore({ error: ownership.error }, { status: ownership.status });
     }
+    authorHandle = ownership.handle;
   }
 
   const input: CreateCrawlStoryInput = {

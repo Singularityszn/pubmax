@@ -219,6 +219,9 @@ function subscribeInsert(
  *
  * NOTE: pint drops are stored in `visit_reports` — that table must be in the
  * `supabase_realtime` publication for INSERT events to fire (see 0013 header).
+ * Deny-all RLS (0023: no anon SELECT on visit_reports) may also block INSERT
+ * events for the publishable-key client; polling via `options.poll` is the
+ * intentional fallback — do not re-open public SELECT to "fix" realtime.
  */
 export function subscribeToNewDrops(
   onDrop: LiveSignal,

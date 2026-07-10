@@ -13,8 +13,7 @@ export type LastRideProviderId =
   | "tfl"
   | "metrolink"
   | "spt-subway"
-  | "merseyrail"
-  | "static";
+  | "merseyrail";
 
 /** Same payload as LastTrainResult, plus optional provider provenance for UI. */
 export type LastRideResult = LastTrainResult & {
@@ -25,7 +24,7 @@ export type LastRideResult = LastTrainResult & {
   provenance?: string;
 };
 
-export function lastRideProviderForCity(cityId: CityId): LastRideProviderId {
+export function lastRideProviderForCity(cityId: CityId): LastRideProviderId | null {
   switch (cityId) {
     case "manchester":
       return "metrolink";
@@ -36,12 +35,12 @@ export function lastRideProviderForCity(cityId: CityId): LastRideProviderId {
     case "london":
       return "tfl";
     default:
-      return "static";
+      return null;
   }
 }
 
 /** API path for the city's last-ride provider. */
-export function lastRideApiPath(cityId: CityId): string {
+export function lastRideApiPath(cityId: CityId): string | null {
   switch (cityId) {
     case "manchester":
       return "/api/last-tram";
@@ -50,19 +49,20 @@ export function lastRideApiPath(cityId: CityId): string {
     case "liverpool":
       return "/api/last-merseyrail";
     case "london":
-    default:
-      // Non-London cities without a dedicated provider still hit the London
-      // route today; Manchester / Glasgow / Liverpool are wired siblings.
       return "/api/last-train";
+    default:
+      return null;
   }
 }
 
 /** Build the last-ride fetch URL. Destination stays client-only — never sent. */
-export function lastRideFetchUrl(cityId: CityId, lat: number, lng: number): string {
+export function lastRideFetchUrl(cityId: CityId, lat: number, lng: number): string | null {
+  const path = lastRideApiPath(cityId);
+  if (!path) return null;
   const params = new URLSearchParams();
   params.set("lat", String(lat));
   params.set("lng", String(lng));
-  return `${lastRideApiPath(cityId)}?${params.toString()}`;
+  return `${path}?${params.toString()}`;
 }
 
 /** Short tab label derived from the city's lastRideLabel ("Last Tram" → "Tram"). */

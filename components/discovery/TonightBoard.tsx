@@ -2,8 +2,11 @@ import Link from "next/link";
 
 import PriceBadge from "@/components/PriceBadge";
 import prefetchVenue from "@/lib/prefetchVenue";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { cityAwareMapPath } from "@/lib/curatedCrawls";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { formatPrice } from "@/lib/venues";
 import type { TonightEntry } from "@/lib/leaderboard";
 
@@ -28,7 +31,8 @@ export default function TonightBoard({
   if (entries.length === 0) {
     return (
       <p className="discoverEmpty" role="status">
-        No pints logged in the last 24h — <Link href="/map">be the first tonight</Link>.
+        No pints logged in the last 24h —{" "}
+        <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>be the first tonight</Link>.
       </p>
     );
   }
@@ -37,7 +41,7 @@ export default function TonightBoard({
     <ol className="tonightBoard" aria-label={caption}>
       {entries.map((entry) => {
         const ago = relativeTime(entry.createdAt);
-        const href = `/map?sel=${encodeURIComponent(entry.venueId)}`;
+        const href = venueMapUrl(entry.venueId);
         return (
           <li key={entry.venueId} className="tonightRow">
             <span className="tonightRank" aria-hidden="true">

@@ -1,6 +1,7 @@
 import type { PintDropDTO } from "@/lib/feed";
 import type { Visibility } from "@/lib/spill";
 import type { LastPintDecisionKind } from "@/lib/tfl";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 export const OPTIMISTIC_SPILL_STORAGE_KEY = "pubmax:optimistic-spill-posts:v1";
 export const OPTIMISTIC_SPILL_EVENT = "pubmax:optimistic-spill-posts-changed";
@@ -49,10 +50,6 @@ export type OptimisticSpillRetryPayload = {
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 type ResolvePhotoPreview = (url: string) => Promise<Blob>;
 
-function mapUrlFor(venueId: string): string {
-  return `/map?sel=${encodeURIComponent(venueId)}`;
-}
-
 function parsePrice(value: string): number | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -95,7 +92,7 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
     pintPhotoUrl: input.pintPhotoUrl,
     venuePhotoUrl: input.venuePhotoUrl,
     venueName: cleanString(input.venueName ?? "") || undefined,
-    venueMapUrl: mapUrlFor(input.venueId),
+    venueMapUrl: venueMapUrl(input.venueId),
     ...(input.leaveByIso ? { leaveByIso: input.leaveByIso } : {}),
     ...(input.lastTrainDecision ? { lastTrainDecision: input.lastTrainDecision } : {}),
     optimistic: {

@@ -1,5 +1,11 @@
-import type { CrawlStyle } from "@/lib/venues";
+import {
+  DEFAULT_CITY_ID,
+  parseCityId,
+  type CityId,
+} from "@/lib/cities";
+import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
+import type { CrawlStyle } from "@/lib/venues";
 
 // Named "generational" curated crawls — hand-picked routes through pubs that
 // genuinely cluster in a themed patch of London, so an older drinker's pub
@@ -257,26 +263,69 @@ export function curatedCrawlById(id: string | null | undefined): CuratedCrawl | 
   return curatedCrawls.find((crawl) => crawl.id === id);
 }
 
+/**
+ * City-aware map path: London stays `/map` for back-compat; other cities use
+ * `/map/{id}`. Optional query string is appended when non-empty.
+ */
+export function cityAwareMapPath(
+  cityId: CityId | string | null | undefined,
+  query?: URLSearchParams | string | null,
+): string {
+  const id = parseCityId(cityId) ?? DEFAULT_CITY_ID;
+  const base = id === "london" ? "/map" : `/map/${id}`;
+  const qs =
+    typeof query === "string"
+      ? query.replace(/^\?/, "")
+      : query && [...query.keys()].length > 0
+        ? query.toString()
+        : "";
+  return qs ? `${base}?${qs}` : base;
+}
+
+function resolveHrefCity(
+  cityId: CityId | string | null | undefined,
+  venueIds: readonly string[],
+): CityId {
+  const explicit = parseCityId(cityId);
+  if (explicit) return explicit;
+  for (const venueId of venueIds) {
+    const fromVenue = cityIdFromVenueId(venueId);
+    if (fromVenue) return fromVenue;
+  }
+  return DEFAULT_CITY_ID;
+}
+
 /** Map deep-link that opens a Place story corridor (and optional crawl stops). */
-export function placeStoryMapHref(bandId: string, crawlId?: string): string {
-  const crawl = crawlId ? curatedCrawlById(crawlId) : undefined;
+export function placeStoryMapHref(
+  bandId: string,
+  crawlId?: string,
+  cityId?: CityId | string | null,
+  crawls: readonly CuratedCrawl[] = curatedCrawls,
+): string {
+  const crawl = crawlId
+    ? crawls.find((c) => c.id === crawlId) ??
+      (cityId ? undefined : curatedCrawlById(crawlId))
+    : undefined;
   if (crawl) {
     const params = new URLSearchParams();
     params.set("mode", "build");
     params.set("pubs", crawl.venueIds.join(","));
     params.set("crawl", crawl.id);
     params.set("band", bandId);
-    return `/map?${params.toString()}`;
+    return cityAwareMapPath(resolveHrefCity(cityId, crawl.venueIds), params);
   }
   const params = new URLSearchParams({ band: bandId });
-  return `/map?${params.toString()}`;
+  return cityAwareMapPath(cityId, params);
 }
 
 /**
  * Map deep-link for a named curated crawl — map-first arrival (polyline + chip,
  * planner closed). Carries crawl= so PubMap can hydrate the curated blurb.
  */
-export function curatedCrawlMapHref(crawl: CuratedCrawl): string {
+export function curatedCrawlMapHref(
+  crawl: CuratedCrawl,
+  cityId?: CityId | string | null,
+): string {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", crawl.venueIds.join(","));
@@ -284,7 +333,7 @@ export function curatedCrawlMapHref(crawl: CuratedCrawl): string {
   if (crawl.crawlStyle) params.set("style", crawl.crawlStyle);
   if (crawl.altStyle && crawl.altStyle !== "pint") params.set("alt", crawl.altStyle);
   if (crawl.placeStoryBandId) params.set("band", crawl.placeStoryBandId);
-  return `/map?${params.toString()}`;
+  return cityAwareMapPath(resolveHrefCity(cityId, crawl.venueIds), params);
 }
 
 /**
@@ -297,23 +346,31 @@ export function crawlShareMapHref(input: {
   venueIds: readonly string[];
   placeStoryBandId?: string | null;
   crawlId?: string | null;
+  cityId?: CityId | string | null;
+  /** Optional city crawl pack for band lookup when crawlId is set. */
+  crawls?: readonly CuratedCrawl[];
 }): string {
   const ids = input.venueIds
     .map((id) => id.trim())
     .filter(Boolean)
     .slice(0, SHARE_MAP_STOP_CAP);
+  const city = resolveHrefCity(input.cityId, ids);
   if (ids.length === 0) {
     const band = input.placeStoryBandId?.trim();
-    return band ? `/map?band=${encodeURIComponent(band)}` : "/map";
+    return band
+      ? cityAwareMapPath(city, new URLSearchParams({ band }))
+      : cityAwareMapPath(city);
   }
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", ids.join(","));
   const crawlId = input.crawlId?.trim();
   if (crawlId) params.set("crawl", crawlId);
+  const pack = input.crawls ?? curatedCrawls;
   const band =
     input.placeStoryBandId?.trim() ||
-    (crawlId ? curatedCrawlById(crawlId)?.placeStoryBandId : undefined);
+    (crawlId ? pack.find((c) => c.id === crawlId)?.placeStoryBandId : undefined) ||
+    (crawlId && !input.crawls ? curatedCrawlById(crawlId)?.placeStoryBandId : undefined);
   if (band) params.set("band", band);
-  return `/map?${params.toString()}`;
+  return cityAwareMapPath(city, params);
 }
