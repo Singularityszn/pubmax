@@ -48,7 +48,11 @@ afterEach(() => {
 describe("venueDetailIndex", () => {
   it("rejects ids that cannot be generated venue ids", async () => {
     expect(isVenueDetailId("venue-16pnwmm")).toBe(true);
+    expect(isVenueDetailId("venue-mcr-1lwo5lo")).toBe(true);
+    expect(isVenueDetailId("venue-oxf-16404bl")).toBe(true);
+    expect(isVenueDetailId("venue-glw-dsoj3p")).toBe(true);
     expect(isVenueDetailId(`venue-${"a".repeat(13)}`)).toBe(false);
+    expect(isVenueDetailId("venue-mcr-")).toBe(false);
     expect(isVenueDetailId("../venue-16pnwmm")).toBe(false);
     expect(isVenueDetailId("venue-16pnwmm.json")).toBe(false);
     await expect(getVenueDetail("../venue-16pnwmm")).resolves.toBeNull();

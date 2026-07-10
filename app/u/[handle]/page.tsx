@@ -32,6 +32,7 @@ import {
   type SavedPub,
   type SavedPubDTO,
 } from "@/lib/savedPubs";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import "./profile.css";
 
@@ -72,7 +73,7 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
     groups[key] = (local[key] ?? []).map((pub) => ({
       venueId: pub.venueId,
       venueName: pub.venueId,
-      venueMapUrl: `/map?sel=${encodeURIComponent(pub.venueId)}`,
+      venueMapUrl: venueMapUrl(pub.venueId),
       listType: pub.listType,
       note: pub.note,
       savedAt: pub.savedAt,

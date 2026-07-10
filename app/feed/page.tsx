@@ -36,6 +36,7 @@ import {
   type ReactionKey,
   type ReactionSummary,
 } from "@/lib/reactions";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import "./feed.css";
 
 const PAGE_SIZE = 12;
@@ -601,7 +602,7 @@ export default function FeedPage() {
       const reconciledDrop: PintDropDTO = {
         ...data.drop,
         venueName: entry.retry.venueName,
-        venueMapUrl: `/map?sel=${encodeURIComponent(entry.retry.venueId)}`,
+        venueMapUrl: venueMapUrl(entry.retry.venueId),
       };
       writeLocalEntries(
         reconcileOptimisticSpill(

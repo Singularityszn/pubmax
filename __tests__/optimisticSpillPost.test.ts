@@ -69,6 +69,26 @@ describe("optimistic Spill posting", () => {
     });
   });
 
+  it("builds city-scoped map URLs for prefixed venue ids", () => {
+    const draft = buildOptimisticSpillDrop({
+      clientRequestId: "client-oxf",
+      venueId: "venue-oxf-16404bl",
+      venueName: "Turf Tavern",
+      handle: "karan",
+      priceGbp: "5.8",
+      drink: "Pale ale",
+      passedDownNote: "By the alley",
+      era: "",
+      visibility: "public",
+      vibeTags: [],
+      pintPhotoUrl: null,
+      venuePhotoUrl: null,
+      createdAt: "2026-07-07T21:00:00.000Z",
+    });
+
+    expect(draft.venueMapUrl).toBe("/map/oxford?sel=venue-oxf-16404bl");
+  });
+
   it("reconciles a draft with the authoritative server response", () => {
     const draft = buildOptimisticSpillDrop({
       clientRequestId: "client-1",

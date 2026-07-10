@@ -32,6 +32,7 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
 import { venueMenuForInspector } from "@/lib/venueMenu";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
 import { directVenueImageUrl } from "@/lib/venueImages";
@@ -216,7 +217,7 @@ export default function VenueInspector({
 
   const shareVenue = useCallback(async () => {
     if (typeof window === "undefined") return;
-    const url = `${window.location.origin}/map?sel=${encodeURIComponent(venue.id)}`;
+    const url = new URL(venueMapUrl(venue.id), window.location.origin).toString();
     const title = venue.name;
     try {
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {

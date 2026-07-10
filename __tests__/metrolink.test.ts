@@ -8,7 +8,12 @@ import {
   resetMetrolinkStationsCache,
   typicalLastTramForDayType,
 } from "@/lib/metrolink";
-import { lastRideApiPath, lastRideFetchUrl, lastRideTabLabel } from "@/lib/lastRide";
+import {
+  lastRideApiPath,
+  lastRideFetchUrl,
+  lastRideProviderForCity,
+  lastRideTabLabel,
+} from "@/lib/lastRide";
 
 beforeEach(() => {
   resetMetrolinkStationsCache();
@@ -25,6 +30,9 @@ describe("lastRide routing", () => {
     expect(lastRideApiPath("london")).toBe("/api/last-train");
     expect(lastRideApiPath("manchester")).toBe("/api/last-tram");
     expect(lastRideApiPath("glasgow")).toBe("/api/last-subway");
+    expect(lastRideApiPath("oxford")).toBeNull();
+    expect(lastRideProviderForCity("oxford")).toBeNull();
+    expect(lastRideFetchUrl("oxford", 51.75, -1.26)).toBeNull();
     expect(lastRideFetchUrl("manchester", 53.48, -2.24)).toBe(
       "/api/last-tram?lat=53.48&lng=-2.24",
     );

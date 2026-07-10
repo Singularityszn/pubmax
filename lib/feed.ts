@@ -9,6 +9,7 @@ import { rankForYou, type ForYouContext } from "@/lib/forYou";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { normalizeHandle } from "@/lib/profiles";
 import type { LastPintDecisionKind } from "@/lib/tfl";
+import { venueMapUrl as buildVenueMapUrl } from "@/lib/venueMapUrl";
 
 // The public read shape as it arrives over the wire from GET /api/pint-drops
 // ({ drops: [...] }). Kept structural (not imported from the store's DTO type)
@@ -90,13 +91,6 @@ export type FeedItem = {
 // the server route, the normalizer, and any test agree on one string.
 export const VENUE_FALLBACK_LABEL = "A London pub";
 
-// Build the canonical "open this pub on the map" link. Mirrors venueMapUrl in
-// lib/venueIndex.ts, but this module is client-safe (no `fs`), so the normalizer
-// can derive a link even for a payload that predates server enrichment.
-function mapUrlFor(venueId: string): string {
-  return `/map?sel=${encodeURIComponent(venueId)}`;
-}
-
 function normalizeOptimistic(value: unknown): OptimisticSpillState | undefined {
   if (!value || typeof value !== "object") return undefined;
   const raw = value as Partial<OptimisticSpillState>;
@@ -145,7 +139,7 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
   const venueMapUrl =
     typeof dto.venueMapUrl === "string" && dto.venueMapUrl.length > 0
       ? dto.venueMapUrl
-      : mapUrlFor(dto.venueId);
+      : buildVenueMapUrl(dto.venueId);
   const item: FeedItem = {
     type: "pint_drop",
     id: dto.id,

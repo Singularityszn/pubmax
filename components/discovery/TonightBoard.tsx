@@ -4,6 +4,7 @@ import PriceBadge from "@/components/PriceBadge";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { formatPrice } from "@/lib/venues";
 import type { TonightEntry } from "@/lib/leaderboard";
 
@@ -37,7 +38,7 @@ export default function TonightBoard({
     <ol className="tonightBoard" aria-label={caption}>
       {entries.map((entry) => {
         const ago = relativeTime(entry.createdAt);
-        const href = `/map?sel=${encodeURIComponent(entry.venueId)}`;
+        const href = venueMapUrl(entry.venueId);
         return (
           <li key={entry.venueId} className="tonightRow">
             <span className="tonightRank" aria-hidden="true">

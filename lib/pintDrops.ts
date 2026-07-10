@@ -11,12 +11,12 @@
 import { randomUUID } from "crypto";
 
 import type { CityId } from "@/lib/cities";
+import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import type { Provenance } from "@/lib/curation";
 import {
   demoDropsFor,
   demoPintDrops,
   demoPintDropsForCity,
-  isManchesterVenueId,
 } from "@/lib/pintDropSeeds";
 import {
   ANON_HANDLE_LABEL,
@@ -41,8 +41,7 @@ export function dropMatchesCityScope(
   cityId?: CityId | null,
 ): boolean {
   const scoped = cityId ?? "london";
-  if (scoped === "manchester") return isManchesterVenueId(venueId);
-  return !isManchesterVenueId(venueId);
+  return venueIdMatchesCity(venueId, scoped);
 }
 
 // Re-export the browser-safe surface so existing importers (and tests) that pull

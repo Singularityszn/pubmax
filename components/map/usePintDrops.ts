@@ -23,6 +23,7 @@ import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -427,7 +428,7 @@ export function usePintDrops(cityId: CityId = "london") {
       const reconciledDrop = {
         ...(data.drop as PintDropDTO),
         venueName: options?.venueName,
-        venueMapUrl: `/map?sel=${encodeURIComponent(venueId)}`,
+        venueMapUrl: venueMapUrl(venueId),
       };
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) =>

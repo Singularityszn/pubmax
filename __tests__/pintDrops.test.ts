@@ -84,7 +84,12 @@ vi.mock("@/lib/profileOwnership", async (importOriginal) => {
 });
 
 import { GET, POST } from "@/app/api/pint-drops/route";
-import { __resetPintDrops, reportPintDrop, validatePintDrop } from "@/lib/pintDrops";
+import {
+  __resetPintDrops,
+  dropMatchesCityScope,
+  reportPintDrop,
+  validatePintDrop,
+} from "@/lib/pintDrops";
 import { supabasePintDropStore } from "@/lib/pintDropsStore";
 
 const URL_BASE = "http://localhost/api/pint-drops";
@@ -139,6 +144,21 @@ function modAction(action: string, id: string, token?: string): Promise<Response
 }
 
 const VENUE = "the-crown";
+
+describe("dropMatchesCityScope", () => {
+  it("matches every shipped city prefix and keeps London unprefixed", () => {
+    expect(dropMatchesCityScope("venue-16pnwmm", "london")).toBe(true);
+    expect(dropMatchesCityScope("venue-mcr-1lwo5lo", "london")).toBe(false);
+    expect(dropMatchesCityScope("venue-oxf-16404bl", "london")).toBe(false);
+    expect(dropMatchesCityScope("venue-glw-dsoj3p", "glasgow")).toBe(true);
+    expect(dropMatchesCityScope("venue-liv-12byxft", "liverpool")).toBe(true);
+    expect(dropMatchesCityScope("venue-bri-ycukpj", "bristol")).toBe(true);
+    expect(dropMatchesCityScope("venue-cam-1k0qcn7", "cambridge")).toBe(true);
+    expect(dropMatchesCityScope("venue-bat-f4de2h", "bath")).toBe(true);
+    expect(dropMatchesCityScope("venue-dur-libaa7", "durham")).toBe(true);
+    expect(dropMatchesCityScope("venue-oxf-16404bl", "manchester")).toBe(false);
+  });
+});
 
 beforeEach(() => {
   __resetPintDrops();
@@ -368,6 +388,22 @@ describe("GET + moderation", () => {
     // The two organic drops plus the seeded demo drops, all through one read path.
     expect(drops.filter((d) => d.provenance !== "demo")).toHaveLength(2);
     expect(drops.filter((d) => d.provenance === "demo").length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("city-scopes and enriches non-London venue ids", async () => {
+    const res = await post({ venueId: "venue-oxf-16404bl", handle: "oxale", priceGbp: 4.2 });
+    expect(res.status).toBe(201);
+
+    const listed = await GET(new Request(`${URL_BASE}?city=oxford`));
+    expect(listed.status).toBe(200);
+    const { drops } = (await listed.json()) as {
+      drops: Array<{ venueId: string; venueName: string; venueMapUrl: string }>;
+    };
+    const oxfordDrop = drops.find((d) => d.venueId === "venue-oxf-16404bl");
+    expect(oxfordDrop).toMatchObject({
+      venueName: "Turf Tavern",
+      venueMapUrl: "/map/oxford?sel=venue-oxf-16404bl",
+    });
   });
 
   it("refuses the in-memory store in production when Supabase is absent", async () => {

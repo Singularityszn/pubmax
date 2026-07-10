@@ -1,8 +1,14 @@
 import { promises as fs } from "fs";
 
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
-import { buildVenueIndex, getVenueIndex, venueMapUrl, type VenueRef } from "@/lib/venueIndex";
+import {
+  buildVenueIndex,
+  getVenueIndex,
+  resetVenueIndexForTests,
+  venueMapUrl,
+  type VenueRef,
+} from "@/lib/venueIndex";
 import type { Venue } from "@/lib/venues";
 
 // buildVenueIndex only reads id/name/primaryBorough/latitude/longitude, so a
@@ -20,8 +26,13 @@ function v(over: Partial<Venue> & { id: string; name: string }): Venue {
   } as Venue;
 }
 
+beforeEach(() => {
+  resetVenueIndexForTests();
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
+  resetVenueIndexForTests();
 });
 
 describe("buildVenueIndex", () => {
@@ -45,7 +56,8 @@ describe("getVenueIndex", () => {
     const readFile = vi.spyOn(fs, "readFile");
     readFile
       .mockRejectedValueOnce(new Error("missing index"))
-      .mockResolvedValueOnce(
+      .mockImplementation(
+        async () =>
         JSON.stringify([
           {
             id: "venue-retry",
@@ -64,13 +76,28 @@ describe("getVenueIndex", () => {
       name: "The Retry Arms",
       borough: "Camden",
     });
-    expect(readFile).toHaveBeenCalledTimes(2);
+    expect(readFile.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("includes enabled city slim packs, not just London", async () => {
+    const index = await getVenueIndex();
+
+    expect(index.get("venue-oxf-16404bl")).toMatchObject({
+      name: "Turf Tavern",
+      borough: "Oxford",
+    });
+    expect(index.get("venue-mcr-1lwo5lo")).toMatchObject({
+      name: "Peveril of the Peak",
+      borough: "Manchester",
+    });
   });
 });
 
 describe("venueMapUrl", () => {
   it("builds a ?sel= link that the map reads to select the venue", () => {
     expect(venueMapUrl("venue-a")).toBe("/map?sel=venue-a");
+    expect(venueMapUrl("venue-mcr-1lwo5lo")).toBe("/map/manchester?sel=venue-mcr-1lwo5lo");
+    expect(venueMapUrl("venue-oxf-16404bl")).toBe("/map/oxford?sel=venue-oxf-16404bl");
     // encodes ids defensively
     expect(venueMapUrl("a b")).toBe("/map?sel=a%20b");
   });

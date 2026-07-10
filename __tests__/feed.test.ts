@@ -110,6 +110,14 @@ describe("normalizePintDrop", () => {
     expect(feedItem.venueMapUrl).toBe("/map?sel=venue-1ufn31x");
   });
 
+  it("reconstructs city-scoped map links for prefixed venue ids", () => {
+    const feedItem = normalizePintDrop(
+      dto({ venueId: "venue-oxf-16404bl", venueName: undefined, venueMapUrl: undefined }),
+    );
+
+    expect(feedItem.venueMapUrl).toBe("/map/oxford?sel=venue-oxf-16404bl");
+  });
+
   it("treats a blank venueName as unresolved and uses the fallback", () => {
     const feedItem = normalizePintDrop(dto({ venueName: "   " }));
     expect(feedItem.venueName).toBe("A London pub");

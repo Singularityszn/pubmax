@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import SiteNav from "@/components/nav/SiteNav";
 
 import "./admin.css";
@@ -463,7 +464,7 @@ export default function AdminPage() {
                     </span>
                     <Link
                       className="admin-venue-link"
-                      href={`/map?sel=${encodeURIComponent(d.venueId)}`}
+                      href={venueMapUrl(d.venueId)}
                     >
                       View on map
                     </Link>

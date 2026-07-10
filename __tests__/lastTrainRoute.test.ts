@@ -46,6 +46,22 @@ describe("GET /api/last-train", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("fails closed for non-London coordinates instead of querying TfL or London static stations", async () => {
+    global.fetch = vi.fn(async () => new Response("should not be called", { status: 500 }));
+
+    const res = await GET(new Request("http://localhost/api/last-train?lat=51.75&lng=-1.26"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.station).toBeNull();
+    expect(body.trains).toEqual([]);
+    expect(body.departures).toEqual([]);
+    expect(body.nearestPubs).toEqual([]);
+    expect(body.error).toMatch(/London pubs/i);
+    expect(body.staticFallback).toBeUndefined();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
   it("ignores legacy ?destination= so labels stay client-only", async () => {
     global.fetch = vi.fn(async () => new Response("service unavailable", { status: 503 }));
 

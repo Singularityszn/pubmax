@@ -27,7 +27,7 @@ const DEFAULT_DETAIL_INDEX_FILE = path.join(GENERATED_DIR, "venue_detail_index.j
 const DEFAULT_DETAIL_ROWS_FILE = path.join(GENERATED_DIR, "venue_details.jsonl");
 const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
 
-const VENUE_ID_RE = /^venue-[a-z0-9]{1,12}$/;
+const VENUE_ID_RE = /^venue-(?:[a-z]{3}-)?[a-z0-9]{1,12}$/;
 
 const cachedDetails = new Map<string, Venue>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
