@@ -36,17 +36,18 @@ describe("poiToggleGroups", () => {
     }
   });
 
-  it("toggles Tube independently of Rail", () => {
+  it("toggles Tube independently of Rail; lines follow Tube only", () => {
     const hidden = defaultPoiHidden();
     const tube = POI_TOGGLE_GROUPS.find((group) => group.id === "tube")!;
     expect(isPoiGroupOn(hidden, tube)).toBe(true);
+    expect(isTransitNetworkVisible(hidden)).toBe(true);
     const off = togglePoiGroup(hidden, tube);
     expect(off.tube).toBe(true);
     expect(off.rail).toBe(false);
-    expect(isTransitNetworkVisible(off)).toBe(true);
-    const bothOff = togglePoiGroup(off, POI_TOGGLE_GROUPS.find((g) => g.id === "rail")!);
-    expect(bothOff.tube).toBe(true);
-    expect(bothOff.rail).toBe(true);
-    expect(isTransitNetworkVisible(bothOff)).toBe(false);
+    expect(isTransitNetworkVisible(off)).toBe(false);
+    const railOff = togglePoiGroup(hidden, POI_TOGGLE_GROUPS.find((g) => g.id === "rail")!);
+    expect(railOff.rail).toBe(true);
+    expect(railOff.tube).toBe(false);
+    expect(isTransitNetworkVisible(railOff)).toBe(true);
   });
 });

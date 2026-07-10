@@ -2,6 +2,8 @@
    Bottom-left on all viewports (Wave J declutter). No heritage/writer rows. */
 
 .mapPriceControl {
+  /* Shared with .mapHeroCard so the story teaser clears this stack on desktop. */
+  --map-price-chrome-height: 96px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;

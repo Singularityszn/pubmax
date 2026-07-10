@@ -142,7 +142,7 @@ export function togglePoiGroup(
   return next;
 }
 
-/** Tube line network follows Tube or Rail visibility (either on → lines show). */
+/** Coloured tube-line network follows the Tube chip only (Rail is stations). */
 export function isTransitNetworkVisible(hidden: Record<PoiCategory, boolean>): boolean {
-  return !hidden.tube || !hidden.rail;
+  return !hidden.tube;
 }
