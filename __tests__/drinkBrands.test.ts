@@ -41,6 +41,12 @@ describe("drinkBrands", () => {
     expect(normalizeBrandQuery(undefined)).toBe("");
   });
 
+  it("records typical UK ABV on curated brands", () => {
+    expect(findBrand("sipsmith")?.brand.abv).toBe(41.6);
+    expect(findBrand("guinness")?.brand.abv).toBe(4.2);
+    expect(findBrand("negroni")?.brand.abv).toBe(24);
+  });
+
   it("finds brands by id across categories", () => {
     expect(findBrand("sipsmith")).toEqual({
       category: "gin",

@@ -94,13 +94,35 @@ describe("profileStats", () => {
   });
 
   it("handles an empty / missing drop list without throwing", () => {
-    expect(profileStats([])).toEqual({ pintsLogged: 0, cheapestPintGbp: null, crawlsPosted: 0 });
-    expect(profileStats(null)).toEqual({ pintsLogged: 0, cheapestPintGbp: null, crawlsPosted: 0 });
+    expect(profileStats([])).toEqual({
+      pintsLogged: 0,
+      cheapestPintGbp: null,
+      crawlsPosted: 0,
+      memoriesPosted: 0,
+    });
+    expect(profileStats(null)).toEqual({
+      pintsLogged: 0,
+      cheapestPintGbp: null,
+      crawlsPosted: 0,
+      memoriesPosted: 0,
+    });
     expect(profileStats(undefined)).toEqual({
       pintsLogged: 0,
       cheapestPintGbp: null,
       crawlsPosted: 0,
+      memoriesPosted: 0,
     });
+  });
+
+  it("counts era-tagged and anecdote/heritage drops as memories", () => {
+    const stats = profileStats([
+      drop(),
+      drop({ era: "Victorian" }),
+      drop({ provenance: "anecdote" }),
+      drop({ provenance: "heritage" }),
+      drop({ provenance: "demo" }),
+    ]);
+    expect(stats.memoriesPosted).toBe(3);
   });
 
   it("crawlsPosted defaults to 0 and is null-safe", () => {

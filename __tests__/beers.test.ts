@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { normalizeBeer, priceForBeer } from "@/lib/beers";
+import { BEERS, normalizeBeer, priceForBeer } from "@/lib/beers";
 import type { Venue, VenuePrice } from "@/lib/venues";
 
 function makeRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
@@ -54,6 +54,20 @@ function makeRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
 function makeVenue(prices: VenuePrice[]): Venue {
   return { prices } as unknown as Venue;
 }
+
+describe("BEERS catalog ABV", () => {
+  it("records typical UK ABV for Guinness", () => {
+    const guinness = BEERS.find((b) => b.id === "guinness");
+    expect(guinness?.abv).toBe(4.2);
+  });
+
+  it("sets ABV on every catalog beer", () => {
+    for (const beer of BEERS) {
+      expect(typeof beer.abv).toBe("number");
+      expect(beer.abv).toBeGreaterThan(0);
+    }
+  });
+});
 
 describe("normalizeBeer", () => {
   it("maps case/whitespace variants of Guinness to one id", () => {
