@@ -81,19 +81,26 @@ async function readSlimIndex(publicPath: string): Promise<Map<string, VenueRef>>
 // yields an empty index so name resolution degrades to the friendly fallback
 // rather than 500-ing a page. Prefer venues_slim.json (~400 KB) over the full
 // ~6 MB price dataset — name/borough/coords are all the social DTOs need.
+//
+// Per-city try/catch: one missing/corrupt city pack must not wipe London (or
+// any other city that loaded). Only cache when at least one city succeeded so
+// a total miss can retry on the next call.
 export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   if (cached) return cached;
-  try {
-    const index = new Map<string, VenueRef>();
-    for (const city of listEnabledCities()) {
+  const index = new Map<string, VenueRef>();
+  let loadedAny = false;
+  for (const city of listEnabledCities()) {
+    try {
       for (const [id, ref] of await readSlimIndex(city.slimVenuesPath)) {
         index.set(id, ref);
       }
+      loadedAny = true;
+    } catch {
+      // Skip this city; keep whatever already loaded.
     }
-    cached = index;
-  } catch {
-    return new Map();
   }
+  if (!loadedAny) return new Map();
+  cached = index;
   return cached;
 }
 

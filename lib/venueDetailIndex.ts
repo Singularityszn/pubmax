@@ -147,13 +147,15 @@ function publicDataPath(publicPath: string): string {
 
 async function getCitySlimPinIndex(): Promise<Map<string, Venue>> {
   if (cachedCitySlimPins) return cachedCitySlimPins;
-  try {
-    const index = new Map<string, Venue>();
-    for (const city of listEnabledCities()) {
-      if (city.id === "london") continue;
+  const index = new Map<string, Venue>();
+  let loadedAny = false;
+  for (const city of listEnabledCities()) {
+    if (city.id === "london") continue;
+    try {
       const rows = JSON.parse(
         await fs.readFile(publicDataPath(city.slimVenuesPath), "utf8"),
       ) as SlimVenue[];
+      loadedAny = true;
       if (!Array.isArray(rows)) continue;
       for (const row of rows) {
         if (
@@ -165,13 +167,14 @@ async function getCitySlimPinIndex(): Promise<Map<string, Venue>> {
           index.set(row.id, slimVenueToPin(row));
         }
       }
+    } catch {
+      // One missing/corrupt city pack must not wipe the rest; leave cache unset
+      // only when every city fails so a later request can retry.
     }
-    cachedCitySlimPins = index;
-    return index;
-  } catch {
-    // Leave unset so a later request can retry after a transient miss.
-    return new Map();
   }
+  if (!loadedAny) return new Map();
+  cachedCitySlimPins = index;
+  return index;
 }
 
 export async function getVenueDetail(id: string): Promise<Venue | null> {

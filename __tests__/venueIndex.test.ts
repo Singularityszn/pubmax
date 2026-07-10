@@ -52,31 +52,54 @@ describe("buildVenueIndex", () => {
 });
 
 describe("getVenueIndex", () => {
-  it("does not cache an empty index after a read failure", async () => {
+  it("does not cache an empty index when every city pack fails", async () => {
     const readFile = vi.spyOn(fs, "readFile");
-    readFile
-      .mockRejectedValueOnce(new Error("missing index"))
-      .mockImplementation(
-        async () =>
-        JSON.stringify([
-          {
-            id: "venue-retry",
-            name: "The Retry Arms",
-            borough: "Camden",
-            lat: 51.52,
-            lng: -0.14,
-          },
-        ]),
-      );
+    let failAll = true;
+    readFile.mockImplementation(async () => {
+      if (failAll) throw new Error("missing index");
+      return JSON.stringify([
+        {
+          id: "venue-retry",
+          name: "The Retry Arms",
+          borough: "Camden",
+          lat: 51.52,
+          lng: -0.14,
+        },
+      ]);
+    });
 
     expect(await getVenueIndex()).toEqual(new Map());
+    failAll = false;
     const retried = await getVenueIndex();
 
     expect(retried.get("venue-retry")).toMatchObject({
       name: "The Retry Arms",
       borough: "Camden",
     });
-    expect(readFile.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(readFile.mock.calls.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("keeps other cities when one city pack is missing", async () => {
+    const realRead = fs.readFile.bind(fs);
+    const readFile = vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      if (String(file).includes("cities/manchester/")) {
+        throw new Error("missing manchester pack");
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    const index = await getVenueIndex();
+
+    expect(index.size).toBeGreaterThan(0);
+    expect(index.has("venue-mcr-1lwo5lo")).toBe(false);
+    expect(index.get("venue-oxf-16404bl")).toMatchObject({
+      name: "Turf Tavern",
+      borough: "Oxford",
+    });
+    // Partial success is cached — second call does not re-read.
+    const callsAfterFirst = readFile.mock.calls.length;
+    await getVenueIndex();
+    expect(readFile.mock.calls.length).toBe(callsAfterFirst);
   });
 
   it("includes enabled city slim packs, not just London", async () => {
