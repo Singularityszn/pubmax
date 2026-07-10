@@ -2002,7 +2002,7 @@ export default function PubMapCanvas({
       setFilter("pois-transport-major", transportFilter(poiHidden, true));
       setFilter("pois-transport-minor", transportFilter(poiHidden, false));
       setFilter("pois-transport-label", transportAll);
-      // The coloured tube-line network toggles with Tube or Rail visibility.
+      // The coloured tube-line network toggles with Tube only (stations stay independent).
       const tubeVisibility = isTransitNetworkVisible(poiHidden) ? "visible" : "none";
       for (const layer of ["tube-lines-casing", "tube-lines-color", "tube-lines-label"]) {
         if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
