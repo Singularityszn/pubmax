@@ -5,6 +5,7 @@
 // and the target's fresh counts so the button + header update in one round trip.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -33,7 +34,8 @@ export async function POST(
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
-  const follower = normalizeHandle(readString(body.follower) ?? "");
+  // JWT-linked handle wins over a self-asserted body.follower when signed in.
+  const follower = await resolveMessageHandle(request, readString(body.follower));
   if (!follower) {
     return jsonNoStore(
       { error: "Set a handle first — drop a pint to claim one." },

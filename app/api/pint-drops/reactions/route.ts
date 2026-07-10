@@ -10,6 +10,7 @@
 // so there is no 503 — an unconfigured prod just gets per-instance counts).
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
@@ -104,7 +105,8 @@ export async function POST(request: Request): Promise<Response> {
     // with no handle there is no one to name — we just skip the notification.
     // Never awaited for correctness — a notification failure must not fail the
     // reaction toggle.
-    const actorHandle = readString(body.handle) ?? "";
+    // JWT-linked handle wins over a self-asserted body.handle when signed in.
+    const actorHandle = await resolveMessageHandle(request, readString(body.handle));
     if (actorHandle && summary.mine.includes(reaction)) {
       const ownership = await gateHandleAction(request, actorHandle);
       if (ownership.allowed) {

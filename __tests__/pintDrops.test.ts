@@ -25,8 +25,9 @@ vi.mock("@/lib/pintDropsStore", async () => {
 // PRODUCTION build (Vercel CI presets NODE_ENV=production, and Vite bakes
 // process.env.NODE_ENV at transform time — so runtime vi.stubEnv on it is a
 // silent no-op, exactly the trap profileOwnershipRoute.test.ts documents):
-//   • checkRateLimitDurable — default (null) = "durable limiter unavailable",
-//     so every existing test keeps exercising the in-memory fallback as before.
+//   • checkRateLimitDurableDetailed — default (null + error) = "durable
+//     limiter unavailable", so every existing test keeps exercising the
+//     in-memory / degraded fallback as before.
 //   • isSupabaseConfigured / requiresSupabaseStore — mocked as controllable
 //     flags. isSupabaseConfigured() is FALSE by default so assertServerEnv()
 //     (called at ROUTE IMPORT, before any beforeEach) never throws its FATAL
@@ -35,9 +36,11 @@ vi.mock("@/lib/pintDropsStore", async () => {
 //   • getSupabaseAdmin — swappable via adminRef so the supabasePintDropStore
 //     report tests below can script rpc() responses without a network client.
 //     Defaults to null (= unconfigured), matching the real default in tests.
-const { storeCreate, checkRateLimitDurable, supaGuard, adminRef } = vi.hoisted(() => ({
+const { storeCreate, checkRateLimitDurableDetailed, supaGuard, adminRef } = vi.hoisted(() => ({
   storeCreate: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-  checkRateLimitDurable: vi.fn<(key: string) => Promise<boolean | null>>(),
+  checkRateLimitDurableDetailed: vi.fn<
+    (key: string) => Promise<{ verdict: boolean | null; reason?: "missing-rpc" | "error" | "no-client" }>
+  >(),
   supaGuard: { configured: false, requiresStore: false },
   adminRef: { client: null as unknown },
 }));
@@ -45,7 +48,9 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return {
     ...actual,
-    checkRateLimitDurable,
+    checkRateLimitDurableDetailed,
+    checkRateLimitDurable: async (...args: Parameters<typeof checkRateLimitDurableDetailed>) =>
+      (await checkRateLimitDurableDetailed(...args)).verdict,
     isSupabaseConfigured: () => supaGuard.configured,
     requiresSupabaseStore: () => supaGuard.requiresStore,
     getSupabaseAdmin: () => adminRef.client,
@@ -172,9 +177,10 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.ADMIN_TOKEN;
-  checkRateLimitDurable.mockReset();
-  checkRateLimitDurable.mockResolvedValue(null);
+  checkRateLimitDurableDetailed.mockReset();
+  checkRateLimitDurableDetailed.mockResolvedValue({ verdict: null, reason: "error" });
   adminRef.client = null;
+  delete process.env.RATE_LIMIT_STRICT;
 });
 
 afterAll(() => {
@@ -651,7 +657,7 @@ describe("durable rate limiting (Supabase configured)", () => {
   });
 
   it("keys the durable limiter on handle + hashed IP, never the raw IP", async () => {
-    checkRateLimitDurable.mockResolvedValue(false);
+    checkRateLimitDurableDetailed.mockResolvedValue({ verdict: false });
     const res = await POST(
       new Request(URL_BASE, {
         method: "POST",
@@ -660,27 +666,47 @@ describe("durable rate limiting (Supabase configured)", () => {
       }),
     );
     expect(res.status).toBe(201);
-    expect(checkRateLimitDurable).toHaveBeenCalledTimes(1);
-    const key = checkRateLimitDurable.mock.calls[0][0];
+    expect(checkRateLimitDurableDetailed).toHaveBeenCalledTimes(1);
+    const key = checkRateLimitDurableDetailed.mock.calls[0][0];
     expect(key).toContain("ale"); // handle (lowercased) is in the key
     expect(key).toMatch(/[0-9a-f]{64}$/); // ...plus the sha256 IP hash
     expect(key).not.toContain("203.0.113.7"); // raw IP never appears
   });
 
   it("429s a submission when the durable limiter says limited", async () => {
-    checkRateLimitDurable.mockResolvedValue(true);
+    checkRateLimitDurableDetailed.mockResolvedValue({ verdict: true });
     const res = await post({ venueId: VENUE, handle: "flooder", priceGbp: 4 });
     expect(res.status).toBe(429);
     expect(storeCreate).not.toHaveBeenCalled();
   });
 
-  it("falls back to the in-memory limiter when the durable one is unavailable", async () => {
-    checkRateLimitDurable.mockResolvedValue(null); // outage / RPC error
+  it("degrades to Math.min(limit, 3) in-memory when durable returns error", async () => {
+    checkRateLimitDurableDetailed.mockResolvedValue({ verdict: null, reason: "error" });
     let last: Response | undefined;
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 4; i++) {
       last = await post({ venueId: VENUE, handle: "outage", priceGbp: 4 });
     }
-    // Writes keep working (fail open to the backstop), which still limits the 9th.
+    // Degraded budget is 3 — the 4th write is limited (fail-open, tighter).
     expect(last!.status).toBe(429);
+  });
+
+  it("degrades the same way on missing-rpc", async () => {
+    checkRateLimitDurableDetailed.mockResolvedValue({
+      verdict: null,
+      reason: "missing-rpc",
+    });
+    let last: Response | undefined;
+    for (let i = 0; i < 4; i++) {
+      last = await post({ venueId: VENUE, handle: "norpc", priceGbp: 4 });
+    }
+    expect(last!.status).toBe(429);
+  });
+
+  it("RATE_LIMIT_STRICT=1 returns 429 immediately when durable is unavailable", async () => {
+    process.env.RATE_LIMIT_STRICT = "1";
+    checkRateLimitDurableDetailed.mockResolvedValue({ verdict: null, reason: "error" });
+    const res = await post({ venueId: VENUE, handle: "strict", priceGbp: 4 });
+    expect(res.status).toBe(429);
+    expect(storeCreate).not.toHaveBeenCalled();
   });
 });

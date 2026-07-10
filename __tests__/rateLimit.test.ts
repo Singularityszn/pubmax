@@ -68,6 +68,45 @@ describe("checkRateLimitDurable", () => {
   });
 });
 
+describe("checkRateLimitDurableDetailed", () => {
+  it("returns a boolean verdict with no reason on success", async () => {
+    const { checkRateLimitDurableDetailed } = await loadSupabaseLib();
+    rpc.mockResolvedValue({ data: true, error: null });
+    expect(await checkRateLimitDurableDetailed("k")).toEqual({ verdict: true });
+  });
+
+  it("tags missing-rpc when the function is absent", async () => {
+    const { checkRateLimitDurableDetailed } = await loadSupabaseLib();
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: "PGRST202", message: "Could not find the function public.check_rate_limit" },
+    });
+    expect(await checkRateLimitDurableDetailed("k")).toEqual({
+      verdict: null,
+      reason: "missing-rpc",
+    });
+  });
+
+  it("tags error on a generic RPC failure", async () => {
+    const { checkRateLimitDurableDetailed } = await loadSupabaseLib();
+    rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    expect(await checkRateLimitDurableDetailed("k")).toEqual({
+      verdict: null,
+      reason: "error",
+    });
+  });
+
+  it("tags no-client when Supabase is not configured", async () => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const { checkRateLimitDurableDetailed } = await loadSupabaseLib();
+    expect(await checkRateLimitDurableDetailed("k")).toEqual({
+      verdict: null,
+      reason: "no-client",
+    });
+  });
+});
+
 describe("hashIp", () => {
   it("is deterministic sha256 hex that never contains the raw IP", async () => {
     const { hashIp } = await loadSupabaseLib();

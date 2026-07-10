@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { getCity, parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { bandByIdForCity } from "@/lib/cityStoryBands";
+import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 
 // City map OG share card — cult / Freshers deep links (`?band=subcrawl` etc.).
 // Query-aware route because opengraph-image.tsx cannot read searchParams.
@@ -51,6 +52,9 @@ function PintGlyph() {
 }
 
 export async function GET(request: Request) {
+  const limited = await ogCardRateLimitedResponse(request, "og-city-map-card");
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const cityRaw = clampParam(searchParams.get("city"), 32, DEFAULT_CITY_ID);
   const cityId = parseCityId(cityRaw) ?? DEFAULT_CITY_ID;
