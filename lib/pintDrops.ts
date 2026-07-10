@@ -221,10 +221,11 @@ const DEGRADED_RATE_LIMIT = 3;
  * Combined limiter used by every rate-limited route: durable (Supabase RPC)
  * when configured, in-memory otherwise.
  *
- * Hybrid fail-open when Supabase is configured but the durable check cannot
- * answer (`missing-rpc` / `error`):
- *   • default → degraded in-memory at Math.min(limit, 3)
- *   • RATE_LIMIT_STRICT=1 → treat as limited (429) instead of opening wider
+ * When Supabase is configured but the durable check cannot answer:
+ *   • `missing-rpc` / `no-client` → full in-memory `limit` (preview/CI/demo
+ *     safe — migration may not be applied yet)
+ *   • `error` (transient outage) → degraded Math.min(limit, 3); or
+ *     RATE_LIMIT_STRICT=1 → treat as limited (429) instead of opening wider
  *
  * No Supabase → in-memory at the normal limit (demo unchanged). A real boolean
  * durable verdict is used as-is. `checkRateLimitDurableDetailed` logs the
@@ -247,8 +248,8 @@ export async function isLimited(
   );
   if (typeof verdict === "boolean") return verdict;
 
-  // Configured but no usable client (env race / cache) — same degraded path.
-  if (reason === "missing-rpc" || reason === "error" || reason === "no-client") {
+  // Transient outage only — tighten (or refuse under STRICT).
+  if (reason === "error") {
     if (process.env.RATE_LIMIT_STRICT === "1") return true;
     return isRateLimited(
       localKey,
@@ -258,6 +259,7 @@ export async function isLimited(
     );
   }
 
+  // missing-rpc / no-client / unknown → full in-memory budget.
   return isRateLimited(localKey, Date.now(), limit, windowMs);
 }
 

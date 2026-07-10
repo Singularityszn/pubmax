@@ -690,16 +690,36 @@ describe("durable rate limiting (Supabase configured)", () => {
     expect(last!.status).toBe(429);
   });
 
-  it("degrades the same way on missing-rpc", async () => {
+  it("uses the full in-memory limit on missing-rpc (migration may be absent)", async () => {
     checkRateLimitDurableDetailed.mockResolvedValue({
       verdict: null,
       reason: "missing-rpc",
     });
-    let last: Response | undefined;
-    for (let i = 0; i < 4; i++) {
-      last = await post({ venueId: VENUE, handle: "norpc", priceGbp: 4 });
+    // Default RATE_LIMIT is 8 — four writes must still succeed (not the
+    // degraded cap of 3). The 9th is limited.
+    for (let i = 0; i < 8; i++) {
+      const res = await post({ venueId: VENUE, handle: "norpc", priceGbp: 4 });
+      expect(res.status).toBe(201);
     }
-    expect(last!.status).toBe(429);
+    const limited = await post({ venueId: VENUE, handle: "norpc", priceGbp: 4 });
+    expect(limited.status).toBe(429);
+  });
+
+  it("uses the full in-memory limit on no-client", async () => {
+    checkRateLimitDurableDetailed.mockResolvedValue({
+      verdict: null,
+      reason: "no-client",
+    });
+    for (let i = 0; i < 8; i++) {
+      const res = await post({ venueId: VENUE, handle: "noclient", priceGbp: 4 });
+      expect(res.status).toBe(201);
+    }
+    const limited = await post({
+      venueId: VENUE,
+      handle: "noclient",
+      priceGbp: 4,
+    });
+    expect(limited.status).toBe(429);
   });
 
   it("RATE_LIMIT_STRICT=1 returns 429 immediately when durable is unavailable", async () => {
