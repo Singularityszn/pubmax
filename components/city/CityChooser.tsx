@@ -121,8 +121,8 @@ export default function CityChooser({
             </h2>
           )}
           <p className="cityChooserLede">
-            Open a price-aware pub map — crawls, last rides, and drink-shaped
-            pins for the night you want.
+            Open a price-aware pub map — crawls and drink-shaped pins for the
+            night you want.
           </p>
         </header>
 
@@ -167,7 +167,6 @@ export default function CityChooser({
                     aria-label={`${city.displayName} — ${city.tagline}. Open map.`}
                   >
                     <span className="cityChooserName">{city.displayName}</span>
-                    <span className="cityChooserRide">{city.lastRideLabel}</span>
                     <p className="cityChooserTagline">{city.tagline}</p>
                   </Link>
                 </li>

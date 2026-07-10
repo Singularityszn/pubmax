@@ -259,10 +259,10 @@
 }
 
 .cityChooserLink {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 14px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
   min-height: 72px;
   padding: 16px 18px;
   border: 1px solid color-mix(in srgb, var(--color-on-photo, #fdfaf2) 16%, transparent);
@@ -302,7 +302,6 @@
 }
 
 .cityChooserName {
-  grid-column: 1;
   font-family: var(--font-display, var(--serif));
   font-size: 1.22rem;
   font-weight: 650;
@@ -310,27 +309,7 @@
   line-height: 1.15;
 }
 
-.cityChooserRide {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  padding: 4px 0;
-  color: var(--brass-bright, var(--brass));
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-align: right;
-  max-width: 7.5rem;
-  line-height: 1.25;
-}
-
-.cityChooser--section .cityChooserRide {
-  color: var(--brass);
-}
-
 .cityChooserTagline {
-  grid-column: 1;
   margin: 0;
   color: color-mix(in srgb, var(--color-on-photo, #fdfaf2) 72%, transparent);
   font-size: 0.86rem;
