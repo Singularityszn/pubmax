@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,10 +15,16 @@ import {
   MapPin,
 } from "lucide-react";
 import ThamesHero from "./ThamesHero";
+import CityChooser from "@/components/city/CityChooser";
 import ThemeToggle from "@/components/ThemeToggle";
 import SignInButton from "@/components/auth/SignInButton";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import { categoryColor } from "@/lib/categoryColors";
+import {
+  preferredCityMapHref,
+  readPreferredCity,
+  subscribePreferredCity,
+} from "@/lib/cityPreference";
 import {
   categoryGradient,
   rotateCategory,
@@ -172,9 +178,20 @@ const goldenDays = [
 export default function LandingPage() {
   const ref = useReveal();
   const router = useRouter();
+  // Preference may be null → /choose-city. useSyncExternalStore keeps SSR on
+  // /choose-city, then re-reads after mount (and on CityChooser writes).
+  const preferredCity = useSyncExternalStore(
+    subscribePreferredCity,
+    readPreferredCity,
+    () => null,
+  );
+  const hasPreferredCity = preferredCity != null;
+  const mapHref = preferredCityMapHref();
+  const primaryCtaHref = hasPreferredCity ? mapHref : "/choose-city";
+  const primaryCtaLabel = hasPreferredCity ? "Open your map" : "Choose your city";
   // Wave K2 — mirror the tab bar: prefetch /map + slim payloads on intent
   // (pointerDown fires before navigation on phones; enter/focus cover desktop).
-  const warmMap = useCallback(() => warmMapRoute(router), [router]);
+  const warmMap = useCallback(() => warmMapRoute(router, mapHref), [router, mapHref]);
   const mapWarmProps = {
     onPointerDown: warmMap,
     onPointerEnter: warmMap,
@@ -195,7 +212,7 @@ export default function LandingPage() {
           </Link>
           <nav className="navLinks" aria-label="Primary">
             <a href="#wedge">How it works</a>
-            <Link href="/map" {...mapWarmProps}>
+            <Link href={primaryCtaHref} {...(hasPreferredCity ? mapWarmProps : {})}>
               Map
             </Link>
             <a href="#drops">Pint Drops</a>
@@ -203,8 +220,12 @@ export default function LandingPage() {
             <Link href="/crawls">Crawls</Link>
             <ThemeToggle />
             <SignInButton />
-            <Link href="/map" className="btn btnPrimary topbarCta" {...mapWarmProps}>
-              Open the map
+            <Link
+              href={primaryCtaHref}
+              className="btn btnPrimary topbarCta"
+              {...(hasPreferredCity ? mapWarmProps : {})}
+            >
+              {primaryCtaLabel}
             </Link>
           </nav>
         </div>
@@ -219,15 +240,19 @@ export default function LandingPage() {
                 PUBMAXXING
               </h1>
               <p className="heroTagline lpSerif">
-                London pubs for every kind of night.
+                Pubs for every kind of night.
               </p>
               <p className="heroLede">
                 Real pint prices, drink-shaped pins, and crawls that welcome
                 first-timers and regulars alike — tap a glass to start.
               </p>
               <div className="heroActions">
-                <Link href="/map" className="btn btnPrimary" {...mapWarmProps}>
-                  Open the map
+                <Link
+                  href={primaryCtaHref}
+                  className="btn btnPrimary"
+                  {...(hasPreferredCity ? mapWarmProps : {})}
+                >
+                  {primaryCtaLabel}
                   <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
                 </Link>
                 <a href="#wedge" className="btn btnGhost">
@@ -244,6 +269,11 @@ export default function LandingPage() {
             </figure>
           </div>
         </section>
+
+        {/* ── City chooser (interaction section; not a card dashboard) ── */}
+        <div id="cities" className="reveal">
+          <CityChooser variant="section" />
+        </div>
 
         {/* ── The wedge ─────────────────────────────────────────── */}
         <section id="wedge" className="container" aria-labelledby="wedge-title">
@@ -387,7 +417,11 @@ export default function LandingPage() {
                 One generation hands its pub knowledge to the next, one drop at a
                 time.
               </p>
-              <Link href="/map" className="dropsCta" {...mapWarmProps}>
+              <Link
+                href={hasPreferredCity ? preferredCityMapHref(new URLSearchParams({ log: "1" })) : "/choose-city"}
+                className="dropsCta"
+                {...(hasPreferredCity ? mapWarmProps : {})}
+              >
                 Leave a Pint Drop
                 <ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" />
               </Link>
@@ -475,17 +509,29 @@ export default function LandingPage() {
         <section className="ctaBand container" aria-labelledby="cta-title">
           <div className="ctaInner reveal textured-panel">
             <h2 id="cta-title" className="lpSerif">
-              Pick a borough. Plan the walk.
+              Pick a city. Plan the walk.
             </h2>
             <p>
-              Open the map, set your price, and let the river do the routing.
+              Open the map, set your price, and let the night do the routing.
               Every pin is a pint worth knowing about.
             </p>
-            <Link href="/map" className="btn btnPrimary" {...mapWarmProps}>
-              Open the map
+            <Link
+              href={primaryCtaHref}
+              className="btn btnPrimary"
+              {...(hasPreferredCity ? mapWarmProps : {})}
+            >
+              {primaryCtaLabel}
               <ArrowRight size={18} strokeWidth={1.5} aria-hidden="true" />
             </Link>
-            <Link href="/map?style=heritage" className="btn btnGhost" {...mapWarmProps}>
+            <Link
+              href={
+                hasPreferredCity
+                  ? preferredCityMapHref(new URLSearchParams({ style: "heritage" }))
+                  : "/choose-city"
+              }
+              className="btn btnGhost"
+              {...(hasPreferredCity ? mapWarmProps : {})}
+            >
               Start with heritage
             </Link>
           </div>
@@ -519,7 +565,7 @@ export default function LandingPage() {
           <div className="footerCols">
             <div className="footerCol">
               <h4>Explore</h4>
-              <Link href="/map" {...mapWarmProps}>
+              <Link href={primaryCtaHref} {...(hasPreferredCity ? mapWarmProps : {})}>
                 <MapPin
                   size={13}
                   strokeWidth={1.5}
@@ -528,6 +574,7 @@ export default function LandingPage() {
                 />
                 The map
               </Link>
+              <Link href="/choose-city">Choose your city</Link>
               <a href="#wedge">How it works</a>
               <a href="#drops">Pint Drops</a>
               <a href="#landlord">The PUBMAXXER</a>

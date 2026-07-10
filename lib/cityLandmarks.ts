@@ -34,9 +34,12 @@ export function landmarksForCity(
       return durhamLandmarks;
     case "bristol":
       return bristolLandmarks;
+    case "bath":
+      return [];
     case "london":
-    default:
       return landmarks;
+    default:
+      return [];
   }
 }
 

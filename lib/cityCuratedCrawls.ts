@@ -38,9 +38,12 @@ export function curatedCrawlsForCity(
       return durhamCuratedCrawls;
     case "bristol":
       return bristolCuratedCrawls;
+    case "bath":
+      return [];
     case "london":
-    default:
       return curatedCrawls;
+    default:
+      return [];
   }
 }
 

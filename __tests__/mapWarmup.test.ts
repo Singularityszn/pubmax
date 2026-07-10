@@ -101,6 +101,27 @@ describe("warmMapIntentData", () => {
   });
 });
 
+describe("warmPathsForMapHref", () => {
+  it("returns London slim paths for /map", async () => {
+    const { warmPathsForMapHref, MAP_INTENT_WARM_PATHS } = await import(
+      "@/lib/mapWarmup"
+    );
+    expect(warmPathsForMapHref("/map")).toEqual(MAP_INTENT_WARM_PATHS);
+    expect(warmPathsForMapHref("/map?log=1")).toEqual(MAP_INTENT_WARM_PATHS);
+  });
+
+  it("returns city slim (+ pois) for /map/{city}", async () => {
+    const { warmPathsForMapHref } = await import("@/lib/mapWarmup");
+    expect(warmPathsForMapHref("/map/manchester")).toEqual([
+      "/data/cities/manchester/venues_slim.json",
+      "/data/cities/manchester/pois.json",
+    ]);
+    expect(warmPathsForMapHref("/map/bath")).toEqual([
+      "/data/cities/bath/venues_slim.json",
+    ]);
+  });
+});
+
 describe("warmMapRoute", () => {
   it("prefetches the route once and warms map data for /map", async () => {
     const { warmMapRoute } = await import("@/lib/mapWarmup");
@@ -111,6 +132,14 @@ describe("warmMapRoute", () => {
     expect(prefetch).toHaveBeenCalledTimes(1);
     expect(prefetch).toHaveBeenCalledWith("/map");
     expect(seen.has("/map")).toBe(true);
+  });
+
+  it("prefetches city map routes", async () => {
+    const { warmMapRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+    warmMapRoute({ prefetch }, "/map/oxford", seen);
+    expect(prefetch).toHaveBeenCalledWith("/map/oxford");
   });
 
   it("still marks non-map routes as warmed without calling warmMapIntent paths twice", async () => {

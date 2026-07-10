@@ -64,6 +64,7 @@ describe("shouldShowCuratedOnboarding priority vs band chip", () => {
     hasActiveCrawl: false,
     selectedVenueId: "",
     showBandChip: false,
+    curatedCrawlCount: 4,
   };
 
   it("shows curated onboarding on a clean first paint", () => {
@@ -72,6 +73,11 @@ describe("shouldShowCuratedOnboarding priority vs band chip", () => {
 
   it("suppresses curated onboarding when the band chip is showing", () => {
     expect(shouldShowCuratedOnboarding({ ...clean, showBandChip: true })).toBe(false);
+  });
+
+  it("suppresses curated onboarding when the city has no crawls", () => {
+    expect(shouldShowCuratedOnboarding({ ...clean, curatedCrawlCount: 0 })).toBe(false);
+    expect(shouldShowCuratedOnboarding({ ...clean, curatedCrawlCount: undefined })).toBe(false);
   });
 
   it("still respects the usual curated gates when band chip is off", () => {

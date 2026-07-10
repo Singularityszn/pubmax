@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Map, CirclePlus, User, Compass } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  preferredCityMapHref,
+  subscribePreferredCity,
+} from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import "./mobileNav.css";
@@ -35,11 +39,12 @@ const warmedTabs = new Set<string>();
 // marks the tab active for any profile route in either case.
 // Map + Discover are the primary destinations; Drop stays the centre action;
 // You for profile. Stories lives in Discover/feed — not a fifth bottom tab.
-function buildTabs(profileHref: string): Tab[] {
+// Map / Drop hrefs follow the preferred city (null → /map).
+function buildTabs(profileHref: string, mapHref: string, dropHref: string): Tab[] {
   return [
-    { href: "/map", label: "Map", Icon: Map, match: ["/map"] },
+    { href: mapHref, label: "Map", Icon: Map, match: ["/map"] },
     { href: "/discover", label: "Discover", Icon: Compass, match: ["/discover", "/feed", "/borough"] },
-    { href: "/map?log=1", label: "Drop", Icon: CirclePlus, primary: true },
+    { href: dropHref, label: "Drop", Icon: CirclePlus, primary: true },
     { href: profileHref, label: "You", Icon: User, match: ["/u"] },
   ];
 }
@@ -59,11 +64,23 @@ export default function MobileTabBar() {
   const router = useRouter();
   // Signed-in → their derived handle; signed-out (or still loading) → demo /you.
   const { handle } = useAuth();
-  const tabs = buildTabs(handle ? `/u/${handle}` : "/u/you");
+  // Preference may be null → /map. useSyncExternalStore: SSR/hydration stay on
+  // /map, then re-read after mount (and when CitySwitcher writes).
+  const mapHref = useSyncExternalStore(
+    subscribePreferredCity,
+    preferredCityMapHref,
+    () => "/map",
+  );
+  const dropHref = useSyncExternalStore(
+    subscribePreferredCity,
+    () => preferredCityMapHref(new URLSearchParams({ log: "1" })),
+    () => "/map?log=1",
+  );
+  const tabs = buildTabs(handle ? `/u/${handle}` : "/u/you", mapHref, dropHref);
   const warmTab = useCallback(
     (href: string) => {
       const prefetchHref = href.split("?")[0] || href;
-      if (prefetchHref === "/map") {
+      if (prefetchHref === "/map" || prefetchHref.startsWith("/map/")) {
         warmMapRoute(router, href, warmedTabs);
         return;
       }

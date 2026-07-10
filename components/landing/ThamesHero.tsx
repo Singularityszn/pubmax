@@ -3,15 +3,20 @@
 // Full-bleed photographic hero field with interactive alcohol-shaped pubs.
 // Each marker is a DrinkGlyph (our IP) in a distinct drink category shape/colour,
 // labelled in plain language so all ages can tap without guessing icons.
-// Deep-links into /map?drink=<category> (and heritage for whisky) via crawlUrl.
+// Deep-links into the preferred (or default) city map via cityAwareMapPath.
 
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import type { DrinkCategory } from "@/lib/drinks";
 import { categoryLabel } from "@/lib/drinks";
+import {
+  readPreferredCity,
+  subscribePreferredCity,
+} from "@/lib/cityPreference";
+import { cityAwareMapPath } from "@/lib/curatedCrawls";
 import { warmMapRoute } from "@/lib/mapWarmup";
 
 export type HeroPub = {
@@ -24,8 +29,8 @@ export type HeroPub = {
   /** Percent positions inside the photo plane. */
   left: string;
   top: string;
-  /** Map deep-link (drink filter / style). */
-  href: string;
+  /** Map query params (drink filter / style). City comes from preference. */
+  query: Record<string, string>;
 };
 
 const HERO_PUBS: HeroPub[] = [
@@ -36,7 +41,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£4.20",
     left: "14%",
     top: "26%",
-    href: "/map?drink=beer&style=cheapest",
+    query: { drink: "beer", style: "cheapest" },
   },
   {
     id: "mayflower",
@@ -45,7 +50,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£5.10",
     left: "36%",
     top: "64%",
-    href: "/map?drink=gin&style=balanced",
+    query: { drink: "gin", style: "balanced" },
   },
   {
     id: "cheese",
@@ -54,7 +59,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£4.60",
     left: "68%",
     top: "28%",
-    href: "/map?drink=whisky&style=heritage",
+    query: { drink: "whisky", style: "heritage" },
   },
   {
     id: "prospect",
@@ -63,7 +68,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£5.40",
     left: "82%",
     top: "68%",
-    href: "/map?drink=wine&style=dateNight",
+    query: { drink: "wine", style: "dateNight" },
   },
   {
     id: "spritz",
@@ -72,7 +77,7 @@ const HERO_PUBS: HeroPub[] = [
     price: "£7.50",
     left: "52%",
     top: "16%",
-    href: "/map?drink=cocktail&cocktails=1",
+    query: { drink: "cocktail", cocktails: "1" },
   },
   {
     id: "rum",
@@ -81,12 +86,24 @@ const HERO_PUBS: HeroPub[] = [
     price: "£5.80",
     left: "18%",
     top: "78%",
-    href: "/map?drink=rum&style=balanced",
+    query: { drink: "rum", style: "balanced" },
   },
 ];
 
+function heroPubHref(
+  query: Record<string, string>,
+  preferredCity: ReturnType<typeof readPreferredCity>,
+): string {
+  return cityAwareMapPath(preferredCity, new URLSearchParams(query));
+}
+
 export default function ThamesHero() {
   const router = useRouter();
+  const preferredCity = useSyncExternalStore(
+    subscribePreferredCity,
+    readPreferredCity,
+    () => null,
+  );
   const warmMap = useCallback(() => warmMapRoute(router), [router]);
   const mapWarmProps = {
     onPointerDown: warmMap,
@@ -108,33 +125,36 @@ export default function ThamesHero() {
       <div className="thamesHeroScrim" aria-hidden="true" />
       <p className="thamesHeroHint">Tap a drink shape to open that kind of night</p>
       <ul className="thamesHeroPins">
-        {HERO_PUBS.map((pub, i) => (
-          <li
-            key={pub.id}
-            className="thamesHeroPin"
-            style={{
-              left: pub.left,
-              top: pub.top,
-              ["--pin-i" as string]: i,
-            }}
-          >
-            <Link
-              href={pub.href}
-              className="thamesHeroPinLink"
-              aria-label={`${categoryLabel(pub.category)} at ${pub.place}, about ${pub.price} — open on the map`}
-              {...mapWarmProps}
+        {HERO_PUBS.map((pub, i) => {
+          const href = heroPubHref(pub.query, preferredCity);
+          return (
+            <li
+              key={pub.id}
+              className="thamesHeroPin"
+              style={{
+                left: pub.left,
+                top: pub.top,
+                ["--pin-i" as string]: i,
+              }}
             >
-              <span className="thamesHeroPinGlyph" data-cat={pub.category}>
-                <DrinkGlyph category={pub.category} size={36} />
-              </span>
-              <span className="thamesHeroPinMeta">
-                <span className="thamesHeroPinCat">{categoryLabel(pub.category)}</span>
-                <span className="thamesHeroPinPlace">{pub.place}</span>
-                <span className="thamesHeroPinPrice">{pub.price}</span>
-              </span>
-            </Link>
-          </li>
-        ))}
+              <Link
+                href={href}
+                className="thamesHeroPinLink"
+                aria-label={`${categoryLabel(pub.category)} at ${pub.place}, about ${pub.price} — open on the map`}
+                {...mapWarmProps}
+              >
+                <span className="thamesHeroPinGlyph" data-cat={pub.category}>
+                  <DrinkGlyph category={pub.category} size={36} />
+                </span>
+                <span className="thamesHeroPinMeta">
+                  <span className="thamesHeroPinCat">{categoryLabel(pub.category)}</span>
+                  <span className="thamesHeroPinPlace">{pub.place}</span>
+                  <span className="thamesHeroPinPrice">{pub.price}</span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

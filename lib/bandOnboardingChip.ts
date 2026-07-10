@@ -37,6 +37,7 @@ export function shouldShowBandOnboardingChip(input: {
 /**
  * Curated crawl onboarding. When the band deep-link chip is showing, curated
  * onboarding is suppressed so the deep link feels intentional (G3 priority).
+ * Cities with zero curated crawls never show the overlay.
  */
 export function shouldShowCuratedOnboarding(input: {
   loaded: boolean;
@@ -47,8 +48,11 @@ export function shouldShowCuratedOnboarding(input: {
   hasActiveCrawl: boolean;
   selectedVenueId: string;
   showBandChip: boolean;
+  /** When 0 / omitted-as-empty, skip onboarding (no crawls to offer). */
+  curatedCrawlCount?: number;
 }): boolean {
   if (input.showBandChip) return false;
+  if ((input.curatedCrawlCount ?? 0) <= 0) return false;
   return (
     input.loaded &&
     !input.onboardingDismissed &&

@@ -40,9 +40,12 @@ export function storyBandsForCity(
       return durhamStoryBands;
     case "bristol":
       return bristolStoryBands;
+    case "bath":
+      return [];
     case "london":
-    default:
       return STORY_BANDS;
+    default:
+      return [];
   }
 }
 

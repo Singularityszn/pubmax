@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import {
@@ -28,24 +28,24 @@ import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import { KNOWN_CUISINE_TAGS } from "@/lib/cuisineTags";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
-import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+import {
+  readPreferredCity,
+  subscribePreferredCity,
+  preferredCityMapHref,
+} from "@/lib/cityPreference";
 import {
   cityAwareMapPath,
   curatedCrawlById,
   curatedCrawlMapHref,
 } from "@/lib/curatedCrawls";
-import { getRoutePack, routePackMapHref } from "@/lib/routePacks";
+import { getRoutePack, routePackPrimaryCrawl } from "@/lib/routePacks";
 import "./discover.css";
 
-const HUNGRY_HREF = cityAwareMapPath(
-  DEFAULT_CITY_ID,
-  new URLSearchParams({ food: "1" }),
-);
-
 /** Discover Hungry chips → map with food filter + cuisine hint in the query. */
-function hungryCuisineHref(tag: string): string {
+function hungryCuisineHref(tag: string, cityId: CityId): string {
   const params = new URLSearchParams({ food: "1", q: tag });
-  return cityAwareMapPath(DEFAULT_CITY_ID, params);
+  return cityAwareMapPath(cityId, params);
 }
 
 /** Cuisine chips shown on Discover — a short, scannable subset. */
@@ -63,70 +63,89 @@ const DISCOVER_CUISINE_CHIPS = [
 // "Explore by drink" → /map deep-link. decodeCrawl (lib/crawlUrl) maps these:
 //   cocktail → requireCocktails + drinkCategory
 //   wine / spirits / beer → drinkCategory (+ optional brand)
-// low-no uses LOW_NO_HREF below (requireNonAlcoholic + mocktail alt).
-function exploreHref(category: DrinkCategory, brandId?: string): string {
+// low-no uses LOW_NO params below (requireNonAlcoholic + mocktail alt).
+function exploreHref(
+  category: DrinkCategory,
+  cityId: CityId,
+  brandId?: string,
+): string {
   const params = new URLSearchParams({ drink: category });
   if (category === "cocktail") params.set("cocktails", "1");
   if (brandId) params.set("brand", brandId);
-  return cityAwareMapPath(DEFAULT_CITY_ID, params);
+  return cityAwareMapPath(cityId, params);
 }
 
-const LOW_NO_HREF = cityAwareMapPath(
-  DEFAULT_CITY_ID,
-  new URLSearchParams({ drink: "low-no", low: "1", alt: "mocktail" }),
-);
+function hungryHref(cityId: CityId): string {
+  return cityAwareMapPath(cityId, new URLSearchParams({ food: "1" }));
+}
+
+function lowNoHref(cityId: CityId): string {
+  return cityAwareMapPath(
+    cityId,
+    new URLSearchParams({ drink: "low-no", low: "1", alt: "mocktail" }),
+  );
+}
 
 /** Map-first crawl href, or city map if the curated id is missing. */
-function crawlMapHref(crawlId: string): string {
+function crawlMapHref(crawlId: string, cityId: CityId): string {
   const crawl = curatedCrawlById(crawlId);
-  return crawl ? curatedCrawlMapHref(crawl) : cityAwareMapPath(DEFAULT_CITY_ID);
+  return crawl
+    ? curatedCrawlMapHref(crawl, cityId)
+    : cityAwareMapPath(cityId);
 }
 
 /** Map-first pack lead crawl, or city map if the pack is empty. */
-function packMapHref(packId: string): string {
+function packMapHref(packId: string, cityId: CityId): string {
   const pack = getRoutePack(packId);
-  return pack ? routePackMapHref(pack) : cityAwareMapPath(DEFAULT_CITY_ID);
+  if (!pack) return cityAwareMapPath(cityId);
+  const primary = routePackPrimaryCrawl(pack);
+  return primary
+    ? curatedCrawlMapHref(primary, cityId)
+    : cityAwareMapPath(cityId);
 }
 
 // Static editorial lanes. Each CTA opens /map with a real crawl polyline
 // (curatedCrawlMapHref / routePackMapHref) — not a bare filter or list page.
-const EDITORIAL: EditorialCardData[] = [
-  {
-    id: "golden-days",
-    eyebrow: "Golden days",
-    title: "The old guard, still standing",
-    dek: "Victorian gin palaces, listed snugs, and the bar Dickens actually leaned on — a walk through the London that refuses to close.",
-    href: crawlMapHref("victorian-soho"),
-    cta: "Walk the heritage route",
-  },
-  {
-    id: "coding-pint",
-    eyebrow: "Coding pint",
-    title: "A quiet table and a slow pint",
-    dek: "Sockets, decent Wi-Fi, and a late-afternoon lull — the pubs that double as the best co-working room in the city.",
-    href: crawlMapHref("barbican-coding-pint"),
-    cta: "Find a working pint",
-  },
-  {
-    id: "then-vs-now",
-    eyebrow: "Then vs now",
-    title: "What a pint used to cost",
-    dek: "The cheapest taps in town, ranked. Proof the good £4 pint isn't extinct — you just have to know where to walk.",
-    href: packMapHref("cheap-chaos"),
-    cta: "Build a cheap crawl",
-  },
-  {
-    id: "tonights-crawl",
-    eyebrow: "Tonight",
-    title: "Tonight's crawl, sorted",
-    dek: "Pick a borough, set your price, and let the river do the routing. Every pin is a pint worth knowing about.",
-    href: packMapHref("late-train"),
-    cta: "Plan tonight",
-  },
-];
+// London default keeps SSR / unit tests stable when no preference is set.
+function buildEditorial(cityId: CityId = DEFAULT_CITY_ID): EditorialCardData[] {
+  return [
+    {
+      id: "golden-days",
+      eyebrow: "Golden days",
+      title: "The old guard, still standing",
+      dek: "Victorian gin palaces, listed snugs, and the bar Dickens actually leaned on — a walk through the London that refuses to close.",
+      href: crawlMapHref("victorian-soho", cityId),
+      cta: "Walk the heritage route",
+    },
+    {
+      id: "coding-pint",
+      eyebrow: "Coding pint",
+      title: "A quiet table and a slow pint",
+      dek: "Sockets, decent Wi-Fi, and a late-afternoon lull — the pubs that double as the best co-working room in the city.",
+      href: crawlMapHref("barbican-coding-pint", cityId),
+      cta: "Find a working pint",
+    },
+    {
+      id: "then-vs-now",
+      eyebrow: "Then vs now",
+      title: "What a pint used to cost",
+      dek: "The cheapest taps in town, ranked. Proof the good £4 pint isn't extinct — you just have to know where to walk.",
+      href: packMapHref("cheap-chaos", cityId),
+      cta: "Build a cheap crawl",
+    },
+    {
+      id: "tonights-crawl",
+      eyebrow: "Tonight",
+      title: "Tonight's crawl, sorted",
+      dek: "Pick a borough, set your price, and let the river do the routing. Every pin is a pint worth knowing about.",
+      href: packMapHref("late-train", cityId),
+      cta: "Plan tonight",
+    },
+  ];
+}
 
 /** Exported for unit tests — Discover editorial CTAs must stay map-first. */
-export const DISCOVER_EDITORIAL = EDITORIAL;
+export const DISCOVER_EDITORIAL = buildEditorial(DEFAULT_CITY_ID);
 
 // Narrow the public /api/pint-drops payload to the drop shape our compute
 // helpers read. The returned TonightDrop carries {venueId, priceGbp, createdAt}
@@ -161,6 +180,11 @@ type DiscoverPageClientProps = {
 };
 
 export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps) {
+  const preferredCity = useSyncExternalStore(
+    subscribePreferredCity,
+    () => readPreferredCity() ?? DEFAULT_CITY_ID,
+    () => DEFAULT_CITY_ID, // SSR snapshot
+  );
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
@@ -182,6 +206,12 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
   const [activeDrink, setActiveDrink] = useState<DrinkCategory | null>(null);
   const analysisRef = useRef<HTMLElement | null>(null);
   const brandPanelRef = useRef<HTMLDivElement | null>(null);
+
+  const editorial = buildEditorial(preferredCity);
+  const hungryMapHref = hungryHref(preferredCity);
+  const lowNoMapHref = lowNoHref(preferredCity);
+  const openMapHref = preferredCityMapHref();
+  const logPintHref = preferredCityMapHref(new URLSearchParams({ log: "1" }));
 
   // Defer the 5.9MB public dataset until the data-heavy sections are near the
   // viewport. The route shell and drink categories can paint without competing
@@ -270,7 +300,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
         </p>
         <CategoryShowcase
           title=""
-          hrefFor={exploreHref}
+          hrefFor={(category) => exploreHref(category, preferredCity)}
           cardHint="Choose this"
           className="discoverExplore"
           extraItemsPosition="start"
@@ -283,7 +313,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
             >
               <Link
                 className="catShowcase__link discoverLowNoLink"
-                href={LOW_NO_HREF}
+                href={lowNoMapHref}
                 aria-label="Explore low and no alcohol drinks"
               >
                 <span
@@ -312,7 +342,10 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
               <h3 id="discover-brand-title" className="discoverBrandTitle">
                 {activeLabel} brands
               </h3>
-              <Link className="discoverBrandAll" href={exploreHref(activeDrink)}>
+              <Link
+                className="discoverBrandAll"
+                href={exploreHref(activeDrink, preferredCity)}
+              >
                 Any {activeLabel.toLowerCase()} on the map
               </Link>
             </div>
@@ -327,7 +360,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
                     <li key={brand.id}>
                       <Link
                         className="discoverBrandChip"
-                        href={exploreHref(activeDrink, brand.id)}
+                        href={exploreHref(activeDrink, preferredCity, brand.id)}
                       >
                         {brand.label}
                       </Link>
@@ -354,13 +387,16 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
           the map already filtered, or jump to a plate style.
         </p>
         <div className="discoverHungryRow">
-          <Link className="discoverHungryCta" href={HUNGRY_HREF}>
+          <Link className="discoverHungryCta" href={hungryMapHref}>
             Show pubs that serve food
           </Link>
           <ul className="discoverCuisineChips" aria-label="Cuisine filters">
             {DISCOVER_CUISINE_CHIPS.map((tag) => (
               <li key={tag}>
-                <Link className="discoverCuisineChip" href={hungryCuisineHref(tag)}>
+                <Link
+                  className="discoverCuisineChip"
+                  href={hungryCuisineHref(tag, preferredCity)}
+                >
                   {tag}
                 </Link>
               </li>
@@ -418,7 +454,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
         ) : status === "error" ? (
           <p className="discoverEmpty" role="status">
             Couldn&rsquo;t load tonight&rsquo;s prices just now.{" "}
-            <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>Open the map</Link>{" "}
+            <Link href={openMapHref}>Open the map</Link>{" "}
             instead.
           </p>
         ) : (
@@ -461,7 +497,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
         ) : status === "error" ? (
           <p className="discoverEmpty" role="status">
             Couldn&rsquo;t load the leaderboard just now.{" "}
-            <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>Open the map</Link>{" "}
+            <Link href={openMapHref}>Open the map</Link>{" "}
             instead.
           </p>
         ) : (
@@ -491,18 +527,13 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
         ) : status === "error" ? (
           <p className="discoverEmpty" role="status">
             Couldn&rsquo;t load price comparisons just now.{" "}
-            <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>Open the map</Link>{" "}
+            <Link href={openMapHref}>Open the map</Link>{" "}
             instead.
           </p>
         ) : thenVsNow.length === 0 ? (
           <p className="discoverEmpty" role="status">
             Not enough community prices yet to compare.{" "}
-            <Link
-              href={cityAwareMapPath(
-                DEFAULT_CITY_ID,
-                new URLSearchParams({ log: "1" }),
-              )}
-            >
+            <Link href={logPintHref}>
               Log a pint on the map
             </Link>{" "}
             to help fill this in.
@@ -521,7 +552,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
           Ways to drink through the city
         </h2>
         <div className="editorialGrid">
-          {EDITORIAL.map((card) => (
+          {editorial.map((card) => (
             <EditorialCard key={card.id} {...card} />
           ))}
         </div>
