@@ -93,8 +93,5 @@ export async function venueLabel(id: string): Promise<string> {
   return (await resolveVenue(id))?.name ?? "A London pub";
 }
 
-// The canonical "open this pub on the map" link — ?sel is read by seedCrawlState
-// (lib/crawlUrl.ts) and selects the venue on load.
-export function venueMapUrl(id: string): string {
-  return `/map?sel=${encodeURIComponent(id)}`;
-}
+// Re-export the client-safe helper so existing server imports keep working.
+export { venueMapUrl } from "@/lib/venueMapUrl";

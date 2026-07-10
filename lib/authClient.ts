@@ -1,4 +1,4 @@
-// Browser-only Supabase client (singleton) for Google sign-in.
+// Browser-only Supabase client (singleton) for OAuth sign-in (Google + Microsoft/Azure).
 //
 // This is DISTINCT from lib/supabase.ts: that module is the server-only ADMIN
 // client (service-role key, no session persistence, all writes route through it).

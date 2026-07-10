@@ -156,11 +156,13 @@ test("nav does not overflow at 390px — sign-in button never clips (GH #18)", a
     expect(navBox.x + navBox.width).toBeLessThanOrEqual(viewportWidth + 1); // +1px rounding
   }
 
-  // The sign-in control (present when Google auth is configured) must also
+  // Sign-in controls (present when browser auth is configured) must also
   // stay fully inside the viewport — this is the exact element the bug named.
+  // Google + Microsoft both use .authSignIn; check every visible button.
   const signIn = page.locator(".authSignIn");
-  if ((await signIn.count()) > 0) {
-    const box = await signIn.boundingBox();
+  const signInCount = await signIn.count();
+  for (let i = 0; i < signInCount; i++) {
+    const box = await signIn.nth(i).boundingBox();
     expect(box).not.toBeNull();
     if (box) {
       expect(box.x).toBeGreaterThanOrEqual(0);

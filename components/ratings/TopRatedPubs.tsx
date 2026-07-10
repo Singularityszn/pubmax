@@ -15,7 +15,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
+import prefetchVenue from "@/lib/prefetchVenue";
 import { percentileFrame, type TopRatedEntry } from "@/lib/ratings";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import StarRating from "./StarRating";
 import "./topRatedPubs.css";
@@ -70,7 +72,12 @@ export default function TopRatedPubs({ venueNames }: TopRatedPubsProps) {
           <li className="topRatedItem" key={entry.ref}>
             <span className="topRatedRank">{index + 1}</span>
             <span className="topRatedMain">
-              <Link className="topRatedName" href={`/bar-tab/${encodeURIComponent(entry.ref)}`}>
+              <Link
+                className="topRatedName"
+                href={venueMapUrl(entry.ref)}
+                onPointerEnter={() => prefetchVenue(entry.ref)}
+                onTouchStart={() => prefetchVenue(entry.ref)}
+              >
                 {name}
               </Link>
               <span className="ratingLine">

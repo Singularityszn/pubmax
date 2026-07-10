@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import SiteNav from "@/components/nav/SiteNav";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
+import "@/components/map/logIntentFallback.css";
 
 import {
   buildCrawlRoute,
@@ -53,6 +54,7 @@ import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
   buildLogNearbyCandidates,
+  formatLogNearbyDistance,
   hasMapLogIntent,
   resolveMapLogIntent,
   shouldRunMapLogIntent,
@@ -337,55 +339,6 @@ const DETAIL_WARNING_STYLE: CSSProperties = {
   ...DETAIL_STATUS_STYLE,
   borderColor: "rgba(209, 99, 83, 0.34)",
   background: "rgba(209, 99, 83, 0.12)",
-};
-
-const LOG_INTENT_FALLBACK_STYLE: CSSProperties = {
-  position: "absolute",
-  left: "max(16px, env(safe-area-inset-left))",
-  right: "max(16px, env(safe-area-inset-right))",
-  bottom: "calc(88px + env(safe-area-inset-bottom))",
-  zIndex: 545,
-  display: "grid",
-  gap: "10px",
-  maxWidth: "440px",
-  padding: "14px",
-  border: "1px solid rgba(211, 164, 74, 0.38)",
-  borderRadius: "8px",
-  background: "rgba(36, 27, 20, 0.94)",
-  boxShadow: "0 18px 50px rgba(0, 0, 0, 0.28)",
-  color: "var(--paper)",
-};
-
-const LOG_INTENT_FALLBACK_ACTIONS_STYLE: CSSProperties = {
-  display: "flex",
-  gap: "8px",
-  flexWrap: "wrap",
-};
-
-const LOG_NEARBY_LIST_STYLE: CSSProperties = {
-  display: "grid",
-  gap: "6px",
-  margin: "10px 0 0",
-  padding: 0,
-  listStyle: "none",
-};
-
-const LOG_NEARBY_BTN_STYLE: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "10px",
-  width: "100%",
-  minHeight: "44px",
-  padding: "8px 12px",
-  border: "1px solid var(--line)",
-  borderRadius: "10px",
-  background: "var(--panel-raised)",
-  color: "var(--ink)",
-  font: "inherit",
-  fontWeight: 700,
-  textAlign: "left",
-  cursor: "pointer",
 };
 
 type VenueDetailStatus = "idle" | "loading" | "ready" | "unavailable";
@@ -798,8 +751,8 @@ export default function PubMap({
   }, []);
 
   const logNearbyCandidates = useMemo(
-    () => buildLogNearbyCandidates(filteredVenues),
-    [filteredVenues],
+    () => buildLogNearbyCandidates(filteredVenues, undefined, userLocation),
+    [filteredVenues, userLocation],
   );
 
   const showLoadedRoute = useCallback(
@@ -1234,33 +1187,43 @@ export default function PubMap({
           cityId={cityId}
         />
         {logIntentFallbackVisible ? (
-          <div style={LOG_INTENT_FALLBACK_STYLE} role="status" aria-live="polite">
+          <div className="logIntentFallback" role="status" aria-live="polite">
             <div>
               <strong>Pick a pub to log a Pint Drop</strong>
-              <p className="description" style={{ margin: "6px 0 0", color: "inherit" }}>
-                We won&rsquo;t guess which pub you&rsquo;re in. Choose one nearby, search, or
-                tap the map — then we&rsquo;ll open the Pint Drop composer.
+              <p className="description">
+                {userLocation
+                  ? "Nearest pubs to you first. Choose one, search, or tap the map — then we\u2019ll open the Pint Drop composer."
+                  : "We won\u2019t guess which pub you\u2019re in. Choose one nearby, search, or tap the map — then we\u2019ll open the Pint Drop composer."}
               </p>
             </div>
             {logNearbyCandidates.length > 0 ? (
-              <ul style={LOG_NEARBY_LIST_STYLE} aria-label="Nearby pubs to log">
-                {logNearbyCandidates.map((candidate) => (
-                  <li key={candidate.id}>
-                    <button
-                      type="button"
-                      style={LOG_NEARBY_BTN_STYLE}
-                      onClick={() => pickLogNearbyVenue(candidate.id)}
-                      onPointerEnter={() => prefetchVenueDetail(candidate.id)}
-                      onTouchStart={() => prefetchVenueDetail(candidate.id)}
-                    >
-                      <span>{candidate.name}</span>
-                      <span>{candidate.priceLabel}</span>
-                    </button>
-                  </li>
-                ))}
+              <ul className="logIntentNearbyList" aria-label="Nearby pubs to log">
+                {logNearbyCandidates.map((candidate) => {
+                  const dist =
+                    typeof candidate.distanceKm === "number"
+                      ? formatLogNearbyDistance(candidate.distanceKm)
+                      : "";
+                  return (
+                    <li key={candidate.id}>
+                      <button
+                        type="button"
+                        className="logIntentNearbyBtn"
+                        onClick={() => pickLogNearbyVenue(candidate.id)}
+                        onPointerEnter={() => prefetchVenueDetail(candidate.id)}
+                        onTouchStart={() => prefetchVenueDetail(candidate.id)}
+                      >
+                        <span>{candidate.name}</span>
+                        <span className="logIntentNearbyMeta">
+                          {dist ? <span className="logIntentNearbyDist">{dist}</span> : null}
+                          <span>{candidate.priceLabel}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
-            <div style={LOG_INTENT_FALLBACK_ACTIONS_STYLE}>
+            <div className="logIntentActions">
               <button type="button" className="addStopBtn" onClick={focusMapSearch}>
                 Search pubs
               </button>

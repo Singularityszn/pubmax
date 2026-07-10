@@ -36,8 +36,8 @@ html[data-theme="dark"] {
   color-scheme: dark;
 
   --ink: #fff4e8;
-  --ink-soft: #d8cfc2;
-  --muted: #9c9388;
+  --ink-soft: #e4d9c8;
+  --muted: #b0a698;
   --line: #413a34;
   --line-soft: #302b27;
   --paper: #14110f;
@@ -65,6 +65,80 @@ html[data-theme="dark"] {
   --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.48), 0 0 14px rgba(255, 138, 61, 0.07);
   --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 194, 71, 0.14);
   --gradient-party: linear-gradient(135deg, var(--paper) 0%, #1b1714 48%, #101a1b 100%);
+
+  /* Map chrome on night basemap — black lift, not lavender paper shadows.
+     Also set on .appShell below: that node redefines the same vars for light. */
+  --map-overlay-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+  --map-overlay-shadow-tight: 0 6px 14px rgba(0, 0, 0, 0.48);
+
+  /* Dark type: slightly stronger secondary contrast so body copy stays crisp
+     on charcoal (thin muted greys wash out under night contrast). */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* .appShell redefines --map-overlay-shadow* for the light map; override here so
+   floating map chrome keeps black night lift instead of lavender paper shadow. */
+html[data-theme="dark"] .appShell {
+  --map-overlay-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+  --map-overlay-shadow-tight: 0 6px 14px rgba(0, 0, 0, 0.48);
+}
+
+/* Map floating chrome: solid night panels so Home + Search read as twins over
+   the dark basemap (no frosted glass wash that fights cream land leftovers). */
+html[data-theme="dark"] .siteNavBarFloating,
+html[data-theme="dark"] .mapToolbar {
+  border-color: color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  background: var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-theme="dark"] .mapFitLondonBtn,
+html[data-theme="dark"] .mapRecenterBtn {
+  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  box-shadow: var(--map-overlay-shadow-tight);
+}
+
+html[data-theme="dark"] .mapFitLondonBtn:hover,
+html[data-theme="dark"] .mapRecenterBtn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
+  color: var(--ink);
+  border-color: var(--brass);
+}
+
+html[data-theme="dark"] .mapRecenterBtn:disabled {
+  opacity: 0.42;
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .mappedRouteChip,
+html[data-theme="dark"] .bandOnboardingChip {
+  border-color: color-mix(in srgb, var(--line) 60%, var(--brass) 40%);
+  background: var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow);
+}
+
+html[data-theme="dark"] .mobileTabList {
+  border-color: color-mix(in srgb, var(--line) 75%, var(--brass) 25%);
+  background: var(--panel-raised);
+  box-shadow:
+    0 -6px 18px rgba(0, 0, 0, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] .inspectorTitle,
+html[data-theme="dark"] .venueInspector h3 {
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
 
 /* Theme toggle. Base = the inline/nav variant: a quiet brass-hover icon button

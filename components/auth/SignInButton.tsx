@@ -1,18 +1,17 @@
 "use client";
 
-// "Continue with Google" — and, once signed in, the user's avatar/name + a
+// Google + Microsoft sign-in — and, once signed in, the user's avatar/name + a
 // sign-out control.
 //
 // ──────────────────────────────────────────────────────────────────────────
-// OWNER MANUAL STEP (required for this to actually log anyone in):
-// Enable the Google provider in Supabase Auth —
-//   Dashboard → Authentication → Providers → Google —
-// with a Google Cloud OAuth client ID + secret. Then, in the Google Cloud
-// OAuth client, add BOTH of these to "Authorized redirect URIs":
-//   1. <site>/auth/callback           (e.g. https://pubmaxx.vercel.app/auth/callback)
-//   2. https://<project-ref>.supabase.co/auth/v1/callback   (the Supabase URL)
-// Until that is done the button will open Google and then FAIL the redirect —
-// that failure is EXPECTED and is not a bug in this code.
+// OWNER MANUAL STEPS (required for either button to actually log anyone in):
+//
+// Full checklist: docs/DEPLOYMENT.md → "Browser sign-in (Google + Microsoft)".
+// IdP redirect URI is always https://<project-ref>.supabase.co/auth/v1/callback.
+// Site callback (<site>/auth/callback) is allowlisted in Supabase URL Configuration.
+//
+// Until those dashboard steps are done the buttons open the IdP and then FAIL
+// the redirect — that failure is EXPECTED and is not a bug in this code.
 // ──────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useState } from "react";
@@ -24,7 +23,7 @@ import "@/app/auth/auth.css";
 // themes without an asset request; brand colours are fixed (never tokenized).
 function GoogleMark(): React.JSX.Element {
   return (
-    <svg className="authGoogleMark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+    <svg className="authProviderMark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
       <path
         fill="#4285F4"
         d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"
@@ -45,7 +44,19 @@ function GoogleMark(): React.JSX.Element {
   );
 }
 
-/** Best-effort initials for the avatar fallback when Google gives us no photo. */
+// Microsoft four-square mark (brand colours fixed).
+function MicrosoftMark(): React.JSX.Element {
+  return (
+    <svg className="authProviderMark" viewBox="0 0 23 23" aria-hidden="true" focusable="false">
+      <path fill="#F25022" d="M1 1h10v10H1z" />
+      <path fill="#7FBA00" d="M12 1h10v10H12z" />
+      <path fill="#00A4EF" d="M1 12h10v10H1z" />
+      <path fill="#FFB900" d="M12 12h10v10H12z" />
+    </svg>
+  );
+}
+
+/** Best-effort initials for the avatar fallback when the IdP gives us no photo. */
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -55,26 +66,36 @@ function initials(name: string): string {
 }
 
 export default function SignInButton(): React.JSX.Element | null {
-  const { user, loading, configured, signInWithGoogle, signOut } = useAuth();
-  const [busy, setBusy] = useState(false);
+  const { user, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut } = useAuth();
+  const [busy, setBusy] = useState<"google" | "microsoft" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const onSignIn = useCallback(async () => {
-    setBusy(true);
+  const onSignInGoogle = useCallback(async () => {
+    setBusy("google");
     setError(null);
     const { error: signInError } = await signInWithGoogle();
     // On success the browser redirects to Google, so we usually never get here;
     // if signInWithOAuth returned an error instead, surface it and re-enable.
     if (signInError) {
       setError(signInError);
-      setBusy(false);
+      setBusy(null);
     }
   }, [signInWithGoogle]);
 
+  const onSignInMicrosoft = useCallback(async () => {
+    setBusy("microsoft");
+    setError(null);
+    const { error: signInError } = await signInWithMicrosoft();
+    if (signInError) {
+      setError(signInError);
+      setBusy(null);
+    }
+  }, [signInWithMicrosoft]);
+
   const onSignOut = useCallback(async () => {
-    setBusy(true);
+    setBusy("out");
     await signOut();
-    setBusy(false);
+    setBusy(null);
   }, [signOut]);
 
   // Hide entirely when the public env is missing — no dead button.
@@ -98,7 +119,7 @@ export default function SignInButton(): React.JSX.Element | null {
     return (
       <div className="authUser">
         {avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element -- remote Google avatar; no next/image loader configured for it
+          // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
           <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
         ) : (
           <span className="authAvatarFallback" aria-hidden="true">
@@ -106,7 +127,12 @@ export default function SignInButton(): React.JSX.Element | null {
           </span>
         )}
         <span className="authName">{name}</span>
-        <button type="button" className="authSignOut" onClick={onSignOut} disabled={busy}>
+        <button
+          type="button"
+          className="authSignOut"
+          onClick={onSignOut}
+          disabled={busy !== null}
+        >
           Sign out
         </button>
       </div>
@@ -115,26 +141,42 @@ export default function SignInButton(): React.JSX.Element | null {
 
   return (
     <div className="authUser">
-      <button
-        type="button"
-        className="authSignIn"
-        onClick={onSignIn}
-        disabled={busy}
-        aria-label="Continue with Google"
-      >
-        <GoogleMark />
-        {/* Full label on room-to-spare widths; a short label takes over at
-            narrow viewports (see authSignInLabelShort in auth.css) so the
-            button never crowds/clips the nav at 390px. Both are real text (not
-            display:none-only-in-CSS trickery) — aria-label above is what
-            screen readers announce regardless of which is visually shown. */}
-        <span className="authSignInLabelFull" aria-hidden="true">
-          Continue with Google
-        </span>
-        <span className="authSignInLabelShort" aria-hidden="true">
-          Sign in
-        </span>
-      </button>
+      <div className="authProviders">
+        <button
+          type="button"
+          className="authSignIn"
+          onClick={onSignInGoogle}
+          disabled={busy !== null}
+          aria-label="Continue with Google"
+        >
+          <GoogleMark />
+          {/* Full label on room-to-spare widths; a short label takes over at
+              narrow viewports (see auth.css) so two provider buttons never
+              crowd/clip the nav at 390px. aria-label is what screen readers
+              announce regardless of which label is visually shown. */}
+          <span className="authSignInLabelFull" aria-hidden="true">
+            Continue with Google
+          </span>
+          <span className="authSignInLabelShort" aria-hidden="true">
+            Google
+          </span>
+        </button>
+        <button
+          type="button"
+          className="authSignIn"
+          onClick={onSignInMicrosoft}
+          disabled={busy !== null}
+          aria-label="Continue with Microsoft"
+        >
+          <MicrosoftMark />
+          <span className="authSignInLabelFull" aria-hidden="true">
+            Continue with Microsoft
+          </span>
+          <span className="authSignInLabelShort" aria-hidden="true">
+            Microsoft
+          </span>
+        </button>
+      </div>
       {error ? (
         <span className="authError" role="alert">
           {error}
