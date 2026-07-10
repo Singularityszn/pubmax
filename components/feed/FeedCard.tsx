@@ -19,6 +19,7 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
 // canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
@@ -435,7 +436,7 @@ export default function FeedCard({
             <nav className="feedCardActions" aria-label="Pub actions">
               <Link
                 className="feedCardAction"
-                href={item.venueMapUrl || `/map?sel=${encodeURIComponent(item.venueId)}`}
+                href={item.venueMapUrl || venueMapUrl(item.venueId)}
                 onPointerEnter={() => prefetchVenue(item.venueId)}
               >
                 Map
@@ -443,7 +444,7 @@ export default function FeedCard({
               {item.venueId ? (
                 <Link
                   className="feedCardAction"
-                  href={`/map?log=1&sel=${encodeURIComponent(item.venueId)}`}
+                  href={`${venueMapUrl(item.venueId)}&log=1`}
                   onPointerEnter={() => prefetchVenue(item.venueId)}
                 >
                   Drop

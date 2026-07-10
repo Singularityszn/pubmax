@@ -53,3 +53,10 @@ Brand constraint: candle-lit field guide — no purple gradients, no cream+terra
 
 Layers rebuild; inventing `dominantCategory` for every venue; paid basemap swap;
 heatmap; growing PubMapCanvas scene graph; Legacy T remount.
+
+## Shipped
+
+- **#76** — core Wave J (basemap taste, clusters, Prices/Layers FABs, skills, fluidity).
+- **Follow-up polish (this branch):** retarget `mapColor.css` to Layers swatches;
+  solid hover/log-intent panels (less frost); theme flip + landing CTA transitions
+  on `--duration-base` / `--ease-out`; Prices FAB copy (no “Cost” wording).

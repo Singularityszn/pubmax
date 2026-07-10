@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { formatPrice } from "@/lib/venues";
 import type { ThenVsNowItem } from "@/lib/thenVsNow";
 
@@ -29,7 +30,7 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
   const dir = direction(item.deltaGbp);
   const abs = Math.abs(item.deltaGbp);
   const pctAbs = Math.abs(item.pct);
-  const href = `/map?sel=${encodeURIComponent(item.venueId)}`;
+  const href = venueMapUrl(item.venueId);
 
   // A screen-reader sentence that reads the movement plainly, out of context.
   const movementLabel =

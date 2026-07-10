@@ -1,16 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// Pin in-memory rate limiting regardless of CI Supabase env (Vercel presets
+// SUPABASE_*). Without this, isLimited hits the durable path and — when the
+// RPC is missing — used to degrade to Math.min(limit, 3), so the 10×403 then
+// 429 contract flaked on the 4th attempt.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return {
+    ...actual,
+    isSupabaseConfigured: () => false,
+    checkRateLimitDurableDetailed: async () =>
+      ({ verdict: null, reason: "no-client" }) as const,
+  };
+});
+
 vi.mock("@/lib/serverEnv", () => ({
   assertServerEnv: () => {},
   assertProductionSecrets: () => {},
 }));
-
-// Pin the in-memory rate limiter — durable Supabase counters survive
-// `__resetPintDrops` and make the 429 test flake on CI when env is configured.
-vi.mock("@/lib/supabase", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/supabase")>("@/lib/supabase");
-  return { ...actual, isSupabaseConfigured: () => false };
-});
 
 const ORIGINAL_ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 

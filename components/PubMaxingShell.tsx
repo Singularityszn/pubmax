@@ -18,5 +18,5 @@ type PubMaxingShellProps = {
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
 }: PubMaxingShellProps) {
-  return <PubMap cityId={cityId} />;
+  return <PubMap key={cityId} cityId={cityId} />;
 }

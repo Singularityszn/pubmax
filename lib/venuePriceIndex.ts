@@ -23,7 +23,17 @@ export async function getPricedVenues(): Promise<Venue[]> {
     const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
     cached = groupVenuePrices(Array.isArray(rows) ? rows : []);
   } catch {
-    cached = [];
+    return [];
   }
   return cached;
+}
+
+export function resetVenuePriceIndexForTests(): void {
+  if (
+    process.env.NODE_ENV === "test" ||
+    Boolean(process.env.VITEST) ||
+    Boolean(process.env.VITEST_WORKER_ID)
+  ) {
+    cached = null;
+  }
 }

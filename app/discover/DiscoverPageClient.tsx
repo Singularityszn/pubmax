@@ -28,16 +28,24 @@ import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import { KNOWN_CUISINE_TAGS } from "@/lib/cuisineTags";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
-import { curatedCrawlById, curatedCrawlMapHref } from "@/lib/curatedCrawls";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
+import {
+  cityAwareMapPath,
+  curatedCrawlById,
+  curatedCrawlMapHref,
+} from "@/lib/curatedCrawls";
 import { getRoutePack, routePackMapHref } from "@/lib/routePacks";
 import "./discover.css";
 
-const HUNGRY_HREF = "/map?food=1";
+const HUNGRY_HREF = cityAwareMapPath(
+  DEFAULT_CITY_ID,
+  new URLSearchParams({ food: "1" }),
+);
 
 /** Discover Hungry chips → map with food filter + cuisine hint in the query. */
 function hungryCuisineHref(tag: string): string {
   const params = new URLSearchParams({ food: "1", q: tag });
-  return `/map?${params.toString()}`;
+  return cityAwareMapPath(DEFAULT_CITY_ID, params);
 }
 
 /** Cuisine chips shown on Discover — a short, scannable subset. */
@@ -60,21 +68,24 @@ function exploreHref(category: DrinkCategory, brandId?: string): string {
   const params = new URLSearchParams({ drink: category });
   if (category === "cocktail") params.set("cocktails", "1");
   if (brandId) params.set("brand", brandId);
-  return `/map?${params.toString()}`;
+  return cityAwareMapPath(DEFAULT_CITY_ID, params);
 }
 
-const LOW_NO_HREF = "/map?drink=low-no&low=1&alt=mocktail";
+const LOW_NO_HREF = cityAwareMapPath(
+  DEFAULT_CITY_ID,
+  new URLSearchParams({ drink: "low-no", low: "1", alt: "mocktail" }),
+);
 
-/** Map-first crawl href, or /map if the curated id is missing. */
+/** Map-first crawl href, or city map if the curated id is missing. */
 function crawlMapHref(crawlId: string): string {
   const crawl = curatedCrawlById(crawlId);
-  return crawl ? curatedCrawlMapHref(crawl) : "/map";
+  return crawl ? curatedCrawlMapHref(crawl) : cityAwareMapPath(DEFAULT_CITY_ID);
 }
 
-/** Map-first pack lead crawl, or /map if the pack is empty. */
+/** Map-first pack lead crawl, or city map if the pack is empty. */
 function packMapHref(packId: string): string {
   const pack = getRoutePack(packId);
-  return pack ? routePackMapHref(pack) : "/map";
+  return pack ? routePackMapHref(pack) : cityAwareMapPath(DEFAULT_CITY_ID);
 }
 
 // Static editorial lanes. Each CTA opens /map with a real crawl polyline
@@ -407,7 +418,8 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
         ) : status === "error" ? (
           <p className="discoverEmpty" role="status">
             Couldn&rsquo;t load tonight&rsquo;s prices just now.{" "}
-            <Link href="/map">Open the map</Link> instead.
+            <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>Open the map</Link>{" "}
+            instead.
           </p>
         ) : (
           <TonightBoard entries={tonight} />
@@ -449,7 +461,8 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
         ) : status === "error" ? (
           <p className="discoverEmpty" role="status">
             Couldn&rsquo;t load the leaderboard just now.{" "}
-            <Link href="/map">Open the map</Link> instead.
+            <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>Open the map</Link>{" "}
+            instead.
           </p>
         ) : (
           <LeaderboardTable entries={entries} />
@@ -478,12 +491,21 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
         ) : status === "error" ? (
           <p className="discoverEmpty" role="status">
             Couldn&rsquo;t load price comparisons just now.{" "}
-            <Link href="/map">Open the map</Link> instead.
+            <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>Open the map</Link>{" "}
+            instead.
           </p>
         ) : thenVsNow.length === 0 ? (
           <p className="discoverEmpty" role="status">
             Not enough community prices yet to compare.{" "}
-            <Link href="/map?log=1">Log a pint on the map</Link> to help fill this in.
+            <Link
+              href={cityAwareMapPath(
+                DEFAULT_CITY_ID,
+                new URLSearchParams({ log: "1" }),
+              )}
+            >
+              Log a pint on the map
+            </Link>{" "}
+            to help fill this in.
           </p>
         ) : (
           <div className="tvnGrid">

@@ -106,7 +106,7 @@ export default function MapPriceControl({
             <button
               type="button"
               className="mapPriceClose"
-              aria-label="Close cost filter"
+              aria-label="Close prices filter"
               onClick={() => setOpen(false)}
             >
               <X size={16} aria-hidden="true" />

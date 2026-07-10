@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
+import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
+
+export const runtime = "nodejs";
 
 const size = {
   width: 1200,
@@ -43,6 +45,9 @@ function ListGlyph() {
 }
 
 export async function GET(request: Request) {
+  const limited = await ogCardRateLimitedResponse(request, "og-list-card");
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const owner = clampParam(searchParams.get("owner"), 32, "pubmaxxer");
   const list = clampParam(searchParams.get("list"), 54, "London saved list");

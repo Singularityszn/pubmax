@@ -68,6 +68,64 @@ export function hashActor(actorId: string | null | undefined): string {
   return createHash("sha256").update(`${salt}:${id}`).digest("hex");
 }
 
+export type RateLimitDurableReason = "missing-rpc" | "error" | "no-client";
+
+export type RateLimitDurableDetailed = {
+  verdict: boolean | null;
+  reason?: RateLimitDurableReason;
+};
+
+/** PostgREST / Postgres signals that `check_rate_limit` is not deployed yet. */
+function isMissingRateLimitRpc(error: {
+  message?: string;
+  code?: string;
+}): boolean {
+  const code = error.code ?? "";
+  // PGRST202 = function not in schema cache; 42883 = undefined_function.
+  if (code === "PGRST202" || code === "42883") return true;
+  const message = error.message ?? "";
+  return /check_rate_limit/i.test(message) && /does not exist|Could not find the function|schema cache/i.test(message);
+}
+
+/**
+ * Atomic check-and-increment against Supabase with a structured outcome so
+ * callers can distinguish "no client" / "RPC missing" / generic error from a
+ * real boolean verdict. `verdict` is true/false when the RPC answered, or null
+ * when it could not — never silent: console.error is the observable signal.
+ */
+export async function checkRateLimitDurableDetailed(
+  key: string,
+  limit = RATE_LIMIT_MAX,
+  windowMs = RATE_LIMIT_WINDOW_MS,
+): Promise<RateLimitDurableDetailed> {
+  const admin = getSupabaseAdmin();
+  if (!admin) return { verdict: null, reason: "no-client" };
+  try {
+    const { data, error } = await admin.rpc("check_rate_limit", {
+      p_key: key,
+      p_limit: limit,
+      p_window_ms: windowMs,
+    });
+    if (error) {
+      const reason: RateLimitDurableReason = isMissingRateLimitRpc(error)
+        ? "missing-rpc"
+        : "error";
+      console.error(
+        `[rate-limit] durable limiter unavailable (${reason}) — failing open to in-memory:`,
+        error.message,
+      );
+      return { verdict: null, reason };
+    }
+    return { verdict: data === true };
+  } catch (err) {
+    console.error(
+      "[rate-limit] durable limiter unavailable (error) — failing open to in-memory:",
+      err instanceof Error ? err.message : err,
+    );
+    return { verdict: null, reason: "error" };
+  }
+}
+
 /**
  * Atomic check-and-increment against Supabase. Returns true/false when the
  * RPC answered, or null when it could not (no client, RPC error, network) —
@@ -77,36 +135,16 @@ export function hashActor(actorId: string | null | undefined): string {
  * H3: that downgrade is FAIL-OPEN by design — writes must not 503 on a
  * limiter outage — but never silent: on Vercel each cold-start instance gets
  * a fresh in-memory budget, so the durable limiter is near-useless exactly
- * when it errors. The console.error below is the observable signal.
+ * when it errors. Prefer `checkRateLimitDurableDetailed` when the caller needs
+ * the failure reason (hybrid degraded path in `isLimited`).
  */
 export async function checkRateLimitDurable(
   key: string,
   limit = RATE_LIMIT_MAX,
   windowMs = RATE_LIMIT_WINDOW_MS,
 ): Promise<boolean | null> {
-  const admin = getSupabaseAdmin();
-  if (!admin) return null;
-  try {
-    const { data, error } = await admin.rpc("check_rate_limit", {
-      p_key: key,
-      p_limit: limit,
-      p_window_ms: windowMs,
-    });
-    if (error) {
-      console.error(
-        "[rate-limit] durable limiter unavailable — failing open to in-memory:",
-        error.message,
-      );
-      return null;
-    }
-    return data === true;
-  } catch (err) {
-    console.error(
-      "[rate-limit] durable limiter unavailable — failing open to in-memory:",
-      err instanceof Error ? err.message : err,
-    );
-    return null;
-  }
+  const { verdict } = await checkRateLimitDurableDetailed(key, limit, windowMs);
+  return verdict;
 }
 
 /**

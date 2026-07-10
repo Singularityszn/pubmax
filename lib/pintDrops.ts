@@ -11,12 +11,12 @@
 import { randomUUID } from "crypto";
 
 import type { CityId } from "@/lib/cities";
+import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import type { Provenance } from "@/lib/curation";
 import {
   demoDropsFor,
   demoPintDrops,
   demoPintDropsForCity,
-  isManchesterVenueId,
 } from "@/lib/pintDropSeeds";
 import {
   ANON_HANDLE_LABEL,
@@ -33,7 +33,10 @@ import {
   type Visibility,
 } from "@/lib/pintDropShared";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
-import { checkRateLimitDurable, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  checkRateLimitDurableDetailed,
+  isSupabaseConfigured,
+} from "@/lib/supabase";
 
 /** Unscoped feed/map reads: keep Manchester venue ids off the London surface. */
 export function dropMatchesCityScope(
@@ -41,8 +44,7 @@ export function dropMatchesCityScope(
   cityId?: CityId | null,
 ): boolean {
   const scoped = cityId ?? "london";
-  if (scoped === "manchester") return isManchesterVenueId(venueId);
-  return !isManchesterVenueId(venueId);
+  return venueIdMatchesCity(venueId, scoped);
 }
 
 // Re-export the browser-safe surface so existing importers (and tests) that pull
@@ -212,12 +214,22 @@ export function isRateLimited(
   return hits.length > limit;
 }
 
+/** Cap applied when the durable limiter is configured but unavailable. */
+const DEGRADED_RATE_LIMIT = 3;
+
 /**
  * Combined limiter used by every rate-limited route: durable (Supabase RPC)
- * when configured, in-memory otherwise. A null durable verdict (client missing
- * / RPC error) falls back to the in-memory backstop — fail-open by design, so
- * a limiter outage can never 503 writes (checkRateLimitDurable logs the
- * downgrade loudly).
+ * when configured, in-memory otherwise.
+ *
+ * When Supabase is configured but the durable check cannot answer:
+ *   • `missing-rpc` / `no-client` → full in-memory `limit` (preview/CI/demo
+ *     safe — migration may not be applied yet)
+ *   • `error` (transient outage) → degraded Math.min(limit, 3); or
+ *     RATE_LIMIT_STRICT=1 → treat as limited (429) instead of opening wider
+ *
+ * No Supabase → in-memory at the normal limit (demo unchanged). A real boolean
+ * durable verdict is used as-is. `checkRateLimitDurableDetailed` logs the
+ * downgrade loudly.
  */
 export async function isLimited(
   localKey: string,
@@ -225,10 +237,29 @@ export async function isLimited(
   limit = RATE_LIMIT,
   windowMs = RATE_WINDOW_MS,
 ): Promise<boolean> {
-  if (isSupabaseConfigured()) {
-    const verdict = await checkRateLimitDurable(durableKey, limit, windowMs);
-    if (typeof verdict === "boolean") return verdict;
+  if (!isSupabaseConfigured()) {
+    return isRateLimited(localKey, Date.now(), limit, windowMs);
   }
+
+  const { verdict, reason } = await checkRateLimitDurableDetailed(
+    durableKey,
+    limit,
+    windowMs,
+  );
+  if (typeof verdict === "boolean") return verdict;
+
+  // Transient outage only — tighten (or refuse under STRICT).
+  if (reason === "error") {
+    if (process.env.RATE_LIMIT_STRICT === "1") return true;
+    return isRateLimited(
+      localKey,
+      Date.now(),
+      Math.min(limit, DEGRADED_RATE_LIMIT),
+      windowMs,
+    );
+  }
+
+  // missing-rpc / no-client / unknown → full in-memory budget.
   return isRateLimited(localKey, Date.now(), limit, windowMs);
 }
 

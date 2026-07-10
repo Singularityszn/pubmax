@@ -4,6 +4,7 @@
 
 import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -62,7 +63,8 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
-  const follower = normalizeHandle(readString(body.follower) ?? "");
+  // JWT-linked handle wins over a self-asserted body.follower when signed in.
+  const follower = await resolveMessageHandle(request, readString(body.follower));
   if (!follower) {
     return jsonNoStore(
       { error: "Set a handle first — drop a pint to claim one." },

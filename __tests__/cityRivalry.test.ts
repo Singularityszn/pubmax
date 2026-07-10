@@ -86,7 +86,7 @@ describe("buildCityRivalrySnapshot / cityRivalryLeaderboard", () => {
 
   it("does not credit London crawl packs to browse-only cities", () => {
     expect(crawlPackCountForCity("liverpool")).toBeGreaterThanOrEqual(3);
-    expect(crawlPackCountForCity("oxford")).toBe(0);
+    expect(crawlPackCountForCity("oxford")).toBeGreaterThanOrEqual(3);
     expect(crawlPackCountForCity("glasgow")).toBeGreaterThanOrEqual(3);
     expect(crawlPackCountForCity("cambridge")).toBeGreaterThanOrEqual(2);
     expect(crawlPackCountForCity("durham")).toBeGreaterThanOrEqual(2);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
+import { cityMapShareUrl } from "@/lib/cityShare";
 
 type CityRivalryTableProps = {
   entries: CityRivalryEntry[];
@@ -9,7 +10,8 @@ type CityRivalryTableProps = {
 
 /**
  * Compact UK city energy table for Discover — community drops + curated crawls
- * + venue coverage, not a fake price catalogue. Links each city into /map/{id}.
+ * + venue coverage, not a fake price catalogue. Links each city via cityMapShareUrl
+ * (London stays `/map`; other cities use `/map/{id}`).
  */
 export default function CityRivalryTable({
   entries,
@@ -50,7 +52,10 @@ export default function CityRivalryTable({
               <span className="srOnly">Rank {index + 1}</span>
             </td>
             <th scope="row" className="leaderboardName">
-              <Link className="cityRivalryLink" href={`/map/${entry.cityId}`}>
+              <Link
+                className="cityRivalryLink"
+                href={cityMapShareUrl(entry.cityId)}
+              >
                 <span className="leaderboardPub">{entry.displayName}</span>
                 <span className="leaderboardPint">{entry.tagline}</span>
               </Link>
