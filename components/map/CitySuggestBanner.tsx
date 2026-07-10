@@ -19,18 +19,20 @@ type CitySuggestBannerProps = {
 };
 
 /**
- * Lightweight geolocation nudge: once on mount, if the viewer appears to be in
- * a different enabled city than the open map, offer a one-tap switch. Fail-soft
- * (permission denied / timeout / no geo) → no banner; never blocks map load.
+ * Lightweight geolocation nudge: once per city view, if the viewer appears to
+ * be in a different enabled city than the open map, offer a one-tap switch.
+ * Fail-soft (permission denied / timeout / no geo) → no banner; never blocks
+ * map load. Kept below the CitySwitcher dropdown in z-order so city picks stay
+ * tappable.
  */
 export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
   const [suggested, setSuggested] = useState<CityId | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const ran = useRef(false);
+  const askedForCity = useRef<CityId | null>(null);
 
   useEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
+    if (askedForCity.current === cityId) return;
+    askedForCity.current = cityId;
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
 
     let cancelled = false;
@@ -44,7 +46,10 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
         if (nearest && nearest !== cityId) {
           // Defer setState out of the geolocation callback body.
           void Promise.resolve().then(() => {
-            if (!cancelled) setSuggested(nearest);
+            if (!cancelled) {
+              setDismissed(false);
+              setSuggested(nearest);
+            }
           });
         }
       },
@@ -59,7 +64,8 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
     };
   }, [cityId]);
 
-  if (dismissed || !suggested) return null;
+  // Hide stale suggestions for the city we're already viewing (no setState).
+  if (dismissed || !suggested || suggested === cityId) return null;
 
   const city = getCity(suggested);
   const href = cityMapShareUrl(suggested);

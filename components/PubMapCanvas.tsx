@@ -53,7 +53,7 @@ import {
   type DrinkCategory,
 } from "@/lib/categoryColors";
 import type { CityId } from "@/lib/cities";
-import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { directVenueImageUrl } from "@/lib/venueImages";
 
@@ -2094,7 +2094,8 @@ export default function PubMapCanvas({
     });
   }, []);
 
-  const fitLondon = useCallback(() => {
+  // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
+  const fitCityBounds = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
     holdUntilRef.current = Math.max(
@@ -2278,21 +2279,22 @@ export default function PubMapCanvas({
   }
 
   const canRecenter = route.length >= 2;
+  const cityDisplayName = getCity(cityId).displayName;
 
   return (
     <div className="mapCanvasWrap">
       <div ref={containerRef} className="maplibreMap" />
-      {/* Camera controls: London is always available; Recenter remains route-only. */}
+      {/* Camera fit for the active city — not a city switcher (toolbar owns that). */}
       <div className="mapCameraControls" aria-label="Map camera controls">
         <button
           type="button"
           className="mapFitLondonBtn"
-          onClick={fitLondon}
-          aria-label="Show all of London"
-          title="Show all of London"
+          onClick={fitCityBounds}
+          aria-label={`Show all of ${cityDisplayName}`}
+          title={`Show all of ${cityDisplayName}`}
         >
           <MapPinned size={14} aria-hidden />
-          London
+          {cityDisplayName}
         </button>
         <button
           type="button"
