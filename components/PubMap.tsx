@@ -450,6 +450,7 @@ export default function PubMap({
   const [loaded, setLoaded] = useState(false);
   // Wave K2 — WebGL style + scene ready. Keep loading chrome until both slim
   // pins and the basemap have arrived (warmup can make slim arrive first).
+  // Canvas owns hang recovery (reportMapError lifts this via onMapReady).
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
   // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
   // ~400 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
