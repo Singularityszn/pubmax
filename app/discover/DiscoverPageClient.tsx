@@ -106,15 +106,17 @@ function packMapHref(packId: string, cityId: CityId): string {
 
 // Static editorial lanes. Each CTA opens /map with a real crawl polyline
 // (curatedCrawlMapHref / routePackMapHref) — not a bare filter or list page.
-// London default keeps SSR / unit tests stable when no preference is set.
-function buildEditorial(cityId: CityId = DEFAULT_CITY_ID): EditorialCardData[] {
+// These crawls are London editorial (Soho / Barbican / packs). Always omit an
+// explicit preferredCity so venue-derived city wins — never ship Victorian Soho
+// onto `/map/manchester` just because the viewer last chose Manchester.
+function buildEditorial(): EditorialCardData[] {
   return [
     {
       id: "golden-days",
       eyebrow: "Golden days",
       title: "The old guard, still standing",
       dek: "Victorian gin palaces, listed snugs, and the bar Dickens actually leaned on — a walk through the London that refuses to close.",
-      href: crawlMapHref("victorian-soho", cityId),
+      href: crawlMapHref("victorian-soho", DEFAULT_CITY_ID),
       cta: "Walk the heritage route",
     },
     {
@@ -122,7 +124,7 @@ function buildEditorial(cityId: CityId = DEFAULT_CITY_ID): EditorialCardData[] {
       eyebrow: "Coding pint",
       title: "A quiet table and a slow pint",
       dek: "Sockets, decent Wi-Fi, and a late-afternoon lull — the pubs that double as the best co-working room in the city.",
-      href: crawlMapHref("barbican-coding-pint", cityId),
+      href: crawlMapHref("barbican-coding-pint", DEFAULT_CITY_ID),
       cta: "Find a working pint",
     },
     {
@@ -130,7 +132,7 @@ function buildEditorial(cityId: CityId = DEFAULT_CITY_ID): EditorialCardData[] {
       eyebrow: "Then vs now",
       title: "What a pint used to cost",
       dek: "The cheapest taps in town, ranked. Proof the good £4 pint isn't extinct — you just have to know where to walk.",
-      href: packMapHref("cheap-chaos", cityId),
+      href: packMapHref("cheap-chaos", DEFAULT_CITY_ID),
       cta: "Build a cheap crawl",
     },
     {
@@ -138,14 +140,14 @@ function buildEditorial(cityId: CityId = DEFAULT_CITY_ID): EditorialCardData[] {
       eyebrow: "Tonight",
       title: "Tonight's crawl, sorted",
       dek: "Pick a borough, set your price, and let the river do the routing. Every pin is a pint worth knowing about.",
-      href: packMapHref("late-train", cityId),
+      href: packMapHref("late-train", DEFAULT_CITY_ID),
       cta: "Plan tonight",
     },
   ];
 }
 
 /** Exported for unit tests — Discover editorial CTAs must stay map-first. */
-export const DISCOVER_EDITORIAL = buildEditorial(DEFAULT_CITY_ID);
+export const DISCOVER_EDITORIAL = buildEditorial();
 
 // Narrow the public /api/pint-drops payload to the drop shape our compute
 // helpers read. The returned TonightDrop carries {venueId, priceGbp, createdAt}
@@ -207,7 +209,8 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
   const analysisRef = useRef<HTMLElement | null>(null);
   const brandPanelRef = useRef<HTMLDivElement | null>(null);
 
-  const editorial = buildEditorial(preferredCity);
+  // Editorial stays London-authored; drink/food chips still follow preferred city.
+  const editorial = buildEditorial();
   const hungryMapHref = hungryHref(preferredCity);
   const lowNoMapHref = lowNoHref(preferredCity);
   const openMapHref = preferredCityMapHref();

@@ -33,4 +33,11 @@ describe("Discover editorial map deep-links", () => {
     expect(tonight?.href).toMatch(/crawl=/);
     expect(cheap?.href).not.toBe(tonight?.href);
   });
+
+  it("keeps London editorial on /map (never /map/<other-city>)", () => {
+    for (const card of DISCOVER_EDITORIAL) {
+      expect(card.href, card.id).toMatch(/^\/map\?/);
+      expect(card.href, card.id).not.toMatch(/^\/map\/[^/]+\?/);
+    }
+  });
 });

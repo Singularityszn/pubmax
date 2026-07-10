@@ -31,6 +31,7 @@ import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 import MapToolbar from "@/components/map/MapToolbar";
 import MapPriceControl from "@/components/map/MapPriceControl";
 import CitySuggestBanner from "@/components/map/CitySuggestBanner";
+import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
@@ -436,6 +437,11 @@ export default function PubMap({
   useEffect(() => {
     markPubmaxTiming("pubmax:map-chunk-ready");
   }, []);
+  // Deep-link /map/<city> (and CitySwitcher arrivals) stick as the Map/Drop
+  // preference so the next tab tap does not bounce back to London.
+  useEffect(() => {
+    writePreferredCity(cityId);
+  }, [cityId]);
   // Seed the crawl from the shareable URL (falls back to defaults / honors
   // ?style=heritage from the landing page). Lazy useState keeps this off effects
   // and avoids a mount-only useMemo the React Compiler cannot preserve.
