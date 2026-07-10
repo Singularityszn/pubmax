@@ -15,32 +15,35 @@ export type Beer = {
   // against the normalised pint name, so include short/common spellings and
   // obvious misspellings seen in the data (e.g. "bevertown").
   aliases?: string[];
+  // Typical UK draught ABV (%). Optional — honestly unknown when absent.
+  abv?: number;
 };
 
 // The ~20 most common London draught pints by dataset row-count. Order is only
 // cosmetic (the picker renders in this order); identity is the `id`.
+// ABV values are typical UK retail/draught strengths (researched).
 export const BEERS: Beer[] = [
-  { id: "guinness", label: "Guinness" },
-  { id: "amstel", label: "Amstel" },
-  { id: "estrella", label: "Estrella", aliases: ["estrella damm"] },
-  { id: "peroni", label: "Peroni" },
-  { id: "neck-oil", label: "Neck Oil", aliases: ["neck oil", "beavertown", "bevertown"] },
-  { id: "birra-moretti", label: "Birra Moretti", aliases: ["moretti"] },
-  { id: "madri", label: "Madrí", aliases: ["madri"] },
-  { id: "pravha", label: "Pravha" },
-  { id: "carling", label: "Carling" },
-  { id: "fosters", label: "Fosters", aliases: ["foster's"] },
-  { id: "corona", label: "Corona" },
-  { id: "budweiser", label: "Budweiser" },
-  { id: "carlsberg", label: "Carlsberg" },
-  { id: "stella-artois", label: "Stella Artois", aliases: ["stella"] },
-  { id: "san-miguel", label: "San Miguel" },
-  { id: "asahi", label: "Asahi" },
-  { id: "coors", label: "Coors", aliases: ["coors light"] },
-  { id: "camden-hells", label: "Camden Hells", aliases: ["camden hell", "hells lager", "camden"] },
-  { id: "kronenbourg", label: "Kronenbourg", aliases: ["1664"] },
-  { id: "leffe-blonde", label: "Leffe Blonde", aliases: ["leffe"] },
-  { id: "bud-light", label: "Bud Light" },
+  { id: "guinness", label: "Guinness", abv: 4.2 },
+  { id: "amstel", label: "Amstel", abv: 4.0 },
+  { id: "estrella", label: "Estrella", aliases: ["estrella damm"], abv: 4.6 },
+  { id: "peroni", label: "Peroni", abv: 5.0 },
+  { id: "neck-oil", label: "Neck Oil", aliases: ["neck oil", "beavertown", "bevertown"], abv: 4.3 },
+  { id: "birra-moretti", label: "Birra Moretti", aliases: ["moretti"], abv: 4.6 },
+  { id: "madri", label: "Madrí", aliases: ["madri"], abv: 4.6 },
+  { id: "pravha", label: "Pravha", abv: 4.0 },
+  { id: "carling", label: "Carling", abv: 4.0 },
+  { id: "fosters", label: "Fosters", aliases: ["foster's"], abv: 4.0 },
+  { id: "corona", label: "Corona", abv: 4.5 },
+  { id: "budweiser", label: "Budweiser", abv: 4.8 },
+  { id: "carlsberg", label: "Carlsberg", abv: 3.8 },
+  { id: "stella-artois", label: "Stella Artois", aliases: ["stella"], abv: 4.6 },
+  { id: "san-miguel", label: "San Miguel", abv: 5.0 },
+  { id: "asahi", label: "Asahi", abv: 5.2 },
+  { id: "coors", label: "Coors", aliases: ["coors light"], abv: 4.0 },
+  { id: "camden-hells", label: "Camden Hells", aliases: ["camden hell", "hells lager", "camden"], abv: 4.6 },
+  { id: "kronenbourg", label: "Kronenbourg", aliases: ["1664"], abv: 5.0 },
+  { id: "leffe-blonde", label: "Leffe Blonde", aliases: ["leffe"], abv: 6.6 },
+  { id: "bud-light", label: "Bud Light", abv: 3.5 },
 ];
 
 // Lowercase, trim, and collapse everything that isn't a letter/number/space into

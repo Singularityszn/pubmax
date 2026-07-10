@@ -801,12 +801,19 @@
 
 .profilePage .passportSeal {
   flex: none;
-  padding: 8px 12px;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
   border-radius: 6px;
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1;
   color: var(--brass);
   background: color-mix(in srgb, var(--brass) 8%, transparent);
+  transform: none;
   white-space: nowrap;
 }
 

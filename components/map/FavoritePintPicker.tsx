@@ -12,6 +12,8 @@ import {
   CATEGORY_META,
   DRINK_CATEGORIES,
   type DrinkCategory,
+  abvForBrand,
+  formatAbv,
   isDrinkCategory,
 } from "@/lib/drinks";
 
@@ -137,11 +139,14 @@ export default function FavoritePintPicker({
               style={selectStyle}
             >
               <option value={CLEAR_VALUE}>Cheapest pint (any)</option>
-              {BEERS.map((beer) => (
-                <option key={beer.id} value={beer.id}>
-                  {beer.label}
-                </option>
-              ))}
+              {BEERS.map((beer) => {
+                const abv = formatAbv(beer.abv);
+                return (
+                  <option key={beer.id} value={beer.id}>
+                    {abv ? `${beer.label} · ${abv}` : beer.label}
+                  </option>
+                );
+              })}
             </select>
           </label>
         ) : categoryHasBrandCoverage(category) ? (
@@ -163,11 +168,14 @@ export default function FavoritePintPicker({
               style={selectStyle}
             >
               <option value={CLEAR_VALUE}>Any {CATEGORY_META[category].label.toLowerCase()}</option>
-              {brands.map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {brand.label}
-                </option>
-              ))}
+              {brands.map((brand) => {
+                const abv = formatAbv(abvForBrand(brand));
+                return (
+                  <option key={brand.id} value={brand.id}>
+                    {abv ? `${brand.label} · ${abv}` : brand.label}
+                  </option>
+                );
+              })}
             </select>
           </label>
         ) : (

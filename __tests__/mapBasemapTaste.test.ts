@@ -45,6 +45,9 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     // Streets must stay luminous against night land.
     expect(dark.road).toContain("255, 244, 232"); // cream ink rgb
     expect(dark.roadMajor).toContain("255, 194, 71"); // amber
+    // Buildings: cool mid-gray massing — readable on near-black land (not brass).
+    expect(dark.building).toBe("#4a5160");
+    expect(dark.building).not.toContain("255, 107, 122"); // brass coral
   });
 
   it("applies land/water/road/building paints when layers exist", () => {
@@ -94,6 +97,9 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
       paints.some(([id, prop]) => id === "highway_major_inner" && prop === "line-color"),
     ).toBe(true);
     expect(paints.some(([id, prop]) => id === "building" && prop === "fill-color")).toBe(true);
+    expect(
+      paints.find(([id, prop]) => id === "building" && prop === "fill-opacity")?.[2],
+    ).toBe(0.88);
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
     ).toBe(true);

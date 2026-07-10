@@ -265,7 +265,7 @@ button {
 .appShell {
   --map-top-clearance: 92px;
   --map-overlay-top: 108px;
-  --mobile-tab-clearance: calc(68px + env(safe-area-inset-bottom, 0px));
+  --mobile-tab-clearance: calc(58px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
   --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
   /* Shared geometry for the floating Home bar + Search/Plan toolbar so they
@@ -4071,14 +4071,14 @@ button:disabled {
     --map-mobile-legend-clearance: 40px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
-    /* Compact matched chrome: nav (~40px with 32px controls) + gap + safe area. */
+    /* Compact matched chrome: nav (~36px with 28px controls) + gap + safe area. */
     --map-top-clearance: calc(
-      10px + env(safe-area-inset-top, 0px) + 40px + var(--map-chrome-gap)
+      10px + env(safe-area-inset-top, 0px) + 36px + var(--map-chrome-gap)
     );
-    --map-overlay-top: calc(var(--map-top-clearance) + 46px);
-    /* Stack FABs above the tab bar; route/onboarding chips one row higher. */
-    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 10px);
-    --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);
+    --map-overlay-top: calc(var(--map-top-clearance) + 42px);
+    /* Stack FABs clearly above the compact tab bar; chips one row higher. */
+    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 14px);
+    --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 58px);
   }
 
   /* Tab bar is hidden while planning/detail sheets own the bottom edge. */

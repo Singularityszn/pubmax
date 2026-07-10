@@ -43,6 +43,9 @@ export type ProfileStats = {
   // this page yet, so callers pass it in explicitly; it defaults to 0 and is
   // always a finite, non-negative integer.
   crawlsPosted: number;
+  // Passed-down / era-tagged memories (golden-days signal). Counted from drops
+  // with a non-empty era or anecdote/heritage provenance.
+  memoriesPosted: number;
   boroughs?: string[];
 };
 
@@ -83,11 +86,20 @@ function displayNameFromHandle(handle: string): string {
   return words.length ? words.join(" ") : "Anonymous Drinker";
 }
 
+// Provenance values that mark a drop as a passed-down memory (a heritage
+// signal), as opposed to a live/sourced/seeded log.
+const HERITAGE_PROVENANCE = new Set(["anecdote", "heritage"]);
+
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 // Pure stats over a handle's drops. Order-independent and null-safe:
 // - pintsLogged is the number of drops.
 // - cheapestPintGbp is the min of finite, positive prices, or null when none.
 // - crawlsPosted is passed in (this page has no crawl-authorship data), coerced
 //   to a finite, non-negative integer; junk / missing → 0.
+// - memoriesPosted counts era-tagged or anecdote/heritage drops.
 // - boroughs is a sorted unique list, OMITTED entirely when no drop names one.
 export function profileStats(
   drops: readonly ProfileDrop[] | null | undefined,
@@ -113,10 +125,19 @@ export function profileStats(
     ),
   ).sort((a, b) => a.localeCompare(b));
 
+  // Memories = golden-days signal: era-tagged or anecdote/heritage provenance.
+  const memoriesPosted = list.filter((d) => {
+    if (hasText(d.era)) return true;
+    const provenance =
+      typeof d.provenance === "string" ? d.provenance.trim().toLowerCase() : "";
+    return HERITAGE_PROVENANCE.has(provenance);
+  }).length;
+
   const stats: ProfileStats = {
     pintsLogged: list.length,
     cheapestPintGbp,
     crawlsPosted: crawls,
+    memoriesPosted,
   };
   if (boroughs.length) stats.boroughs = boroughs;
   return stats;
@@ -131,14 +152,6 @@ export const LOCAL_LEGEND_THRESHOLD = 100;
 // Under this price a pint is a genuine bargain worth a badge. Strictly under —
 // £4.00 exactly is not "under £4", so it does NOT earn Cheap Legend.
 const CHEAP_LEGEND_MAX_GBP = 4;
-
-// Provenance values that mark a drop as a passed-down memory (a heritage
-// signal), as opposed to a live/sourced/seeded log.
-const HERITAGE_PROVENANCE = new Set(["anecdote", "heritage"]);
-
-function hasText(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
 
 // Pure, deterministic badge catalogue for a handle. Turns activity into
 // identity (the Letterboxd pattern): each badge is returned with `earned` so
