@@ -2155,10 +2155,11 @@ input[type="range"] {
   }
 }
 
-/* Hero story teaser on first paint — a guidebook margin note, bottom-left. */
+/* Hero story teaser on first paint — guidebook margin note, bottom-left.
+   Sit above the price colour key + Prices FAB so the two never collide. */
 .mapHeroCard {
   position: absolute;
-  bottom: 18px;
+  bottom: calc(18px + var(--map-price-chrome-height, 96px));
   left: 18px;
   z-index: 450;
   max-width: 300px;
@@ -4064,10 +4065,16 @@ button:disabled {
 }
 
 @media (max-width: 640px) {
+  /* Featured story teaser competes with the bottom-left price key on phones —
+     keep the mid-field + corners for map + Prices/Layers only. */
+  .mapHeroCard {
+    display: none !important;
+  }
+
   .appShell {
     /* Declutter: chrome hugs corners; no mid-map POI/legend stack. */
     --map-mobile-hero-clearance: 0px;
-    --map-mobile-legend-clearance: 40px;
+    --map-mobile-legend-clearance: 0px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
     /* Compact matched chrome: nav (~36px with 28px controls) + gap + safe area. */

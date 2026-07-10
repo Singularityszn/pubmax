@@ -40,9 +40,9 @@ Pipeline: `extract_pint_prices.py` → `build_app_dataset.py` → `export_app_da
 
 ### P0 — This wave (shipped alongside map declutter)
 
-- Clean mobile map chrome (price legend only; Layers corner control).
+- Clean mobile map chrome: always-visible price colour key (≤£5.50 / £5.50–£7 / £7+); no heritage/writer legend chips; Layers corner control (Tube, Rail, Bus, River, Parks, Gardens, … + story bands). POI layers default **off** on mobile.
 - Slightly wider default camera so Greater London reads at a glance.
-- Borough pages deep-link to `/map?q=<Borough>` for browse; optional crawl link retained.
+- Borough pages deep-link to `/map?q=<Borough>` for browse; optional crawl link retained; thin-coverage banner when pubCount &lt; 15.
 - This PRD checked into `docs/`.
 
 ### P1 — Re-scrape + curated embedded promotion

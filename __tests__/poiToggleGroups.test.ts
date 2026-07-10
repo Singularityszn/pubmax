@@ -10,13 +10,16 @@ import {
 } from "@/lib/poiToggleGroups";
 
 describe("poiToggleGroups", () => {
-  it("merges tube and rail under Transit", () => {
-    const transit = POI_TOGGLE_GROUPS.find((group) => group.id === "transit");
-    expect(transit?.categories).toEqual(["tube", "rail"]);
-    expect(transit?.label).toBe("Transit");
+  it("exposes Tube and Rail as separate Layers chips", () => {
+    const tube = POI_TOGGLE_GROUPS.find((group) => group.id === "tube");
+    const rail = POI_TOGGLE_GROUPS.find((group) => group.id === "rail");
+    expect(tube?.categories).toEqual(["tube"]);
+    expect(tube?.label).toBe("Tube");
+    expect(rail?.categories).toEqual(["rail"]);
+    expect(rail?.label).toBe("Rail");
   });
 
-  it("defaults Transit, Parks, and Sights on for desktop", () => {
+  it("defaults Tube, Rail, Parks, and Sights on for desktop", () => {
     const hidden = defaultPoiHidden();
     expect(hidden.tube).toBe(false);
     expect(hidden.rail).toBe(false);
@@ -33,17 +36,18 @@ describe("poiToggleGroups", () => {
     }
   });
 
-  it("toggles Transit as a pair", () => {
+  it("toggles Tube independently of Rail; lines follow Tube only", () => {
     const hidden = defaultPoiHidden();
-    const transit = POI_TOGGLE_GROUPS.find((group) => group.id === "transit")!;
-    expect(isPoiGroupOn(hidden, transit)).toBe(true);
-    const off = togglePoiGroup(hidden, transit);
+    const tube = POI_TOGGLE_GROUPS.find((group) => group.id === "tube")!;
+    expect(isPoiGroupOn(hidden, tube)).toBe(true);
+    expect(isTransitNetworkVisible(hidden)).toBe(true);
+    const off = togglePoiGroup(hidden, tube);
     expect(off.tube).toBe(true);
-    expect(off.rail).toBe(true);
+    expect(off.rail).toBe(false);
     expect(isTransitNetworkVisible(off)).toBe(false);
-    const on = togglePoiGroup(off, transit);
-    expect(on.tube).toBe(false);
-    expect(on.rail).toBe(false);
-    expect(isTransitNetworkVisible(on)).toBe(true);
+    const railOff = togglePoiGroup(hidden, POI_TOGGLE_GROUPS.find((g) => g.id === "rail")!);
+    expect(railOff.rail).toBe(true);
+    expect(railOff.tube).toBe(false);
+    expect(isTransitNetworkVisible(railOff)).toBe(true);
   });
 });

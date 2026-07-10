@@ -1,8 +1,13 @@
-/* Corner Prices FAB — bottom-left on all viewports (Wave J declutter).
-   Owns the price key; static .mapLegend is gone. */
+/* Corner price chrome — always-visible colour key + optional filter FAB.
+   Bottom-left on all viewports (Wave J declutter). No heritage/writer rows. */
 
 .mapPriceControl {
-  display: block;
+  /* Shared with .mapHeroCard so the story teaser clears this stack on desktop. */
+  --map-price-chrome-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   position: absolute;
   left: 14px;
   bottom: 18px;
@@ -11,15 +16,40 @@
 }
 
 .mapPriceFab,
-.mapPricePanel {
+.mapPricePanel,
+.mapPriceLegend {
   pointer-events: auto;
+}
+
+/* Compact colour key — plan: ≤£5.50 / £5.50–£7 / £7+ bottom-left. */
+.mapPriceLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  max-width: min(220px, calc(100vw - 120px));
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--pint) 20%);
+  border-radius: 12px;
+  background: var(--panel-raised);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.mapPriceLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 
 .mapPriceFab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px 0 10px;
   border: 1px solid color-mix(in srgb, var(--pint) 34%, var(--line));
   border-radius: 999px;

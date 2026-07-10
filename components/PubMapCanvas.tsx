@@ -42,6 +42,7 @@ import {
 } from "@/lib/mapIcons";
 import {
   defaultPoiHidden,
+  defaultPoiHiddenForViewport,
   defaultPoiHiddenMobile,
   isTransitNetworkVisible,
 } from "@/lib/poiToggleGroups";
@@ -631,10 +632,10 @@ export default function PubMapCanvas({
   );
   const hoverDetailsRef = useRef(hoverDetails);
   const [failedHoverImage, setFailedHoverImage] = useState<FailedHoverImage | null>(null);
-  // POI layer visibility — start all-hidden so mobile first paint stays clean;
-  // sync to desktop defaults once we know the viewport width.
+  // POI layer visibility — seed from the live viewport so desktop doesn't flash
+  // all-hidden, while mobile first paint stays clean (all categories off).
   const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(
-    defaultPoiHiddenMobile,
+    defaultPoiHiddenForViewport,
   );
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
@@ -2001,7 +2002,7 @@ export default function PubMapCanvas({
       setFilter("pois-transport-major", transportFilter(poiHidden, true));
       setFilter("pois-transport-minor", transportFilter(poiHidden, false));
       setFilter("pois-transport-label", transportAll);
-      // The coloured tube-line network toggles with Transit (tube OR rail).
+      // The coloured tube-line network toggles with Tube only (stations stay independent).
       const tubeVisibility = isTransitNetworkVisible(poiHidden) ? "visible" : "none";
       for (const layer of ["tube-lines-casing", "tube-lines-color", "tube-lines-label"]) {
         if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);

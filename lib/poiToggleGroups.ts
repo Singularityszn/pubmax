@@ -1,11 +1,12 @@
 import type { PoiCategory } from "@/lib/pois";
 import { POI_CATEGORY_META } from "@/lib/pois";
 
-// UI toggle groups for the map POI chrome. Tube + Rail share one "Transit"
-// control so the strip stays scannable; symbols on the map stay distinct.
+// UI toggle groups for the map Layers control. Tube and Rail stay separate
+// (plan: Tube, Rail, Bus, River, Parks, Gardens, …); map symbols stay distinct.
 
 export type PoiToggleGroupId =
-  | "transit"
+  | "tube"
+  | "rail"
   | "bus"
   | "river"
   | "park"
@@ -24,10 +25,16 @@ export type PoiToggleGroup = {
 
 export const POI_TOGGLE_GROUPS: readonly PoiToggleGroup[] = [
   {
-    id: "transit",
-    label: "Transit",
+    id: "tube",
+    label: "Tube",
     color: POI_CATEGORY_META.tube.color,
-    categories: ["tube", "rail"],
+    categories: ["tube"],
+  },
+  {
+    id: "rail",
+    label: "Rail",
+    color: POI_CATEGORY_META.rail.color,
+    categories: ["rail"],
   },
   { id: "bus", label: "Bus", color: POI_CATEGORY_META.bus.color, categories: ["bus"] },
   {
@@ -74,8 +81,8 @@ export const POI_TOGGLE_GROUPS: readonly PoiToggleGroup[] = [
   },
 ];
 
-// Desktop default: Transit + Parks + Sights on; denser ambient categories off
-// until the viewer opts in (reduces first-paint dot soup).
+// Desktop default: Tube + Rail + Parks + Sights on; denser ambient categories
+// off until the viewer opts in (reduces first-paint dot soup).
 export function defaultPoiHidden(): Record<PoiCategory, boolean> {
   return {
     tube: false,
@@ -135,7 +142,7 @@ export function togglePoiGroup(
   return next;
 }
 
-/** Tube line network follows the Transit group (tube OR rail visible). */
+/** Coloured tube-line network follows the Tube chip only (Rail is stations). */
 export function isTransitNetworkVisible(hidden: Record<PoiCategory, boolean>): boolean {
-  return !hidden.tube || !hidden.rail;
+  return !hidden.tube;
 }
