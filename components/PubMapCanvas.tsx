@@ -1007,7 +1007,6 @@ export default function PubMapCanvas({
     // them into helpers would thread that state through several signatures and
     // fracture the single readable pass without reducing real risk, so this is
     // the one intentionally tolerated lint warning for the app.
-    // eslint-disable-next-line complexity
     const buildScene = () => {
       // Stale-event guard. A style.load can arrive from a style that a rapid
       // setStyle() just superseded (e.g. two theme flips inside one style-fetch
@@ -1021,6 +1020,27 @@ export default function PubMapCanvas({
       // queued data writes across to that build.
       const currentStyle = map.style as unknown as { _loaded?: boolean } | undefined;
       if (!currentStyle || currentStyle._loaded === false) return;
+
+      // Wave K2: style.load already flipped `styleLoaded`, so the tile hard-fail
+      // timer will never fire. Any throw below must still lift the parent
+      // loading chrome — otherwise "Checking cached pins…" covers the map forever.
+      try {
+        buildSceneBody();
+        settleSceneReady();
+      } catch (error) {
+        console.error("[pubmap] buildScene failed", error);
+        const detail =
+          error instanceof Error ? error.message : "Scene build threw unexpectedly";
+        settleSceneError({
+          kind: "tiles",
+          message: "The map loaded tiles but couldn't finish drawing pubs.",
+          detail,
+        });
+      }
+    };
+
+    // eslint-disable-next-line complexity
+    const buildSceneBody = () => {
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
 
@@ -1562,7 +1582,7 @@ export default function PubMapCanvas({
         }
       }
 
-      publishMapReady(true);
+      // Ready is published by settleSceneReady() after buildSceneBody returns.
     };
     // --- Basemap fallback: OpenFreeMap is community-run, so if the primary style
     // hasn't loaded within a timeout (or errors before first load), swap to
@@ -1570,7 +1590,34 @@ export default function PubMapCanvas({
     // notice as a WebGL failure rather than a blank map.
     let styleLoaded = false;
     let usingFallback = false;
+    let sceneSettled = false;
     let hardFailTimer: ReturnType<typeof setTimeout> | undefined;
+    // settle* helpers close over hangFailTimer; they only run after this const
+    // is initialized (and after style.load listeners are wired below).
+    const settleSceneReady = () => {
+      if (sceneSettled) return;
+      sceneSettled = true;
+      clearTimeout(hangFailTimer);
+      publishMapReady(true);
+    };
+    const settleSceneError = (error: NonNullable<typeof mapError>) => {
+      if (sceneSettled) return;
+      sceneSettled = true;
+      clearTimeout(hangFailTimer);
+      queueMicrotask(() => reportMapError(error));
+    };
+    // Last-resort hang guard BEFORE style.load listeners: a cached style can
+    // fire style.load synchronously from map.on(...). Primary + CARTO each get
+    // STYLE_LOAD_TIMEOUT_MS, then slack — surface Retry instead of a stuck overlay.
+    const hangFailTimer = setTimeout(() => {
+      console.warn("[pubmap] scene ready timeout");
+      settleSceneError({
+        kind: "tiles",
+        message:
+          "The map is taking too long to finish loading — the pub list and crawl planner still work.",
+        detail: "Scene ready timeout",
+      });
+    }, STYLE_LOAD_TIMEOUT_MS * 2 + 2000);
     // ORDER MATTERS: this flag-setter must be registered BEFORE buildScene.
     // MapLibre fires style validation/source problems as synchronous `error`
     // events from inside mutation calls, so if buildScene ran first (flag still
@@ -1591,13 +1638,11 @@ export default function PubMapCanvas({
       map.setStyle(FALLBACK_STYLES[themeRef.current], { diff: false });
       hardFailTimer = setTimeout(() => {
         if (!styleLoaded) {
-          queueMicrotask(() =>
-            reportMapError({
-              kind: "tiles",
-              message:
-                "The map couldn't load its tiles right now — the pub list and crawl planner still work.",
-            }),
-          );
+          settleSceneError({
+            kind: "tiles",
+            message:
+              "The map couldn't load its tiles right now — the pub list and crawl planner still work.",
+          });
         }
       }, STYLE_LOAD_TIMEOUT_MS);
     };
@@ -1617,6 +1662,10 @@ export default function PubMapCanvas({
     map.on("webglcontextlost", () => {
       if (contextLostTimer) clearTimeout(contextLostTimer);
       contextLostTimer = setTimeout(() => {
+        // Always surface — even after a successful first paint — and stop the
+        // hang timer so it can't race a second error card.
+        sceneSettled = true;
+        clearTimeout(hangFailTimer);
         queueMicrotask(() =>
           reportMapError({
             kind: "context-lost",
@@ -1834,6 +1883,7 @@ export default function PubMapCanvas({
       cancelAnimationFrame(rafId);
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
+      clearTimeout(hangFailTimer);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
