@@ -98,7 +98,7 @@ describe("groupVenuePrices", () => {
   });
 
   
-  it("aggregates bookingLink from the first non-empty booking_link row", () => {
+  it("aggregates bookingLink from the first http(s) booking_link row", () => {
     const venues = groupVenuePrices([
       makeRow({ booking_link: "", website: "https://a.example" }),
       makeRow({
@@ -109,6 +109,26 @@ describe("groupVenuePrices", () => {
     ]);
     expect(venues[0].bookingLink).toBe("https://book.example/table");
     expect(venues[0].website).toBe("https://a.example");
+  });
+
+  it("skips email/whitespace booking_link so a later http(s) URL wins", () => {
+    const venues = groupVenuePrices([
+      makeRow({ booking_link: "bookings@pub.example" }),
+      makeRow({
+        pint_name: "Ale",
+        price_gbp: 5,
+        booking_link: "  https://book.example/table  ",
+      }),
+    ]);
+    expect(venues[0].bookingLink).toBe("https://book.example/table");
+  });
+
+  it("stores empty bookingLink when only non-http booking values exist", () => {
+    const venues = groupVenuePrices([
+      makeRow({ booking_link: "mailto:book@pub.example" }),
+      makeRow({ pint_name: "Ale", price_gbp: 5, booking_link: "   " }),
+    ]);
+    expect(venues[0].bookingLink).toBe("");
   });
 
   it("cheapestPrice is the min numeric price and a null never wins", () => {

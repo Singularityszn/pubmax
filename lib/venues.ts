@@ -105,7 +105,7 @@ export type Venue = {
     nonAlcoholic: boolean;
   };
   website: string;
-  /** First non-empty booking_link from price rows — table booking CTA. */
+  /** First http(s) booking_link from price rows — table booking CTA. */
   bookingLink: string;
   imageUrl: string;
   description: string;
@@ -214,6 +214,28 @@ export function stableVenueIdFromKey(key: string): string {
   return `venue-${(hash >>> 0).toString(36)}`;
 }
 
+/** True when `value` parses as an http(s) URL (rejects mailto / javascript / bare emails). */
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * First http(s) booking_link across price rows. Emails / whitespace / non-http
+ * values are skipped so they cannot shadow a later real booking URL.
+ */
+function firstHttpBookingLink(prices: VenuePrice[]): string {
+  for (const price of prices) {
+    const trimmed = typeof price.booking_link === "string" ? price.booking_link.trim() : "";
+    if (trimmed && isHttpUrl(trimmed)) return trimmed;
+  }
+  return "";
+}
+
 export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
   const grouped = new Map<string, VenuePrice[]>();
   for (const row of rows) {
@@ -276,7 +298,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         nonAlcoholic: hasNonAlcoholic(prices.map((price) => price.pint_name)),
       },
       website: prices.find((price) => price.website)?.website ?? "",
-      bookingLink: prices.find((price) => price.booking_link)?.booking_link ?? "",
+      bookingLink: firstHttpBookingLink(prices),
       imageUrl: prices.find((price) => price.image_url)?.image_url ?? "",
       description: prices.find((price) => price.description)?.description ?? "",
       dataQualityNotes: Array.from(dataQualityNotes),

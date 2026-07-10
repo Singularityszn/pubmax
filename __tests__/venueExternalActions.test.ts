@@ -92,4 +92,37 @@ describe("venueExternalActions", () => {
       venueExternalActions(venue({ bookingLink: "javascript:alert(1)" })),
     ).toEqual([]);
   });
+
+  it("rejects email and whitespace booking links (no Book CTA)", () => {
+    expect(
+      venueExternalActions(venue({ bookingLink: "bookings@pub.example" })),
+    ).toEqual([]);
+    expect(venueExternalActions(venue({ bookingLink: "   " }))).toEqual([]);
+  });
+
+  it("rejects non-http websites", () => {
+    expect(
+      venueExternalActions(venue({ website: "javascript:alert(1)" })),
+    ).toEqual([]);
+    expect(venueExternalActions(venue({ website: "not-a-url" }))).toEqual([]);
+  });
+
+  it("does not invent a menu action when food is flagged but website is empty", () => {
+    expect(
+      venueExternalActions(
+        venue({ amenities: { ...venue().amenities, food: true } }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("never emits an order action", () => {
+    const actions = venueExternalActions(
+      venue({
+        bookingLink: "https://book.example/table",
+        website: "https://pub.example/menu",
+        amenities: { ...venue().amenities, food: true },
+      }),
+    );
+    expect(actions.map((a) => a.kind)).not.toContain("order");
+  });
 });
