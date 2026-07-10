@@ -60,6 +60,7 @@ test.describe("perceived speed", () => {
     const listUrls = prerender.flatMap((r) => r.urls ?? []);
     expect(listUrls).toContain("/crawls");
     expect(listUrls).toContain("/discover");
+    expect(listUrls).toContain("/feed");
 
     const matchers = prerender
       .map((r) => r.where?.href_matches)

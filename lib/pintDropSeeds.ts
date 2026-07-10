@@ -1,3 +1,5 @@
+import type { CityId } from "@/lib/cities";
+import { manchesterDemoPintDrops } from "@/lib/cities/manchester/pintDropSeeds";
 import type { PintDrop } from "@/lib/pintDropShared";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 
@@ -12,7 +14,9 @@ import type { LastPintDecisionKind } from "@/lib/tfl";
 //
 // venueId values are the content-hashed stable ids for the dataset rows
 // (stableVenueIdFromKey(venueGroupingKey(row))). __tests__/pintDropSeeds.test.ts
-// pins each id against public/data/pint_prices_app_dataset.json.
+// pins each London id against public/data/pint_prices_app_dataset.json.
+// Manchester seeds live in lib/cities/manchester/pintDropSeeds.ts and are
+// pinned against public/data/cities/manchester/venues_slim.json.
 
 type SeedSpec = {
   id: string;
@@ -185,7 +189,8 @@ const seeds: SeedSpec[] = [
   },
 ];
 
-export const demoPintDrops: PintDrop[] = seeds.map((seed) => ({
+/** London heritage demo seeds only (excludes Manchester). */
+export const londonDemoPintDrops: PintDrop[] = seeds.map((seed) => ({
   id: seed.id,
   venueId: seed.venueId,
   handle: seed.handle,
@@ -199,6 +204,45 @@ export const demoPintDrops: PintDrop[] = seeds.map((seed) => ({
   ...(seed.leaveByIso ? { leaveByIso: seed.leaveByIso } : {}),
   ...(seed.lastTrainDecision ? { lastTrainDecision: seed.lastTrainDecision } : {}),
 }));
+
+export { manchesterDemoPintDrops };
+
+/**
+ * All city demo seeds — used for per-venue lookups (`demoDropsFor`) and
+ * id resolution. Unscoped public feeds should prefer `demoPintDropsForCity`
+ * so Manchester seeds do not noise the London landing/feed.
+ */
+export const demoPintDrops: PintDrop[] = [
+  ...londonDemoPintDrops,
+  ...manchesterDemoPintDrops,
+];
+
+/** Manchester slim-index venue ids are prefixed `venue-mcr-`. */
+export const MANCHESTER_VENUE_ID_PREFIX = "venue-mcr-";
+
+export function isManchesterVenueId(venueId: string): boolean {
+  return venueId.startsWith(MANCHESTER_VENUE_ID_PREFIX);
+}
+
+/**
+ * City-scoped demo seeds for unscoped list reads (feed, landing, map layer).
+ * Defaults to London so Manchester demo drops never appear as London feed noise.
+ * Pass `manchester` on the Manchester map so pins can pick up community prices.
+ */
+export function demoPintDropsForCity(cityId?: CityId | null): PintDrop[] {
+  switch (cityId) {
+    case "manchester":
+      return manchesterDemoPintDrops;
+    case "london":
+    case undefined:
+    case null:
+      return londonDemoPintDrops;
+    default:
+      // Other UK cities have no demo seeds yet — return empty rather than
+      // leaking London/Manchester liveliness onto the wrong map.
+      return [];
+  }
+}
 
 /** Seeds for one venue — appended after organic drops in the read paths. */
 export function demoDropsFor(venueId: string): PintDrop[] {

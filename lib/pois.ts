@@ -104,13 +104,19 @@ function isValidPoi(value: unknown): value is Poi {
   );
 }
 
+export const LONDON_POIS_PATH = "/data/london_pois.json";
+
 /**
- * Fetches the bundled POI dataset (client-side), mirroring PubMap.tsx's fetch of
- * the pint dataset. Malformed rows are filtered out so callers always get a
- * clean Poi[].
+ * Fetches a POI dataset from an explicit public path (client-side).
+ * Malformed rows are filtered out so callers always get a clean Poi[].
+ * Pass `null` / empty to skip the fetch (non-London cities with no POI layer).
  */
-export async function loadPois(): Promise<Poi[]> {
-  const response = await fetch("/data/london_pois.json");
+export async function loadPoisFromPath(
+  path: string | null | undefined,
+): Promise<Poi[]> {
+  if (!path) return [];
+  const response = await fetch(path);
+  if (!response.ok) return [];
   const data: unknown = await response.json();
   if (!Array.isArray(data)) return [];
   // Keep only well-formed rows, then normalise rank to 1 | 2 | undefined so the
@@ -119,4 +125,11 @@ export async function loadPois(): Promise<Poi[]> {
     const rank = (poi as { rank?: unknown }).rank;
     return rank === 1 || rank === 2 ? { ...poi, rank } : { ...poi, rank: undefined };
   });
+}
+
+/**
+ * London default POI loader — same contract as before multi-city routing.
+ */
+export async function loadPois(): Promise<Poi[]> {
+  return loadPoisFromPath(LONDON_POIS_PATH);
 }

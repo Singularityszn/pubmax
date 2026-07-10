@@ -13,7 +13,7 @@ import {
   type PoiToggleGroup,
 } from "@/lib/poiToggleGroups";
 import type { PoiCategory } from "@/lib/pois";
-import { STORY_BANDS } from "@/lib/storyBands";
+import { STORY_BANDS, type StoryBand } from "@/lib/storyBands";
 
 import "./mapLayersControl.css";
 
@@ -22,6 +22,8 @@ type MapLayersControlProps = {
   onPoiHiddenChange: (next: Record<PoiCategory, boolean>) => void;
   activeBandId?: string;
   onBandChange?: (bandId: string) => void;
+  /** City Place-story corridors; defaults to London STORY_BANDS. */
+  storyBands?: StoryBand[];
 };
 
 export default function MapLayersControl({
@@ -29,6 +31,7 @@ export default function MapLayersControl({
   onPoiHiddenChange,
   activeBandId = "",
   onBandChange,
+  storyBands = STORY_BANDS,
 }: MapLayersControlProps) {
   // Deep-link `?band=` opens Layers without an effect: bandForcesOpen until the
   // user dismisses for that band id (Wave J removed mid-map band picker).
@@ -63,7 +66,7 @@ export default function MapLayersControl({
     }
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onPointer);
-    window.addEventListener("touchstart", onPointer);
+    window.addEventListener("touchstart", onPointer, { passive: true });
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onPointer);
@@ -145,7 +148,7 @@ export default function MapLayersControl({
             <div className="mapLayersStories" role="group" aria-label="Place stories">
               <p className="mapLayersSectionLabel">Place stories</p>
               <div className="mapLayersBandRow">
-                {STORY_BANDS.map((band) => {
+                {storyBands.map((band) => {
                   const on = activeBandId === band.id;
                   return (
                     <button

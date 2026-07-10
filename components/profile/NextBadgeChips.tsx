@@ -55,7 +55,10 @@ export default function NextBadgeChips({
       );
       if (!resolved) return;
       try {
-        const res = await fetch("/api/pint-drops", { signal: controller.signal });
+        const res = await fetch(
+          `/api/pint-drops?author=${encodeURIComponent(resolved)}`,
+          { signal: controller.signal },
+        );
         if (!res.ok) return;
         const body: unknown = await res.json();
         const all: ProfileDrop[] =
@@ -93,9 +96,10 @@ export default function NextBadgeChips({
     };
   }, [showCrawlsWalked]);
 
+  // Event chips are always returned (time-boxed quests), so they must not alone
+  // keep this section mounted when the user has no crawl / badge progress yet.
   const hasWalkedChip =
-    showCrawlsWalked &&
-    (crawlsWalked > 0 || crawlQuests.length > 0 || eventQuests.length > 0);
+    showCrawlsWalked && (crawlsWalked > 0 || crawlQuests.length > 0);
   if (quests.length === 0 && !hasWalkedChip) return null;
 
   return (

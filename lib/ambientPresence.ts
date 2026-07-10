@@ -19,7 +19,7 @@
 // roster is derived from the demo pint-drop seeds so the same demo characters
 // appear "out tonight" at the same curated heritage pubs.
 
-import { demoPintDrops } from "@/lib/pintDropSeeds";
+import { demoPintDrops, isManchesterVenueId } from "@/lib/pintDropSeeds";
 
 /** Hard cap on the ambient count for one venue — a glance, never a crowd. */
 export const MAX_AMBIENT_PER_VENUE = 6;
@@ -147,6 +147,9 @@ export function ambientPresenceRows(now: Date, venueId?: string): AmbientPresenc
   const rows: AmbientPresenceRow[] = [];
   for (const { venueId: vid, handle, slot } of roster) {
     if (venueId && vid !== venueId) continue;
+    // Unscoped strip (London landing/feed): skip Manchester personas so city
+    // demo liveliness does not leak across cities.
+    if (!venueId && isManchesterVenueId(vid)) continue;
     const count = ambientPresenceCurve(vid, now);
     if (slot >= count) continue;
     // Deterministic "minutes ago" per (venue, persona, hour): 4–49 minutes, so

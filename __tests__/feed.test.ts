@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyFeedFilter,
   cursorOf,
+  FEED_FILTERS,
   filterFeedItemsToPermittedIds,
   normalizePintDrop,
   paginate,
@@ -215,11 +216,20 @@ describe("applyFeedFilter", () => {
     ]);
   });
 
-  it("demo lanes (nearby/crawls) pass the set through unchanged", () => {
+  it("demo lanes (nearby/crawls) still pass through but are hidden from FEED_FILTERS chips (Wave I1)", () => {
     const items = [item({ id: "a" }), item({ id: "b" })];
     for (const f of ["nearby", "crawls"] as const) {
       expect(applyFeedFilter(items, f).map((i) => i.id)).toEqual(["a", "b"]);
     }
+    expect(FEED_FILTERS.some((f) => f.id === "nearby" || f.id === "crawls")).toBe(false);
+    expect(FEED_FILTERS.map((f) => f.id)).toEqual([
+      "latest",
+      "for-you",
+      "tonight",
+      "friends",
+      "cheap",
+      "golden-days",
+    ]);
   });
 
   it("empty input stays empty for every filter", () => {

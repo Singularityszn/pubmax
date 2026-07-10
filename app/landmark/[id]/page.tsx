@@ -20,11 +20,13 @@ async function getVenues(): Promise<Venue[]> {
     const path = await import("path");
     const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
     const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
+    // Only cache a successful read. An I/O / parse failure must not permanently
+    // hide nearby pubs for the lifetime of this lambda/process.
     cachedVenues = groupVenuePrices(Array.isArray(rows) ? rows : []);
+    return cachedVenues;
   } catch {
-    cachedVenues = [];
+    return [];
   }
-  return cachedVenues;
 }
 
 function startCrawlHref(pubIds: string[]): string {

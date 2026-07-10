@@ -11,8 +11,10 @@ import { isModerator } from "@/lib/adminAuth";
 // would only live in process memory.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { parseCityId } from "@/lib/cities";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import {
   isLimited,
   validatePintDrop,
@@ -241,17 +243,23 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: result.error }, { status: 400 });
   }
 
-  // Linked handles can only drop as their signed-in owner. Unlinked handles keep
+  // JWT-linked handle wins over a self-asserted body handle when signed in.
+  // Linked handles can only drop as their signed-in owner; unlinked handles keep
   // the anonymous demo path.
-  const ownership = await gateHandleAction(request, result.value.handle);
+  const actorHandle = await resolveMessageHandle(request, result.value.handle);
+  if (!actorHandle) {
+    return jsonNoStore({ error: "Add a handle." }, { status: 400 });
+  }
+  const ownership = await gateHandleAction(request, actorHandle);
   if (!ownership.allowed) {
     return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
+  const dropPayload = { ...result.value, handle: ownership.handle };
 
   // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
   // keyed on handle alone, exactly as before.
-  const submitKey = `drop:${result.value.handle.toLowerCase()}:${hashIp(clientIp(request))}`;
-  if (await isLimited(result.value.handle, submitKey)) {
+  const submitKey = `drop:${ownership.handle.toLowerCase()}:${hashIp(clientIp(request))}`;
+  if (await isLimited(ownership.handle, submitKey)) {
     return jsonNoStore({ error: "Too many submissions, slow down." }, { status: 429 });
   }
 
@@ -259,11 +267,11 @@ export async function POST(request: Request): Promise<Response> {
   if (unavailable) return unavailable;
 
   try {
-    const drop = await pintDropsStore().create(result.value, photos);
+    const drop = await pintDropsStore().create(dropPayload, photos);
     // Fire-and-forget: the profile bootstrap must never delay or fail the drop
     // response (an awaited Supabase upsert here blocks every submission and hangs
     // unmocked tests). It never rejects — the inner try/catch swallows failures.
-    void ensureProfileForHandle(result.value.handle);
+    void ensureProfileForHandle(ownership.handle);
     return jsonNoStore({ drop }, { status: 201 });
   } catch (err) {
     // An invalid photo is the user's fault — surface as 400. The store has
@@ -312,7 +320,19 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const viewer = await resolveViewer(request);
     const params = new URL(request.url).searchParams;
-    const drops = await pintDropsStore().listVisible(params.get("venueId") ?? undefined, viewer);
+    // ?author= scopes the public feed to one handle (passport / profile). Distinct
+    // from ?viewer=, which only unlocks the friends visibility lane.
+    // ?city= scopes unscoped demo seeds (and organic rows by venue id prefix)
+    // so Manchester demo drops never noise the London feed/landing. Defaults
+    // to London when omitted or unrecognised.
+    const author = params.get("author") ?? undefined;
+    const cityId = parseCityId(params.get("city")) ?? undefined;
+    const drops = await pintDropsStore().listVisible(
+      params.get("venueId") ?? undefined,
+      viewer,
+      author,
+      cityId,
+    );
     return jsonNoStore({ drops: await withVenueNames(drops) }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {

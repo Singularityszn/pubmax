@@ -243,9 +243,12 @@ export const curatedCrawls: CuratedCrawl[] = [
 ];
 
 /** Curated crawls that package a given Place story corridor (Wave F2). */
-export function curatedCrawlsForBand(bandId: string | null | undefined): CuratedCrawl[] {
+export function curatedCrawlsForBand(
+  bandId: string | null | undefined,
+  crawls: readonly CuratedCrawl[] = curatedCrawls,
+): CuratedCrawl[] {
   if (!bandId) return [];
-  return curatedCrawls.filter((crawl) => crawl.placeStoryBandId === bandId);
+  return crawls.filter((crawl) => crawl.placeStoryBandId === bandId);
 }
 
 /** Look up one curated crawl by id. */

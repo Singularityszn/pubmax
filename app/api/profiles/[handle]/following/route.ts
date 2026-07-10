@@ -10,6 +10,9 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore } from "@/lib/followStore";
+import { assertServerEnv } from "@/lib/serverEnv";
+
+assertServerEnv();
 
 export async function GET(
   _request: Request,

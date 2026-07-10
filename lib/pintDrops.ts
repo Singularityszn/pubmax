@@ -10,8 +10,14 @@
 
 import { randomUUID } from "crypto";
 
+import type { CityId } from "@/lib/cities";
 import type { Provenance } from "@/lib/curation";
-import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
+import {
+  demoDropsFor,
+  demoPintDrops,
+  demoPintDropsForCity,
+  isManchesterVenueId,
+} from "@/lib/pintDropSeeds";
 import {
   ANON_HANDLE_LABEL,
   cleanVisibility,
@@ -28,6 +34,16 @@ import {
 } from "@/lib/pintDropShared";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { checkRateLimitDurable, isSupabaseConfigured } from "@/lib/supabase";
+
+/** Unscoped feed/map reads: keep Manchester venue ids off the London surface. */
+export function dropMatchesCityScope(
+  venueId: string,
+  cityId?: CityId | null,
+): boolean {
+  const scoped = cityId ?? "london";
+  if (scoped === "manchester") return isManchesterVenueId(venueId);
+  return !isManchesterVenueId(venueId);
+}
 
 // Re-export the browser-safe surface so existing importers (and tests) that pull
 // these from @/lib/pintDrops keep working — single source of truth in
@@ -106,7 +122,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
   const venueId = clean(raw.venueId, 64);
   if (!venueId) return { ok: false, error: "A venue is required." };
 
-  const handle = clean(raw.handle, MAX_HANDLE);
+  const handle = normalizeViewerHandle(clean(raw.handle, MAX_HANDLE));
   if (!handle) return { ok: false, error: "Add a contributor handle." };
 
   const note = clean(raw.passedDownNote, MAX_NOTE);
@@ -229,11 +245,17 @@ export function listVisiblePintDrops(venueId: string): PintDrop[] {
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export function listAllVisiblePintDrops(): PintDrop[] {
+/**
+ * Unscoped public read. `cityId` scopes demo seeds (and organic rows by venue
+ * id prefix) so Manchester demo drops never noise the London feed/landing.
+ * Defaults to London when omitted.
+ */
+export function listAllVisiblePintDrops(cityId?: CityId | null): PintDrop[] {
   return Array.from(drops.values())
     .flat()
     .filter((d) => d.status === "visible")
-    .concat(demoPintDrops)
+    .filter((d) => dropMatchesCityScope(d.venueId, cityId))
+    .concat(demoPintDropsForCity(cityId))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 

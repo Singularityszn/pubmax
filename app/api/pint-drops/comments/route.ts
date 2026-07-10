@@ -24,6 +24,7 @@ import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsS
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -59,9 +60,18 @@ export async function POST(request: Request): Promise<Response> {
   const dropId = readString(body.dropId);
   if (!dropId) return jsonNoStore({ error: "Missing pint drop id." }, { status: 400 });
 
+  // F3 write gate: mirror GET — do not accept comments on hidden/friends/legacy
+  // parents. 404 matches the unknown-drop posture (no existence oracle).
+  const readable = await filterPubliclyReadableDropIds([dropId]);
+  if (readable.length === 0) {
+    return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
+  }
+
   // Server-authoritative validation — the client body is untrusted. Strips
   // HTML/control chars and caps length; rejects an empty/HTML-only body.
-  const cleaned = cleanComment(body.handle, body.body);
+  // JWT-linked handle wins over a self-asserted body handle when signed in.
+  const actorHandle = await resolveMessageHandle(request, readString(body.handle));
+  const cleaned = cleanComment(actorHandle, body.body);
   if (!cleaned.ok) return jsonNoStore({ error: cleaned.error }, { status: 400 });
 
   const ownership = await gateHandleAction(request, cleaned.handle);

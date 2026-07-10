@@ -27,6 +27,9 @@ function profileStore(): ProfileStore {
  * Prefer the auth-linked handle when the request carries a valid JWT whose
  * user owns a profile; otherwise return the normalized asserted handle (or ""
  * when neither is available).
+ *
+ * Use this on every private write before `gateHandleAction` so a signed-in
+ * user cannot POST as a different unlinked handle while their JWT is present.
  */
 export async function resolveMessageHandle(
   request: Request,
@@ -40,7 +43,54 @@ export async function resolveMessageHandle(
     const linked = await profileStore().getHandleByUserId(userId);
     if (linked) return linked;
   } catch {
-    // Auth configured but profile lookup failed — keep the demo path alive.
+    // Valid JWT present but profile lookup failed — fail closed. Falling back
+    // to the body handle would let a spoofed handle ride a real session during
+    // a store outage.
+    return "";
   }
   return asserted;
+}
+
+export type LinkedActorGate =
+  | { ok: true; handle: string; userId: string }
+  | { ok: false; status: 400 | 401 | 403; error: string };
+
+/**
+ * Wave I2 — DMs require a signed-in user whose profile is linked.
+ * Returns the canonical linked handle, or a 401/403 gate response payload.
+ */
+export async function requireLinkedActor(
+  request: Request,
+  assertedHandle: string | null | undefined,
+): Promise<LinkedActorGate> {
+  const userId = await callerUserId(request);
+  if (!userId) {
+    return {
+      ok: false,
+      status: 401,
+      error: "Sign in to message.",
+    };
+  }
+
+  let linked = "";
+  try {
+    linked = (await profileStore().getHandleByUserId(userId)) ?? "";
+  } catch {
+    linked = "";
+  }
+
+  if (!linked) {
+    // First-touch: allow asserted handle so gateHandleAction can claim/link on POST.
+    const asserted = normalizeHandle(assertedHandle ?? "");
+    if (!asserted) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Add your handle.",
+      };
+    }
+    return { ok: true, handle: asserted, userId };
+  }
+
+  return { ok: true, handle: linked, userId };
 }

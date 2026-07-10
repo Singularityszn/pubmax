@@ -1,5 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { HandleActionGate } from "@/lib/profileOwnership";
+
 // Handler-level coverage for app/api/pint-drops/reactions/route.ts. The route
 // talks to the ReactionsStore seam only; we pin the process-memory store
 // deterministically by mocking isSupabaseConfigured() === false at the
@@ -12,12 +14,35 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 // has no FK, so it NEVER raises UnknownDropError (any id is reactable in dev).
 // To exercise the 404 UnknownDropError contract we drive the SUPABASE path with
 // a stubbed store whose toggle throws UnknownDropError — see that describe block.
-const { supaGuard } = vi.hoisted(() => ({ supaGuard: { configured: false } }));
+const { supaGuard, emitSpy, gateSpy } = vi.hoisted(() => ({
+  supaGuard: { configured: false },
+  emitSpy: vi.fn().mockResolvedValue(undefined),
+  gateSpy: vi.fn(
+    async (_request: Request, handle: string): Promise<HandleActionGate> => ({
+      allowed: true,
+      handle,
+      callerUserId: "user-1",
+    }),
+  ),
+}));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => supaGuard.configured };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/notificationsStore", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/notificationsStore")>();
+  return {
+    ...actual,
+    emitNotification: emitSpy,
+    dropOwnerHandle: async () => "owner",
+  };
+});
+vi.mock("@/lib/profileOwnership", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/profileOwnership")>();
+  return { ...actual, gateHandleAction: gateSpy };
+});
 
 import { GET, POST } from "@/app/api/pint-drops/reactions/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -44,6 +69,15 @@ beforeEach(() => {
   // in-memory rate window every route shares). Reset it between cases so one
   // test's toggles never bleed into another's budget.
   __resetPintDrops();
+  emitSpy.mockClear();
+  gateSpy.mockClear();
+  gateSpy.mockImplementation(
+    async (_request: Request, handle: string): Promise<HandleActionGate> => ({
+      allowed: true,
+      handle,
+      callerUserId: "user-1",
+    }),
+  );
 });
 
 describe("GET /api/pint-drops/reactions (batched summaries)", () => {
@@ -142,6 +176,25 @@ describe("POST /api/pint-drops/reactions (toggle)", () => {
     expect(blob).not.toContain("dev-secret"); // the raw actor id never echoes back
   });
 
+  it("emits a notification only when the handle passes ownership gate", async () => {
+    await toggle({ id: "d1", actor: "dev-1", reaction: "cheers", handle: "ken" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(gateSpy).toHaveBeenCalled();
+    expect(emitSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ actorHandle: "ken", kind: "reaction" }),
+    );
+
+    emitSpy.mockClear();
+    gateSpy.mockResolvedValueOnce({
+      allowed: false,
+      status: 403,
+      error: "This handle belongs to a signed-in account. Sign in as its owner to continue.",
+    });
+    await toggle({ id: "d1", actor: "dev-1", reaction: "bargain", handle: "spoof" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(emitSpy).not.toHaveBeenCalled();
+  });
+
   it("429s once one actor floods past the reaction limit (a fresh actor is unaffected)", async () => {
     // The generous budget is 40 per actor per window; the 41st POST from the
     // SAME actor trips the flood guard. We toggle a valid reaction each time so
@@ -212,6 +265,17 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
   });
 
   it("503s any other store failure (reactions are non-critical)", async () => {
+    // Visibility gate must pass so we reach the store — stub it open for this
+    // contract (Supabase admin isn't real in this suite).
+    vi.doMock("@/lib/pintDropLookup", async () => {
+      const actual =
+        await vi.importActual<typeof import("@/lib/pintDropLookup")>("@/lib/pintDropLookup");
+      return {
+        ...actual,
+        filterPubliclyReadableDropIds: async (ids: readonly string[]) =>
+          ids.map((id) => id.trim()).filter(Boolean),
+      };
+    });
     vi.doMock("@/lib/reactionsStore", async () => {
       const actual =
         await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
@@ -235,6 +299,7 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ error: "Reactions are unavailable." });
     vi.doUnmock("@/lib/reactionsStore");
+    vi.doUnmock("@/lib/pintDropLookup");
   });
 
   it("GET degrades to an empty summaries map on a store error (feed stays up)", async () => {

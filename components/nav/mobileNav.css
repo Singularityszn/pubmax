@@ -79,8 +79,9 @@
     align-items: center;
     justify-content: center;
     gap: 2px;
-    min-height: 42px;
-    padding: 3px 2px;
+    /* 44px+ touch target (WCAG 2.5.5). */
+    min-height: 44px;
+    padding: 4px 2px;
     border-radius: 18px;
     color: var(--muted, var(--ink-soft));
     text-decoration: none;
@@ -152,8 +153,8 @@
   }
 
   .mobileTabPrimary .mobileTabIcon {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     margin-top: -6px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--brass) 92%, var(--panel-raised));
@@ -191,8 +192,8 @@
   }
 
   .mobileTabPrimary .mobileTabIcon {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     margin-top: -4px;
   }
 }
@@ -205,11 +206,12 @@
   .mobileTab {
     font-size: 0.56rem;
     padding: 2px 1px;
+    min-height: 44px;
   }
 
   .mobileTabPrimary .mobileTabIcon {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
   }
 }
 

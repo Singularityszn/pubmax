@@ -1,22 +1,14 @@
-// A single conversation's thread (PRD E4).
+// A single conversation's thread (PRD E4 / Wave I2).
 //   GET  ?handle=<handle>                         → { messages: MessageDTO[] }
 //   POST { action:"send",   handle, body }        → { message }
 //   POST { action:"report", handle, messageId }   → { flagged: boolean }
 //
-// ─────────────────────────────────────────────────────────────────────────────
-// COURTESY PARTICIPANT CHECK. A read/send is only served when `handle` is a
-// participant of THIS conversation. A non-participant (or unknown conversation)
-// gets a 404 — deliberately indistinguishable from "no such conversation" so the
-// endpoint never confirms a private thread exists to an outsider.
-//
-// Identity prefers a verified Supabase Auth JWT (linked profile handle) when
-// present; otherwise the self-asserted handle (anonymous/demo dual-backend).
-// Linked-handle ownership is then enforced via gateHandleAction.
-// See app/api/messages/route.ts + lib/messageAuth.ts + migration 0019.
-// ─────────────────────────────────────────────────────────────────────────────
+// Wave I2: requires a signed-in linked actor (401 without JWT). Linked-handle
+// ownership still collapses 403 → 404 so the endpoint never confirms a private
+// thread exists to an outsider.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { resolveMessageHandle } from "@/lib/messageAuth";
+import { requireLinkedActor } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -34,13 +26,15 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
-  const handle = await resolveMessageHandle(request, asserted);
+  const actor = await requireLinkedActor(request, asserted);
+  if (!actor.ok) {
+    return jsonNoStore({ error: actor.error }, { status: actor.status });
+  }
+  const handle = actor.handle;
   if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    // 403 not-owner stays 404 so the endpoint never confirms a private thread.
-    // Surface 400/503 (and other gate failures) honestly — those are not leaks.
     if (ownership.status === 403) {
       return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
     }
@@ -48,7 +42,6 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   }
 
   const messages = await messagesStore().listMessages(id, handle);
-  // null = not a participant (or unknown conversation) → 404, never a leak.
   if (messages === null) {
     return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
   }
@@ -65,7 +58,11 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   }
 
   const action = readString(body.action);
-  const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
+  const actor = await requireLinkedActor(request, readString(body.handle) ?? "");
+  if (!actor.ok) {
+    return jsonNoStore({ error: actor.error }, { status: actor.status });
+  }
+  const handle = actor.handle;
   if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);
@@ -81,8 +78,6 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   if (action === "report") {
     const messageId = readString(body.messageId);
     if (!messageId) return jsonNoStore({ error: "Missing message id." }, { status: 400 });
-    // Gate the report on participation too: only someone in the conversation can
-    // flag its messages. A non-participant read returns null → 404.
     const thread = await store.listMessages(id, handle);
     if (thread === null) {
       return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
@@ -98,8 +93,6 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     }
     const messageBody = readString(body.body);
     if (!messageBody) return jsonNoStore({ error: "Write a message." }, { status: 400 });
-    // store.send re-runs the participant check on the conversation, so a
-    // non-participant sender is rejected (null → 404) without a separate lookup.
     const message = await store.send(id, handle, messageBody);
     if (!message) {
       return jsonNoStore({ error: "Conversation not found." }, { status: 404 });

@@ -373,9 +373,10 @@ export async function dropOwnerHandle(dropId: string): Promise<string | null> {
   // Memory path: the in-memory drops live in lib/pintDrops. Import lazily so this
   // server-only lookup never pulls the drops module into a client bundle.
   try {
-    const { listAllVisiblePintDrops } = await import("@/lib/pintDrops");
-    const hit = listAllVisiblePintDrops().find((d) => d.id === id);
-    return hit ? normalizeHandle(hit.handle) || null : null;
+    const { findPintDropsByIds } = await import("@/lib/pintDrops");
+    const hit = findPintDropsByIds([id]).get(id);
+    if (!hit || hit.status !== "visible") return null;
+    return normalizeHandle(hit.handle) || null;
   } catch {
     return null;
   }

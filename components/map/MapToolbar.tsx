@@ -1,10 +1,13 @@
 "use client";
 
 import { Route, Search, Wine, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import CitySwitcher from "@/components/map/CitySwitcher";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
+import type { CityId } from "@/lib/cities";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
 import type { Filters } from "@/lib/venues";
 
 import "./mapToolbar.css";
@@ -23,6 +26,8 @@ type MapToolbarProps = {
   onTogglePlanning: () => void;
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
+  /** Active city for the map switcher (defaults to London). */
+  cityId?: CityId;
 };
 
 export default function MapToolbar({
@@ -37,13 +42,33 @@ export default function MapToolbar({
   onTogglePlanning,
   filters,
   onFiltersChange,
+  cityId = DEFAULT_CITY_ID,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const sync = () => {
+      // Defer setState out of the effect body (react-hooks/set-state-in-effect).
+      void Promise.resolve().then(() => setIsMobile(mq.matches));
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  const favoritePicker = (
+    <FavoritePintPicker
+      value={favoritePint}
+      onChange={onFavoritePintChange}
+      drinkCategory={drinkCategory}
+      drinkBrand={drinkBrand}
+      onDrinkLensChange={onDrinkLensChange}
+    />
+  );
+  // Drive from real drink-lens state only — free-text "beer garden" must not
+  // light the Drinks control as if a drink filter were applied.
   const drinksActive =
-    Boolean(filters.query && /beer|wine|cocktail|whisky|gin|rum|vodka|shot/i.test(filters.query)) ||
-    filters.requireCocktails ||
-    Boolean(drinkCategory) ||
-    Boolean(favoritePint);
+    filters.requireCocktails || Boolean(drinkCategory) || Boolean(favoritePint);
 
   return (
     <div className="mapToolbar" role="search">
@@ -70,15 +95,7 @@ export default function MapToolbar({
           ) : null}
         </div>
 
-        <div className="mapToolbarDesktopExtras">
-          <FavoritePintPicker
-            value={favoritePint}
-            onChange={onFavoritePintChange}
-            drinkCategory={drinkCategory}
-            drinkBrand={drinkBrand}
-            onDrinkLensChange={onDrinkLensChange}
-          />
-        </div>
+        {isMobile === false ? <div className="mapToolbarDesktopExtras">{favoritePicker}</div> : null}
 
         <button
           type="button"
@@ -106,18 +123,12 @@ export default function MapToolbar({
           <span className="planBtnFull">{planningOpen ? "Close planner" : "Plan a crawl"}</span>
           <span className="planBtnShort">{planningOpen ? "Close" : "Plan"}</span>
         </button>
+
+        <CitySwitcher cityId={cityId} />
       </div>
 
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
-        <div className="mapToolbarDesktopExtras mapToolbarDrinksLens">
-          <FavoritePintPicker
-            value={favoritePint}
-            onChange={onFavoritePintChange}
-            drinkCategory={drinkCategory}
-            drinkBrand={drinkBrand}
-            onDrinkLensChange={onDrinkLensChange}
-          />
-        </div>
+        {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
         <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
       </div>
     </div>

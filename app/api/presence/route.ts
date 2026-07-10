@@ -12,10 +12,10 @@
 // the "Live tonight" strip degrades to nothing rather than a broken band.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
-import { normalizeHandle } from "@/lib/profiles";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 
@@ -33,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
 
-  const handle = normalizeHandle(readString(body.handle).trim());
+  const handle = await resolveMessageHandle(request, readString(body.handle));
   const venueId = readString(body.venueId).trim();
   if (!handle) return jsonNoStore({ error: "Add a handle first." }, { status: 400 });
   if (!venueId) return jsonNoStore({ error: "A venue is required." }, { status: 400 });
@@ -47,18 +47,18 @@ export async function POST(request: Request): Promise<Response> {
   // raw IP is hashed (hashIp) then folded into a stable actor hash (hashActor),
   // so the actor_hash column can't be correlated back to a device or address.
   const ipHash = hashIp(clientIp(request));
-  const actorHash = hashActor(`presence:${handle.toLowerCase()}:${ipHash}`);
+  const actorHash = hashActor(`presence:${ownership.handle.toLowerCase()}:${ipHash}`);
 
   // Rate-limit the tap: durable key = handle + hashed IP; in-memory backstop
   // keyed on handle alone (same shape as the pint-drops write path).
-  const durableKey = `presence:${handle.toLowerCase()}:${ipHash}`;
-  if (await isLimited(handle, durableKey)) {
+  const durableKey = `presence:${ownership.handle.toLowerCase()}:${ipHash}`;
+  if (await isLimited(ownership.handle, durableKey)) {
     return jsonNoStore({ error: "Too many check-ins, slow down." }, { status: 429 });
   }
 
   // markPresence is fail-soft (never throws) — a presence hiccup must not fail
   // the tap. Cleaning/capping happens inside the store.
-  await markPresence({ handle, venueId, actorHash });
+  await markPresence({ handle: ownership.handle, venueId, actorHash });
   return jsonNoStore({ ok: true }, { status: 200 });
 }
 

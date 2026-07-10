@@ -7,21 +7,24 @@
 
 import sharp from "sharp";
 
+import type { CityId } from "@/lib/cities";
 import type { Provenance } from "@/lib/curation";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
-import { demoDropsFor, demoPintDrops } from "@/lib/pintDropSeeds";
+import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
   addPintDrop,
   ANON_HANDLE_LABEL,
   canViewOnPublicSurface,
   cleanVibeTags,
   cleanVisibility,
+  dropMatchesCityScope,
   keepHiddenPintDrop,
   listAllVisiblePintDrops,
   listByStatus,
   listLegacyPintDropsForVenue,
   listVisiblePintDrops,
+  normalizeViewerHandle,
   REPORT_HIDE_THRESHOLD,
   reportPintDrop,
   restorePintDrop,
@@ -103,7 +106,18 @@ export type PintDropStore = {
    * honest-best-effort courtesy curtain (self-asserted handles, no auth yet), the
    * same trust posture as lib/notifications.ts.
    */
-  listVisible(venueId?: string, viewer?: ViewerContext): Promise<PintDropDTO[]>;
+  /**
+   * @param authorHandle When set, only drops authored by this handle (normalized)
+   *   are returned — used by passport / profile surfaces so clients never pull
+   *   the global public feed just to filter client-side.
+   */
+  listVisible(
+    venueId?: string,
+    viewer?: ViewerContext,
+    authorHandle?: string,
+    /** Scopes unscoped reads (no venueId) so Manchester demo seeds stay off London feeds. */
+    cityId?: CityId | null,
+  ): Promise<PintDropDTO[]>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
    * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
@@ -255,26 +269,80 @@ export async function resolveStorageUrl(
   }
 }
 
+/** Resolve many Storage keys to signed URLs in one (or few) Storage API calls. */
+export async function resolveStorageUrlsBatch(
+  keys: readonly (string | null | undefined)[],
+): Promise<Map<string, string>> {
+  const unique = [...new Set(keys.filter((k): k is string => typeof k === "string" && k.length > 0))];
+  const out = new Map<string, string>();
+  if (unique.length === 0) return out;
+
+  const CHUNK = 100;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    try {
+      const { data, error } = await admin()
+        .storage.from(STORAGE_BUCKET)
+        .createSignedUrls(chunk, SIGNED_URL_TTL_SEC);
+      if (error || !data) continue;
+      for (const row of data) {
+        if (row.path && row.signedUrl && !row.error) out.set(row.path, row.signedUrl);
+      }
+    } catch {
+      // Fall through — callers treat missing keys as null URLs.
+    }
+  }
+  return out;
+}
+
 export async function resolveDropPhotoUrls(
   drop: PersistableDrop,
   grant: boolean,
+  urlByKey?: Map<string, string>,
 ): Promise<{ pint: string | null; venue: string | null }> {
+  if (!grant) return { pint: null, venue: null };
+  if (urlByKey) {
+    return {
+      pint: drop.pintPhotoKey ? (urlByKey.get(drop.pintPhotoKey) ?? null) : null,
+      venue: drop.venuePhotoKey ? (urlByKey.get(drop.venuePhotoKey) ?? null) : null,
+    };
+  }
   const [pint, venue] = await Promise.all([
-    resolveStorageUrl(drop.pintPhotoKey, grant),
-    resolveStorageUrl(drop.venuePhotoKey, grant),
+    resolveStorageUrl(drop.pintPhotoKey, true),
+    resolveStorageUrl(drop.venuePhotoKey, true),
   ]);
   return { pint, venue };
 }
 
 /** Public DTO with signed photo URLs (Supabase path). */
-export async function toDTOWithPhotos(drop: PersistableDrop): Promise<PintDropDTO> {
+export async function toDTOWithPhotos(
+  drop: PersistableDrop,
+  urlByKey?: Map<string, string>,
+): Promise<PintDropDTO> {
   const grant = drop.status === "visible";
-  return toDTO(drop, await resolveDropPhotoUrls(drop, grant));
+  return toDTO(drop, await resolveDropPhotoUrls(drop, grant, urlByKey));
 }
 
 /** Moderator DTO with signed photo URLs (evidence must resolve for review). */
-export async function toModeratorDTOWithPhotos(drop: PersistableDrop): Promise<ModeratorDrop> {
-  return toModeratorDTO(drop, await resolveDropPhotoUrls(drop, true));
+export async function toModeratorDTOWithPhotos(
+  drop: PersistableDrop,
+  urlByKey?: Map<string, string>,
+): Promise<ModeratorDrop> {
+  return toModeratorDTO(drop, await resolveDropPhotoUrls(drop, true, urlByKey));
+}
+
+async function toDTOsWithBatchedPhotos(drops: PersistableDrop[]): Promise<PintDropDTO[]> {
+  const keys = drops.flatMap((d) =>
+    d.status === "visible" ? [d.pintPhotoKey, d.venuePhotoKey] : [],
+  );
+  const urlByKey = await resolveStorageUrlsBatch(keys);
+  return Promise.all(drops.map((d) => toDTOWithPhotos(d, urlByKey)));
+}
+
+async function toModeratorDTOsWithBatchedPhotos(drops: PersistableDrop[]): Promise<ModeratorDrop[]> {
+  const keys = drops.flatMap((d) => [d.pintPhotoKey, d.venuePhotoKey]);
+  const urlByKey = await resolveStorageUrlsBatch(keys);
+  return Promise.all(drops.map((d) => toModeratorDTOWithPhotos(d, urlByKey)));
 }
 
 /** Public DTO: strip Storage keys AND report/moderation metadata, emit photo
@@ -350,15 +418,21 @@ export const memoryPintDropStore: PintDropStore = {
     addPintDrop(drop); // photos ignored: there is no Storage without Supabase
     return toDTO(drop);
   },
-  async listVisible(venueId, viewer) {
-    const rows = venueId ? listVisiblePintDrops(venueId) : listAllVisiblePintDrops();
+  async listVisible(venueId, viewer, authorHandle, cityId) {
+    const rows = venueId
+      ? listVisiblePintDrops(venueId)
+      : listAllVisiblePintDrops(cityId);
+    const author = normalizeViewerHandle(authorHandle);
     // Visibility applied server-side (issue #29). Legacy is EXCLUDED from the
     // public surface for EVERYONE (including the author — they read it via the
     // ledger's listLegacyForVenue, not the feed), matching the Supabase backend's
     // `.neq("visibility","legacy")`. Friends is then gated on the viewer's follow
     // graph; public + anonymous always pass (anonymous handle withheld at toDTO).
     const permitted = rows.filter(
-      (d) => visibilityOf(d) !== "legacy" && canViewOnPublicSurface(d, viewer),
+      (d) =>
+        visibilityOf(d) !== "legacy" &&
+        canViewOnPublicSurface(d, viewer) &&
+        (!author || normalizeViewerHandle(d.handle) === author),
     );
     return newestFirstCapped(permitted).map((d) => toDTO(d));
   },
@@ -508,7 +582,8 @@ export const supabasePintDropStore: PintDropStore = {
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
-  async listVisible(venueId, viewer) {
+  async listVisible(venueId, viewer, authorHandle, cityId) {
+    const author = normalizeViewerHandle(authorHandle);
     // Base visible read, newest-first, capped. Split from the visibility filter
     // so we can retry WITHOUT it if migration 0012 isn't applied to this DB yet
     // (pre-0012 every row is effectively `public`, so an unfiltered read is safe).
@@ -520,6 +595,7 @@ export const supabasePintDropStore: PintDropStore = {
         .order("created_at", { ascending: false })
         .limit(MAX_PUBLIC_DROPS);
       if (venueId) q = q.eq("venue_id", venueId);
+      if (author) q = q.eq("handle", author);
       return q;
     };
     // Legacy (family/heirloom) drops NEVER ride the public surface — they read
@@ -535,16 +611,22 @@ export const supabasePintDropStore: PintDropStore = {
       ({ data, error } = await base());
     }
     if (error) throw new Error(error.message);
-    const seeds = venueId ? demoDropsFor(venueId) : demoPintDrops;
+    // Per-venue: all city seeds for that id. Unscoped: city-scoped seeds so
+    // Manchester demo drops never noise the London feed/landing.
+    const seeds = (venueId ? demoDropsFor(venueId) : demoPintDropsForCity(cityId)).filter(
+      (d) => !author || normalizeViewerHandle(d.handle) === author,
+    );
     // Apply the same pure predicate the memory store uses over the fetched page.
     // Legacy is already excluded above; public + anonymous always pass, friends
-    // gate on the viewer's follow graph.
+    // gate on the viewer's follow graph. Unscoped reads also city-scope organic
+    // rows by venue id prefix (venue-mcr- ↔ Manchester).
     const permitted = (data ?? [])
       .map(fromRow)
       .concat(seeds)
+      .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
       .filter((d) => canViewOnPublicSurface(d, viewer));
     const capped = newestFirstCapped(permitted);
-    return Promise.all(capped.map((d) => toDTOWithPhotos(d)));
+    return toDTOsWithBatchedPhotos(capped);
   },
 
   /** The LEGACY lane for one venue (ledger-only capability for issue #27).
@@ -561,7 +643,7 @@ export const supabasePintDropStore: PintDropStore = {
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     const rows = newestFirstCapped((data ?? []).map(fromRow));
-    return Promise.all(rows.map((d) => toDTOWithPhotos(d)));
+    return toDTOsWithBatchedPhotos(rows);
   },
 
   async listForReview(status) {
@@ -572,7 +654,7 @@ export const supabasePintDropStore: PintDropStore = {
       .is("moderated_at", null)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return Promise.all((data ?? []).map(fromRow).map((d) => toModeratorDTOWithPhotos(d)));
+    return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
   },
 
   /** ONE atomic RPC (migration 0017) writes the per-actor report ledger

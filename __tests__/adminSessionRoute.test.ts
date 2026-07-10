@@ -1,14 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/serverEnv", () => ({
+  assertServerEnv: () => {},
+  assertProductionSecrets: () => {},
+}));
+
 const ORIGINAL_ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
-beforeEach(() => {
+beforeEach(async () => {
   process.env.ADMIN_TOKEN = "test-admin-secret";
+  const { __resetPintDrops } = await import("@/lib/pintDrops");
+  __resetPintDrops();
 });
 
 afterEach(() => {
   if (ORIGINAL_ADMIN_TOKEN === undefined) delete process.env.ADMIN_TOKEN;
   else process.env.ADMIN_TOKEN = ORIGINAL_ADMIN_TOKEN;
+  vi.unstubAllEnvs();
 });
 
 describe("POST /api/admin/session", () => {
@@ -25,6 +33,7 @@ describe("POST /api/admin/session", () => {
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("pubmax_admin_session=");
     expect(setCookie.toLowerCase()).toContain("httponly");
+    expect(setCookie).toContain("SameSite=Strict");
   });
 
   it("returns 403 for a wrong token", async () => {
@@ -37,6 +46,29 @@ describe("POST /api/admin/session", () => {
       }),
     );
     expect(res.status).toBe(403);
+  });
+
+  it("429s after too many login attempts from one IP", async () => {
+    const { POST } = await import("@/app/api/admin/session/route");
+    for (let i = 0; i < 10; i++) {
+      const res = await POST(
+        new Request("http://localhost/api/admin/session", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-forwarded-for": "1.2.3.4" },
+          body: JSON.stringify({ token: "wrong" }),
+        }),
+      );
+      expect(res.status).toBe(403);
+    }
+    const limited = await POST(
+      new Request("http://localhost/api/admin/session", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-forwarded-for": "1.2.3.4" },
+        body: JSON.stringify({ token: "wrong" }),
+      }),
+    );
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: "Too many attempts, slow down." });
   });
 });
 
@@ -62,5 +94,13 @@ describe("DELETE /api/admin/session", () => {
     expect(res.status).toBe(200);
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("Max-Age=0");
+    expect(setCookie).toContain("SameSite=Strict");
+  });
+
+  it("includes Secure on the cleared cookie in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const { DELETE } = await import("@/app/api/admin/session/route");
+    const res = await DELETE();
+    expect(res.headers.get("set-cookie") ?? "").toContain("Secure");
   });
 });

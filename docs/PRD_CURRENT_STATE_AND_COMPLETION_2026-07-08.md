@@ -16,7 +16,14 @@ Date: 2026-07-08
 > [`PRD_MEMORY_SHARE_OUTER_LONDON_WAVE_2026-07-09.md`](./PRD_MEMORY_SHARE_OUTER_LONDON_WAVE_2026-07-09.md)
 > for shareable crawl memories, trusted Drop nearby picker, place-quest events,
 > and Outer London P1 coverage ([`PRD_OUTER_LONDON_COVERAGE.md`](./PRD_OUTER_LONDON_COVERAGE.md)).
-> **Shipped on main:** #63 Layers declutter, Wave H, security Phases 1–4 — do not rebuild.
+> **Shipped on main:** #63 (Layers declutter), #65 (Wave H), #67 (security
+> Phases 1–4), #69 (message gate status), #76 (Wave J map taste/fluidity).
+> Do not rebuild them.
+>
+> **Wave I (2026-07-09):** see
+> [`PRD_MEMORY_TIMELINE_SOCIAL_UX_WAVE_2026-07-09.md`](./PRD_MEMORY_TIMELINE_SOCIAL_UX_WAVE_2026-07-09.md)
+> for Memory Timeline, trusted DMs (`authedFetch` + linked actor), and UX
+> declutter/speed.
 >
 > **Wave J (2026-07-09):** see
 > [`PRD_MAP_TASTE_FLUIDITY_WAVE_2026-07-09.md`](./PRD_MAP_TASTE_FLUIDITY_WAVE_2026-07-09.md)

@@ -2,7 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import type { Venue } from "@/lib/venues";
 
 export { venueMapUrl };
 
@@ -12,9 +12,9 @@ export { venueMapUrl };
 // a { name, borough, lat, lng } ref so server routes can enrich their DTOs with
 // a real pub name + a "open on the map" link before the client renders them.
 //
-// It reads the bundled dataset with `fs` — so import it ONLY from server code
-// (route handlers, server components, generateMetadata). Client components get
-// the resolved name through the API response, never by importing this file.
+// It reads the SLIM index (~400 KB) with `fs` — so import it ONLY from server
+// code (route handlers, server components, generateMetadata). Client components
+// get the resolved name through the API response, never by importing this file.
 
 export type VenueRef = {
   id: string;
@@ -24,8 +24,16 @@ export type VenueRef = {
   lng: number;
 };
 
-// Pure: fold grouped venues into an id→ref lookup. Split out so it's unit-testable
-// with small fixtures instead of the 6 MB dataset.
+type SlimRow = {
+  id?: unknown;
+  name?: unknown;
+  borough?: unknown;
+  lat?: unknown;
+  lng?: unknown;
+};
+
+// Pure: fold venues into an id→ref lookup. Split out so it's unit-testable
+// with small fixtures instead of the full dataset.
 export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
   const index = new Map<string, VenueRef>();
   for (const v of venues) {
@@ -40,20 +48,40 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
   return index;
 }
 
+function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
+  const index = new Map<string, VenueRef>();
+  for (const row of rows) {
+    if (typeof row.id !== "string" || !row.id) continue;
+    if (typeof row.name !== "string" || !row.name) continue;
+    const lat = typeof row.lat === "number" ? row.lat : Number(row.lat);
+    const lng = typeof row.lng === "number" ? row.lng : Number(row.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    index.set(row.id, {
+      id: row.id,
+      name: row.name,
+      borough: typeof row.borough === "string" && row.borough ? row.borough : "London",
+      lat,
+      lng,
+    });
+  }
+  return index;
+}
+
 let cached: Map<string, VenueRef> | null = null;
 
-// Read the dataset once and memoize. Never throws: a read/parse failure yields an
-// empty index so name resolution degrades to the friendly fallback rather than
-// 500-ing a page. The dataset is the same file the client fetches at /data/…, read
-// here from disk so it never enters the client bundle.
+// Read the slim index once and memoize successful loads. Never throws: a
+// read/parse failure yields an empty index for that call only, so a later retry
+// can recover instead of permanently caching failure. Prefer venues_slim.json
+// (~400 KB) over the full ~6 MB price dataset — name/borough/coords are all the
+// social DTOs need.
 export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   if (cached) return cached;
   try {
-    const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-    cached = buildVenueIndex(groupVenuePrices(Array.isArray(rows) ? rows : []));
+    const file = path.join(process.cwd(), "public", "data", "venues_slim.json");
+    const rows = JSON.parse(await fs.readFile(file, "utf8")) as SlimRow[];
+    cached = buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
   } catch {
-    cached = new Map();
+    return new Map();
   }
   return cached;
 }

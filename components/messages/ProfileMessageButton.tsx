@@ -3,14 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import SignInButton from "@/components/auth/SignInButton";
+import { authedFetch } from "@/lib/authedFetch";
+import { normalizeHandle } from "@/lib/profiles";
+
 import "@/app/messages/messages.css";
 
-// The "Message" control on a profile (PRD E4) — one additive button. Opens (or
-// finds) the conversation between the viewer and this handle via POST
-// /api/messages {action:"open"}, then navigates to the thread. The viewer's
-// self-asserted handle is passed by the profile page (localStorage pubmax_handle);
-// the button only renders when both handles are present and distinct, so it never
-// tries to open a self-conversation.
+// The "Message" control on a profile (PRD E4 / Wave I2). Opens (or finds) the
+// conversation via POST /api/messages {action:"open"} with Bearer JWT, then
+// navigates to the thread. Signed-out viewers see "Sign in to message".
 
 export default function ProfileMessageButton({
   targetHandle,
@@ -20,17 +22,35 @@ export default function ProfileMessageButton({
   viewerHandle: string;
 }): React.JSX.Element | null {
   const router = useRouter();
+  const { user, handle: authHandle, configured } = useAuth();
   const [busy, setBusy] = useState(false);
 
-  if (!targetHandle || !viewerHandle || targetHandle === viewerHandle) return null;
+  const effectiveViewer = normalizeHandle(authHandle ?? "") || normalizeHandle(viewerHandle);
+  if (!targetHandle || targetHandle === effectiveViewer) return null;
+
+  if (!user) {
+    if (!configured) return null;
+    return (
+      <div className="profileMessageSignIn">
+        <span className="profileMessageHint">Sign in to message</span>
+        <SignInButton />
+      </div>
+    );
+  }
+
+  if (!effectiveViewer) return null;
 
   async function open() {
     setBusy(true);
     try {
-      const res = await fetch("/api/messages", {
+      const res = await authedFetch("/api/messages", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "open", handle: viewerHandle, other: targetHandle }),
+        body: JSON.stringify({
+          action: "open",
+          handle: effectiveViewer,
+          other: targetHandle,
+        }),
       });
       if (!res.ok) return;
       const body = (await res.json()) as { conversationId?: string };

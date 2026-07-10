@@ -13,7 +13,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle } from "@/lib/profiles";
+import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
   isReactionKey,
@@ -78,6 +78,13 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Unknown reaction." }, { status: 400 });
   }
 
+  // F3 write gate: mirror GET — reject toggles on hidden/friends/legacy parents.
+  // 404 matches UnknownDropError so gated ids are not an existence oracle.
+  const readable = await filterPubliclyReadableDropIds([id]);
+  if (readable.length === 0) {
+    return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
+  }
+
   const actorHash = hashActor(readString(body.actor));
 
   // Flood guard per hashed actor. Mirrors comments/saved-pubs, but with a
@@ -97,18 +104,21 @@ export async function POST(request: Request): Promise<Response> {
     // with no handle there is no one to name — we just skip the notification.
     // Never awaited for correctness — a notification failure must not fail the
     // reaction toggle.
-    const actorHandle = normalizeHandle(readString(body.handle) ?? "");
+    const actorHandle = readString(body.handle) ?? "";
     if (actorHandle && summary.mine.includes(reaction)) {
-      void dropOwnerHandle(id).then((owner) => {
-        if (!owner) return;
-        return emitNotification({
-          recipientHandle: owner,
-          actorHandle,
-          kind: "reaction",
-          subjectRef: id,
-          subjectLabel: reaction,
+      const ownership = await gateHandleAction(request, actorHandle);
+      if (ownership.allowed) {
+        void dropOwnerHandle(id).then((owner) => {
+          if (!owner) return;
+          return emitNotification({
+            recipientHandle: owner,
+            actorHandle: ownership.handle,
+            kind: "reaction",
+            subjectRef: id,
+            subjectLabel: reaction,
+          });
         });
-      });
+      }
     }
     return jsonNoStore({ summary }, { status: 200 });
   } catch (err) {

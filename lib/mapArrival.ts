@@ -2,7 +2,7 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 
 /** Landing drink-shape taps (`?drink=` / `?cocktails=1`) stay on the clean map. */
 export function isDrinkShapeArrival(search: string): boolean {
-  return /[?&]drink=/.test(search) || /[?&]cocktails=1/.test(search);
+  return /[?&]drink=/.test(search) || /[?&]cocktails=1(?:&|$)/.test(search);
 }
 
 /**
