@@ -2081,7 +2081,7 @@ input[type="range"] {
   /* Wave J2 — solid panel-raised (no frost) so hover previews match landmark/hero cards. */
   background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: var(--shadow-sm, 0 8px 18px color-mix(in srgb, var(--pint) 12%, transparent));
+  box-shadow: var(--shadow, 0 18px 42px rgba(44, 30, 62, 0.18));
   pointer-events: none;
 }
 

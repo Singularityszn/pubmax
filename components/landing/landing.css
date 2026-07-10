@@ -407,7 +407,8 @@
 }
 
 .lp .heroPhoto .btnGhost:hover {
-  background: color-mix(in srgb, var(--panel-raised) 38%, transparent);
+  /* Hover must read denser than the 42% default wash (not thinner). */
+  background: color-mix(in srgb, var(--panel-raised) 54%, transparent);
   border-color: var(--brass-bright);
   color: var(--color-on-photo);
 }
