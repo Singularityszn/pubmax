@@ -45,7 +45,7 @@ export default function MapToolbar({
   cityId = DEFAULT_CITY_ID,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
     const sync = () => {
@@ -95,7 +95,7 @@ export default function MapToolbar({
           ) : null}
         </div>
 
-        {!isMobile ? <div className="mapToolbarDesktopExtras">{favoritePicker}</div> : null}
+        {isMobile === false ? <div className="mapToolbarDesktopExtras">{favoritePicker}</div> : null}
 
         <button
           type="button"
@@ -128,7 +128,7 @@ export default function MapToolbar({
       </div>
 
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
-        {isMobile ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
+        {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
         <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
       </div>
     </div>

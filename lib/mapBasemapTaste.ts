@@ -182,11 +182,13 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
   }
 
   for (const id of ROAD_LINE_IDS) {
-    // Casings stay near-black so the bright inner stroke reads as the street.
-    if (id.includes("casing")) {
+    // Dark-only: near-black casings so cream/amber inners read as streets.
+    // Light styles keep their stock casing colours.
+    if (dark && id.includes("casing")) {
       tryPaint(map, id, "line-color", withAlpha("#090806", isMajorRoad(id) ? 0.55 : 0.4));
       continue;
     }
+    if (!dark && id.includes("casing")) continue;
     tryPaint(map, id, "line-color", isMajorRoad(id) ? palette.roadMajor : palette.road);
   }
 }
@@ -214,7 +216,13 @@ function paintDiscoveredFill(map: PaintMap, layerId: string, id: string, palette
   }
 }
 
-function paintDiscoveredLine(map: PaintMap, layerId: string, id: string, palette: TastePalette): void {
+function paintDiscoveredLine(
+  map: PaintMap,
+  layerId: string,
+  id: string,
+  palette: TastePalette,
+  dark: boolean,
+): void {
   if (id.includes("water")) {
     tryPaint(map, layerId, "line-color", palette.water);
     return;
@@ -224,6 +232,7 @@ function paintDiscoveredLine(map: PaintMap, layerId: string, id: string, palette
     !id.includes("rail");
   if (!isRoad) return;
   if (id.includes("casing")) {
+    if (!dark) return;
     tryPaint(map, layerId, "line-color", withAlpha("#090806", 0.45));
     return;
   }
@@ -260,7 +269,7 @@ function paintDiscoveredLayers(
     if (layer.type === "fill") {
       paintDiscoveredFill(map, layer.id, id, palette);
     } else if (layer.type === "line") {
-      paintDiscoveredLine(map, layer.id, id, palette);
+      paintDiscoveredLine(map, layer.id, id, palette, dark);
     } else if (layer.type === "background") {
       tryPaint(map, layer.id, "background-color", palette.land);
     } else if (layer.type === "symbol") {

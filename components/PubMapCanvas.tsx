@@ -1169,7 +1169,7 @@ export default function PubMapCanvas({
             visibility: tubeVisibility,
           },
           paint: {
-            // Dark `--paper` is a night surface — use cream `--ink` for labels.
+            // Dark night land needs cream `--ink` labels, not dark `--paper`.
             "text-color": dark ? tokens.ink : tokens.inkDeep,
             "text-halo-color": dark ? "rgba(9,8,6,0.92)" : "rgba(255,255,255,0.95)",
             "text-halo-width": 1.7,
@@ -2202,11 +2202,11 @@ export default function PubMapCanvas({
           className="mapRecenterBtn"
           onClick={fitRoute}
           disabled={!canRecenter}
-          aria-label="Recenter route"
-          title="Recenter route"
+          aria-label={canRecenter ? "Recenter route" : "No route to recenter"}
+          title={canRecenter ? "Recenter route" : "No route"}
         >
           <Crosshair size={14} aria-hidden />
-          Recenter
+          {canRecenter ? "Recenter" : "No route"}
         </button>
       </div>
       {activeLandmark ? (

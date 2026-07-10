@@ -88,6 +88,7 @@ export default function AdminPage() {
   // Lazy initialiser reads localStorage on first client render — no effect, so we
   // don't trip react-hooks/set-state-in-effect.
   const [token, setToken] = useState(readStoredToken);
+  const [sessionEstablished, setSessionEstablished] = useState(false);
   const [tab, setTab] = useState<AdminTab>("moderation");
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
   const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
@@ -110,23 +111,40 @@ export default function AdminPage() {
   const [importShowDismissed, setImportShowDismissed] = useState(false);
   const [importActionId, setImportActionId] = useState<string | null>(null);
 
-  const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
+  const ensureAdminSession = useCallback(async (force = false): Promise<boolean> => {
     const t = token.trim();
     if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
+    if (sessionEstablished && !force) return true;
+    const authed = await establishSession(t);
+    setSessionEstablished(authed);
+    return authed;
+  }, [token, sessionEstablished]);
+
+  const retryWithFreshSession = useCallback(async (request: () => Promise<Response>) => {
+    const res = await request();
+    if (res.status !== 403) return res;
+    setSessionEstablished(false);
+    if (!(await ensureAdminSession(true))) return res;
+    return request();
+  }, [ensureAdminSession]);
+
+  const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
     setImportLoading(true);
     setImportMsg(null);
     const showDismissed = opts?.includeDismissed ?? importShowDismissed;
     try {
       // Prefer the httpOnly session cookie (same as drop/comment moderation) —
       // never send the raw ADMIN_TOKEN as a request header from the browser.
-      const authed = await establishSession(t);
+      const authed = await ensureAdminSession();
       if (!authed) {
         setImportNotes([]);
         setImportMsg("Not authorised — check the admin token.");
         return;
       }
       const qs = showDismissed ? "?includeDismissed=1" : "";
-      const res = await fetch(`/api/admin/import-notes${qs}`, SESSION_FETCH);
+      const res = await retryWithFreshSession(() =>
+        fetch(`/api/admin/import-notes${qs}`, SESSION_FETCH),
+      );
       if (res.status === 403) {
         setImportNotes([]);
         setImportMsg("Not authorised — check the admin token.");
@@ -145,13 +163,13 @@ export default function AdminPage() {
     } finally {
       setImportLoading(false);
     }
-  }, [token, importShowDismissed]);
+  }, [ensureAdminSession, importShowDismissed, retryWithFreshSession]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setMessage(null);
     try {
-      const authed = await establishSession(token.trim());
+      const authed = await ensureAdminSession();
       if (!authed) {
         setDrops([]);
         setComments([]);
@@ -201,7 +219,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, venueNames.size]);
+  }, [ensureAdminSession, venueNames.size]);
 
   const decideComment = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
     setPendingId(id);
@@ -261,27 +279,27 @@ export default function AdminPage() {
   }, []);
 
   async function submitImportNote() {
-    const t = token.trim();
-    if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
     setImportPending(true);
     setImportMsg(null);
     try {
-      const authed = await establishSession(t);
+      const authed = await ensureAdminSession();
       if (!authed) {
         setImportMsg("Not authorised — check the admin token.");
         return;
       }
-      const res = await fetch("/api/admin/import-notes", {
-        ...SESSION_FETCH,
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          body: importBody,
-          venueId: importVenueId.trim() || undefined,
-          venueName: importVenueName.trim() || undefined,
-          provenance: importProvenance,
+      const res = await retryWithFreshSession(() =>
+        fetch("/api/admin/import-notes", {
+          ...SESSION_FETCH,
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            body: importBody,
+            venueId: importVenueId.trim() || undefined,
+            venueName: importVenueName.trim() || undefined,
+            provenance: importProvenance,
+          }),
         }),
-      });
+      );
       const payload = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
@@ -307,21 +325,22 @@ export default function AdminPage() {
   }
 
   async function decideImportNote(id: string, action: "dismiss" | "restore") {
-    const t = token.trim();
     setImportActionId(id);
     setImportMsg(null);
     try {
-      const authed = await establishSession(t);
+      const authed = await ensureAdminSession();
       if (!authed) {
         setImportMsg("Not authorised — check the admin token.");
         return;
       }
-      const res = await fetch("/api/admin/import-notes", {
-        ...SESSION_FETCH,
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, action }),
-      });
+      const res = await retryWithFreshSession(() =>
+        fetch("/api/admin/import-notes", {
+          ...SESSION_FETCH,
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id, action }),
+        }),
+      );
       const payload = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
@@ -334,7 +353,8 @@ export default function AdminPage() {
         setImportMsg(payload.error ?? "Action failed — try again.");
         return;
       }
-      setImportMsg(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored."));      await loadImportNotes();
+      setImportMsg(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored."));
+      await loadImportNotes();
     } catch {
       setImportMsg("Could not reach the server.");
     } finally {
@@ -382,7 +402,10 @@ export default function AdminPage() {
         <input
           type="password"
           value={token}
-          onChange={(e) => setToken(e.target.value)}
+          onChange={(e) => {
+            setToken(e.target.value);
+            setSessionEstablished(false);
+          }}
           placeholder="Admin token"
           aria-label="Admin token"
         />

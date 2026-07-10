@@ -95,7 +95,11 @@ export function getRoutePack(id: string): RoutePack | undefined {
 
 /** Lead curated crawl for a pack (first crawlId that still resolves). */
 export function routePackPrimaryCrawl(pack: RoutePack): CuratedCrawl | undefined {
-  return curatedCrawlById(pack.crawlIds[0]);
+  for (const crawlId of pack.crawlIds) {
+    const crawl = curatedCrawlById(crawlId);
+    if (crawl) return crawl;
+  }
+  return undefined;
 }
 
 /** Map-first deep-link for a pack's lead crawl (Old London → Victorian Soho). */

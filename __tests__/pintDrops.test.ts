@@ -192,6 +192,12 @@ describe("POST /api/pint-drops (create)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("normalizes handles before persistence so author filters match", () => {
+    const result = validatePintDrop({ venueId: VENUE, handle: " @Ale-Ken! ", priceGbp: 4.2 });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.handle).toBe("aleken");
+  });
+
   it("rate-limits the 9th rapid submission from one handle", async () => {
     let last: Response | undefined;
     for (let i = 0; i < 9; i++) {
