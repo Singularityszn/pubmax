@@ -1117,7 +1117,7 @@ export default function PubMapCanvas({
             minzoom: 12.5,
             paint: {
               "fill-extrusion-color": dark
-                ? withAlpha(tokens.panelRaised, 0.92)
+                ? "#5a6270"
                 : withAlpha(tokens.line, 0.95),
               "fill-extrusion-height": [
                 "interpolate",
@@ -1129,7 +1129,7 @@ export default function PubMapCanvas({
                 ["*", ["coalesce", ["get", "render_height"], ["get", "height"], 14], 1.08],
               ],
               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-              "fill-extrusion-opacity": dark ? 0.72 : 0.58,
+              "fill-extrusion-opacity": dark ? 0.85 : 0.58,
             },
           },
           firstSymbolId,

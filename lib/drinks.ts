@@ -111,6 +111,33 @@ export function categoryLabel(category: DrinkCategory): string {
   return CATEGORY_META[category].label;
 }
 
+// Typical UK ABV (%) by category when a brand/drink has no specific value.
+// `null` means honestly unknown (e.g. "other") — never fabricate 0.
+export const CATEGORY_DEFAULT_ABV: Record<DrinkCategory, number | null> = {
+  beer: 4,
+  wine: 12,
+  whisky: 40,
+  gin: 40,
+  vodka: 40,
+  rum: 40,
+  cocktail: 14,
+  shot: 40,
+  other: null,
+};
+
+/** Format ABV for quiet UI meta: `"4.2%"` or `""` when missing. */
+export function formatAbv(abv: number | null | undefined): string {
+  if (typeof abv !== "number" || !Number.isFinite(abv)) return "";
+  return `${abv}%`;
+}
+
+/** Brand ABV when set; otherwise undefined (caller may fall back to category default). */
+export function abvForBrand(brand: { abv?: number }): number | undefined {
+  return typeof brand.abv === "number" && Number.isFinite(brand.abv)
+    ? brand.abv
+    : undefined;
+}
+
 export function alcoholTypeForDrink(input: {
   name: string;
   abv?: number;

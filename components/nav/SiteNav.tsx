@@ -83,7 +83,7 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
       <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXXING landing page">
         <span className="siteNavBrandFull">PUBMAXXING</span>
         <span className="siteNavBrandMobile" aria-hidden="true">
-          <Home size={15} strokeWidth={2} />
+          <Home size={13} strokeWidth={2.25} />
           <span>Home</span>
         </span>
       </Link>

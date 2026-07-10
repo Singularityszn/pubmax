@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/venues";
 import DrinkRatingRow from "@/components/ratings/DrinkRatingRow";
 import PriceBadge from "@/components/PriceBadge";
 import {
+  formatAbv,
   groupDrinksByCategory,
   type Drink,
   type DrinkCategory,
@@ -57,7 +58,8 @@ function drinkMeta(drink: Drink): string {
   if (drink.producer) parts.push(drink.producer);
   if (drink.style) parts.push(drink.style);
   if (drink.region) parts.push(drink.region);
-  if (typeof drink.abv === "number") parts.push(`${drink.abv}%`);
+  const abv = formatAbv(drink.abv);
+  if (abv) parts.push(abv);
   return parts.join(" · ");
 }
 

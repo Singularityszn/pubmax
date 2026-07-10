@@ -103,7 +103,7 @@ export default function MobileTabBar() {
               >
                 <span className="mobileTabIcon" aria-hidden="true">
                   <Icon
-                    size={tab.primary ? 20 : 18}
+                    size={tab.primary ? 16 : 15}
                     strokeWidth={active ? 2.25 : 1.75}
                     fill="none"
                   />

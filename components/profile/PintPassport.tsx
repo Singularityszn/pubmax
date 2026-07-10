@@ -82,8 +82,9 @@ export default function PintPassport({
           </h2>
           <p className="passportHandle">@{handle}</p>
         </div>
-        {/* The signature stamp — the one tilted ink element on the page. */}
-        <span className="passportSeal ink-stamp ink-stamp--tilt" aria-hidden="true">
+        {/* Straight seal — keep the ink-stamp border, skip the tilt so the
+            wordmark reads level next to the passport title. */}
+        <span className="passportSeal ink-stamp" aria-hidden="true">
           PUBMAXXING
         </span>
       </header>

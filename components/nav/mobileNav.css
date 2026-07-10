@@ -9,9 +9,9 @@
 }
 
 @media (max-width: 640px) {
-  /* Slimmer tab bar — map first; less chrome over the night city. */
+  /* Compact tab bar — room for a fifth tab later; map chrome stays clear. */
   body {
-    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   }
 
   .mobileTabBar {
@@ -27,7 +27,7 @@
       color-mix(in srgb, var(--paper) 88%, transparent),
       transparent
     );
-    padding: 0 10px calc(4px + env(safe-area-inset-bottom, 0px));
+    padding: 0 12px calc(2px + env(safe-area-inset-bottom, 0px));
     pointer-events: none;
     transition:
       opacity var(--duration-base) var(--ease-out),
@@ -45,17 +45,17 @@
     display: flex;
     align-items: center;
     justify-content: space-around;
-    gap: 2px;
-    max-width: 420px;
+    gap: 0;
+    max-width: 360px;
     margin: 0 auto;
-    padding: 3px;
+    padding: 2px;
     list-style: none;
-    border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));
-    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
+    border-radius: 16px;
     background: var(--panel-raised);
     box-shadow:
-      0 -4px 14px color-mix(in srgb, var(--ink-deep) 12%, transparent),
-      0 6px 16px color-mix(in srgb, var(--ink-deep) 10%, transparent);
+      0 -3px 12px color-mix(in srgb, var(--ink-deep) 10%, transparent),
+      0 4px 12px color-mix(in srgb, var(--ink-deep) 8%, transparent);
     pointer-events: auto;
   }
 
@@ -71,14 +71,14 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    /* Keep ≥44px hit area; visual weight stays slim via padding/icon size. */
-    min-height: 44px;
-    padding: 4px 2px;
-    border-radius: 14px;
+    gap: 1px;
+    /* Visual slim; keep ≥40px hit area for thumbs. */
+    min-height: 40px;
+    padding: 2px 1px;
+    border-radius: 12px;
     color: var(--muted, var(--ink-soft));
     text-decoration: none;
-    font-size: 0.58rem;
+    font-size: 0.52rem;
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1;
@@ -93,8 +93,8 @@
   .mobileTabIcon {
     display: grid;
     place-items: center;
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     color: currentcolor;
     transition:
       color var(--duration-base) var(--ease-out),
@@ -143,15 +143,15 @@
   }
 
   .mobileTabPrimary .mobileTabIcon {
-    /* Visual circle 36px; parent .mobileTab keeps 44px tap target. */
-    width: 36px;
-    height: 36px;
-    margin-top: -2px;
+    /* Compact Drop circle; parent .mobileTab keeps the tap target. */
+    width: 30px;
+    height: 30px;
+    margin-top: -1px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--brass) 92%, var(--panel-raised));
     color: var(--color-on-accent, #fdfaf2);
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--brass) 22%, transparent);
-    border: 2px solid color-mix(in srgb, var(--panel-raised) 92%, transparent);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--brass) 20%, transparent);
+    border: 1.5px solid color-mix(in srgb, var(--panel-raised) 92%, transparent);
   }
 
   .mobileTabPrimary .mobileTabLabel {
@@ -179,30 +179,31 @@
 
 @media (max-width: 390px) {
   .mobileTabBar {
-    padding-inline: 8px;
+    padding-inline: 10px;
   }
 
   .mobileTabPrimary .mobileTabIcon {
-    width: 34px;
-    height: 34px;
-    margin-top: -1px;
+    width: 28px;
+    height: 28px;
+    margin-top: 0;
   }
 }
 
 @media (max-width: 360px) {
   .mobileTabList {
-    padding: 2px;
+    padding: 1px;
+    max-width: 340px;
   }
 
   .mobileTab {
-    font-size: 0.54rem;
-    padding: 2px 1px;
-    min-height: 44px;
+    font-size: 0.48rem;
+    padding: 1px 0;
+    min-height: 38px;
   }
 
   .mobileTabPrimary .mobileTabIcon {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
   }
 }
 

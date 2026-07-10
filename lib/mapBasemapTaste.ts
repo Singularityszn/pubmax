@@ -55,17 +55,20 @@ function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown):
 /** Exported for unit tests — dark land must never equal cream ink. */
 export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
   if (dark) {
-    // Night city: deep land, luminous brass/cream streets (OpenFreeMap dark
-    // Liberty uses highway_* ids — keep those bright against inkDeep).
+    // Night city (Apple/Google Maps night pattern): deep cool land, buildings
+    // a clear step lighter in cool gray — never brass/coral wash (vanishes into
+    // inkDeep) and never `--line` alone (too close to land at low alpha).
+    // OpenFreeMap dark Liberty uses highway_* ids — keep those bright.
     return {
       land: tokens.inkDeep || tokens.paper,
       landSoft: withAlpha(tokens.brass, 0.14),
       residential: withAlpha(tokens.brass, 0.12),
       park: withAlpha(tokens.pint, 0.32),
-      building: withAlpha(tokens.brass, 0.28),
+      // Cool mid-gray massing — readable footprints on near-black land.
+      building: "#4a5160",
       water: tokens.river,
-      road: withAlpha(tokens.ink, 0.72),
-      roadMajor: withAlpha(tokens.amber, 0.88),
+      road: withAlpha(tokens.ink, 0.82),
+      roadMajor: withAlpha(tokens.amber, 0.94),
     };
   }
   return {
@@ -173,7 +176,7 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
 
   for (const id of BUILDING_FILL_IDS) {
     tryPaint(map, id, "fill-color", palette.building);
-    tryPaint(map, id, "fill-opacity", dark ? 0.55 : 0.7);
+    tryPaint(map, id, "fill-opacity", dark ? 0.88 : 0.7);
   }
 
   for (const id of WATER_FILL_IDS) {
@@ -193,9 +196,16 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
   }
 }
 
-function paintDiscoveredFill(map: PaintMap, layerId: string, id: string, palette: TastePalette): void {
+function paintDiscoveredFill(
+  map: PaintMap,
+  layerId: string,
+  id: string,
+  palette: TastePalette,
+  dark: boolean,
+): void {
   if (id.includes("building")) {
     tryPaint(map, layerId, "fill-color", palette.building);
+    tryPaint(map, layerId, "fill-opacity", dark ? 0.88 : 0.7);
     return;
   }
   if (isParkish(id)) {
@@ -267,7 +277,7 @@ function paintDiscoveredLayers(
   for (const layer of map.getStyle().layers ?? []) {
     const id = layer.id.toLowerCase();
     if (layer.type === "fill") {
-      paintDiscoveredFill(map, layer.id, id, palette);
+      paintDiscoveredFill(map, layer.id, id, palette, dark);
     } else if (layer.type === "line") {
       paintDiscoveredLine(map, layer.id, id, palette, dark);
     } else if (layer.type === "background") {

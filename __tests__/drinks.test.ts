@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   DRINK_CATEGORIES,
+  CATEGORY_DEFAULT_ABV,
   CATEGORY_META,
+  abvForBrand,
   beerDrinksToLegacy,
   categoryLabel,
+  formatAbv,
   groupDrinksByCategory,
   isDrinkCategory,
   legacyPricesToDrinks,
@@ -60,6 +63,32 @@ describe("category taxonomy", () => {
   it("categoryLabel returns the human label", () => {
     expect(categoryLabel("whisky")).toBe("Whisky");
     expect(categoryLabel("beer")).toBe("Beer");
+  });
+});
+
+describe("formatAbv / CATEGORY_DEFAULT_ABV", () => {
+  it("formats a numeric ABV as X%", () => {
+    expect(formatAbv(4.2)).toBe("4.2%");
+    expect(formatAbv(40)).toBe("40%");
+  });
+
+  it("returns empty string when ABV is missing", () => {
+    expect(formatAbv(undefined)).toBe("");
+    expect(formatAbv(null)).toBe("");
+    expect(formatAbv(Number.NaN)).toBe("");
+  });
+
+  it("ships a default ABV (or null) for every category", () => {
+    expect(CATEGORY_DEFAULT_ABV.beer).toBe(4);
+    expect(CATEGORY_DEFAULT_ABV.other).toBeNull();
+    for (const cat of DRINK_CATEGORIES) {
+      expect(cat in CATEGORY_DEFAULT_ABV).toBe(true);
+    }
+  });
+
+  it("abvForBrand reads brand.abv when present", () => {
+    expect(abvForBrand({ abv: 41.6 })).toBe(41.6);
+    expect(abvForBrand({})).toBeUndefined();
   });
 });
 

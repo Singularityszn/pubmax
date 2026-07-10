@@ -9,7 +9,7 @@ import { computeBadges, type Badge, type Profile, type ProfileDrop, type Profile
 // Presentational header for a public profile. Prop-driven and stateless — the
 // page owns all data. Renders an avatar (image or a fallback initial), the
 // display name + @handle, optional home city and bio, earned achievement badges
-// (brass chips), a stats row (pints · cheapest · crawls, plus durable
+// (brass chips), a stats row (pints · cheapest · crawls · memories, plus durable
 // follower/following counts), and an optional actions slot (the page drops the
 // follow button here so the header stays purely presentational).
 type ProfileHeaderProps = {
@@ -18,6 +18,8 @@ type ProfileHeaderProps = {
   // Crawls are demo/0 for now — the page passes it explicitly so the header
   // stays purely presentational. Falls back to stats.crawlsPosted, then 0.
   crawls?: number;
+  // Passed-down memories count. Falls back to stats.memoriesPosted.
+  memories?: number;
   followers?: number;
   following?: number;
   // The handle's drops, used to derive badges. Optional so a caller that has no
@@ -39,6 +41,7 @@ export default function ProfileHeader({
   profile,
   stats,
   crawls,
+  memories,
   followers,
   following,
   drops,
@@ -49,6 +52,8 @@ export default function ProfileHeader({
   // Prefer the explicit crawls prop; fall back to the stat the page computed.
   const crawlsPosted =
     typeof crawls === "number" ? crawls : stats.crawlsPosted ?? 0;
+  const memoriesPosted =
+    typeof memories === "number" ? memories : stats.memoriesPosted ?? 0;
 
   // Only surface EARNED badges — a public profile shows what you've done, not a
   // to-do list of locked achievements.
@@ -130,6 +135,10 @@ export default function ProfileHeader({
         <div className="profileStat">
           <dt>Crawls</dt>
           <dd>{crawlsPosted}</dd>
+        </div>
+        <div className="profileStat">
+          <dt>Memories</dt>
+          <dd>{memoriesPosted}</dd>
         </div>
       </dl>
     </header>
