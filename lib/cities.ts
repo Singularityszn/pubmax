@@ -97,7 +97,7 @@ export const CITIES: Record<CityId, CityConfig> = {
   manchester: city({
     id: "manchester",
     displayName: "Manchester",
-    tagline: "Northern Quarter rounds and tram-home timing",
+    tagline: "Northern Quarter rounds and city-centre crawls",
     country: "england",
     bounds: { latMin: 53.38, latMax: 53.55, lonMin: -2.35, lonMax: -2.1 },
     mapView: { center: [-2.24, 53.48], zoom: 11.2 },
@@ -110,7 +110,7 @@ export const CITIES: Record<CityId, CityConfig> = {
   liverpool: city({
     id: "liverpool",
     displayName: "Liverpool",
-    tagline: "Waterfront crawls and Merseyrail last rides",
+    tagline: "Waterfront crawls and Merseyrail nights",
     country: "england",
     bounds: { latMin: 53.35, latMax: 53.48, lonMin: -3.05, lonMax: -2.85 },
     mapView: { center: [-2.98, 53.41], zoom: 11.4 },
@@ -149,7 +149,7 @@ export const CITIES: Record<CityId, CityConfig> = {
   glasgow: city({
     id: "glasgow",
     displayName: "Glasgow",
-    tagline: "West End crawls and Subway last rides",
+    tagline: "West End crawls and Subway nights",
     country: "scotland",
     bounds: { latMin: 55.82, latMax: 55.9, lonMin: -4.35, lonMax: -4.15 },
     mapView: { center: [-4.25, 55.86], zoom: 11.5 },
@@ -188,7 +188,7 @@ export const CITIES: Record<CityId, CityConfig> = {
   bath: city({
     id: "bath",
     displayName: "Bath",
-    tagline: "Georgian streets and spa-city last trains",
+    tagline: "Georgian streets and spa-city snugs",
     country: "england",
     bounds: { latMin: 51.36, latMax: 51.4, lonMin: -2.4, lonMax: -2.32 },
     mapView: { center: [-2.36, 51.38], zoom: 12.8 },
