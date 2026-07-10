@@ -585,11 +585,15 @@ export default function PubMapCanvas({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
   // Keep the latest parent callback without reading/writing refs during render
-  // (react-hooks/refs). Build/event handlers read this when mapReady flips.
+  // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
   }, [onMapReady]);
+  const publishMapReady = useCallback((ready: boolean) => {
+    setMapReady(ready);
+    onMapReadyRef.current?.(ready);
+  }, []);
   // The fallback is a real user-facing dead end, so it carries enough to be
   // honest about *why*: `kind` drives the copy (only "constructor" with a
   // confirmed-dead probe may claim "needs WebGL"), `detail` surfaces the raw
@@ -603,6 +607,15 @@ export default function PubMapCanvas({
     // Retry would be pointless — this is the sole case that hides the button.
     noWebgl?: boolean;
   } | null>(null);
+  const reportMapError = useCallback(
+    (error: NonNullable<typeof mapError>) => {
+      // Lift the parent's loading chrome so this honest error card is visible
+      // (Wave K2 kept the overlay until mapReady — failures must still resolve it).
+      publishMapReady(true);
+      setMapError(error);
+    },
+    [publishMapReady],
+  );
   // Bumped to re-run the mount effect: once silently (auto-retry after a
   // constructor throw) and again on the user's Retry click. The cleanup fully
   // tears the map down, so each bump is a clean re-init.
@@ -953,7 +966,7 @@ export default function PubMapCanvas({
       // honest that this browser lacks WebGL; otherwise it's a stubborn
       // constructor failure the user can Retry.
       queueMicrotask(() =>
-        setMapError(
+        reportMapError(
           probeHasContext
             ? {
                 kind: "constructor",
@@ -1549,8 +1562,7 @@ export default function PubMapCanvas({
         }
       }
 
-      setMapReady(true);
-      onMapReadyRef.current?.(true);
+      publishMapReady(true);
     };
     // --- Basemap fallback: OpenFreeMap is community-run, so if the primary style
     // hasn't loaded within a timeout (or errors before first load), swap to
@@ -1580,7 +1592,7 @@ export default function PubMapCanvas({
       hardFailTimer = setTimeout(() => {
         if (!styleLoaded) {
           queueMicrotask(() =>
-            setMapError({
+            reportMapError({
               kind: "tiles",
               message:
                 "The map couldn't load its tiles right now — the pub list and crawl planner still work.",
@@ -1606,7 +1618,7 @@ export default function PubMapCanvas({
       if (contextLostTimer) clearTimeout(contextLostTimer);
       contextLostTimer = setTimeout(() => {
         queueMicrotask(() =>
-          setMapError({
+          reportMapError({
             kind: "context-lost",
             message: "The map lost its graphics context and couldn't recover.",
             detail: "WebGL context lost without restore",
@@ -1831,8 +1843,7 @@ export default function PubMapCanvas({
       }
       map.remove();
       mapRef.current = null;
-      setMapReady(false);
-      onMapReadyRef.current?.(false);
+      publishMapReady(false);
     };
     } // end construct()
 
@@ -1862,6 +1873,8 @@ export default function PubMapCanvas({
     transitLinesPath,
     showLandmarks,
     landmarksGeoJSON,
+    publishMapReady,
+    reportMapError,
   ]);
 
   // Keep landmark GeoJSON in sync when the city catalog changes (e.g. London → Manchester).
@@ -2169,6 +2182,7 @@ export default function PubMapCanvas({
               className="mapFallbackRetry"
               onClick={() => {
                 setMapError(null);
+                publishMapReady(false);
                 setInitAttempt((a) => a + 1);
               }}
             >
