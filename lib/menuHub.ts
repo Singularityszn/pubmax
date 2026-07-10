@@ -4,6 +4,7 @@ import {
   type Drink,
   type DrinkCategory,
 } from "@/lib/drinks";
+import { firstHttp } from "@/lib/httpUrl";
 import type { Venue } from "@/lib/venues";
 import { venueExternalActions } from "@/lib/venueExternalActions";
 
@@ -24,6 +25,8 @@ export type MenuHubTile = {
   category?: DrinkCategory;
   /** External http(s) link for food / full menu. */
   href?: string;
+  /** Optional photo for food-external tiles (enrichment). */
+  imageUrl?: string;
   count?: number;
 };
 
@@ -59,13 +62,28 @@ export function menuHubTiles(venue: Venue, drinks: Drink[]): MenuHubTile[] {
 
   const external = venueExternalActions(venue);
   const menuOrSite = external.find((a) => a.kind === "menu" || a.kind === "website");
-  if (menuOrSite && venue.amenities.food) {
+  const defaultFoodHref = firstHttp(venue.menuUrl, menuOrSite?.href);
+
+  if (venue.categoryTiles && venue.categoryTiles.length > 0) {
+    for (const tile of venue.categoryTiles) {
+      const href = firstHttp(tile.href, venue.menuUrl, menuOrSite?.href);
+      if (!href) continue;
+      tiles.push({
+        id: tile.id,
+        kind: "food-external",
+        label: tile.label,
+        hint: tile.hint,
+        href,
+        ...(tile.imageUrl ? { imageUrl: tile.imageUrl } : {}),
+      });
+    }
+  } else if (defaultFoodHref && (venue.amenities.food || venue.menuUrl)) {
     tiles.push({
       id: "food-external",
       kind: "food-external",
       label: "Food menu",
       hint: "Opens the pub site",
-      href: menuOrSite.href,
+      href: defaultFoodHref,
     });
   }
 

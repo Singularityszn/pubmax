@@ -70,6 +70,15 @@ describe("venueDetailIndex", () => {
     expect(venue?.name).toBe(seedRows[0]?.pub_name);
   });
 
+  it("merges curated menu enrichment onto Prospect of Whitby detail", async () => {
+    const venue = await getVenueDetail(SEED_VENUE_ID);
+    expect(venue?.menuUrl).toBe(
+      "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+    );
+    expect(venue?.orderUrl).toBeUndefined();
+    expect(venue?.bookingLink).toMatch(/^https:\/\//);
+  });
+
   it("degrades to null when the detail rows file cannot be opened", async () => {
     setVenueDetailRowsFileForTests(path.join(ROOT, "data", "generated", "missing-details.jsonl"));
     await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toBeNull();

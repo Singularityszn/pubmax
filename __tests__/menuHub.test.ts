@@ -91,7 +91,43 @@ describe("menuHubTiles", () => {
     expect(noFood.some((t) => t.kind === "food-external")).toBe(false);
   });
 
+  it("adds a Food menu tile from curated menuUrl even without food amenity", () => {
+    const tiles = menuHubTiles(
+      venue({ menuUrl: "https://pub.example/menu" }),
+      [drink({ id: "d1", category: "beer", name: "Lager" })],
+    );
+    expect(tiles.some((t) => t.kind === "food-external")).toBe(true);
+  });
+
   it("returns empty when there are no drinks and no food link", () => {
     expect(menuHubTiles(venue(), [])).toEqual([]);
   });
+
+  it("emits categoryTiles with imageUrl as food-external tiles", () => {
+    const tiles = menuHubTiles(
+      venue({
+        website: "https://pub.example/",
+        menuUrl: "https://pub.example/menu",
+        amenities: { ...venue().amenities, food: true },
+        categoryTiles: [
+          {
+            id: "roasts",
+            label: "Sunday roast",
+            hint: "Opens the pub site",
+            imageUrl: "https://cdn.example/roast.jpg",
+          },
+        ],
+      }),
+      [drink({ id: "d1", category: "beer", name: "Lager" })],
+    );
+    const food = tiles.filter((t) => t.kind === "food-external");
+    expect(food).toHaveLength(1);
+    expect(food[0]).toMatchObject({
+      id: "roasts",
+      label: "Sunday roast",
+      href: "https://pub.example/menu",
+      imageUrl: "https://cdn.example/roast.jpg",
+    });
+  });
 });
+

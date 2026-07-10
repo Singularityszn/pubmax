@@ -54,8 +54,22 @@ export default function MenuCategoryGrid({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <span className="menuHub__media menuHub__media--food" aria-hidden="true">
-                    <UtensilsCrossed size={28} />
+                  <span
+                    className={`menuHub__media menuHub__media--food${tile.imageUrl ? " menuHub__media--photo" : ""}`}
+                    aria-hidden="true"
+                  >
+                    {tile.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- curated external menu tile photos
+                      <img
+                        className="menuHub__photo"
+                        src={tile.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <UtensilsCrossed size={28} />
+                    )}
                   </span>
                   <span className="menuHub__meta">
                     <span className="menuHub__label">{tile.label}</span>

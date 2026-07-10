@@ -115,7 +115,7 @@ describe("venueExternalActions", () => {
     ).toEqual([]);
   });
 
-  it("never emits an order action", () => {
+  it("never invents an order action without orderUrl", () => {
     const actions = venueExternalActions(
       venue({
         bookingLink: "https://book.example/table",
@@ -124,5 +124,52 @@ describe("venueExternalActions", () => {
       }),
     );
     expect(actions.map((a) => a.kind)).not.toContain("order");
+  });
+
+  it("prefers menuUrl over website for Look at the menu when food", () => {
+    const actions = venueExternalActions(
+      venue({
+        website: "https://pub.example/",
+        menuUrl: "https://pub.example/food-menu",
+        amenities: { ...venue().amenities, food: true },
+      }),
+    );
+    expect(actions).toEqual([
+      {
+        kind: "menu",
+        label: "Look at the menu",
+        href: "https://pub.example/food-menu",
+      },
+    ]);
+  });
+
+  it("surfaces curated menuUrl even when food amenity is false", () => {
+    const actions = venueExternalActions(
+      venue({
+        website: "https://pub.example/",
+        menuUrl: "https://pub.example/food-menu",
+      }),
+    );
+    expect(actions[0]).toMatchObject({
+      kind: "menu",
+      label: "Look at the menu",
+      href: "https://pub.example/food-menu",
+    });
+  });
+
+  it("emits Order food when orderUrl is http(s)", () => {
+    const actions = venueExternalActions(
+      venue({
+        website: "https://pub.example/",
+        orderUrl: "https://order.example/pub",
+        amenities: { ...venue().amenities, food: true },
+      }),
+    );
+    expect(actions.map((a) => a.kind)).toEqual(["menu", "order"]);
+    expect(actions.find((a) => a.kind === "order")).toEqual({
+      kind: "order",
+      label: "Order food",
+      href: "https://order.example/pub",
+    });
   });
 });

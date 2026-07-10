@@ -1,3 +1,4 @@
+import { firstHttp } from "@/lib/httpUrl";
 import type { Venue } from "@/lib/venues";
 
 /**
@@ -15,26 +16,9 @@ export type VenueExternalAction = {
   href: string;
 };
 
-function isHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function firstHttp(...candidates: Array<string | undefined | null>): string {
-  for (const candidate of candidates) {
-    const trimmed = typeof candidate === "string" ? candidate.trim() : "";
-    if (trimmed && isHttpUrl(trimmed)) return trimmed;
-  }
-  return "";
-}
-
 /**
- * Resolve Book / Look at the menu / Pub website CTAs for a venue.
- * Order food is reserved for a future curated order URL (never faked).
+ * Resolve Book / Look at the menu / Pub website / Order food CTAs for a venue.
+ * Order: book → menu/website → order. Never invents URLs.
  */
 export function venueExternalActions(venue: Venue): VenueExternalAction[] {
   const actions: VenueExternalAction[] = [];
@@ -44,16 +28,39 @@ export function venueExternalActions(venue: Venue): VenueExternalAction[] {
     actions.push({ kind: "book", label: "Book a table", href: booking });
   }
 
-  const website = firstHttp(venue.website);
-  if (website) {
-    // Honest label: most dataset websites are pub homepages, not a menu PDF.
-    // When the pub serves food, "Look at the menu" is the Greene King–style
-    // affordance; otherwise "Pub website".
+  // Curated menuUrl always wins as "Look at the menu". Otherwise, when the
+  // pub serves food, the homepage is an honest menu/site link-out; without
+  // food, label it "Pub website".
+  const curatedMenu = firstHttp(venue.menuUrl);
+  if (curatedMenu) {
     actions.push({
-      kind: venue.amenities.food ? "menu" : "website",
-      label: venue.amenities.food ? "Look at the menu" : "Pub website",
-      href: website,
+      kind: "menu",
+      label: "Look at the menu",
+      href: curatedMenu,
     });
+  } else if (venue.amenities.food) {
+    const menuHref = firstHttp(venue.website);
+    if (menuHref) {
+      actions.push({
+        kind: "menu",
+        label: "Look at the menu",
+        href: menuHref,
+      });
+    }
+  } else {
+    const website = firstHttp(venue.website);
+    if (website) {
+      actions.push({
+        kind: "website",
+        label: "Pub website",
+        href: website,
+      });
+    }
+  }
+
+  const order = firstHttp(venue.orderUrl);
+  if (order) {
+    actions.push({ kind: "order", label: "Order food", href: order });
   }
 
   return actions;

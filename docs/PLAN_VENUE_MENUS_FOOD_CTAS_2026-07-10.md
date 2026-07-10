@@ -26,6 +26,13 @@ tile, food as a secondary path (usually link-out).
 - Keep Drops as the default venue tab; Menu is the commerce/browse surface.
 - Design tokens only (brass / paper / ink) — no purple/cream redesign.
 
-## MVP in this branch
+## Status on this branch
 
-Phases 1–3 on existing dataset links + drink composition.
+- **Phases 1–3:** shipped (action strip, Menu hub, drinks deep-dive).
+- **Phase 4 (partial):** `lib/venueMenuEnrichment.ts` merges
+  `public/data/venue_menu_enrichment.json` on `/api/venue/[id]` only.
+  Seed covers **14** Greene King / famous London pubs with `menuUrl` +
+  `bookingUrl` (+ photo tiles on 4). Full pubmaxxing auto-join deferred
+  (conservative matcher + manual overrides still needed for ambiguous names).
+- **Phase 5:** not started — `allergyInfoUrl` is stored for GK pubs but not
+  yet rendered as a banner.
