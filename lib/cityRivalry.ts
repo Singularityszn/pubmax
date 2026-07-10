@@ -104,9 +104,8 @@ export function demoDropCountForCity(cityId: CityId): number {
 }
 
 /**
- * Curated crawl packs actually shipped for a city. `curatedCrawlsForCity`
- * falls back to London's list for browse-only cities — do not count those as
- * Liverpool/Oxford/etc. energy.
+ * Curated crawl packs actually shipped for a city. Browse-only cities
+ * (e.g. Bath) return an empty catalog from `curatedCrawlsForCity`.
  */
 export function crawlPackCountForCity(cityId: CityId): number {
   switch (cityId) {

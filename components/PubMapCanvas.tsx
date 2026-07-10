@@ -52,6 +52,8 @@ import {
   categoryVar,
   type DrinkCategory,
 } from "@/lib/categoryColors";
+import type { CityId } from "@/lib/cities";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { directVenueImageUrl } from "@/lib/venueImages";
 
@@ -130,6 +132,11 @@ type PubMapCanvasProps = {
    * City Place-story corridors (from storyBandsForCity). Defaults to London.
    */
   cityStoryBands?: StoryBand[];
+  /**
+   * Active city — gates London-only hero tie-break (Prospect of Whitby) and
+   * city-aware Layers chrome. Defaults to london for back-compat.
+   */
+  cityId?: CityId;
 };
 
 // OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
@@ -566,6 +573,7 @@ export default function PubMapCanvas({
   transitLinesPath = "/data/tfl_lines.json",
   cityLandmarks = londonLandmarks,
   cityStoryBands = LONDON_STORY_BANDS,
+  cityId = DEFAULT_CITY_ID,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
@@ -2202,17 +2210,18 @@ export default function PubMapCanvas({
 
   // M5 / PRD P1.5: one curated story venue greets the first paint. Prefer a
   // heritage pub the community has actually logged (Pint Drops), with the
-  // Prospect of Whitby as the flagship tie-break.
+  // Prospect of Whitby as the London-only flagship tie-break.
   const heroVenue = useMemo(() => {
     const candidates = venues.filter(
       (venue) => venue.hasStory && venue.curation.heritageNote,
     );
     if (candidates.length === 0) return null;
+    const preferWhitby = cityId === "london";
     const score = (venue: Venue) =>
       (venueSignals.get(venue.id)?.hasPintDrops ? 2 : 0) +
-      (venue.name.toLowerCase().includes("prospect of whitby") ? 1 : 0);
+      (preferWhitby && venue.name.toLowerCase().includes("prospect of whitby") ? 1 : 0);
     return candidates.reduce((best, venue) => (score(venue) > score(best) ? venue : best));
-  }, [venues, venueSignals]);
+  }, [venues, venueSignals, cityId]);
 
   const hoverDetail = useMemo(
     () => (hoveredVenueId ? hoverDetails.get(hoveredVenueId) : undefined),
@@ -2460,6 +2469,7 @@ export default function PubMapCanvas({
         activeBandId={activeBandId}
         onBandChange={onBandChange}
         storyBands={cityStoryBands}
+        cityId={cityId}
       />
       {activePoi ? (
         <div className="poiLabelCard" role="status">

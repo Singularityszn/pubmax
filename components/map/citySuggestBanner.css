@@ -1,0 +1,83 @@
+/* Geolocation city nudge — sits under the map toolbar; brass/ink tokens. */
+
+.citySuggestBanner {
+  position: absolute;
+  top: 58px;
+  left: 50%;
+  z-index: 540;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 24px));
+  padding: 8px 8px 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--panel-raised) 94%, transparent),
+      color-mix(in srgb, var(--surface-tint-lager) 62%, transparent)
+    ),
+    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  color: var(--ink);
+  box-shadow: var(--map-overlay-shadow);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  transform: translateX(-50%);
+}
+
+.citySuggestBannerCopy {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.citySuggestBannerSwitch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  color: var(--brass);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.citySuggestBannerSwitch:hover {
+  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
+}
+
+.citySuggestBannerDismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.citySuggestBannerDismiss:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+@media (max-width: 640px) {
+  .citySuggestBanner {
+    top: 52px;
+  }
+}

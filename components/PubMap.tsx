@@ -30,6 +30,7 @@ import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 import MapToolbar from "@/components/map/MapToolbar";
 import MapPriceControl from "@/components/map/MapPriceControl";
+import CitySuggestBanner from "@/components/map/CitySuggestBanner";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag, sheetSnapTranslateYPx } from "@/components/map/useSheetDrag";
@@ -620,25 +621,36 @@ export default function PubMap({
     };
   }, [selectedVenueId, detailById]);
 
-  // Sourced price-refresh layer (issue #23): fetched 404-tolerantly; community
-  // drops always outrank it inside mergePriceUpdates.
+  // Sourced price-refresh layer (issue #23): London-only JSON; community drops
+  // always outrank it inside mergePriceUpdates. Skip the fetch for other cities
+  // and ignore any stale London updates while viewing them (no setState clear).
   const [priceUpdates, setPriceUpdates] = useState<PriceUpdate[]>([]);
   useEffect(() => {
+    if (cityId !== "london") return;
+    let cancelled = false;
     fetch("/data/price_updates/latest.json")
       .then((response) => (response.ok ? response.json() : null))
       .then((raw) => {
-        if (raw) setPriceUpdates(parsePriceUpdates(raw));
+        if (cancelled || !raw) return;
+        setPriceUpdates(parsePriceUpdates(raw));
       })
       .catch(() => {
         // No update file (or bad JSON) — baseline + community prices stand.
       });
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [cityId]);
 
   const baseVenues = useMemo(() => mergeLazyDetailPins(slimPins, detailById), [slimPins, detailById]);
   const venues = useMemo<Venue[]>(
     () =>
-      mergePriceUpdates(mergeVenueDrops(baseVenues, dropsByVenueId), priceUpdates, venueUpdateKey),
-    [baseVenues, dropsByVenueId, priceUpdates],
+      mergePriceUpdates(
+        mergeVenueDrops(baseVenues, dropsByVenueId),
+        cityId === "london" ? priceUpdates : [],
+        venueUpdateKey,
+      ),
+    [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Base narrowing: the existing filter pipeline (story filters, price, query,
@@ -1081,7 +1093,8 @@ export default function PubMap({
       dismissedBandIds.has(activeBandId) || readBandChipDismissed(activeBandId),
   });
   // §4.5: show the "Start with a story" onboarding overlay only on a clean first
-  // paint — and never while the band deep-link chip is showing (G3 priority).
+  // paint — never while the band deep-link chip is showing (G3 priority), and
+  // never when this city has no curated crawls to offer.
   const showOnboarding = shouldShowCuratedOnboarding({
     loaded,
     onboardingDismissed,
@@ -1091,6 +1104,7 @@ export default function PubMap({
     hasActiveCrawl: Boolean(activeCrawl),
     selectedVenueId,
     showBandChip,
+    curatedCrawlCount: cityCuratedCrawls.length,
   });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
@@ -1167,6 +1181,7 @@ export default function PubMap({
           transitLinesPath={city.transitLinesPath}
           cityLandmarks={cityLandmarks}
           cityStoryBands={cityStoryBands}
+          cityId={cityId}
         />
         <MapToolbar
           query={filters.query}
@@ -1191,6 +1206,7 @@ export default function PubMap({
           onFiltersChange={setFilters}
           cityId={cityId}
         />
+        <CitySuggestBanner cityId={cityId} />
         {logIntentFallbackVisible ? (
           <div className="logIntentFallback" role="status" aria-live="polite">
             <div>
@@ -1384,6 +1400,8 @@ export default function PubMap({
               savedOnly={savedOnly}
               onSavedOnlyChange={changeSavedOnly}
               curatedCrawls={cityCuratedCrawls}
+              cityDisplayName={city.displayName}
+              cityId={cityId}
             />
             <RoutePanel
               mode={mode}

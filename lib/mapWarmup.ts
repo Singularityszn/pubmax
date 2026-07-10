@@ -1,3 +1,6 @@
+import { getCity, parseCityId } from "@/lib/cities";
+import { cityMapShareUrl } from "@/lib/cityShare";
+
 export type MapWarmConnection = {
   saveData?: boolean;
   effectiveType?: string;
@@ -22,6 +25,21 @@ export const MAP_INTENT_WARM_PATHS = [
 
 const BLOCKED_EFFECTIVE_TYPES = new Set(["slow-2g", "2g"]);
 const sessionSeen = new Set<string>();
+
+/** Slim (+ optional POI/transit) paths to warm for a map href. */
+export function warmPathsForMapHref(href: string): readonly string[] {
+  const path = href.split("?")[0] || href;
+  if (path === "/map" || path === "/map/") return MAP_INTENT_WARM_PATHS;
+  const match = /^\/map\/([^/]+)\/?$/.exec(path);
+  if (!match) return MAP_INTENT_WARM_PATHS;
+  const cityId = parseCityId(match[1]);
+  if (!cityId) return MAP_INTENT_WARM_PATHS;
+  const city = getCity(cityId);
+  const paths: string[] = [city.slimVenuesPath];
+  if (city.poisPath) paths.push(city.poisPath);
+  if (city.transitLinesPath) paths.push(city.transitLinesPath);
+  return paths;
+}
 
 export function shouldWarmMapIntent(nav: unknown): boolean {
   if (!nav || typeof nav !== "object") return false;
@@ -78,9 +96,9 @@ export type MapRoutePrefetcher = {
 };
 
 /**
- * Wave K2 — warm `/map` navigation on intent.
- * Prefetches the Next.js route chunk and the slim map payloads once per session.
- * Does not prefetch full venue detail.
+ * Wave K2 — warm map navigation on intent.
+ * Prefetches the Next.js route chunk and the city slim (+ POI/transit) payloads
+ * once per session. Does not prefetch full venue detail.
  */
 export function warmMapRoute(
   router: MapRoutePrefetcher,
@@ -95,5 +113,25 @@ export function warmMapRoute(
   } catch {
     // Best-effort — navigation must never depend on prefetch.
   }
-  if (prefetchHref === "/map") warmMapIntent();
+  // Only warm slim/POI payloads for map routes (not Discover etc.).
+  if (prefetchHref === "/map" || prefetchHref.startsWith("/map/")) {
+    warmMapIntentData({
+      fetch: (url, init) =>
+        typeof fetch === "function"
+          ? fetch(url, init)
+          : Promise.reject(new Error("fetch unavailable")),
+      navigator: typeof navigator !== "undefined" ? navigator : undefined,
+      paths: warmPathsForMapHref(prefetchHref),
+      seen: sessionSeen,
+    });
+  }
+}
+
+/** Convenience: warm the share URL for a known city id. */
+export function warmCityMapRoute(
+  router: MapRoutePrefetcher,
+  cityId: string,
+  seen?: Set<string>,
+): void {
+  warmMapRoute(router, cityMapShareUrl(cityId), seen);
 }

@@ -20,6 +20,8 @@ import { useMemo } from "react";
 
 import { pubSources, writerProfile } from "@/lib/curation";
 import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import type { CityId } from "@/lib/cities";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
 import {
   accessibilityFilterSummary,
   isKnownAccessibleToilet,
@@ -27,6 +29,32 @@ import {
   isKnownStepFree,
 } from "@/lib/venueAccessibility";
 import type { CrawlStyle, Filters, Venue } from "@/lib/venues";
+
+/** City-aware search placeholder examples (neighbourhoods, not Tube jargon). */
+export function citySearchPlaceholder(cityId: CityId, displayName: string): string {
+  switch (cityId) {
+    case "london":
+      return "Search Shoreditch, Hackney, pub name…";
+    case "manchester":
+      return "Search Northern Quarter, Ancoats, pub name…";
+    case "oxford":
+      return "Search Jericho, Cowley, pub name…";
+    case "glasgow":
+      return "Search West End, Merchant City, pub name…";
+    case "liverpool":
+      return "Search Baltic Triangle, Ropewalks, pub name…";
+    case "bristol":
+      return "Search Harbourside, Stokes Croft, pub name…";
+    case "cambridge":
+      return "Search Mill Road, Castle, pub name…";
+    case "durham":
+      return "Search Bailey, Claypath, pub name…";
+    case "bath":
+      return "Search Widcombe, Walcot, pub name…";
+    default:
+      return `Search ${displayName} neighbourhood, pub name…`;
+  }
+}
 
 import "./accessibilityFilters.css";
 // Map-scoped colour polish (D3): POI-toggle swatch rings + the documented,
@@ -86,6 +114,10 @@ type ControlRailProps = {
   onSavedOnlyChange: (savedOnly: boolean) => void;
   /** City curated crawls (from curatedCrawlsForCity). Defaults to London. */
   curatedCrawls?: CuratedCrawl[];
+  /** City display name for headline + search placeholder. Defaults to London. */
+  cityDisplayName?: string;
+  /** City id — gates London-only writer card. Defaults to london. */
+  cityId?: CityId;
 };
 
 export default function ControlRail({
@@ -103,7 +135,11 @@ export default function ControlRail({
   savedOnly,
   onSavedOnlyChange,
   curatedCrawls = londonCuratedCrawls,
+  cityDisplayName = "London",
+  cityId = DEFAULT_CITY_ID,
 }: ControlRailProps) {
+  const searchPlaceholder = citySearchPlaceholder(cityId, cityDisplayName);
+  const showWriterCard = cityId === "london";
   const cheapCount = filteredVenues.filter(
     (venue) => venue.cheapestPrice !== null && venue.cheapestPrice <= 5.5,
   ).length;
@@ -147,7 +183,7 @@ export default function ControlRail({
         </div>
         <div>
           <p className="eyebrow">PUBMAXXING</p>
-          <h1>Design the right London pub crawl.</h1>
+          <h1>Design the right {cityDisplayName} pub crawl.</h1>
         </div>
       </div>
 
@@ -202,7 +238,7 @@ export default function ControlRail({
           id="railSearchInput"
           value={filters.query}
           onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
-          placeholder="Search Shoreditch, Hackney, pub name..."
+          placeholder={searchPlaceholder}
         />
       </label>
 
@@ -493,39 +529,41 @@ export default function ControlRail({
         </section>
       ) : null}
 
-      <section className="writerCard">
-        <div className="writerHeader">
-          <Camera size={18} />
-          <div>
-            <p className="eyebrow">{writerProfile.handle}</p>
-            <h2>{writerProfile.name}</h2>
+      {showWriterCard ? (
+        <section className="writerCard">
+          <div className="writerHeader">
+            <Camera size={18} />
+            <div>
+              <p className="eyebrow">{writerProfile.handle}</p>
+              <h2>{writerProfile.name}</h2>
+            </div>
           </div>
-        </div>
-        <p>{writerProfile.summary}</p>
-        <div className="writerFacts">
-          <span>
-            <BookOpen size={15} />
-            {writerProfile.bookTitle}
-          </span>
-          <span>
-            <Anchor size={15} />
-            Narrowboat London
-          </span>
-        </div>
-        <ul>
-          {writerProfile.proofPoints.map((point) => (
-            <li key={point}>{point}</li>
-          ))}
-        </ul>
-        <div className="sourceLinks">
-          {pubSources.map((source) => (
-            <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
-              {source.title}
-              <ExternalLink size={13} />
-            </a>
-          ))}
-        </div>
-      </section>
+          <p>{writerProfile.summary}</p>
+          <div className="writerFacts">
+            <span>
+              <BookOpen size={15} />
+              {writerProfile.bookTitle}
+            </span>
+            <span>
+              <Anchor size={15} />
+              Narrowboat London
+            </span>
+          </div>
+          <ul>
+            {writerProfile.proofPoints.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+          <div className="sourceLinks">
+            {pubSources.map((source) => (
+              <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
+                {source.title}
+                <ExternalLink size={13} />
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </aside>
   );
 }

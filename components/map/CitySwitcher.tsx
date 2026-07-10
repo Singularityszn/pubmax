@@ -8,6 +8,8 @@ import {
   listEnabledCities,
   type CityId,
 } from "@/lib/cities";
+import { writePreferredCity } from "@/lib/cityPreference";
+import { cityMapShareUrl } from "@/lib/cityShare";
 
 import "./citySwitcher.css";
 
@@ -51,14 +53,17 @@ export default function CitySwitcher({
           aria-label="Choose city map"
         >
           {cities.map((city) => {
-            const href = city.id === "london" ? "/map" : `/map/${city.id}`;
+            const href = cityMapShareUrl(city.id);
             const selected = city.id === current.id;
             return (
               <li key={city.id} role="option" aria-selected={selected}>
                 <Link
                   href={href}
                   className={selected ? "citySwitcherLink isActive" : "citySwitcherLink"}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    writePreferredCity(city.id);
+                    setOpen(false);
+                  }}
                 >
                   {city.displayName}
                 </Link>

@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home } from "lucide-react";
+import { useSyncExternalStore } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SignInButton from "@/components/auth/SignInButton";
+import {
+  preferredCityMapHref,
+  subscribePreferredCity,
+} from "@/lib/cityPreference";
 
 import "./siteNav.css";
 
@@ -67,11 +72,22 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 
 export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Element {
   const pathname = usePathname() ?? "";
-  const links = LINKS;
+  // Preference may be null → /map. useSyncExternalStore keeps SSR/hydration on
+  // /map, then re-reads after mount (and on CitySwitcher writes).
+  const mapHref = useSyncExternalStore(
+    subscribePreferredCity,
+    preferredCityMapHref,
+    () => "/map",
+  );
+  const links = LINKS.map((link) =>
+    link.key === "map" ? { ...link, href: mapHref } : link,
+  );
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
   // (fixed) over it. Every other page keeps the bar in normal flow.
-  const isMap = active === "map" || pathname === "/map";
+  // City maps live under /map/[city] — treat those as map too.
+  const isMap =
+    active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
   return (
     <nav

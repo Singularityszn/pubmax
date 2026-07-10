@@ -6,6 +6,8 @@
 import { Layers, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import type { CityId } from "@/lib/cities";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
 import {
   POI_TOGGLE_GROUPS,
   isPoiGroupOn,
@@ -17,6 +19,46 @@ import { STORY_BANDS, type StoryBand } from "@/lib/storyBands";
 
 import "./mapLayersControl.css";
 
+/** City-aware Layers chrome — transit framing without Tube-first copy elsewhere. */
+export function mapLayersCopy(cityId: CityId = DEFAULT_CITY_ID): {
+  ariaLabelClosed: string;
+  title: string;
+  hint: string;
+} {
+  switch (cityId) {
+    case "london":
+      return {
+        ariaLabelClosed: "Map layers — Tube, Rail, parks, and place stories",
+        title: "Tube, Rail, parks & place stories",
+        hint: "Tube, Rail, parks, and story corridors — opt in when you need them.",
+      };
+    case "manchester":
+      return {
+        ariaLabelClosed: "Map layers — Tram, parks, landmarks, and place stories",
+        title: "Tram, parks, landmarks & place stories",
+        hint: "Tram, parks, landmarks, and story corridors — opt in when you need them.",
+      };
+    case "glasgow":
+      return {
+        ariaLabelClosed: "Map layers — Subway, parks, landmarks, and place stories",
+        title: "Subway, parks, landmarks & place stories",
+        hint: "Subway, parks, landmarks, and story corridors — opt in when you need them.",
+      };
+    case "liverpool":
+      return {
+        ariaLabelClosed: "Map layers — Rail, parks, landmarks, and place stories",
+        title: "Rail, parks, landmarks & place stories",
+        hint: "Rail, parks, landmarks, and story corridors — opt in when you need them.",
+      };
+    default:
+      return {
+        ariaLabelClosed: "Map layers — parks, landmarks, and place stories",
+        title: "Parks, landmarks & place stories",
+        hint: "Parks, landmarks, and story corridors — opt in when you need them.",
+      };
+  }
+}
+
 type MapLayersControlProps = {
   poiHidden: Record<PoiCategory, boolean>;
   onPoiHiddenChange: (next: Record<PoiCategory, boolean>) => void;
@@ -24,6 +66,8 @@ type MapLayersControlProps = {
   onBandChange?: (bandId: string) => void;
   /** City Place-story corridors; defaults to London STORY_BANDS. */
   storyBands?: StoryBand[];
+  /** City id for transit-aware aria/title/hint copy. Defaults to london. */
+  cityId?: CityId;
 };
 
 export default function MapLayersControl({
@@ -32,6 +76,7 @@ export default function MapLayersControl({
   activeBandId = "",
   onBandChange,
   storyBands = STORY_BANDS,
+  cityId = DEFAULT_CITY_ID,
 }: MapLayersControlProps) {
   // Deep-link `?band=` opens Layers without an effect: bandForcesOpen until the
   // user dismisses for that band id (Wave J removed mid-map band picker).
@@ -41,6 +86,7 @@ export default function MapLayersControl({
   const open = manualOpen || bandForcesOpen;
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const layersCopy = mapLayersCopy(cityId);
 
   function closePanel() {
     setManualOpen(false);
@@ -91,12 +137,8 @@ export default function MapLayersControl({
         }
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={
-          open
-            ? "Close map layers"
-            : "Map layers — Tube, Rail, parks, and place stories"
-        }
-        title="Tube, Rail, parks & place stories"
+        aria-label={open ? "Close map layers" : layersCopy.ariaLabelClosed}
+        title={layersCopy.title}
         onClick={() => (open ? closePanel() : openPanel())}
       >
         <Layers size={18} aria-hidden="true" />
@@ -122,9 +164,7 @@ export default function MapLayersControl({
             </button>
           </div>
 
-          <p className="mapLayersHint">
-            Tube, Rail, parks, and story corridors — opt in when you need them.
-          </p>
+          <p className="mapLayersHint">{layersCopy.hint}</p>
 
           <div className="mapLayersGroup" role="group" aria-label="Points of interest">
             {POI_TOGGLE_GROUPS.map((group) => {
