@@ -74,6 +74,55 @@
   display: none;
 }
 
+/* Search / Show-results CTA — primary brass button at the bottom of the
+   Food and Drinks expanded panels. Full-width, 44 px tap target. */
+.mapToolbarApplyBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  margin-top: 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  font-size: 0.84rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--brass) 28%, transparent);
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+  box-sizing: border-box;
+}
+
+.mapToolbarApplyBtn:hover,
+.mapToolbarApplyBtn:focus-visible {
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--brass) 36%, transparent);
+}
+
+.mapToolbarApplyBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.mapToolbarApplyBtn:active {
+  transform: scale(0.97);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--brass) 22%, transparent);
+}
+
+.mapToolbarApplyBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 /* Contextual food-mode hint — appears below the cuisine chips when a tag is
    active. Keeps users oriented: "Showing 8 pubs tagged for pizza". Zero-match
    state ("No pubs tagged for...") is rendered with a warning tint. */
@@ -288,6 +337,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .drinkShapeChip,
+  .mapToolbarApplyBtn,
   .appShell.sheet-full .mapToolbar,
   .appShell.sheet-full .mapLegend,
   .appShell.detail-open .mapToolbar,

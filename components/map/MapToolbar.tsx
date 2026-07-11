@@ -36,7 +36,64 @@ type MapToolbarProps = {
    * especially useful when the tag is niche and matches are sparse.
    */
   filteredVenueCount?: number;
+  /**
+   * Called when the user presses the Search CTA button at the bottom of the
+   * Food or Drinks expanded panel. The panel closes itself; the parent may
+   * additionally fit the map to the filtered venues.
+   */
+  onSearchApply?: () => void;
 };
+
+/**
+ * Label for the "Search map" CTA button shown at the bottom of the Food panel.
+ * Pure — safe to unit-test without a render.
+ */
+export function foodPanelSearchLabel(
+  filters: Pick<Filters, "cuisineTag" | "requireFood">,
+  count: number | undefined,
+): string {
+  const tag = filters.cuisineTag?.trim();
+  if (tag) {
+    if (count === undefined) return `Show ${tag} pubs`;
+    if (count === 0) return `No ${tag} pubs found`;
+    return `Show ${count} ${tag} pub${count === 1 ? "" : "s"}`;
+  }
+  if (filters.requireFood) {
+    if (count === undefined) return "Show food pubs";
+    if (count === 0) return "No food pubs found";
+    return `Show ${count} food pub${count === 1 ? "" : "s"}`;
+  }
+  return "Search map";
+}
+
+/**
+ * Label for the "Search map" CTA button shown at the bottom of the Drinks panel.
+ * Pure — safe to unit-test without a render.
+ */
+export function drinksPanelSearchLabel(
+  filters: Pick<Filters, "drinkCategory" | "requireCocktails">,
+  favoritePint: string | null,
+  count: number | undefined,
+): string {
+  const cat = filters.drinkCategory?.trim();
+  if (cat) {
+    const label = cat.charAt(0).toUpperCase() + cat.slice(1);
+    if (count === undefined) return `Show ${label} pubs`;
+    if (count === 0) return `No ${label} pubs found`;
+    return `Show ${count} ${label} pub${count === 1 ? "" : "s"}`;
+  }
+  if (filters.requireCocktails) {
+    if (count === undefined) return "Show cocktail pubs";
+    if (count === 0) return "No cocktail pubs found";
+    return `Show ${count} cocktail pub${count === 1 ? "" : "s"}`;
+  }
+  if (favoritePint) {
+    if (count === undefined) return "Show pubs";
+    if (count === 0) return "No matching pubs found";
+    return `Show ${count} pub${count === 1 ? "" : "s"}`;
+  }
+  return "Search map";
+}
 
 export default function MapToolbar({
   query,
@@ -52,6 +109,7 @@ export default function MapToolbar({
   onFiltersChange,
   cityId = DEFAULT_CITY_ID,
   filteredVenueCount,
+  onSearchApply,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
   const [foodOpen, setFoodOpen] = useState(false);
@@ -178,6 +236,19 @@ export default function MapToolbar({
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
         {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
         <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+        <button
+          type="button"
+          className="mapToolbarApplyBtn"
+          disabled={
+            drinksPanelSearchLabel(filters, favoritePint, filteredVenueCount).startsWith("No ")
+          }
+          onClick={() => {
+            setDrinksOpen(false);
+            onSearchApply?.();
+          }}
+        >
+          {drinksPanelSearchLabel(filters, favoritePint, filteredVenueCount)}
+        </button>
       </div>
 
       <div className={foodOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
@@ -198,6 +269,19 @@ export default function MapToolbar({
               : `Showing pubs tagged for ${filters.cuisineTag}`}
           </p>
         ) : null}
+        <button
+          type="button"
+          className="mapToolbarApplyBtn"
+          disabled={
+            foodPanelSearchLabel(filters, filteredVenueCount).startsWith("No ")
+          }
+          onClick={() => {
+            setFoodOpen(false);
+            onSearchApply?.();
+          }}
+        >
+          {foodPanelSearchLabel(filters, filteredVenueCount)}
+        </button>
       </div>
     </div>
   );
