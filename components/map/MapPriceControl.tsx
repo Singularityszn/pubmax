@@ -19,11 +19,7 @@ const PRICE_OPTIONS: { label: string; maxPrice: number }[] = [
 // Labels match priceBucket() inclusivity: ≤5.50 green, >5.50–≤7 amber, >7 red.
 const PRICE_LEGEND = [
   { label: "≤ £5.50", tone: "green" as const },
-<<<<<<< HEAD
-  { label: "> £5.50 – £7", tone: "amber" as const },
-=======
   { label: "> £5.50–≤ £7", tone: "amber" as const },
->>>>>>> b2a3e5e (Fix leftover CodeRabbit nits from #101 and #103)
   { label: "> £7", tone: "red" as const },
 ];
 
