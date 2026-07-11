@@ -372,6 +372,7 @@
     z-index: 6;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
     margin: 12px -4px 0;
     padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
@@ -419,6 +420,24 @@
   .venueSheetStickyGhost[aria-pressed="true"] {
     border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
     color: var(--brass);
+  }
+
+  .venueSheetShareFeedback {
+    flex: 1 0 100%;
+    min-height: 18px;
+    padding: 0 2px;
+    color: var(--ink-soft);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .venueSheetShareFeedback.ok {
+    color: var(--pint);
+  }
+
+  .venueSheetShareFeedback.error {
+    color: var(--brick);
   }
 
   .venueSheetStickyPrimary:focus-visible,

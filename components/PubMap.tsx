@@ -473,6 +473,10 @@ export default function PubMap({
   // pins and the basemap have arrived (warmup can make slim arrive first).
   // Canvas owns hang recovery (reportMapError lifts this via onMapReady).
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  // Canvas has committed to its user-facing error fallback (WebGL/tiles/etc.).
+  // We drop the loading skeleton immediately in that case even if slim pins
+  // are still in flight, so the fallback card isn't hidden behind chrome.
+  const [mapCanvasErrored, setMapCanvasErrored] = useState(false);
   // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
   // ~400 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
   // the ~5.6 MB full dataset lands so the first interactive pin appears fast.
@@ -1214,7 +1218,7 @@ export default function PubMap({
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank
             canvas. Copy matches MapLoadingSkeleton for a seamless handoff. */}
-        {!mapCanvasReady || (slimPins.length === 0 && !loaded) ? (
+        {!mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded)) ? (
           <div
             className="mapLoading"
             role="status"
@@ -1256,6 +1260,7 @@ export default function PubMap({
           initialLandmarkId={seed.landmarkId}
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
           onMapReady={setMapCanvasReady}
+          onMapErrored={setMapCanvasErrored}
           mapView={city.mapView}
           maxBounds={cityBounds}
           fitCityOnArrival={shouldFitCityBoundsOnArrival(
@@ -1308,7 +1313,8 @@ export default function PubMap({
               <ul className="logIntentNearbyList" aria-label="Nearby pubs to log">
                 {logNearbyCandidates.map((candidate) => {
                   const dist =
-                    typeof candidate.distanceKm === "number"
+                    typeof candidate.distanceKm === "number" &&
+                    Number.isFinite(candidate.distanceKm)
                       ? formatLogNearbyDistance(candidate.distanceKm)
                       : "";
                   return (

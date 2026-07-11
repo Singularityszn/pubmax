@@ -75,7 +75,7 @@ html[data-theme="dark"] {
      on charcoal (thin muted greys wash out under night contrast). */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  text-rendering: optimizelegibility;
 }
 
 /* .appShell redefines --map-overlay-shadow* for the light map; override here so
