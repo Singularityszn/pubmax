@@ -149,4 +149,54 @@ describe("GET /api/citymcp/things-to-do", () => {
     expect(body.opportunities).toEqual([]);
     expect(body.error).toBeTruthy();
   });
+
+  it("trims live object price/availability and source.name → label", async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            structuredContent: {
+              opportunities: [
+                {
+                  title: "Late comedy at The Bill Murray",
+                  kind: "comedy",
+                  price: { label: "From £12", minGbp: 12 },
+                  availability: { label: "Tickets available", remaining: 40 },
+                  place: {
+                    name: "The Bill Murray",
+                    area: "Angel",
+                    postcode: "N1 2LH",
+                    location: { lat: 51.536, lng: -0.103 },
+                  },
+                  source: {
+                    name: "Time Out",
+                    url: "https://www.timeout.com/london/comedy/example",
+                  },
+                },
+              ],
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/citymcp/things-to-do?window=tonight&limit=3"),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.opportunities).toHaveLength(1);
+    const op = body.opportunities[0];
+    expect(op.price).toBe("From £12");
+    expect(op.availability).toBe("Tickets available");
+    expect(op.source).toEqual({
+      label: "Time Out",
+      url: "https://www.timeout.com/london/comedy/example",
+    });
+    expect(op.place.postcode).toBe("N1 2LH");
+    expect(op.place.location).toEqual({ lat: 51.536, lng: -0.103 });
+  });
 });
