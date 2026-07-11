@@ -2,7 +2,7 @@
 
 import { Footprints, MapPinned, Route as RouteIcon, TrainFront, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 import "@/components/map/venueSheet.css";
@@ -589,7 +589,9 @@ export default function PubMap({
     setPlannerSheetSnap("half");
     setPlannerSheetDragY(null);
   }, [setPlannerSheetDragY, setPlannerSheetSnap]);
-  closePlanningRef.current = closePlanning;
+  useLayoutEffect(() => {
+    closePlanningRef.current = closePlanning;
+  }, [closePlanning]);
 
   const openPlanning = useCallback(() => {
     // Mobile: mutual exclusion with the venue sheet (planner stacks above it
