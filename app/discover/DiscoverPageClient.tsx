@@ -16,6 +16,7 @@ import LeaderboardTable from "@/components/discovery/LeaderboardTable";
 import CityRivalryTable from "@/components/discovery/CityRivalryTable";
 import TonightBoard from "@/components/discovery/TonightBoard";
 import EditorialCard, { type EditorialCardData } from "@/components/discovery/EditorialCard";
+import TonightNearbyLane from "@/components/discovery/TonightNearbyLane";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
 import TopRatedPubs from "@/components/ratings/TopRatedPubs";
@@ -436,6 +437,8 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
           <TonightBoard entries={tonight} />
         )}
       </section>
+
+      <TonightNearbyLane />
 
       <section className="discoverSection" aria-labelledby="topRated-title">
         <h2 id="topRated-title" className="discoverSectionTitle">

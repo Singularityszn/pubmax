@@ -1,0 +1,85 @@
+/* Discover "Tonight nearby" lane — CityMCP curated opportunities.
+   Renders as a compact card row similar to editorialGrid but keeps the
+   overall feel light (small type, brass accents) to sit near the tonight/
+   editorial sections without dominating. */
+
+.tonightNearbySection {
+  /* Explicit inherit — the parent .discoverSection provides padding etc. */
+}
+
+.tonightNearbyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.tonightNearbyCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-raised);
+  color: var(--ink);
+}
+
+.tonightNearbyMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+}
+
+.tonightNearbyKind {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.tonightNearbyPrice {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.tonightNearbyTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.tonightNearbyPlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.tonightNearbyWhen {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.tonightNearbyLink {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.tonightNearbyLink:hover {
+  text-decoration: underline;
+}
