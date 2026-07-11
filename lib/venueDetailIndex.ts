@@ -4,6 +4,7 @@ import path from "path";
 import { listEnabledCities } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { slimVenueToPin } from "@/lib/slimPins";
+import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -193,7 +194,10 @@ export async function getVenueDetail(id: string): Promise<Venue | null> {
     venue = (await getCitySlimPinIndex()).get(id) ?? null;
   }
 
-  if (venue) cachedDetails.set(id, venue);
+  if (venue) {
+    venue = await enrichVenueForDetail(venue);
+    cachedDetails.set(id, venue);
+  }
   return venue;
 }
 

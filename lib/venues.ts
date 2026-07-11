@@ -1,4 +1,5 @@
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { firstHttp } from "@/lib/httpUrl";
 import {
   findBrand,
   haystackMatchesBrand,
@@ -11,6 +12,7 @@ import {
   matchesAccessibilityFilters,
   type VenueAccessibility,
 } from "@/lib/venueAccessibility";
+import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
 
 export type CrawlStyle =
   | "balanced"
@@ -105,6 +107,16 @@ export type Venue = {
     nonAlcoholic: boolean;
   };
   website: string;
+  /** First http(s) booking_link from price rows — table booking CTA. */
+  bookingLink: string;
+  /** Curated menu page URL (detail enrichment overlay). */
+  menuUrl?: string;
+  /** Curated food-order URL (detail enrichment overlay; never invented). */
+  orderUrl?: string;
+  /** Curated allergy info URL (detail enrichment overlay). */
+  allergyInfoUrl?: string;
+  /** Curated food category tiles for the Menu hub (detail enrichment). */
+  categoryTiles?: VenueMenuCategoryTile[];
   imageUrl: string;
   description: string;
   dataQualityNotes: string[];
@@ -274,6 +286,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         nonAlcoholic: hasNonAlcoholic(prices.map((price) => price.pint_name)),
       },
       website: prices.find((price) => price.website)?.website ?? "",
+      bookingLink: firstHttp(...prices.map((price) => price.booking_link)),
       imageUrl: prices.find((price) => price.image_url)?.image_url ?? "",
       description: prices.find((price) => price.description)?.description ?? "",
       dataQualityNotes: Array.from(dataQualityNotes),
