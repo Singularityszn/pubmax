@@ -1283,7 +1283,7 @@ export default function PubMap({
           filters={filters}
           onFiltersChange={setFilters}
           cityId={cityId}
-          filteredVenueCount={filteredVenueCount}
+          filteredVenueCount={loaded ? filteredVenueCount : undefined}
           onSearchApply={handleSearchApply}
         />
         <CitySuggestBanner cityId={cityId} />

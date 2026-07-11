@@ -45,8 +45,8 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     // Streets must stay luminous against night land.
     expect(dark.road).toContain("255, 244, 232"); // cream ink rgb
     expect(dark.roadMajor).toContain("255, 194, 71"); // amber
-    // Buildings: cool mid-gray massing — readable on near-black land (not brass).
-    expect(dark.building).toBe("#6e778a");
+    // Buildings: warm stone massing — no cold blue; readable on near-black land.
+    expect(dark.building).toBe("#756a58");
     expect(dark.building).not.toContain("255, 107, 122"); // brass coral
   });
 
@@ -100,9 +100,10 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     expect(
       paints.find(([id, prop]) => id === "building" && prop === "fill-opacity")?.[2],
     ).toBe(0.92);
+    // Warm gray outline — matches warm-stone fill (no cold blue).
     expect(
       paints.find(([id, prop]) => id === "building" && prop === "fill-outline-color")?.[2],
-    ).toBe("#9aa3b5");
+    ).toBe("#9a8c78");
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
     ).toBe(true);

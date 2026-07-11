@@ -1393,9 +1393,13 @@ export default function PubMapCanvas({
 
       // --- Designed marker images: landmark pictograms + TfL symbols, re-tinted
       // from the live theme tokens (a setStyle wipes them, so re-register here).
+      // Dark: use a slightly warmer/lighter near-black for the "paper" token so
+      // drink/food glass outlines read as a distinct dark stroke (not pure void)
+      // and landmark pads have a barely-visible warm disc lift off the land.
+      const iconPaper = dark ? "#161210" : tokens.paper;
       const iconTokens: IconTokens = {
         ink: tokens.ink,
-        paper: dark ? tokens.inkDeep : tokens.paper,
+        paper: iconPaper,
         brass: tokens.brass,
         brassBright: tokens.brassBright,
         river: tokens.river,

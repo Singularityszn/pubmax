@@ -55,18 +55,20 @@ function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown):
 /** Exported for unit tests — dark land must never equal cream ink. */
 export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
   if (dark) {
-    // Night city (Apple/Google Maps night pattern): deep cool land, buildings
-    // a clear step lighter in cool gray — never brass/coral wash (vanishes into
-    // inkDeep) and never `--line` alone (too close to land at low alpha).
-    // OpenFreeMap dark Liberty uses highway_* ids — keep those bright.
+    // Night city — warm candle-lit stone, not cold steel-blue.
+    // Buildings must be distinctly lighter than inkDeep land AND warm-toned.
+    // Warm stone mid-gray (brown undertone, no blue) so City skyline reads
+    // as aged stone, not brushed steel or Apple-Maps-purple.
+    // Roads keep amber-cream brightness so streets stay readable at night.
     return {
       land: tokens.inkDeep || tokens.paper,
-      landSoft: withAlpha(tokens.brass, 0.14),
-      residential: withAlpha(tokens.brass, 0.12),
-      park: withAlpha(tokens.pint, 0.32),
-      // Cool mid-gray massing — OFM dark ships buildings at rgb(10,10,10)
-      // which vanish into inkDeep; lift well above land so footprints read.
-      building: "#6e778a",
+      // More visible brass-tinted land overlays (landuse / landcover areas).
+      landSoft: withAlpha(tokens.brass, 0.18),
+      residential: withAlpha(tokens.brass, 0.14),
+      // Parks: enough neon to read as green space, not so much it screams.
+      park: withAlpha(tokens.pint, 0.24),
+      // Warm stone massing — brown-gray lift above inkDeep; no blue component.
+      building: "#756a58",
       water: tokens.river,
       road: withAlpha(tokens.ink, 0.88),
       roadMajor: withAlpha(tokens.amber, 0.96),
@@ -179,8 +181,9 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
     tryPaint(map, id, "fill-color", palette.building);
     tryPaint(map, id, "fill-opacity", dark ? 0.92 : 0.7);
     // OFM dark outline is rgb(27,27,29) — lift it so edges separate from land.
+    // Warm gray (brown undertone) to match the warm-stone building fill.
     if (dark) {
-      tryPaint(map, id, "fill-outline-color", "#9aa3b5");
+      tryPaint(map, id, "fill-outline-color", "#9a8c78");
     }
   }
 
@@ -211,8 +214,9 @@ function paintDiscoveredFill(
   if (id.includes("building")) {
     tryPaint(map, layerId, "fill-color", palette.building);
     tryPaint(map, layerId, "fill-opacity", dark ? 0.92 : 0.7);
+    // Warm gray outline matches warm-stone fill — no cold blue.
     if (dark) {
-      tryPaint(map, layerId, "fill-outline-color", "#9aa3b5");
+      tryPaint(map, layerId, "fill-outline-color", "#9a8c78");
     }
     return;
   }
@@ -269,11 +273,13 @@ function paintDiscoveredSymbol(
   if (!id.includes("label") && !id.includes("place") && !id.includes("name")) return;
   if (id.includes("icon")) return;
   const text = dark ? tokens.ink : tokens.inkDeep || tokens.ink;
-  const halo = dark ? tokens.inkDeep || tokens.paper : tokens.paper;
+  // Warm near-black halo (slight red warmth vs pure #040606 cold black).
+  const halo = dark ? "#0c0906" : tokens.paper;
   tryPaint(map, layerId, "text-color", text);
   tryPaint(map, layerId, "text-halo-color", halo);
-  tryPaint(map, layerId, "text-halo-width", dark ? 1.4 : 1.1);
-  tryPaint(map, layerId, "text-opacity", dark ? 0.92 : 0.88);
+  // Wider halo on dark for crisp cream labels floating above dark land.
+  tryPaint(map, layerId, "text-halo-width", dark ? 1.6 : 1.1);
+  tryPaint(map, layerId, "text-opacity", dark ? 0.95 : 0.88);
 }
 
 /** All layer IDs handled explicitly by paintKnownLayers — skip these in the

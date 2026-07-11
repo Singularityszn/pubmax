@@ -2600,7 +2600,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #3d4842; /* light-theme ink-soft; legend chip bg is always light */
+  color: var(--ink-soft);
 }
 
 .mapLegend i {

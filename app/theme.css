@@ -86,10 +86,11 @@ html[data-theme="dark"] .appShell {
 }
 
 /* Map floating chrome: solid night panels so Home + Search read as twins over
-   the dark basemap (no frosted glass wash that fights cream land leftovers). */
+   the dark basemap (no frosted glass wash that fights cream land leftovers).
+   More brass in the border mix so panels clearly separate from near-black land. */
 html[data-theme="dark"] .siteNavBarFloating,
 html[data-theme="dark"] .mapToolbar {
-  border-color: color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
   background: var(--panel-raised);
   box-shadow: var(--map-overlay-shadow);
   backdrop-filter: none;
@@ -130,6 +131,34 @@ html[data-theme="dark"] .mobileTabList {
   box-shadow:
     0 -6px 18px rgba(0, 0, 0, 0.45),
     0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Landmark card + hero story card on dark map: brighter amber-brass border so
+   the panels visually separate from the near-black basemap. */
+html[data-theme="dark"] .landmarkCard,
+html[data-theme="dark"] .mapHeroCard {
+  border-color: color-mix(in srgb, var(--brass) 42%, var(--line));
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.65),
+    0 0 0 1px color-mix(in srgb, var(--brass) 18%, transparent);
+}
+
+/* Map drawers on dark: replace purple-tinted shadows with warm dark shadows. */
+html[data-theme="dark"] .mapDrawer.left {
+  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="dark"] .mapDrawer.right {
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.55);
+}
+
+/* Mobile route/band chips on dark: solid panel instead of river-tinted gradient;
+   stronger amber border so chips read clearly over the dark basemap. */
+html[data-theme="dark"] .mappedRouteChip,
+html[data-theme="dark"] .activeRoundChip,
+html[data-theme="dark"] .bandOnboardingChip {
+  background: var(--panel-raised);
+  border-color: color-mix(in srgb, var(--brass) 44%, var(--line));
 }
 
 html[data-theme="dark"] h1,
