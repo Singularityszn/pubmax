@@ -74,6 +74,18 @@
   display: none;
 }
 
+/* Contextual food-mode hint — appears below the cuisine chips when a tag is
+   active. Keeps users oriented: "Showing 8 pubs tagged for pizza". Zero-match
+   state ("No pubs tagged for...") is rendered with a warning tint. */
+.mapToolbarFoodHint {
+  margin: 0;
+  padding: 4px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
 .drinkShapeChips {
   display: flex;
   flex-wrap: nowrap;

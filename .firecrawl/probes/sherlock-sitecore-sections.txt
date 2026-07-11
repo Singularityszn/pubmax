@@ -1,0 +1,6 @@
+Using scrape 019f513b-7f5a-7516-9edf-ffdd4ff93d47 (https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu)
+Live View: https://liveview.firecrawl.dev/d3NzOi8vYnJvd3Nlci5maXJlY3Jhd2wuZGV2L3NjcmVlbmNhc3QvOGRlMzU5NTgwNWY2ZmVlMz90b2tlbj1iYzExNTJkNjVkMzc4ZjY1MmIxN2Y5OTIyY2FiNzg0ZWFkMTc4OWJhMzljNTljZmM5YjMzMjNjYTYxMDk2Yzgz
+Interactive Live View: https://liveview.firecrawl.dev/aHR0cHM6Ly9icm93c2VyLmZpcmVjcmF3bC5kZXYvdmlldy84ZGUzNTk1ODA1ZjZmZWUzLz90b2tlbj0yN2EwNTViZTgyZWE2NzBlYzZlMWE1OGFjOTY1Njk2Y2RhZmQ4ZDI4MWUyYTIxYWU5ZTY3MGJhYTJiMDc4Y2Nk
+gin => eeneKing", "email": "7967@greeneking.co.uk", "description": "One of London's original themed pubs, the Sherlock Holmes is an inn with a difference. With a history dating back centuries, it presents a 
+IPA => om/154943171200084", "https://www.instagram.com/thesherlockpub", "https://www.tripadvisor.com/1127071"], "@context": "https://schema.org/"}
+BEERISH_SECTIONS []

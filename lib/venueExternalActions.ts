@@ -28,14 +28,15 @@ export function venueExternalActions(venue: Venue): VenueExternalAction[] {
     actions.push({ kind: "book", label: "Book a table", href: booking });
   }
 
-  // Curated menuUrl always wins as "Look at the menu". Otherwise, when the
-  // pub serves food, the homepage is an honest menu/site link-out; without
-  // food, label it "Pub website".
+  // Curated menuUrl (from venue_menu_enrichment.json / Firecrawl) always wins
+  // as "Official menu" — it's a first-party source, not just a pub homepage.
+  // Otherwise, when the pub serves food, the homepage is an honest link-out
+  // labelled "Look at the menu"; without food, "Pub website".
   const curatedMenu = firstHttp(venue.menuUrl);
   if (curatedMenu) {
     actions.push({
       kind: "menu",
-      label: "Look at the menu",
+      label: "Official menu",
       href: curatedMenu,
     });
   } else if (venue.amenities.food) {

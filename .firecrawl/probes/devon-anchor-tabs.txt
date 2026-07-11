@@ -1,0 +1,4 @@
+Using scrape 019f5141-2e9f-73d7-ae2f-02c6683d3171 (https://www.greeneking.co.uk/pubs/devon/anchor-inn/menu)
+Live View: https://liveview.firecrawl.dev/d3NzOi8vYnJvd3Nlci5maXJlY3Jhd2wuZGV2L3NjcmVlbmNhc3QvYmRhYTdjOTJhNjUwNzI1ND90b2tlbj1jYzRmOTQwODNkYTMzNzg5NWVlYjdkZmE5YzE4M2IyNjJlNDJkZmUwYjM1MzNjMTE5NjMxNDU2OGM5OTNlNDJm
+Interactive Live View: https://liveview.firecrawl.dev/aHR0cHM6Ly9icm93c2VyLmZpcmVjcmF3bC5kZXYvdmlldy9iZGFhN2M5MmE2NTA3MjU0Lz90b2tlbj0xNDMwYzlkZWNjMmUyOTM2NmQxNTI3NTg2ZGUzZDYwNWQxZWFlODIzNmVkN2U2MGI2YWFlYjZlZjBhY2JmM2M0
+TABS ["wine", "cocktails"]

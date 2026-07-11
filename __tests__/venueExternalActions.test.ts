@@ -126,7 +126,7 @@ describe("venueExternalActions", () => {
     expect(actions.map((a) => a.kind)).not.toContain("order");
   });
 
-  it("prefers menuUrl over website for Look at the menu when food", () => {
+  it("prefers menuUrl over website and labels it Official menu when food", () => {
     const actions = venueExternalActions(
       venue({
         website: "https://pub.example/",
@@ -137,13 +137,13 @@ describe("venueExternalActions", () => {
     expect(actions).toEqual([
       {
         kind: "menu",
-        label: "Look at the menu",
+        label: "Official menu",
         href: "https://pub.example/food-menu",
       },
     ]);
   });
 
-  it("surfaces curated menuUrl even when food amenity is false", () => {
+  it("surfaces curated menuUrl as Official menu even when food amenity is false", () => {
     const actions = venueExternalActions(
       venue({
         website: "https://pub.example/",
@@ -152,7 +152,7 @@ describe("venueExternalActions", () => {
     );
     expect(actions[0]).toMatchObject({
       kind: "menu",
-      label: "Look at the menu",
+      label: "Official menu",
       href: "https://pub.example/food-menu",
     });
   });

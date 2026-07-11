@@ -1292,6 +1292,7 @@ export default function PubMap({
           filters={filters}
           onFiltersChange={setFilters}
           cityId={cityId}
+          filteredVenueCount={filteredVenueCount}
         />
         <CitySuggestBanner cityId={cityId} />
         {cityId === "london" ? <CityStatusBanner cityId={cityId} /> : null}

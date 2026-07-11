@@ -201,6 +201,40 @@ html[data-legacy="1"] .drinkCategoryTitle {
   color: var(--ink);
 }
 
+/* ── Official menu CTA ─────────────────────────────────────────────────────── */
+/* Shown when a curated menuUrl is available (from enrichment / Firecrawl).
+   Sits just below the back button so it's the first thing seen on the drinks
+   view — making the scraping work visible to users. */
+.drinkMenuOfficialCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  margin: 0 0 2px;
+  padding: 6px 14px 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--brass) 60%, var(--line));
+  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+.drinkMenuOfficialCta:hover,
+.drinkMenuOfficialCta:focus-visible {
+  background: color-mix(in srgb, var(--brass) 16%, var(--panel-raised));
+  border-color: var(--brass);
+}
+
+.drinkMenuOfficialCta:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 /* ── Footnote ──────────────────────────────────────────────────────────────── */
 .drinkMenuFootnote {
   margin: 4px 0 0;

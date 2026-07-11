@@ -751,6 +751,7 @@ export default function VenueInspector({
             categoryFilter={menuView.category}
             onBack={() => setMenuView({ mode: "hub" })}
             backLabel="Menus"
+            menuUrl={venue.menuUrl}
           />
         )}
       </div>

@@ -1,0 +1,26 @@
+Using scrape 019f5140-af32-718c-abca-e87850f34186 (https://www.greeneking.co.uk/pubs/greater-london/chelsea-potter/menu)
+Error: Traceback (most recent call last):
+  File "<string>", line 80, in <module>
+  File "/usr/lib/python3.11/asyncio/base_events.py", line 653, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/aioconsole/execute.py", line 145, in aexec
+    result, new_local = await coro
+                        ^^^^^^^^^^
+  File "<aexec>", line 7, in __corofn
+  File "/usr/local/lib/python3.11/dist-packages/playwright/async_api/_generated.py", line 17938, in evaluate_all
+    await self._impl_obj.evaluate_all(
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_locator.py", line 199, in evaluate_all
+    return await self._frame.eval_on_selector_all(self._selector, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_frame.py", line 488, in eval_on_selector_all
+    await self._channel.send(
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py", line 563, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: Locator.evaluate_all: SyntaxError: missing ) after argument list
+    at eval (<anonymous>)
+    at UtilityScript.evaluate (<anonymous>:303:30)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)

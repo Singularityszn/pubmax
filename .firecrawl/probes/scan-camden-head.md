@@ -1,0 +1,128 @@
+[Skip to content](https://www.greeneking.co.uk/pubs/greater-london/camden-head/menu#content)
+
+[![Greene King Logo](https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/6984103c94b84db188339c0fb67e405e?v=7c60dd43)](https://www.greeneking.co.uk/pubs/greater-london/camden-head)
+
+[Book a Table](https://www.greeneking.co.uk/pubs/greater-london/camden-head/book)
+
+- [Menus](https://www.greeneking.co.uk/pubs/greater-london/camden-head/menu)
+- What's On
+- [Sign Up](https://www.greeneking.co.uk/pubs/greater-london/camden-head/sign-up)
+- Info
+
+- Navigation column 1 of 1
+
+  - [View our events](https://www.greeneking.co.uk/pubs/greater-london/camden-head/whats-on)
+
+- Navigation column 1 of 1
+
+  - [![Two people inside a pub bar area, one of them holding a glass of Level Head IPA and the other holding a glass of Hazy Day IPA.](https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/7d3cb62a4c0741feadc7e09843d42b5c?v=45c53fac&t=nav400)\\
+    \\
+    Find Us](https://www.greeneking.co.uk/pubs/greater-london/camden-head/find-us)
+
+- ![An image of 2 friends sat within the interior seating area enjoying various drinks.](https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/2ab81aacbe4444a397f61b96e489f05e?v=f5c7e7f0&t=w360)
+
+
+
+
+
+Got a question?
+
+
+
+Find answers to our most commonly asked questions here.
+
+[View our FAQs](https://www.greeneking.co.uk/pubs/greater-london/camden-head/faqs)
+
+
+Camden Head, Islington
+
+Open Today: 12:00pm - 12:00am
+
+![An image of 4 people at a table within the interior restaurant seating area enjoying a selection of drinks and burger dishes at a Heritage venue.](https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/f59e3402e7584857856cfe2cd785d748?v=b3c9a3ee&t=w430)
+
+# Menus at The Camden Head Islington
+
+Download
+
+Filter
+
+## Filters
+
+Sort by
+
+Relevance Price
+
+Clear all Show 0 results
+
+No Results
+
+## Sign up to marketing
+
+Sign up to hear about the latest news and updates.
+
+Email\*
+
+SIGN UP
+
+![Food Hygiene Rating: 5 out of 5, Very Good](https://www.greeneking.co.uk/dist/gk-jss-app/img/fhrs_5_en-gb.ec6201f9.svg)
+
+![Cask Marque award](https://cask-marque.co.uk/wp-content/uploads/2019/02/CM-logo-elliptical.jpg)
+
+![TripAdvisor Travelers Choice 2025](https://static.tacdn.com/img2/travelers_choice/widgets/tchotel_2025_L.png)
+
+![Best-bar-none-logo](https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/13fc3137bea0434d8d1249b0de341cc2?v=3ae63573)
+
+![Greene King Logo](https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/fa57d5a6e9204231ac057a5065614716?v=c93f467a)
+
+## Call Us
+
+[+44 20 7359 0851](tel:+442073590851)
+
+## Location
+
+2 Camden Walk
+
+Islington
+
+Greater London
+
+England
+
+N1 8DY
+
+[Get Directions](https://www.google.com/maps?q=51.535636,-0.102905)
+
+## The Camden Head
+
+- [Contact Us](https://www.greeneking.co.uk/pubs/greater-london/camden-head/find-us)
+- [Food and Drink](https://www.greeneking.co.uk/pubs/greater-london/camden-head/menu)
+- [Christmas](https://www.greeneking.co.uk/pubs/greater-london/camden-head/christmas)
+- [Gift Cards](https://gk.greatbritishpubcard.co.uk/Gift-Card)
+- [Feedback](https://www.greeneking.co.uk/pubs/greater-london/camden-head/feedback-survey)
+- [Allergens](https://www.greeneking.co.uk/pubs/greater-london/camden-head/allergens)
+- [Frequently Asked Questions](https://www.greeneking.co.uk/pubs/greater-london/camden-head/faqs)
+
+## Greene King
+
+- [Download the app](https://www.greeneking.co.uk/order-and-pay-app)
+- [Our Pubs](https://www.greeneking.co.uk/pubs-near-me)
+- [Our Company](https://www.greeneking.co.uk/our-company)
+- [Work With Us](https://jobs.greeneking.co.uk/?utm_source=greene-king-pubs&utm_medium=greene-king-pubs&utm_campaign=brand-website)
+- [Back to Greene King homepage](https://www.greeneking.co.uk/)
+
+- [Facebook](https://www.facebook.com/153874041349548)
+- [Instagram](https://www.instagram.com/thecamdenhead)
+
+© 2026 Camden Head
+
+- [Accessibility](https://www.greeneking.co.uk/our-company/accessibility-policy)
+- [Cookie Policy](https://www.greeneking.co.uk/cookie-policy)
+- [Privacy](https://www.greeneking.co.uk/privacy)
+- [Sitemap](https://www.greeneking.co.uk/sitemap)
+- [Terms and Conditions](https://www.greeneking.co.uk/terms-conditions)
+
+Open Today:
+
+12:00pm - 12:00am
+
+[Book a Table](https://www.greeneking.co.uk/pubs/greater-london/camden-head/book)

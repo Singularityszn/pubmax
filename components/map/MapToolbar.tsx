@@ -29,6 +29,13 @@ type MapToolbarProps = {
   onFiltersChange: (filters: Filters) => void;
   /** Active city for the map switcher (defaults to London). */
   cityId?: CityId;
+  /**
+   * Number of venues currently visible on the map after all filters are applied.
+   * When a food/cuisine filter is active and this count is known, a contextual
+   * hint like "Showing 8 pubs tagged for pizza" is shown below the chips —
+   * especially useful when the tag is niche and matches are sparse.
+   */
+  filteredVenueCount?: number;
 };
 
 export default function MapToolbar({
@@ -44,6 +51,7 @@ export default function MapToolbar({
   filters,
   onFiltersChange,
   cityId = DEFAULT_CITY_ID,
+  filteredVenueCount,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
   const [foodOpen, setFoodOpen] = useState(false);
@@ -174,6 +182,22 @@ export default function MapToolbar({
 
       <div className={foodOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
         <CuisineShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+        {/* Contextual food-mode hint — shows the active tag and match count so
+            users always know which filter is live and how many pubs matched.
+            Especially helpful for niche tags ("tapas", "steak") with few hits. */}
+        {filters.cuisineTag ? (
+          <p
+            className="mapToolbarFoodHint"
+            role="status"
+            aria-live="polite"
+          >
+            {filteredVenueCount !== undefined
+              ? filteredVenueCount === 0
+                ? `No pubs tagged for ${filters.cuisineTag} — try a different tag`
+                : `Showing ${filteredVenueCount} ${filteredVenueCount === 1 ? "pub" : "pubs"} tagged for ${filters.cuisineTag}`
+              : `Showing pubs tagged for ${filters.cuisineTag}`}
+          </p>
+        ) : null}
       </div>
     </div>
   );

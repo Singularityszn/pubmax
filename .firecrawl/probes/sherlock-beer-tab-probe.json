@@ -1,0 +1,22 @@
+{
+  "allDrinkTabs": [
+    "white wine",
+    "red wine",
+    "ros\u00e9 wine",
+    "sparking & champagne",
+    "cocktails",
+    "spritz cocktails",
+    "0% cocktails"
+  ],
+  "beerTabsFound": [],
+  "cocktailsSample": [
+    {
+      "name": "Margarita",
+      "price": "\u00a312.50"
+    },
+    {
+      "name": "Spicy Margarita",
+      "price": "\u00a312.50"
+    }
+  ]
+}

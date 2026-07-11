@@ -1,0 +1,57 @@
+{
+  "probedAt": "2026-07-11",
+  "primaryUrl": "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu",
+  "existingMenuCache": {
+    "path": ".firecrawl/menus/",
+    "files": 15,
+    "beerSectionsInMarkdown": 0,
+    "typicalDrinkSubTabs": "white wine | red wine | rosé wine | sparking & champagne | cocktails | spritz cocktails | 0% cocktails"
+  },
+  "findings": {
+    "beerLagerDraughtTabsPresent": false,
+    "pubsScannedForBeerTabDataText": 40,
+    "sherlockDrinkSubTabs": [
+      "white wine",
+      "red wine",
+      "rosé wine",
+      "sparking & champagne",
+      "cocktails",
+      "spritz cocktails",
+      "0% cocktails"
+    ],
+    "defaultScrapeIncludesAllWineCocktailSections": true,
+    "urlSectionParamsFilterScrape": false,
+    "urbanSocialPubsHaveFoodOnlyMenu": true,
+    "ourBeersPagesHavePrices": false
+  },
+  "workingInteractSequence": [
+    "export $(grep FIRECRAWL_API_KEY /workspace/.env.local | xargs)",
+    "npx -y firecrawl-cli@latest scrape \"<menu-url>\" --wait-for 3000",
+    "npx -y firecrawl-cli@latest interact --bash -c \"agent-browser click 'button:has-text(\\\"Allow all cookies\\\")' 2>/dev/null || true; sleep 1; agent-browser click 'button[role=tab][data-text=\\\"drinks\\\"]'; sleep 2; for tab in beer lager draught ale cider; do agent-browser click \\\"button[role=tab][data-text=\\\\\\\"$tab\\\\\\\"]\\\" 2>/dev/null && sleep 1.5; done; agent-browser snapshot -i\" -o .firecrawl/probes/<slug>-beer-interact.txt",
+    "npx -y firecrawl-cli@latest interact stop"
+  ],
+  "samplePriceLines": {
+    "fromCocktailsTab": [
+      "#### Margarita",
+      "£12.50",
+      "#### Mojito",
+      "£12.50"
+    ],
+    "fromWineDefaultView": [
+      "glass",
+      "£7.20 / £9.20 / £11.80"
+    ],
+    "beerFromMenu": null,
+    "beerMentionFromDeals": "Alcoholic drink supplement includes Any draught beer, lager, or cider (+£2 on lunch deal)"
+  },
+  "recommendedImplementation": {
+    "parserChanges": "none — greeneKingMenuParser already maps beer/lager/draught/ale/cider sections",
+    "scraperChanges": [
+      "After base scrape, run interact --python to list button.base-nav-list__item--second-level tabs under drinks",
+      "Click tabs matching /beer|lager|draught|ale|cider|spirit|gin|vodka|rum|whisk/i; append extracted h3/h4/£ blocks to cached markdown",
+      "Merge tab extracts with base markdown before parseGreeneKingMenuMarkdown",
+      "Skip interact when beerTabsFound is empty (current London Heritage reality)",
+      "Optionally use scrape --actions for single-shot tab clicks where tabs exist"
+    ]
+  }
+}

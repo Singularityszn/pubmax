@@ -1,3 +1,5 @@
+import { ExternalLink } from "lucide-react";
+
 import { categoryColor } from "@/lib/categoryColors";
 import { formatPrice } from "@/lib/venues";
 import DrinkRatingRow from "@/components/ratings/DrinkRatingRow";
@@ -32,6 +34,21 @@ function provenanceLabel(prov: DrinkProvenance): string {
   if (isDemoProvenance(prov)) return "Demo";
   if (prov.source === "app-dataset") return "On record";
   return prov.source;
+}
+
+// Extract the unique set of attributable source labels from a drinks array —
+// i.e. sources that are neither the internal baseline ("app-dataset") nor a
+// seeded demo fixture. These are the labels to surface in the attribution
+// footer so users can see that Firecrawl / chain-site scraping contributed.
+function attributableSources(drinks: Drink[]): string[] {
+  const seen = new Set<string>();
+  for (const d of drinks) {
+    const { source } = d.provenance;
+    if (source !== "app-dataset" && !isDemoProvenance(d.provenance)) {
+      seen.add(source);
+    }
+  }
+  return Array.from(seen);
 }
 
 function isDemoProvenance(prov: DrinkProvenance): boolean {
@@ -150,6 +167,12 @@ export type DrinkMenuProps = {
   /** Optional back control for the Menu hub → deep-dive flow. */
   onBack?: () => void;
   backLabel?: string;
+  /**
+   * Official menu URL from the enrichment overlay (venue_menu_enrichment.json /
+   * Firecrawl). When present a prominent "Official menu →" CTA is shown at the
+   * top of the drinks view so the scraping work is visible to users.
+   */
+  menuUrl?: string;
 };
 
 export default function DrinkMenu({
@@ -159,10 +182,15 @@ export default function DrinkMenu({
   categoryFilter,
   onBack,
   backLabel = "Menus",
+  menuUrl,
 }: DrinkMenuProps) {
   const groups = groupDrinksByCategory(drinks).filter((group) =>
     categoryFilter ? group.category === categoryFilter : true,
   );
+  // Collect unique sources that came from a real permissible scrape / chain
+  // site (Firecrawl, official chain menu). These are never "app-dataset" or
+  // a seeded demo — they're what we want to surface.
+  const sources = attributableSources(drinks);
 
   if (groups.length === 0) {
     return (
@@ -178,6 +206,17 @@ export default function DrinkMenu({
           drinks beyond the pint list. Prices you see are community-updated —
           not a live feed.
         </p>
+        {menuUrl ? (
+          <a
+            className="drinkMenuOfficialCta"
+            href={menuUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Official menu
+            <ExternalLink size={13} aria-hidden="true" />
+          </a>
+        ) : null}
       </div>
     );
   }
@@ -189,6 +228,21 @@ export default function DrinkMenu({
           ← {backLabel}
         </button>
       ) : null}
+      {/* Official menu CTA — shown whenever we have a curated chain URL so
+          the Firecrawl / enrichment work is always visible to users in the
+          drink-detail view, not just on the hub. */}
+      {menuUrl ? (
+        <a
+          className="drinkMenuOfficialCta"
+          href={menuUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View the official menu (opens in new tab)"
+        >
+          Official menu
+          <ExternalLink size={13} aria-hidden="true" />
+        </a>
+      ) : null}
       {groups.map((group) => (
         <CategorySection
           key={group.category}
@@ -199,8 +253,14 @@ export default function DrinkMenu({
         />
       ))}
       <p className="drinkMenuFootnote">
-        Every drink carries its source · Demo items are seeded examples, never a
-        live price.
+        {sources.length > 0 ? (
+          <>
+            Prices from: <strong>{sources.join(", ")}</strong>. Other prices are
+            community-updated or on-record baselines — not a live feed.
+          </>
+        ) : (
+          <>Every drink carries its source · Demo items are seeded examples, never a live price.</>
+        )}
       </p>
     </div>
   );
