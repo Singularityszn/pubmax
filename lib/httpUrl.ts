@@ -1,4 +1,4 @@
-/** True when `value` parses as an http(s) URL (no trim — callers trim first). */
+/** True when `value` parses as an absolute http(s) URL (no trim — callers trim first). */
 export function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);

@@ -17,6 +17,8 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react";
 
+import { firstHttp } from "@/lib/httpUrl";
+
 import "./cityStatusBanner.css";
 
 type Weather = {
@@ -109,7 +111,7 @@ function summariseTubeLines(lines: TubeLine[] | undefined): string | null {
  * win over weather; nulls cascade through so we never render a shell without
  * anything to say.
  */
-function pickHeadline(data: StatusResponse): {
+export function pickCityStatusHeadline(data: StatusResponse): {
   text: string;
   kind: "signal" | "tube" | "weather";
   severity: string;
@@ -124,7 +126,7 @@ function pickHeadline(data: StatusResponse): {
         text: top.headline,
         kind: "signal",
         severity: String(top.severity ?? "info").toLowerCase(),
-        href: top.sourceUrl,
+        href: firstHttp(top.sourceUrl) || undefined,
       };
     }
   }
@@ -191,7 +193,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
     return null;
   }
 
-  const headline = pickHeadline(data);
+  const headline = pickCityStatusHeadline(data);
   if (!headline) return null;
 
   const dismiss = () => {
