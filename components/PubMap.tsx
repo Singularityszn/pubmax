@@ -1302,7 +1302,8 @@ export default function PubMap({
               <ul className="logIntentNearbyList" aria-label="Nearby pubs to log">
                 {logNearbyCandidates.map((candidate) => {
                   const dist =
-                    typeof candidate.distanceKm === "number"
+                    typeof candidate.distanceKm === "number" &&
+                    Number.isFinite(candidate.distanceKm)
                       ? formatLogNearbyDistance(candidate.distanceKm)
                       : "";
                   return (

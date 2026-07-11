@@ -39,7 +39,7 @@
 }
 
 /* The swatch: a soft tinted disc carrying the category colour, with the glyph
-   drawn in the same hue (currentColor). `color` is set inline per category. */
+   drawn in the same hue (currentcolor). `color` is set inline per category. */
 .catShowcase__swatch {
   display: inline-flex;
   align-items: center;
@@ -49,8 +49,8 @@
   flex: 0 0 auto;
   border-radius: var(--radius-pill);
   /* very light wash of the category colour behind the line-art glyph */
-  background: color-mix(in srgb, currentColor 14%, transparent);
-  border: 1.5px solid color-mix(in srgb, currentColor 45%, transparent);
+  background: color-mix(in srgb, currentcolor 14%, transparent);
+  border: 1.5px solid color-mix(in srgb, currentcolor 45%, transparent);
 }
 
 .catShowcase__labelWrap {
