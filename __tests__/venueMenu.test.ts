@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { hasMenuBeyondPints } from "@/lib/drinkMenu";
 import type { VenuePrice } from "@/lib/venues";
-import { venueMenuForInspector } from "@/lib/venueMenu";
+import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
+import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -106,5 +107,32 @@ describe("venueMenuForInspector", () => {
     expect(oldFashioned).toBeDefined();
     expect(oldFashioned!.priceGbp).toBe(10.95);
     expect(oldFashioned!.provenance.source).toBe("PUBMAXXING demo menu fixture");
+  });
+
+  it("lookup keys fall back to name|address|lat|lng and venue.id when prices are empty", () => {
+    const keys = venueMenuLookupKeys({
+      id: "venue-mcr-8nl72x",
+      name: "George & Dragon",
+      address: "14, London Road, Stockport, SK7 4AH",
+      latitude: 53.3843726,
+      longitude: -2.127616,
+      prices: [],
+    });
+    expect(keys[0]).toBe(
+      "george & dragon|14, london road, stockport, sk7 4ah|53.38437|-2.12762",
+    );
+    expect(keys).toContain("venue-mcr-8nl72x");
+  });
+
+  it("attaches Prospect food updates from the food price layer", () => {
+    const food = venueFoodMenuForInspector({
+      id: SEEDED_VENUE_ID,
+      prices: [prospectPrice("p1", "Amstel", 6.1)],
+    });
+    expect(food.length).toBeGreaterThan(0);
+    const chips = food.find((item) => item.name === "Fish & Chips");
+    expect(chips?.priceGbp).toBe(19.95);
+    expect(chips?.category).toBe("mains");
+    expect(chips?.provenance.source).toBe("Greene King — official site");
   });
 });
