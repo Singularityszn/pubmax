@@ -2123,6 +2123,20 @@ export default function PubMapCanvas({
     });
   }, []);
 
+  // Clean city arrival: frame the city's maxBounds once after style/load.
+  // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
+  // see shouldFitCityBoundsOnArrival. Ref guards against effect re-runs.
+  const didFitOnArrivalRef = useRef(false);
+  useEffect(() => {
+    didFitOnArrivalRef.current = false;
+  }, [cityId]);
+  useEffect(() => {
+    if (!mapReady || !fitCityOnArrival) return;
+    if (didFitOnArrivalRef.current) return;
+    didFitOnArrivalRef.current = true;
+    fitCityBounds();
+  }, [mapReady, fitCityOnArrival, fitCityBounds]);
+
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere
   // selection change produce the same key, so the camera stays put while a user

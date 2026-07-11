@@ -72,7 +72,7 @@ import {
   shouldShowCuratedOnboarding,
   truncateBandCopy,
 } from "@/lib/bandOnboardingChip";
-import { isDrinkShapeArrival, shouldOpenPlanningInitially } from "@/lib/mapArrival";
+import { isDrinkShapeArrival, shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially } from "@/lib/mapArrival";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -450,6 +450,9 @@ export default function PubMap({
   // crawl from localStorage on a clean /map tab click (that bloated the address
   // bar with stale ?mode=build&pubs=… every time someone returned to Map).
   const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch(), cityId));
+  // Freeze arrival search with the seed so fit-on-arrival does not flip when the
+  // user later maps a route or the address bar syncs.
+  const [arrivalSearch] = useState(() => currentSearch());
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
@@ -1185,6 +1188,10 @@ export default function PubMap({
           onMapReady={setMapCanvasReady}
           mapView={city.mapView}
           maxBounds={cityBounds}
+          fitCityOnArrival={shouldFitCityBoundsOnArrival(
+            arrivalSearch,
+            seed.routeMapped,
+          )}
           poisPath={city.poisPath}
           transitLinesPath={city.transitLinesPath}
           cityLandmarks={cityLandmarks}

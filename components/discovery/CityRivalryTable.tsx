@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
+import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
 
 type CityRivalryTableProps = {
@@ -11,7 +14,8 @@ type CityRivalryTableProps = {
 /**
  * Compact UK city energy table for Discover — community drops + curated crawls
  * + venue coverage, not a fake price catalogue. Links each city via cityMapShareUrl
- * (London stays `/map`; other cities use `/map/{id}`).
+ * (London stays `/map`; other cities use `/map/{id}`). City taps also persist
+ * preferred-city so Map/Drop nav follow the last rivalry pick.
  */
 export default function CityRivalryTable({
   entries,
@@ -55,6 +59,7 @@ export default function CityRivalryTable({
               <Link
                 className="cityRivalryLink"
                 href={cityMapShareUrl(entry.cityId)}
+                onClick={() => writePreferredCity(entry.cityId)}
               >
                 <span className="leaderboardPub">{entry.displayName}</span>
                 <span className="leaderboardPint">{entry.tagline}</span>

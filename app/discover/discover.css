@@ -234,7 +234,7 @@
 }
 
 .leaderboardRank {
-  width: 44px;
+  width: 36px;
   text-align: center;
 }
 
@@ -242,14 +242,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
   border: 1px solid color-mix(in srgb, var(--brass) 44%, var(--line));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 85%, transparent);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 11px;
   color: var(--brass);
 }
 
@@ -309,8 +309,8 @@
   display: inline-block;
   min-width: 3.2ch;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--brass);
+  font-weight: 500;
+  color: var(--ink-soft);
 }
 
 .priceStamp {
