@@ -113,6 +113,11 @@ type PubMapCanvasProps = {
    */
   maxBounds?: [[number, number], [number, number]];
   /**
+   * Clean city arrival (no drink/crawl/pubs/route intent): fit city bounds once
+   * after style/load so Bristol/Oxford/etc. land framed, not on a default zoom.
+   */
+  fitCityOnArrival?: boolean;
+  /**
    * Optional POI JSON path from CityConfig.poisPath. `null` skips the London
    * POI fetch so non-London cities do not 404 on `/data/london_pois.json`.
    * Omit / undefined keeps the London default for back-compat.
@@ -158,12 +163,11 @@ const FALLBACK_STYLES = {
 } as const;
 const STYLE_LOAD_TIMEOUT_MS = 8000;
 
-// Wider first view so outer boroughs (Barnet, Croydon, …) read at a glance —
-// still centred on the river, but zoomed out enough that Zone 1 isn't the
-// whole story on first paint (outer-London coverage P0).
+// Opening London zoom — tight enough that drink icons appear soon, not a sea
+// of mega-clusters (outer boroughs still reachable by pan/zoom).
 const LONDON_VIEW = {
   center: [-0.12, 51.52] as [number, number],
-  zoom: 9.85,
+  zoom: 11.1,
   pitch: 42,
   bearing: -12,
 };
@@ -569,6 +573,7 @@ export default function PubMapCanvas({
   onMapReady,
   mapView = LONDON_VIEW,
   maxBounds = LONDON_BOUNDS,
+  fitCityOnArrival = false,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
   cityLandmarks = londonLandmarks,
@@ -1430,13 +1435,16 @@ export default function PubMapCanvas({
       });
 
       // --- Pubs: clustered GeoJSON source + designed data-driven layers.
+      // clusterRadius / clusterMaxZoom are create-time only (MapLibre does not
+      // update them via setData). Theme setStyle clears sources, so rebuilds
+      // pick up these values on the next addSource.
       if (!map.getSource("pubs")) {
         map.addSource("pubs", {
           type: "geojson",
           data: pubsDataRef.current,
           cluster: true,
-          clusterRadius: 46,
-          clusterMaxZoom: 13,
+          clusterRadius: 28,
+          clusterMaxZoom: 14,
         });
       }
       // Pint-Drops ring: a river-toned glow + a crisp outline so community
@@ -1448,11 +1456,11 @@ export default function PubMapCanvas({
         filter: ["all", ["!", ["has", "point_count"]], ["get", "drops"]],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 15],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 15, 12],
           "circle-stroke-color": tokens.riverBright,
-          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2],
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1, 15, 1.6],
           "circle-stroke-opacity": 0.7,
-          "circle-blur": 0.2,
+          "circle-blur": 0.15,
         },
       });
       // Story-band member halo (issue #15): while a band is active, its member
@@ -1471,11 +1479,11 @@ export default function PubMapCanvas({
         ],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 18],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8.5, 15, 14],
           "circle-stroke-color": bandColorRef.current,
-          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 2, 15, 3],
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.6, 15, 2.4],
           "circle-stroke-opacity": dark ? 0.85 : 0.8,
-          "circle-blur": 0.15,
+          "circle-blur": 0.1,
         },
       });
       addLayerOnce({
@@ -1490,9 +1498,9 @@ export default function PubMapCanvas({
             ["linear"],
             ["zoom"],
             10,
-            ["case", ["get", "story"], 0.55, 0.48],
+            ["case", ["get", "story"], 0.7, 0.62],
             15,
-            ["case", ["get", "story"], 0.92, 0.82],
+            ["case", ["get", "story"], 1.05, 0.95],
           ],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
@@ -1511,11 +1519,11 @@ export default function PubMapCanvas({
         filter: ["==", ["get", "id"], selectedIdRef.current],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 14, 15, 19],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 15],
           "circle-stroke-color": tokens.brass,
-          "circle-stroke-width": 4,
+          "circle-stroke-width": 3.2,
           "circle-stroke-opacity": 0.35,
-          "circle-blur": 0.3,
+          "circle-blur": 0.22,
         },
       });
       addLayerOnce({
@@ -1525,9 +1533,9 @@ export default function PubMapCanvas({
         filter: ["==", ["get", "id"], selectedIdRef.current],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 10, 15, 14],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 11],
           "circle-stroke-color": tokens.brassBright,
-          "circle-stroke-width": 2.5,
+          "circle-stroke-width": 2.2,
           "circle-stroke-opacity": 0.98,
         },
       });
@@ -1540,10 +1548,10 @@ export default function PubMapCanvas({
           // Wave J1 — pint → amber → brass by density (not ink-black discs).
           "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
           "circle-stroke-color": tokens.panelRaised,
-          "circle-stroke-width": ["step", ["get", "point_count"], 2, 40, 2.5, 100, 3],
+          "circle-stroke-width": ["step", ["get", "point_count"], 1.25, 40, 1.5, 100, 1.75],
           "circle-stroke-opacity": 0.95,
-          "circle-radius": ["step", ["get", "point_count"], 17, 25, 23, 100, 31],
-          "circle-blur": ["step", ["get", "point_count"], 0.05, 40, 0.12, 100, 0.18],
+          "circle-radius": ["step", ["get", "point_count"], 9, 25, 12, 100, 16],
+          "circle-blur": ["step", ["get", "point_count"], 0.02, 40, 0.05, 100, 0.08],
           "circle-opacity": 0.94,
         },
       });
@@ -1555,7 +1563,7 @@ export default function PubMapCanvas({
         layout: {
           "text-field": ["get", "point_count_abbreviated"],
           "text-font": textFont,
-          "text-size": ["step", ["get", "point_count"], 12, 25, 13, 100, 15],
+          "text-size": ["step", ["get", "point_count"], 9, 25, 10, 100, 11],
           "text-letter-spacing": 0.02,
         },
         paint: {
