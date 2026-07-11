@@ -107,16 +107,18 @@ export async function POST(request: Request): Promise<Response> {
     // The owner handle is resolved server-side (never client-supplied); a miss
     // (demo seed / unknown id / self-comment) simply doesn't emit. Never awaited
     // for correctness — a notification failure must not fail the comment write.
-    void dropOwnerHandle(dropId).then((owner) => {
-      if (!owner) return;
-      return emitNotification({
-        recipientHandle: owner,
-        actorHandle: ownership.handle,
-        kind: "comment",
-        subjectRef: dropId,
-        subjectLabel: cleaned.body.slice(0, 80),
-      });
-    });
+    void dropOwnerHandle(dropId)
+      .then((owner) => {
+        if (!owner) return;
+        return emitNotification({
+          recipientHandle: owner,
+          actorHandle: ownership.handle,
+          kind: "comment",
+          subjectRef: dropId,
+          subjectLabel: cleaned.body.slice(0, 80),
+        });
+      })
+      .catch(() => {});
     return jsonNoStore({ comment }, { status: 201 });
   } catch (err) {
     // An invalid reply parent is a CLIENT error (400), distinct from a store

@@ -51,7 +51,10 @@ describe("venueDetailIndex", () => {
     expect(isVenueDetailId("venue-mcr-1lwo5lo")).toBe(true);
     expect(isVenueDetailId("venue-oxf-16404bl")).toBe(true);
     expect(isVenueDetailId("venue-glw-dsoj3p")).toBe(true);
-    expect(isVenueDetailId(`venue-${"a".repeat(13)}`)).toBe(false);
+    // Forward-compat: today's ids are ≤12 chars, but the regex allows up to 24
+    // so a future id-generator bump doesn't need a code change here. 25 is out.
+    expect(isVenueDetailId(`venue-${"a".repeat(24)}`)).toBe(true);
+    expect(isVenueDetailId(`venue-${"a".repeat(25)}`)).toBe(false);
     expect(isVenueDetailId("venue-mcr-")).toBe(false);
     expect(isVenueDetailId("../venue-16pnwmm")).toBe(false);
     expect(isVenueDetailId("venue-16pnwmm.json")).toBe(false);

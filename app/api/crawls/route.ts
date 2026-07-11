@@ -144,16 +144,18 @@ export async function POST(request: Request): Promise<Response> {
   // notification failure must not fail the crawl save.
   const savedFromSlug = readString(body.savedFromSlug, 120);
   if (savedFromSlug && authorHandle) {
-    void getStoryAuthor(savedFromSlug).then((sourceAuthor) => {
-      if (!sourceAuthor) return;
-      return emitNotification({
-        recipientHandle: sourceAuthor,
-        actorHandle: authorHandle,
-        kind: "crawl_save",
-        subjectRef: result.slug,
-        subjectLabel: title,
-      });
-    });
+    void getStoryAuthor(savedFromSlug)
+      .then((sourceAuthor) => {
+        if (!sourceAuthor) return;
+        return emitNotification({
+          recipientHandle: sourceAuthor,
+          actorHandle: authorHandle,
+          kind: "crawl_save",
+          subjectRef: result.slug,
+          subjectLabel: title,
+        });
+      })
+      .catch(() => {});
   }
 
   return jsonNoStore({ slug: result.slug }, { status: 201 });
