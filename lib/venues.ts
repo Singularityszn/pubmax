@@ -148,6 +148,12 @@ export type VenueFilterHints = {
   };
   canonical: boolean;
   /**
+   * True when the venue came from a London chain/guide scrape (Young's,
+   * Nicholson's, Greene King, Eating Europe gazetteer). Used for map halos and
+   * drink-accent fallbacks — never invents prices.
+   */
+  scraped?: boolean;
+  /**
    * Soft cuisine / plate tags (roast, thai, pizza, …). Optional — absent on
    * most slim rows; when present they are short lowercase tokens for UI chips
    * and Discover "Hungry?" deep-links, never a hard filter gate.
@@ -191,8 +197,8 @@ export function truthyFlag(value: string): boolean {
   return ["yes", "true", "y", "1"].includes(String(value).trim().toLowerCase());
 }
 
-export function splitList(value: string): string[] {
-  return value
+export function splitList(value: string | null | undefined): string[] {
+  return String(value ?? "")
     .split("|")
     .map((item) => item.trim())
     .filter(Boolean);
@@ -525,7 +531,9 @@ export function filterVenues(
 }
 
 export function priceColor(price: number | null): string {
-  if (price === null) return "#64748b";
+  // Warm muted ink for "no price yet" — sits with Candle Coral paper better
+  // than cold slate, so gazetteer pins still read as pubs on the map.
+  if (price === null) return "#8a7368";
   if (price <= 5.5) return "#138a63";
   if (price <= 7) return "#d28b16";
   return "#c24132";

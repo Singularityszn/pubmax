@@ -17,6 +17,7 @@ import {
   type ThingsToDoResult,
   type ThingsToDoWindow,
 } from "@/lib/citymcp/client";
+import { enrichOpportunityLocations } from "@/lib/citymcp/enrichOpportunityLocations";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -134,6 +135,15 @@ export async function GET(request: Request): Promise<Response> {
       opportunities: [],
       error: message,
     });
+  }
+
+  // Resolve missing place.location via search_places so map pins can render.
+  // Fail-soft: enrichment errors leave the upstream rows as-is.
+  try {
+    const enriched = await enrichOpportunityLocations(result.opportunities);
+    result = { ...result, opportunities: enriched };
+  } catch {
+    // Keep un-enriched opportunities.
   }
 
   return jsonResponse(
