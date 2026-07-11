@@ -3,10 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   callCityMcpTool,
   CityMcpError,
+  fetchCityPlace,
   fetchCityStatus,
+  fetchThingsToDo,
   parseSseJsonRpcBody,
+  resetCityPlaceCache,
   resetCityStatusCache,
+  resetThingsToDoCache,
   searchCityPlaces,
+  trimCityPlace,
   trimSignals,
 } from "@/lib/citymcp/client";
 
@@ -16,6 +21,8 @@ function sseFrame(payload: unknown): string {
 
 beforeEach(() => {
   resetCityStatusCache();
+  resetCityPlaceCache();
+  resetThingsToDoCache();
 });
 
 afterEach(() => {
@@ -282,5 +289,161 @@ describe("searchCityPlaces", () => {
       ),
     );
     expect(await searchCityPlaces("anything", { fetchImpl })).toEqual([]);
+  });
+});
+
+describe("trimCityPlace", () => {
+  it("whitelists identity + enrichment fields and drops unknown blobs", () => {
+    const place = trimCityPlace("abc", {
+      name: "The George",
+      address: "75 Borough High St",
+      area: "Southwark",
+      location: { lat: 51.5, lng: -0.09 },
+      types: ["pub", "bar", "restaurant", "food", "point_of_interest", "establishment", "extra_type"],
+      rating: 4.3,
+      userRatingCount: 7373,
+      priceBand: "££",
+      openNow: true,
+      hygiene: {
+        value: { businessName: "The George Inn", rating: 5 },
+        source: "FSA",
+        fetchedAt: "2026-07-11T00:00:00Z",
+      },
+      transit: {
+        value: {
+          nearest: "London Bridge",
+          lines: ["Northern", "Jubilee"],
+          walkMinutes: 4,
+          summary: "London Bridge — 4 min walk",
+        },
+        source: "TfL",
+      },
+      air: { value: { index: "Low", site: "Southwark" }, source: "LAQN" },
+      // Not on whitelist — must be dropped.
+      rawDump: { anything: true },
+    });
+    expect(place.id).toBe("abc");
+    expect(place.name).toBe("The George");
+    expect(place.types).toHaveLength(6);
+    expect(place.hygiene?.value?.rating).toBe(5);
+    expect(place.transit?.value?.summary).toBe("London Bridge — 4 min walk");
+    expect(place.air?.value?.index).toBe("Low");
+    expect((place as unknown as { rawDump?: unknown }).rawDump).toBeUndefined();
+  });
+
+  it("returns just the id when structured content is empty/nonsense", () => {
+    expect(trimCityPlace("id-only", undefined)).toEqual({ id: "id-only" });
+    expect(trimCityPlace("id-2", { name: "" }).name).toBeUndefined();
+  });
+
+  it("skips enrichment blocks with no usable value", () => {
+    const place = trimCityPlace("abc", {
+      hygiene: { source: "FSA" },
+      transit: { value: {} },
+    });
+    expect(place.hygiene).toBeUndefined();
+    expect(place.transit).toBeUndefined();
+  });
+});
+
+describe("fetchCityPlace", () => {
+  it("caches per (id, deep) within TTL and passes deep:true through", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        sseFrame({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            structuredContent: { name: "Blue Post", openNow: true },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const a = await fetchCityPlace("place-1", { fetchImpl });
+    const b = await fetchCityPlace("place-1", { fetchImpl });
+    expect(a.name).toBe("Blue Post");
+    expect(b).toEqual(a);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    // Different deep flag = different cache key.
+    await fetchCityPlace("place-1", { deep: true, fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    // Deep flag was forwarded to the upstream args.
+    const call = fetchImpl.mock.calls[1] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(call[1]?.body));
+    expect(body.params.arguments).toEqual({ id: "place-1", deep: true });
+
+    // Reset drops all cache entries.
+    resetCityPlaceCache();
+    await fetchCityPlace("place-1", { fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("throws CityMcpError when id is empty", async () => {
+    await expect(fetchCityPlace("")).rejects.toBeInstanceOf(CityMcpError);
+  });
+});
+
+describe("fetchThingsToDo", () => {
+  it("trims opportunities, caps by limit, and caches per args", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        sseFrame({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            structuredContent: {
+              area: "Soho",
+              opportunities: [
+                { title: "Show 1", kind: "gig", areas: ["Soho"] },
+                { title: "Show 2", price: "cheap" },
+                { title: "" },
+                null,
+                { title: "Show 3", place: { name: "Ronnie Scott's" } },
+                { title: "Show 4" },
+              ],
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const first = await fetchThingsToDo({
+      window: "tonight",
+      area: "Soho",
+      limit: 2,
+      fetchImpl,
+    });
+    expect(first.opportunities).toHaveLength(2);
+    expect(first.opportunities.map((o) => o.title)).toEqual(["Show 1", "Show 2"]);
+
+    // Cache hit — no new upstream call.
+    const second = await fetchThingsToDo({
+      window: "tonight",
+      area: "Soho",
+      limit: 2,
+      fetchImpl,
+    });
+    expect(second).toEqual(first);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    // Different window bypasses cache.
+    await fetchThingsToDo({ window: "tomorrow_night", fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    resetThingsToDoCache();
+    await fetchThingsToDo({ window: "tonight", area: "Soho", limit: 2, fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("throws CityMcpError when window is invalid", async () => {
+    await expect(
+      // @ts-expect-error — invalid window on purpose
+      fetchThingsToDo({ window: "someday" }),
+    ).rejects.toBeInstanceOf(CityMcpError);
   });
 });

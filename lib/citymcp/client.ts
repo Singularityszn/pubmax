@@ -25,6 +25,8 @@
 const DEFAULT_ENDPOINT = "https://citymcp.com/london/mcp";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const CITY_STATUS_TTL_MS = 5 * 60 * 1000;
+const PLACE_TTL_MS = 10 * 60 * 1000;
+const THINGS_TO_DO_TTL_MS = 5 * 60 * 1000;
 const PROTOCOL_VERSION = "2025-06-18";
 const CLIENT_INFO = { name: "pubmaxing-citymcp-client", version: "0.1.0" };
 
@@ -387,6 +389,403 @@ export async function searchCityPlaces(
       typeof (p as { name?: unknown }).name === "string"
     );
   });
+}
+
+// ---------- get_place: dossier fetch + short-TTL cache ----------
+
+/**
+ * Trimmed CityMCP place dossier the app is willing to render. This is a
+ * defensive whitelist over the upstream `get_place` result — anything not
+ * listed here is dropped before the value ever reaches the client so we
+ * never leak giant raw dumps or invent fields.
+ *
+ * Only `deep:true` returns hygiene / transit / air / weather / michelin.
+ * Every field is optional because the upstream may omit anything at any
+ * time; the UI must render "nothing" rather than a fabricated fact.
+ */
+export type CityPlace = {
+  id: string;
+  name?: string;
+  address?: string;
+  area?: string;
+  location?: { lat: number; lng: number };
+  types?: string[];
+  rating?: number;
+  userRatingCount?: number;
+  priceBand?: string;
+  openNow?: boolean;
+  hours?: string[];
+  // Optional enrichment (deep:true) — each carries the source when present,
+  // never faked. Keep shape flexible; UI checks `value`.
+  hygiene?: {
+    value?: { businessName?: string; rating?: string | number };
+    source?: string;
+    fetchedAt?: string;
+  };
+  transit?: {
+    value?: {
+      nearest?: string;
+      lines?: string[];
+      walkMinutes?: number;
+      summary?: string;
+    };
+    source?: string;
+  };
+  air?: {
+    value?: { index?: string | number; site?: string };
+    source?: string;
+  };
+  weather?: {
+    value?: {
+      condition?: string;
+      tempC?: number;
+      precipProbabilityPct?: number;
+    };
+    source?: string;
+  };
+};
+
+type PlaceCacheEntry = { value: CityPlace; expiresAt: number };
+const placeCache = new Map<string, PlaceCacheEntry>();
+
+/** Test-only: drop all cached place entries. */
+export function resetCityPlaceCache(): void {
+  placeCache.clear();
+}
+
+function pickNumber(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  return undefined;
+}
+
+function pickString(v: unknown): string | undefined {
+  if (typeof v === "string" && v.length > 0) return v;
+  return undefined;
+}
+
+function pickStringArray(v: unknown, cap = 8): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v.filter((x): x is string => typeof x === "string" && x.length > 0).slice(0, cap);
+  return out.length > 0 ? out : undefined;
+}
+
+function pickLocation(v: unknown): { lat: number; lng: number } | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const lat = pickNumber((v as { lat?: unknown }).lat);
+  const lng = pickNumber((v as { lng?: unknown }).lng);
+  if (lat === undefined || lng === undefined) return undefined;
+  return { lat, lng };
+}
+
+function pickScalar(v: unknown): string | number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.length > 0) return v;
+  return undefined;
+}
+
+function readEnrichmentBlock(
+  raw: unknown,
+): { value: Record<string, unknown>; source?: string; fetchedAt?: string } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const b = raw as Record<string, unknown>;
+  const value = b.value && typeof b.value === "object" ? (b.value as Record<string, unknown>) : undefined;
+  if (!value) return null;
+  return { value, source: pickString(b.source), fetchedAt: pickString(b.fetchedAt) };
+}
+
+function trimHygiene(raw: unknown): CityPlace["hygiene"] {
+  const block = readEnrichmentBlock(raw);
+  if (!block) return undefined;
+  const businessName = pickString(block.value.businessName);
+  const rating = pickScalar(block.value.rating);
+  if (!businessName && rating === undefined) return undefined;
+  return {
+    value: {
+      ...(businessName ? { businessName } : {}),
+      ...(rating !== undefined ? { rating } : {}),
+    },
+    source: block.source,
+    fetchedAt: block.fetchedAt,
+  };
+}
+
+function trimTransit(raw: unknown): CityPlace["transit"] {
+  const block = readEnrichmentBlock(raw);
+  if (!block) return undefined;
+  const nearest = pickString(block.value.nearest);
+  const lines = pickStringArray(block.value.lines, 4);
+  const walkMinutes = pickNumber(block.value.walkMinutes);
+  const summary = pickString(block.value.summary);
+  if (!nearest && !lines && walkMinutes === undefined && !summary) return undefined;
+  return {
+    value: {
+      ...(nearest ? { nearest } : {}),
+      ...(lines ? { lines } : {}),
+      ...(walkMinutes !== undefined ? { walkMinutes } : {}),
+      ...(summary ? { summary } : {}),
+    },
+    source: block.source,
+  };
+}
+
+function trimAir(raw: unknown): CityPlace["air"] {
+  const block = readEnrichmentBlock(raw);
+  if (!block) return undefined;
+  const index = pickScalar(block.value.index);
+  const site = pickString(block.value.site);
+  if (index === undefined && !site) return undefined;
+  return {
+    value: {
+      ...(index !== undefined ? { index } : {}),
+      ...(site ? { site } : {}),
+    },
+    source: block.source,
+  };
+}
+
+function trimPlaceWeather(raw: unknown): CityPlace["weather"] {
+  const block = readEnrichmentBlock(raw);
+  if (!block) return undefined;
+  const condition = pickString(block.value.condition);
+  const tempC = pickNumber(block.value.tempC);
+  const precipProbabilityPct = pickNumber(block.value.precipProbabilityPct);
+  if (!condition && tempC === undefined && precipProbabilityPct === undefined) return undefined;
+  return {
+    value: {
+      ...(condition ? { condition } : {}),
+      ...(tempC !== undefined ? { tempC } : {}),
+      ...(precipProbabilityPct !== undefined ? { precipProbabilityPct } : {}),
+    },
+    source: block.source,
+  };
+}
+
+/**
+ * Whitelist/trim an upstream `get_place` structuredContent into `CityPlace`.
+ * Every field is optional — we only surface upstream-provided values, never
+ * invent hygiene/transit facts. Exported for tests.
+ */
+export function trimCityPlace(id: string, raw: unknown): CityPlace {
+  const obj = (raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {}) as Record<string, unknown>;
+  const nested = obj.place && typeof obj.place === "object" ? (obj.place as Record<string, unknown>) : obj;
+
+  const place: CityPlace = { id };
+  const name = pickString(nested.name);
+  if (name) place.name = name;
+  const address = pickString(nested.address) ?? pickString(nested.formattedAddress);
+  if (address) place.address = address;
+  const area = pickString(nested.area);
+  if (area) place.area = area;
+  const location = pickLocation(nested.location);
+  if (location) place.location = location;
+  const types = pickStringArray(nested.types, 6);
+  if (types) place.types = types;
+  const rating = pickNumber(nested.rating);
+  if (rating !== undefined) place.rating = rating;
+  const userRatingCount = pickNumber(nested.userRatingCount);
+  if (userRatingCount !== undefined) place.userRatingCount = userRatingCount;
+  const priceBand = pickString(nested.priceBand);
+  if (priceBand) place.priceBand = priceBand;
+  if (typeof nested.openNow === "boolean") place.openNow = nested.openNow;
+  const hours = pickStringArray(nested.hours, 8) ?? pickStringArray(nested.weekdayText, 8);
+  if (hours) place.hours = hours;
+
+  const hygiene = trimHygiene(nested.hygiene);
+  if (hygiene) place.hygiene = hygiene;
+  const transit = trimTransit(nested.transit);
+  if (transit) place.transit = transit;
+  const air = trimAir(nested.air);
+  if (air) place.air = air;
+  const weather = trimPlaceWeather(nested.weather);
+  if (weather) place.weather = weather;
+
+  return place;
+}
+
+export type FetchCityPlaceOpts = CityMcpCallOptions & { deep?: boolean };
+
+/**
+ * Fetch and trim a CityMCP `get_place` dossier. Cached in-process for ~10min
+ * per (id, deep) tuple. Throws `CityMcpError` on failure — callers fail-soft.
+ */
+export async function fetchCityPlace(
+  id: string,
+  opts: FetchCityPlaceOpts = {},
+): Promise<CityPlace> {
+  if (!id) throw new CityMcpError("get_place: id is required", "empty");
+  const deep = opts.deep === true;
+  const cacheKey = `${deep ? "d" : "s"}:${id}`;
+  const now = Date.now();
+  const cached = placeCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.value;
+
+  const args: Record<string, unknown> = { id };
+  if (deep) args.deep = true;
+  const result = await callCityMcpTool<unknown>("get_place", args, opts);
+  const trimmed = trimCityPlace(id, result.structuredContent);
+  placeCache.set(cacheKey, { value: trimmed, expiresAt: now + PLACE_TTL_MS });
+  return trimmed;
+}
+
+// ---------- things_to_do: curated opportunities + short-TTL cache ----------
+
+export type ThingsToDoWindow = "tonight" | "tomorrow_night" | "this_weekend";
+
+export const THINGS_TO_DO_WINDOWS: readonly ThingsToDoWindow[] = [
+  "tonight",
+  "tomorrow_night",
+  "this_weekend",
+];
+
+export type ThingsToDoKind =
+  | "exhibition"
+  | "gig"
+  | "comedy"
+  | "theatre"
+  | "popup"
+  | "food_drink"
+  | "market"
+  | "family"
+  | "talk"
+  | "nightlife"
+  | "free_event"
+  | "other";
+
+export type ThingsToDoPrice = "any" | "cheap" | "free";
+
+export type ThingsToDoOpportunity = {
+  title: string;
+  kind?: ThingsToDoKind | string;
+  areas?: string[];
+  price?: string;
+  availability?: string;
+  timeEvidence?: string;
+  place?: {
+    id?: string;
+    name?: string;
+    area?: string;
+    location?: { lat: number; lng: number };
+  };
+  source?: { label?: string; url?: string };
+};
+
+export type ThingsToDoResult = {
+  window: ThingsToDoWindow;
+  area?: string;
+  asOf?: string;
+  opportunities: ThingsToDoOpportunity[];
+};
+
+type ThingsToDoCacheEntry = { value: ThingsToDoResult; expiresAt: number };
+const thingsToDoCache = new Map<string, ThingsToDoCacheEntry>();
+
+/** Test-only: drop all cached things_to_do entries. */
+export function resetThingsToDoCache(): void {
+  thingsToDoCache.clear();
+}
+
+function trimOpportunity(raw: unknown): ThingsToDoOpportunity | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const title = pickString(o.title);
+  if (!title) return null;
+
+  const out: ThingsToDoOpportunity = { title };
+  const kind = pickString(o.kind);
+  if (kind) out.kind = kind;
+  const areas = pickStringArray(o.areas, 3);
+  if (areas) out.areas = areas;
+  const price = pickString(o.price);
+  if (price) out.price = price;
+  const availability = pickString(o.availability);
+  if (availability) out.availability = availability;
+  const timeEvidence = pickString(o.timeEvidence);
+  if (timeEvidence) out.timeEvidence = timeEvidence;
+
+  const place = o.place;
+  if (place && typeof place === "object") {
+    const p = place as Record<string, unknown>;
+    const placeId = pickString(p.id);
+    const placeName = pickString(p.name);
+    const placeArea = pickString(p.area);
+    const placeLoc = pickLocation(p.location);
+    if (placeId || placeName || placeArea || placeLoc) {
+      out.place = {
+        ...(placeId ? { id: placeId } : {}),
+        ...(placeName ? { name: placeName } : {}),
+        ...(placeArea ? { area: placeArea } : {}),
+        ...(placeLoc ? { location: placeLoc } : {}),
+      };
+    }
+  }
+
+  const source = o.source;
+  if (source && typeof source === "object") {
+    const s = source as Record<string, unknown>;
+    const label = pickString(s.label);
+    const url = pickString(s.url);
+    if (label || url) {
+      out.source = {
+        ...(label ? { label } : {}),
+        ...(url ? { url } : {}),
+      };
+    }
+  }
+
+  return out;
+}
+
+export type FetchThingsToDoOpts = CityMcpCallOptions & {
+  window: ThingsToDoWindow;
+  area?: string;
+  kinds?: readonly ThingsToDoKind[];
+  price?: ThingsToDoPrice;
+  limit?: number;
+};
+
+/**
+ * Fetch and trim CityMCP `things_to_do` opportunities for a plan window.
+ * Cached in-process for ~5min per (window, area, kinds, price, limit) key.
+ * Throws `CityMcpError` on failure — callers fail-soft.
+ */
+export async function fetchThingsToDo(
+  opts: FetchThingsToDoOpts,
+): Promise<ThingsToDoResult> {
+  const { window, area, kinds, price, limit } = opts;
+  if (!THINGS_TO_DO_WINDOWS.includes(window)) {
+    throw new CityMcpError(`things_to_do: invalid window ${String(window)}`, "empty");
+  }
+
+  const args: Record<string, unknown> = { window };
+  if (area) args.area = area;
+  if (kinds && kinds.length > 0) args.kinds = [...kinds];
+  if (price) args.price = price;
+  if (typeof limit === "number" && limit > 0) args.limit = limit;
+
+  const cacheKey = JSON.stringify(args);
+  const now = Date.now();
+  const cached = thingsToDoCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.value;
+
+  const result = await callCityMcpTool<Record<string, unknown>>("things_to_do", args, opts);
+  const structured = result.structuredContent ?? {};
+
+  const rawOpps = Array.isArray(structured.opportunities) ? structured.opportunities : [];
+  const opportunities: ThingsToDoOpportunity[] = [];
+  for (const item of rawOpps) {
+    const trimmed = trimOpportunity(item);
+    if (trimmed) opportunities.push(trimmed);
+    if (typeof limit === "number" && opportunities.length >= limit) break;
+  }
+
+  const value: ThingsToDoResult = {
+    window,
+    area: pickString(structured.area) ?? area,
+    asOf: pickString(structured.asOf),
+    opportunities,
+  };
+  thingsToDoCache.set(cacheKey, { value, expiresAt: now + THINGS_TO_DO_TTL_MS });
+  return value;
 }
 
 // ---------- Signal trimming (shared by /api/citymcp/status) ----------
