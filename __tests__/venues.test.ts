@@ -416,6 +416,33 @@ describe("filterVenues", () => {
     expect(filterVenues([georgeVenue], makeFilters({ cuisineTag: "thai" }))).toHaveLength(0);
   });
 
+  it("cuisineTag matches curated id map on slim pins even without cuisineTags hints", () => {
+    // Slim pins can omit cuisineTags when empty at build time; curated map
+    // must still apply so Discover Hungry? deep-links don't miss known pubs.
+    const [base] = groupVenuePrices([makeRow({ price_gbp: 5 })]);
+    const slimGeorge = {
+      ...base,
+      id: "venue-1gs68ga",
+      name: "The George",
+      prices: [],
+      cheapestPint: "",
+      filterHints: {
+        searchText: "the george",
+        amenities: {
+          food: true,
+          cocktails: false,
+          beerGarden: false,
+          liveSports: false,
+          nonAlcoholic: false,
+        },
+        curation: { nearWater: false, hasStory: false },
+        canonical: true,
+      },
+    };
+    expect(filterVenues([slimGeorge], makeFilters({ cuisineTag: "roast" }))).toHaveLength(1);
+    expect(filterVenues([slimGeorge], makeFilters({ cuisineTag: "pizza" }))).toHaveLength(0);
+  });
+
   it("cuisineTag is case-insensitive and trims whitespace", () => {
     const [base] = groupVenuePrices([makeRow({ pub_name: "The Roast Pub", price_gbp: 5 })]);
     const slimWithTag = {

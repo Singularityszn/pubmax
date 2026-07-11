@@ -46,14 +46,16 @@ export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Fil
       drinkBrand: "",
     };
   }
-  // Switching to a drink lens clears any active cuisine chip so the two
-  // filter modes don't compound in unexpected ways.
+  // Switching to a drink lens clears the food lens entirely so the two
+  // filter modes don't compound (cuisineTag alone wasn't enough — leftover
+  // requireFood kept the Food control lit and AND'd amenity filtering).
   return {
     ...filters,
     requireCocktails: cat === "cocktail",
     drinkCategory: cat,
     drinkBrand: "",
     cuisineTag: "",
+    requireFood: false,
   };
 }
 

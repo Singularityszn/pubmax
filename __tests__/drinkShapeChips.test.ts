@@ -67,7 +67,7 @@ describe("nextDrinkShapeFilters", () => {
     });
   });
 
-  it("clears an active cuisineTag when a drink shape is selected", () => {
+  it("clears an active cuisineTag and requireFood when a drink shape is selected", () => {
     expect(
       nextDrinkShapeFilters(
         filters({ cuisineTag: "pizza", requireFood: true }),
@@ -76,6 +76,7 @@ describe("nextDrinkShapeFilters", () => {
     ).toMatchObject({
       drinkCategory: "beer",
       cuisineTag: "",
+      requireFood: false,
     });
   });
 

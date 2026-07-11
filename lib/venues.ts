@@ -502,17 +502,15 @@ function matchesCuisineTag(venue: Venue, tag: string): boolean {
   const hinted = venue.filterHints?.cuisineTags;
   if (Array.isArray(hinted) && hinted.includes(needle)) return true;
 
-  // Full venue path: derive tags from curated map + name/description.
-  if (venue.prices.length > 0) {
-    const tags = cuisineTagsForVenue({
-      id: venue.id,
-      name: venue.name,
-      hintTags: venue.filterHints?.cuisineTags,
-    });
-    return tags.includes(needle);
-  }
-
-  return false;
+  // Curated id map + name/searchText — covers full venues and slim pins
+  // whose hints omitted a tag the curated map still carries.
+  const tags = cuisineTagsForVenue({
+    id: venue.id,
+    name: venue.name,
+    searchText: venue.filterHints?.searchText,
+    hintTags: hinted,
+  });
+  return tags.includes(needle);
 }
 
 export function filterVenues(

@@ -1280,6 +1280,11 @@ export default function PubMap({
               // Keep cocktail amenity in sync with the drink lens.
               requireCocktails:
                 drinkCategory === "cocktail" ? true : drinkCategory ? false : current.requireCocktails,
+              // Favorite-pint / brand lens is a drink mode — clear food lens so
+              // the two don't AND together (same contract as DrinkShapeChips).
+              ...(drinkCategory
+                ? { cuisineTag: "", requireFood: false }
+                : null),
             }))
           }
           planningOpen={planningOpen}

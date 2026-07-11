@@ -1,7 +1,7 @@
 "use client";
 
 import { Route, Search, Utensils, Wine, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import CitySwitcher from "@/components/map/CitySwitcher";
 import CuisineShapeChips from "@/components/map/CuisineShapeChips";
@@ -72,6 +72,20 @@ export default function MapToolbar({
   const drinksActive =
     filters.requireCocktails || Boolean(drinkCategory) || Boolean(favoritePint);
   const foodActive = filters.requireFood || Boolean(filters.cuisineTag);
+
+  // Auto-expand food chips on rising edge only (deep-link / chip select).
+  // Do NOT bind panel visibility to foodActive — that trapped the panel open
+  // and could show Drinks + Food chip rows at once.
+  const wasFoodActive = useRef(false);
+  useEffect(() => {
+    if (foodActive && !wasFoodActive.current) {
+      void Promise.resolve().then(() => {
+        setFoodOpen(true);
+        setDrinksOpen(false);
+      });
+    }
+    wasFoodActive.current = foodActive;
+  }, [foodActive]);
 
   return (
     <div className="mapToolbar" role="search">
@@ -158,7 +172,7 @@ export default function MapToolbar({
         <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
       </div>
 
-      <div className={foodOpen || foodActive ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
+      <div className={foodOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
         <CuisineShapeChips filters={filters} onFiltersChange={onFiltersChange} />
       </div>
     </div>
