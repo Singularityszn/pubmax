@@ -60,6 +60,11 @@ leak into the client.
     `tonight | tomorrow_night | this_weekend`. Opportunities are trimmed to
     `{ title, kind, areas, price, availability, timeEvidence, place, source }`
     with a title guard. Use `resetThingsToDoCache()` in tests.
+  - `fetchJourney({ from, to, leaveAt?, arriveBy?, modes?, maxTransfers?, limit? })`
+    — cached (~5 min) wrapper around `get_journey`. `from` / `to` must be
+    `"lat,lng"` strings (`formatJourneyPoint`). Returns `{ journeys[] }` with
+    `durationMinutes` + text `legs` (`mode`, `summary`, …). **No geometry /
+    polyline** — never invent one for the map.
 - **`GET /api/citymcp/status`** — returns `{ asOf, weather?, tubeLines?, signals[] }`
   trimmed for UI: tube "Good Service" lines are dropped, and signals are capped
   to the top 6 by severity (major > notable > info). Always fail-soft: any
@@ -78,8 +83,15 @@ leak into the client.
   — curated `things_to_do` opportunities for a plan window. `window` is
   validated (defaults to `tonight`); unknown `kinds` / `price` are dropped
   silently so the lane always renders when possible. `limit` is capped at
-  20 (default 6). Upstream failures fail-soft to 200 with
-  `{ opportunities: [], error }`.
+  20 (default 6). Opportunities missing coordinates are enriched via
+  `search_places` (`lib/citymcp/enrichOpportunityLocations.ts`, cap 8,
+  concurrency 2) so map pins can render. Upstream failures fail-soft to
+  200 with `{ opportunities: [], error }`.
+- **`GET /api/citymcp/journey?fromLat=&fromLng=&toLat=&toLng=&limit=`** —
+  TfL journey options between two WGS84 points via `get_journey`. Validates
+  finite lat/lng; returns `{ journeys: [{ durationMinutes, legs[] }] }`.
+  Fail-soft: upstream errors → 200 with `{ journeys: [], error }`. Text-only
+  legs — do **not** draw a TfL polyline on the map.
 - **`components/map/CityStatusBanner.tsx`** — the London-only strip that
   fetches `/api/citymcp/status` on mount and shows one compact headline
   (top signal → tube summary → weather). Only renders when `cityId === "london"`.
@@ -90,6 +102,17 @@ leak into the client.
   before calling `get_place`; hides entirely if no confident match, or on
   any upstream error. Uses a generation-token pattern so rapid sheet
   switches never race a stale dossier onto a newly-selected venue.
+- **`components/map/useCrawlJourneys.ts` + RoutePanel TfL rows** — London
+  crawl planner fetches consecutive-stop journeys and shows a text summary
+  under each straight-line walking leg (`15 min · walk → bus → walk`) plus
+  a total TfL minutes metric. Straight-line `lib/routeLegs` remains the
+  offline baseline; CityMCP is additive. Never replaces `/api/last-train`.
+- **`components/map/useTonightOpportunities.ts` + TonightOverlayChip +
+  PubMapCanvas tonight layers** — London map overlay for `things_to_do`
+  (`window=tonight`). Amber pins + labels; chip under the status banner
+  toggles / dismisses (sessionStorage). Fail-soft: empty/error → hide.
+- **`lib/thingsToDoMap.ts` / `lib/formatJourney.ts`** — client-safe helpers
+  for opportunity GeoJSON / deep-links and journey summary strings.
 - **`components/discovery/TonightNearbyLane.tsx`** — Discover "Tonight
   nearby" lane that reads `/api/citymcp/things-to-do?window=tonight`. Cards
   deep-link into the London map when the upstream attached coordinates +
@@ -140,11 +163,16 @@ curl -s "http://localhost:3000/api/citymcp/place?id=<PLACE_ID>&deep=1" | jq .
 # Things to do tonight (also: tomorrow_night, this_weekend)
 curl -s "http://localhost:3000/api/citymcp/things-to-do?window=tonight&limit=6" | jq .
 curl -s "http://localhost:3000/api/citymcp/things-to-do?window=this_weekend&area=Shoreditch&kinds=gig,comedy&price=cheap" | jq .
+
+# TfL journey between two points (lat/lng query params)
+curl -s "http://localhost:3000/api/citymcp/journey?fromLat=51.5074&fromLng=-0.1278&toLat=51.5155&toLng=-0.0922&limit=1" | jq .
 ```
 
 Then open the London map (`/map` with London selected) and confirm the status
 strip renders below the toolbar. On upstream failure the strip should stay
-hidden — never a red error state.
+hidden — never a red error state. With a multi-stop crawl mapped, RoutePanel
+should show TfL text under walking legs. The Tonight chip should toggle amber
+opportunity pins when `things-to-do` returns rows with coordinates.
 
 ## Related tests
 
@@ -159,4 +187,8 @@ hidden — never a red error state.
 - `__tests__/citymcpPlaceRoute.test.ts` — place-dossier route validation,
   whitelist trimming, `deep=1` forwarding, fail-soft.
 - `__tests__/citymcpThingsToDoRoute.test.ts` — window enum, kinds/price
-  filtering, default window, limit cap, fail-soft.
+  filtering, default window, limit cap, fail-soft, location enrichment.
+- `__tests__/citymcpJourneyRoute.test.ts` — lat/lng validation, journey
+  shape, fail-soft.
+- `__tests__/thingsToDoMap.test.ts` — GeoJSON + deep-link helpers.
+- `__tests__/formatJourney.test.ts` — journey summary strings.

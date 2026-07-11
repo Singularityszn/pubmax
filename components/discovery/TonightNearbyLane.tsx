@@ -21,26 +21,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, ExternalLink, MapPin } from "lucide-react";
 
-import { cityAwareMapPath } from "@/lib/curatedCrawls";
+import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { firstHttp } from "@/lib/httpUrl";
+import { labelForKind, opportunityMapHref } from "@/lib/thingsToDoMap";
 
 import "./tonightNearbyLane.css";
 
-type Opportunity = {
-  title: string;
-  kind?: string;
-  areas?: string[];
-  price?: string;
-  availability?: string;
-  timeEvidence?: string;
-  place?: {
-    id?: string;
-    name?: string;
-    area?: string;
-    location?: { lat: number; lng: number };
-  };
-  source?: { label?: string; url?: string };
-};
+type Opportunity = ThingsToDoOpportunity;
 
 type ApiResponse = {
   window?: string;
@@ -50,34 +37,11 @@ type ApiResponse = {
   error?: string;
 };
 
-const LONDON_CITY_ID = "london";
-
-function labelForKind(kind?: string): string | null {
-  if (!kind) return null;
-  const normalised = kind.replace(/[_-]+/g, " ").trim();
-  if (!normalised) return null;
-  return normalised.charAt(0).toUpperCase() + normalised.slice(1);
-}
-
 function opportunityHref(op: Opportunity): { href: string; external: boolean } | null {
-  const placeId = op.place?.id;
-  const loc = op.place?.location;
-  if (
-    placeId &&
-    loc &&
-    typeof loc.lat === "number" &&
-    typeof loc.lng === "number"
-  ) {
-    // Deep-link to the London map centred on the venue coords with a matching
-    // query so the viewer sees the same place. `q` is the venue name so the
-    // existing search box surfaces the pin when types match.
-    const params = new URLSearchParams({
-      lat: loc.lat.toFixed(5),
-      lng: loc.lng.toFixed(5),
-      zoom: "15",
-    });
-    if (op.place?.name) params.set("q", op.place.name);
-    return { href: cityAwareMapPath(LONDON_CITY_ID, params), external: false };
+  // Prefer map deep-link when we have a place id (Discover CTA contract) + coords.
+  if (op.place?.id) {
+    const mapHref = opportunityMapHref(op);
+    if (mapHref) return { href: mapHref, external: false };
   }
   const url = firstHttp(op.source?.url);
   if (url) return { href: url, external: true };
