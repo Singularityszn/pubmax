@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -72,6 +72,15 @@ function matchesPath(pathname: string, link: NavLink): boolean {
   );
 }
 
+// Gliding active-link indicator (siteNav.css .siteNavIndicator). Links are
+// variable-width labels, not equal columns like the mobile tab bar, so the
+// indicator's geometry has to be measured off the real DOM node rather than
+// derived from an index. Kept to a thin underline (not a repaint of the
+// existing `.siteNavLink.isActive` pill) so it never has to duplicate the
+// category-tint (data-cat) logic already owned by that pill.
+type IndicatorRect = { x: number; width: number; visible: boolean };
+const HIDDEN_INDICATOR: IndicatorRect = { x: 0, width: 0, visible: false };
+
 export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Element {
   const pathname = usePathname() ?? "";
   // Preference may be null → /map. useSyncExternalStore keeps SSR/hydration on
@@ -91,6 +100,31 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
   const isMap =
     active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
+  const activeKey = links.find((link) =>
+    active ? active === link.key : matchesPath(pathname, link),
+  )?.key;
+
+  const linkRefs = useRef<Partial<Record<NavKey, HTMLAnchorElement>>>({});
+  const [indicator, setIndicator] = useState<IndicatorRect>(HIDDEN_INDICATOR);
+
+  // DOM measurement can only happen after paint, so — unlike the rest of this
+  // component — this genuinely needs an effect (not derived render state).
+  // useLayoutEffect keeps the measure-then-move in the same paint the browser
+  // is already doing, so there's no visible jump to the old position first.
+  useLayoutEffect(() => {
+    const el = activeKey ? linkRefs.current[activeKey] : undefined;
+    if (!el) {
+      setIndicator(HIDDEN_INDICATOR);
+      return;
+    }
+    const measure = () => setIndicator({ x: el.offsetLeft, width: el.offsetWidth, visible: true });
+    measure();
+    // Link widths shift at the 1180px/900px density breakpoints (siteNav.css);
+    // re-measure so the indicator doesn't strand itself on resize.
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [activeKey]);
+
   return (
     <nav
       className={isMap ? "siteNavBar siteNavBarFloating" : "siteNavBar"}
@@ -108,11 +142,30 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
 
       {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}
       <ul className="siteNavLinks">
+        {/* Gliding underline, decorative only (aria-hidden) — see siteNav.css
+            .siteNavIndicator. Sits behind the links (painted first; flex items
+            paint above per the flexbox stacking rules) so it never covers the
+            label text it's tracking. */}
+        <li
+          className="siteNavIndicator"
+          aria-hidden="true"
+          style={
+            {
+              "--nav-indicator-x": `${indicator.x}px`,
+              "--nav-indicator-scale": indicator.width,
+              opacity: indicator.visible ? 1 : 0,
+            } as CSSProperties
+          }
+        />
         {links.map((link) => {
-          const isActive = active ? active === link.key : matchesPath(pathname, link);
+          const isActive = link.key === activeKey;
           return (
             <li key={link.key} className="siteNavItem">
               <Link
+                ref={(el) => {
+                  if (el) linkRefs.current[link.key] = el;
+                  else delete linkRefs.current[link.key];
+                }}
                 href={link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}

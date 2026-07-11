@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Map, CirclePlus, User, Compass, Beer } from "lucide-react";
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore, type CSSProperties } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
   preferredCityMapHref,
@@ -77,6 +77,10 @@ export default function MobileTabBar() {
     () => "/map?log=1",
   );
   const tabs = buildTabs(handle ? `/u/${handle}` : "/u/you", mapHref, dropHref);
+  // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
+  // route none of the five tabs own) hides it via CSS rather than pinning it
+  // to a wrong tab.
+  const activeIndex = tabs.findIndex((tab) => isActive(pathname, tab));
   const warmTab = useCallback(
     (href: string) => {
       const prefetchHref = href.split("?")[0] || href;
@@ -99,6 +103,21 @@ export default function MobileTabBar() {
   return (
     <nav className="mobileTabBar" role="navigation" aria-label="Primary">
       <ul className="mobileTabList">
+        {/* Gliding active-tab highlight. A decorative li (not a nav item) so it
+            can sit inside the ul without breaking the list semantics; screen
+            readers skip it via aria-hidden. Position comes from --active-index
+            (translateX by 100% of its own 1/5-width column), so it only ever
+            needs a transform to glide — no layout thrash. */}
+        <li
+          className="mobileTabHighlight"
+          aria-hidden="true"
+          style={
+            {
+              "--active-index": activeIndex,
+              opacity: activeIndex === -1 ? 0 : 1,
+            } as CSSProperties
+          }
+        />
         {tabs.map((tab) => {
           const active = isActive(pathname, tab);
           const { Icon } = tab;
@@ -107,7 +126,7 @@ export default function MobileTabBar() {
               <Link
                 href={tab.href}
                 className={
-                  "mobileTab" +
+                  "mobileTab pressable" +
                   (tab.primary ? " mobileTabPrimary" : "") +
                   (active ? " isActive" : "")
                 }

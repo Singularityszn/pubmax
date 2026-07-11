@@ -95,7 +95,10 @@ export default function MessagesLink(): React.JSX.Element {
     >
       <MessageSquare size={18} aria-hidden="true" />
       {unread > 0 ? (
-        <span className="siteNavBellBadge" aria-hidden="true">
+        // key={unread} remounts the badge whenever the count changes, so the
+        // CSS pop-in (siteNav.css .siteNavBellBadge) replays as a bump —
+        // no separate "did it change" animation state to track.
+        <span key={unread} className="siteNavBellBadge" aria-hidden="true">
           {unread > 99 ? "99+" : unread}
         </span>
       ) : null}

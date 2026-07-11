@@ -43,7 +43,7 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
   const DirIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
 
   return (
-    <article className="tvnCard">
+    <article className="tvnCard" data-reveal>
       <h3 className="tvnName">
         <Link href={href} className="tvnLink">
           {item.venueName}

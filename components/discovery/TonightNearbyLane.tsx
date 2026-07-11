@@ -182,7 +182,7 @@ export default function TonightNearbyLane() {
               {link ? (
                 link.external ? (
                   <a
-                    className="tonightNearbyLink"
+                    className="tonightNearbyLink pressable"
                     href={link.href}
                     target="_blank"
                     rel="noreferrer noopener"
@@ -191,7 +191,7 @@ export default function TonightNearbyLane() {
                     <ExternalLink size={13} aria-hidden="true" />
                   </a>
                 ) : (
-                  <Link className="tonightNearbyLink" href={link.href}>
+                  <Link className="tonightNearbyLink pressable" href={link.href}>
                     Open on map
                     <ArrowUpRight size={13} aria-hidden="true" />
                   </Link>

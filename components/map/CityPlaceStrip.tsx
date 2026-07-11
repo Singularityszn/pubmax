@@ -27,6 +27,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 
+import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 
 import "./cityPlaceStrip.css";
@@ -64,18 +65,6 @@ type Props = {
   /** Explicit gate; when omitted defaults to London-on. */
   cityId?: string;
 };
-
-const KM_PER_DEG_LAT = 111;
-
-function haversineKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-): number {
-  const dLat = (a.lat - b.lat) * KM_PER_DEG_LAT;
-  const meanLat = ((a.lat + b.lat) / 2) * (Math.PI / 180);
-  const dLng = (a.lng - b.lng) * KM_PER_DEG_LAT * Math.cos(meanLat);
-  return Math.sqrt(dLat * dLat + dLng * dLng);
-}
 
 async function searchByName(
   name: string,
@@ -198,7 +187,10 @@ export default function CityPlaceStrip({
         let best: { id: string; km: number } | null = null;
         for (const c of candidates) {
           if (!c.location) continue;
-          const km = haversineKm(target, c.location);
+          const km = haversineKm(
+            [target.lng, target.lat],
+            [c.location.lng, c.location.lat],
+          );
           if (best === null || km < best.km) best = { id: c.id, km };
         }
         if (!best || best.km > 0.25) return;

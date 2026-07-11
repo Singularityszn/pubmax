@@ -186,3 +186,106 @@
   color: var(--ink-soft);
   line-height: 1.4;
 }
+
+/* ── "Still £X?" price-confirm micro-contribution chip ───────────────────────
+   A one-tap community "still accurate?" signal on the freshest price. Idle: a
+   quiet brass-tinted pill invitation. Confirmed: a --pint "verified" pill that
+   pops in (scale .95→1 + opacity) with the tick stroke-drawing on. This is a
+   signal, never a price — the copy reads "Confirmed just now · N confirms", it
+   never restates or edits a figure. All motion is opacity/transform only and is
+   fully gated behind no-preference; reduced-motion shows the finished tick with
+   no movement. The idle chip is a <button>, so it inherits the global press
+   feedback (scale on :active) — no bespoke transform here to conflict with it. */
+.vpsConfirm {
+  margin: 12px 0 2px;
+}
+
+.vpsConfirmBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.vpsConfirmBtn .vpsConfirmTick {
+  color: var(--ink-soft);
+}
+
+.vpsConfirmBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .vpsConfirmBtn:hover {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  }
+}
+
+.vpsConfirmDone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 2px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--pint) 34%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pint) 10%, var(--panel-raised));
+  color: var(--pint);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.vpsConfirmDone .vpsConfirmTick {
+  flex: 0 0 auto;
+  color: var(--pint);
+}
+
+.vpsConfirmCount {
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Satisfying pop on confirm — a little spring overshoot because the tap
+     carried intent (rubric: ease-spring for momentum entrances only). */
+  .vpsConfirmDone {
+    animation: vpsConfirmIn var(--duration-base) var(--ease-spring) both;
+  }
+
+  /* The tick draws itself on, just after the pill has begun settling. */
+  .vpsConfirmDone .vpsConfirmTickPath {
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    animation: vpsTickDraw var(--duration-slow) var(--ease-out-strong) 40ms forwards;
+  }
+}
+
+@keyframes vpsConfirmIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes vpsTickDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

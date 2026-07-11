@@ -7,14 +7,42 @@
   /* Explicit inherit — the parent .discoverSection provides padding etc. */
 }
 
+/* A horizontal lane (matching the category showcase + editorial lanes below
+   it): scroll-snap, momentum scrolling, and an edge-fade mask hinting
+   "more →" instead of a grid that wraps and buries later cards. */
 .tonightNearbyGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  display: flex;
   gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 2px 8px;
+  margin: 0 -2px;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20px,
+    black calc(100% - 20px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20px,
+    black calc(100% - 20px),
+    transparent
+  );
+}
+
+.tonightNearbyGrid::-webkit-scrollbar {
+  display: none;
 }
 
 .tonightNearbyCard {
   display: flex;
+  flex: 0 0 250px;
   flex-direction: column;
   gap: 6px;
   padding: 14px;
@@ -22,6 +50,26 @@
   border-radius: 14px;
   background: var(--panel-raised);
   color: var(--ink);
+  scroll-snap-align: start;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 6%, transparent);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tonightNearbyCard:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+    box-shadow: 0 14px 28px color-mix(in srgb, var(--brass) 12%, transparent);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .tonightNearbyCard {
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .tonightNearbyCard:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .tonightNearbyMeta {
@@ -80,6 +128,44 @@
   text-decoration: none;
 }
 
-.tonightNearbyLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .tonightNearbyLink:hover {
+    text-decoration: underline;
+  }
+}
+
+/* Entrance: the lane mounts once the CityMCP fetch resolves, so a quiet
+   staggered settle (not a scroll trigger — the section is usually already in
+   view by then) matches the rest of the page's card entrances. */
+@media (prefers-reduced-motion: no-preference) {
+  .tonightNearbyCard {
+    animation: tonightNearbyIn var(--duration-slow, 0.28s) var(--ease-out-strong) both;
+  }
+
+  .tonightNearbyCard:nth-child(2) {
+    animation-delay: 40ms;
+  }
+
+  .tonightNearbyCard:nth-child(3) {
+    animation-delay: 80ms;
+  }
+
+  .tonightNearbyCard:nth-child(4) {
+    animation-delay: 120ms;
+  }
+
+  .tonightNearbyCard:nth-child(n + 5) {
+    animation-delay: 160ms;
+  }
+
+  @keyframes tonightNearbyIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }

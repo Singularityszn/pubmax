@@ -1,6 +1,11 @@
 .planPage {
   --plan-accent: #e75f50;
   --plan-accent-strong: #b93e32;
+  /* Get-in verdict ramp — semantic, readable on paper (WCAG AA on the pale tints below). */
+  --fit-likely: #2e7d4f;
+  --fit-uncertain: #a9711a;
+  --fit-unlikely: #c0392b;
+  --fit-book: var(--plan-accent-strong);
   min-height: 100vh;
   padding: clamp(18px, 4vw, 48px) clamp(16px, 5vw, 72px) 96px;
   background:
@@ -124,6 +129,85 @@
 .planSummary__stops a { display: inline-flex; min-height: 44px; align-items: center; color: var(--muted); font-size: 0.86rem; text-underline-offset: 3px; }
 .planSummary__stops a:hover { color: var(--plan-accent-strong); }
 
+/* ── Get-in signal ─────────────────────────────────────────────────────────
+   A per-stop, honest entry estimate layered onto the server-rendered route.
+   Provenance: every value is an estimate, never a guarantee — the caption says
+   so once, and the accent only encodes the group-fit verdict. */
+.planRoute__basis {
+  margin: 30px 0 -8px;
+  padding-left: 72px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+}
+.planRoute__body { display: grid; gap: 6px; min-width: 0; }
+.planRoute__signal {
+  --fit-accent: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 12px;
+  margin-top: 3px;
+  font-size: 0.8rem;
+}
+.planRoute__signal[data-fit="likely"] { --fit-accent: var(--fit-likely); }
+.planRoute__signal[data-fit="uncertain"] { --fit-accent: var(--fit-uncertain); }
+.planRoute__signal[data-fit="unlikely"] { --fit-accent: var(--fit-unlikely); }
+.planRoute__signal[data-fit="book-ahead"] { --fit-accent: var(--fit-book); }
+
+.planRoute__busy { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-soft); font-weight: 600; }
+.planRoute__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--muted) 16%, transparent);
+}
+.planRoute__dot[data-level="quiet"] { background: var(--fit-likely); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fit-likely) 20%, transparent); }
+.planRoute__dot[data-level="moderate"] { background: var(--fit-uncertain); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fit-uncertain) 22%, transparent); }
+.planRoute__dot[data-level="busy"] { background: var(--fit-unlikely); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fit-unlikely) 22%, transparent); }
+.planRoute__dot[data-level="rammed"] { background: var(--fit-unlikely); box-shadow: 0 0 0 4px color-mix(in srgb, var(--fit-unlikely) 26%, transparent); }
+
+.planRoute__fit {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--fit-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--fit-accent) 12%, transparent);
+  color: var(--fit-accent);
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  cursor: default;
+}
+.planRoute__book {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  color: var(--plan-accent-strong);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-underline-offset: 3px;
+}
+
+/* Loading placeholder shaped like the signal row — not a spinner (Emil: skeletal
+   loaders match the final layout). Shimmer only when motion is welcome. */
+.planRoute__signal--loading {
+  display: block;
+  width: min(210px, 72%);
+  height: 13px;
+  margin-top: 7px;
+  border-radius: 7px;
+  background:
+    linear-gradient(100deg,
+      color-mix(in srgb, var(--line) 55%, transparent) 30%,
+      color-mix(in srgb, var(--line-soft) 85%, transparent) 50%,
+      color-mix(in srgb, var(--line) 55%, transparent) 70%);
+  background-size: 220% 100%;
+  background-position: 140% 0;
+}
+
 .planCrew,
 .planShare { padding: 26px; }
 .planCrew__heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
@@ -150,6 +234,14 @@
 .planComposer__remove { min-height: 44px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 750; cursor: pointer; }
 .planCrew__presence button:hover,
 .planComposer__add:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+/* Your current status reads back instantly (set optimistically on tap). Without
+   this, the presence buttons gave no sign which one you chose. */
+.planCrew__presence button[data-active] {
+  border-color: var(--plan-accent);
+  background: color-mix(in srgb, var(--plan-accent) 15%, var(--panel));
+  color: var(--plan-accent-strong);
+  font-weight: 850;
+}
 
 .planShare > p:not(.planPage__eyebrow) { color: var(--ink-soft); line-height: 1.5; }
 .planShare .shareBar { margin-top: 20px; }
@@ -181,6 +273,11 @@
 html[data-theme="dark"] .planPage {
   --plan-accent: var(--night-amber, #f0a01a);
   --plan-accent-strong: #ffc45e;
+  /* Lift the verdict ramp for the dark soul (light ink on near-black paper). */
+  --fit-likely: #6fcf97;
+  --fit-uncertain: #f0b429;
+  --fit-unlikely: #f0806c;
+  --fit-book: var(--plan-accent-strong);
   background:
     radial-gradient(circle at 80% 12%, color-mix(in srgb, var(--plan-accent) 9%, transparent), transparent 30%),
     var(--paper);
@@ -215,6 +312,24 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   .planSummary__heading { margin-left: 57px; }
   .planSummary__stops li { grid-template-columns: 48px 1fr; gap: 14px; }
   .planSummary__marker { width: 42px; height: 42px; box-shadow: 0 0 0 5px var(--panel-raised); }
+}
+
+/* Entrances live only inside no-preference so the base state is fully visible —
+   reduced-motion users get the sorted night instantly, no hidden content.
+   Motivated motion: the route and crew reveal the plan as a sequence. */
+@keyframes planReveal { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+@keyframes planShimmer { from { background-position: 140% 0; } to { background-position: -40% 0; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .planSummary__stops li {
+    animation: planReveal 0.5s var(--ease-out-strong) both;
+    animation-delay: calc(var(--i, 0) * 55ms);
+  }
+  .planCrew__list li {
+    animation: planReveal 0.42s var(--ease-out-strong) both;
+    animation-delay: calc(var(--i, 0) * 40ms);
+  }
+  .planRoute__signal--loading { animation: planShimmer 1.3s linear infinite; }
 }
 
 @media (prefers-reduced-motion: reduce) {

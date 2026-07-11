@@ -79,7 +79,10 @@
   font-size: clamp(28px, 8vw, 44px);
   font-weight: 800;
   letter-spacing: 6px;
-  color: var(--ink-deep);
+  /* Primary ink, not --ink-deep (#040606) — the latter is near-black in dark
+     and vanished against the near-black share card. --ink is high-contrast in
+     both themes. */
+  color: var(--ink);
   background: none;
   border: none;
   cursor: pointer;
@@ -320,8 +323,8 @@
   font-size: 15px;
 }
 
-.roundField input:focus,
-.roundSearch:focus {
+.roundField input:focus-visible,
+.roundSearch:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
 }

@@ -207,6 +207,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
   // leaderboard already makes (no second dataset read).
   const [venueNames, setVenueNames] = useState<Record<string, string>>({});
   const analysisRef = useRef<HTMLElement | null>(null);
+  const revealRootRef = useRef<HTMLElement | null>(null);
 
   // Editorial stays London-authored; drink/food chips still follow preferred city.
   const editorial = buildEditorial();
@@ -269,8 +270,41 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
     };
   }, []);
 
+  // Scroll entrance for the leaderboard / tonight / then-vs-now / editorial
+  // cards (see [data-reveal] in discover.css): each of those rows/cards only
+  // exists in the DOM once its section's fetch resolves (or, for editorial,
+  // at mount), so this re-scans whenever that state changes and hands any
+  // newly-mounted [data-reveal] element to a one-shot IntersectionObserver.
+  // Reduced-motion users never see the opacity:0 starting state at all (that
+  // rule lives behind a no-preference query), so this is purely additive.
+  useEffect(() => {
+    const root = revealRootRef.current;
+    if (!root) return;
+    const targets = root.querySelectorAll<HTMLElement>(
+      "[data-reveal]:not(.is-revealed)",
+    );
+    if (targets.length === 0) return;
+    if (typeof IntersectionObserver === "undefined") {
+      targets.forEach((el) => el.classList.add("is-revealed"));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (observedEntries) => {
+        for (const observed of observedEntries) {
+          if (observed.isIntersecting) {
+            observed.target.classList.add("is-revealed");
+            observer.unobserve(observed.target);
+          }
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+    );
+    targets.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [entries, tonight, thenVsNow]);
+
   return (
-    <main className="discoverPage">
+    <main className="discoverPage" ref={revealRootRef}>
       <SiteNav active="discover" />
 
       <header className="discoverHead">
