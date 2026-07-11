@@ -21,9 +21,6 @@ const eslintConfig = [
       "playwright-report/**",
       // Local co-dev scratch probes (also gitignored); not part of the app.
       "scratch-*.mjs",
-      // Vendored agent skills — not app runtime; keep lint signal on product code.
-      "skills/**",
-      ".firecrawl/**",
     ],
   },
   ...nextVitals,
