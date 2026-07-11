@@ -52,7 +52,7 @@ const dataMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pubmaxx.vercel.app"),
+  metadataBase: new URL("https://pubmaxxing.com"),
   title: {
     default: "PUBMAXXING — Every pint has a story",
     template: "%s | PUBMAXXING",
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
     title: "PUBMAXXING — Every pint has a story",
     description:
       "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
-    url: "https://pubmaxx.vercel.app",
+    url: "https://pubmaxxing.com",
     siteName: "PUBMAXXING",
     type: "website",
     images: [

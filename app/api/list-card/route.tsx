@@ -230,7 +230,7 @@ export async function GET(request: Request) {
               fontWeight: 700,
             }}
           >
-            pubmaxx.vercel.app
+            pubmaxxing.com
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { directVenueImageUrl } from "@/lib/venueImages";
+import { firstHttp } from "@/lib/httpUrl";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import {
   drinkAccentForVenue,
@@ -54,8 +55,12 @@ export async function listScrapedPubs(): Promise<ScrapedPub[]> {
       borough: venue?.primaryBorough ?? "",
       source,
       sourceLabel: SCRAPED_SOURCE_LABELS[source],
-      menuUrl: record.menuUrl,
-      bookingUrl: record.bookingUrl,
+      // Scheme-guard before the value reaches PubsGallery as an href — a
+      // javascript:/data: menuUrl would otherwise be an XSS vector. firstHttp
+      // returns "" for anything that isn't an absolute http(s) URL, so drop
+      // the field entirely in that case.
+      menuUrl: firstHttp(record.menuUrl) || undefined,
+      bookingUrl: firstHttp(record.bookingUrl) || undefined,
       photoUrl,
       drinkAccent,
       drinkShelf: drinkShelfForVenue(id, drinkAccent),
