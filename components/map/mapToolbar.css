@@ -64,6 +64,14 @@
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  /* The toolbar wraps its flex items on mobile (globals.css). Without a full-
+     width basis this panel is content-sized, so the nowrap chip row below
+     inflates it to its full unwrapped width and overflow-x never engages —
+     the strip then reads as "can't scroll" at 390px. Bound it to the toolbar. */
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .mapToolbarDrinks.isOpen {
@@ -82,6 +90,12 @@
   padding: 0 2px 2px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  min-width: 0;
+  max-width: 100%;
+  /* A horizontal drag on the strip must never be claimed as a map/page
+     gesture, and its scroll must not chain into the map behind it. */
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
 }
 
 .drinkShapeChips::-webkit-scrollbar {

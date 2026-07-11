@@ -809,6 +809,28 @@ export default function PubMap({
     void warmVenueDetail(id);
   }, []);
 
+  // ?sel= is only read into the seed at mount, so a CLIENT navigation to
+  // /map?sel=<id> while the map is already mounted (e.g. "See on map" from a
+  // card, or back/forward) used to be ignored. Sync it: when the param changes
+  // to a venue that isn't the current selection, select it. The URL is the
+  // source of truth only in that direction — closing the sheet locally does
+  // not rewrite the param, matching the other seeded params' behaviour.
+  const selParam = searchParams?.get("sel") ?? "";
+  const selectedVenueIdRef = useRef(selectedVenueId);
+  useEffect(() => {
+    selectedVenueIdRef.current = selectedVenueId;
+  }, [selectedVenueId]);
+  useEffect(() => {
+    if (!selParam) return;
+    // Microtask defer keeps the state updates out of the effect's synchronous
+    // body (house lint rule against cascading renders). The ref comparison
+    // (not a dep) means only URL changes fire this — local selection changes
+    // never re-run it, and an already-matching selection is a no-op.
+    queueMicrotask(() => {
+      if (selParam !== selectedVenueIdRef.current) selectVenue(selParam);
+    });
+  }, [selParam, selectVenue]);
+
   const logNearbyCandidates = useMemo(
     () => buildLogNearbyCandidates(filteredVenues, undefined, userLocation),
     [filteredVenues, userLocation],
