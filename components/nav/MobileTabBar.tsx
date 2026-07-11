@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, CirclePlus, User, Compass } from "lucide-react";
+import { Map, CirclePlus, User, Compass, Beer } from "lucide-react";
 import { useCallback, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -37,14 +37,14 @@ const warmedTabs = new Set<string>();
 // The Profile tab's destination is the only auth-aware bit: signed-in users go
 // to /u/<their handle>, everyone else keeps the demo /u/you. `match: ["/u"]`
 // marks the tab active for any profile route in either case.
-// Map + Discover are the primary destinations; Drop stays the centre action;
-// You for profile. Stories lives in Discover/feed — not a fifth bottom tab.
+// Map + Pubs + Discover; Drop stays the centre action; You for profile.
 // Map / Drop hrefs follow the preferred city (null → /map).
 function buildTabs(profileHref: string, mapHref: string, dropHref: string): Tab[] {
   return [
     { href: mapHref, label: "Map", Icon: Map, match: ["/map"] },
-    { href: "/discover", label: "Discover", Icon: Compass, match: ["/discover", "/feed", "/borough"] },
+    { href: "/pubs", label: "Pubs", Icon: Beer, match: ["/pubs"] },
     { href: dropHref, label: "Drop", Icon: CirclePlus, primary: true },
+    { href: "/discover", label: "Discover", Icon: Compass, match: ["/discover", "/feed", "/borough"] },
     { href: profileHref, label: "You", Icon: User, match: ["/u"] },
   ];
 }

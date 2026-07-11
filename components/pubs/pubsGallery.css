@@ -1,0 +1,389 @@
+/* /pubs gallery — scraped chain pubs with drink-picture card art. */
+
+.pubsShell {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 480px at 12% -10%, color-mix(in srgb, var(--pint) 14%, transparent), transparent 60%),
+    radial-gradient(900px 420px at 90% 0%, color-mix(in srgb, var(--amber) 12%, transparent), transparent 55%),
+    var(--paper);
+  color: var(--ink);
+  padding: 20px 16px 96px;
+}
+
+.pubsShell .siteNavBar {
+  margin: 0 auto 20px;
+  max-width: 1100px;
+}
+
+.pubsPage {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.pubsHead {
+  display: grid;
+  gap: 8px;
+  max-width: 40rem;
+}
+
+.pubsEyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.pubsHead h1 {
+  margin: 0;
+  font-family: var(--font-display), var(--serif), sans-serif;
+  font-size: clamp(1.75rem, 4vw, 2.45rem);
+  line-height: 1.12;
+  font-weight: 700;
+}
+
+.pubsDek {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.pubsGallery {
+  display: grid;
+  gap: 14px;
+}
+
+.pubsFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pubsFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  font-weight: 650;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.pubsFilter.isActive {
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.pubsFilterCount {
+  font-family: var(--font-data), monospace;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.pubsFilter.isActive .pubsFilterCount {
+  color: var(--brass);
+}
+
+.pubsCount {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.pubsGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.pubsCard {
+  display: grid;
+  grid-template-rows: 168px auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--panel-raised);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 6%, transparent);
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.pubsCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.pubsCardArt {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--drink, var(--pint));
+  background:
+    radial-gradient(120% 90% at 18% 12%, color-mix(in srgb, var(--drink) 34%, transparent), transparent 58%),
+    radial-gradient(90% 80% at 88% 88%, color-mix(in srgb, var(--drink) 22%, transparent), transparent 55%),
+    linear-gradient(160deg, color-mix(in srgb, var(--drink) 16%, var(--panel)), var(--panel-raised));
+}
+
+.pubsCardPhoto {
+  object-fit: cover;
+  opacity: 0.88;
+}
+
+.pubsCardArtWash {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 35%, color-mix(in srgb, var(--ink-deep, #16122a) 55%, transparent) 100%),
+    radial-gradient(80% 70% at 50% 30%, transparent, color-mix(in srgb, var(--drink) 18%, transparent));
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pubsCardGlyphHero {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  color: color-mix(in srgb, var(--drink) 85%, white);
+  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--ink) 25%, transparent));
+  animation: pubsGlyphFloat 4.8s ease-in-out infinite;
+}
+
+.pubsCard:nth-child(3n) .pubsCardGlyphHero {
+  animation-delay: -1.2s;
+}
+
+.pubsCard:nth-child(3n + 1) .pubsCardGlyphHero {
+  animation-delay: -2.4s;
+}
+
+@keyframes pubsGlyphFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.04);
+  }
+}
+
+.pubsCardShelf {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pubsCardShelf li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+}
+
+.pubsCardShelf li span {
+  max-width: 4.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pubsCardArtLabel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 86%, transparent);
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 750;
+  backdrop-filter: blur(6px);
+}
+
+.pubsCardBody {
+  display: grid;
+  gap: 8px;
+  padding: 12px 12px 14px;
+}
+
+.pubsCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pubsSource {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
+  color: var(--brass);
+}
+
+.pubsSource[data-source="nicholsonspubs.co.uk"] {
+  background: color-mix(in srgb, var(--river) 12%, var(--panel));
+  color: var(--river);
+}
+
+.pubsSource[data-source="youngs.co.uk"] {
+  background: color-mix(in srgb, var(--pint) 12%, var(--panel));
+  color: var(--pint);
+}
+
+.pubsSource[data-source="greene-king.co.uk"] {
+  background: color-mix(in srgb, var(--amber) 16%, var(--panel));
+  color: color-mix(in srgb, var(--amber) 70%, var(--ink));
+}
+
+.pubsBorough {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.pubsCardName {
+  margin: 0;
+  font-family: var(--font-display), var(--serif), sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.pubsCardName a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pubsCardName a:hover,
+.pubsCardName a:focus-visible {
+  color: var(--brass);
+}
+
+.pubsCardPrice {
+  margin: 0;
+  font-family: var(--font-data), monospace;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.pubsCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.pubsMapLink,
+.pubsMenuLink,
+.pubsBookLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pubsMapLink {
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
+  color: var(--brass);
+}
+
+.pubsMenuLink:hover,
+.pubsBookLink:hover,
+.pubsMapLink:hover {
+  border-color: var(--brass);
+}
+
+.pubsEmpty {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pubsCard,
+  .pubsCardGlyphHero {
+    transition: none;
+    animation: none;
+  }
+
+  .pubsCard:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .pubsShell {
+    padding: 12px 12px 108px;
+  }
+
+  .pubsGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .pubsCard {
+    grid-template-rows: 140px auto;
+  }
+
+  .pubsCardGlyphHero svg {
+    width: 56px;
+    height: 56px;
+  }
+
+  .pubsCardShelf li span {
+    display: none;
+  }
+
+  .pubsCardName {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .pubsGrid {
+    grid-template-columns: 1fr;
+  }
+}
