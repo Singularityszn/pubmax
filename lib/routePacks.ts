@@ -86,6 +86,12 @@ export const routePacks: RoutePack[] = [
     "Softer nights: food-first Soho plates, a soft round, and a skyline garden climb.",
     ["soho-food-crawl", "leicester-mocktail-crawl", "pint-park-view"],
   ),
+  pack(
+    "civic-west",
+    "Civic west",
+    "Whitehall bells to Leicester soft rounds and the old press strip — the west-of-centre civic corridor.",
+    ["westminster-civic", "leicester-mocktail-crawl", "fleet-street-writers"],
+  ),
 ];
 
 /** Look up a pack by id, or undefined when unknown. */

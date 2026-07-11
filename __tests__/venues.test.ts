@@ -7,6 +7,7 @@ import {
   crawlSummary,
   mergeVenueDrops,
   formatFreshness,
+  formatObservedAt,
   stableVenueIdFromKey,
   venueGroupingKey,
   type SummaryDrop,
@@ -540,6 +541,26 @@ describe("formatFreshness", () => {
     expect(formatFreshness("2026-07-05T13:00:00.000Z", now)).toBe("logged 23h ago");
     expect(formatFreshness("2026-07-05T12:00:00.000Z", now)).toBe("logged 1 day ago");
     expect(formatFreshness("2026-07-03T12:00:00.000Z", now)).toBe("logged 3 days ago");
+  });
+});
+
+describe("formatObservedAt", () => {
+  const now = new Date("2026-07-06T12:00:00.000Z");
+
+  it("returns empty string for missing/invalid input", () => {
+    expect(formatObservedAt(null, now)).toBe("");
+    expect(formatObservedAt(undefined, now)).toBe("");
+    expect(formatObservedAt("", now)).toBe("");
+    expect(formatObservedAt("not-a-date", now)).toBe("");
+  });
+
+  it("mirrors formatFreshness ages with an observed verb", () => {
+    expect(formatObservedAt("2026-07-06T11:59:30.000Z", now)).toBe("observed just now");
+    expect(formatObservedAt("2026-07-06T13:00:00.000Z", now)).toBe("observed just now");
+    expect(formatObservedAt("2026-07-06T11:58:00.000Z", now)).toBe("observed 2m ago");
+    expect(formatObservedAt("2026-07-06T10:00:00.000Z", now)).toBe("observed 2h ago");
+    expect(formatObservedAt("2026-07-05T12:00:00.000Z", now)).toBe("observed 1 day ago");
+    expect(formatObservedAt("2026-07-03T12:00:00.000Z", now)).toBe("observed 3 days ago");
   });
 });
 

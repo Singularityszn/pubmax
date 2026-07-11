@@ -200,7 +200,6 @@
 }
 
 .appShell.sheet-full .mapPriceControl,
-.appShell.planning-open .mapPriceControl,
 .appShell.detail-open .mapPriceControl {
   opacity: 0;
   pointer-events: none;

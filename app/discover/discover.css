@@ -287,6 +287,14 @@
   white-space: nowrap;
 }
 
+.leaderboardHonesty {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 /* ── UK city energy (rivalry) ──────────────────────────────────────── */
 
 .cityRivalryLink {
