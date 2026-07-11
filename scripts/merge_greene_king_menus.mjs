@@ -202,7 +202,7 @@ function findVenueBySlug(dataset, slug) {
   return null;
 }
 
-function gkSource(url, observedAt) {
+function gkSource(url) {
   return {
     label: SOURCE_LABEL,
     url,
@@ -257,6 +257,102 @@ function parseInteractFood(text) {
       items.push({ name, section, priceGbp, dietary: dietaryFromName(name) });
     }
   }
+  return items;
+}
+
+/**
+ * Parse #### food blocks from a GK menu markdown page (e.g. "## Main Menu" /
+ * "### Small Plates"). Skips sections that map as drinks. Mirrors
+ * lib/greeneking.ts parseFoodMarkdown (#### branch).
+ */
+function parseFoodMarkdownBlocks(markdown) {
+  if (!markdown || !String(markdown).trim()) return [];
+  // Prefer interact-bullet shape when present.
+  const fromInteract = parseInteractFood(markdown);
+  if (fromInteract.length > 0) return fromInteract;
+
+  const lines = String(markdown).replace(/\r\n/g, "\n").split("\n");
+  const items = [];
+  let section = "";
+  let itemName = null;
+  let buf = [];
+
+  const isDrinkSection = (s) => {
+    if (/starter|sharer|main|burger|dessert|side|snack|small plate|roast|ciabatta|kids/i.test(s)) {
+      return false;
+    }
+    return /wine|cocktail|beer|cider|spritz|champagne|prosecco|vodka|gin|rum|whisk|soft drink|0\s*%/i.test(
+      s,
+    );
+  };
+
+  const parsePrices = (text) => {
+    const out = [];
+    const re = /£\s*(\d+(?:\.\d{1,2})?)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n >= 0) out.push(n);
+    }
+    return out;
+  };
+
+  const flush = () => {
+    if (!itemName || !section) {
+      itemName = null;
+      buf = [];
+      return;
+    }
+    if (isDrinkSection(section)) {
+      itemName = null;
+      buf = [];
+      return;
+    }
+    // Skip bare chrome headings with no food signal.
+    if (/^filters?$/i.test(section) || /^main menu$/i.test(section) || /^menus?\b/i.test(section)) {
+      itemName = null;
+      buf = [];
+      return;
+    }
+    const body = buf.join("\n");
+    const prices = parsePrices(body);
+    if (!prices.length) {
+      itemName = null;
+      buf = [];
+      return;
+    }
+    items.push({
+      name: itemName,
+      section,
+      priceGbp: prices[0],
+      dietary: dietaryFromName(itemName),
+    });
+    itemName = null;
+    buf = [];
+  };
+
+  const sectionRe = /^(#{2,3})\s+(.+?)\s*$/;
+  const itemRe = /^#{4}\s+(.+?)\s*$/;
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const sec = line.match(sectionRe);
+    if (sec && !line.startsWith("####")) {
+      const title = sec[2].replace(/\*\*/g, "").replace(/\s*\(\d+\)\s*$/, "").trim();
+      if (/^filters?$/i.test(title)) continue;
+      flush();
+      section = title;
+      continue;
+    }
+    const item = line.match(itemRe);
+    if (item) {
+      flush();
+      itemName = item[1].replace(/\*\*/g, "").trim();
+      buf = [];
+      continue;
+    }
+    if (itemName) buf.push(line);
+  }
+  flush();
   return items;
 }
 
@@ -387,7 +483,7 @@ function stampDrink(venueKey, drinkName, category, priceGbp, menuUrl, observedAt
     category,
     priceGbp,
     ...extra,
-    source: gkSource(menuUrl, observedAt),
+    source: gkSource(menuUrl),
     observedAt,
   };
 }
@@ -402,7 +498,7 @@ function stampFood(venueKey, itemName, category, priceGbp, menuUrl, observedAt, 
     category,
     priceGbp,
     ...extra,
-    source: gkSource(menuUrl, observedAt),
+    source: gkSource(menuUrl),
     observedAt,
   };
 }
@@ -550,16 +646,47 @@ async function main() {
         );
         if (stamped) drinkUpdates.push(stamped);
       }
-      console.log(`  raw ${file}: ${parsed.length} drink item(s) → ${venueKey.slice(0, 60)}`);
+      // Many GK pages default to the food "Main Menu" — harvest #### food
+      // items from the same markdown when present (never invent prices).
+      const foodParsed = parseFoodMarkdownBlocks(markdown);
+      for (const item of foodParsed) {
+        const stamped = stampFood(
+          venueKey,
+          item.name,
+          mapFoodSection(item.section),
+          item.priceGbp,
+          menuUrl,
+          observedAt,
+          item.dietary ? { dietary: item.dietary } : {},
+        );
+        if (stamped) foodUpdates.push(stamped);
+      }
+      console.log(
+        `  raw ${file}: ${parsed.length} drink / ${foodParsed.length} food → ${venueKey.slice(0, 60)}`,
+      );
     }
   }
 
   // Optional food interact drops
   const foodDir = join(gkDir, "food");
   if (existsSync(foodDir)) {
-    const files = readdirSync(foodDir).filter(
+    const allFoodFiles = readdirSync(foodDir).filter(
       (f) => f.endsWith(".txt") || f.endsWith(".md") || f.endsWith(".json"),
     );
+    // Prefer .json payloads over sibling .interact.txt (same slug) to avoid
+    // double-counting when both were dropped from one scrape.
+    const jsonSlugs = new Set(
+      allFoodFiles
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => f.replace(/\.json$/, "")),
+    );
+    const files = allFoodFiles.filter((f) => {
+      if (!f.endsWith(".json")) {
+        const slugGuess = f.replace(/\.(txt|md)$/, "").replace(/\.interact$/, "");
+        if (jsonSlugs.has(slugGuess)) return false;
+      }
+      return true;
+    });
     for (const file of files) {
       const full = join(foodDir, file);
       let text = "";
@@ -579,9 +706,22 @@ async function main() {
       } else {
         text = readFileSync(full, "utf8");
         const slugGuess = file.replace(/\.(txt|md)$/, "").replace(/\.interact$/, "");
-        menuUrl = `https://www.greeneking.co.uk/pubs/greater-london/${slugGuess}/menu`;
+        // Resolve via London dataset first, then OSM city pubs by slug.
         const venue = findVenueBySlug(dataset, slugGuess);
-        venueKey = venue?.venueKey ?? null;
+        if (venue) {
+          venueKey = venue.venueKey;
+          menuUrl = `https://www.greeneking.co.uk/pubs/greater-london/${slugGuess}/menu`;
+        } else if (existsSync(osmPath)) {
+          const osm = JSON.parse(readFileSync(osmPath, "utf8"));
+          const hit = osm.find((p) => {
+            const s = slugFromUrl(p.menuUrl || p.website || "");
+            return s && s.slug === slugGuess;
+          });
+          if (hit) {
+            venueKey = venueCoordsGroupingKey(hit.name, hit.address, hit.lat, hit.lng);
+            menuUrl = hit.menuUrl || menuUrl;
+          }
+        }
       }
       if (!text || !venueKey || !menuUrl) {
         console.log(`  food drop skipped (need text+venue+url): ${file}`);

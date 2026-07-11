@@ -29,6 +29,14 @@ beverage CSV (`data/pubmaxxing/london_pub_all_beverages_expanded.csv`) for pubs
 whose Greene King website slug matches a row in
 `public/data/pint_prices_app_dataset.json`.
 
+## Firecrawl notes
+
+First-party scrapes use Firecrawl against `greeneking.co.uk` only (allowlisted
+as `greene-king-official` in `data/price_sources.json`). Menu pages often
+default to **food** (`## Main Menu`); drink sections need a Drinks filter click
+(interact) or appear on drink-default pubs. Store the API key in the
+environment (`FIRECRAWL_API_KEY`) — never commit it.
+
 ## Venue keys
 
 Updates use `name|address|lat|lng` (lower-cased, whitespace-collapsed) — the
