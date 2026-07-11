@@ -325,22 +325,24 @@ function pubsToGeoJSON(
           signals?.latestDemoPrice ??
           null;
       const bucket = priceBucket(price);
-      // Prefer the active non-beer lens for the glyph so gin/wine/etc. read
-      // honestly on the map; otherwise fall back to venue hint categories.
+      // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
+      // Without a lens, fall back to venue hint categories.
       const lens = drinkCategory?.trim().toLowerCase() ?? "";
       const drinkKind =
-        lens && lens !== "beer" && lens !== "other"
-          ? drinkPinKindFromCategories(
-              [lens],
-              lens === "cocktail" ||
+        lens === "beer"
+          ? "pint"
+          : lens && lens !== "other"
+            ? drinkPinKindFromCategories(
+                [lens],
+                lens === "cocktail" ||
+                  Boolean(venue.amenities.cocktails) ||
+                  Boolean(venue.filterHints?.amenities.cocktails),
+              )
+            : drinkPinKindFromCategories(
+                venue.filterHints?.drinkCategories,
                 Boolean(venue.amenities.cocktails) ||
-                Boolean(venue.filterHints?.amenities.cocktails),
-            )
-          : drinkPinKindFromCategories(
-              venue.filterHints?.drinkCategories,
-              Boolean(venue.amenities.cocktails) ||
-                Boolean(venue.filterHints?.amenities.cocktails),
-            );
+                  Boolean(venue.filterHints?.amenities.cocktails),
+              );
       return {
         type: "Feature" as const,
         properties: {

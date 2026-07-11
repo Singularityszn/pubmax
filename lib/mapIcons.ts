@@ -652,10 +652,9 @@ function drawRiver(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 }
 
 // ---------------------------------------------------------------------------
-// Drink glyphs (ns: "drink") — glass-first pub pins. Key shape: `{kind}-{bucket}`
-// where kind is pint|wine|cocktail|spirits and bucket is 0|1|2|3 (price band).
-// Each pin is a coloured glass silhouette on an opaque cream disc so unpriced
-// (bucket 3) pins stay readable brass-grey glasses, not black blobs.
+// Drink glyphs (ns: "drink") — glass-shaped pub pins. Key: `{kind}-{bucket}`
+// (pint|wine|cocktail|spirits × price band). No circular heatmap pad — the
+// marker silhouette IS the glass (soft shadow only). Unpriced = brass-grey.
 // ---------------------------------------------------------------------------
 
 export type DrinkPinKind = "pint" | "wine" | "cocktail" | "spirits";
@@ -671,15 +670,17 @@ function priceFill(t: IconTokens, bucket: number): string {
   return UNPRICED_FILL;
 }
 
-/** Opaque paper/cream disc behind the glass — ~0.36 of BOX. */
-function drawDrinkPad(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  const r = BOX * 0.36;
+/** Soft elliptical ground shadow only — no circular pad. The pin IS the glass. */
+function drawDrinkShadow(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const cx = BOX / 2;
-  const cy = BOX / 2;
+  const cy = BOX * 0.88;
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = t.ink;
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = t.paper;
+  ctx.ellipse(cx, cy, BOX * 0.2, BOX * 0.07, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 }
 
 function setDrinkGlassStyle(
@@ -793,9 +794,8 @@ function drawSpiritsSilhouette(
 function makeDrinkDraw(kind: DrinkPinKind, bucket: number) {
   return (ctx: CanvasRenderingContext2D, t: IconTokens) => {
     const fill = priceFill(t, bucket);
-    drawDrinkPad(ctx, t);
-    // Paper stroke on saturated fills; ink on soft brass-grey so unpriced
-    // glasses keep an edge on the cream pad.
+    drawDrinkShadow(ctx, t);
+    // Light rim on saturated glasses; ink rim on soft brass-grey unpriced.
     const stroke = bucket === 3 ? t.ink : t.paper;
     if (kind === "pint") drawPintSilhouette(ctx, fill, stroke);
     else if (kind === "wine") drawWineSilhouette(ctx, fill, stroke);
