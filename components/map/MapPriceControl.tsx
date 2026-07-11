@@ -18,8 +18,8 @@ const PRICE_OPTIONS: { label: string; maxPrice: number }[] = [
 
 const PRICE_LEGEND = [
   { label: "≤ £5.50", tone: "green" as const },
-  { label: "£5.50–£7", tone: "amber" as const },
-  { label: "£7+", tone: "red" as const },
+  { label: "> £5.50 – £7", tone: "amber" as const },
+  { label: "> £7", tone: "red" as const },
 ];
 
 type MapPriceControlProps = {
@@ -70,9 +70,13 @@ export default function MapPriceControl({
   return (
     <div className="mapPriceControl" ref={rootRef}>
       {/* Always-visible colour key — plan: small bottom-left price legend. */}
-      <div className="mapPriceLegend" aria-label="Pint price colour key">
+      <div
+        className="mapPriceLegend"
+        role="list"
+        aria-label="Pint price colour key"
+      >
         {PRICE_LEGEND.map((row) => (
-          <span key={row.label}>
+          <span key={row.label} role="listitem">
             <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
             {row.label}
           </span>

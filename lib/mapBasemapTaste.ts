@@ -276,6 +276,17 @@ function paintDiscoveredSymbol(
   tryPaint(map, layerId, "text-opacity", dark ? 0.92 : 0.88);
 }
 
+/** All layer IDs handled explicitly by paintKnownLayers — skip these in the
+ *  discovered pass so the known-layer major/minor paint is never silently
+ *  overridden by the broader discovered heuristics. */
+const KNOWN_LAYER_IDS = new Set<string>([
+  "background",
+  ...LAND_FILL_IDS,
+  ...BUILDING_FILL_IDS,
+  ...WATER_FILL_IDS,
+  ...ROAD_LINE_IDS,
+]);
+
 function paintDiscoveredLayers(
   map: PaintMap,
   palette: TastePalette,
@@ -283,6 +294,7 @@ function paintDiscoveredLayers(
   dark: boolean,
 ): void {
   for (const layer of map.getStyle().layers ?? []) {
+    if (KNOWN_LAYER_IDS.has(layer.id)) continue;
     const id = layer.id.toLowerCase();
     if (layer.type === "fill") {
       paintDiscoveredFill(map, layer.id, id, palette, dark);

@@ -16,8 +16,7 @@
 }
 
 .mapPriceFab,
-.mapPricePanel,
-.mapPriceLegend {
+.mapPricePanel {
   pointer-events: auto;
 }
 
