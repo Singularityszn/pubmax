@@ -308,13 +308,24 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
       <SiteNav active="discover" />
 
       <header className="discoverHead">
-        <p className="discoverEyebrow">Drinks</p>
+        <p className="discoverEyebrow">Pint stories</p>
         <h1 className="discoverTitle">There is a story behind every pint.</h1>
         <p className="discoverLede">
           Pick your poison, your nectar, or your 0.0. PUBMAXXING follows every
           kind of round — beer, wine, gin, vodka, rum, cocktails, shots, and the
           soft drinks that keep the night moving.
         </p>
+        {/* Hub rule (docs/MOBILE_FLOW_SPEC.md §1): Feed and Crawls have no tab
+            of their own on mobile, so this page is their hub — every surface
+            reachable in ≤2 taps from a tab. */}
+        <nav className="discoverHubRow" aria-label="More stories">
+          <Link href="/feed" className="discoverHubLink">
+            Tonight&apos;s pint stories →
+          </Link>
+          <Link href="/crawls" className="discoverHubLink">
+            Crawl stories →
+          </Link>
+        </nav>
       </header>
 
       <section className="discoverSection" aria-labelledby="explore-title">

@@ -43,8 +43,8 @@ function buildTabs(profileHref: string, mapHref: string, dropHref: string): Tab[
   return [
     { href: mapHref, label: "Map", Icon: Map, match: ["/map"] },
     { href: "/pubs", label: "Pubs", Icon: Beer, match: ["/pubs"] },
-    { href: dropHref, label: "Drop", Icon: CirclePlus, primary: true },
-    { href: "/discover", label: "Discover", Icon: Compass, match: ["/discover", "/feed", "/borough"] },
+    { href: dropHref, label: "Pint Drop", Icon: CirclePlus, primary: true },
+    { href: "/discover", label: "Pint stories", Icon: Compass, match: ["/discover", "/feed", "/crawls", "/borough"] },
     { href: profileHref, label: "You", Icon: User, match: ["/u"] },
   ];
 }
