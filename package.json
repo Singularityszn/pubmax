@@ -25,6 +25,7 @@
     "build:pubmaxxing-seed": "node scripts/build_pubmaxxing_seed.mjs",
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
+    "whats-on-refresh": "node scripts/refresh_whats_on.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && npm audit --audit-level=high",
     "ci": "npm run verify && npm run build",

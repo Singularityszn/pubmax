@@ -17,6 +17,9 @@ const ROOT_DIR = join(__dirname, "..");
 const DATA_DIR = join(ROOT_DIR, "public", "data");
 const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
+const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
+const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music"]);
+const WHATS_ON_CONFIDENCES = new Set(["confirmed", "listed"]);
 const DRINK_CATEGORIES = new Set([
   "beer",
   "wine",
@@ -741,6 +744,102 @@ function validateDrinkPriceUpdates() {
   return { ok, count };
 }
 
+// whats_on/*.json — What's-On rows (Task B1). Mirrors lib/whatsOn.ts
+// isValidWhatsOnRow: every row carries non-negotiable provenance ({label,url};
+// NO licence field for this layer), a non-future observedAt, and a valid
+// kind/confidence/startsAt. Files that are not rows files, or that declare a
+// non-row kind (e.g. the sport_attributes sidecar, whose attribute rows have
+// no startsAt by design), are SKIPPED — only timed row files are validated.
+function validateOneWhatsOnFile(fileName) {
+  const name = `public/data/whats_on/${fileName}`;
+  let data;
+  try {
+    data = JSON.parse(readFileSync(join(WHATS_ON_DIR, fileName), "utf8"));
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  if (data && typeof data === "object" && data.kind === "sport_attributes") {
+    console.log(`SKIP ${name}: attribute sidecar (different contract, no startsAt)`);
+    return { ok: true, count: 0 };
+  }
+
+  const rows = Array.isArray(data)
+    ? data
+    : typeof data === "object" && data !== null && Array.isArray(data.rows)
+      ? data.rows
+      : null;
+
+  if (rows === null) {
+    console.log(`SKIP ${name}: not a rows file (no top-level array or { rows: [...] })`);
+    return { ok: true, count: 0 };
+  }
+
+  const now = Date.now();
+  const errors = [];
+  rows.forEach((row, i) => {
+    const where = `row ${i}`;
+    const fail = (msg) => errors.push(`${where}: ${msg}`);
+    if (typeof row !== "object" || row === null) {
+      fail("not an object");
+      return;
+    }
+    if (typeof row.id !== "string" || row.id.length === 0) fail("missing/empty id");
+    if (typeof row.placeName !== "string" || row.placeName.length === 0) fail("missing/empty placeName");
+    if (typeof row.kind !== "string" || !WHATS_ON_KINDS.has(row.kind)) fail(`invalid kind "${row.kind}"`);
+    if (typeof row.startsAt !== "string" || !Number.isFinite(Date.parse(row.startsAt))) {
+      fail("startsAt is not a valid ISO timestamp");
+    }
+    if (typeof row.title !== "string" || row.title.length === 0) fail("missing/empty title");
+    const source = row.source;
+    if (typeof source !== "object" || source === null) {
+      fail("missing source");
+    } else {
+      if (typeof source.label !== "string" || source.label.length === 0) fail("missing/empty source.label");
+      if (!isHttpUrl(source.url)) fail(`source.url "${source.url}" is not an absolute http(s) URL`);
+    }
+    if (typeof row.observedAt !== "string" || row.observedAt.length === 0) {
+      fail("missing/empty observedAt");
+    } else {
+      const ms = Date.parse(row.observedAt);
+      if (!Number.isFinite(ms)) fail(`observedAt "${row.observedAt}" is not a valid ISO timestamp`);
+      else if (ms > now) fail(`observedAt "${row.observedAt}" is in the future`);
+    }
+    if (typeof row.confidence !== "string" || !WHATS_ON_CONFIDENCES.has(row.confidence)) {
+      fail(`invalid confidence "${row.confidence}"`);
+    }
+    if (row.priceGbp !== undefined && row.priceGbp !== null) {
+      if (typeof row.priceGbp !== "number" || !Number.isFinite(row.priceGbp) || row.priceGbp < 0) {
+        fail(`priceGbp must be a finite number >= 0`);
+      }
+    }
+  });
+
+  const ok = errors.length === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errors.length} error(s)`);
+  if (!ok) for (const e of errors.slice(0, 20)) console.log(`  - ${e}`);
+  return { ok, count: rows.length };
+}
+
+// Validates every *.json in public/data/whats_on/ (if the directory exists).
+// Absence of the directory is NOT a failure; a bad row file inside IS.
+function validateWhatsOnUpdates() {
+  if (!existsSync(WHATS_ON_DIR)) {
+    console.log("SKIP public/data/whats_on/: directory does not exist");
+    return { ok: true, count: 0 };
+  }
+  const files = readdirSync(WHATS_ON_DIR).filter((f) => f.endsWith(".json"));
+  if (files.length === 0) {
+    console.log("SKIP public/data/whats_on/: no .json files present");
+    return { ok: true, count: 0 };
+  }
+  const results = files.map(validateOneWhatsOnFile);
+  const ok = results.every((r) => r.ok);
+  const count = results.reduce((sum, r) => sum + r.count, 0);
+  return { ok, count };
+}
+
 function isHttpUrl(value) {
   if (typeof value !== "string" || value.length === 0) return false;
   try {
@@ -937,6 +1036,7 @@ function main() {
     validateSlimVenues(),
     validateVenueDetails(),
     validateDrinkPriceUpdates(),
+    validateWhatsOnUpdates(),
     validatePubmaxxingSeed(),
   ];
   const failed = results.filter((r) => !r.ok).length;
