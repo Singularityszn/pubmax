@@ -33,20 +33,22 @@ Touch points: `components/PubMapCanvas.tsx` (cluster paint + source options), `l
    Rivalry row links (`CityRivalryTable` → `cityMapShareUrl`) should also persist preferred city (`lib/cityPreference`) and land the map with bounds fit for that city — not a London-centric default when the user picked Glasgow/Manchester/etc.
 
 2. **Drink chips → matching shapes**  
-   Discover explore chips already deep-link via `exploreHref` (`?drink=` / brand). Verify decode → map filter shows only matching drink-pin kinds (champagne → wine silhouette). Chip landing must leave the drink lens active so filtered shapes dominate, not a sea of mixed clusters.
+   Discover category cards deep-link via `exploreHref` (`?drink=`). Brand chips under “Jump by brand” add `brand`. Verify decode → map filter shows only matching drink-pin kinds (champagne → wine silhouette). Chip landing must leave the drink lens active so filtered shapes dominate, not a sea of mixed clusters.
 
 ---
 
 ## 4. London / TfL note
 
-**No London MCP** in the cloud agent catalog. Do not block on one.
+**No London MCP** in the cloud agent catalog — do not invent or wait on one.
 
-Reuse existing integration:
+Reuse existing integration only:
 
 - `/api/last-train` for last-train guidance  
 - `tfl_lines.json` + TfL icons already registered in `lib/mapIcons.ts` (`ns: "tfl"`) and drawn in `PubMapCanvas`
 
 Transport layers stay wayfinding chrome; they must not outshine drink pins.
+
+**Pint-drops / Supabase:** `/api/pint-drops` returning 503 in local or prod when Supabase is required is separate infra — do not fake drops or invent a London MCP substitute for community prices.
 
 ---
 

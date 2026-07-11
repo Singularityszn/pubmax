@@ -654,38 +654,32 @@ function drawRiver(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 // ---------------------------------------------------------------------------
 // Drink glyphs (ns: "drink") — glass-first pub pins. Key shape: `{kind}-{bucket}`
 // where kind is pint|wine|cocktail|spirits and bucket is 0|1|2|3 (price band).
-// The silhouette is filled with the price colour and stroked in paper/cream so
-// the glass reads clearly at map size; a small soft disc sits under it as a
-// quiet pad (not a big coloured bubble with a tiny glyph).
+// Each pin is a coloured glass silhouette on an opaque cream disc so unpriced
+// (bucket 3) pins stay readable brass-grey glasses, not black blobs.
 // ---------------------------------------------------------------------------
 
 export type DrinkPinKind = "pint" | "wine" | "cocktail" | "spirits";
+
+// Soft brass-grey for unpriced pins — never pure ink/muted black (reads as a
+// building blob on the basemap). Hex equivalent of a desaturated brass.
+const UNPRICED_FILL = "#9a7a72";
 
 function priceFill(t: IconTokens, bucket: number): string {
   if (bucket === 0) return t.pint ?? t.brass;
   if (bucket === 1) return t.amber ?? t.brassBright;
   if (bucket === 2) return t.brick ?? "#d16353";
-  return t.muted ?? t.ink;
+  return UNPRICED_FILL;
 }
 
-/** Small soft disc under the glass — ~0.34 of BOX so the shape dominates. */
-function drawDrinkPad(
-  ctx: CanvasRenderingContext2D,
-  t: IconTokens,
-  fill: string,
-): void {
-  const r = BOX * 0.34;
+/** Opaque paper/cream disc behind the glass — ~0.36 of BOX. */
+function drawDrinkPad(ctx: CanvasRenderingContext2D, t: IconTokens): void {
+  const r = BOX * 0.36;
   const cx = BOX / 2;
   const cy = BOX / 2;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = fill;
-  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = t.paper;
   ctx.fill();
-  ctx.globalAlpha = 1;
-  ctx.lineWidth = STROKE * 0.7;
-  ctx.strokeStyle = t.paper;
-  ctx.stroke();
 }
 
 function setDrinkGlassStyle(
@@ -799,8 +793,10 @@ function drawSpiritsSilhouette(
 function makeDrinkDraw(kind: DrinkPinKind, bucket: number) {
   return (ctx: CanvasRenderingContext2D, t: IconTokens) => {
     const fill = priceFill(t, bucket);
-    drawDrinkPad(ctx, t, fill);
-    const stroke = t.paper;
+    drawDrinkPad(ctx, t);
+    // Paper stroke on saturated fills; ink on soft brass-grey so unpriced
+    // glasses keep an edge on the cream pad.
+    const stroke = bucket === 3 ? t.ink : t.paper;
     if (kind === "pint") drawPintSilhouette(ctx, fill, stroke);
     else if (kind === "wine") drawWineSilhouette(ctx, fill, stroke);
     else if (kind === "cocktail") drawCocktailSilhouette(ctx, fill, stroke);
