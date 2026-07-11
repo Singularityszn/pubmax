@@ -4,6 +4,7 @@ import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
 import OfflineReady from "@/components/OfflineReady";
+import FirstRunTour from "@/components/onboarding/FirstRunTour";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 
 // Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
@@ -51,7 +52,7 @@ const dataMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pubmaxx.vercel.app"),
+  metadataBase: new URL("https://pubmaxxing.com"),
   title: {
     default: "PUBMAXXING — Every pint has a story",
     template: "%s | PUBMAXXING",
@@ -68,7 +69,7 @@ export const metadata: Metadata = {
     title: "PUBMAXXING — Every pint has a story",
     description:
       "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
-    url: "https://pubmaxx.vercel.app",
+    url: "https://pubmaxxing.com",
     siteName: "PUBMAXXING",
     type: "website",
     images: [
@@ -181,6 +182,9 @@ export default function RootLayout({
           {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
               display:none on desktop so the existing navs are untouched. */}
           <MobileTabBar />
+          {/* One-time first-run onboarding tour — renders nothing on the
+              server / for returning users (gated on hasSeenTour). */}
+          <FirstRunTour />
           {/* Silent offline SW registration (issue #32) — renders nothing,
               production-only, registers after load. */}
           <OfflineReady />

@@ -2248,6 +2248,14 @@ export default function PubMapCanvas({
   }, [routeKey, mapReady, fitRoute]);
 
   // Cinematic fly-to on venue selection (after the route framing above).
+  // `selectedPresent` closes the ?sel= deep-link race: on first load the
+  // selected venue (often a lazily-forced scraped pub) may not be in the venue
+  // set yet, so the effect bails and the camera never moves. The boolean flips
+  // false→true exactly once when the venue first appears — re-running the
+  // effect — and stays true across filter/drop churn, so `venues` itself can
+  // remain out of the deps (no re-flying on churn, the original guarantee).
+  const selectedPresent =
+    Boolean(selectedVenueId) && venues.some((item) => item.id === selectedVenueId);
   useEffect(() => {
     if (!selectedVenueId) return;
     // Any venue selection — map pin, route stop, or the sidebar list — retires
@@ -2257,7 +2265,7 @@ export default function PubMapCanvas({
       setHeroDismissed(true);
     });
     const map = mapRef.current;
-    if (!map || !mapReady) return;
+    if (!map || !mapReady || !selectedPresent) return;
     const venue = venuesRef.current.find((item) => item.id === selectedVenueId);
     if (!venue) return;
     cinematic({
@@ -2266,7 +2274,7 @@ export default function PubMapCanvas({
       pitch: 50,
       duration: 1100,
     });
-  }, [selectedVenueId, mapReady, cinematic, selectLandmark]);
+  }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark]);
 
   // --- Story bands (issue #15) -------------------------------------------
   // Resolve the active band + its member pubs under the CURRENT (filtered)

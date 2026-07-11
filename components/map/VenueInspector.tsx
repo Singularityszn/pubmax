@@ -38,10 +38,12 @@ import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
+import FoodMenu from "@/components/food/FoodMenu";
 import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import { venueMenuForInspector } from "@/lib/venueMenu";
+import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 import { menuHubTiles } from "@/lib/menuHub";
 import type { DrinkCategory } from "@/lib/drinks";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -330,6 +332,7 @@ export default function VenueInspector({
   // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
   // drinks) — see lib/venueMenu.ts for the composition seam.
   const menuDrinks = useMemo(() => venueMenuForInspector(venue), [venue]);
+  const menuFood = useMemo(() => venueFoodMenuForInspector(venue), [venue]);
   const hubTiles = useMemo(() => menuHubTiles(venue, menuDrinks), [venue, menuDrinks]);
   // Menu hub → drinks deep-dive (Greene King–style Menus grid, alcohol-first).
   // Reset when the venue changes so a drill-in never leaks across pubs.
@@ -784,6 +787,7 @@ export default function VenueInspector({
                 )
               }
             />
+            <FoodMenu items={menuFood} venueName={venue.name} />
           </>
         ) : (
           <DrinkMenu

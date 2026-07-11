@@ -326,9 +326,21 @@
 }
 
 .pubsMapLink {
-  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
-  color: var(--brass);
+  /* The card's PRIMARY action — solid accent fill, first in the row, and a
+     44px touch target on phones ("see it on the map" was invisible as a
+     terse tertiary chip; the owner literally couldn't find it at 390px). */
+  order: -1;
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent, #fdfaf2);
+}
+
+@media (max-width: 640px) {
+  .pubsMapLink {
+    min-height: 44px;
+    padding: 8px 16px;
+    font-size: 0.84rem;
+  }
 }
 
 .pubsMenuLink:hover,

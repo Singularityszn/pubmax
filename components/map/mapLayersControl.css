@@ -7,7 +7,7 @@
   position: absolute;
   right: 14px;
   bottom: 18px;
-  z-index: 470;
+  z-index: var(--z-map-hover);
   pointer-events: none;
 }
 

@@ -4,8 +4,9 @@
   position: absolute;
   top: 58px;
   left: 50%;
-  /* Below map toolbar / CitySwitcher dropdown (560) so city picks stay tappable. */
-  z-index: 515;
+  /* Below map toolbar / CitySwitcher dropdown (560) so city picks stay tappable,
+     and below cityStatusBanner (--z-map-banner) so outage state wins the nudge. */
+  z-index: var(--z-map-suggest);
   display: flex;
   align-items: center;
   gap: 8px;

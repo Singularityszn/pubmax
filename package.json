@@ -29,7 +29,8 @@
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && npm audit --audit-level=high",
     "ci": "npm run verify && npm run build",
     "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'",
-    "merge:london-chains": "node scripts/merge_london_chain_scrapes.mjs"
+    "merge:london-chains": "node scripts/merge_london_chain_scrapes.mjs",
+    "deadcode": "knip"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
@@ -48,6 +49,8 @@
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.17.0",
     "eslint-config-next": "^16.0.10",
+    "knip": "^5.30.0",
+    "ts-prune": "^0.10.3",
     "typescript": "^5.7.2",
     "vitest": "^4.1.9"
   },

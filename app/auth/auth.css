@@ -177,7 +177,7 @@
 .claimNightBackdrop {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--z-backdrop);
   display: grid;
   place-items: center;
   padding: 1.25rem;
@@ -382,5 +382,12 @@
   .claimNightSkip {
     width: 100%;
     text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .claimNightBackdrop,
+  .claimNightDialog {
+    animation: none;
   }
 }

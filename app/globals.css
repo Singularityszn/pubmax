@@ -131,8 +131,19 @@
   --duration-base: 0.15s;
   --duration-slow: 0.28s;
   --duration-ambient: 1.4s;
+  --duration-press: 0.13s; /* button press-in / release */
   --ease-standard: ease;
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Stronger, more intentional curves (Emil Kowalski / Apple fluid-motion).
+     The built-in-style --ease-out above is deliberately kept for gentle colour
+     fades; reach for these for entrances, on-screen movement, and sheets so the
+     motion has punch instead of feeling like a default transition. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1); /* entrances / UI feedback — starts fast */
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen morph / reposition */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* iOS-like sheet / drawer travel */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* subtle overshoot — momentum entrances only */
+  --press-scale: 0.97; /* default pressed scale — subtle, "the UI heard you" */
+  --press-scale-firm: 0.94; /* small icon buttons can press a touch firmer */
 
   /* — Pressed-ink / bar-mat tactility: one shared token set for the price
      stamp, provenance chips, and vibe tags (see .ink-stamp below). Kept
@@ -141,6 +152,39 @@
   --ink-stamp-radius: 6px;
   --ink-stamp-tilt: -1.5deg;
   --ink-stamp-shadow: var(--shadow-inset-press);
+
+  /* — Z-index scale: one semantic ladder so stacking is reasoned about by ROLE.
+       Each token keeps the exact numeric value already in use, so adopting it is
+       a behaviour-preserving 1:1 swap (no stacking-order change). New chrome
+       should reach for the nearest role token instead of picking a fresh magic
+       number. Migrated from ~25 scattered literals — see
+       docs/CODE_HEALTH_REMEDIATION.md. */
+  --z-float: 50;             /* floating page controls: theme/legacy toggle, landing topbar */
+  --z-backdrop: 80;          /* auth claim-night full-screen backdrop */
+  --z-map-base: 450;         /* lowest map overlay: mapLegend, mapHeroCard */
+  --z-map-poi: 455;          /* POI category toggles */
+  --z-map-controls: 456;     /* placeStoriesControl, bandPicker */
+  --z-map-cards: 460;        /* poiLabelCard, landmarkCard */
+  --z-map-hover: 470;        /* venueHoverCard + map price/layers FABs */
+  --z-map-panel: 500;        /* routePanel, mapDrawer */
+  --z-map-suggest: 512;      /* citySuggestBanner — below cityStatusBanner, as on main */
+  --z-map-banner: 515;       /* cityStatusBanner */
+  --z-map-camera: 530;       /* mapCameraControls */
+  --z-map-route-chip: 540;   /* mappedRouteChip — below activeRoundChip, as on main */
+  --z-map-chip: 541;         /* activeRoundChip */
+  --z-map-onboard-chip: 545; /* bandOnboardingChip, logIntentFallback */
+  --z-map-toolbar: 560;      /* mapToolbar, citySwitcher */
+  --z-nav: 650;              /* planning-open drawer lift */
+  --z-tabbar: 700;           /* mobile bottom tab bar (above map/nav, below modals) */
+  --z-modal: 1200;           /* appNav + siteNav floating rails, full-screen overlays */
+  --z-overlay-top: 1300;     /* map onboarding — topmost transient overlay */
+
+  /* — Spill (always-dark) palette: the "spilling right now" / spill-composer
+       surfaces stay dark in BOTH themes by design. One shared token set so
+       feed.css + spillComposer.css can't drift (was hardcoded #0c0b08 in both). */
+  --spill-surface: #0c0b08;
+  --spill-veil: rgba(12, 11, 8, 0.72);
+  --spill-veil-strong: rgba(12, 11, 8, 0.78);
 
   /* Theme-coherent card tints: a raised surface warmed slightly toward an
      accent, used for gradient end-stops that must not go bright-cream in the
@@ -234,6 +278,31 @@ button {
   border-radius: var(--radius-sm);
 }
 
+/* ── Global press feedback ────────────────────────────────────────────────
+   "The interface heard you." Every pressable primitive dips a hair on press
+   and springs back on release (Emil Kowalski: buttons must feel responsive;
+   Apple: respond on pointer-down, not on release). Deliberately LOW specificity
+   (bare element / single class) so any component that manages its own transform
+   overrides this for free — this is a floor, not a ceiling. Gated behind
+   no-preference so reduced-motion users get zero movement. Opt out per element
+   with [data-no-press]; opt IN a link/label/row with class="pressable". */
+@media (prefers-reduced-motion: no-preference) {
+  button:not([data-no-press]):not(:disabled),
+  [role="button"]:not([data-no-press]):not([aria-disabled="true"]),
+  .planBtn:not([data-no-press]),
+  a[data-pressable],
+  .pressable {
+    transition: transform var(--duration-press) var(--ease-out-strong);
+  }
+  button:not([data-no-press]):not(:disabled):active,
+  [role="button"]:not([data-no-press]):not([aria-disabled="true"]):active,
+  .planBtn:not([data-no-press]):active,
+  a[data-pressable]:active,
+  .pressable:active {
+    transform: scale(var(--press-scale));
+  }
+}
+
 .loadingShell {
   min-height: 100vh;
   display: grid;
@@ -322,7 +391,7 @@ button {
   position: fixed;
   top: 12px;
   left: 50%;
-  z-index: 1200;
+  z-index: var(--z-modal);
   transform: translateX(-50%);
   backdrop-filter: blur(10px);
 }
@@ -350,7 +419,7 @@ button {
 
 .controlRail,
 .routePanel {
-  z-index: 500;
+  z-index: var(--z-map-panel);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-tint-brass) 44%, var(--panel) 56%) 0%, var(--panel) 34%),
     var(--panel);
@@ -735,7 +804,7 @@ input[type="range"] {
   position: absolute;
   top: var(--map-overlay-top);
   right: 10px;
-  z-index: 530;
+  z-index: var(--z-map-camera);
   display: grid;
   gap: 6px;
   justify-items: end;
@@ -793,7 +862,7 @@ input[type="range"] {
   position: absolute;
   left: 50%;
   bottom: 82px;
-  z-index: 540;
+  z-index: var(--z-map-route-chip);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -865,7 +934,7 @@ input[type="range"] {
   position: absolute;
   left: 50%;
   bottom: 82px;
-  z-index: 545;
+  z-index: var(--z-map-onboard-chip);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -937,7 +1006,7 @@ input[type="range"] {
   transform: translateX(-50%);
   /* Above camera controls (530) + city-suggest banner so the city dropdown
      stays tappable on the right edge of the toolbar. */
-  z-index: 560;
+  z-index: var(--z-map-toolbar);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1017,7 +1086,7 @@ input[type="range"] {
   position: absolute;
   top: var(--map-top-clearance);
   bottom: 0;
-  z-index: 500;
+  z-index: var(--z-map-panel);
   width: 376px;
   max-width: 92vw;
   background:
@@ -1025,8 +1094,9 @@ input[type="range"] {
     var(--panel);
   overflow-y: auto;
   scrollbar-width: thin;
-  /* Wave J2 — Emil ease-out sheet motion via design tokens. */
-  transition: transform var(--duration-slow) var(--ease-out);
+  /* iOS-like drawer travel — a sheet sliding in from the edge reads best on the
+     Ionic/Vaul curve, not the gentle Material ease. */
+  transition: transform var(--duration-slow) var(--ease-drawer);
   will-change: auto;
 }
 
@@ -1103,7 +1173,7 @@ input[type="range"] {
 .mapOnboarding {
   position: fixed;
   inset: 0;
-  z-index: 1300;
+  z-index: var(--z-overlay-top);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1666,7 +1736,7 @@ input[type="range"] {
   position: absolute;
   right: 10px;
   bottom: 14px;
-  z-index: 455;
+  z-index: var(--z-map-poi);
   gap: 5px;
   padding: 5px;
   border: 1px solid var(--line);
@@ -1714,7 +1784,7 @@ input[type="range"] {
   top: var(--map-overlay-top);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 460;
+  z-index: var(--z-map-cards);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1761,7 +1831,7 @@ input[type="range"] {
   position: absolute;
   top: 18px;
   left: 18px;
-  z-index: 460;
+  z-index: var(--z-map-cards);
   max-width: 310px;
   padding: 14px 16px;
   border: 1px solid var(--line);
@@ -1946,7 +2016,7 @@ input[type="range"] {
   position: absolute;
   right: 10px;
   bottom: 58px;
-  z-index: 456;
+  z-index: var(--z-map-controls);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -1979,7 +2049,7 @@ input[type="range"] {
   position: relative;
   right: auto;
   bottom: auto;
-  z-index: 456;
+  z-index: var(--z-map-controls);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -2130,7 +2200,7 @@ input[type="range"] {
    the "pictures hovering over pubs" affordance. */
 .venueHoverCard {
   position: absolute;
-  z-index: 470;
+  z-index: var(--z-map-hover);
   display: flex;
   gap: 10px;
   width: min(292px, calc(100vw - 32px));
@@ -2227,7 +2297,7 @@ input[type="range"] {
   position: absolute;
   bottom: calc(18px + var(--map-price-chrome-height, 96px));
   left: 18px;
-  z-index: 450;
+  z-index: var(--z-map-base);
   max-width: 300px;
   padding: 13px 15px;
   border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
@@ -2523,7 +2593,7 @@ input[type="range"] {
   position: absolute;
   left: 18px;
   bottom: 18px;
-  z-index: 450;
+  z-index: var(--z-map-base);
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -4069,7 +4139,7 @@ button:disabled {
   }
 
   .appShell.planning-open .mapDrawer.left.open {
-    z-index: 650;
+    z-index: var(--z-nav);
   }
 
   .plannerMapButton {
@@ -4545,7 +4615,7 @@ html[data-legacy="1"] *::after {
   position: fixed;
   top: 16px;
   right: 62px;
-  z-index: 50;
+  z-index: var(--z-float);
   width: 40px;
   height: 40px;
   border-color: var(--line);

@@ -7,7 +7,7 @@
   right: max(16px, env(safe-area-inset-right));
   /* Sit on the shared FAB row so the panel clears the mobile tab bar. */
   bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 18px));
-  z-index: 545;
+  z-index: var(--z-map-onboard-chip);
   display: grid;
   gap: 10px;
   max-width: 440px;

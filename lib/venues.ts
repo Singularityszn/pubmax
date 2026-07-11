@@ -1,4 +1,5 @@
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 import {
   findBrand,
@@ -212,13 +213,23 @@ function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-export function venueGroupingKey(row: VenuePrice): string {
+/** Grouping key from bare venue fields — same formula as venueGroupingKey. */
+export function venueCoordsGroupingKey(
+  name: string,
+  address: string,
+  lat: number,
+  lng: number,
+): string {
   return [
-    normaliseVenueKeyPart(row.pub_name),
-    normaliseVenueKeyPart(row.address),
-    row.latitude.toFixed(5),
-    row.longitude.toFixed(5),
+    normaliseVenueKeyPart(name),
+    normaliseVenueKeyPart(address),
+    lat.toFixed(5),
+    lng.toFixed(5),
   ].join("|");
+}
+
+export function venueGroupingKey(row: VenuePrice): string {
+  return venueCoordsGroupingKey(row.pub_name, row.address, row.latitude, row.longitude);
 }
 
 export function stableVenueIdFromKey(key: string): string {
@@ -540,15 +551,8 @@ export function priceColor(price: number | null): string {
 }
 
 export function distanceKm(a: Venue, b: Venue): number {
-  const earthRadiusKm = 6371;
-  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const dLng = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const lat1 = (a.latitude * Math.PI) / 180;
-  const lat2 = (b.latitude * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  // Thin adapter over the canonical great-circle helper (GeoJSON [lng, lat]).
+  return haversineKm([a.longitude, a.latitude], [b.longitude, b.latitude]);
 }
 
 export function scoreVenue(venue: Venue, style: CrawlStyle): number {

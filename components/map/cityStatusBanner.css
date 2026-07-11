@@ -7,7 +7,7 @@
      Below the CitySwitcher dropdown (z-index 560) so city picks stay tappable. */
   top: 132px;
   left: 50%;
-  z-index: 512;
+  z-index: var(--z-map-banner);
   display: flex;
   align-items: center;
   gap: 8px;

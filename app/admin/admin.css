@@ -60,7 +60,7 @@
   font: inherit;
 }
 
-.admin-bar input:focus {
+.admin-bar input:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
   border-color: var(--brass);
@@ -249,9 +249,9 @@
   min-height: 110px;
 }
 
-.admin-field input:focus,
-.admin-field textarea:focus,
-.admin-field select:focus {
+.admin-field input:focus-visible,
+.admin-field textarea:focus-visible,
+.admin-field select:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
   border-color: var(--brass);

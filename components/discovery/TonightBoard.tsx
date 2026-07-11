@@ -43,7 +43,7 @@ export default function TonightBoard({
         const ago = relativeTime(entry.createdAt);
         const href = venueMapUrl(entry.venueId);
         return (
-          <li key={entry.venueId} className="tonightRow">
+          <li key={entry.venueId} className="tonightRow" data-reveal>
             <span className="tonightRank" aria-hidden="true">
               {entry.rank}
             </span>

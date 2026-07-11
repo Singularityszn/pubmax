@@ -5,7 +5,7 @@
   position: absolute;
   left: 50%;
   bottom: 134px; /* sits above .mappedRouteChip (bottom: 82px) */
-  z-index: 541;
+  z-index: var(--z-map-chip);
   display: flex;
   align-items: center;
   gap: 10px;

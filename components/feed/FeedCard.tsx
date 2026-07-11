@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import CheersButton from "@/components/feed/CheersButton";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
@@ -43,6 +44,7 @@ function feedCardClassName(
   hero: string | undefined,
   optimistic: OptimisticSpillState | undefined,
   hasCategory: boolean,
+  entered: boolean,
 ): string {
   return [
     "feedCard",
@@ -51,6 +53,9 @@ function feedCardClassName(
     // category — an unknown drink falls back to the plain (brass-neutral) card.
     hasCategory ? "feedCardCat" : "",
     optimistic ? `feedCard-${optimistic.state}` : "",
+    // Wave L1 — mount-only entrance (see the `entered` effect below): starts
+    // scaled/faded, settles once. Never replays on a prop-only re-render.
+    entered ? "feedCardEntered" : "feedCardEnter",
   ]
     .filter(Boolean)
     .join(" ");
@@ -121,6 +126,26 @@ export default function FeedCard({
   const initial = item.handle.trim().charAt(0).toUpperCase() || "?";
   const ago = relativeTime(item.createdAt);
   const mine = new Set(summary.mine);
+
+  // Wave L1 — mount-only entrance. `entered` starts false so the card's FIRST
+  // paint renders the "pre-entrance" state (scale(.98) + opacity:0, see
+  // .feedCardEnter in feed.css); a rAF right after that first paint flips it
+  // to true, which changes the actual class/computed style and lets the CSS
+  // TRANSITION (not a keyframe animation) carry it to rest. Empty deps means
+  // this effect fires exactly once per real DOM mount — a poll refresh, a
+  // reaction count ticking up, or any other prop-only re-render of THIS SAME
+  // card (same `key`/`item.id`, same component instance) never re-runs it, so
+  // the entrance never replays on cards already on screen. A brand-new drop
+  // (a genuinely new `item.id`, hence a fresh FeedCard instance/key) gets its
+  // own fresh mount and its own entrance. Using a transition driven by a
+  // boolean (rather than a @keyframes animation retriggered by a class swap)
+  // keeps this interruptible — if the card is torn down mid-entrance there's
+  // no animation to cancel/jump.
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
   // A4 — the primary one-tap "Cheers" kudos reuses the existing "cheers"
   // reaction key (no schema/key change): its count + whether the viewer cheered
   // are read off the same durable summary the chip row uses, so the big button
@@ -174,7 +199,7 @@ export default function FeedCard({
 
   return (
     <article
-      className={feedCardClassName(hero, optimistic, categoryResolved)}
+      className={feedCardClassName(hero, optimistic, categoryResolved, entered)}
       style={catStyle}
       aria-label={`${optimistic ? `${optimistic.message}. ` : ""}Pint drop from ${shownHandle}`}
     >

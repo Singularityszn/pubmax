@@ -14,6 +14,8 @@ import { test, expect, type Page } from "@playwright/test";
 const VIEWPORTS = [
   { name: "390", width: 390, height: 844 },
   { name: "430", width: 430, height: 932 },
+  // Desktop pass for the design-consistency audit (z-index/nav/spill/focus).
+  { name: "1280", width: 1280, height: 800 },
 ] as const;
 
 const DOCS_DIR = "docs/screenshots";
@@ -76,6 +78,9 @@ for (const viewport of VIEWPORTS) {
       });
 
       test(`map with sheet open (${theme}, ${viewport.name})`, async ({ page }) => {
+        // The mobile venue sheet is a bottom-drawer; on desktop the inspector
+        // is a side panel, so this mobile-specific wait doesn't apply.
+        test.skip(viewport.width >= 1024, "mobile bottom-sheet only");
         await setTheme(page, theme);
         const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
         expect(response?.status()).toBe(200);

@@ -48,7 +48,7 @@
 .lp .topbar {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-float);
   background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
   backdrop-filter: blur(18px) saturate(1.2);
   border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--brass) 30%);
@@ -236,8 +236,8 @@
   font-optical-sizing: auto;
   font-variation-settings: "SOFT" 0;
   font-size: clamp(1.9rem, 3.6vw, 2.7rem);
-  line-height: 1.08;
-  letter-spacing: -0.015em;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
   margin: 0 0 14px;
 }
 
@@ -302,8 +302,8 @@
   font-family: var(--font-display, var(--serif));
   font-weight: 700;
   font-size: clamp(3.1rem, 9vw, 5.4rem);
-  line-height: 0.94;
-  letter-spacing: -0.035em;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
   margin: 0 0 12px;
   color: var(--ink);
   text-wrap: balance;
@@ -474,7 +474,10 @@
 
 .lp .thamesHeroPins {
   position: absolute;
-  inset: 0;
+  /* Inset the pin coordinate space so percentage-placed glyph tiles never hug
+     the rounded card edge or collide with the .thamesHeroHint header pill:
+     top band clears the hint, side + bottom gutters keep tiles off the corners. */
+  inset: 46px 16px 18px 16px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -587,7 +590,7 @@
     transform: scale(1.02);
   }
   to {
-    transform: scale(1.08);
+    transform: scale(1.06);
   }
 }
 
@@ -1277,8 +1280,8 @@
   font-optical-sizing: auto;
   font-variation-settings: "SOFT" 0;
   font-size: clamp(1.7rem, 3.4vw, 2.5rem);
-  line-height: 1.22;
-  letter-spacing: -0.01em;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
 }
 
 .lp .unityInner blockquote em {
@@ -1492,15 +1495,32 @@
    below so a revealed section always wins. */
 .lp.jsEnhanced .reveal {
   opacity: 0;
-  transform: translate3d(0, 1.25rem, 0);
+  /* Start from a slight rise + scale(.96) (never from nothing / scale(0)) so
+     entrances feel like they settle into place rather than pop in. */
+  transform: translate3d(0, 14px, 0) scale(0.96);
   transition:
-    opacity 0.7s ease,
-    transform 0.7s ease;
+    opacity 0.6s var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)),
+    transform 0.6s var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 .lp.jsEnhanced .reveal.isVisible {
   opacity: 1;
   transform: none;
+}
+
+/* Reveal stagger — grid children cascade ~60ms apart as a row scrolls in, so
+   the cards settle one after another instead of all at once. Gated behind
+   allowed motion; the reduced-motion block below zeroes the delay. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp.jsEnhanced .cardGrid > .reveal:nth-child(2),
+  .lp.jsEnhanced .goldenGrid > .reveal:nth-child(2) {
+    transition-delay: 60ms;
+  }
+
+  .lp.jsEnhanced .cardGrid > .reveal:nth-child(3),
+  .lp.jsEnhanced .goldenGrid > .reveal:nth-child(3) {
+    transition-delay: 120ms;
+  }
 }
 
 /* SVG motif entrance */
@@ -1663,6 +1683,13 @@
     max-width: calc(100% - 28px);
   }
 
+  /* Reserve a taller top band (the hint can wrap to two lines at 390px) plus
+     side/bottom gutters, so the four visible glyph tiles sit cleanly inside the
+     rounded card with clear breathing room below the header. */
+  .lp .thamesHeroPins {
+    inset: 58px 12px 14px 12px;
+  }
+
   /* Hide the two densest pins on narrow phones so shapes stay tappable. */
   .lp .thamesHeroPin:nth-child(5),
   .lp .thamesHeroPin:nth-child(6) {
@@ -1768,8 +1795,8 @@
   }
 
   .lp .btn:active {
-    transform: translateY(0);
-    filter: none;
+    transform: translateY(0) scale(0.97);
+    filter: brightness(0.98);
   }
 
   .lp .wedgeCard:hover {
@@ -1820,9 +1847,11 @@
     transition-duration: 0.001ms !important;
   }
 
-  .lp .reveal {
+  .lp .reveal,
+  .lp.jsEnhanced .reveal {
     opacity: 1;
     transform: none;
+    transition-delay: 0ms;
   }
 
   .lp .thamesHeroImg {

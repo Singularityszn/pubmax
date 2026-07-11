@@ -17,11 +17,11 @@ export type EditorialCardData = {
 
 export default function EditorialCard({ eyebrow, title, dek, href, cta }: EditorialCardData) {
   return (
-    <article className="editorialCard">
+    <article className="editorialCard" data-reveal>
       <p className="editorialEyebrow">{eyebrow}</p>
       <h3 className="editorialTitle">{title}</h3>
       <p className="editorialDek">{dek}</p>
-      <Link href={href} className="editorialLink">
+      <Link href={href} className="editorialLink pressable">
         {cta}
         <ArrowUpRight size={16} aria-hidden="true" />
       </Link>

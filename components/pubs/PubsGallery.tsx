@@ -149,7 +149,7 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
               <div className="pubsCardActions">
                 <Link className="pubsMapLink" href={venueMapUrl(pub.id)}>
                   <MapPinned size={14} aria-hidden="true" />
-                  Map
+                  See on map
                 </Link>
                 {pub.menuUrl ? (
                   <a

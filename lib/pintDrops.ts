@@ -236,8 +236,11 @@ export async function isLimited(
   durableKey: string,
   limit = RATE_LIMIT,
   windowMs = RATE_WINDOW_MS,
+  opts?: { failClosed?: boolean },
 ): Promise<boolean> {
   if (!isSupabaseConfigured()) {
+    // Pure local dev (no Supabase at all): in-memory result even for
+    // fail-closed callers, so local dev keeps working.
     return isRateLimited(localKey, Date.now(), limit, windowMs);
   }
 
@@ -247,6 +250,11 @@ export async function isLimited(
     windowMs,
   );
   if (typeof verdict === "boolean") return verdict;
+
+  // Supabase IS configured but the durable check could not answer. For
+  // cost-sensitive callers (paid LLM spend) fail CLOSED rather than falling
+  // back to a scriptable per-instance budget during a misconfig/outage.
+  if (opts?.failClosed) return true;
 
   // Transient outage only — tighten (or refuse under STRICT).
   if (reason === "error") {

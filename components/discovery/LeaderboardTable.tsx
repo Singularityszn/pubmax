@@ -58,7 +58,7 @@ export default function LeaderboardTable({
           {entries.map((entry) => {
             const href = venueMapUrl(entry.venue.id);
             return (
-              <tr key={entry.venue.id}>
+              <tr key={entry.venue.id} data-reveal>
                 <td className="leaderboardRank">
                   <span className="leaderboardRankNum" aria-hidden="true">
                     {entry.rank}
