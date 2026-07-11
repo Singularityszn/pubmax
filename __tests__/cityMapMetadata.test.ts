@@ -62,4 +62,53 @@ describe("city map generateMetadata", () => {
       images: [{ url: "/api/city-map-card?city=london" }],
     });
   });
+
+  it("publishes curated crawl social preview from crawl + pubs", async () => {
+    const metadata = await generateLondonMetadata({
+      searchParams: Promise.resolve({
+        mode: "build",
+        crawl: "victorian-soho",
+        pubs: "venue-1,venue-2,venue-3,venue-4,venue-5",
+      }),
+    });
+
+    expect(metadata.title).toBe("Victorian Soho — London");
+    expect(metadata.description).toBe(
+      "5-stop crawl: Victorian Soho in London. Open it on PUBMAXXING.",
+    );
+    expect(metadata.openGraph).toMatchObject({
+      title: "Victorian Soho — London",
+      url: "/map?crawl=victorian-soho",
+      images: [
+        {
+          url: "/api/city-map-card?city=london&crawl=victorian-soho",
+          width: 1200,
+          height: 630,
+        },
+      ],
+    });
+  });
+
+  it("publishes city crawl preview for Glasgow Subcrawl starter", async () => {
+    const metadata = await generateCityMetadata({
+      params: Promise.resolve({ city: "glasgow" }),
+      searchParams: Promise.resolve({
+        mode: "build",
+        crawl: "subcrawl-starter",
+        band: "subcrawl",
+        pubs: "a,b,c,d,e,f",
+      }),
+    });
+
+    expect(metadata.title).toBe("Subcrawl starter — Glasgow");
+    expect(metadata.description).toMatch(/^6-stop crawl: Subcrawl starter/);
+    expect(metadata.openGraph).toMatchObject({
+      url: "/map/glasgow?band=subcrawl&crawl=subcrawl-starter",
+      images: [
+        {
+          url: "/api/city-map-card?city=glasgow&band=subcrawl&crawl=subcrawl-starter",
+        },
+      ],
+    });
+  });
 });

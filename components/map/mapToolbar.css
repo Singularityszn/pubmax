@@ -186,10 +186,12 @@
   .planBtn {
     min-height: 36px;
     height: 36px;
+    min-width: 4.25rem;
     padding: 0 10px;
     font-size: 0.7rem;
     line-height: 1;
     flex: 0 0 auto;
+    flex-shrink: 0;
     box-shadow: 0 4px 10px color-mix(in srgb, var(--brass) 20%, transparent);
     box-sizing: border-box;
   }

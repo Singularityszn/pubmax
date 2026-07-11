@@ -298,27 +298,45 @@ function hoverImageUrlFor(
   return src;
 }
 
-// Compact honesty line for the map hover card. Precedence matches the price
-// merge stack: community → sourced → baseline. Never invents timestamps.
-function hoverPriceProvenanceHint(
+type HoverPriceLine = {
+  price: number | null;
+  provenance: string;
+};
+
+// Compact honesty line for the map hover card. Price and provenance share one
+// precedence stack (community → sourced → baseline) so a baseline API detail
+// fetch never pairs with a Community/Sourced label.
+function hoverPriceLine(
   mapVenue: Venue | undefined,
   signal: VenueSignal | undefined,
-): string {
+  hoverDetail: Venue | null | undefined,
+): HoverPriceLine {
   const communityPrice =
     signal?.latestContributorPrice ?? mapVenue?.latestContributorPrice ?? null;
   if (communityPrice !== null && communityPrice !== undefined) {
     const fresh = formatFreshness(mapVenue?.latestContributorAt);
-    return fresh ? `Community · ${fresh}` : "Community · tap for detail";
+    return {
+      price: communityPrice,
+      provenance: fresh ? `Community · ${fresh}` : "Community · tap for detail",
+    };
   }
   const sourced = (mapVenue as PricedVenue | undefined)?.sourcedPrice ?? null;
   if (sourced) {
     const observed = formatObservedAt(sourced.observedAt);
-    return observed ? `Sourced · ${observed}` : "Sourced · tap for detail";
+    // mergePriceUpdates already wrote the sourced amount onto cheapestPrice.
+    const price =
+      mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
+    return {
+      price: price ?? null,
+      provenance: observed ? `Sourced · ${observed}` : "Sourced · tap for detail",
+    };
   }
-  if (mapVenue?.cheapestPrice !== null && mapVenue?.cheapestPrice !== undefined) {
-    return "Baseline · tap for detail";
+  const baseline =
+    mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
+  if (baseline !== null && baseline !== undefined) {
+    return { price: baseline, provenance: "Baseline · tap for detail" };
   }
-  return "Tap for detail";
+  return { price: null, provenance: "Tap for detail" };
 }
 
 function pubsToGeoJSON(
@@ -2257,7 +2275,7 @@ export default function PubMapCanvas({
     [venues, hoveredVenueId],
   );
   const hoverSignal = hoveredVenueId ? venueSignals.get(hoveredVenueId) : undefined;
-  const hoverProvenanceHint = hoverPriceProvenanceHint(hoverMapVenue, hoverSignal);
+  const hoverPrice = hoverPriceLine(hoverMapVenue, hoverSignal, hoverDetail);
   const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
   const hoverCardStyle = hoveredVenue
     ? {
@@ -2462,14 +2480,11 @@ export default function PubMapCanvas({
             <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
             <span className="venueHoverMeta">
               {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
-              {hoverDetail?.cheapestPrice !== null && hoverDetail?.cheapestPrice !== undefined
-                ? `${formatPrice(hoverDetail.cheapestPrice)} cheapest pint`
-                : hoverMapVenue?.cheapestPrice !== null &&
-                    hoverMapVenue?.cheapestPrice !== undefined
-                  ? `${formatPrice(hoverMapVenue.cheapestPrice)} cheapest pint`
-                  : "Tap for full pub detail"}
+              {hoverPrice.price !== null && hoverPrice.price !== undefined
+                ? `${formatPrice(hoverPrice.price)} cheapest pint`
+                : "Tap for full pub detail"}
             </span>
-            <span className="venueHoverProvenance">{hoverProvenanceHint}</span>
+            <span className="venueHoverProvenance">{hoverPrice.provenance}</span>
           </div>
         </aside>
       ) : null}
