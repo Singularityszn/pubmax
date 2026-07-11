@@ -1,9 +1,11 @@
 "use client";
 
-import { Users } from "lucide-react";
+import { Copy, Users } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { writeActiveRoundCode } from "@/lib/activeRound";
 import { normalizeHandle } from "@/lib/profiles";
 import { startRoundWithStops, type SeedStop } from "@/lib/startRoundWithStops";
 
@@ -14,24 +16,32 @@ export type RoundStarterProps = {
   seedStops?: SeedStop[];
   /** Denser UI for the Plan drawer. */
   compact?: boolean;
+  /**
+   * When true, stay on the map after start (success UI + callback) instead of
+   * navigating to `/rounds/{code}`. Defaults to `true` when `compact`.
+   */
+  stayOnMap?: boolean;
+  /** Fires after a successful start when staying on the map (chip can light immediately). */
+  onRoundStarted?: (code: string) => void;
   className?: string;
 };
 
-const ACTIVE_ROUND_KEY = "pubmax_active_round";
-
 /**
  * Start a Round: group-crawl entry (GH #26). Mints a Round, optionally seeds
- * stops from a Plan route, stamps `pubmax_active_round`, and navigates to the
- * live Round page. Handle UX matches the rest of the social layer
- * (`pubmax_handle` in localStorage).
+ * stops from a Plan route, stamps the active Round key, and either navigates
+ * to the live Round page or (Plan drawer / stayOnMap) keeps the user on the map.
+ * Handle UX matches the rest of the social layer (`pubmax_handle` in localStorage).
  */
 export default function RoundStarter({
   defaultTitle,
   seedStops,
   compact = false,
+  stayOnMap,
+  onRoundStarted,
   className,
 }: RoundStarterProps): React.JSX.Element {
   const router = useRouter();
+  const stay = stayOnMap ?? compact;
   const [handle, setHandle] = useState<string>(() => {
     if (typeof window === "undefined") return "";
     try {
@@ -42,8 +52,20 @@ export default function RoundStarter({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [startedCode, setStartedCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const hasSeeds = Boolean(seedStops && seedStops.length > 0);
+
+  async function copyCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Clipboard blocked — code is still visible to copy manually.
+    }
+  }
 
   async function start(event: React.FormEvent) {
     event.preventDefault();
@@ -72,10 +94,13 @@ export default function RoundStarter({
       return;
     }
 
-    try {
-      window.localStorage.setItem(ACTIVE_ROUND_KEY, result.code);
-    } catch {
-      // storage disabled — Round page can still be opened; chip just won't light
+    writeActiveRoundCode(result.code);
+
+    if (stay) {
+      setStartedCode(result.code);
+      setBusy(false);
+      onRoundStarted?.(result.code);
+      return;
     }
 
     router.push(`/rounds/${result.code}`);
@@ -84,6 +109,35 @@ export default function RoundStarter({
   const formClass = ["roundStarter", compact ? "compact" : null, className]
     .filter(Boolean)
     .join(" ");
+
+  if (startedCode) {
+    return (
+      <div className={`${formClass} roundStarterSuccess`} role="status" aria-live="polite">
+        <span className="roundStarterBadge">
+          <Users size={14} aria-hidden="true" /> Round is live
+        </span>
+        <h2 className="roundStarterTitle">Share the code</h2>
+        <p className="roundStarterBlurb">
+          Friends join with this code. You stay on the map — open the Round board anytime.
+        </p>
+        <p className="roundStarterCode" data-testid="round-starter-code">
+          {startedCode}
+        </p>
+        <div className="roundStarterRow">
+          <button
+            type="button"
+            className="crawlPrimaryBtn"
+            onClick={() => void copyCode(startedCode)}
+          >
+            <Copy size={16} aria-hidden="true" /> {copied ? "Copied" : "Copy"}
+          </button>
+          <Link href={`/rounds/${startedCode}`} className="crawlPrimaryBtn roundStarterBoardLink">
+            Open Round board
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form className={formClass} onSubmit={start}>

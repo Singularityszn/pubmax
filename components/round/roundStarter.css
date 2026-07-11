@@ -146,3 +146,36 @@
 .roundStarter.compact .roundStarterError {
   font-size: 0.75rem;
 }
+
+/* Stay-on-map success (Plan drawer after Start Round) */
+.roundStarterSuccess {
+  gap: 8px;
+}
+
+.roundStarterCode {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--brass);
+  line-height: 1.2;
+}
+
+.roundStarter.compact .roundStarterCode {
+  font-size: 1.25rem;
+  letter-spacing: 0.12em;
+}
+
+.roundStarterBoardLink {
+  text-decoration: none;
+  background: transparent !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+.roundStarterBoardLink:hover {
+  border-color: var(--brass) !important;
+  color: var(--brass) !important;
+  filter: none;
+}

@@ -95,6 +95,8 @@ type RoutePanelProps = {
   cityId?: CityId;
   /** Optional POI path; null skips London POI fetch for non-London cities. */
   poisPath?: string | null;
+  /** Fires when Plan-drawer RoundStarter mints a Round (stay-on-map). */
+  onRoundStarted?: (code: string) => void;
 };
 
 // Trigger a client-side .ics download via a blob URL. Kept tiny + SSR-guarded.
@@ -136,6 +138,7 @@ export default function RoutePanel({
   cityDisplayName = "London",
   cityId = DEFAULT_CITY_ID,
   poisPath = LONDON_POIS_PATH,
+  onRoundStarted,
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
@@ -472,6 +475,7 @@ export default function RoutePanel({
             compact
             defaultTitle={crawlTitle}
             seedStops={route.map((venue) => ({ id: venue.id, name: venue.name }))}
+            onRoundStarted={onRoundStarted}
           />
         </div>
       ) : null}

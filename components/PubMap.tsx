@@ -26,6 +26,7 @@ import { curatedCrawlsForCity, curatedCrawlByIdForCity } from "@/lib/cityCurated
 import { landmarksForCity } from "@/lib/cityLandmarks";
 import { storyBandsForCity, bandByIdForCity } from "@/lib/cityStoryBands";
 import RoutePanel from "@/components/map/RoutePanel";
+import ActiveRoundChip from "@/components/map/ActiveRoundChip";
 import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 import MapToolbar from "@/components/map/MapToolbar";
@@ -499,6 +500,8 @@ export default function PubMap({
   // clean first map. Once the user chooses "Map route" (or a curated/nearby
   // crawl), keep the line visible even if the mobile planner closes.
   const [routeMapped, setRouteMapped] = useState<boolean>(seed.routeMapped);
+  // Lights ActiveRoundChip immediately after Plan-drawer Start Round (stay-on-map).
+  const [activeRoundStartedCode, setActiveRoundStartedCode] = useState<string | null>(null);
   // Favorite pint: re-prices the map to one beer. Persisted per-device.
   // A beer brand deep-link (`?drink=beer&brand=guinness`) seeds the same path.
   const [favoritePint, setFavoritePintState] = useState<string | null>(() => {
@@ -1334,6 +1337,7 @@ export default function PubMap({
             </div>
           </div>
         ) : null}
+        <ActiveRoundChip refreshKey={activeRoundStartedCode} />
         {routeMappedActive ? (
           <div className="mappedRouteChip" role="status" aria-live="polite">
             <RouteIcon size={16} aria-hidden="true" />
@@ -1535,6 +1539,7 @@ export default function PubMap({
               cityDisplayName={city.displayName}
               cityId={cityId}
               poisPath={city.poisPath}
+              onRoundStarted={setActiveRoundStartedCode}
             >
               {loaded && filteredVenues.length === 0 ? (
                 savedOnly && savedIds.size === 0 ? (

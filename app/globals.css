@@ -4169,13 +4169,26 @@ button:disabled {
      Keep other floating chrome here so those overlays still clear the sheet. */
   .appShell.sheet-full .mapHeroCard,
   .appShell.sheet-full .mappedRouteChip,
+  .appShell.sheet-full .activeRoundChip,
   .appShell.sheet-full .bandOnboardingChip,
   .appShell.sheet-full .poiToggle,
   .appShell.sheet-full .bandPicker,
   .appShell.route-mapped .mapHeroCard,
+<<<<<<< HEAD
   .appShell.sheet-full .mapCameraControls,
+=======
+  .appShell.planning-open .mapCameraControls,
+  .appShell.planning-open .mapHeroCard,
+  .appShell.planning-open .mappedRouteChip,
+  .appShell.planning-open .activeRoundChip,
+  .appShell.planning-open .bandOnboardingChip,
+  .appShell.planning-open .poiToggle,
+  .appShell.planning-open .bandPicker,
+  .appShell.planning-open .placeStoriesControl,
+>>>>>>> b07822f (feat(map): stay on map after Start Round with Active Round chip)
   .appShell.sheet-full .placeStoriesControl,
   .appShell.detail-open .mappedRouteChip,
+  .appShell.detail-open .activeRoundChip,
   .appShell.detail-open .bandOnboardingChip {
     opacity: 0;
     pointer-events: none;
@@ -4193,12 +4206,17 @@ button:disabled {
   }
 
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip {
     left: 10px;
     right: 10px;
     bottom: var(--map-bottom-chip-row);
     max-width: none;
     transform: none;
+  }
+
+  .activeRoundChip {
+    bottom: calc(var(--map-bottom-chip-row) + 52px);
   }
 
   /* Mobile: hide the mid-map POI strip + place-stories chrome.
@@ -4213,6 +4231,7 @@ button:disabled {
   .mapFitLondonBtn,
   .mapRecenterBtn,
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip,
   .mapToolbar,
   .mapLoading,
@@ -4239,6 +4258,7 @@ button:disabled {
 
   .mapToolbar,
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip {
     background:
       linear-gradient(135deg, var(--panel-raised), color-mix(in srgb, var(--surface-tint-river) 36%, var(--panel-raised) 64%)),
@@ -4247,6 +4267,7 @@ button:disabled {
   }
 
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip {
     border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
   }
@@ -4322,17 +4343,20 @@ button:disabled {
   }
 
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip {
     gap: 8px;
     padding: 8px;
   }
 
   .mappedRouteChip strong,
+  .activeRoundChip strong,
   .bandOnboardingChip strong {
     font-size: 0.78rem;
   }
 
   .mappedRouteChip span,
+  .activeRoundChip span,
   .bandOnboardingChip span {
     font-size: 0.68rem;
   }
