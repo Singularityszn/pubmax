@@ -869,13 +869,15 @@ html[data-legacy="1"] .venueTabPanel::before {
   box-shadow: 0 12px 26px color-mix(in srgb, var(--river) 14%, transparent);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .venueTab:hover {
-    transform: translateY(-1px);
-  }
+@media (hover: hover) and (pointer: fine) {
+  @media (prefers-reduced-motion: no-preference) {
+    .venueTab:hover {
+      transform: translateY(-1px);
+    }
 
-  .venueBaselinePhoto:hover img {
-    transform: scale(1.025);
+    .venueBaselinePhoto:hover img {
+      transform: scale(1.025);
+    }
   }
 }
 

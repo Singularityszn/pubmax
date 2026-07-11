@@ -20,9 +20,14 @@
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    background var(--duration-base) var(--ease-out),
-    border-color var(--duration-base) var(--ease-out),
-    color var(--duration-base) var(--ease-out);
+    background var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    color var(--duration-base) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.citySwitcherTrigger:active {
+  transform: scale(0.97);
 }
 
 .citySwitcher.isOpen .citySwitcherTrigger,
@@ -125,5 +130,15 @@
     right: 0;
     left: auto;
     z-index: 50;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .citySwitcherTrigger {
+    transition: none;
+  }
+
+  .citySwitcherTrigger:active {
+    transform: none;
   }
 }

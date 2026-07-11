@@ -124,15 +124,18 @@
   --shadow-sm: 0 7px 18px rgba(60, 30, 20, 0.09);
   --shadow-inset-press: inset 0 1px 2px rgba(22, 18, 42, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.55);
 
-  /* — Motion: durations + easings, all consumed behind prefers-reduced-motion
-       guards (existing guards in this file and theme.css are unchanged; new
-       animation should reach for these instead of inlining numbers). */
+  /* — Motion: durations + easings from Emil Kowalski / animations.dev.
+       Consumed behind prefers-reduced-motion guards (existing guards in this
+       file and theme.css are unchanged; new animation should reach for these
+       instead of inlining numbers). */
   --duration-fast: 0.12s;
   --duration-base: 0.15s;
   --duration-slow: 0.28s;
   --duration-ambient: 1.4s;
-  --ease-standard: ease;
-  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-standard: ease; /* hover/color only */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* strong Emil ease-out */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* — Pressed-ink / bar-mat tactility: one shared token set for the price
      stamp, provenance chips, and vibe tags (see .ink-stamp below). Kept
@@ -956,6 +959,11 @@ input[type="range"] {
   /* Louder than Drinks — primary Plan tonight CTA in map chrome. */
   box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 32%, transparent);
   box-sizing: border-box;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .planBtn.active {
@@ -977,7 +985,7 @@ input[type="range"] {
   overflow-y: auto;
   scrollbar-width: thin;
   /* Wave J2 — Emil ease-out sheet motion via design tokens. */
-  transition: transform var(--duration-slow) var(--ease-out);
+  transition: transform var(--duration-slow) var(--ease-drawer);
   will-change: auto;
 }
 
@@ -2192,7 +2200,7 @@ input[type="range"] {
 
 @media (prefers-reduced-motion: no-preference) {
   .mapHeroCard {
-    animation: heroCardIn 0.45s ease-out;
+    animation: heroCardIn var(--duration-slow) var(--ease-out);
   }
 
   @keyframes heroCardIn {
@@ -3905,11 +3913,21 @@ button:disabled {
     transform: translateY(1px);
   }
 
-  /* Featured cards and drop/claim cards lift a hair on hover. */
-  .featuredCrawl:hover,
-  .dropCard:hover,
-  .claimCard:hover {
-    transform: translateY(-1px);
+  /* Map chrome primary controls — scale press (Emil), not translateY. */
+  .planBtn:active,
+  .mapToolbarDrinksBtn:active,
+  .mapFitLondonBtn:active,
+  .mapRecenterBtn:active {
+    transform: scale(0.97);
+  }
+
+  /* Featured cards and drop/claim cards lift a hair on hover — fine pointer only. */
+  @media (hover: hover) and (pointer: fine) {
+    .featuredCrawl:hover,
+    .dropCard:hover,
+    .claimCard:hover {
+      transform: translateY(-1px);
+    }
   }
 }
 

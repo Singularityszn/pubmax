@@ -43,7 +43,8 @@
   transition:
     background var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out),
-    color var(--duration-base) var(--ease-out);
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .mapToolbarDrinksBtn.isActive {
@@ -262,5 +263,10 @@
   .mapToolbar,
   .mapLegend {
     transition: none;
+  }
+
+  .drinkShapeChip:active,
+  .mapToolbarDrinksBtn:active {
+    transform: none;
   }
 }

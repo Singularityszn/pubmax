@@ -73,6 +73,8 @@
   border-radius: 18px;
   background: var(--panel-raised);
   box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
+  /* Mounted only when open (MapLayersControl) — keyframes required; origin at FAB. */
+  transform-origin: bottom right;
   animation: mapLayersPanelIn var(--duration-base) var(--ease-out) both;
 }
 
@@ -211,5 +213,10 @@
   .mapLayersPanel {
     transition: none;
     animation: none;
+  }
+
+  .mapLayersFab:active,
+  .mapLayersChip:active {
+    transform: none;
   }
 }

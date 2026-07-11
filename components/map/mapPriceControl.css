@@ -93,6 +93,8 @@
   border-radius: 16px;
   background: var(--panel-raised);
   box-shadow: 0 16px 36px color-mix(in srgb, var(--ink-deep) 20%, transparent);
+  /* Mounted only when open (MapPriceControl) — keyframes required; origin at FAB. */
+  transform-origin: bottom left;
   animation: mapFabPanelIn var(--duration-base) var(--ease-out) both;
 }
 
@@ -232,5 +234,10 @@
   .mapPricePanel {
     transition: none;
     animation: none;
+  }
+
+  .mapPriceFab:active,
+  .mapPriceChip:active {
+    transform: none;
   }
 }
