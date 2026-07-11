@@ -29,6 +29,15 @@
       "notes": "REAL FETCHER (Firecrawl) — scripts/firecrawl_greene_king_prices.mjs scrapes https://www.greeneking.co.uk/pubs/greater-london/{slug}/menu via Firecrawl CLI (JS-rendered). Parses wine/spirits/cocktails from default menu view; beer/lager tabs may need firecrawl interact on a later wave. URL list: .firecrawl/gk-london-menu-urls.txt (~118 Greater London menus). Rows stamped with source+observedAt+licence; unmatched venues dropped (never guessed)."
     },
     {
+      "id": "mbplc-nicholsons-official",
+      "label": "Nicholson's — official per-pub drinks menus",
+      "url": "https://www.nicholsonspubs.co.uk/restaurants/london",
+      "kind": "first-party-chain",
+      "licence": "All rights reserved — first-party publisher of its own pub menus/prices; read-only, attributed use only.",
+      "permissible": true,
+      "notes": "REAL FETCHER (Firecrawl) — scripts/firecrawl_mbplc_prices.mjs scrapes https://www.nicholsonspubs.co.uk/restaurants/london/{slug}/drinks via Firecrawl CLI (JS-rendered). Parses beer/spirits/cocktails/wine with bare-decimal prices. Merges into drink_price_updates alongside Greene King. URL list: data/nicholsons_london_drink_urls.txt (~43 London pubs). Cask ale pint prices often absent (ask at bar)."
+    },
+    {
       "id": "wetherspoons-official",
       "label": "J D Wetherspoon — official site (per-pub menus)",
       "url": "https://www.jdwetherspoon.com/pubs",

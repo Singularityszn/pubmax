@@ -21,6 +21,14 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  GK_SLUG_HINTS,
+  buildVenueIndexes,
+  menuUrlToVenueId,
+  mergeDrinkUpdates,
+  normalisePubName,
+  resolveVenueKeyFromHints,
+} from "./lib/venueMatch.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -166,62 +174,7 @@ function titleFromSlug(slug) {
     .join(" ");
 }
 
-// --- venue keys -------------------------------------------------------------
-
-function normaliseVenueKeyPart(value) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function venueGroupingKey(row) {
-  return [
-    normaliseVenueKeyPart(row.pub_name),
-    normaliseVenueKeyPart(row.address),
-    row.latitude.toFixed(5),
-    row.longitude.toFixed(5),
-  ].join("|");
-}
-
-function stableVenueIdFromKey(key) {
-  let hash = 2166136261;
-  for (let i = 0; i < key.length; i += 1) {
-    hash ^= key.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `venue-${(hash >>> 0).toString(36)}`;
-}
-
-function normaliseName(name) {
-  return name
-    .toLowerCase()
-    .replace(/['']/g, "")
-    .replace(/\b(the|pub|bar|tavern|arms|hotel)\b/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function buildVenueIndexes(dataset) {
-  const idToKey = new Map();
-  const nameToKeys = new Map();
-  for (const row of dataset) {
-    const key = venueGroupingKey(row);
-    const id = stableVenueIdFromKey(key);
-    idToKey.set(id, key);
-    const norm = normaliseName(row.pub_name);
-    const list = nameToKeys.get(norm) ?? [];
-    list.push(key);
-    nameToKeys.set(norm, list);
-  }
-  return { idToKey, nameToKeys };
-}
-
-function menuUrlToVenueId(enrichment) {
-  const map = new Map();
-  for (const [venueId, rec] of Object.entries(enrichment.venues ?? {})) {
-    if (rec.menuUrl) map.set(rec.menuUrl.replace(/\/$/, ""), venueId);
-  }
-  return map;
-}
+// --- venue keys (shared: scripts/lib/venueMatch.mjs) ------------------------
 
 function resolveVenueKey(url, indexes, menuUrlToId) {
   const normalised = url.replace(/\/$/, "");
@@ -231,24 +184,21 @@ function resolveVenueKey(url, indexes, menuUrlToId) {
   }
   const slug = slugFromMenuUrl(url);
   if (!slug) return null;
+
+  const hints = GK_SLUG_HINTS[slug];
+  if (hints) {
+    const keyed = resolveVenueKeyFromHints(hints, indexes);
+    if (keyed) return keyed;
+  }
+
   const title = titleFromSlug(slug);
-  const norm = normaliseName(title);
+  const norm = normalisePubName(title);
   const keys = indexes.nameToKeys.get(norm);
   if (keys?.length === 1) return keys[0];
   if (keys && keys.length > 1) return keys[0];
 
-  // Fuzzy: every dataset name containing all slug tokens
   const tokens = slug.split("-").filter((t) => t.length > 2 && t !== "the");
-  let best = null;
-  let bestScore = 0;
-  for (const [name, keyList] of indexes.nameToKeys.entries()) {
-    const score = tokens.filter((t) => name.includes(t)).length;
-    if (score > bestScore && score >= Math.min(2, tokens.length)) {
-      bestScore = score;
-      best = keyList[0];
-    }
-  }
-  return best;
+  return resolveVenueKeyFromHints(tokens, indexes);
 }
 
 // --- firecrawl --------------------------------------------------------------
@@ -271,18 +221,34 @@ function scrapeMenu(url, outPath) {
 function parseArgs(argv) {
   let limit = 14;
   let urlsFile = DEFAULT_URLS;
+  let merge = false;
+  let onlyUrlsFile = false;
   for (let i = 2; i < argv.length; i += 1) {
     if (argv[i] === "--limit" && argv[i + 1]) {
       limit = parseInt(argv[++i], 10);
     } else if (argv[i] === "--urls-file" && argv[i + 1]) {
       urlsFile = argv[++i];
+      onlyUrlsFile = true;
+    } else if (argv[i] === "--merge") {
+      merge = true;
     }
   }
-  return { limit, urlsFile };
+  return { limit, urlsFile, merge, onlyUrlsFile };
+}
+
+function loadExistingUpdates() {
+  const latest = join(OUT_DIR, "latest.json");
+  if (!existsSync(latest)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(latest, "utf8"));
+    return Array.isArray(raw) ? raw : (raw.updates ?? []);
+  } catch {
+    return [];
+  }
 }
 
 async function main() {
-  const { limit, urlsFile } = parseArgs(process.argv);
+  const { limit, urlsFile, merge, onlyUrlsFile } = parseArgs(process.argv);
   const observedAt = new Date().toISOString();
 
   const enrichment = JSON.parse(readFileSync(ENRICHMENT_PATH, "utf8"));
@@ -297,8 +263,9 @@ async function main() {
       .map((l) => l.trim())
       .filter((l) => l.startsWith("http"));
   }
-  // Prefer curated enrichment URLs (already venue-matched in app) before bulk list.
-  const urls = [...new Set([...enrichmentUrls, ...bulkUrls])].slice(0, limit);
+  const urls = onlyUrlsFile
+    ? bulkUrls.slice(0, limit)
+    : [...new Set([...enrichmentUrls, ...bulkUrls])].slice(0, limit);
 
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
@@ -346,13 +313,15 @@ async function main() {
 
   mkdirSync(OUT_DIR, { recursive: true });
   const stamp = observedAt.slice(0, 10).replace(/-/g, "");
-  const payload = { version: 1, generatedAt: observedAt, updates };
+  const existing = merge ? loadExistingUpdates() : [];
+  const merged = merge ? mergeDrinkUpdates(existing, updates) : updates;
+  const payload = { version: 1, generatedAt: observedAt, updates: merged };
   const dated = join(OUT_DIR, `prices_${stamp}.json`);
   writeFileSync(dated, `${JSON.stringify(payload, null, 2)}\n`);
   writeFileSync(join(OUT_DIR, "latest.json"), `${JSON.stringify(payload, null, 2)}\n`);
 
   console.log(
-    `\nDone: scraped=${scraped} matched=${matched} unmatched=${unmatched} rows=${updates.length}`,
+    `\nDone: scraped=${scraped} matched=${matched} unmatched=${unmatched} newRows=${updates.length} totalRows=${merged.length}`,
   );
   console.log(`Wrote ${dated} and latest.json`);
 }

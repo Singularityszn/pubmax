@@ -55,6 +55,7 @@ npx -y firecrawl-cli@latest scrape "https://firecrawl.dev" -o .firecrawl/install
 ```bash
 node scripts/firecrawl_greene_king_prices.mjs --limit 20
 node scripts/firecrawl_greene_king_prices.mjs --urls-file data/greene_king_london_menu_urls.txt
+node scripts/firecrawl_mbplc_prices.mjs --limit 43
 ```
 
 Outputs: `public/data/drink_price_updates/latest.json` (sourced rows with
