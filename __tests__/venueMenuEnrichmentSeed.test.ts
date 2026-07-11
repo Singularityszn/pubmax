@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { VenueMenuEnrichmentFile } from "@/lib/venueMenuEnrichment";
-import { firstHttp } from "@/lib/httpUrl";
+import { isHttpUrl } from "@/lib/httpUrl";
 
 const ENRICHMENT_PATH = join(
   process.cwd(),
@@ -20,7 +20,7 @@ const DATASET_PATH = join(
 );
 
 describe("venue_menu_enrichment.json seed", () => {
-  it("pins every enrichment key to a live dataset venue id", () => {
+  it("pins every enrichment key to a live dataset venue id and vetted URLs", () => {
     const file = JSON.parse(
       readFileSync(ENRICHMENT_PATH, "utf8"),
     ) as VenueMenuEnrichmentFile;
@@ -36,7 +36,12 @@ describe("venue_menu_enrichment.json seed", () => {
     for (const id of ids) {
       expect(liveIds.has(id), `${id} missing from live dataset`).toBe(true);
       const rec = file.venues[id];
-      expect(firstHttp(rec.menuUrl)).toBeTruthy();
+      expect("orderUrl" in rec, `${id} must not seed invented orderUrl`).toBe(false);
+      expect(typeof rec.menuUrl, `${id} menuUrl must be a string`).toBe("string");
+      expect(isHttpUrl(rec.menuUrl ?? ""), `${id} menuUrl must be http(s)`).toBe(true);
+      if (rec.bookingUrl !== undefined) {
+        expect(isHttpUrl(rec.bookingUrl), `${id} bookingUrl must be http(s)`).toBe(true);
+      }
       if (rec.categoryTiles) {
         for (const tile of rec.categoryTiles) {
           expect(tile.id?.trim()).toBeTruthy();

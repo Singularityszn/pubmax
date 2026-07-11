@@ -1,7 +1,7 @@
 "use client";
 
 // Compact bottom-left price chrome — always-visible colour key (plan: ≤£5.50 /
-// £5.50–£7 / £7+) plus an optional filter popover. No heritage/writer rows.
+// >£5.50–≤£7 / >£7) plus an optional filter popover. No heritage/writer rows.
 
 import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -16,10 +16,11 @@ const PRICE_OPTIONS: { label: string; maxPrice: number }[] = [
   { label: "≤ £7", maxPrice: 7 },
 ];
 
+// Labels match priceBucket() inclusivity: ≤5.50 green, >5.50–≤7 amber, >7 red.
 const PRICE_LEGEND = [
   { label: "≤ £5.50", tone: "green" as const },
-  { label: "£5.50–£7", tone: "amber" as const },
-  { label: "£7+", tone: "red" as const },
+  { label: "> £5.50–≤ £7", tone: "amber" as const },
+  { label: "> £7", tone: "red" as const },
 ];
 
 type MapPriceControlProps = {
@@ -70,9 +71,13 @@ export default function MapPriceControl({
   return (
     <div className="mapPriceControl" ref={rootRef}>
       {/* Always-visible colour key — plan: small bottom-left price legend. */}
-      <div className="mapPriceLegend" aria-label="Pint price colour key">
+      <div
+        className="mapPriceLegend"
+        role="list"
+        aria-label="Pint price colour key"
+      >
         {PRICE_LEGEND.map((row) => (
-          <span key={row.label}>
+          <span key={row.label} role="listitem">
             <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
             {row.label}
           </span>
