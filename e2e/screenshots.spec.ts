@@ -16,6 +16,7 @@ const VIEWPORTS = [
   { name: "430", width: 430, height: 932 },
   // Desktop pass for the design-consistency audit (z-index/nav/spill/focus).
   { name: "1280", width: 1280, height: 800 },
+  { name: "1440", width: 1440, height: 900 },
 ] as const;
 
 const DOCS_DIR = "docs/screenshots";
@@ -24,6 +25,7 @@ const OUT_DIR = "e2e/screenshots";
 async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   await page.addInitScript((t) => {
     window.localStorage.setItem("pubmax-theme", t);
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
   }, theme);
 }
 
