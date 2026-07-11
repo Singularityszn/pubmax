@@ -1,11 +1,14 @@
 name: CI
 
 on:
-  # GitHub-hosted Actions still fail before job allocation on this private
-  # repo (`startup_failure` with zero jobs — verified on push run 28893076008,
-  # 2026-07-07). Vercel is the automatic CI/CD gate; keep this workflow
-  # manual-only so every merge doesn't produce a red non-code failure.
-  # Re-enable push/pull_request triggers once runner allocation is fixed.
+  # GitHub-HOSTED runners are account-billing-blocked on this private repo
+  # (every run `startup_failure` pre-allocation). CI runs on the SELF-HOSTED
+  # runner "chengdu-mac" instead — self-hosted minutes are free, so the
+  # billing block is irrelevant. If the runner is offline, jobs queue rather
+  # than fail; Vercel's build remains the independent second gate.
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -18,8 +21,8 @@ concurrency:
 jobs:
   build:
     name: Verify and build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: self-hosted
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
