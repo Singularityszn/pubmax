@@ -12,7 +12,7 @@ import {
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
-import { clientIp, hashIp } from "@/lib/supabase";
+import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 
 if (process.env.NODE_ENV === "production") assertProductionSecrets();
 
@@ -90,10 +90,18 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Too many concierge requests, slow down." }, { status: 429 });
   }
 
+  // Paid-spend guard (cursor bot, PR #149): without Supabase, isLimited() can
+  // only offer a per-instance in-memory budget — scriptable across lambdas. In
+  // that state the PAID model assist is withheld in production (deterministic
+  // parse still answers, so the route degrades honestly instead of 429ing).
+  // Dev/tests keep the assist; with Supabase the durable limiter governs.
+  const llmAssistAllowed =
+    isSupabaseConfigured() || process.env.NODE_ENV !== "production";
+
   try {
     const parsed = directIntent
       ? { intent: directIntent, source: "provided" as const }
-      : await parseConciergeIntent(query);
+      : await parseConciergeIntent(query, { skipModel: !llmAssistAllowed });
     const venues = await loadConciergeVenues(cityId);
     const ranked = rankConciergeVenues(venues, parsed.intent, {
       limit: typeof record.limit === "number" ? record.limit : 3,

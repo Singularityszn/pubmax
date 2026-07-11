@@ -13,6 +13,12 @@ type ParseOptions = {
   apiKey?: string;
   model?: string;
   fetcher?: typeof fetch;
+  /**
+   * Withhold the paid model assist and answer deterministically. Callers set
+   * this when paid spend can't be safely rate-limited (e.g. production with
+   * no durable limiter) — the parse still works, it just never spends.
+   */
+  skipModel?: boolean;
 };
 
 const MOOD_TERMS: Record<ConciergeMood, RegExp> = {
@@ -105,6 +111,7 @@ const SYSTEM_PROMPT = [
 ].join(" ");
 
 async function modelIntent(text: string, options: ParseOptions): Promise<ConciergeIntent | null> {
+  if (options.skipModel) return null;
   const apiKey = options.apiKey ?? process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
   const controller = new AbortController();
