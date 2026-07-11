@@ -15,6 +15,7 @@ import {
   type CityStatus,
   type CityStatusTubeLine,
 } from "@/lib/citymcp/client";
+import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -48,6 +49,13 @@ function trimTubeLines(lines: readonly CityStatusTubeLine[] | undefined): CitySt
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (await isCityMcpLimited(request)) {
+    return jsonResponse(
+      { asOf: null, weather: null, tubeLines: [], signals: [], error: "Too many requests, slow down." },
+      { status: 429 },
+    );
+  }
+
   const params = new URL(request.url).searchParams;
   const borough = params.get("borough")?.trim();
   const cityStatusArgs: { borough?: string } = {};
