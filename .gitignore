@@ -10,6 +10,7 @@ tsconfig.tsbuildinfo
 scripts/__pycache__/
 .vercel
 .context/
+.firecrawl/
 test-results/
 playwright-report/
 coverage/
