@@ -14,10 +14,19 @@
 // Responses are long-cached: scraped photos change on scrape cadence, and the
 // URL is the cache key.
 
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
 import { allowedVenueImageHosts } from "@/lib/venueImageHosts.server";
 import { directVenueImageUrl } from "@/lib/venueImages";
 
 const MAX_BYTES = 8 * 1024 * 1024;
+// Per-IP rate limit (cursor bot, round 3): each request costs us an outbound
+// fetch + up to 8 MB of buffering, so an unauthenticated hot loop is a cheap
+// amplification vector. A page renders at most a couple dozen proxied images,
+// so 120/min per IP is generous for humans and a wall for loops. Not paid
+// spend → the limiter's default fail-open degradation is fine here.
+const RATE_LIMIT = 120;
+const RATE_WINDOW_MS = 60_000;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 1;
 
@@ -54,6 +63,11 @@ function validate(raw: string): URL | null {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const limiterKey = `image-proxy:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
+    return new Response("Too many image requests, slow down.", { status: 429 });
+  }
+
   const src = new URL(request.url).searchParams.get("src") ?? "";
   const initial = validate(src);
   if (!initial) return new Response("Bad image source.", { status: 400 });
