@@ -1,14 +1,14 @@
 // Issue #35 — shared map skeleton. This paints both the route-level /map
 // loading state and the client-side dynamic PubMap fallback, so both transitions
-// use the same pitched-London held frame.
+// use the same pitched held frame.
 //
-// It's a pitched-London impression: a softly tilted map card with a Thames curve,
-// warm paper grain, and pulsing price-coloured dots (the same pint/amber/brick
-// idiom the real pins use). Continued seamlessly by PubMap's own .mapLoading
-// while the WebGL canvas style loads. All colour comes from existing tokens;
-// reduced-motion holds the dots still (see the .mapSkeleton rules in globals).
+// Softly tilted map card with a river curve, warm paper grain, and pulsing
+// price-coloured dots (the same pint/amber/brick idiom the real pins use).
+// Continued seamlessly by PubMap's own .mapLoading while the WebGL canvas style
+// loads. All colour comes from existing tokens; reduced-motion holds the dots
+// still (see the .mapSkeleton rules in globals).
 
-// Dot positions are hand-placed to read as a loose scatter of London pubs, each
+// Dot positions are hand-placed to read as a loose scatter of pubs, each
 // tagged with a price bucket so the three price colours all appear. The stagger
 // index drives the pulse delay so the field breathes rather than blinks in unison.
 const SKELETON_DOTS: {
@@ -40,7 +40,18 @@ const BUCKET_VAR: Record<"pint" | "amber" | "brick", string> = {
   brick: "var(--brick)",
 };
 
-export default function MapLoadingSkeleton() {
+type MapLoadingSkeletonProps = {
+  /** City label for the handoff copy — defaults to "Pub map". */
+  cityDisplayName?: string;
+};
+
+export default function MapLoadingSkeleton({
+  cityDisplayName,
+}: MapLoadingSkeletonProps = {}) {
+  const title = cityDisplayName?.trim()
+    ? `${cityDisplayName.trim()} pub map`
+    : "Pub map";
+
   return (
     <main
       className="mapSkeleton"
@@ -83,7 +94,7 @@ export default function MapLoadingSkeleton() {
         <div className="mapSkeletonCopy" id="mapSkeletonStatus" role="status">
           <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
           <div>
-            <h1>London pub map</h1>
+            <h1>{title}</h1>
             <p>Checking cached pins, then warming live prices.</p>
           </div>
         </div>

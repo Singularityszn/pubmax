@@ -57,6 +57,8 @@ heatmap; growing PubMapCanvas scene graph; Legacy T remount.
 ## Shipped
 
 - **#76** — core Wave J (basemap taste, clusters, Prices/Layers FABs, skills, fluidity).
-- **Follow-up polish (this branch):** retarget `mapColor.css` to Layers swatches;
-  solid hover/log-intent panels (less frost); theme flip + landing CTA transitions
-  on `--duration-base` / `--ease-out`; Prices FAB copy (no “Cost” wording).
+- **#100** — follow-up polish: Layers swatches, less frost, token motion; Prices FAB copy.
+- **This branch** — cheap-cluster pint glow; `mapColor.css` owns Layers swatch rings;
+  city-aware skeleton handoff; landing transitions on `--duration-base` / `--ease-out`;
+  feed vibe-pill declutter on non-Spill cards; desktop frost removed from city suggest
+  + band onboarding chips.

@@ -559,6 +559,26 @@
   font-weight: 600;
 }
 
+/* Wave J3 — demote vibe pills on text/receipt cards so the price stamp wins. */
+.feedCard:not(.feedCardSpill) .feedVibes {
+  gap: 4px;
+}
+
+.feedCard:not(.feedCardSpill) .feedVibe {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.feedCard:not(.feedCardSpill) .feedVibe:nth-child(n) {
+  border-color: transparent;
+  background: transparent;
+}
+
 .feedVibe:nth-child(3n + 1) {
   border-color: color-mix(in srgb, var(--river) 24%, var(--feed-border));
   background: var(--feed-blue-wash);

@@ -7,21 +7,30 @@
    into MapLayersControl). Pin-by-category paint stays documented below — not
    applied until Venue carries an honest dominantCategory. */
 
-/* ── Layers swatch rings live in mapLayersControl.css ───────────────────────
-   Do NOT redeclare `.mapLayersChip(.isOn) .mapLayersSwatch` here — a prior
-   `--paper` active ring fought the correct `--color-on-accent` rule (near-black
-   on dark). mapLayersControl.css owns default + isOn rings. */
+/* ── Layers swatch rings (POI chips in MapLayersControl) ─────────────────────
+   Owned here so map colour polish stays in one map-owned stylesheet. */
+.mapLayersChip .mapLayersSwatch {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
+}
+
+.mapLayersChip.isOn .mapLayersSwatch {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-on-accent) 40%, transparent);
+}
 
 /* Tapped-POI label card still uses .poiSwatch — hairline ring on the frost. */
 .poiLabelCard .poiSwatch {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
 }
 
+html[data-legacy="1"] .mapLayersChip .mapLayersSwatch,
+html[data-legacy="1"] .mapLayersChip.isOn .mapLayersSwatch,
 html[data-legacy="1"] .poiLabelCard .poiSwatch {
   box-shadow: none;
 }
 
 @media (forced-colors: active) {
+  .mapLayersChip .mapLayersSwatch,
+  .mapLayersChip.isOn .mapLayersSwatch,
   .poiLabelCard .poiSwatch {
     box-shadow: none;
   }

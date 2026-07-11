@@ -102,7 +102,7 @@
   font-size: 0.9rem;
   font-weight: 500;
   text-decoration: none;
-  transition: color 0.18s ease, background 0.18s ease;
+  transition: color var(--duration-base) var(--ease-out), background var(--duration-base) var(--ease-out);
 }
 
 /* Quiet brass underline that grows from the centre on hover/focus. */
@@ -149,8 +149,8 @@
   font-weight: 600;
   text-decoration: none;
   border: 1px solid transparent;
-  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease,
-    border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition: transform var(--duration-base) var(--ease-out), filter var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out), background var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
 }
 
 /* Brass focus ring on every landing button (wins over the zero-specificity
@@ -497,7 +497,7 @@
   color: var(--color-on-photo);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.18s ease;
+  transition: transform var(--duration-base) var(--ease-out);
 }
 
 .lp .thamesHeroPinLink:hover,
@@ -527,7 +527,7 @@
   box-shadow:
     0 10px 22px color-mix(in srgb, var(--ink-deep) 45%, transparent),
     0 0 0 4px color-mix(in srgb, var(--brass) 18%, transparent);
-  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: box-shadow var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out);
 }
 
 .lp .thamesHeroPinLink:hover .thamesHeroPinGlyph,
@@ -625,8 +625,8 @@
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--lp-cat, var(--brass)) 12%, var(--panel-raised)), var(--panel-raised) 62%),
     var(--panel-raised);
-  transition: border-color 0.18s ease, transform 0.18s ease,
-    box-shadow 0.18s ease;
+  transition: border-color var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
 }
 
 /* Warm-up (border + shadow) for everyone; the lift is gated below. */
@@ -758,7 +758,7 @@
   color: var(--ink-soft);
   font-size: 0.72rem;
   font-weight: 600;
-  transition: border-color 0.18s ease, color 0.18s ease;
+  transition: border-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
 }
 
 .lp .sourceChip:hover {
@@ -1071,8 +1071,8 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease,
-    transform 0.18s ease;
+  transition: border-color var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
 }
 
 .lp .dropStripCard:hover {
@@ -1217,8 +1217,8 @@
     color-mix(in srgb, var(--brass) 9%, var(--panel)) 0%,
     var(--panel) 62%
   );
-  transition: border-color 0.18s ease, box-shadow 0.18s ease,
-    transform 0.18s ease;
+  transition: border-color var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
 }
 
 .lp .goldenCard:hover {
@@ -1310,7 +1310,7 @@
   color: var(--ink-soft);
   font-size: 0.84rem;
   font-weight: 600;
-  transition: border-color 0.18s ease, color 0.18s ease;
+  transition: border-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
 }
 
 .lp .genRow span:hover {
@@ -1462,7 +1462,7 @@
 .lp .footerSocials a {
   display: inline-flex;
   color: var(--ink-soft);
-  transition: color 0.18s ease;
+  transition: color var(--duration-base) var(--ease-out);
 }
 
 .lp .footerSocials a:hover {

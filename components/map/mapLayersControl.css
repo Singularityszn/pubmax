@@ -178,11 +178,7 @@
   height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
-}
-
-.mapLayersChip.isOn .mapLayersSwatch {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-on-accent) 40%, transparent);
+  /* Swatch rings live in mapColor.css (Wave J map colour ownership). */
 }
 
 .appShell.sheet-full .mapLayersControl,

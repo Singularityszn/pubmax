@@ -824,8 +824,7 @@ input[type="range"] {
     color-mix(in srgb, var(--panel-raised) 90%, transparent);
   color: var(--ink);
   box-shadow: var(--map-overlay-shadow);
-  backdrop-filter: blur(14px) saturate(1.08);
-  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  /* Wave J2 — solid raised panel (no frosted glass stacking). */
   transform: translateX(-50%);
 }
 

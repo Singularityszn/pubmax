@@ -1531,6 +1531,21 @@ export default function PubMapCanvas({
           "circle-stroke-opacity": 0.98,
         },
       });
+      // Wave J1 — soft pint glow under cheap (low-count) clusters only; not neon.
+      addLayerOnce({
+        id: "clusters-pint-glow",
+        type: "circle",
+        source: "pubs",
+        filter: ["all", ["has", "point_count"], ["<", ["get", "point_count"], 15]],
+        paint: {
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-radius": ["step", ["get", "point_count"], 22, 8, 26],
+          "circle-stroke-color": withAlpha(tokens.pint, dark ? 0.55 : 0.42),
+          "circle-stroke-width": 3.5,
+          "circle-stroke-opacity": 0.55,
+          "circle-blur": 0.4,
+        },
+      });
       addLayerOnce({
         id: "clusters",
         type: "circle",
