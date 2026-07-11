@@ -9,6 +9,10 @@
 // call setState synchronously in the effect body. The effect only SUBSCRIBES
 // (getSession + onAuthStateChange); every setState fires from an async callback
 // or an event handler, and the subscription is torn down on cleanup.
+//
+// Wave L3: first sign-in may open "Claim your night" when the device handle
+// differs from the email-derived auth handle (or has activity / conflicts).
+// Never silently overwrite localStorage pubmax_handle in that case.
 
 import {
   createContext,
@@ -16,52 +20,87 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
+import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import { authedFetch } from "@/lib/authedFetch";
+import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
+import { readDeviceHandle } from "@/lib/identityClaim";
 import { normalizeHandle } from "@/lib/profiles";
 
 const HANDLE_KEY = "pubmax_handle";
 const SYNCED_USER_KEY = "pubmax_identity_synced_user";
+const CLAIM_DEFERRED_KEY = "pubmax_claim_deferred";
 
-/** Wave I2: sync localStorage handle + claim/link profile on first signed-in session. */
-async function syncIdentityAfterSignIn(user: User): Promise<void> {
-  const handle = handleFromUser(user);
-  if (!handle || typeof window === "undefined") return;
+type ClaimPreviewResponse = ClaimPreview & { needsClaim: boolean };
 
-  // Dedupe: cold loads + SIGNED_IN (incl. tab focus rehydration) must not
-  // spam PATCH /api/profiles once this tab has already linked this user.
+function isClaimDeferred(userId: string): boolean {
   try {
-    if (window.sessionStorage.getItem(SYNCED_USER_KEY) === user.id) return;
+    return window.sessionStorage.getItem(CLAIM_DEFERRED_KEY) === userId;
   } catch {
-    // sessionStorage blocked — fall through and still attempt once
+    return false;
   }
+}
 
+function markClaimDeferred(userId: string): void {
+  try {
+    window.sessionStorage.setItem(CLAIM_DEFERRED_KEY, userId);
+  } catch {
+    // best-effort — skip spam prevention only
+  }
+}
+
+function clearClaimDeferred(): void {
+  try {
+    window.sessionStorage.removeItem(CLAIM_DEFERRED_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function markSynced(userId: string): void {
+  try {
+    window.sessionStorage.setItem(SYNCED_USER_KEY, userId);
+  } catch {
+    // best-effort dedupe marker
+  }
+}
+
+function isAlreadySynced(userId: string): boolean {
+  try {
+    return window.sessionStorage.getItem(SYNCED_USER_KEY) === userId;
+  } catch {
+    return false;
+  }
+}
+
+function writeDeviceHandle(handle: string): void {
   try {
     window.localStorage.setItem(HANDLE_KEY, handle);
   } catch {
-    // storage disabled — still attempt the server link below
+    // storage disabled — server link still proceeds
   }
+}
+
+/** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
+async function linkAuthHandleQuick(user: User, authHandle: string): Promise<boolean> {
+  writeDeviceHandle(authHandle);
   try {
-    const res = await authedFetch(`/api/profiles/${encodeURIComponent(handle)}`, {
+    const res = await authedFetch(`/api/profiles/${encodeURIComponent(authHandle)}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      // Empty patch: gateHandleAction claimOnUnlinked links user_id on first write.
       body: JSON.stringify({}),
     });
-    // Only mark synced on success — a 4xx/5xx must not suppress retries this tab.
-    if (!res.ok) return;
-    try {
-      window.sessionStorage.setItem(SYNCED_USER_KEY, user.id);
-    } catch {
-      // best-effort dedupe marker
-    }
+    if (!res.ok) return false;
+    markSynced(user.id);
+    return true;
   } catch {
-    // Best-effort — messaging UI still prompts sign-in if link fails.
+    return false;
   }
 }
 
@@ -83,8 +122,7 @@ export type AuthContextValue = {
   /**
    * A normalized handle derived from the signed-in email local-part, or null
    * when signed out. Used by the Profile tab to link to /u/<handle>.
-   * Wave I2 also syncs this into `pubmax_handle` and PATCHes the profile so
-   * `profiles.user_id` links on first signed-in session.
+   * Wave L3 may keep a different device handle until the user confirms claim.
    */
   handle: string | null;
 };
@@ -103,7 +141,140 @@ function handleFromUser(user: User | null): string | null {
 export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [claimPreview, setClaimPreview] = useState<ClaimPreview | null>(null);
+  const [claimBusy, setClaimBusy] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
   const configured = isAuthConfigured();
+  // Guard overlapping sync runs (getSession + SIGNED_IN can both fire).
+  const syncInFlight = useRef<string | null>(null);
+
+  const openClaim = useCallback((preview: ClaimPreview) => {
+    setClaimError(null);
+    setClaimBusy(false);
+    setClaimPreview(preview);
+  }, []);
+
+  const closeClaim = useCallback(() => {
+    setClaimPreview(null);
+    setClaimError(null);
+    setClaimBusy(false);
+  }, []);
+
+  const syncIdentityAfterSignIn = useCallback(
+    async (user: User): Promise<void> => {
+      const authHandle = handleFromUser(user);
+      if (!authHandle || typeof window === "undefined") return;
+
+      // Dedupe: cold loads + SIGNED_IN (incl. tab focus rehydration) must not
+      // spam claim-preview / PATCH once this tab has already linked this user.
+      if (isAlreadySynced(user.id)) return;
+      if (isClaimDeferred(user.id)) return;
+      if (syncInFlight.current === user.id) return;
+      syncInFlight.current = user.id;
+
+      try {
+        const deviceHandle = readDeviceHandle();
+
+        // No prior device identity → existing quick link path.
+        if (!deviceHandle || deviceHandle === authHandle) {
+          // Same (or empty) handle: still ask the server whether activity /
+          // conflicts require the dialog — empty device skips preview.
+          if (!deviceHandle) {
+            await linkAuthHandleQuick(user, authHandle);
+            return;
+          }
+
+          const qs = new URLSearchParams({
+            deviceHandle,
+          });
+          const res = await authedFetch(`/api/identity/claim-preview?${qs.toString()}`);
+          if (!res.ok) {
+            // Preview failed — fall back to quick link only when handles match
+            // (no overwrite risk of a different device handle).
+            if (deviceHandle === authHandle) await linkAuthHandleQuick(user, authHandle);
+            return;
+          }
+          const body = (await res.json()) as ClaimPreviewResponse;
+          if (body.needsClaim) {
+            openClaim(body);
+            return;
+          }
+          await linkAuthHandleQuick(user, authHandle);
+          return;
+        }
+
+        // Handles differ — always consult preview (dialog when needsClaim).
+        const qs = new URLSearchParams({ deviceHandle });
+        const res = await authedFetch(`/api/identity/claim-preview?${qs.toString()}`);
+        if (!res.ok) {
+          // Do NOT overwrite device handle on preview failure.
+          return;
+        }
+        const body = (await res.json()) as ClaimPreviewResponse;
+        if (body.needsClaim) {
+          openClaim(body);
+          return;
+        }
+        // Differing handles with needsClaim=false shouldn't happen (decideClaimNeed
+        // always true when handles differ) — still refuse silent overwrite.
+        openClaim(body);
+      } catch {
+        // Best-effort — messaging UI still prompts sign-in if link fails.
+      } finally {
+        if (syncInFlight.current === user.id) syncInFlight.current = null;
+      }
+    },
+    [openClaim],
+  );
+
+  const onClaimConfirm = useCallback(
+    async (choice: ClaimChoice) => {
+      if (!claimPreview || !session?.user) return;
+      setClaimBusy(true);
+      setClaimError(null);
+      try {
+        const res = await authedFetch("/api/identity/claim", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            choice,
+            deviceHandle: claimPreview.deviceHandle,
+          }),
+        });
+        const body = (await res.json().catch(() => ({}))) as {
+          handle?: string;
+          error?: string;
+        };
+        if (!res.ok) {
+          setClaimError(
+            typeof body.error === "string" ? body.error : "Could not claim that handle.",
+          );
+          return;
+        }
+        const handle =
+          typeof body.handle === "string" && body.handle
+            ? normalizeHandle(body.handle)
+            : choice === "device"
+              ? claimPreview.deviceHandle
+              : claimPreview.authHandle;
+        if (handle) writeDeviceHandle(handle);
+        markSynced(session.user.id);
+        clearClaimDeferred();
+        closeClaim();
+      } catch {
+        setClaimError("Could not claim that handle.");
+      } finally {
+        setClaimBusy(false);
+      }
+    },
+    [claimPreview, closeClaim, session],
+  );
+
+  const onClaimSkip = useCallback(() => {
+    if (session?.user) markClaimDeferred(session.user.id);
+    // Do NOT overwrite device handle; do NOT mark synced.
+    closeClaim();
+  }, [closeClaim, session]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowser();
@@ -128,7 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         if (!active) return;
         setSession(data.session ?? null);
         setLoading(false);
-        // Wave I2: refresh identity sync for an already-persisted session.
+        // Wave L3: refresh identity sync for an already-persisted session.
         if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
       })
       .catch(() => {
@@ -144,8 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       if (!active) return;
       setSession(nextSession ?? null);
       setLoading(false);
-      // Wave I2: on sign-in, sync pubmax_handle + link profiles.user_id.
-      // Deduped in syncIdentityAfterSignIn so focus/rehydration SIGNED_IN is cheap.
+      // Wave L3: on sign-in, maybe open Claim your night (never silent overwrite).
       if (event === "SIGNED_IN" && nextSession?.user) {
         void syncIdentityAfterSignIn(nextSession.user);
       }
@@ -155,6 +325,8 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         } catch {
           // ignore
         }
+        clearClaimDeferred();
+        closeClaim();
       }
     });
 
@@ -162,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       active = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [closeClaim, syncIdentityAfterSignIn]);
 
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
     const supabase = getSupabaseBrowser();
@@ -218,7 +390,20 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     };
   }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {claimPreview ? (
+        <ClaimNightDialog
+          preview={claimPreview}
+          busy={claimBusy}
+          error={claimError}
+          onConfirm={onClaimConfirm}
+          onSkip={onClaimSkip}
+        />
+      ) : null}
+    </AuthContext.Provider>
+  );
 }
 
 /** Read the auth context. Returns a safe signed-out shape outside a provider. */

@@ -32,6 +32,25 @@ export function bearerToken(request: Request): string | null {
  * check for a LINKED one — so an invalid token can't impersonate an owner.
  */
 export async function callerUserId(request: Request): Promise<string | null> {
+  const identity = await callerAuthIdentity(request);
+  return identity?.id ?? null;
+}
+
+export type CallerAuthIdentity = {
+  id: string;
+  /** Verified email from the JWT user, or null when absent. */
+  email: string | null;
+};
+
+/**
+ * Resolve the caller's verified id + email from their bearer JWT, or null when
+ * anonymous / invalid / unconfigured. Same fail-closed rules as callerUserId.
+ * Prefer this when a route must derive an auth handle from the account email
+ * (never trust a client-supplied authHandle).
+ */
+export async function callerAuthIdentity(
+  request: Request,
+): Promise<CallerAuthIdentity | null> {
   const token = bearerToken(request);
   if (!token) return null;
 
@@ -42,7 +61,9 @@ export async function callerUserId(request: Request): Promise<string | null> {
     const { data, error } = await admin.auth.getUser(token);
     if (error) return null;
     const id = data.user?.id;
-    return typeof id === "string" && id ? id : null;
+    if (typeof id !== "string" || !id) return null;
+    const email = typeof data.user?.email === "string" ? data.user.email : null;
+    return { id, email };
   } catch {
     return null;
   }

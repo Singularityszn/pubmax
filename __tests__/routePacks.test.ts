@@ -23,6 +23,7 @@ describe("routePacks", () => {
         "music-theatre",
         "old-london",
         "quiet-table",
+        "southwark-tide",
         "thames",
         "writers",
       ].sort(),
@@ -56,6 +57,13 @@ describe("routePacks", () => {
         "westminster-civic",
         "leicester-mocktail-crawl",
         "fleet-street-writers",
+      ]),
+    );
+    expect(getRoutePack("southwark-tide")?.crawlIds).toEqual(
+      expect.arrayContaining([
+        "borough-market-crawl",
+        "bankside-riverside",
+        "riverside-heritage",
       ]),
     );
   });
