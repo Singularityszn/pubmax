@@ -12,6 +12,7 @@ import { clientIp, hashIp } from "@/lib/supabase";
 if (process.env.NODE_ENV === "production") assertProductionSecrets();
 
 const MAX_QUESTION_LEN = 300;
+const MAX_VENUE_NAME_LEN = 200;
 
 // Cost protection: The Landlord fronts a paid OpenRouter call, so this route
 // is rate-limited like Pint Drop writes — durable (Supabase RPC) when
@@ -31,10 +32,11 @@ export async function POST(request: Request): Promise<Response> {
 
     const record = (body ?? {}) as Record<string, unknown>;
 
-    const venueName = typeof record.venueName === "string" ? record.venueName.trim() : "";
-    if (!venueName) {
+    const rawVenueName = typeof record.venueName === "string" ? record.venueName.trim() : "";
+    if (!rawVenueName) {
       return jsonNoStore({ error: "venueName is required." }, { status: 400 });
     }
+    const venueName = rawVenueName.slice(0, MAX_VENUE_NAME_LEN);
 
     const rawQuestion = typeof record.question === "string" ? record.question.trim() : "";
     if (!rawQuestion) {

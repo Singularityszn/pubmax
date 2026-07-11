@@ -16,8 +16,15 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import { COMMUNITY_PRICE_NOTE, formatFreshness, formatPrice, type Venue } from "@/lib/venues";
+import {
+  COMMUNITY_PRICE_NOTE,
+  formatFreshness,
+  formatObservedAt,
+  formatPrice,
+  type Venue,
+} from "@/lib/venues";
 import { buildVenueClaims, type ClaimKind, type Provenance } from "@/lib/curation";
+import type { PricedVenue } from "@/lib/priceUpdates";
 import {
   accessibilityChipLabels,
   quietHoursLabel,
@@ -31,7 +38,12 @@ import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
+import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
+import VenueActionStrip from "@/components/map/VenueActionStrip";
+import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import { venueMenuForInspector } from "@/lib/venueMenu";
+import { menuHubTiles } from "@/lib/menuHub";
+import type { DrinkCategory } from "@/lib/drinks";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
@@ -276,6 +288,18 @@ export default function VenueInspector({
   // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
   // drinks) — see lib/venueMenu.ts for the composition seam.
   const menuDrinks = useMemo(() => venueMenuForInspector(venue), [venue]);
+  const hubTiles = useMemo(() => menuHubTiles(venue, menuDrinks), [venue, menuDrinks]);
+  // Menu hub → drinks deep-dive (Greene King–style Menus grid, alcohol-first).
+  // Reset when the venue changes so a drill-in never leaks across pubs.
+  type MenuView =
+    | { mode: "hub" }
+    | { mode: "drinks"; category?: DrinkCategory };
+  const [menuView, setMenuView] = useState<MenuView>({ mode: "hub" });
+  const [menuViewVenueId, setMenuViewVenueId] = useState(venue.id);
+  if (menuViewVenueId !== venue.id) {
+    setMenuViewVenueId(venue.id);
+    setMenuView({ mode: "hub" });
+  }
   const venueImageUrl = directVenueImageUrl(venue.imageUrl);
 
   // Place stories (Wave D): which curated corridors pass through this venue,
@@ -299,6 +323,12 @@ export default function VenueInspector({
       }),
     [venue.id, venue.name, venue.filterHints?.searchText, venue.filterHints?.cuisineTags],
   );
+
+  // Sourced attribution from mergePriceUpdates (optional field on the runtime
+  // venue object). Absent when community is fresher or no refresh exists.
+  const sourcedPrice = (venue as PricedVenue).sourcedPrice ?? null;
+  const sourcedObserved =
+    sourcedPrice?.observedAt != null ? formatObservedAt(sourcedPrice.observedAt) : "";
 
   return (
     <section className="venueInspector">
@@ -371,6 +401,15 @@ export default function VenueInspector({
           </figure>
         ) : null}
         <p className="venueAddress">{venue.address}</p>
+        <VenueActionStrip venue={venue} />
+        <CityPlaceStrip
+          venueId={venue.id}
+          venueName={venue.name}
+          latitude={venue.latitude}
+          longitude={venue.longitude}
+          primaryBorough={venue.primaryBorough}
+          cityId={cityId}
+        />
         <div className="amenityRow">
           <Amenity active={Boolean(venue.curation.nearWater)} label="water" />
           <Amenity active={venue.hasStory} label="heritage" />
@@ -419,14 +458,36 @@ export default function VenueInspector({
             <strong>Quiet hours:</strong> {quietHours}
           </p>
         ) : null}
+        {/* Price honesty on overview: community override wins, then sourced
+            observation, then baseline-on-record. Never imply a live feed. */}
         {latestContributorPrice !== null && latestContributorPrice !== undefined ? (
           <div className="contributorPrice">
-            <span>Latest Pint Drop price</span>
+            <span>
+              <ClaimBadge kind="contributor" /> Latest Pint Drop price
+            </span>
             <strong>{formatPrice(latestContributorPrice)}</strong>
             {venue.latestContributorAt ? (
               <small>{formatFreshness(venue.latestContributorAt)}</small>
             ) : null}
             <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+          </div>
+        ) : sourcedPrice ? (
+          <div className="contributorPrice">
+            <span>
+              <ClaimBadge kind="sourced" /> Sourced price
+            </span>
+            <strong>{formatPrice(venue.cheapestPrice)}</strong>
+            {sourcedObserved ? <small>{sourcedObserved}</small> : null}
+          </div>
+        ) : venue.cheapestPrice !== null && venue.cheapestPrice !== undefined ? (
+          <div className="contributorPrice">
+            <span>
+              <ClaimBadge kind="baseline" /> Baseline on record
+            </span>
+            <strong>{formatPrice(venue.cheapestPrice)}</strong>
+            <small className="communityPriceNote">
+              Dataset price — not a live tonight feed.
+            </small>
           </div>
         ) : null}
         {mode === "build" ? (
@@ -660,7 +721,8 @@ export default function VenueInspector({
         </section>
       </div>
 
-      {/* Menu — the full drink list beyond pints (wine, whisky, gin, cocktails…). */}
+      {/* Menu — visual hub (Drinks first) → drink list deep-dive. Food is
+          link-out only when we have a pub website / menu URL. */}
       <div
         role="tabpanel"
         id="venuePanel-menu"
@@ -668,7 +730,29 @@ export default function VenueInspector({
         className="venueTabPanel"
         hidden={tab !== "menu"}
       >
-        <DrinkMenu drinks={menuDrinks} venueName={venue.name} />
+        {menuView.mode === "hub" ? (
+          <>
+            <VenueActionStrip venue={venue} />
+            <MenuCategoryGrid
+              tiles={hubTiles}
+              venueName={venue.name}
+              onOpenDrinks={(category) =>
+                setMenuView(
+                  category ? { mode: "drinks", category } : { mode: "drinks" },
+                )
+              }
+            />
+          </>
+        ) : (
+          <DrinkMenu
+            drinks={menuDrinks}
+            venueName={venue.name}
+            venueId={venue.id}
+            categoryFilter={menuView.category}
+            onBack={() => setMenuView({ mode: "hub" })}
+            backLabel="Menus"
+          />
+        )}
       </div>
 
       {/* Story — description / heritage note + provenance-stamped claims. */}

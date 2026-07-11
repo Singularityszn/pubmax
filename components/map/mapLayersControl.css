@@ -186,7 +186,6 @@
 }
 
 .appShell.sheet-full .mapLayersControl,
-.appShell.planning-open .mapLayersControl,
 .appShell.detail-open .mapLayersControl {
   opacity: 0;
   pointer-events: none;

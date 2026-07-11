@@ -14,6 +14,25 @@ export function isCuratedCrawlArrival(search: string): boolean {
 }
 
 /**
+ * Whether a clean city map arrival should call `fitCityBounds()` once.
+ *
+ * Skips when the URL carries drink / crawl / pubs intent, or when a mapped
+ * route is already seeded — those arrivals own the camera (filter framing or
+ * `fitRoute`), and fighting them feels broken.
+ */
+export function shouldFitCityBoundsOnArrival(
+  search: string,
+  hasMappedRoute = false,
+): boolean {
+  if (hasMappedRoute) return false;
+  if (isDrinkShapeArrival(search)) return false;
+  if (isCuratedCrawlArrival(search)) return false;
+  // Bare `?pubs=` without mode=build still seeds stops — leave the camera alone.
+  if (/[?&]pubs=/.test(search)) return false;
+  return true;
+}
+
+/**
  * Whether the planner (left drawer) should open on first paint.
  *
  * Opens for shared/restored crawls (`builtIds` from storage, bare `mode=build`,

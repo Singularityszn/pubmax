@@ -652,115 +652,155 @@ function drawRiver(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 }
 
 // ---------------------------------------------------------------------------
-// Drink glyphs (ns: "drink") — colourful pub pins. Key shape: `{kind}-{bucket}`
-// where kind is pint|wine|cocktail|spirits and bucket is 0|1|2|3 (price band).
-// The pad fill is the price colour; the silhouette is cream so the city reads
-// as a night out, not only a heatmap.
+// Drink glyphs (ns: "drink") — glass-shaped pub pins. Key: `{kind}-{bucket}`
+// (pint|wine|cocktail|spirits × price band). No circular heatmap pad — the
+// marker silhouette IS the glass (soft shadow only). Unpriced = brass-grey.
 // ---------------------------------------------------------------------------
 
 export type DrinkPinKind = "pint" | "wine" | "cocktail" | "spirits";
+
+// Soft brass-grey for unpriced pins — never pure ink/muted black (reads as a
+// building blob on the basemap). Hex equivalent of a desaturated brass.
+const UNPRICED_FILL = "#9a7a72";
 
 function priceFill(t: IconTokens, bucket: number): string {
   if (bucket === 0) return t.pint ?? t.brass;
   if (bucket === 1) return t.amber ?? t.brassBright;
   if (bucket === 2) return t.brick ?? "#d16353";
-  return t.muted ?? t.ink;
+  return UNPRICED_FILL;
 }
 
-function drawDrinkPad(
+/** Soft elliptical ground shadow only — no circular pad. The pin IS the glass. */
+function drawDrinkShadow(ctx: CanvasRenderingContext2D, t: IconTokens): void {
+  const cx = BOX / 2;
+  const cy = BOX * 0.88;
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = t.ink;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, BOX * 0.2, BOX * 0.07, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function setDrinkGlassStyle(
   ctx: CanvasRenderingContext2D,
-  t: IconTokens,
   fill: string,
+  stroke: string,
 ): void {
-  const r = BOX * 0.46;
-  const cx = BOX / 2;
-  const cy = BOX / 2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = fill;
-  ctx.fill();
-  ctx.lineWidth = STROKE * 1.1;
-  ctx.strokeStyle = t.paper;
-  ctx.stroke();
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = STROKE * 1.15;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
 }
 
-function drawPintSilhouette(ctx: CanvasRenderingContext2D, ink: string): void {
+// Silhouettes are authored ~1.4× the old cream-on-pad glyphs so they dominate
+// the pin at typical map icon-size (0.6–1.05).
+
+function drawPintSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
   const cx = BOX / 2;
-  ctx.fillStyle = ink;
+  setDrinkGlassStyle(ctx, fill, stroke);
   ctx.beginPath();
-  ctx.moveTo(cx - BOX * 0.12, BOX * 0.28);
-  ctx.lineTo(cx + BOX * 0.12, BOX * 0.28);
-  ctx.lineTo(cx + BOX * 0.1, BOX * 0.72);
-  ctx.lineTo(cx - BOX * 0.1, BOX * 0.72);
+  ctx.moveTo(cx - BOX * 0.17, BOX * 0.18);
+  ctx.lineTo(cx + BOX * 0.17, BOX * 0.18);
+  ctx.lineTo(cx + BOX * 0.14, BOX * 0.82);
+  ctx.lineTo(cx - BOX * 0.14, BOX * 0.82);
   ctx.closePath();
-  ctx.fill();
-  ctx.fillRect(cx + BOX * 0.1, BOX * 0.38, BOX * 0.08, BOX * 0.18);
+  fillStroke(ctx);
+  // Handle
+  ctx.beginPath();
+  ctx.moveTo(cx + BOX * 0.14, BOX * 0.34);
+  ctx.lineTo(cx + BOX * 0.26, BOX * 0.34);
+  ctx.lineTo(cx + BOX * 0.26, BOX * 0.58);
+  ctx.lineTo(cx + BOX * 0.14, BOX * 0.58);
+  ctx.closePath();
+  fillStroke(ctx);
 }
 
-function drawWineSilhouette(ctx: CanvasRenderingContext2D, ink: string): void {
+function drawWineSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
   const cx = BOX / 2;
-  ctx.strokeStyle = ink;
-  ctx.fillStyle = ink;
-  ctx.lineWidth = STROKE * 1.4;
+  setDrinkGlassStyle(ctx, fill, stroke);
   ctx.beginPath();
-  ctx.moveTo(cx - BOX * 0.12, BOX * 0.3);
-  ctx.quadraticCurveTo(cx, BOX * 0.55, cx, BOX * 0.62);
-  ctx.quadraticCurveTo(cx, BOX * 0.55, cx + BOX * 0.12, BOX * 0.3);
+  ctx.moveTo(cx - BOX * 0.18, BOX * 0.2);
+  ctx.quadraticCurveTo(cx, BOX * 0.52, cx, BOX * 0.62);
+  ctx.quadraticCurveTo(cx, BOX * 0.52, cx + BOX * 0.18, BOX * 0.2);
   ctx.closePath();
-  ctx.fill();
+  fillStroke(ctx);
   ctx.beginPath();
   ctx.moveTo(cx, BOX * 0.62);
-  ctx.lineTo(cx, BOX * 0.74);
-  ctx.moveTo(cx - BOX * 0.08, BOX * 0.74);
-  ctx.lineTo(cx + BOX * 0.08, BOX * 0.74);
+  ctx.lineTo(cx, BOX * 0.8);
+  ctx.moveTo(cx - BOX * 0.12, BOX * 0.8);
+  ctx.lineTo(cx + BOX * 0.12, BOX * 0.8);
   ctx.stroke();
 }
 
-function drawCocktailSilhouette(ctx: CanvasRenderingContext2D, ink: string): void {
+function drawCocktailSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
   const cx = BOX / 2;
-  ctx.strokeStyle = ink;
-  ctx.fillStyle = ink;
-  ctx.lineWidth = STROKE * 1.4;
+  setDrinkGlassStyle(ctx, fill, stroke);
   ctx.beginPath();
-  ctx.moveTo(cx - BOX * 0.14, BOX * 0.3);
-  ctx.lineTo(cx + BOX * 0.14, BOX * 0.3);
+  ctx.moveTo(cx - BOX * 0.2, BOX * 0.2);
+  ctx.lineTo(cx + BOX * 0.2, BOX * 0.2);
   ctx.lineTo(cx, BOX * 0.55);
   ctx.closePath();
-  ctx.fill();
+  fillStroke(ctx);
   ctx.beginPath();
   ctx.moveTo(cx, BOX * 0.55);
-  ctx.lineTo(cx, BOX * 0.72);
-  ctx.moveTo(cx - BOX * 0.08, BOX * 0.72);
-  ctx.lineTo(cx + BOX * 0.08, BOX * 0.72);
+  ctx.lineTo(cx, BOX * 0.8);
+  ctx.moveTo(cx - BOX * 0.12, BOX * 0.8);
+  ctx.lineTo(cx + BOX * 0.12, BOX * 0.8);
   ctx.stroke();
+  // Garnish cherry
   ctx.beginPath();
-  ctx.arc(cx + BOX * 0.1, BOX * 0.26, BOX * 0.035, 0, Math.PI * 2);
+  ctx.arc(cx + BOX * 0.14, BOX * 0.15, BOX * 0.05, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
 }
 
-function drawSpiritsSilhouette(ctx: CanvasRenderingContext2D, ink: string): void {
+function drawSpiritsSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
   const cx = BOX / 2;
-  ctx.fillStyle = ink;
+  setDrinkGlassStyle(ctx, fill, stroke);
   ctx.beginPath();
-  ctx.moveTo(cx - BOX * 0.06, BOX * 0.26);
-  ctx.lineTo(cx + BOX * 0.06, BOX * 0.26);
-  ctx.lineTo(cx + BOX * 0.08, BOX * 0.34);
-  ctx.lineTo(cx + BOX * 0.1, BOX * 0.7);
-  ctx.lineTo(cx - BOX * 0.1, BOX * 0.7);
-  ctx.lineTo(cx - BOX * 0.08, BOX * 0.34);
+  ctx.moveTo(cx - BOX * 0.085, BOX * 0.18);
+  ctx.lineTo(cx + BOX * 0.085, BOX * 0.18);
+  ctx.lineTo(cx + BOX * 0.115, BOX * 0.3);
+  ctx.lineTo(cx + BOX * 0.145, BOX * 0.8);
+  ctx.lineTo(cx - BOX * 0.145, BOX * 0.8);
+  ctx.lineTo(cx - BOX * 0.115, BOX * 0.3);
   ctx.closePath();
-  ctx.fill();
-  ctx.fillRect(cx - BOX * 0.035, BOX * 0.2, BOX * 0.07, BOX * 0.08);
+  fillStroke(ctx);
+  // Cork / neck cap
+  ctx.beginPath();
+  roundRectPath(ctx, cx - BOX * 0.05, BOX * 0.1, BOX * 0.1, BOX * 0.1, BOX * 0.02);
+  fillStroke(ctx);
 }
 
 function makeDrinkDraw(kind: DrinkPinKind, bucket: number) {
   return (ctx: CanvasRenderingContext2D, t: IconTokens) => {
-    drawDrinkPad(ctx, t, priceFill(t, bucket));
-    const ink = t.paper;
-    if (kind === "pint") drawPintSilhouette(ctx, ink);
-    else if (kind === "wine") drawWineSilhouette(ctx, ink);
-    else if (kind === "cocktail") drawCocktailSilhouette(ctx, ink);
-    else drawSpiritsSilhouette(ctx, ink);
+    const fill = priceFill(t, bucket);
+    drawDrinkShadow(ctx, t);
+    // Light rim on saturated glasses; ink rim on soft brass-grey unpriced.
+    const stroke = bucket === 3 ? t.ink : t.paper;
+    if (kind === "pint") drawPintSilhouette(ctx, fill, stroke);
+    else if (kind === "wine") drawWineSilhouette(ctx, fill, stroke);
+    else if (kind === "cocktail") drawCocktailSilhouette(ctx, fill, stroke);
+    else drawSpiritsSilhouette(ctx, fill, stroke);
   };
 }
 
@@ -778,7 +818,7 @@ export function drinkPinKindFromCategories(
 ): DrinkPinKind {
   const cats = new Set((categories ?? []).map((c) => c.toLowerCase()));
   if (cats.has("cocktail") || cocktailsAmenity) return "cocktail";
-  if (cats.has("wine")) return "wine";
+  if (cats.has("wine") || cats.has("champagne") || cats.has("prosecco")) return "wine";
   if (
     cats.has("whisky") ||
     cats.has("gin") ||

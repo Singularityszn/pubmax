@@ -1,23 +1,42 @@
 # PUBMAXXING design system
 
-**Thesis: "Every pint has a story."** PUBMAXXING is a candle-lit field-guide to
-London's pubs, not a generic map app. Every surface — day or night — should
-feel like a page from a guidebook someone actually annotated: warm paper or
-candlelight, a brass margin accent, a stamped price, a hand-set headline.
+**North star: "Nights Out With Friends."** PubMax is a map-first crawl planner
+for Saturday with your mates — candle-table planning by day, street-amber
+energy by night. Strategic context lives in root `PRODUCT.md`; the visual
+spec (Impeccable / Stitch format) lives in root `DESIGN.md`. This document
+remains the engineering token guide for `app/globals.css` + `app/theme.css`.
+
+## Locked color decision (Phase 0 → Phase 3)
+
+Explored in [`docs/design-explorations/`](./design-explorations/README.md).
+**Ship A for light, B for dark — not a blend.**
+
+| Theme | Direction | Thesis |
+|---|---|---|
+| **Light (default)** | **A Candle Coral** | Warm peach paper + coral Plan CTA (`--brass` ≈ `#ff5a5f`) |
+| **Dark** | **B Night Out** | Deep ink + amber route/CTA (`--night-amber` / dark `--brass`) + pint neon go — **no purple glow** |
+
+Field Guide jobs retained: `--river` / `--pint` / `--brick` stay semantic for
+pins and prices. Coral (light) or amber (dark) owns the primary CTA.
+
+Pointers: [`PRODUCT.md`](../PRODUCT.md) · [`DESIGN.md`](../DESIGN.md) ·
+[`docs/design-explorations/`](./design-explorations/).
 
 This document describes the token scale, type pairing, and pressed-ink
 tactility that make that thesis hold. It **extends** the existing system in
 `app/globals.css` (tokens, light theme) and `app/theme.css` (dark theme
 overrides + shared theme-toggle chrome) — nothing here forks or replaces those
-files, and every token that existed before this pass still resolves to the
-same value it always did.
+files, and every token that existed before this pass still resolves under the
+same **name** (values may retune within the A/B decision).
 
 ## Where things live
 
 | File | Owns |
 |---|---|
+| `PRODUCT.md` | Strategic brief: vocabulary, A/B lock, taste dials, anti-refs |
+| `DESIGN.md` | Impeccable visual spec (colors, type, components, do/don't) |
 | `app/globals.css` | `:root` token definitions (light/default values), resets, most component classes, the pressed-ink utility |
-| `app/theme.css` | `html[data-theme="dark"]` token overrides, the theme-flip transition, the theme-toggle button |
+| `app/theme.css` | `html[data-theme="dark"]` token overrides, Plan CTA amber override, theme-toggle |
 | `app/layout.tsx` | `next/font` wiring — loads the three type-trio fonts as CSS variables on `<html>` |
 | `components/PubMapCanvas.tsx` | Reads tokens at runtime via `readTokens()` to paint the MapLibre style — the map is a *consumer* of these tokens, never a second source of truth |
 
@@ -28,29 +47,31 @@ literal value. If the token you need doesn't exist, add it here first.
 
 ### Palette (the literal values)
 
-| Token | Light | Dark | Role |
+| Token | Light (A Candle Coral) | Dark (B Night Out) | Role |
 |---|---|---|---|
-| `--ink` | `#1b2620` | `#ece3d2` | primary text |
-| `--ink-soft` | `#3d4842` | `#c4bca9` | secondary text |
-| `--muted` | `#6b726a` | `#8f8875` | tertiary/label text |
-| `--line` | `#ddd5c4` | `#35362e` | hairline borders |
-| `--line-soft` | `#e8e1d3` | `#2a2b24` | faint dividers |
-| `--paper` | `#f4efe4` | `#12100c` | page base |
-| `--panel` | `#fbf8f0` | `#171712` | recessed panel |
-| `--panel-raised` | `#ffffff` | `#201f18` | cards, inputs |
-| `--ink-deep` | `#0f1c16` | `#0b0a07` | brand-mark / stamp-dark chrome |
-| `--pint` | `#2f8f5b` | `#46b378` | cheap pint / positive |
-| `--amber` | `#c2882a` | `#d99f45` | mid price / caution |
-| `--brick` | `#b5493a` | `#d16353` | expensive / destructive |
-| `--brass` | `#9a6a24` | `#d3a44a` | **the one accent** |
-| `--brass-bright` | `#d3a44a` | `#e6bd63` | accent on dark/brand-mark chrome |
-| `--river` | `#2f6f8f` | `#4f9ec4` | heritage / by-water |
-| `--river-bright` | `#4f9ec4` | `#6fb9db` | heritage on dark chrome |
+| `--ink` | `#1c1412` | `#eef3ef` | primary text |
+| `--ink-soft` | `#4a3632` | `#c5d0c9` | secondary text |
+| `--muted` | `#7a5c55` | `#8fa399` | tertiary/label text |
+| `--line` | `#efcfc4` | `#24302b` | hairline borders |
+| `--line-soft` | `#f5e0d6` | `#1a2420` | faint dividers |
+| `--paper` | `#fff1e6` | `#070b0a` | page base |
+| `--panel` | `#fffaf6` | `#0e1613` | recessed panel |
+| `--panel-raised` | `#ffffff` | `#141c19` | cards, inputs |
+| `--ink-deep` | `#16122a` | `#040606` | brand-mark / stamp-dark chrome |
+| `--pint` | `#18a76d` | `#3dff9a` | cheap pint / positive / neon-go |
+| `--amber` | `#f2a71b` | `#f0a01a` | mid price / caution |
+| `--brick` | `#ff5a5f` | `#ff6b7a` | expensive / destructive |
+| `--brass` | `#ff5a5f` | `#f0a01a` | **Plan CTA / accent** (coral light → amber dark) |
+| `--brass-bright` | `#ff7a55` | `#ffb328` | accent hover / bright lift |
+| `--night-amber` | aliases `--brass` | `#f0a01a` | explicit Night Out CTA accent |
+| `--river` | `#2864d8` | `#64b5ff` | heritage / by-water |
+| `--river-bright` | `#29b6f6` | `#7dd3fc` | heritage on dark chrome |
 
-**Brass is the single accent.** Every other hue (`pint`/`amber`/`brick`,
-`river`) is a semantic status/category colour, not decoration — don't reach
-for them to "add colour" to something that isn't a price band or a
-heritage/by-water marker.
+**One accent owns the CTA by theme.** Coral (`--brass`) in light; amber
+(`--brass` / `--night-amber`) in dark. Every other hue (`pint` / `amber` /
+`brick`, `river`) is a semantic status/category colour — don't reach for them
+to "add colour" to something that isn't a price band or a heritage/by-water
+marker.
 
 ### Semantic roles (new — additive aliases)
 
@@ -187,23 +208,20 @@ adding the class is optional, additive polish.
 --radius-pill 999px      pills, avatar-style chips
 ```
 
-### Shadow: candle-glow (dark) vs paper-lift (light)
+### Shadow: night bloom (dark) vs paper-lift (light)
 
 `--shadow` is the same variable in both themes but tuned to a different
 *feeling*, not just a darker version of itself:
 
-- **Light (`app/globals.css`)** — `--shadow: 0 14px 30px rgba(24, 34, 26, 0.12)`.
-  A soft, cool, paper-lift shadow — like a card sitting slightly above a
-  printed page.
-- **Dark (`app/theme.css`)** — `--shadow: 0 16px 40px rgba(0,0,0,0.55), 0 0 24px rgba(211,164,74,0.06)`.
-  A deeper drop shadow **plus a faint warm brass bloom**, so raised surfaces
-  in the dark theme read as lit from within — candlelight — rather than
-  merely "the light theme's shadow, but dimmer."
+- **Light (`app/globals.css`)** — soft warm paper-lift over Candle Coral paper
+  (coral-tinted, not cool lavender).
+- **Dark (`app/theme.css`)** — deeper drop **plus a faint amber bloom** (Night
+  Out street light) — never purple mesh/glow.
 
 `--shadow-sm` follows the same day/night pairing for smaller elements.
 `--shadow-inset-press` is the inset "pressed" shadow shared by both themes
 for the pressed-ink utility (see below) — it flips its highlight edge (cream
-in light, brass in dark) so the letterpress effect reads correctly against
+in light, amber in dark) so the letterpress effect reads correctly against
 either surface.
 
 ## Motion

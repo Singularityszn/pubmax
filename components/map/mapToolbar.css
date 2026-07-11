@@ -23,19 +23,20 @@
   justify-content: flex-start;
 }
 
-/* Wave J declutter — Drinks behind a toggle on all viewports (Airbnb-clean). */
+/* Wave J declutter — Drinks is secondary/outline; Plan tonight stays primary. */
 .mapToolbarDrinksBtn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   min-height: 34px;
   padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border: 1px solid color-mix(in srgb, var(--line) 78%, var(--brass) 22%);
   border-radius: 999px;
-  background: var(--panel-raised);
+  background: transparent;
   color: var(--ink-soft);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
+  box-shadow: none;
   cursor: pointer;
   touch-action: manipulation;
   flex: 0 0 auto;
@@ -46,9 +47,10 @@
 }
 
 .mapToolbarDrinksBtn.isActive {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-  color: var(--brass);
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  background: color-mix(in srgb, var(--brass) 8%, transparent);
+  color: var(--ink-soft);
+  box-shadow: none;
 }
 
 .planBtnShort {
@@ -186,11 +188,13 @@
   .planBtn {
     min-height: 36px;
     height: 36px;
+    min-width: 4.25rem;
     padding: 0 10px;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 900;
     line-height: 1;
     flex: 0 0 auto;
-    box-shadow: 0 4px 10px color-mix(in srgb, var(--brass) 20%, transparent);
+    box-shadow: 0 6px 14px color-mix(in srgb, var(--brass) 28%, transparent);
     box-sizing: border-box;
   }
 
@@ -211,7 +215,9 @@
     padding: 4px 9px 4px 6px;
   }
 
-  /* Sheet / onboarding / planning / detail collision */
+  /* Sheet / onboarding / detail collision. Planner peek/half leave the
+     toolbar/legend visible so the map stays usable; sheet-full (venue or
+     planner at full) and detail-open still clear them. */
   .appShell.sheet-full .mapToolbar,
   .appShell.detail-open .mapToolbar {
     transform: translateY(-120%);
@@ -223,8 +229,7 @@
   }
 
   .appShell.sheet-full .mapLegend,
-  .appShell.onboarding-open .mapLegend,
-  .appShell.planning-open .mapLegend {
+  .appShell.onboarding-open .mapLegend {
     transform: translateY(120%);
     opacity: 0;
     pointer-events: none;
@@ -233,8 +238,7 @@
       opacity var(--duration-base) var(--ease-out);
   }
 
-  .appShell.onboarding-open .mapToolbar,
-  .appShell.planning-open .mapToolbar {
+  .appShell.onboarding-open .mapToolbar {
     transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
@@ -255,8 +259,6 @@
   .appShell.detail-open .mapToolbar,
   .appShell.onboarding-open .mapToolbar,
   .appShell.onboarding-open .mapLegend,
-  .appShell.planning-open .mapToolbar,
-  .appShell.planning-open .mapLegend,
   .mapToolbar,
   .mapLegend {
     transition: none;

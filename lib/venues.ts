@@ -1,4 +1,5 @@
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { firstHttp } from "@/lib/httpUrl";
 import {
   findBrand,
   haystackMatchesBrand,
@@ -11,6 +12,7 @@ import {
   matchesAccessibilityFilters,
   type VenueAccessibility,
 } from "@/lib/venueAccessibility";
+import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
 
 export type CrawlStyle =
   | "balanced"
@@ -105,6 +107,16 @@ export type Venue = {
     nonAlcoholic: boolean;
   };
   website: string;
+  /** First http(s) booking_link from price rows — table booking CTA. */
+  bookingLink: string;
+  /** Curated menu page URL (detail enrichment overlay). */
+  menuUrl?: string;
+  /** Curated food-order URL (detail enrichment overlay; never invented). */
+  orderUrl?: string;
+  /** Curated allergy info URL (detail enrichment overlay). */
+  allergyInfoUrl?: string;
+  /** Curated food category tiles for the Menu hub (detail enrichment). */
+  categoryTiles?: VenueMenuCategoryTile[];
   imageUrl: string;
   description: string;
   dataQualityNotes: string[];
@@ -274,6 +286,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         nonAlcoholic: hasNonAlcoholic(prices.map((price) => price.pint_name)),
       },
       website: prices.find((price) => price.website)?.website ?? "",
+      bookingLink: firstHttp(...prices.map((price) => price.booking_link)),
       imageUrl: prices.find((price) => price.image_url)?.image_url ?? "",
       description: prices.find((price) => price.description)?.description ?? "",
       dataQualityNotes: Array.from(dataQualityNotes),
@@ -301,23 +314,40 @@ export type SummaryDrop = {
 export const COMMUNITY_PRICE_NOTE =
   "Prices are community-updated — logged by drinkers, not a live feed.";
 
-// Pure formatter for a drop/observation timestamp → a short human "freshness"
-// label ("logged 2h ago", "logged 3 days ago"). Unit-tested at the boundaries.
-// Returns "" for a missing/invalid/future ISO so the UI can skip the note.
-export function formatFreshness(iso: string | null | undefined, now: Date = new Date()): string {
+// Shared relative-age core for freshness labels. Verb differs by layer:
+// community drops say "logged", sourced observations say "observed".
+// Returns "" for a missing/invalid ISO so the UI can skip the note. Future /
+// clock-skew timestamps collapse to "just now" — never a negative age.
+function formatAgeLabel(
+  iso: string | null | undefined,
+  verb: "logged" | "observed",
+  now: Date,
+): string {
   if (typeof iso !== "string" || iso.length === 0) return "";
   const then = Date.parse(iso);
   if (!Number.isFinite(then)) return "";
   const diffMs = now.getTime() - then;
-  // Guard clock skew / future timestamps — never claim a negative age.
-  if (diffMs < 0) return "logged just now";
+  if (diffMs < 0) return `${verb} just now`;
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "logged just now";
-  if (mins < 60) return `logged ${mins}m ago`;
+  if (mins < 1) return `${verb} just now`;
+  if (mins < 60) return `${verb} ${mins}m ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `logged ${hours}h ago`;
+  if (hours < 24) return `${verb} ${hours}h ago`;
   const days = Math.floor(hours / 24);
-  return `logged ${days} ${days === 1 ? "day" : "days"} ago`;
+  return `${verb} ${days} ${days === 1 ? "day" : "days"} ago`;
+}
+
+// Pure formatter for a community drop timestamp → "logged 2h ago".
+// Unit-tested at the boundaries.
+export function formatFreshness(iso: string | null | undefined, now: Date = new Date()): string {
+  return formatAgeLabel(iso, "logged", now);
+}
+
+// Pure formatter for a sourced-price observedAt → "observed 2h ago".
+// Same boundaries/guards as formatFreshness; only the verb differs so a
+// first-party observation never reads as a community log.
+export function formatObservedAt(iso: string | null | undefined, now: Date = new Date()): string {
+  return formatAgeLabel(iso, "observed", now);
 }
 
 // Fold Pint Drops into the venue's DERIVED SUMMARY SIGNALS only — never into
