@@ -36,23 +36,11 @@ export type ClaimResult =
   | { ok: true; handle: string; linked: true }
   | { ok: false; status: number; error: string };
 
-const HANDLE_KEY = "pubmax_handle";
-
 /** Derive the account handle from a verified auth email local-part. */
 export function authHandleFromEmail(email: string | null | undefined): string {
   if (!email || typeof email !== "string") return "";
   const local = email.split("@")[0] ?? "";
   return normalizeHandle(local);
-}
-
-/** Client-only: read the device-local handle from localStorage (empty when absent). */
-export function readDeviceHandle(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
-  } catch {
-    return "";
-  }
 }
 
 function activityTotal(activity: ClaimActivity): number {

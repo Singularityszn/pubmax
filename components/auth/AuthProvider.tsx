@@ -30,7 +30,7 @@ import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
-import { readDeviceHandle } from "@/lib/identityClaim";
+import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
 
 const HANDLE_KEY = "pubmax_handle";
