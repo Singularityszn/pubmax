@@ -13,10 +13,7 @@ import {
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
-  "..",
-  ".firecrawl",
-  "probes",
-  "greene-king-sherlock-menu.md",
+  "fixtures/menus/greene-king-sherlock-menu.md",
 );
 
 describe("mapSectionToCategory", () => {

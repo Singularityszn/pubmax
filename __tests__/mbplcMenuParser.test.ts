@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   mapMbplcSectionToCategory,
@@ -7,7 +8,10 @@ import {
   pubNameFromMbplcMarkdown,
 } from "@/lib/mbplcMenuParser";
 
-const probePath = join(process.cwd(), ".firecrawl/probes/nicholsons-thameside.md");
+const probePath = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "fixtures/menus/nicholsons-thameside.md",
+);
 
 describe("mbplcMenuParser", () => {
   const markdown = readFileSync(probePath, "utf8");
