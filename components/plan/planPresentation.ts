@@ -24,3 +24,13 @@ export function shareCopyForPlan(state: PlanState): string {
   const stopWord = view.stops.length === 1 ? "stop" : "stops";
   return `${view.title} · ${view.stops.length} ${stopWord} · Starts ${view.startLabel} — see the plan and tap I'm in.`;
 }
+
+export function stopsFromConcierge(
+  venues: ReadonlyArray<{ id: string; name: string }>,
+): Array<{ venueId: string; venueName: string }> {
+  return venues.slice(0, 8).flatMap((venue) => {
+    const venueId = venue.id.trim();
+    const venueName = venue.name.trim();
+    return venueId && venueName ? [{ venueId, venueName }] : [];
+  });
+}

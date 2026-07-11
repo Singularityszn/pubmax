@@ -24,15 +24,19 @@ export function subscribeToPlanCrew(
   let disposed = false;
   let channel: ReturnType<typeof client.channel> | null = null;
   let joinTimer: ReturnType<typeof setTimeout> | null = null;
-  let pollTimer: ReturnType<typeof setInterval> | null = null;
+  // Keep a low-frequency safety poll even after SUBSCRIBED. With deny-all RLS,
+  // a socket can connect successfully yet receive no row events; connection
+  // status alone cannot prove delivery. Realtime remains the fast path.
+  const pollTimer: ReturnType<typeof setInterval> | null = poll
+    ? setInterval(poll, POLL_INTERVAL_MS)
+    : null;
 
   const fallback = () => {
-    if (disposed || pollTimer) return;
+    if (disposed) return;
     if (joinTimer) clearTimeout(joinTimer);
     joinTimer = null;
     const dead = channel;
     channel = null;
-    if (poll) pollTimer = setInterval(poll, POLL_INTERVAL_MS);
     if (dead) {
       try { void client.removeChannel(dead); } catch { /* already closed */ }
     }

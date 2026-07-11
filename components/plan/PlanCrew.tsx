@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
-import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
+import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
@@ -102,7 +102,7 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
       {!memberToken ? (
         <form className="planCrew__join" onSubmit={join}>
           <label htmlFor="join-name">No account. Just your name.</label>
-          <div><input id="join-name" autoComplete="name" maxLength={60} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
+          <div><input id="join-name" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
         </form>
       ) : (
         <div className="planCrew__presence" aria-label="Update your status">

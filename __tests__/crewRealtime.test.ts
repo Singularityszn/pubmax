@@ -50,4 +50,13 @@ describe("Plan crew realtime", () => {
     expect(poll).toHaveBeenCalledOnce();
     unsubscribe();
   });
+
+  it("keeps a safety poll when RLS makes a subscribed channel silent", () => {
+    const poll = vi.fn();
+    const unsubscribe = subscribeToPlanCrew("plan-1", () => {}, { poll });
+    statusHandler?.("SUBSCRIBED");
+    vi.advanceTimersByTime(30_000);
+    expect(poll).toHaveBeenCalledOnce();
+    unsubscribe();
+  });
 });

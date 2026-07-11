@@ -28,8 +28,8 @@ async function createPlan() {
       startTime: "2026-07-11T17:30:00.000Z",
       creatorName: "Karan",
       stops: [
-        { venueId: "ship-1", venueName: "The Ship" },
-        { venueId: "swan-2", venueName: "The Swan" },
+        { venueId: "venue-xjf3n0", venueName: "Fabricated client name" },
+        { venueId: "venue-16pnwmm", venueName: "Another fabricated name" },
       ],
     }),
   }));
@@ -43,11 +43,26 @@ describe("Plan public HTTP contract", () => {
     const { response, body } = await createPlan();
     expect(response.status).toBe(201);
     expect(body.plan.plan.startTime).toBe("2026-07-11T17:30:00.000Z");
-    expect(body.plan.stops.map((stop) => [stop.position, stop.venueName])).toEqual([
-      [0, "The Ship"],
-      [1, "The Swan"],
+    expect(body.plan.stops.map((stop) => stop.position)).toEqual([0, 1]);
+    expect(body.plan.stops.map((stop) => stop.venueId)).toEqual([
+      "venue-xjf3n0",
+      "venue-16pnwmm",
     ]);
+    expect(body.plan.stops.map((stop) => stop.venueName)).not.toContain("Fabricated client name");
     expect(body.memberToken).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("rejects venue ids that are not in the server-owned Venue Dataset", async () => {
+    const response = await CREATE(new Request(URL, {
+      method: "POST",
+      body: JSON.stringify({
+        startTime: "2026-07-11T17:30:00.000Z",
+        creatorName: "Karan",
+        stops: [{ venueId: "invented-pub", venueName: "Definitely Real Arms" }],
+      }),
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Choose venues from the Venue Dataset." });
   });
 
   it("lets anyone holding the unguessable Plan link view it without an account", async () => {

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
 
-import { POST } from "@/app/api/concierge/route";
+import { contextFrom, POST } from "@/app/api/concierge/route";
 
 beforeEach(() => {
   delete process.env.OPENROUTER_API_KEY;
@@ -19,6 +19,14 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/concierge", () => {
+  it("derives day and late-night context in Europe/London, not the server timezone", () => {
+    // 23:30 UTC Friday is 00:30 Saturday in London during BST.
+    expect(contextFrom({}, new Date("2026-07-10T23:30:00.000Z"))).toMatchObject({
+      dayType: "weekend",
+      timeOfDay: "late",
+    });
+  });
+
   it("returns ranked server-owned venues and an optional narrated crawl", async () => {
     const response = await post({
       query: "Garden near Soho for 4, not pricey",

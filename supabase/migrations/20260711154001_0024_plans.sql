@@ -62,6 +62,68 @@ revoke all on sequence public.plan_stops_id_seq from anon, authenticated;
 grant all on public.plans, public.plan_stops, public.plan_crew_members to service_role;
 grant usage, select on sequence public.plan_stops_id_seq to service_role;
 
+-- One RPC call = one Postgres transaction. These functions are SECURITY
+-- INVOKER and executable only by service_role, so they keep RLS/privilege
+-- semantics while preventing partially-created Plans and concurrent crew-cap
+-- races across the API's three logical writes.
+create or replace function public.create_plan_atomic(
+  p_id uuid,
+  p_title text,
+  p_start_time timestamptz,
+  p_stops jsonb,
+  p_member_id uuid,
+  p_member_name text,
+  p_token_hash text,
+  p_joined_at timestamptz
+) returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  insert into public.plans (id, title, start_time)
+  values (p_id, p_title, p_start_time);
+
+  insert into public.plan_stops (plan_id, venue_id, venue_name, position)
+  select p_id, item.value->>'venueId', item.value->>'venueName', item.ordinality - 1
+  from jsonb_array_elements(p_stops) with ordinality as item(value, ordinality);
+
+  insert into public.plan_crew_members
+    (id, plan_id, name, token_hash, status, joined_at, updated_at)
+  values
+    (p_member_id, p_id, p_member_name, p_token_hash, 'in', p_joined_at, p_joined_at);
+end;
+$$;
+
+create or replace function public.join_plan_atomic(
+  p_plan_id uuid,
+  p_member_id uuid,
+  p_member_name text,
+  p_token_hash text,
+  p_joined_at timestamptz
+) returns boolean
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_plan_id::text, 0));
+  if (select count(*) from public.plan_crew_members where plan_id = p_plan_id) >= 20 then
+    return false;
+  end if;
+  insert into public.plan_crew_members
+    (id, plan_id, name, token_hash, status, joined_at, updated_at)
+  values
+    (p_member_id, p_plan_id, p_member_name, p_token_hash, 'in', p_joined_at, p_joined_at);
+  return true;
+end;
+$$;
+
+revoke all on function public.create_plan_atomic(uuid, text, timestamptz, jsonb, uuid, text, text, timestamptz) from public, anon, authenticated;
+revoke all on function public.join_plan_atomic(uuid, uuid, text, text, timestamptz) from public, anon, authenticated;
+grant execute on function public.create_plan_atomic(uuid, text, timestamptz, jsonb, uuid, text, text, timestamptz) to service_role;
+grant execute on function public.join_plan_atomic(uuid, uuid, text, text, timestamptz) to service_role;
+
 -- Signal-only realtime. RLS may withhold events from an anon browser; the
 -- client intentionally switches to its 30-second polling fallback in that case.
 do $$

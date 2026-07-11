@@ -59,10 +59,18 @@ describe("rankConciergeVenues", () => {
     const first = rankConciergeVenues(candidates, input, { limit: 3 });
     const second = rankConciergeVenues([...candidates].reverse(), input, { limit: 3 });
 
-    expect(first.map((result) => result.venue.id)).toEqual(["quiet", "lively", "cheap-far"]);
+    expect(first.map((result) => result.venue.id)).toEqual(["quiet", "lively"]);
     expect(second).toEqual(first);
     expect(first[0]?.reasons).toContain("In Bank");
     expect(first[0]?.reasons).toContain("£5.20 is within budget");
+  });
+
+  it("returns no venues rather than silently moving the crew to another area", () => {
+    const results = rankConciergeVenues(
+      [venue("camden", { area: "Camden", searchText: "camden town" })],
+      { mood: ["balanced"], groupSize: 4, area: "Bank" },
+    );
+    expect(results).toEqual([]);
   });
 
   it("uses explicit weather context to prefer gardens on a warm, dry evening", () => {

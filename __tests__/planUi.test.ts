@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { planViewModel, shareCopyForPlan } from "@/components/plan/planPresentation";
+import { planViewModel, shareCopyForPlan, stopsFromConcierge } from "@/components/plan/planPresentation";
 import type { PlanState } from "@/lib/plan";
 
 const state: PlanState = {
@@ -29,5 +29,14 @@ describe("planViewModel", () => {
     expect(shareCopyForPlan(state)).toBe(
       "Thursday, sorted · 2 stops · Starts 18:30 — see the plan and tap I'm in.",
     );
+  });
+});
+
+describe("stopsFromConcierge", () => {
+  it("threads grounded concierge ids and names into the Plan composer", () => {
+    expect(stopsFromConcierge([
+      { id: " venue-1 ", name: " The George " },
+      { id: "", name: "Invented Arms" },
+    ])).toEqual([{ venueId: "venue-1", venueName: "The George" }]);
   });
 });

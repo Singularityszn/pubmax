@@ -169,8 +169,12 @@ export function rankConciergeVenues(
   options: RankingOptions = {},
 ): RankedConciergeVenue[] {
   const limit = Math.min(10, Math.max(1, Math.trunc(options.limit ?? 3)));
-  return venues
-    .filter((venue) => !venue.promoted)
+  const organic = venues.filter((venue) => !venue.promoted);
+  const requestedArea = normalise(intent.area ?? "");
+  const eligible = requestedArea
+    ? organic.filter((venue) => normalise(`${venue.area} ${venue.searchText ?? ""}`).includes(requestedArea))
+    : organic;
+  return eligible
     .map((venue) => scoreOne(venue, intent, options.context ?? {}))
     .sort((left, right) => right.score - left.score || left.venue.id.localeCompare(right.venue.id, "en-GB"))
     .slice(0, limit);

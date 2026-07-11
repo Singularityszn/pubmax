@@ -35,12 +35,18 @@ function providedIntent(value: unknown): ConciergeIntent | null {
   };
 }
 
-function contextFrom(value: unknown, now = new Date()): ConciergeContext {
+export function contextFrom(value: unknown, now = new Date()): ConciergeContext {
   const record = value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
-  const hour = now.getHours();
-  const day = now.getDay();
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 12);
+  const weekday = parts.find((part) => part.type === "weekday")?.value ?? "Mon";
   const weather = ["rainy", "cold", "warm-dry", "mild"].includes(String(record.weather))
     ? record.weather as ConciergeContext["weather"]
     : undefined;
@@ -48,10 +54,10 @@ function contextFrom(value: unknown, now = new Date()): ConciergeContext {
     ...(weather ? { weather } : {}),
     dayType: record.dayType === "weekday" || record.dayType === "weekend"
       ? record.dayType
-      : day === 0 || day === 6 ? "weekend" : "weekday",
+      : weekday === "Sat" || weekday === "Sun" ? "weekend" : "weekday",
     timeOfDay: record.timeOfDay === "afternoon" || record.timeOfDay === "evening" || record.timeOfDay === "late"
       ? record.timeOfDay
-      : hour < 17 ? "afternoon" : hour < 22 ? "evening" : "late",
+      : hour >= 22 || hour < 5 ? "late" : hour < 17 ? "afternoon" : "evening",
   };
 }
 

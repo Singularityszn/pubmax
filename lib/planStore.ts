@@ -58,23 +58,24 @@ export const supabasePlanStore: PlanStore = {
     if (!clean) return { ok: false, error: "invalid" };
     const id = randomUUID();
     const memberToken = mintToken();
-    const admin = requireSupabaseAdmin();
+    const memberId = randomUUID();
+    const joinedAt = new Date().toISOString();
     try {
-      const { error: planError } = await admin.from(PLANS).insert({ id, title: clean.title, start_time: clean.startTime });
-      if (planError) throw new Error(planError.message);
-      const { error: stopError } = await admin.from(STOPS).insert(clean.stops.map((stop, position) => ({
-        plan_id: id, venue_id: stop.venueId, venue_name: stop.venueName, position,
-      })));
-      if (stopError) throw new Error(stopError.message);
-      const { error: memberError } = await admin.from(MEMBERS).insert({
-        plan_id: id, name: clean.creatorName, token_hash: tokenHash(memberToken), status: "in",
+      const { error } = await requireSupabaseAdmin().rpc("create_plan_atomic", {
+        p_id: id,
+        p_title: clean.title,
+        p_start_time: clean.startTime,
+        p_stops: clean.stops,
+        p_member_id: memberId,
+        p_member_name: clean.creatorName,
+        p_token_hash: tokenHash(memberToken),
+        p_joined_at: joinedAt,
       });
-      if (memberError) throw new Error(memberError.message);
+      if (error) throw new Error(error.message);
       const plan = await this.get(id);
       return plan ? { ok: true, plan, memberToken } : { ok: false, error: "error" };
     } catch (error) {
       console.error("[plans] create failed:", error instanceof Error ? error.message : error);
-      await admin.from(PLANS).delete().eq("id", id);
       return { ok: false, error: "error" };
     }
   },
@@ -110,11 +111,17 @@ export const supabasePlanStore: PlanStore = {
     if (!current) return { ok: false, error: "not_found" };
     if (current.crew.length >= CREW_MAX_MEMBERS) return { ok: false, error: "full" };
     const memberToken = mintToken();
+    const joinedAt = new Date().toISOString();
     try {
-      const { error } = await requireSupabaseAdmin().from(MEMBERS).insert({
-        plan_id: id, name, token_hash: tokenHash(memberToken), status: "in",
+      const { data, error } = await requireSupabaseAdmin().rpc("join_plan_atomic", {
+        p_plan_id: id,
+        p_member_id: randomUUID(),
+        p_member_name: name,
+        p_token_hash: tokenHash(memberToken),
+        p_joined_at: joinedAt,
       });
       if (error) throw new Error(error.message);
+      if (data !== true) return { ok: false, error: "full" };
       const plan = await this.get(id);
       return plan ? { ok: true, plan, memberToken } : { ok: false, error: "error" };
     } catch (error) {

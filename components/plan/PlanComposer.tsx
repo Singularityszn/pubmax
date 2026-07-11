@@ -3,6 +3,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { CREW_NAME_MAX } from "@/lib/crew";
+import { stopsFromConcierge } from "@/components/plan/planPresentation";
+
 type DraftStop = { key: number; venueId: string; venueName: string };
 type VenueOption = { id: string; name: string; address?: string };
 
@@ -24,6 +27,9 @@ export default function PlanComposer() {
     { key: 2, venueId: "", venueName: "" },
   ]);
   const [venues, setVenues] = useState<VenueOption[]>([]);
+  const [conciergeQuery, setConciergeQuery] = useState("");
+  const [conciergeNote, setConciergeNote] = useState("");
+  const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -46,6 +52,29 @@ export default function PlanComposer() {
     setStops((current) => current.map((stop) => stop.key === key
       ? { ...stop, venueName, venueId: match?.id ?? "" }
       : stop));
+  }
+
+  async function sortWithConcierge() {
+    if (!conciergeQuery.trim()) return;
+    setSorting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/concierge", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: conciergeQuery, limit: 3, narrated: true }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error || "The concierge could not sort this one.");
+      const suggested = stopsFromConcierge(Array.isArray(body?.venues) ? body.venues : []);
+      if (!suggested.length) throw new Error("No grounded venues matched that request. Try a nearby area or a broader mood.");
+      setStops(suggested.map((stop, index) => ({ key: index + 1, ...stop })));
+      setConciergeNote(typeof body.narration === "string" ? body.narration : "Grounded picks added. Change the order if you like.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The concierge could not sort this one.");
+    } finally {
+      setSorting(false);
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -84,13 +113,25 @@ export default function PlanComposer() {
 
   return (
     <form className="planComposer" onSubmit={submit}>
+      <section className="planComposer__concierge" aria-labelledby="plan-concierge-title">
+        <div>
+          <span className="planPage__eyebrow">PUBMAXXER concierge</span>
+          <h2 id="plan-concierge-title">Tell it the mood. It picks the pubs.</h2>
+        </div>
+        <div className="planComposer__conciergeInput">
+          <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the night</label>
+          <input id="plan-concierge-query" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Quiet-ish near Bank, 4 of us, not pricey" maxLength={500} />
+          <button type="button" onClick={sortWithConcierge} disabled={sorting || !conciergeQuery.trim()}>{sorting ? "Sorting…" : "Sort it"}</button>
+        </div>
+        {conciergeNote ? <p>{conciergeNote}</p> : null}
+      </section>
       <div className="planComposer__field planComposer__field--wide">
         <label htmlFor="plan-title">Name the night</label>
         <input id="plan-title" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-name">Your name</label>
-        <input id="plan-name" autoComplete="name" maxLength={60} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
+        <input id="plan-name" autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-time">First pint</label>
