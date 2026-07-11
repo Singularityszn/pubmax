@@ -58,7 +58,7 @@ export const CURATED_CUISINE_BY_VENUE_ID: Readonly<Record<string, readonly strin
   "venue-5zogu6": ["kitchen"], // Hicce Hart
   // Wave F1 — denser food coverage on central crawl pubs (still light tags).
   "venue-1yd70c7": ["gastropub", "roast"], // The Lamb
-  "venue-fr71bp": ["gastropub"], // Museum Tavern
+  "venue-fr71bp": ["gastropub", "roast"], // Museum Tavern
   "venue-gv8lwa": ["gastropub", "fish"], // Anchor Bankside
   "venue-1x50b6d": ["gastropub"], // Old Thameside Inn
   "venue-16pnwmm": ["gastropub", "fish"], // Prospect of Whitby
@@ -66,10 +66,57 @@ export const CURATED_CUISINE_BY_VENUE_ID: Readonly<Record<string, readonly strin
   "venue-1d8a5xb": ["gastropub"], // Captain Kidd
   "venue-fpmfjs": ["gastropub"], // The Rake
   "venue-133uf6h": ["gastropub", "kitchen"], // Katzenjammers
-  "venue-dbukrn": ["gastropub"], // The Coal Hole
+  "venue-dbukrn": ["gastropub", "pie"], // The Coal Hole
   "venue-lrlyh8": ["gastropub", "roast"], // Old Bank of England
   "venue-1sx1vco": ["gastropub"], // Ye Olde Cock Tavern
-  "venue-erabed": ["gastropub"], // The Perseverance
+  "venue-erabed": ["gastropub", "pizza"], // The Perseverance
+  // Wave G — pizza coverage (real menu signals from descriptions).
+  "venue-nm6egd": ["pizza"], // The Horse & Wig (Roman-style pizzas)
+  "venue-1mjowpj": ["pizza"], // The Regent (pizzas, pints and cocktails)
+  "venue-1dohqsq": ["pizza"], // The White Bear (artisan sourdough pizzas)
+  "venue-11nrwqy": ["pizza"], // Canova Hall (wood-fired pizzas)
+  "venue-yhodj6": ["pizza"], // The Alexandra (pizzas and craft beers)
+  "venue-18cp9b2": ["pizza"], // The Lido Cafe / 400 Rabbits (pizza restaurant)
+  "venue-133en5b": ["pizza", "kitchen"], // The Chequers (pizzas from their kitchen)
+  "venue-ejcaqb": ["pizza", "burger"], // The Merchant of Battersea (pizzas + burgers)
+  "venue-5f6v63": ["pizza"], // The Ship (homemade sourdough pizzas)
+  "venue-j6qgni": ["pizza", "roast"], // The George & Monkey (pizza + Sunday roast)
+  "venue-avls5f": ["pizza"], // Teatro Hall (pizza and bar)
+  "venue-16co4ye": ["pizza", "burger"], // Royal Sovereign (pizza + burgers)
+  "venue-wroxba": ["pizza"], // The Railway Tavern (pizza menu)
+  "venue-qkjsbo": ["pizza"], // The Dog & Duck Chingford (pizza menu)
+  "venue-1o8k9q5": ["pizza", "kitchen"], // The Mitre Richmond (voted best pizza)
+  "venue-7q2zlv": ["pizza"], // The Richmal Crompton — JD Wetherspoon (pizza menu)
+  // Wave G — burger coverage.
+  "venue-1jdhzak": ["burger"], // The Camel & Artichoke (handmade SMASH burgers)
+  "venue-gjzd9u": ["burger", "pie"], // The Duke of York (burgers + pies)
+  "venue-7rb0oo": ["burger"], // The Queens Head Shoreditch (indulgent burgers)
+  "venue-cgh71l": ["burger", "roast"], // The Alma N1 (burgers + Sunday roasts)
+  "venue-oyallt": ["burger", "roast"], // The Alma Newington Green (burgers to Sunday roasts)
+  "venue-dmtau6": ["burger", "roast", "fish"], // Goat Tavern Kensington (burgers + roast + fish)
+  "venue-ztnnz3": ["burger", "pie"], // The Feathers Westminster (burgers + pies)
+  "venue-tfd2th": ["burger", "steak"], // The Guildford Arms (burgers + steak)
+  "venue-1ntd4m": ["burger"], // The Star by Liverpool Street (Chuck Burger menu)
+  "venue-1s4m5bc": ["burger"], // The Prince Edward Bayswater (burger menu)
+  // Wave G — roast coverage.
+  "venue-3kkk8e": ["roast", "gastropub"], // Camden Head (Grade II, Sunday roast)
+  "venue-xm0ya3": ["roast", "gastropub"], // Masons Arms Mayfair (roast since 1721)
+  "venue-10jw1vr": ["roast", "gastropub"], // The George Southwark (galleried inn, roasts)
+  // Wave G — gastropub coverage.
+  "venue-19rlplo": ["roast", "gastropub"], // The Cavendish (independent gastropub)
+  "venue-1u69mia": ["roast", "gastropub"], // The Junction Angel (modern British)
+  "venue-1tmrglv": ["gastropub"], // The Havelock Tavern (one of city's original gastropubs)
+  "venue-ywzy0i": ["gastropub"], // The Phoenix Clapham (vibrant gastropub)
+  "venue-i4knvc": ["gastropub", "italian"], // The Swan Chiswick (Mediterranean gastropub)
+  "venue-xn9vmg": ["gastropub"], // The Chesterfield Arms Mayfair (gastropub)
+  // Wave G — tapas + thai coverage.
+  "venue-dmli42": ["roast", "tapas"], // The Dean Swift (tapas + Sunday roast)
+  "venue-1khsihb": ["tapas"], // The Duke of Sussex (tapas menu)
+  "venue-15m19g8": ["thai"], // The Latymers Hammersmith (Thai food menu)
+  "venue-hoo8sl": ["thai"], // Hop Pole Wandsworth (Thai food)
+  "venue-11iolkd": ["thai"], // The Lemon Tree Covent Garden (Thai kitchen)
+  "venue-tc77u2": ["thai"], // Hardy's Freehouse Greenwich (Thai food)
+  "venue-1yylwyg": ["thai"], // The Old Pack Horse Chiswick (Thai menu)
 };
 
 /** Normalise a raw tag: trim, lowercase, drop empties / unknowns. */
@@ -95,8 +142,8 @@ export function cuisineTagsFromText(text: string | null | undefined): string[] {
   if (!text) return [];
   const lower = text.toLowerCase();
   return KNOWN_CUISINE_TAGS.filter((tag) => {
-    // Word-ish match: tag as whole word or hyphenated compound.
-    const re = new RegExp(`(?:^|[^a-z])${tag}(?:[^a-z]|$)`);
+    // Word-ish match: tag as whole word, hyphenated compound, or common plural (e.g. "pizzas", "burgers").
+    const re = new RegExp(`(?:^|[^a-z])${tag}s?(?:[^a-z]|$)`);
     return re.test(lower);
   });
 }

@@ -227,7 +227,7 @@ const CURATED_CUISINE_BY_VENUE_ID = {
   "venue-we3mzn": ["kitchen"],
   "venue-5zogu6": ["kitchen"],
   "venue-1yd70c7": ["gastropub", "roast"],
-  "venue-fr71bp": ["gastropub"],
+  "venue-fr71bp": ["gastropub", "roast"],
   "venue-gv8lwa": ["gastropub", "fish"],
   "venue-1x50b6d": ["gastropub"],
   "venue-16pnwmm": ["gastropub", "fish"],
@@ -235,10 +235,57 @@ const CURATED_CUISINE_BY_VENUE_ID = {
   "venue-1d8a5xb": ["gastropub"],
   "venue-fpmfjs": ["gastropub"],
   "venue-133uf6h": ["gastropub", "kitchen"],
-  "venue-dbukrn": ["gastropub"],
+  "venue-dbukrn": ["gastropub", "pie"],
   "venue-lrlyh8": ["gastropub", "roast"],
   "venue-1sx1vco": ["gastropub"],
-  "venue-erabed": ["gastropub"],
+  "venue-erabed": ["gastropub", "pizza"],
+  // Wave G — pizza coverage.
+  "venue-nm6egd": ["pizza"],
+  "venue-1mjowpj": ["pizza"],
+  "venue-1dohqsq": ["pizza"],
+  "venue-11nrwqy": ["pizza"],
+  "venue-yhodj6": ["pizza"],
+  "venue-18cp9b2": ["pizza"],
+  "venue-133en5b": ["pizza", "kitchen"],
+  "venue-ejcaqb": ["pizza", "burger"],
+  "venue-5f6v63": ["pizza"],
+  "venue-j6qgni": ["pizza", "roast"],
+  "venue-avls5f": ["pizza"],
+  "venue-16co4ye": ["pizza", "burger"],
+  "venue-wroxba": ["pizza"],
+  "venue-qkjsbo": ["pizza"],
+  "venue-1o8k9q5": ["pizza", "kitchen"],
+  "venue-7q2zlv": ["pizza"],
+  // Wave G — burger coverage.
+  "venue-1jdhzak": ["burger"],
+  "venue-gjzd9u": ["burger", "pie"],
+  "venue-7rb0oo": ["burger"],
+  "venue-cgh71l": ["burger", "roast"],
+  "venue-oyallt": ["burger", "roast"],
+  "venue-dmtau6": ["burger", "roast", "fish"],
+  "venue-ztnnz3": ["burger", "pie"],
+  "venue-tfd2th": ["burger", "steak"],
+  "venue-1ntd4m": ["burger"],
+  "venue-1s4m5bc": ["burger"],
+  // Wave G — roast coverage.
+  "venue-3kkk8e": ["roast", "gastropub"],
+  "venue-xm0ya3": ["roast", "gastropub"],
+  "venue-10jw1vr": ["roast", "gastropub"],
+  // Wave G — gastropub coverage.
+  "venue-19rlplo": ["roast", "gastropub"],
+  "venue-1u69mia": ["roast", "gastropub"],
+  "venue-1tmrglv": ["gastropub"],
+  "venue-ywzy0i": ["gastropub"],
+  "venue-i4knvc": ["gastropub", "italian"],
+  "venue-xn9vmg": ["gastropub"],
+  // Wave G — tapas + thai coverage.
+  "venue-dmli42": ["roast", "tapas"],
+  "venue-1khsihb": ["tapas"],
+  "venue-15m19g8": ["thai"],
+  "venue-hoo8sl": ["thai"],
+  "venue-11iolkd": ["thai"],
+  "venue-tc77u2": ["thai"],
+  "venue-1yylwyg": ["thai"],
 };
 
 function normaliseDrinkHaystack(value) {
@@ -309,7 +356,8 @@ function buildDrinkHints(prices) {
 
 function cuisineTagsFromHaystack(hay) {
   return CUISINE_HINT_TAGS.filter((tag) => {
-    const re = new RegExp(`(?:^|[^a-z])${tag}(?:[^a-z]|$)`);
+    // Accept both singular and common plural (e.g. "pizzas", "burgers", "gastropubs").
+    const re = new RegExp(`(?:^|[^a-z])${tag}s?(?:[^a-z]|$)`);
     return re.test(hay);
   });
 }
