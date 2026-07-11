@@ -37,6 +37,9 @@ export type PlanGetInStopDTO = {
     level: BusynessLevel;
     label: string;
     source: BusynessSource;
+    /* Provenance flag from lib/busyness — always true today; carried on the
+       wire so API consumers can tell an estimate from future live data. */
+    isEstimate: boolean;
     isOpen: boolean | "unknown";
     explanation: string;
   };
@@ -90,6 +93,7 @@ export async function planGetInReport(
           level: busyness.level,
           label: busyness.label,
           source: busyness.source,
+          isEstimate: busyness.isEstimate,
           isOpen: busyness.isOpen,
           explanation: busyness.explanation,
         },

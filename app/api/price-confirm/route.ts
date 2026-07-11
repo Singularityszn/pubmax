@@ -8,9 +8,10 @@
 //
 // Identity is server-derived (hashActor of the hashed client IP), never trusted
 // from the body — one device de-duplicates to one confirm per (venue, price), so
-// the tally stays an honest count of distinct confirmers. Everything is
-// fail-soft: a hiccup answers 200 with a zero/best-effort result so the client's
-// optimistic tick can stand on its own. No Supabase and no env are required.
+// the tally stays an honest count of distinct confirmers. Reads are fail-soft
+// (a hiccup degrades to a zero tally); a durable WRITE failure answers 503 per
+// the house rule, so the client knows the tap didn't land. No Supabase and no
+// env are required.
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
@@ -61,8 +62,12 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: "Too many confirmations, slow down." }, { status: 429 });
   }
 
-  // confirmPrice is fail-soft (never throws) and de-dupes by actor.
-  const result = await confirmPrice({ venueId, priceGbp, actor });
+  // confirmPrice never throws; a hard durable-write failure comes back flagged
+  // so we answer 503 (degraded dependency) rather than a fake success.
+  const { failed, ...result } = await confirmPrice({ venueId, priceGbp, actor });
+  if (failed) {
+    return jsonNoStore({ error: "Could not record the confirmation right now." }, { status: 503 });
+  }
   return jsonNoStore({ ok: true, ...result }, { status: 200 });
 }
 

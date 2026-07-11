@@ -1,10 +1,11 @@
 .planPage {
   --plan-accent: #e75f50;
   --plan-accent-strong: #b93e32;
-  /* Get-in verdict ramp — semantic, readable on paper (WCAG AA on the pale tints below). */
-  --fit-likely: #2e7d4f;
-  --fit-uncertain: #a9711a;
-  --fit-unlikely: #c0392b;
+  /* Get-in verdict ramp — the app's semantic positive/caution/negative roles
+     (globals.css), which already flip per-theme; no one-off hexes. */
+  --fit-likely: var(--color-positive);
+  --fit-uncertain: var(--color-caution);
+  --fit-unlikely: var(--color-negative);
   --fit-book: var(--plan-accent-strong);
   min-height: 100vh;
   padding: clamp(18px, 4vw, 48px) clamp(16px, 5vw, 72px) 96px;
@@ -273,10 +274,7 @@
 html[data-theme="dark"] .planPage {
   --plan-accent: var(--night-amber, #f0a01a);
   --plan-accent-strong: #ffc45e;
-  /* Lift the verdict ramp for the dark soul (light ink on near-black paper). */
-  --fit-likely: #6fcf97;
-  --fit-uncertain: #f0b429;
-  --fit-unlikely: #f0806c;
+  /* Verdict ramp inherits the dark values of the semantic roles via theme.css. */
   --fit-book: var(--plan-accent-strong);
   background:
     radial-gradient(circle at 80% 12%, color-mix(in srgb, var(--plan-accent) 9%, transparent), transparent 30%),

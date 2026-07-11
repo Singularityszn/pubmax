@@ -28,6 +28,8 @@ export type PriceConfirmResult = {
   confirms: number;
   /** Epoch ms of the most recent confirmation, or null when none on record. */
   lastConfirmedAt: number | null;
+  /** Set when a durable write hard-failed — the tap was NOT recorded. */
+  failed?: true;
 };
 
 export type PriceConfirmInput = {
@@ -48,7 +50,11 @@ export type PriceConfirmQuery = {
 };
 
 export type PriceConfirmStore = {
-  /** Record a confirmation and return the fresh tally. NEVER throws. */
+  /**
+   * Record a confirmation and return the fresh tally. NEVER throws; a durable
+   * write that hard-fails resolves with `failed: true` so the route can answer
+   * 503 (house rule: degraded dependency, not a fake success).
+   */
   confirm(input: PriceConfirmInput, now?: number): Promise<PriceConfirmResult>;
   /** Read the current tally without recording anything. NEVER throws. */
   read(query: PriceConfirmQuery): Promise<PriceConfirmResult>;
@@ -232,9 +238,10 @@ export const supabasePriceConfirmStore: PriceConfirmStore = {
         warnMemoryFallback("confirm", err);
         return memoryPriceConfirmStore.confirm(input, now);
       }
-      // Non-critical signal: never surface a throw — degrade to an empty tally.
-      console.error("[price-confirm] confirm failed — returning empty tally:", errorMessage(err));
-      return { ...EMPTY };
+      // A hard durable-write failure is a degraded dependency: flag it so the
+      // route answers 503 instead of pretending the tap landed (house rule).
+      console.error("[price-confirm] confirm failed — flagging degraded write:", errorMessage(err));
+      return { ...EMPTY, failed: true };
     }
   },
 

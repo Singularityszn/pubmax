@@ -3,30 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
 
+// Type-only import of the wire contract — the API and this component share one
+// source of truth (lib/planGetIn) so the shapes cannot drift. Erased at build,
+// so no server code reaches the client bundle.
+import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
+
 type RouteStop = { venueId: string; venueName: string; position: number };
 
-type BusynessSignal = {
-  level: "quiet" | "moderate" | "busy" | "rammed";
-  label: string;
-  source: "typical-pattern" | "community-report";
-  isOpen: boolean | "unknown";
-  explanation: string;
-};
-type GetInSignal = {
-  fit: "likely" | "uncertain" | "unlikely" | "book-ahead";
-  label: string;
-  reason: string;
-};
-type BookingSignal = { available: boolean; label: string; href: string | null };
-type StopSignal = {
-  position: number;
-  venueId: string;
-  venueName: string;
-  busyness: BusynessSignal | null;
-  getIn: GetInSignal;
-  booking: BookingSignal;
-};
-type GetInReport = { groupSize: number; generatedAt: string; stops: StopSignal[] };
+type StopSignal = PlanGetInStopDTO;
+type GetInReport = PlanGetInReportDTO;
 
 type FetchState = "loading" | "ready" | "unavailable";
 

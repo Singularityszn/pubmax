@@ -231,9 +231,27 @@ either surface.
 --duration-base     0.15s   hover/focus colour transitions
 --duration-slow     0.28s   drawer/sheet slide
 --duration-ambient  1.4s    ambient pulses (loading dots, thinking indicator)
+--duration-press    0.13s   button press-in / release
 --ease-standard     ease
 --ease-out          cubic-bezier(0.4, 0, 0.2, 1)
+--ease-out-strong   cubic-bezier(0.23, 1, 0.32, 1)    entrances / UI feedback — starts fast
+--ease-drawer       cubic-bezier(0.32, 0.72, 0, 1)    iOS-like sheet / drawer travel
+--ease-spring       cubic-bezier(0.34, 1.56, 0.64, 1) subtle overshoot — momentum entrances only
+--press-scale       0.97    default pressed scale — subtle, "the UI heard you"
+--press-scale-firm  0.94    small icon buttons can press a touch firmer
 ```
+
+## Stacking (z-index)
+
+Never write a literal `z-index` in app/component CSS — use the semantic ladder
+defined in `:root` in `app/globals.css` (`--z-float` 50 → `--z-overlay-top`
+1300, with the map's internal ladder `--z-map-base` 450 … `--z-map-toolbar`
+560 in between; see the token block for the full list with per-token comments).
+Each token's value equals the literal it replaced, so adopting one is never a
+stacking-order change. If two overlays must NOT tie, they get separate tokens
+(e.g. `--z-map-route-chip` 540 sits under `--z-map-chip` 541; `--z-map-suggest`
+512 under `--z-map-banner` 515). Component-internal stacking (0–20, local
+stacking contexts) stays as literals.
 
 **Rule: every animated property lives behind
 `@media (prefers-reduced-motion: no-preference)`**, or is cut to `0.01ms` by

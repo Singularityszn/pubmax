@@ -167,9 +167,11 @@
   --z-map-cards: 460;        /* poiLabelCard, landmarkCard */
   --z-map-hover: 470;        /* venueHoverCard + map price/layers FABs */
   --z-map-panel: 500;        /* routePanel, mapDrawer */
-  --z-map-banner: 515;       /* cityStatusBanner, citySuggestBanner */
+  --z-map-suggest: 512;      /* citySuggestBanner — below cityStatusBanner, as on main */
+  --z-map-banner: 515;       /* cityStatusBanner */
   --z-map-camera: 530;       /* mapCameraControls */
-  --z-map-chip: 541;         /* mappedRouteChip, activeRoundChip */
+  --z-map-route-chip: 540;   /* mappedRouteChip — below activeRoundChip, as on main */
+  --z-map-chip: 541;         /* activeRoundChip */
   --z-map-onboard-chip: 545; /* bandOnboardingChip, logIntentFallback */
   --z-map-toolbar: 560;      /* mapToolbar, citySwitcher */
   --z-nav: 650;              /* planning-open drawer lift */
@@ -860,7 +862,7 @@ input[type="range"] {
   position: absolute;
   left: 50%;
   bottom: 82px;
-  z-index: var(--z-map-chip);
+  z-index: var(--z-map-route-chip);
   display: flex;
   align-items: center;
   gap: 10px;
