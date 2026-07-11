@@ -4174,9 +4174,7 @@ button:disabled {
   .appShell.sheet-full .poiToggle,
   .appShell.sheet-full .bandPicker,
   .appShell.route-mapped .mapHeroCard,
-<<<<<<< HEAD
   .appShell.sheet-full .mapCameraControls,
-=======
   .appShell.planning-open .mapCameraControls,
   .appShell.planning-open .mapHeroCard,
   .appShell.planning-open .mappedRouteChip,
@@ -4185,7 +4183,6 @@ button:disabled {
   .appShell.planning-open .poiToggle,
   .appShell.planning-open .bandPicker,
   .appShell.planning-open .placeStoriesControl,
->>>>>>> b07822f (feat(map): stay on map after Start Round with Active Round chip)
   .appShell.sheet-full .placeStoriesControl,
   .appShell.detail-open .mappedRouteChip,
   .appShell.detail-open .activeRoundChip,
