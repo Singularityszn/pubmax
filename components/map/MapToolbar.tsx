@@ -118,9 +118,10 @@ export default function MapToolbar({
           className={planningOpen ? "planBtn active" : "planBtn"}
           onClick={onTogglePlanning}
           aria-pressed={planningOpen}
+          aria-label={planningOpen ? "Close plan" : "Plan tonight"}
         >
           <Route size={15} aria-hidden="true" />
-          <span className="planBtnFull">{planningOpen ? "Close planner" : "Plan a crawl"}</span>
+          <span className="planBtnFull">{planningOpen ? "Close plan" : "Plan tonight"}</span>
           <span className="planBtnShort">{planningOpen ? "Close" : "Plan"}</span>
         </button>
 

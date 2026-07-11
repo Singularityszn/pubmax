@@ -172,6 +172,21 @@ describe("derived key lists", () => {
     expect(drinkPinKindFromCategories(["vodka"], false)).toBe("spirits");
     expect(drinkPinKindFromCategories([], true)).toBe("cocktail");
     expect(drinkPinKindFromCategories(["wine"], false)).toBe("wine");
+    expect(drinkPinKindFromCategories(["champagne"], false)).toBe("wine");
+  });
+
+  it("drink pin draws do not throw for every kind × bucket", () => {
+    const kinds = ["pint", "wine", "cocktail", "spirits"] as const;
+    for (const kind of kinds) {
+      for (const bucket of [0, 1, 2, 3] as const) {
+        const key = drinkPinIconKey(kind, bucket);
+        const spec = MAP_ICON_SPECS.find((s) => s.ns === "drink" && s.key === key);
+        expect(spec, `spec ${key}`).toBeDefined();
+        const tallies = exercise(spec!);
+        expect(tallies.paths, `${key} path ops`).toBeGreaterThan(0);
+        expect(tallies.fills + tallies.strokes, `${key} paint ops`).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("contains every required landmark key", () => {
