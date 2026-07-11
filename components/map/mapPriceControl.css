@@ -20,7 +20,9 @@
   pointer-events: auto;
 }
 
-/* Compact colour key — plan: ≤£5.50 / £5.50–£7 / £7+ bottom-left. */
+/* Compact colour key — plan: ≤£5.50 / >£5.50–≤£7 / >£7 bottom-left.
+   Legend stays pointer-events: none (inherits from .mapPriceControl) so map
+   pans/zooms pass through the non-interactive colour key. */
 .mapPriceLegend {
   display: flex;
   flex-wrap: wrap;

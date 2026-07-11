@@ -1,7 +1,7 @@
 "use client";
 
 // Compact bottom-left price chrome — always-visible colour key (plan: ≤£5.50 /
-// £5.50–£7 / £7+) plus an optional filter popover. No heritage/writer rows.
+// >£5.50–≤£7 / >£7) plus an optional filter popover. No heritage/writer rows.
 
 import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -16,9 +16,14 @@ const PRICE_OPTIONS: { label: string; maxPrice: number }[] = [
   { label: "≤ £7", maxPrice: 7 },
 ];
 
+// Labels match priceBucket() inclusivity: ≤5.50 green, >5.50–≤7 amber, >7 red.
 const PRICE_LEGEND = [
   { label: "≤ £5.50", tone: "green" as const },
+<<<<<<< HEAD
   { label: "> £5.50 – £7", tone: "amber" as const },
+=======
+  { label: "> £5.50–≤ £7", tone: "amber" as const },
+>>>>>>> b2a3e5e (Fix leftover CodeRabbit nits from #101 and #103)
   { label: "> £7", tone: "red" as const },
 ];
 
