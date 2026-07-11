@@ -40,6 +40,7 @@ import {
   rasterize,
   type IconTokens,
 } from "@/lib/mapIcons";
+import { drinkAccentForVenue } from "@/lib/scrapedPubs";
 import {
   defaultPoiHidden,
   defaultPoiHiddenForViewport,
@@ -380,6 +381,11 @@ function pubsToGeoJSON(
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
       const lens = drinkCategory?.trim().toLowerCase() ?? "";
+      const hintCategories = venue.filterHints?.drinkCategories;
+      const accentCategories =
+        hintCategories && hintCategories.length > 0
+          ? hintCategories
+          : [drinkAccentForVenue(venue.id)];
       const drinkKind =
         lens === "beer"
           ? "pint"
@@ -391,10 +397,16 @@ function pubsToGeoJSON(
                   Boolean(venue.filterHints?.amenities.cocktails),
               )
             : drinkPinKindFromCategories(
-                venue.filterHints?.drinkCategories,
+                accentCategories,
                 Boolean(venue.amenities.cocktails) ||
                   Boolean(venue.filterHints?.amenities.cocktails),
               );
+      const scraped = Boolean(
+        venue.filterHints?.scraped ||
+          venue.sourceDatasets?.some((source) =>
+            /london_chain|greene.?king|nicholson|youngs/i.test(source),
+          ),
+      );
       return {
         type: "Feature" as const,
         properties: {
@@ -405,6 +417,7 @@ function pubsToGeoJSON(
           drops: Boolean(signals?.hasPintDrops),
           serves,
           drinkKind,
+          scraped,
           icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
@@ -1507,10 +1520,28 @@ export default function PubMapCanvas({
           type: "geojson",
           data: pubsDataRef.current,
           cluster: true,
-          clusterRadius: 28,
-          clusterMaxZoom: 14,
+          // Tighter clusters + earlier uncluster so drink silhouettes (pint /
+          // wine / cocktail / spirits) dominate sooner — MAP_MARKERS_PLAN.
+          clusterRadius: 22,
+          clusterMaxZoom: 12,
         });
       }
+      // Scraped-pub halo: warm brass ring so Young's / Nicholson's / gazetteer
+      // pins read as "from our scrapes" without fighting the drink fill.
+      addLayerOnce({
+        id: "pubs-scraped-halo",
+        type: "circle",
+        source: "pubs",
+        filter: ["all", ["!", ["has", "point_count"]], ["get", "scraped"]],
+        paint: {
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 13],
+          "circle-stroke-color": tokens.brass,
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.4, 15, 2.2],
+          "circle-stroke-opacity": dark ? 0.75 : 0.7,
+          "circle-blur": 0.12,
+        },
+      });
       // Pint-Drops ring: a river-toned glow + a crisp outline so community
       // activity reads at a glance without muddying the price fill under it.
       addLayerOnce({
