@@ -83,7 +83,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!cityId) return jsonNoStore({ error: "cityId is invalid." }, { status: 400 });
 
   const limiterKey = `concierge:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
+  // Fail CLOSED: concierge calls a paid LLM. If the durable limiter can't
+  // answer (Supabase misconfig/outage), refuse rather than fall back to a
+  // scriptable per-instance budget (B2).
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, { failClosed: true })) {
     return jsonNoStore({ error: "Too many concierge requests, slow down." }, { status: 429 });
   }
 
