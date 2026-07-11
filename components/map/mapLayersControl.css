@@ -114,6 +114,11 @@
   color: var(--ink-soft);
   cursor: pointer;
   touch-action: manipulation;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.mapLayersClose:active {
+  transform: scale(0.94);
 }
 
 .mapLayersHint {
@@ -205,18 +210,24 @@
       calc(100vh - var(--map-top-clearance, 80px) - var(--mobile-tab-clearance, 72px) - 120px)
     );
   }
+
+  .mapLayersChip {
+    min-height: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .mapLayersFab,
   .mapLayersChip,
+  .mapLayersClose,
   .mapLayersPanel {
     transition: none;
     animation: none;
   }
 
   .mapLayersFab:active,
-  .mapLayersChip:active {
+  .mapLayersChip:active,
+  .mapLayersClose:active {
     transform: none;
   }
 }

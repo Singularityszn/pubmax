@@ -151,12 +151,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   border-radius: 999px;
   color: var(--ink-soft);
   text-decoration: none;
+}
+.siteNavBell svg {
+  width: 20px;
+  height: 20px;
 }
 .siteNavBell:hover {
   color: var(--ink);
@@ -181,6 +185,16 @@
   font-weight: 700;
   line-height: 16px;
   text-align: center;
+}
+
+/* Desktop utilities: 20px icons in 40px hit targets (was ~16–18 in 34–36). */
+.siteNavBar .themeToggle {
+  width: 40px;
+  height: 40px;
+}
+.siteNavBar .themeToggle svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* Laptop/tablet density: keep navigation usable but avoid two-row pills that
@@ -211,11 +225,6 @@
   .siteNavLink {
     padding: 0 7px;
     font-size: 0.74rem;
-  }
-
-  .siteNavBell {
-    width: 32px;
-    height: 32px;
   }
 }
 
@@ -297,15 +306,23 @@
   }
 
   .siteNavBell {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .siteNavBar .themeToggle {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .siteNavBar .authSignIn {
+    min-width: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
   }
 
   .siteNavBar .authUser {

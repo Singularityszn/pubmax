@@ -107,8 +107,8 @@
 
 @media (max-width: 640px) {
   .citySwitcherTrigger {
-    min-height: 36px;
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 8px;
     font-size: 0.66rem;
     line-height: 1;
@@ -129,7 +129,8 @@
   .citySwitcherList {
     right: 0;
     left: auto;
-    z-index: 50;
+    /* Above toolbar (560) so the list stays tappable. */
+    z-index: 570;
   }
 }
 

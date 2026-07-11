@@ -133,6 +133,11 @@
   color: var(--ink-soft);
   cursor: pointer;
   touch-action: manipulation;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.mapPriceClose:active {
+  transform: scale(0.94);
 }
 
 .mapPriceHint {
@@ -226,18 +231,24 @@
     );
     overflow: auto;
   }
+
+  .mapPriceChip {
+    min-height: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .mapPriceFab,
   .mapPriceChip,
+  .mapPriceClose,
   .mapPricePanel {
     transition: none;
     animation: none;
   }
 
   .mapPriceFab:active,
-  .mapPriceChip:active {
+  .mapPriceChip:active,
+  .mapPriceClose:active {
     transform: none;
   }
 }

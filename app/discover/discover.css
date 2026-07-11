@@ -119,6 +119,8 @@
   color: var(--river);
   font-weight: 700;
   text-decoration: underline;
+  text-decoration-color: var(--river);
+  text-underline-offset: 3px;
 }
 
 /* Wave I3 — layout-matched loading skeleton for tonight rankings */
@@ -217,8 +219,10 @@
     box-shadow 0.16s ease;
 }
 
-.leaderboard tbody tr:hover {
-  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .leaderboard tbody tr:hover {
+    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+  }
 }
 
 .leaderboard tbody tr:last-child {
@@ -267,7 +271,8 @@
 .leaderboardPub:hover {
   color: var(--brass);
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--river) 45%, transparent);
+  text-underline-offset: 3px;
 }
 
 .leaderboardPint {
@@ -305,6 +310,8 @@
 .cityRivalryLink:hover .leaderboardPub {
   color: var(--river);
   text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--river) 45%, transparent);
+  text-underline-offset: 3px;
 }
 
 .cityRivalryLink:focus-visible {
@@ -370,8 +377,10 @@
     box-shadow 0.16s ease;
 }
 
-.tonightRow:hover {
-  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .tonightRow:hover {
+    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+  }
 }
 
 .tonightRow:last-child {
@@ -414,6 +423,8 @@
 .tonightPub:hover {
   color: var(--brass);
   text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--river) 45%, transparent);
+  text-underline-offset: 3px;
 }
 
 .tonightPub:focus-visible {
@@ -483,9 +494,11 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.tvnCard:hover {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .tvnCard:hover {
+    border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
+    box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+  }
 }
 
 .tvnName {
@@ -505,6 +518,8 @@
 .tvnLink:hover {
   color: var(--brass);
   text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--river) 45%, transparent);
+  text-underline-offset: 3px;
 }
 
 .tvnLink:focus-visible {
@@ -645,9 +660,11 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.editorialCard:hover {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .editorialCard:hover {
+    border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
+    box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+  }
 }
 
 .discoverEmpty a:focus-visible,
@@ -734,13 +751,15 @@
   }
 }
 
-/* Motion (gated): the card lift only where motion is welcome. */
-@media (prefers-reduced-motion: no-preference) {
-  .editorialCard:hover,
-  .tvnCard:hover {
-    transform: translateY(-2px);
-    transition: border-color 0.18s ease, box-shadow 0.18s ease,
-      transform 0.18s ease;
+/* Motion (gated): the card lift only where hover is honest and motion is welcome. */
+@media (hover: hover) and (pointer: fine) {
+  @media (prefers-reduced-motion: no-preference) {
+    .editorialCard:hover,
+    .tvnCard:hover {
+      transform: translateY(-2px);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease,
+        transform 0.18s ease;
+    }
   }
 }
 
@@ -785,8 +804,10 @@
   transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.topRatedItem:hover {
-  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .topRatedItem:hover {
+    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+  }
 }
 
 .topRatedRank {
@@ -799,11 +820,13 @@
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .discoverExplore .catShowcase__link:hover,
-  .topRatedItem:hover,
-  .editorialLink:hover {
-    transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  @media (prefers-reduced-motion: no-preference) {
+    .discoverExplore .catShowcase__link:hover,
+    .topRatedItem:hover,
+    .editorialLink:hover {
+      transform: translateY(-2px);
+    }
   }
 }
 
@@ -897,6 +920,8 @@
 
 .discoverBrandAll:hover {
   text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--river) 45%, transparent);
+  text-underline-offset: 3px;
 }
 
 .discoverBrandDek,

@@ -144,7 +144,7 @@
     /* Visible so CitySwitcher dropdown can escape; clip only the search field. */
     overflow: visible;
     /* Match .siteNavBarFloating padding/radius so the two chrome cards read as twins. */
-    padding: 2px 7px;
+    padding: 4px 8px;
     gap: 0;
     min-height: 40px;
     border-radius: var(--map-chrome-radius, 14px);
@@ -153,8 +153,8 @@
 
   .mapToolbarRow {
     width: 100%;
-    gap: 4px;
-    min-height: 36px;
+    gap: 6px;
+    min-height: 44px;
   }
 
   .mapToolbarSearch {
@@ -173,12 +173,18 @@
   }
 
   .mapToolbarDrinksBtn {
-    min-height: 36px;
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 8px;
     font-size: 0.66rem;
     line-height: 1;
     box-sizing: border-box;
+  }
+
+  .mapToolbarDrinksBtn.isActive {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+    border-color: var(--brass);
   }
 
   /* Desktop drink lens stays in the expand panel on phones. */
@@ -187,8 +193,8 @@
   }
 
   .planBtn {
-    min-height: 36px;
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
     min-width: 4.25rem;
     padding: 0 10px;
     font-size: 0.72rem;
