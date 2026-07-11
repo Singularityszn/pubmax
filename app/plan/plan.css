@@ -332,6 +332,23 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   .planRoute__signal--loading { animation: planShimmer 1.3s linear infinite; }
 }
 
+/* Primary CTA link — used on the not-found surface's "Start your own plan".
+   Mirrors the composer's primary button (ink fill, paper ink) so the branded
+   404 offers one clear, on-brand route on rather than a bare Next 404. */
+.planPage__cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 11px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 800;
+  text-decoration: none;
+}
+.planPage__cta:hover { background: color-mix(in srgb, var(--ink) 88%, var(--plan-accent)); }
+.planPage__cta:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
+
 @media (prefers-reduced-motion: reduce) {
   .planPage *, .planPage *::before, .planPage *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
