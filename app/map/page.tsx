@@ -8,6 +8,7 @@ import {
   cityMapOgTitle,
   cityMapShareUrl,
   firstSearchParam,
+  stopCountFromPubsParam,
 } from "@/lib/cityShare";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
@@ -21,7 +22,9 @@ export async function generateMetadata({
 }: MapPageProps): Promise<Metadata> {
   const sp = searchParams ? await searchParams : undefined;
   const band = firstSearchParam(sp?.band);
-  const opts = { band };
+  const crawl = firstSearchParam(sp?.crawl);
+  const stopCount = stopCountFromPubsParam(firstSearchParam(sp?.pubs));
+  const opts = { band, crawl, stopCount };
   const title = cityMapOgTitle("london", opts);
   const description = cityMapOgDescription("london", opts);
   const url = cityMapShareUrl("london", opts);

@@ -567,9 +567,11 @@ export default function PubMap({
     onSheetDragEnd,
   } = useSheetDrag(dismissSheet);
 
-  const dismissPlannerSheet = useCallback(() => {
+  // Ref so fling-dismiss can call the same closePlanning as chrome buttons
+  // without a hook ↔ callback cycle (useSheetDrag needs onDismiss up front).
+  const closePlanningRef = useRef<() => void>(() => {
     setPlanningOpen(false);
-  }, []);
+  });
   const {
     sheetSnap: plannerSheetSnap,
     setSheetSnap: setPlannerSheetSnap,
@@ -578,19 +580,37 @@ export default function PubMap({
     onSheetDragStart: onPlannerSheetDragStart,
     onSheetDragMove: onPlannerSheetDragMove,
     onSheetDragEnd: onPlannerSheetDragEnd,
-  } = useSheetDrag(dismissPlannerSheet);
-
-  const openPlanning = useCallback(() => {
-    setPlanningOpen(true);
-    setPlannerSheetSnap("half");
-    setPlannerSheetDragY(null);
-  }, [setPlannerSheetDragY, setPlannerSheetSnap]);
+  } = useSheetDrag(() => {
+    closePlanningRef.current();
+  });
 
   const closePlanning = useCallback(() => {
     setPlanningOpen(false);
     setPlannerSheetSnap("half");
     setPlannerSheetDragY(null);
   }, [setPlannerSheetDragY, setPlannerSheetSnap]);
+  closePlanningRef.current = closePlanning;
+
+  const openPlanning = useCallback(() => {
+    // Mobile: mutual exclusion with the venue sheet (planner stacks above it
+    // in z-order; keeping both open made Escape/dismiss order confusing).
+    if (isMobileViewport()) {
+      setSelectedVenueId("");
+      closeComposer();
+      setSheetSnap("half");
+      setSheetDragY(null);
+    }
+    setPlanningOpen(true);
+    setPlannerSheetSnap("half");
+    setPlannerSheetDragY(null);
+  }, [
+    closeComposer,
+    setPlannerSheetDragY,
+    setPlannerSheetSnap,
+    setSelectedVenueId,
+    setSheetDragY,
+    setSheetSnap,
+  ]);
 
   const togglePlanning = useCallback(() => {
     if (planningOpen) closePlanning();
@@ -962,20 +982,21 @@ export default function PubMap({
           search.focus();
         }
       } else if (event.key === "Escape") {
-        // Close the venue detail first; a second Escape closes the planner.
-        setSelectedVenueId((current) => {
-          if (current) {
-            closeComposer();
-            return "";
-          }
+        // Topmost first: planner (higher z on mobile) then venue detail.
+        if (planningOpen) {
           closePlanning();
-          return current;
+          return;
+        }
+        setSelectedVenueId((current) => {
+          if (!current) return current;
+          closeComposer();
+          return "";
         });
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeComposer, closePlanning]);
+  }, [closeComposer, closePlanning, planningOpen]);
 
   const toggleBuiltStop = useCallback((id: string) => {
     setBuiltIds((current) =>

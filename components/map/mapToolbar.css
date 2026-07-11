@@ -188,6 +188,7 @@
   .planBtn {
     min-height: 36px;
     height: 36px;
+    min-width: 4.25rem;
     padding: 0 10px;
     font-size: 0.72rem;
     font-weight: 900;
