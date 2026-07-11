@@ -55,6 +55,8 @@ import {
 } from "@/lib/categoryColors";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
+import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatFreshness, formatObservedAt, formatPrice, type Venue } from "@/lib/venues";
 import { directVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -154,6 +156,10 @@ type PubMapCanvasProps = {
    * city-aware Layers chrome. Defaults to london for back-compat.
    */
   cityId?: CityId;
+  /** CityMCP tonight opportunities (London). Drawn when tonightOverlayVisible. */
+  tonightOpportunities?: ThingsToDoOpportunity[];
+  tonightOverlayVisible?: boolean;
+  onTonightOpportunityClick?: (op: ThingsToDoOpportunity) => void;
 };
 
 // OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
@@ -501,6 +507,30 @@ const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
   iconId("tfl", "river"),
   iconId("tfl", "underground"),
 ];
+const TONIGHT_OPPORTUNITY_LAYERS = [
+  "tonight-halo",
+  "tonight-point",
+  "tonight-label",
+] as const;
+
+function normaliseFeatureString(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function opportunityForFeature(
+  props: GeoJSON.GeoJsonProperties | undefined,
+  opportunities: readonly ThingsToDoOpportunity[],
+): ThingsToDoOpportunity | undefined {
+  const title = normaliseFeatureString(props?.title);
+  const placeName = normaliseFeatureString(props?.placeName);
+  return opportunities.find((op) => {
+    const opTitle = normaliseFeatureString(op.title);
+    const opPlaceName = normaliseFeatureString(op.place?.name);
+    if (title && placeName) return opTitle === title && opPlaceName === placeName;
+    if (title) return opTitle === title;
+    return Boolean(placeName && opPlaceName === placeName);
+  });
+}
 
 // Issue #16 — parallel coloured tube lines. The known sub-surface fan lines
 // (Metropolitan / Circle / H&C / District) run four-abreast through shared
@@ -647,6 +677,9 @@ export default function PubMapCanvas({
   cityLandmarks = londonLandmarks,
   cityStoryBands = LONDON_STORY_BANDS,
   cityId = DEFAULT_CITY_ID,
+  tonightOpportunities = [],
+  tonightOverlayVisible = false,
+  onTonightOpportunityClick,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
@@ -762,7 +795,10 @@ export default function PubMapCanvas({
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
+  const onTonightOpportunityClickRef = useRef(onTonightOpportunityClick);
   const cityLandmarksRef = useRef(cityLandmarks);
+  const tonightOpportunitiesRef = useRef(tonightOpportunities);
+  const tonightOverlayVisibleRef = useRef(tonightOverlayVisible);
   const hoverDetailLoadingRef = useRef<Set<string>>(new Set());
   const rememberHoverDetail = useCallback((id: string, venue: Venue | null) => {
     const next = withBoundedHoverDetailCache(hoverDetailsRef.current, id, venue);
@@ -774,8 +810,16 @@ export default function PubMapCanvas({
     onRouteStopClickRef.current = onRouteStopClick;
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
+    onTonightOpportunityClickRef.current = onTonightOpportunityClick;
     cityLandmarksRef.current = cityLandmarks;
-  }, [onVenueClick, onRouteStopClick, onVenuePrefetch, onLandmarkSelect, cityLandmarks]);
+  }, [
+    onVenueClick,
+    onRouteStopClick,
+    onVenuePrefetch,
+    onLandmarkSelect,
+    onTonightOpportunityClick,
+    cityLandmarks,
+  ]);
 
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
@@ -795,6 +839,9 @@ export default function PubMapCanvas({
     type: "FeatureCollection",
     features: [],
   });
+  const tonightDataRef = useRef<GeoJSON.FeatureCollection>(
+    opportunitiesToGeoJSON([]),
+  );
   // Story-band corridor (a tinted line through the anchors); reseeded after a
   // theme setStyle wipes sources, same pattern as the other data refs.
   const bandCorridorRef = useRef<GeoJSON.FeatureCollection>({
@@ -1697,6 +1744,73 @@ export default function PubMapCanvas({
         paint: { "text-color": dark ? tokens.ink : tokens.paper },
       });
 
+      // --- CityMCP "tonight" opportunities: amber/moon pins above route stops,
+      // with visibility controlled by parent overlay state and data reseeded via ref.
+      try {
+        const tonightVisibility: "visible" | "none" = tonightOverlayVisibleRef.current
+          ? "visible"
+          : "none";
+        if (!map.getSource("tonight-opportunities")) {
+          map.addSource("tonight-opportunities", {
+            type: "geojson",
+            data: tonightDataRef.current,
+          });
+        }
+        addLayerOnce({
+          id: "tonight-halo",
+          type: "circle",
+          source: "tonight-opportunities",
+          minzoom: 10.5,
+          layout: { visibility: tonightVisibility },
+          paint: {
+            "circle-color": withAlpha(tokens.amber, dark ? 0.24 : 0.2),
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10.5, 9, 15, 17],
+            "circle-stroke-color": withAlpha(tokens.riverBright, dark ? 0.7 : 0.55),
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10.5, 1.1, 15, 2],
+            "circle-stroke-opacity": 0.8,
+            "circle-blur": 0.35,
+          },
+        });
+        addLayerOnce({
+          id: "tonight-point",
+          type: "circle",
+          source: "tonight-opportunities",
+          minzoom: 10.5,
+          layout: { visibility: tonightVisibility },
+          paint: {
+            "circle-color": tokens.amber,
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10.5, 4.2, 15, 6.6],
+            "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
+            "circle-stroke-width": 1.4,
+            "circle-opacity": 0.96,
+          },
+        });
+        addLayerOnce({
+          id: "tonight-label",
+          type: "symbol",
+          source: "tonight-opportunities",
+          minzoom: 13,
+          layout: {
+            "text-field": ["get", "title"],
+            "text-font": textFont,
+            "text-size": ["interpolate", ["linear"], ["zoom"], 13, 9, 16, 10.5],
+            "text-offset": [0, 0.95],
+            "text-anchor": "top",
+            "text-optional": true,
+            "text-allow-overlap": false,
+            "text-ignore-placement": false,
+            visibility: tonightVisibility,
+          },
+          paint: {
+            "text-color": dark ? tokens.ink : tokens.inkDeep,
+            "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+            "text-halo-width": 1.25,
+          },
+        });
+      } catch {
+        // CityMCP pins are an additive overlay; a style hiccup must not break the pub map.
+      }
+
       // Flush any mutations that arrived while the style was mid-load (initial
       // load or a theme swap). buildScene has just re-seeded every source/layer
       // from the data refs, so these queued fns (filters, paint, visibility,
@@ -1820,6 +1934,7 @@ export default function PubMapCanvas({
     const PUB_FIRST_LAYERS = [
       "pubs-point",
       "route-stops",
+      "tonight-point",
       "clusters",
       "landmarks-icon",
       "pois-dot",
@@ -1871,6 +1986,20 @@ export default function PubMapCanvas({
           const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
           cinematic({ center: [lng, lat], zoom, duration: 700 });
         });
+        return;
+      }
+
+      const tonightHit = byLayer.get("tonight-point");
+      if (tonightHit) {
+        const opportunity = opportunityForFeature(
+          tonightHit.properties as GeoJSON.GeoJsonProperties | undefined,
+          tonightOpportunitiesRef.current,
+        );
+        if (!opportunity) return;
+        selectLandmark(null);
+        setHoveredVenue(null);
+        setActivePoi(null);
+        onTonightOpportunityClickRef.current?.(opportunity);
         return;
       }
 
@@ -1932,6 +2061,7 @@ export default function PubMapCanvas({
       "pubs-point",
       "clusters",
       "route-stops",
+      "tonight-point",
       "landmarks-icon",
       "pois-dot",
       "pois-transport-major",
@@ -2097,6 +2227,24 @@ export default function PubMapCanvas({
       );
     });
   }, [venues, venueSignals, favoritePint, drinkCategory, mapReady, applyToMap]);
+
+  // CityMCP tonight opportunities → source data + overlay visibility. Kept out
+  // of the mount effect deps so live opportunity refreshes never remount MapLibre.
+  useEffect(() => {
+    tonightDataRef.current = opportunitiesToGeoJSON(tonightOpportunities);
+    tonightOpportunitiesRef.current = tonightOpportunities;
+    tonightOverlayVisibleRef.current = tonightOverlayVisible;
+    if (!mapReady) return;
+    applyToMap("tonight:data+visibility", (map) => {
+      (map.getSource("tonight-opportunities") as maplibregl.GeoJSONSource | undefined)?.setData(
+        tonightDataRef.current,
+      );
+      const visibility: "visible" | "none" = tonightOverlayVisible ? "visible" : "none";
+      for (const layer of TONIGHT_OPPORTUNITY_LAYERS) {
+        if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visibility);
+      }
+    });
+  }, [tonightOpportunities, tonightOverlayVisible, mapReady, applyToMap]);
 
   // POIs load once (client fetch) and feed the "pois" source.
   // Non-London cities pass poisPath=null → empty layer, no 404.
