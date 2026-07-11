@@ -33,13 +33,17 @@ import MapToolbar from "@/components/map/MapToolbar";
 import MapPriceControl from "@/components/map/MapPriceControl";
 import CitySuggestBanner from "@/components/map/CitySuggestBanner";
 import CityStatusBanner from "@/components/map/CityStatusBanner";
+import TonightOverlayChip from "@/components/map/TonightOverlayChip";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
+import { useCrawlJourneys } from "@/components/map/useCrawlJourneys";
+import { useTonightOpportunities } from "@/components/map/useTonightOpportunities";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
+import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import {
   clearFavoritePint,
   getFavoritePint,
@@ -327,6 +331,7 @@ function useLogIntent(deps: {
 // same visit doesn't re-nag, but a fresh session gets the offer again. sessionStorage
 // (not localStorage) keeps it a gentle, per-visit prompt.
 const ONBOARDING_DISMISSED_KEY = "pubmax_onboarding_dismissed";
+const TONIGHT_OVERLAY_DISMISSED_KEY = "pubmaxx.tonightOverlay.dismissed";
 const EMPTY_ROUTE: Venue[] = [];
 
 const DETAIL_STATUS_STYLE: CSSProperties = {
@@ -377,6 +382,25 @@ function readOnboardingDismissed(): boolean {
   }
 }
 
+function readTonightOverlayDismissed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(TONIGHT_OVERLAY_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function normaliseTonightVenueLookup(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 // G3: per-band session dismiss for the Place story deep-link chip. Distinct from
 // ONBOARDING_DISMISSED_KEY so dismissing one never silences the other.
 function readBandChipDismissed(bandId: string): boolean {
@@ -394,6 +418,7 @@ export default function PubMap({
   cityId?: CityId;
 }) {
   const city = getCity(cityId);
+  const isLondon = cityId === "london";
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
   const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
@@ -510,6 +535,10 @@ export default function PubMap({
     return new Set([seed.bandId]);
   });
   const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
+  const [tonightOverlayVisible, setTonightOverlayVisible] = useState(false);
+  const [tonightDismissed, setTonightDismissed] = useState<boolean>(
+    readTonightOverlayDismissed,
+  );
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
@@ -520,6 +549,8 @@ export default function PubMap({
   // Live map pins (issue #37): refetch the drops layer on a new-drop signal (or
   // a 30s poll when realtime is unavailable). Self-contained, signal-only.
   useLiveDrops(pintDrops.refreshAllDrops);
+  const { opportunities: tonightOpportunities, status: tonightStatus } =
+    useTonightOpportunities(isLondon);
 
   // Mobile bottom-sheet drag (GH #17) — state + pointer handlers live in
   // useSheetDrag. Two instances: venue (right) and planner (left). A fling
@@ -720,6 +751,11 @@ export default function PubMap({
     [builtIds, venueById],
   );
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
+  const {
+    byToIndex: journeyByToIndex,
+    loading: journeyLoading,
+    totalMinutes: journeyTotalMinutes,
+  } = useCrawlJourneys(route, isLondon);
   const routeMappedActive = routeMapped && route.length >= 2;
   const routeForMap = useMemo(
     () => (routeMappedActive ? route : EMPTY_ROUTE),
@@ -741,6 +777,15 @@ export default function PubMap({
   );
   const selectedVenueResolvable = selectedVenueId ? venueById.has(selectedVenueId) : false;
   const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
+
+  const venueIdByNormalisedName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const venue of venues) {
+      const key = normaliseTonightVenueLookup(venue.name);
+      if (key && !map.has(key)) map.set(key, venue.id);
+    }
+    return map;
+  }, [venues]);
 
   // Keep the URL in sync so "Copy link" shares the current crawl.
   useCrawlUrlSync(
@@ -776,6 +821,11 @@ export default function PubMap({
     }
     return refreshVenueDrops(selectedId);
   }, [selectedId, refreshVenueDrops]);
+
+  useEffect(() => {
+    if (tonightStatus !== "ready" || tonightDismissed) return;
+    Promise.resolve().then(() => setTonightOverlayVisible(true));
+  }, [tonightStatus, tonightDismissed]);
 
   // Refresh-safety net: mirror the hand-built stops to localStorage. This effect
   // ONLY writes storage (no setState — react-hooks/set-state-in-effect is an
@@ -850,6 +900,32 @@ export default function PubMap({
   const changeSavedOnly = useCallback((next: boolean) => {
     if (next) setSavedIds(readSavedVenueIds());
     setSavedOnly(next);
+  }, []);
+
+  const handleTonightOpportunityClick = useCallback(
+    (op: ThingsToDoOpportunity) => {
+      const label = op.place?.name?.trim() || op.title.trim();
+      if (!label) return;
+      const venueId = venueIdByNormalisedName.get(normaliseTonightVenueLookup(label));
+      if (venueId) {
+        selectVenue(venueId);
+        return;
+      }
+      setFilters((current) => ({ ...current, query: label }));
+    },
+    [selectVenue, venueIdByNormalisedName],
+  );
+
+  const dismissTonightOverlay = useCallback(() => {
+    setTonightDismissed(true);
+    setTonightOverlayVisible(false);
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem(TONIGHT_OVERLAY_DISMISSED_KEY, "1");
+      } catch {
+        // Best-effort; in-memory state still hides the chip for this session.
+      }
+    }
   }, []);
 
   // Dismiss the §4.5 onboarding overlay and remember it for the session. Event
@@ -1237,6 +1313,9 @@ export default function PubMap({
           cityLandmarks={cityLandmarks}
           cityStoryBands={cityStoryBands}
           cityId={cityId}
+          tonightOpportunities={tonightOpportunities}
+          tonightOverlayVisible={isLondon && tonightOverlayVisible && !tonightDismissed}
+          onTonightOpportunityClick={handleTonightOpportunityClick}
         />
         <MapToolbar
           query={filters.query}
@@ -1262,7 +1341,15 @@ export default function PubMap({
           cityId={cityId}
         />
         <CitySuggestBanner cityId={cityId} />
-        {cityId === "london" ? <CityStatusBanner cityId={cityId} /> : null}
+        {isLondon ? <CityStatusBanner cityId={cityId} /> : null}
+        {isLondon && tonightStatus === "ready" && !tonightDismissed ? (
+          <TonightOverlayChip
+            count={tonightOpportunities.length}
+            active={tonightOverlayVisible}
+            onToggle={() => setTonightOverlayVisible((visible) => !visible)}
+            onDismiss={dismissTonightOverlay}
+          />
+        ) : null}
         {logIntentFallbackVisible ? (
           <div className="logIntentFallback" role="status" aria-live="polite">
             <div>
@@ -1512,6 +1599,9 @@ export default function PubMap({
               onSelectVenue={selectVenue}
               onToggleStop={toggleBuiltStop}
               onReverseRoute={reverseRoute}
+              journeyByToIndex={journeyByToIndex}
+              journeyLoading={journeyLoading}
+              journeyTotalMinutes={journeyTotalMinutes}
               cityDisplayName={city.displayName}
               cityId={cityId}
               poisPath={city.poisPath}
