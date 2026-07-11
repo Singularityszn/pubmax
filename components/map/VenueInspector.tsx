@@ -50,7 +50,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
-import { directVenueImageUrl } from "@/lib/venueImages";
+import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import { bandsForVenue, STORY_BANDS, type StoryBand } from "@/lib/storyBands";
 import { landmarks as londonLandmarks, nearestLandmarks, type Landmark } from "@/lib/landmarks";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
@@ -346,7 +346,7 @@ export default function VenueInspector({
     setMenuViewVenueId(venue.id);
     setMenuView({ mode: "hub" });
   }
-  const venueImageUrl = directVenueImageUrl(venue.imageUrl);
+  const venueImageUrl = proxiedVenueImageUrl(venue.imageUrl);
 
   // Place stories (Wave D): which curated corridors pass through this venue,
   // plus nearby landmark names for the Lore "Around here" section.

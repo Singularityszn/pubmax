@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
-import { directVenueImageUrl } from "@/lib/venueImages";
+import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import { firstHttp } from "@/lib/httpUrl";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import {
@@ -46,8 +46,8 @@ export async function listScrapedPubs(): Promise<ScrapedPub[]> {
     const source = normaliseScrapedSource(record.source);
     const drinkAccent = drinkAccentForVenue(id);
     const tilePhoto = record.categoryTiles?.find((tile) => tile.imageUrl)?.imageUrl;
-    const venuePhoto = venue ? directVenueImageUrl(venue.imageUrl) : "";
-    const photoUrl = directVenueImageUrl(tilePhoto ?? "") || venuePhoto || undefined;
+    const venuePhoto = venue ? proxiedVenueImageUrl(venue.imageUrl) : "";
+    const photoUrl = proxiedVenueImageUrl(tilePhoto ?? "") || venuePhoto || undefined;
 
     pubs.push({
       id,
