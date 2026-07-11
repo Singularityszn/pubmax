@@ -14,11 +14,25 @@ export function isCuratedCrawlArrival(search: string): boolean {
 }
 
 /**
+ * Outer-borough / place browse deep-links (`?q=Barnet`, `?q=Croydon&mode=suggest`).
+ * Map-first: frame the filtered venues; keep the planner closed.
+ * Excludes drink / crawl / pubs arrivals that also carry `q=`.
+ */
+export function isBoroughBrowseArrival(search: string): boolean {
+  if (!/[?&]q=/.test(search)) return false;
+  if (isDrinkShapeArrival(search)) return false;
+  if (isCuratedCrawlArrival(search)) return false;
+  if (/[?&]pubs=/.test(search)) return false;
+  return true;
+}
+
+/**
  * Whether a clean city map arrival should call `fitCityBounds()` once.
  *
- * Skips when the URL carries drink / crawl / pubs intent, or when a mapped
- * route is already seeded — those arrivals own the camera (filter framing or
- * `fitRoute`), and fighting them feels broken.
+ * Skips when the URL carries drink / crawl / pubs / borough-browse intent, or
+ * when a mapped route is already seeded — those arrivals own the camera
+ * (filter framing, query-venue fit, or `fitRoute`), and fighting them feels
+ * broken.
  */
 export function shouldFitCityBoundsOnArrival(
   search: string,
@@ -27,9 +41,18 @@ export function shouldFitCityBoundsOnArrival(
   if (hasMappedRoute) return false;
   if (isDrinkShapeArrival(search)) return false;
   if (isCuratedCrawlArrival(search)) return false;
+  if (isBoroughBrowseArrival(search)) return false;
   // Bare `?pubs=` without mode=build still seeds stops — leave the camera alone.
   if (/[?&]pubs=/.test(search)) return false;
   return true;
+}
+
+/**
+ * Borough browse (`?q=`): fit the filtered venue set once after load.
+ * Query-venue framing owns the camera — not city bounds.
+ */
+export function shouldFitQueryVenuesOnArrival(search: string): boolean {
+  return isBoroughBrowseArrival(search);
 }
 
 /**
@@ -37,7 +60,8 @@ export function shouldFitCityBoundsOnArrival(
  *
  * Opens for shared/restored crawls (`builtIds` from storage, bare `mode=build`,
  * `style=` / `mode=`). Stays closed for drink-shape arrivals, curated crawl
- * arrivals (map-first polyline), and borough browse deep-links (`?q=` only).
+ * arrivals (map-first polyline), and borough browse deep-links (`?q=` —
+ * always map-first, even when `mode=` / `style=` is also present).
  */
 export function shouldOpenPlanningInitially(
   seededBuiltIds: string[],
@@ -49,6 +73,8 @@ export function shouldOpenPlanningInitially(
   if (isDrinkShapeArrival(search)) return false;
   // Curated check before mode=build — curated URLs always carry mode=build.
   if (isCuratedCrawlArrival(search)) return false;
+  // Borough browse always closes the planner (map-first), even with mode=/style=.
+  if (isBoroughBrowseArrival(search)) return false;
   return (
     seededBuiltIds.length > 0 || seededMode === "build" || /[?&](style|mode)=/.test(search)
   );

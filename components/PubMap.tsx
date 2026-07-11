@@ -73,7 +73,12 @@ import {
   shouldShowCuratedOnboarding,
   truncateBandCopy,
 } from "@/lib/bandOnboardingChip";
-import { isDrinkShapeArrival, shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially } from "@/lib/mapArrival";
+import {
+  isDrinkShapeArrival,
+  shouldFitCityBoundsOnArrival,
+  shouldFitQueryVenuesOnArrival,
+  shouldOpenPlanningInitially,
+} from "@/lib/mapArrival";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -1257,6 +1262,7 @@ export default function PubMap({
             arrivalSearch,
             seed.routeMapped,
           )}
+          fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
           poisPath={city.poisPath}
           transitLinesPath={city.transitLinesPath}
           cityLandmarks={cityLandmarks}

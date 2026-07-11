@@ -141,8 +141,17 @@ export default function MapLayersControl({
         title={layersCopy.title}
         onClick={() => (open ? closePanel() : openPanel())}
       >
-        <Layers size={18} aria-hidden="true" />
-        <span>Layers</span>
+        {open ? (
+          <>
+            <X size={18} aria-hidden="true" />
+            <span>Close</span>
+          </>
+        ) : (
+          <>
+            <Layers size={18} aria-hidden="true" />
+            <span>Layers</span>
+          </>
+        )}
       </button>
 
       {open ? (

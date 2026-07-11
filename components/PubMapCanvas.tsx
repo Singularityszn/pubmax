@@ -119,6 +119,11 @@ type PubMapCanvasProps = {
    */
   fitCityOnArrival?: boolean;
   /**
+   * Borough browse arrival (`?q=`): fit the filtered venue set once after
+   * style/load so outer-London places land framed, not on the city default.
+   */
+  fitQueryOnArrival?: boolean;
+  /**
    * Optional POI JSON path from CityConfig.poisPath. `null` skips the London
    * POI fetch so non-London cities do not 404 on `/data/london_pois.json`.
    * Omit / undefined keeps the London default for back-compat.
@@ -164,11 +169,11 @@ const FALLBACK_STYLES = {
 } as const;
 const STYLE_LOAD_TIMEOUT_MS = 8000;
 
-// Opening London zoom — tight enough that drink icons appear soon, not a sea
-// of mega-clusters (outer boroughs still reachable by pan/zoom).
+// Opening London zoom — slightly wider (outer-London P0) so outer boroughs
+// read at first glance; drink icons still appear without a sea of mega-clusters.
 const LONDON_VIEW = {
   center: [-0.12, 51.52] as [number, number],
-  zoom: 11.1,
+  zoom: 10.7,
   pitch: 42,
   bearing: -12,
 };
@@ -618,6 +623,7 @@ export default function PubMapCanvas({
   mapView = LONDON_VIEW,
   maxBounds = LONDON_BOUNDS,
   fitCityOnArrival = false,
+  fitQueryOnArrival = false,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
   cityLandmarks = londonLandmarks,
@@ -2168,11 +2174,14 @@ export default function PubMapCanvas({
   }, []);
 
   // Clean city arrival: frame the city's maxBounds once after style/load.
-  // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
-  // see shouldFitCityBoundsOnArrival. Ref guards against effect re-runs.
+  // Drink / crawl / pubs / borough-browse / mapped-route arrivals own the
+  // camera elsewhere — see shouldFitCityBoundsOnArrival. Ref guards against
+  // effect re-runs.
   const didFitOnArrivalRef = useRef(false);
+  const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {
     didFitOnArrivalRef.current = false;
+    didFitQueryOnArrivalRef.current = false;
   }, [cityId]);
   useEffect(() => {
     if (!mapReady || !fitCityOnArrival) return;
@@ -2180,6 +2189,38 @@ export default function PubMapCanvas({
     didFitOnArrivalRef.current = true;
     fitCityBounds();
   }, [mapReady, fitCityOnArrival, fitCityBounds]);
+
+  // Borough browse arrival: frame the filtered venue set once (query owns the
+  // camera). Skip if the user already tapped a pin — don't fight selectedVenue
+  // fly-to. Padding mirrors fitRoute; maxZoom ~13 keeps outer boroughs readable.
+  const fitQueryVenues = useCallback(() => {
+    const map = mapRef.current;
+    const current = venuesRef.current;
+    if (!map || current.length === 0) return;
+    const bounds = new maplibregl.LngLatBounds();
+    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+    holdUntilRef.current = Math.max(
+      holdUntilRef.current,
+      performance.now() + 900 + ORBIT_RESUME_MS,
+    );
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
+    map.fitBounds(bounds, {
+      padding: isPhone
+        ? { top: 160, right: 28, bottom: 200, left: 28 }
+        : 90,
+      maxZoom: 13,
+      duration: reducedRef.current ? 0 : 800,
+    });
+  }, []);
+  useEffect(() => {
+    if (!mapReady || !fitQueryOnArrival) return;
+    if (didFitQueryOnArrivalRef.current) return;
+    // User already tapped a venue — leave the cinematic fly-to alone.
+    if (selectedVenueId) return;
+    if (venues.length === 0) return;
+    didFitQueryOnArrivalRef.current = true;
+    fitQueryVenues();
+  }, [mapReady, fitQueryOnArrival, venues.length, selectedVenueId, fitQueryVenues]);
 
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere

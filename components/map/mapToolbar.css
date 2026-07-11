@@ -145,7 +145,7 @@
     /* Match .siteNavBarFloating padding/radius so the two chrome cards read as twins. */
     padding: 2px 7px;
     gap: 0;
-    min-height: 40px;
+    min-height: 48px;
     border-radius: var(--map-chrome-radius, 14px);
     box-sizing: border-box;
   }
@@ -153,7 +153,7 @@
   .mapToolbarRow {
     width: 100%;
     gap: 4px;
-    min-height: 36px;
+    min-height: 44px;
   }
 
   .mapToolbarSearch {
@@ -172,8 +172,8 @@
   }
 
   .mapToolbarDrinksBtn {
-    min-height: 36px;
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 8px;
     font-size: 0.66rem;
     line-height: 1;
@@ -186,8 +186,8 @@
   }
 
   .planBtn {
-    min-height: 36px;
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
     min-width: 4.25rem;
     padding: 0 10px;
     font-size: 0.72rem;
