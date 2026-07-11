@@ -5,6 +5,7 @@ const eslintConfig = [
   {
     ignores: [
       ".context/**",
+      ".firecrawl/**",
       ".next/**",
       ".next-e2e/**",
       ".next-prod/**",
@@ -13,6 +14,8 @@ const eslintConfig = [
       "coverage/**",
       "public/data/**",
       "data/**",
+      // Vendored agent/design skill packs — not app source; upstream uses require() etc.
+      "skills/**",
       // Generated verification artifacts — never hand-authored source.
       "test-results/**",
       "playwright-report/**",
