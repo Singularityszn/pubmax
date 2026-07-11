@@ -246,6 +246,62 @@ export const curatedCrawls: CuratedCrawl[] = [
     startLandmarkId: "piccadilly-circus",
     placeStoryBandId: "royal-civic",
   },
+  {
+    id: "eating-europe-london-pubs",
+    name: "Historic pubs (Eating Europe guide)",
+    blurb:
+      "Seven stops from Eating Europe's London pubs guide — heritage notes and stories only, never prices. A city-wide greatest-hits loop, not one tight walk.",
+    crawlStyle: "heritage",
+    venueIds: [
+      "venue-1lcgpd9", // The Mayflower — Rotherhithe
+      "venue-hbtda7", // Lord Wargrave — Marylebone
+      "venue-68ns7y", // Ye Old Mitre — Holborn
+      "venue-1wgjxs6", // The Albion — Barnsbury
+      "venue-1snxfi3", // The Spaniards Inn — Hampstead
+      "venue-806vol", // The Ship Soho — West End
+      "venue-1ha28jc", // The Grenadier — Belgravia
+    ],
+  },
+  {
+    id: "youngs-beer-gardens",
+    name: "Young's beer gardens",
+    blurb:
+      "Garden pubs from Young's own regional guides that match our London map — official microsite links, beer-garden story, no invented prices.",
+    crawlStyle: "beerGarden",
+    // Guide-derived set across London (not one tight walk). Prefer garden-flagged
+    // matches; Lamb / Castle stay as Young's hits even when the garden flag is soft.
+    venueIds: [
+      "venue-1lf3cw", // The Founder's Arms — Southbank
+      "venue-1yd70c7", // The Lamb — Bloomsbury
+      "venue-1dafrop", // The Narrowboat — Islington
+      "venue-jxen6y", // The Castle — Islington
+      "venue-17nbxyh", // The Coborn — Mile End
+      "venue-x2hh3d", // The Old Ship — Hammersmith
+      "venue-t3ii33", // The Owl & The Pussycat — Shoreditch
+      "venue-1e0mpj3", // The Windmill — Mayfair
+      "venue-fejqqd", // The Constitution — Camden
+      "venue-1v1wfs4", // The Woolpack — Bermondsey
+    ],
+  },
+  {
+    id: "nicholsons-west-end",
+    name: "Nicholson's West End",
+    blurb:
+      "A walkable Mayfair–Soho–Strand loop through Nicholson's historic pubs — official menu and book links, no invented prices.",
+    crawlStyle: "heritage",
+    // West → east: Mayfair / Oxford Circus → Soho → Strand.
+    venueIds: [
+      "venue-1c2pk99", // The Clarence — Mayfair
+      "venue-ru7vbr", // The Argyll Arms — Oxford Circus
+      "venue-4pqtn7", // The Clachan — Kingly St
+      "venue-1ozggok", // The Crown — Brewer St
+      "venue-xiesdn", // The Dog & Duck — Soho
+      "venue-14mrz2z", // The Three Greyhounds — Soho
+      "venue-u0ox5x", // The Cambridge — Cambridge Circus
+      "venue-dbukrn", // The Coal Hole — Strand
+    ],
+    startLandmarkId: "piccadilly-circus",
+  },
 ];
 
 /** Curated crawls that package a given Place story corridor (Wave F2). */
