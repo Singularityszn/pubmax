@@ -774,15 +774,26 @@
   border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
 }
 
-/* Keep the share stamp strip clear of the fixed mobile tab bar when the
-   passport hero fills the first viewport (empty own-profile). */
+/* On phones the 8-up zero grid pushes Share under the tab bar. Reorder so
+   the stamp strip sits above the grid (still below the first-run CTA). */
 @media (max-width: 640px) {
-  .profilePage .pintPassport--hero .passportShare {
-    margin-bottom: 8px;
+  .profilePage .pintPassport--hero {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
   }
 
-  .profilePage .pintPassport--hero {
-    margin-bottom: calc(var(--mobile-tab-clearance, 72px) + 12px);
+  .profilePage .pintPassport--hero .passportFirstRun {
+    order: 1;
+  }
+
+  .profilePage .pintPassport--hero .passportShare {
+    order: 2;
+    margin-bottom: 4px;
+  }
+
+  .profilePage .pintPassport--hero .passportGrid {
+    order: 3;
   }
 
   .profilePage .passportShare .shareBar__btn {
