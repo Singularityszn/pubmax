@@ -12,7 +12,8 @@ under the hood, and every response is a single JSON-RPC envelope on one
 
 ## Cursor MCP reload
 
-The MCP config lives at `.cursor/mcp.json` (project-scoped, gitignored):
+The MCP config lives at `.cursor/mcp.json` (project-scoped, committed; other
+`.cursor/*` files stay gitignored):
 
 ```json
 {
@@ -22,13 +23,18 @@ The MCP config lives at `.cursor/mcp.json` (project-scoped, gitignored):
 }
 ```
 
-To pick up config changes in Cursor:
+To pick up config changes in Cursor Desktop:
 
-1. Open the command palette → **"Reload MCP Servers"** (or **"Restart MCP Server: citymcp-london"** for just this one).
-2. Confirm the server appears in the MCP panel with `initialize`, `tools/list`
-   showing the six tools above.
-3. If the server errors out, re-check the URL and that your network can reach
-   `citymcp.com` (no auth required).
+1. **Command Palette** (`Cmd/Ctrl+Shift+P`) → **Developer: Reload Window**  
+   (or Settings → **Tools & MCP** → refresh / toggle `citymcp-london` off→on).
+2. Open **Settings → Tools & MCP** and confirm `citymcp-london` shows as
+   connected (green / tools listed).
+3. You should see tools: `city_status`, `search_places`, `get_place`,
+   `get_area`, `get_journey`, `things_to_do`.
+4. Smoke in Agent chat: *“Call city_status on CityMCP London and summarize
+   Tube disruptions.”*
+5. If it fails: check the URL is exactly `https://citymcp.com/london/mcp`
+   and that your network can reach `citymcp.com` (no API key required).
 
 ## Runtime API surfaces (app-facing)
 
