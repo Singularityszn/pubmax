@@ -238,3 +238,96 @@
     }
   }
 }
+
+/* ── D6 · desktop fixes for the explore lane ───────────────────────────────
+   (a) Reveal bug: the entrance above uses `animation-fill-mode: both`, which
+   parks every card at the from-frame (opacity: 0) through its stagger delay —
+   and on this rail (flex children of a masked overflow-x scroller) the browser
+   can drop the animation entirely at wide viewports, leaving cards stuck
+   invisible. Wide viewports show most of the lane at once anyway, so cards are
+   simply default-visible there; the entrance remains for narrower viewports
+   and stays reduced-motion-gated exactly as before.
+   (b) Affordances: the lane clipped cards mid-tile with zero pointer
+   affordance. ≥1024px only, a wrapper (`.catShowcase__rail`, added by
+   CategoryShowcase.tsx in explore mode) positions 44px prev/next buttons over
+   a widened edge fade; the buttons disable at either end (state in the
+   component). Below 1024px they are display:none — native touch scrolling on
+   mobile is untouched. */
+.catShowcase__rail {
+  position: relative;
+}
+
+.catShowcase__arrow {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .catShowcase--explore .catShowcase__item {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Widen the fade so the clipped card reads as an intentional "more here"
+     cue (and so it sits under the 44px arrows), not an accident. */
+  .catShowcase--explore .catShowcase__grid {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 44px,
+      black calc(100% - 44px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 44px,
+      black calc(100% - 44px),
+      transparent
+    );
+  }
+
+  .catShowcase__arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    width: 44px;
+    height: 44px;
+    transform: translateY(-50%);
+    border-radius: var(--radius-pill, 999px);
+    border: 1px solid var(--line);
+    background: var(--panel-raised);
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm, var(--shadow));
+  }
+
+  .catShowcase__arrow--prev {
+    left: -10px;
+  }
+
+  .catShowcase__arrow--next {
+    right: -10px;
+  }
+
+  .catShowcase__arrow:disabled {
+    opacity: 0.35;
+    cursor: default;
+    box-shadow: none;
+  }
+}
+
+.catShowcase__arrow:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .catShowcase__arrow:not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--brass) 62%, var(--line));
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 14%, transparent);
+  }
+}
