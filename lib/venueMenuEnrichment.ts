@@ -91,8 +91,9 @@ export async function loadVenueMenuEnrichmentIndex(): Promise<
       parsed.venues === null ||
       Array.isArray(parsed.venues)
     ) {
-      cachedIndex = new Map();
-      return cachedIndex;
+      // Malformed but readable — don't permanently cache so a corrected file
+      // can be picked up on the next call without a server restart.
+      return new Map();
     }
     const map = new Map<string, VenueMenuEnrichmentRecord>();
     for (const [id, record] of Object.entries(parsed.venues)) {
@@ -103,8 +104,8 @@ export async function loadVenueMenuEnrichmentIndex(): Promise<
     cachedIndex = map;
     return cachedIndex;
   } catch {
-    cachedIndex = new Map();
-    return cachedIndex;
+    // Transient read/parse error — don't cache so the next request retries.
+    return new Map();
   }
 }
 
