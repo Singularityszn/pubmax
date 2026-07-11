@@ -45,6 +45,7 @@ import {
   rasterize,
   type IconTokens,
 } from "@/lib/mapIcons";
+import { drinkAccentForVenue } from "@/lib/scrapedPubs";
 import {
   defaultPoiHidden,
   defaultPoiHiddenForViewport,
@@ -133,6 +134,16 @@ type PubMapCanvasProps = {
    * in the Drinks / Food filter panel — without adding a per-render prop dep.
    */
   onRegisterFitFiltered?: (fitFn: () => void) => void;
+  /**
+   * Called with `true` the moment the canvas commits to its user-facing error
+   * fallback (WebGL failure, tiles down, context-lost, zero-size, …), and
+   * `false` when a Retry click clears the error. Parents use this to drop any
+   * loading skeleton that would otherwise hide the honest error card — the
+   * `onMapReady(true)` we ALSO emit on error only lifts the "waiting for
+   * scene" branch; a separate signal is needed when slim pins are still in
+   * flight so the skeleton doesn't linger on top of the fallback.
+   */
+  onMapErrored?: (errored: boolean) => void;
   /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
@@ -415,29 +426,41 @@ function pubsToGeoJSON(
           null;
       const bucket = priceBucket(price);
 
+      // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
+      // Without a lens, fall back to venue hint categories (or scraped accent).
+      const hintCategories = venue.filterHints?.drinkCategories;
+      const accentCategories =
+        hintCategories && hintCategories.length > 0
+          ? hintCategories
+          : [drinkAccentForVenue(venue.id)];
+      const drinkKind =
+        drinkLens === "beer"
+          ? "pint"
+          : drinkLens && drinkLens !== "other"
+            ? drinkPinKindFromCategories(
+                [drinkLens],
+                drinkLens === "cocktail" ||
+                  Boolean(venue.amenities.cocktails) ||
+                  Boolean(venue.filterHints?.amenities.cocktails),
+              )
+            : drinkPinKindFromCategories(
+                accentCategories,
+                Boolean(venue.amenities.cocktails) ||
+                  Boolean(venue.filterHints?.amenities.cocktails),
+              );
+      const scraped = Boolean(
+        venue.filterHints?.scraped ||
+          venue.sourceDatasets?.some((source) =>
+            /london_chain|greene.?king|nicholson|youngs/i.test(source),
+          ),
+      );
+
       let icon: string;
       if (useFoodPins) {
         const foodKind =
           globalFoodKind ?? foodPinKindFromCuisineTags(venue.filterHints?.cuisineTags);
         icon = iconId("food", foodPinIconKey(foodKind, bucket));
       } else {
-        // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
-        // Without a lens, fall back to venue hint categories.
-        const drinkKind =
-          drinkLens === "beer"
-            ? "pint"
-            : drinkLens && drinkLens !== "other"
-              ? drinkPinKindFromCategories(
-                  [drinkLens],
-                  drinkLens === "cocktail" ||
-                    Boolean(venue.amenities.cocktails) ||
-                    Boolean(venue.filterHints?.amenities.cocktails),
-                )
-              : drinkPinKindFromCategories(
-                  venue.filterHints?.drinkCategories,
-                  Boolean(venue.amenities.cocktails) ||
-                    Boolean(venue.filterHints?.amenities.cocktails),
-                );
         icon = iconId("drink", drinkPinIconKey(drinkKind, bucket));
       }
 
@@ -450,6 +473,8 @@ function pubsToGeoJSON(
           story: venue.hasStory,
           drops: Boolean(signals?.hasPintDrops),
           serves,
+          drinkKind,
+          scraped,
           icon,
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
@@ -675,6 +700,7 @@ export default function PubMapCanvas({
   initialLandmarkId = "",
   onMapReady,
   onRegisterFitFiltered,
+  onMapErrored,
   mapView = LONDON_VIEW,
   maxBounds = LONDON_BOUNDS,
   fitCityOnArrival = false,
@@ -724,12 +750,17 @@ export default function PubMapCanvas({
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
+  const onMapErroredRef = useRef(onMapErrored);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
-  }, [onMapReady]);
+    onMapErroredRef.current = onMapErrored;
+  }, [onMapReady, onMapErrored]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
+  }, []);
+  const publishMapErrored = useCallback((errored: boolean) => {
+    onMapErroredRef.current?.(errored);
   }, []);
   // The fallback is a real user-facing dead end, so it carries enough to be
   // honest about *why*: `kind` drives the copy (only "constructor" with a
@@ -748,10 +779,14 @@ export default function PubMapCanvas({
     (error: NonNullable<typeof mapError>) => {
       // Lift the parent's loading chrome so this honest error card is visible
       // (Wave K2 kept the overlay until mapReady — failures must still resolve it).
+      // Also broadcast a distinct errored signal so a parent whose skeleton
+      // still has other gates (e.g. slim pins in flight) can drop it and let
+      // the fallback show through.
       publishMapReady(true);
+      publishMapErrored(true);
       setMapError(error);
     },
-    [publishMapReady],
+    [publishMapErrored, publishMapReady],
   );
   // Bumped to re-run the mount effect: once silently (auto-retry after a
   // constructor throw) and again on the user's Retry click. The cleanup fully
@@ -1562,10 +1597,28 @@ export default function PubMapCanvas({
           type: "geojson",
           data: pubsDataRef.current,
           cluster: true,
-          clusterRadius: 28,
-          clusterMaxZoom: 14,
+          // Tighter clusters + earlier uncluster so drink silhouettes (pint /
+          // wine / cocktail / spirits) dominate sooner — MAP_MARKERS_PLAN.
+          clusterRadius: 22,
+          clusterMaxZoom: 12,
         });
       }
+      // Scraped-pub halo: warm brass ring so Young's / Nicholson's / gazetteer
+      // pins read as "from our scrapes" without fighting the drink fill.
+      addLayerOnce({
+        id: "pubs-scraped-halo",
+        type: "circle",
+        source: "pubs",
+        filter: ["all", ["!", ["has", "point_count"]], ["get", "scraped"]],
+        paint: {
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 13],
+          "circle-stroke-color": tokens.brass,
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.4, 15, 2.2],
+          "circle-stroke-opacity": dark ? 0.75 : 0.7,
+          "circle-blur": 0.12,
+        },
+      });
       // Pint-Drops ring: a river-toned glow + a crisp outline so community
       // activity reads at a glance without muddying the price fill under it.
       addLayerOnce({
@@ -2089,9 +2142,11 @@ export default function PubMapCanvas({
   }, [
     // Intentionally omit mapView / maxBounds / landmarksGeoJSON — those are
     // read via refs so parent re-renders (new array identity) cannot remount
-    // MapLibre and flicker the loading chrome. City switches change
-    // transitLinesPath / showLandmarks and still remount cleanly.
+    // MapLibre and flicker the loading chrome. Include cityId so non-London
+    // city switches (shared null transitLinesPath + showLandmarks) still
+    // remount with fresh camera/bounds even if PubMap's key={cityId} is removed.
     cinematic,
+    cityId,
     selectLandmark,
     initAttempt,
     transitLinesPath,
@@ -2509,6 +2564,7 @@ export default function PubMapCanvas({
               className="mapFallbackRetry"
               onClick={() => {
                 setMapError(null);
+                publishMapErrored(false);
                 publishMapReady(false);
                 setInitAttempt((a) => a + 1);
               }}

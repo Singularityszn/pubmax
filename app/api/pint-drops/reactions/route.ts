@@ -52,8 +52,13 @@ export async function GET(request: Request): Promise<Response> {
     // the summaries map (the same shape as an id nobody requested), matching
     // how the feed silently omits these drops; never a 404 existence oracle.
     // The batched-summary contract for the surviving ids is unchanged.
+    // A visibility-lookup outage (`null`) is fail-soft on the read path: the
+    // feed keeps rendering with empty summaries rather than a 503 that would
+    // break the host page. POST distinguishes outage from gated (see below).
     const readable = await filterPubliclyReadableDropIds(ids);
-    if (readable.length === 0) return jsonNoStore({ summaries: {} }, { status: 200 });
+    if (!readable || readable.length === 0) {
+      return jsonNoStore({ summaries: {} }, { status: 200 });
+    }
     return jsonNoStore(
       { summaries: await reactionsStore().summarize(readable, actorHash) },
       { status: 200 },
@@ -80,8 +85,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // F3 write gate: mirror GET — reject toggles on hidden/friends/legacy parents.
-  // 404 matches UnknownDropError so gated ids are not an existence oracle.
+  // 404 matches UnknownDropError so gated ids are not an existence oracle. A
+  // visibility LOOKUP failure (`null`) is a distinct dependency outage → 503,
+  // so a Supabase blip / misconfig is not silently reported as "not found"
+  // (which would look like every drop was moderated to the client).
   const readable = await filterPubliclyReadableDropIds([id]);
+  if (readable === null) {
+    return jsonNoStore({ error: "Reactions are unavailable." }, { status: 503 });
+  }
   if (readable.length === 0) {
     return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
   }

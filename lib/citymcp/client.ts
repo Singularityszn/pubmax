@@ -27,8 +27,10 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 const CITY_STATUS_TTL_MS = 5 * 60 * 1000;
 const PLACE_TTL_MS = 10 * 60 * 1000;
 const THINGS_TO_DO_TTL_MS = 5 * 60 * 1000;
+const JOURNEY_TTL_MS = 3 * 60 * 1000;
 const PROTOCOL_VERSION = "2025-06-18";
 const CLIENT_INFO = { name: "pubmaxing-citymcp-client", version: "0.1.0" };
+const JOURNEY_CAP = 3;
 
 // ---------- Public types ----------
 
@@ -664,6 +666,7 @@ export type ThingsToDoOpportunity = {
     id?: string;
     name?: string;
     area?: string;
+    postcode?: string;
     location?: { lat: number; lng: number };
   };
   source?: { label?: string; url?: string };
@@ -684,6 +687,18 @@ export function resetThingsToDoCache(): void {
   thingsToDoCache.clear();
 }
 
+/**
+ * Upstream may send price/availability as a plain string (older fixtures) or
+ * as `{ label, ... }` (live CityMCP). Prefer the label when present.
+ */
+function pickLabelOrString(v: unknown): string | undefined {
+  if (typeof v === "string" && v.length > 0) return v;
+  if (v && typeof v === "object") {
+    return pickString((v as { label?: unknown }).label);
+  }
+  return undefined;
+}
+
 function trimOpportunity(raw: unknown): ThingsToDoOpportunity | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -695,9 +710,9 @@ function trimOpportunity(raw: unknown): ThingsToDoOpportunity | null {
   if (kind) out.kind = kind;
   const areas = pickStringArray(o.areas, 3);
   if (areas) out.areas = areas;
-  const price = pickString(o.price);
+  const price = pickLabelOrString(o.price);
   if (price) out.price = price;
-  const availability = pickString(o.availability);
+  const availability = pickLabelOrString(o.availability);
   if (availability) out.availability = availability;
   const timeEvidence = pickString(o.timeEvidence);
   if (timeEvidence) out.timeEvidence = timeEvidence;
@@ -708,12 +723,14 @@ function trimOpportunity(raw: unknown): ThingsToDoOpportunity | null {
     const placeId = pickString(p.id);
     const placeName = pickString(p.name);
     const placeArea = pickString(p.area);
+    const placePostcode = pickString(p.postcode);
     const placeLoc = pickLocation(p.location);
-    if (placeId || placeName || placeArea || placeLoc) {
+    if (placeId || placeName || placeArea || placePostcode || placeLoc) {
       out.place = {
         ...(placeId ? { id: placeId } : {}),
         ...(placeName ? { name: placeName } : {}),
         ...(placeArea ? { area: placeArea } : {}),
+        ...(placePostcode ? { postcode: placePostcode } : {}),
         ...(placeLoc ? { location: placeLoc } : {}),
       };
     }
@@ -722,7 +739,8 @@ function trimOpportunity(raw: unknown): ThingsToDoOpportunity | null {
   const source = o.source;
   if (source && typeof source === "object") {
     const s = source as Record<string, unknown>;
-    const label = pickString(s.label);
+    // Live upstream uses `name`; older fixtures / trimmed clients use `label`.
+    const label = pickString(s.label) ?? pickString(s.name);
     const url = pickString(s.url);
     if (label || url) {
       out.source = {
@@ -785,6 +803,136 @@ export async function fetchThingsToDo(
     opportunities,
   };
   thingsToDoCache.set(cacheKey, { value, expiresAt: now + THINGS_TO_DO_TTL_MS });
+  return value;
+}
+
+// ---------- get_journey: TfL itineraries + short-TTL cache ----------
+
+export type CityJourneyLeg = {
+  mode: string;
+  summary?: string;
+  durationMinutes?: number;
+  departureTime?: string;
+  arrivalTime?: string;
+};
+
+export type CityJourney = {
+  durationMinutes: number;
+  departureTime?: string;
+  arrivalTime?: string;
+  legs: CityJourneyLeg[];
+};
+
+export type FetchJourneyArgs = {
+  from: string;
+  to: string;
+  arriveBy?: string;
+  stepFreeOnly?: boolean;
+};
+
+export type FetchJourneyResult = {
+  journeys: CityJourney[];
+};
+
+type JourneyCacheEntry = { value: FetchJourneyResult; expiresAt: number };
+const journeyCache = new Map<string, JourneyCacheEntry>();
+
+/** Test-only: drop all cached get_journey entries. */
+export function resetJourneyCache(): void {
+  journeyCache.clear();
+}
+
+/** Format venue coords as the `"lat,lng"` string CityMCP `get_journey` expects. */
+export function formatJourneyPoint(lat: number, lng: number): string {
+  return `${lat.toFixed(5)},${lng.toFixed(5)}`;
+}
+
+export function trimJourneyLeg(raw: unknown): CityJourneyLeg | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const mode = pickString(o.mode);
+  if (!mode) return null;
+
+  const out: CityJourneyLeg = { mode };
+  const summary = pickString(o.summary);
+  if (summary) out.summary = summary;
+  const durationMinutes = pickNumber(o.durationMinutes);
+  if (durationMinutes !== undefined) out.durationMinutes = durationMinutes;
+  const departureTime = pickString(o.departureTime);
+  if (departureTime) out.departureTime = departureTime;
+  const arrivalTime = pickString(o.arrivalTime);
+  if (arrivalTime) out.arrivalTime = arrivalTime;
+  return out;
+}
+
+export function trimJourney(raw: unknown): CityJourney | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const durationMinutes = pickNumber(o.durationMinutes);
+  if (durationMinutes === undefined) return null;
+
+  const legs: CityJourneyLeg[] = [];
+  if (Array.isArray(o.legs)) {
+    for (const item of o.legs) {
+      const leg = trimJourneyLeg(item);
+      if (leg) legs.push(leg);
+    }
+  }
+
+  const out: CityJourney = { durationMinutes, legs };
+  const departureTime = pickString(o.departureTime);
+  if (departureTime) out.departureTime = departureTime;
+  const arrivalTime = pickString(o.arrivalTime);
+  if (arrivalTime) out.arrivalTime = arrivalTime;
+  return out;
+}
+
+/**
+ * Fetch and trim CityMCP `get_journey` itineraries between two string points
+ * (prefer `formatJourneyPoint(lat, lng)` — free-text names often Ambiguous).
+ * Cached in-process for ~3min per args key. Throws `CityMcpError` on failure.
+ * Returns at most 3 trimmed journeys.
+ */
+export async function fetchJourney(
+  args: FetchJourneyArgs,
+  opts: CityMcpCallOptions = {},
+): Promise<FetchJourneyResult> {
+  const from = typeof args.from === "string" ? args.from.trim() : "";
+  const to = typeof args.to === "string" ? args.to.trim() : "";
+  if (!from || !to) {
+    throw new CityMcpError("get_journey: from and to are required", "empty");
+  }
+
+  const callArgs: Record<string, unknown> = { from, to };
+  if (args.arriveBy) callArgs.arriveBy = args.arriveBy;
+  if (typeof args.stepFreeOnly === "boolean") {
+    callArgs.stepFreeOnly = args.stepFreeOnly;
+  }
+
+  const cacheKey = JSON.stringify(callArgs);
+  const now = Date.now();
+  const cached = journeyCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.value;
+
+  const result = await callCityMcpTool<Record<string, unknown>>(
+    "get_journey",
+    callArgs,
+    opts,
+  );
+  const structured = result.structuredContent ?? {};
+  const rawJourneys = Array.isArray(structured.journeys)
+    ? structured.journeys
+    : [];
+
+  const journeys: CityJourney[] = [];
+  for (const item of rawJourneys) {
+    const trimmed = trimJourney(item);
+    if (trimmed) journeys.push(trimmed);
+    if (journeys.length >= JOURNEY_CAP) break;
+  }
+
+  const value: FetchJourneyResult = { journeys };
+  journeyCache.set(cacheKey, { value, expiresAt: now + JOURNEY_TTL_MS });
   return value;
 }
 

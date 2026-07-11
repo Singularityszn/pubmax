@@ -11,12 +11,12 @@ import "@/components/map/logIntentFallback.css";
 
 import {
   buildCrawlRoute,
-  filterVenues,
   mergeVenueDrops,
   venueGroupingKey,
   type Filters,
   type Venue,
 } from "@/lib/venues";
+import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
@@ -368,41 +368,6 @@ function venueUpdateKey(venue: Venue): string {
   return firstPrice ? venueGroupingKey(firstPrice) : venue.id;
 }
 
-function filterMapVenues(
-  venues: Venue[],
-  filters: Filters,
-  hasPintDrops: (venueId: string) => boolean,
-): Venue[] {
-  // Slim pins deliberately carry prices: [] so the full pint dataset stays off
-  // the initial map load. Treat detail-only filters as unknown/pass for those
-  // pins; otherwise a drink/amenity choice such as Low/No or Cocktails would
-  // blank the fast map before lazy venue detail has a chance to answer it.
-  //
-  // Batch through filterVenues once per cohort (slim vs hydrated) instead of
-  // calling filterVenues([venue], …) per pin — that was O(n) full filter passes.
-  const slimPinFilters = {
-    ...filters,
-    canonicalOnly: false,
-    requireBeerGarden: false,
-    requireNonAlcoholic: false,
-    requireLiveSports: false,
-    requireFood: false,
-    requireCocktails: false,
-    requireWater: false,
-    requireHeritage: false,
-  };
-  const slim: Venue[] = [];
-  const hydrated: Venue[] = [];
-  for (const venue of venues) {
-    if (venue.prices.length === 0 && !venue.filterHints) slim.push(venue);
-    else hydrated.push(venue);
-  }
-  return [
-    ...filterVenues(slim, slimPinFilters, hasPintDrops),
-    ...filterVenues(hydrated, filters, hasPintDrops),
-  ];
-}
-
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
   try {
@@ -468,6 +433,10 @@ export default function PubMap({
   // pins and the basemap have arrived (warmup can make slim arrive first).
   // Canvas owns hang recovery (reportMapError lifts this via onMapReady).
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  // Canvas has committed to its user-facing error fallback (WebGL/tiles/etc.).
+  // We drop the loading skeleton immediately in that case even if slim pins
+  // are still in flight, so the fallback card isn't hidden behind chrome.
+  const [mapCanvasErrored, setMapCanvasErrored] = useState(false);
   // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
   // ~400 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
   // the ~5.6 MB full dataset lands so the first interactive pin appears fast.
@@ -733,7 +702,12 @@ export default function PubMap({
     [pipelineVenues, savedOnly, savedIds],
   );
 
-  const canvasVenues = filteredVenues;
+  // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
+  // would otherwise hide a scraped gazetteer pub.
+  const canvasVenues = useMemo(
+    () => withForcedVenue(filteredVenues, venueById, selectedVenueId),
+    [filteredVenues, venueById, selectedVenueId],
+  );
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams);
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
@@ -1222,7 +1196,7 @@ export default function PubMap({
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank
             canvas. Copy matches MapLoadingSkeleton for a seamless handoff. */}
-        {!mapCanvasReady || (slimPins.length === 0 && !loaded) ? (
+        {!mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded)) ? (
           <div
             className="mapLoading"
             role="status"
@@ -1269,6 +1243,7 @@ export default function PubMap({
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
           onMapReady={setMapCanvasReady}
           onRegisterFitFiltered={(fn) => { fitFilteredRef.current = fn; }}
+          onMapErrored={setMapCanvasErrored}
           mapView={city.mapView}
           maxBounds={cityBounds}
           fitCityOnArrival={shouldFitCityBoundsOnArrival(
@@ -1327,7 +1302,8 @@ export default function PubMap({
               <ul className="logIntentNearbyList" aria-label="Nearby pubs to log">
                 {logNearbyCandidates.map((candidate) => {
                   const dist =
-                    typeof candidate.distanceKm === "number"
+                    typeof candidate.distanceKm === "number" &&
+                    Number.isFinite(candidate.distanceKm)
                       ? formatLogNearbyDistance(candidate.distanceKm)
                       : "";
                   return (

@@ -28,7 +28,8 @@
     "check:realtime": "node scripts/check-realtime.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && npm audit --audit-level=high",
     "ci": "npm run verify && npm run build",
-    "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'"
+    "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'",
+    "merge:london-chains": "node scripts/merge_london_chain_scrapes.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",

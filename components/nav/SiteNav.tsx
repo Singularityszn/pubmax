@@ -21,7 +21,7 @@ import "./siteNav.css";
 // drifts page-to-page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar — Map/Stories/Drop/Drinks/You). Repeating the full link list up
+// (MobileTabBar — Map/Pubs/Drop/Discover/You). Repeating the full link list up
 // top there caused the old `.appNav` pill to overflow the viewport (Admin +
 // theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
 // bar — just the wordmark + theme toggle + sign-in — and hides the full link
@@ -35,6 +35,7 @@ import "./siteNav.css";
 type NavKey =
   | "home"
   | "map"
+  | "pubs"
   | "feed"
   | "discover"
   | "crawls"
@@ -56,6 +57,7 @@ type NavLink = {
 // admin console.
 const LINKS: NavLink[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"], accent: "beer" },
+  { key: "pubs", href: "/pubs", label: "Pubs", match: ["/pubs"], accent: "whisky" },
   { key: "feed", href: "/feed", label: "Feed", match: ["/feed"], accent: "cocktail" },
   { key: "discover", href: "/discover", label: "Drinks", match: ["/discover"], accent: "gin" },
   { key: "borough", href: "/borough", label: "London", match: ["/borough"], accent: "wine" },

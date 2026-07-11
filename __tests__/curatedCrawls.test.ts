@@ -22,22 +22,31 @@ const validStyles: CrawlStyle[] = [
 ];
 
 describe("curated crawls", () => {
-  it("has 3-8 crawls with unique ids", () => {
-    // Started at 3-4; extended with 4 themed POI-threading crawls (story 26),
-    // then 2 alt-style crawls (issue #31) — 10 is the new ceiling, still small
-    // enough to hand-curate honestly.
+  it("has 3-16 crawls with unique ids", () => {
+    // Started at 3-4; extended with themed POI crawls, alt-style crawls, then
+    // London-chain editorial crawls (Eating Europe + Young's + Nicholson's).
     expect(curatedCrawls.length).toBeGreaterThanOrEqual(3);
-    expect(curatedCrawls.length).toBeLessThanOrEqual(12);
+    expect(curatedCrawls.length).toBeLessThanOrEqual(16);
     expect(new Set(curatedCrawls.map((c) => c.id)).size).toBe(curatedCrawls.length);
   });
 
-  it("every crawl has a name, blurb, >=4 stops, and a valid crawlStyle", () => {
+  it("every crawl has a name, blurb, enough stops, and a valid crawlStyle", () => {
     for (const crawl of curatedCrawls) {
       expect(crawl.name.trim().length, `${crawl.id} name`).toBeGreaterThan(0);
       expect(crawl.blurb.trim().length, `${crawl.id} blurb`).toBeGreaterThan(0);
       expect(crawl.venueIds.length, `${crawl.id} stop count`).toBeGreaterThanOrEqual(4);
       expect(validStyles, `${crawl.id} crawlStyle`).toContain(crawl.crawlStyle);
     }
+  });
+
+  it("ships the London chain/guide crawls with matched venue coverage", () => {
+    const byId = new Map(curatedCrawls.map((c) => [c.id, c]));
+    expect(byId.get("eating-europe-london-pubs")?.venueIds.length).toBeGreaterThanOrEqual(7);
+    expect(byId.get("youngs-beer-gardens")?.venueIds.length).toBeGreaterThanOrEqual(8);
+    expect(byId.get("nicholsons-west-end")?.venueIds.length).toBeGreaterThanOrEqual(6);
+    expect(byId.get("eating-europe-london-pubs")?.crawlStyle).toBe("heritage");
+    expect(byId.get("youngs-beer-gardens")?.crawlStyle).toBe("beerGarden");
+    expect(byId.get("nicholsons-west-end")?.crawlStyle).toBe("heritage");
   });
 
   it("every venueId resolves to a real venue in the dataset", () => {

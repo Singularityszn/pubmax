@@ -542,10 +542,59 @@ h3 {
   transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.featuredCrawl[data-crawl-style="heritage"],
+.featuredCrawl[data-crawl-style="writerTrail"] {
+  border-color: color-mix(in srgb, var(--line) 72%, var(--river) 28%);
+  border-left-color: var(--river);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--river) 10%, var(--panel-raised)), var(--panel-raised) 62%),
+    var(--panel-raised);
+}
+
+.featuredCrawl[data-crawl-style="beerGarden"] {
+  border-color: color-mix(in srgb, var(--line) 72%, var(--pint) 28%);
+  border-left-color: var(--pint);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--pint) 10%, var(--panel-raised)), var(--panel-raised) 62%),
+    var(--panel-raised);
+}
+
+.featuredCrawl[data-crawl-style="heritage"] .featuredCount,
+.featuredCrawl[data-crawl-style="writerTrail"] .featuredCount {
+  color: var(--river);
+}
+
+.featuredCrawl[data-crawl-style="beerGarden"] .featuredCount {
+  color: var(--pint);
+}
+
+.featuredCrawl[data-crawl-style="heritage"] .featuredMapCta,
+.featuredCrawl[data-crawl-style="writerTrail"] .featuredMapCta {
+  background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
+  color: var(--river);
+}
+
+.featuredCrawl[data-crawl-style="beerGarden"] .featuredMapCta {
+  background: color-mix(in srgb, var(--pint) 14%, var(--panel-raised));
+  color: var(--pint);
+}
+
 .featuredCrawl:hover {
   border-color: var(--brass);
   border-left-color: var(--brass-bright);
   box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.featuredCrawl[data-crawl-style="heritage"]:hover,
+.featuredCrawl[data-crawl-style="writerTrail"]:hover {
+  border-color: var(--river);
+  border-left-color: var(--river-bright);
+}
+
+.featuredCrawl[data-crawl-style="beerGarden"]:hover {
+  border-color: var(--pint);
+  border-left-color: color-mix(in srgb, var(--pint) 70%, white);
 }
 
 .featuredCrawl:focus-visible {
@@ -4111,23 +4160,6 @@ button:disabled {
     background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
   }
 
-  /* Toolbar hugs the top under the nav; same inset/radius as the floating Home bar. */
-  .mapToolbar {
-    top: var(--map-top-clearance);
-    left: var(--map-chrome-inset);
-    right: var(--map-chrome-inset);
-    max-width: none;
-    transform: none;
-    flex-wrap: wrap;
-    justify-content: center;
-    border-radius: var(--map-chrome-radius);
-    box-sizing: border-box;
-  }
-
-  .mapToolbarSearch input {
-    min-width: 120px;
-  }
-
   /* Keep the floating theme toggle clear of the map legend and reachable. */
   .themeToggle.floating {
     top: 12px;
@@ -4199,6 +4231,24 @@ button:disabled {
   .appShell.detail-open,
   .appShell.planning-open {
     --mobile-tab-clearance: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Toolbar hugs the top under the nav; same inset/radius as the floating Home
+     bar — both switch to full-width at the same 640px breakpoint. */
+  .mapToolbar {
+    top: var(--map-top-clearance);
+    left: var(--map-chrome-inset);
+    right: var(--map-chrome-inset);
+    max-width: none;
+    transform: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: var(--map-chrome-radius);
+    box-sizing: border-box;
+  }
+
+  .mapToolbarSearch input {
+    min-width: 120px;
   }
 
   .mapCameraControls {

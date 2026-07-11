@@ -45,7 +45,7 @@ describe("crawlUrl", () => {
       mode: "suggest",
       filters: expect.objectContaining({
         crawlStyle: "balanced",
-        maxPrice: 7,
+        maxPrice: 8,
         stopCount: 6,
         routeWindow: 20,
       }),

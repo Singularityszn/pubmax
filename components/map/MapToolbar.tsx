@@ -36,6 +36,11 @@ type MapToolbarProps = {
    * especially useful when the tag is niche and matches are sparse.
    */
   filteredVenueCount?: number;
+  /**
+   * Fit the map to currently filtered venues — fired from the Search CTA in
+   * the Drinks / Food panels, and when the search field is submitted.
+   */
+  onSearchApply?: () => void;
 };
 
 export default function MapToolbar({
@@ -52,6 +57,7 @@ export default function MapToolbar({
   onFiltersChange,
   cityId = DEFAULT_CITY_ID,
   filteredVenueCount,
+  onSearchApply,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
   const [foodOpen, setFoodOpen] = useState(false);
@@ -105,6 +111,12 @@ export default function MapToolbar({
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onSearchApply?.();
+              }
+            }}
             placeholder="Search pubs or area…"
             aria-label="Search pubs by name, area, borough or drink"
           />
@@ -178,6 +190,15 @@ export default function MapToolbar({
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
         {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
         <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+        {onSearchApply ? (
+          <button
+            type="button"
+            className="mapToolbarSearchApply"
+            onClick={() => onSearchApply()}
+          >
+            Show results on map
+          </button>
+        ) : null}
       </div>
 
       <div className={foodOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
@@ -197,6 +218,15 @@ export default function MapToolbar({
                 : `Showing ${filteredVenueCount} ${filteredVenueCount === 1 ? "pub" : "pubs"} tagged for ${filters.cuisineTag}`
               : `Showing pubs tagged for ${filters.cuisineTag}`}
           </p>
+        ) : null}
+        {onSearchApply ? (
+          <button
+            type="button"
+            className="mapToolbarSearchApply"
+            onClick={() => onSearchApply()}
+          >
+            Show results on map
+          </button>
         ) : null}
       </div>
     </div>

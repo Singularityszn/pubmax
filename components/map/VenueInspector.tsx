@@ -82,6 +82,21 @@ function tabsForCity(cityId: CityId): { key: TabKey; label: string; shortLabel: 
 
 const DEFAULT_TAB: TabKey = "pints";
 
+type ShareFeedback = {
+  venueId: string;
+  tone: "ok" | "error";
+  text: string;
+};
+
+function isUserCancelledShare(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
 const PROVENANCE_LABEL: Record<Provenance, string> = {
   sourced: "Sourced",
   contributor: "Contributor",
@@ -188,6 +203,9 @@ export default function VenueInspector({
   const [tab, setTab] = useState<TabKey>(initialTab);
   const tabKey = `${venue.id}:${initialTab}`;
   const [tabResetKey, setTabResetKey] = useState(tabKey);
+  const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null);
+  const currentShareFeedback =
+    shareFeedback?.venueId === venue.id ? shareFeedback : null;
   if (tabResetKey !== tabKey) {
     setTabResetKey(tabKey);
     setTab(initialTab);
@@ -231,17 +249,41 @@ export default function VenueInspector({
     if (typeof window === "undefined") return;
     const url = new URL(venueMapUrl(venue.id), window.location.origin).toString();
     const title = venue.name;
-    try {
-      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-        await navigator.share({ title, url, text: `PUBMAXXING — ${title}` });
+    const nav = typeof navigator === "undefined" ? undefined : navigator;
+    const setShareStatus = (tone: ShareFeedback["tone"], text: string) => {
+      setShareFeedback({ venueId: venue.id, tone, text });
+    };
+    const copyToClipboard = async (successText: string, unavailableText: string) => {
+      if (!nav?.clipboard?.writeText) {
+        setShareStatus("error", unavailableText);
         return;
       }
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
+      try {
+        await nav.clipboard.writeText(url);
+        setShareStatus("ok", successText);
+      } catch {
+        setShareStatus("error", "Couldn't copy the link. Copy it from your browser bar.");
       }
-    } catch {
-      // User cancelled share sheet or clipboard blocked — silent.
+    };
+
+    setShareFeedback(null);
+    if (typeof nav?.share === "function") {
+      try {
+        await nav.share({ title, url, text: `PUBMAXXING — ${title}` });
+        return;
+      } catch (error) {
+        if (isUserCancelledShare(error)) return;
+        await copyToClipboard(
+          "Share failed, but the link was copied.",
+          "Share failed and clipboard is unavailable. Copy the page URL.",
+        );
+        return;
+      }
     }
+    await copyToClipboard(
+      "Link copied.",
+      "Sharing and clipboard are unavailable. Copy the page URL.",
+    );
   }, [venue.id, venue.name]);
 
   function onTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, current: TabKey) {
@@ -965,6 +1007,14 @@ export default function VenueInspector({
           <TrainFront size={15} aria-hidden="true" />
           Train
         </button>
+        {currentShareFeedback ? (
+          <span
+            role={currentShareFeedback.tone === "error" ? "alert" : "status"}
+            className={`venueSheetShareFeedback ${currentShareFeedback.tone}`}
+          >
+            {currentShareFeedback.text}
+          </span>
+        ) : null}
       </div>
     </section>
   );
