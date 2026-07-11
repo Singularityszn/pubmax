@@ -33,7 +33,7 @@ export default function VenueActionStrip({ venue, className }: VenueActionStripP
     <div
       className={`venueActionStrip${className ? ` ${className}` : ""}`}
       role="group"
-      aria-label="Book, menu, and pub links"
+      aria-label={actions.map((a) => a.label).join(", ")}
     >
       {actions.map((action) => (
         <a

@@ -45,6 +45,10 @@ export default function MenuCategoryGrid({
       </header>
       <ul className="menuHub__grid">
         {tiles.map((tile) => {
+          if (tile.kind === "food-external" && !tile.href) {
+            return null;
+          }
+
           if (tile.kind === "food-external" && tile.href) {
             return (
               <li key={tile.id} className="menuHub__item menuHub__item--food">

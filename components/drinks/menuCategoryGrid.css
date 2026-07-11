@@ -80,7 +80,7 @@
   background:
     linear-gradient(
       160deg,
-      color-mix(in srgb, currentColor 16%, transparent) 0%,
+      color-mix(in srgb, currentcolor 16%, transparent) 0%,
       color-mix(in srgb, var(--panel) 70%, transparent) 70%
     );
 }

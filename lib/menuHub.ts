@@ -64,7 +64,11 @@ export function menuHubTiles(venue: Venue, drinks: Drink[]): MenuHubTile[] {
   const menuOrSite = external.find((a) => a.kind === "menu" || a.kind === "website");
   const defaultFoodHref = firstHttp(venue.menuUrl, menuOrSite?.href);
 
-  if (venue.categoryTiles && venue.categoryTiles.length > 0) {
+  if (
+    venue.categoryTiles &&
+    venue.categoryTiles.length > 0 &&
+    (venue.amenities.food || venue.menuUrl)
+  ) {
     for (const tile of venue.categoryTiles) {
       const href = firstHttp(tile.href, venue.menuUrl, menuOrSite?.href);
       if (!href) continue;
