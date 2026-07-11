@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// The route rate-limits per IP before anything else; the limiter's durable
+// path would hit the network under the Vercel prod-env vitest run, so it is
+// neutralised here (same pattern as planRoutes.test.ts) — the limiter has its
+// own suite.
+vi.mock("@/lib/pintDrops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+  return { ...actual, isLimited: async () => false };
+});
+
 // The proxy only fetches hosts present in the app's own datasets (SSRF gate);
 // tests pin behaviour with a controlled allowlist instead of the real files.
 vi.mock("@/lib/venueImageHosts.server", () => ({
