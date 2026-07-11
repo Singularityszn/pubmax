@@ -83,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!cityId) return jsonNoStore({ error: "cityId is invalid." }, { status: 400 });
 
   const limiterKey = `concierge:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, { failClosed: true })) {
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
     return jsonNoStore({ error: "Too many concierge requests, slow down." }, { status: 429 });
   }
 
