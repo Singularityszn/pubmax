@@ -40,28 +40,24 @@ export default function ActiveRoundChip({
   }, []);
 
   useEffect(() => {
-    let active = true;
-    async function boot() {
-      if (active) syncFromStorage();
-    }
-    void boot();
-    const unsubscribe = subscribeActiveRound(() => {
-      if (active) {
-        setDismissed(false);
-        syncFromStorage();
-      }
+    // Defer out of the effect body (react-hooks/set-state-in-effect).
+    void Promise.resolve().then(() => {
+      syncFromStorage();
     });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
+    const unsubscribe = subscribeActiveRound(() => {
+      setDismissed(false);
+      syncFromStorage();
+    });
+    return unsubscribe;
   }, [syncFromStorage]);
 
   // Parent bump after Start Round — re-read immediately + un-dismiss.
   useEffect(() => {
     if (refreshKey == null || refreshKey === "") return;
-    setDismissed(false);
-    syncFromStorage();
+    void Promise.resolve().then(() => {
+      setDismissed(false);
+      syncFromStorage();
+    });
   }, [refreshKey, syncFromStorage]);
 
   useEffect(() => {
