@@ -86,6 +86,10 @@ describe("cityMapOgTitle / cityMapOgDescription", () => {
       "5-stop crawl: Victorian Soho in London. Open it on PUBMAXXING.",
     );
 
+    expect(cityMapOgTitle("london", { crawl: "Victorian-Soho" })).toBe(
+      "Victorian Soho — London",
+    );
+
     expect(
       cityMapOgTitle("glasgow", { crawl: "subcrawl-starter", band: "subcrawl" }),
     ).toBe("Subcrawl starter — Glasgow");

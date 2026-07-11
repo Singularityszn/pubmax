@@ -47,7 +47,7 @@ function normalizeBandId(raw: string | null | undefined): string | undefined {
 
 function normalizeCrawlId(raw: string | null | undefined): string | undefined {
   if (!raw) return undefined;
-  const id = raw.trim();
+  const id = raw.trim().toLowerCase();
   return id || undefined;
 }
 

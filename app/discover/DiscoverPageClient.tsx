@@ -487,7 +487,8 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
           Cheap Pint Leaderboard
         </h2>
         <p className="discoverSectionDek">
-          The ten cheapest taps on the map right now.
+          Dataset cheapest-on-record taps — not a live tonight feed. Open a pub
+          for sourced or community freshness.
         </p>
         {status === "idle" ? (
           <p className="discoverEmpty" role="status">
