@@ -31,6 +31,7 @@ import {
 } from "@/lib/routeLegs";
 import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
 import SaveCrawlStory from "@/components/crawl/SaveCrawlStory";
+import RoundStarter from "@/components/round/RoundStarter";
 import {
   ALT_CRAWL_STYLES,
   altStyleLabels,
@@ -301,11 +302,11 @@ export default function RoutePanel({
     <aside className="routePanel">
       <div className="routeHeader">
         <div>
-          <p className="eyebrow">{mode === "build" ? "Your Crawl" : "Suggested Crawl"}</p>
+          <p className="eyebrow">{mode === "build" ? "Your Plan" : "Suggested Plan"}</p>
           <h2>
             {mode === "build"
-              ? crawlName || "Hand-built route"
-              : `${styleLabels[crawlStyle]} route`}
+              ? crawlName || "Hand-built plan"
+              : `${styleLabels[crawlStyle]} plan`}
           </h2>
           {crawlBlurb ? (
             <p className="description muted" style={{ margin: "4px 0 0" }}>
@@ -441,7 +442,7 @@ export default function RoutePanel({
       {route.length >= 2 ? (
         <div className={routeMapped ? "routeMapPrompt active" : "routeMapPrompt"}>
           <div>
-            <strong>{routeMapped ? `Mapped on ${cityDisplayName}` : "Map this crawl?"}</strong>
+            <strong>{routeMapped ? `Mapped on ${cityDisplayName}` : "Map this plan?"}</strong>
             <span>
               {legSummary.totalKm.toFixed(1)} km, {legSummary.totalMinutes} min{" "}
               {pace === "run" ? "run" : "walk"},
@@ -459,6 +460,19 @@ export default function RoutePanel({
             <Route size={14} aria-hidden="true" />
             {routeMapped ? "Hide line" : "Map route"}
           </button>
+        </div>
+      ) : null}
+
+      {route.length >= 2 ? (
+        <div className="planRoundBridge" data-testid="plan-round-bridge">
+          <p className="roundStarterHelper">
+            Invite friends to walk this plan as a Round.
+          </p>
+          <RoundStarter
+            compact
+            defaultTitle={crawlTitle}
+            seedStops={route.map((venue) => ({ id: venue.id, name: venue.name }))}
+          />
         </div>
       ) : null}
 
