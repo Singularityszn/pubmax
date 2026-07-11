@@ -87,7 +87,8 @@ export const CITIES: Record<CityId, CityConfig> = {
     tagline: "Price-aware crawls across the capital",
     country: "england",
     bounds: { latMin: 51.28, latMax: 51.72, lonMin: -0.55, lonMax: 0.35 },
-    mapView: { center: [-0.12, 51.52], zoom: 11.1, pitch: 42, bearing: -12 },
+    // Slightly wider opening zoom (outer-London P0) so outer boroughs read at first glance.
+    mapView: { center: [-0.12, 51.52], zoom: 10.7, pitch: 42, bearing: -12 },
     slimVenuesPath: "/data/venues_slim.json",
     poisPath: "/data/london_pois.json",
     transitLinesPath: "/data/tfl_lines.json",

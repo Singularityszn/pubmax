@@ -55,6 +55,8 @@ import {
 } from "@/lib/categoryColors";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
+import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatFreshness, formatObservedAt, formatPrice, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -154,6 +156,15 @@ type PubMapCanvasProps = {
    * city-aware Layers chrome. Defaults to london for back-compat.
    */
   cityId?: CityId;
+  /** CityMCP tonight opportunities (London). Drawn when tonightOverlayVisible. */
+  tonightOpportunities?: ThingsToDoOpportunity[];
+  tonightOverlayVisible?: boolean;
+  onTonightOpportunityClick?: (op: ThingsToDoOpportunity) => void;
+  /**
+   * Borough browse arrival (`?q=`): fit the filtered venue set once after
+   * style/load so outer-London places land framed, not on the city default.
+   */
+  fitQueryOnArrival?: boolean;
 };
 
 // OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
@@ -175,11 +186,11 @@ const FALLBACK_STYLES = {
 } as const;
 const STYLE_LOAD_TIMEOUT_MS = 8000;
 
-// Opening London zoom — tight enough that drink icons appear soon, not a sea
-// of mega-clusters (outer boroughs still reachable by pan/zoom).
+// Slightly wider opening London zoom (outer-London P0) so outer boroughs read
+// at first glance while drink icons still appear soon after a nudge in.
 const LONDON_VIEW = {
   center: [-0.12, 51.52] as [number, number],
-  zoom: 11.1,
+  zoom: 10.7,
   pitch: 42,
   bearing: -12,
 };
@@ -501,6 +512,30 @@ const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
   iconId("tfl", "river"),
   iconId("tfl", "underground"),
 ];
+const TONIGHT_OPPORTUNITY_LAYERS = [
+  "tonight-halo",
+  "tonight-point",
+  "tonight-label",
+] as const;
+
+function normaliseFeatureString(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function opportunityForFeature(
+  props: GeoJSON.GeoJsonProperties | undefined,
+  opportunities: readonly ThingsToDoOpportunity[],
+): ThingsToDoOpportunity | undefined {
+  const title = normaliseFeatureString(props?.title);
+  const placeName = normaliseFeatureString(props?.placeName);
+  return opportunities.find((op) => {
+    const opTitle = normaliseFeatureString(op.title);
+    const opPlaceName = normaliseFeatureString(op.place?.name);
+    if (title && placeName) return opTitle === title && opPlaceName === placeName;
+    if (title) return opTitle === title;
+    return Boolean(placeName && opPlaceName === placeName);
+  });
+}
 
 // Issue #16 — parallel coloured tube lines. The known sub-surface fan lines
 // (Metropolitan / Circle / H&C / District) run four-abreast through shared
@@ -647,6 +682,10 @@ export default function PubMapCanvas({
   cityLandmarks = londonLandmarks,
   cityStoryBands = LONDON_STORY_BANDS,
   cityId = DEFAULT_CITY_ID,
+  tonightOpportunities = [],
+  tonightOverlayVisible = false,
+  onTonightOpportunityClick,
+  fitQueryOnArrival = false,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
@@ -762,7 +801,10 @@ export default function PubMapCanvas({
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
+  const onTonightOpportunityClickRef = useRef(onTonightOpportunityClick);
   const cityLandmarksRef = useRef(cityLandmarks);
+  const tonightOpportunitiesRef = useRef(tonightOpportunities);
+  const tonightOverlayVisibleRef = useRef(tonightOverlayVisible);
   const hoverDetailLoadingRef = useRef<Set<string>>(new Set());
   const rememberHoverDetail = useCallback((id: string, venue: Venue | null) => {
     const next = withBoundedHoverDetailCache(hoverDetailsRef.current, id, venue);
@@ -774,8 +816,16 @@ export default function PubMapCanvas({
     onRouteStopClickRef.current = onRouteStopClick;
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
+    onTonightOpportunityClickRef.current = onTonightOpportunityClick;
     cityLandmarksRef.current = cityLandmarks;
-  }, [onVenueClick, onRouteStopClick, onVenuePrefetch, onLandmarkSelect, cityLandmarks]);
+  }, [
+    onVenueClick,
+    onRouteStopClick,
+    onVenuePrefetch,
+    onLandmarkSelect,
+    onTonightOpportunityClick,
+    cityLandmarks,
+  ]);
 
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
@@ -795,6 +845,9 @@ export default function PubMapCanvas({
     type: "FeatureCollection",
     features: [],
   });
+  const tonightDataRef = useRef<GeoJSON.FeatureCollection>(
+    opportunitiesToGeoJSON([]),
+  );
   // Story-band corridor (a tinted line through the anchors); reseeded after a
   // theme setStyle wipes sources, same pattern as the other data refs.
   const bandCorridorRef = useRef<GeoJSON.FeatureCollection>({
@@ -1697,6 +1750,73 @@ export default function PubMapCanvas({
         paint: { "text-color": dark ? tokens.ink : tokens.paper },
       });
 
+      // --- CityMCP "tonight" opportunities: amber/moon pins above route stops,
+      // with visibility controlled by parent overlay state and data reseeded via ref.
+      try {
+        const tonightVisibility: "visible" | "none" = tonightOverlayVisibleRef.current
+          ? "visible"
+          : "none";
+        if (!map.getSource("tonight-opportunities")) {
+          map.addSource("tonight-opportunities", {
+            type: "geojson",
+            data: tonightDataRef.current,
+          });
+        }
+        addLayerOnce({
+          id: "tonight-halo",
+          type: "circle",
+          source: "tonight-opportunities",
+          minzoom: 10.5,
+          layout: { visibility: tonightVisibility },
+          paint: {
+            "circle-color": withAlpha(tokens.amber, dark ? 0.24 : 0.2),
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10.5, 9, 15, 17],
+            "circle-stroke-color": withAlpha(tokens.riverBright, dark ? 0.7 : 0.55),
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10.5, 1.1, 15, 2],
+            "circle-stroke-opacity": 0.8,
+            "circle-blur": 0.35,
+          },
+        });
+        addLayerOnce({
+          id: "tonight-point",
+          type: "circle",
+          source: "tonight-opportunities",
+          minzoom: 10.5,
+          layout: { visibility: tonightVisibility },
+          paint: {
+            "circle-color": tokens.amber,
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10.5, 4.2, 15, 6.6],
+            "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
+            "circle-stroke-width": 1.4,
+            "circle-opacity": 0.96,
+          },
+        });
+        addLayerOnce({
+          id: "tonight-label",
+          type: "symbol",
+          source: "tonight-opportunities",
+          minzoom: 13,
+          layout: {
+            "text-field": ["get", "title"],
+            "text-font": textFont,
+            "text-size": ["interpolate", ["linear"], ["zoom"], 13, 9, 16, 10.5],
+            "text-offset": [0, 0.95],
+            "text-anchor": "top",
+            "text-optional": true,
+            "text-allow-overlap": false,
+            "text-ignore-placement": false,
+            visibility: tonightVisibility,
+          },
+          paint: {
+            "text-color": dark ? tokens.ink : tokens.inkDeep,
+            "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+            "text-halo-width": 1.25,
+          },
+        });
+      } catch {
+        // CityMCP pins are an additive overlay; a style hiccup must not break the pub map.
+      }
+
       // Flush any mutations that arrived while the style was mid-load (initial
       // load or a theme swap). buildScene has just re-seeded every source/layer
       // from the data refs, so these queued fns (filters, paint, visibility,
@@ -1820,6 +1940,7 @@ export default function PubMapCanvas({
     const PUB_FIRST_LAYERS = [
       "pubs-point",
       "route-stops",
+      "tonight-point",
       "clusters",
       "landmarks-icon",
       "pois-dot",
@@ -1871,6 +1992,20 @@ export default function PubMapCanvas({
           const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
           cinematic({ center: [lng, lat], zoom, duration: 700 });
         });
+        return;
+      }
+
+      const tonightHit = byLayer.get("tonight-point");
+      if (tonightHit) {
+        const opportunity = opportunityForFeature(
+          tonightHit.properties as GeoJSON.GeoJsonProperties | undefined,
+          tonightOpportunitiesRef.current,
+        );
+        if (!opportunity) return;
+        selectLandmark(null);
+        setHoveredVenue(null);
+        setActivePoi(null);
+        onTonightOpportunityClickRef.current?.(opportunity);
         return;
       }
 
@@ -1932,6 +2067,7 @@ export default function PubMapCanvas({
       "pubs-point",
       "clusters",
       "route-stops",
+      "tonight-point",
       "landmarks-icon",
       "pois-dot",
       "pois-transport-major",
@@ -2098,6 +2234,24 @@ export default function PubMapCanvas({
     });
   }, [venues, venueSignals, favoritePint, drinkCategory, mapReady, applyToMap]);
 
+  // CityMCP tonight opportunities → source data + overlay visibility. Kept out
+  // of the mount effect deps so live opportunity refreshes never remount MapLibre.
+  useEffect(() => {
+    tonightDataRef.current = opportunitiesToGeoJSON(tonightOpportunities);
+    tonightOpportunitiesRef.current = tonightOpportunities;
+    tonightOverlayVisibleRef.current = tonightOverlayVisible;
+    if (!mapReady) return;
+    applyToMap("tonight:data+visibility", (map) => {
+      (map.getSource("tonight-opportunities") as maplibregl.GeoJSONSource | undefined)?.setData(
+        tonightDataRef.current,
+      );
+      const visibility: "visible" | "none" = tonightOverlayVisible ? "visible" : "none";
+      for (const layer of TONIGHT_OPPORTUNITY_LAYERS) {
+        if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visibility);
+      }
+    });
+  }, [tonightOpportunities, tonightOverlayVisible, mapReady, applyToMap]);
+
   // POIs load once (client fetch) and feed the "pois" source.
   // Non-London cities pass poisPath=null → empty layer, no 404.
   useEffect(() => {
@@ -2224,8 +2378,10 @@ export default function PubMapCanvas({
   // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
   // see shouldFitCityBoundsOnArrival. Ref guards against effect re-runs.
   const didFitOnArrivalRef = useRef(false);
+  const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {
     didFitOnArrivalRef.current = false;
+    didFitQueryOnArrivalRef.current = false;
   }, [cityId]);
   useEffect(() => {
     if (!mapReady || !fitCityOnArrival) return;
@@ -2233,6 +2389,38 @@ export default function PubMapCanvas({
     didFitOnArrivalRef.current = true;
     fitCityBounds();
   }, [mapReady, fitCityOnArrival, fitCityBounds]);
+
+  // Borough browse arrival: frame the filtered venue set once (query owns the
+  // camera). Skip if the user already tapped a pin — don't fight selectedVenue
+  // fly-to. Padding mirrors fitRoute; maxZoom ~13 keeps outer boroughs readable.
+  const fitQueryVenues = useCallback(() => {
+    const map = mapRef.current;
+    const current = venuesRef.current;
+    if (!map || current.length === 0) return;
+    const bounds = new maplibregl.LngLatBounds();
+    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+    holdUntilRef.current = Math.max(
+      holdUntilRef.current,
+      performance.now() + 900 + ORBIT_RESUME_MS,
+    );
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
+    map.fitBounds(bounds, {
+      padding: isPhone
+        ? { top: 160, right: 28, bottom: 200, left: 28 }
+        : 90,
+      maxZoom: 13,
+      duration: reducedRef.current ? 0 : 800,
+    });
+  }, []);
+  useEffect(() => {
+    if (!mapReady || !fitQueryOnArrival) return;
+    if (didFitQueryOnArrivalRef.current) return;
+    // User already tapped a venue — leave the cinematic fly-to alone.
+    if (selectedVenueId) return;
+    if (venues.length === 0) return;
+    didFitQueryOnArrivalRef.current = true;
+    fitQueryVenues();
+  }, [mapReady, fitQueryOnArrival, venues.length, selectedVenueId, fitQueryVenues]);
 
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere

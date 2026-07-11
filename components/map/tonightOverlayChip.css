@@ -1,0 +1,68 @@
+.tonightOverlayChip {
+  position: absolute;
+  top: 168px;
+  left: 50%;
+  z-index: 513;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transform: translateX(-50%);
+  max-width: min(92vw, 340px);
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--amber) 30%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 92%, var(--amber) 8%);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.tonightOverlayChipToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tonightOverlayChipToggle.isActive {
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+  color: color-mix(in srgb, var(--amber) 55%, var(--ink));
+}
+
+.tonightOverlayChipDismiss {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.tonightOverlayChipDismiss:hover,
+.tonightOverlayChipToggle:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 640px) {
+  .tonightOverlayChip {
+    top: auto;
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: auto;
+    transform: none;
+  }
+
+  body:has(.appShell.detail-open) .tonightOverlayChip,
+  body:has(.appShell.planning-open) .tonightOverlayChip {
+    display: none;
+  }
+}

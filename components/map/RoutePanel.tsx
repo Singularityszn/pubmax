@@ -15,6 +15,7 @@ import {
   Trophy,
   ArrowUpDown,
   CalendarPlus,
+  Navigation,
   TrainFront,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,6 +30,7 @@ import {
   poisOnRoute,
   type RoutePace,
 } from "@/lib/routeLegs";
+import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
 import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
 import SaveCrawlStory from "@/components/crawl/SaveCrawlStory";
 import RoundStarter from "@/components/round/RoundStarter";
@@ -97,6 +99,10 @@ type RoutePanelProps = {
   poisPath?: string | null;
   /** Fires when Plan-drawer RoundStarter mints a Round (stay-on-map). */
   onRoundStarted?: (code: string) => void;
+  /** London-only CityMCP TfL legs keyed by destination stop index. */
+  journeyByToIndex?: Map<number, CrawlJourneyLegSummary>;
+  journeyLoading?: boolean;
+  journeyTotalMinutes?: number | null;
 };
 
 // Trigger a client-side .ics download via a blob URL. Kept tiny + SSR-guarded.
@@ -139,6 +145,9 @@ export default function RoutePanel({
   cityId = DEFAULT_CITY_ID,
   poisPath = LONDON_POIS_PATH,
   onRoundStarted,
+  journeyByToIndex,
+  journeyLoading = false,
+  journeyTotalMinutes = null,
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
@@ -369,6 +378,19 @@ export default function RoutePanel({
             <Footprints size={17} />
             <span>{legSummary.totalMinutes} min</span>
             <small>{pace === "run" ? "running, straight-line" : "walking, straight-line"}</small>
+          </div>
+        ) : null}
+        {typeof journeyTotalMinutes === "number" ? (
+          <div title="Live TfL itinerary between stops via CityMCP London (leave-now).">
+            <TrainFront size={17} />
+            <span>{Math.round(journeyTotalMinutes)} min</span>
+            <small>TfL between stops</small>
+          </div>
+        ) : journeyLoading ? (
+          <div>
+            <TrainFront size={17} />
+            <span>…</span>
+            <small>TfL loading</small>
           </div>
         ) : null}
         <div>
@@ -630,6 +652,15 @@ export default function RoutePanel({
                 </small>
               </div>
             </button>
+            <a
+              className="routeStopDirections"
+              href={`https://www.google.com/maps/dir/?api=1&destination=${venue.latitude},${venue.longitude}&travelmode=walking`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Navigation size={12} aria-hidden="true" />
+              <span>Directions</span>
+            </a>
             {leg ? (
               <div className="routeLeg" aria-label={`Leg to ${leg.to.name}`}>
                 <Footprints size={13} aria-hidden="true" />
@@ -637,6 +668,12 @@ export default function RoutePanel({
                 {onTheWay.length > 0 ? (
                   <p className="routeLegOnWay">
                     On the way: {onTheWay.map((m) => m.poi.name).join(", ")}
+                  </p>
+                ) : null}
+                {journeyByToIndex?.get(index) ? (
+                  <p className="routeLegTransit" aria-label="TfL leg">
+                    <TrainFront size={12} aria-hidden="true" />
+                    <span>{journeyByToIndex.get(index)!.summary}</span>
                   </p>
                 ) : null}
               </div>

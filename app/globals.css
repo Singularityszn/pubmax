@@ -3297,6 +3297,38 @@ input[type="range"] {
   color: var(--ink-soft, var(--muted));
 }
 
+.routeLegTransit {
+  flex-basis: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
+  color: var(--river);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.routeStopDirections {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 0 41px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--river) 30%);
+  color: var(--river);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: none;
+  width: fit-content;
+}
+.routeStopDirections:hover {
+  background: color-mix(in srgb, var(--river) 10%, transparent);
+}
+
 /* Keyboard route-building path: filtered venue list with Add/Remove controls. */
 .venuePicker {
   margin-top: 18px;
