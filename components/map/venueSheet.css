@@ -262,24 +262,30 @@
      (revealed: peek 0.14 / half 0.55 / full 0.92 → translateY 86vh / 45vh /
      8vh). The sheet is viewport-tall (height: 100vh below); translateY pushes
      it down so only the revealed fraction stays on-screen. globals.css's
-     closed/open base transforms still apply when detailOpen is false; these
+     closed/open base transforms still apply when the drawer is closed; these
      rules override once `.open.sheet-*` is present. Keep in sync with
-     globals.css's ≤768px `.sheet-*` overrides. */
+     globals.css's ≤768px `.sheet-*` overrides. Venue = right, planner = left. */
+  .mapDrawer.left.open.sheet-full,
   .mapDrawer.right.open.sheet-full {
     transform: translateY(8vh);
   }
 
+  .mapDrawer.left.open.sheet-half,
   .mapDrawer.right.open.sheet-half {
-    /* Reveal ~55vh of venue detail above the fixed mobile tab bar. */
+    /* Reveal ~55vh of sheet content above the fixed mobile tab bar. */
     transform: translateY(45vh);
   }
 
+  .mapDrawer.left.open.sheet-peek,
   .mapDrawer.right.open.sheet-peek {
-    /* Reveal ~14vh — grabber + title + price, per the PRD's "peek" spec. */
+    /* Reveal ~14vh — grabber + title row, per the PRD's "peek" spec. */
     transform: translateY(86vh);
   }
 
   /* Viewport-tall so translateY(vh) reveals exactly SHEET_SNAP_FRACTIONS. */
+  .mapDrawer.left.open.sheet-full,
+  .mapDrawer.left.open.sheet-half,
+  .mapDrawer.left.open.sheet-peek,
   .mapDrawer.right.open.sheet-full,
   .mapDrawer.right.open.sheet-half,
   .mapDrawer.right.open.sheet-peek {
@@ -292,6 +298,7 @@
      a marker for disabling ancillary motion (nothing currently needs it,
      but it keeps the "no transition mid-drag" contract visible in one place
      for future rules) and for disabling text selection while dragging. */
+  .mapDrawer.left.sheet-dragging,
   .mapDrawer.right.sheet-dragging {
     user-select: none;
     -webkit-user-select: none;
@@ -304,16 +311,36 @@
     cursor: grab;
   }
 
+  .mapDrawer.left.sheet-dragging .sheetDragHandle,
   .mapDrawer.right.sheet-dragging .sheetDragHandle {
     cursor: grabbing;
+  }
+
+  /* Planner head: centered grabber (no close X — dismiss is "View map"). */
+  .plannerSheetHead {
+    display: flex;
+    justify-content: center;
+    padding: 8px 12px 0;
+  }
+
+  .plannerSheetHead .venueSheetGrabZone {
+    margin: 0;
   }
 
   /* Snap without an animated transition for reduced-motion users — the sheet
      still moves between snaps, just instantly rather than eased. */
   @media (prefers-reduced-motion: reduce) {
+    .mapDrawer.left,
     .mapDrawer.right {
       transition: none;
     }
+  }
+}
+
+/* Hide planner grabber on desktop — left drawer stays a plain side panel. */
+@media (min-width: 641px) {
+  .plannerSheetHead {
+    display: none;
   }
 }
 

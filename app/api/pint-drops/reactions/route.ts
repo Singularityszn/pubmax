@@ -110,16 +110,18 @@ export async function POST(request: Request): Promise<Response> {
     if (actorHandle && summary.mine.includes(reaction)) {
       const ownership = await gateHandleAction(request, actorHandle);
       if (ownership.allowed) {
-        void dropOwnerHandle(id).then((owner) => {
-          if (!owner) return;
-          return emitNotification({
-            recipientHandle: owner,
-            actorHandle: ownership.handle,
-            kind: "reaction",
-            subjectRef: id,
-            subjectLabel: reaction,
-          });
-        });
+        void dropOwnerHandle(id)
+          .then((owner) => {
+            if (!owner) return;
+            return emitNotification({
+              recipientHandle: owner,
+              actorHandle: ownership.handle,
+              kind: "reaction",
+              subjectRef: id,
+              subjectLabel: reaction,
+            });
+          })
+          .catch(() => {});
       }
     }
     return jsonNoStore({ summary }, { status: 200 });

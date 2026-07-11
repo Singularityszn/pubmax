@@ -16,12 +16,14 @@ describe("routePacks", () => {
     expect(routePacks.map((p) => p.id).sort()).toEqual(
       [
         "cheap-chaos",
+        "civic-west",
         "coding-pint",
         "late-train",
         "markets-late-trains",
         "music-theatre",
         "old-london",
         "quiet-table",
+        "southwark-tide",
         "thames",
         "writers",
       ].sort(),
@@ -49,6 +51,20 @@ describe("routePacks", () => {
     );
     expect(getRoutePack("old-london")?.crawlIds).toEqual(
       expect.arrayContaining(["victorian-soho", "bankside-riverside"]),
+    );
+    expect(getRoutePack("civic-west")?.crawlIds).toEqual(
+      expect.arrayContaining([
+        "westminster-civic",
+        "leicester-mocktail-crawl",
+        "fleet-street-writers",
+      ]),
+    );
+    expect(getRoutePack("southwark-tide")?.crawlIds).toEqual(
+      expect.arrayContaining([
+        "borough-market-crawl",
+        "bankside-riverside",
+        "riverside-heritage",
+      ]),
     );
   });
 

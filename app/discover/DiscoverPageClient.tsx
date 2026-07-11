@@ -20,11 +20,8 @@ import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
 import TopRatedPubs from "@/components/ratings/TopRatedPubs";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
-import {
-  brandsForCategory,
-  categoryHasBrandCoverage,
-} from "@/lib/drinkBrands";
-import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import { brandsForCategory } from "@/lib/drinkBrands";
+import type { DrinkCategory } from "@/lib/drinks";
 import { KNOWN_CUISINE_TAGS } from "@/lib/cuisineTags";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
@@ -59,6 +56,9 @@ const DISCOVER_CUISINE_CHIPS = [
   "thai",
   "italian",
 ] as const satisfies ReadonlyArray<(typeof KNOWN_CUISINE_TAGS)[number]>;
+
+/** Brand jump chips — beer + wine only (honest coverage on the map). */
+const JUMP_BY_BRAND_CATEGORIES = ["beer", "wine"] as const satisfies ReadonlyArray<DrinkCategory>;
 
 // "Explore by drink" → /map deep-link. decodeCrawl (lib/crawlUrl) maps these:
 //   cocktail → requireCocktails + drinkCategory
@@ -205,9 +205,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
   // ratings API returns venue ids; names come from the SAME dataset fetch the
   // leaderboard already makes (no second dataset read).
   const [venueNames, setVenueNames] = useState<Record<string, string>>({});
-  const [activeDrink, setActiveDrink] = useState<DrinkCategory | null>(null);
   const analysisRef = useRef<HTMLElement | null>(null);
-  const brandPanelRef = useRef<HTMLDivElement | null>(null);
 
   // Editorial stays London-authored; drink/food chips still follow preferred city.
   const editorial = buildEditorial();
@@ -270,14 +268,6 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
     };
   }, []);
 
-  useEffect(() => {
-    if (!activeDrink || !brandPanelRef.current) return;
-    brandPanelRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [activeDrink]);
-
-  const activeBrands = activeDrink ? brandsForCategory(activeDrink) : [];
-  const activeLabel = activeDrink ? CATEGORY_META[activeDrink].label : "";
-
   return (
     <main className="discoverPage">
       <SiteNav active="discover" />
@@ -304,11 +294,9 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
         <CategoryShowcase
           title=""
           hrefFor={(category) => exploreHref(category, preferredCity)}
-          cardHint="Choose this"
+          cardHint="Open on map"
           className="discoverExplore"
           extraItemsPosition="start"
-          onCategoryActivate={setActiveDrink}
-          activeCategory={activeDrink}
           extraItems={
             <li
               className="catShowcase__item discoverLowNoItem"
@@ -328,57 +316,41 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
                 </span>
                 <span className="catShowcase__labelWrap">
                   <span className="catShowcase__label">Low / No</span>
-                  <span className="catShowcase__hint">Choose this</span>
+                  <span className="catShowcase__hint">Open on map</span>
                 </span>
               </Link>
             </li>
           }
         />
 
-        {activeDrink ? (
-          <div
-            ref={brandPanelRef}
-            className="discoverBrandPanel"
-            aria-labelledby="discover-brand-title"
-          >
-            <div className="discoverBrandHead">
-              <h3 id="discover-brand-title" className="discoverBrandTitle">
-                {activeLabel} brands
-              </h3>
-              <Link
-                className="discoverBrandAll"
-                href={exploreHref(activeDrink, preferredCity)}
-              >
-                Any {activeLabel.toLowerCase()} on the map
-              </Link>
-            </div>
-            {categoryHasBrandCoverage(activeDrink) ? (
-              <>
-                <p className="discoverBrandDek">
-                  Jump straight to a label — coverage is still thin outside beer,
-                  so some brands may show few pins until menus fill in.
-                </p>
-                <ul className="discoverBrandChips">
-                  {activeBrands.map((brand) => (
-                    <li key={brand.id}>
-                      <Link
-                        className="discoverBrandChip"
-                        href={exploreHref(activeDrink, preferredCity, brand.id)}
-                      >
-                        {brand.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <p className="discoverBrandEmpty" role="status">
-                We don&rsquo;t have curated {activeLabel.toLowerCase()} brands yet —
-                open the map for the whole category, or pick another drink family.
-              </p>
-            )}
+        <div
+          className="discoverBrandPanel"
+          aria-labelledby="discover-brand-title"
+        >
+          <div className="discoverBrandHead">
+            <h3 id="discover-brand-title" className="discoverBrandTitle">
+              Jump by brand
+            </h3>
           </div>
-        ) : null}
+          <p className="discoverBrandDek">
+            Open a drink family on the map, or jump by brand — beer and wine
+            have the best coverage today.
+          </p>
+          <ul className="discoverBrandChips">
+            {JUMP_BY_BRAND_CATEGORIES.flatMap((category) =>
+              brandsForCategory(category).map((brand) => (
+                <li key={`${category}-${brand.id}`}>
+                  <Link
+                    className="discoverBrandChip"
+                    href={exploreHref(category, preferredCity, brand.id)}
+                  >
+                    {brand.label}
+                  </Link>
+                </li>
+              )),
+            )}
+          </ul>
+        </div>
       </section>
 
       <section className="discoverSection" aria-labelledby="hungry-title">
@@ -487,7 +459,8 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
           Cheap Pint Leaderboard
         </h2>
         <p className="discoverSectionDek">
-          The ten cheapest taps on the map right now.
+          Dataset cheapest-on-record taps — not a live tonight feed. Open a pub
+          for sourced or community freshness.
         </p>
         {status === "idle" ? (
           <p className="discoverEmpty" role="status">

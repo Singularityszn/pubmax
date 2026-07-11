@@ -16,8 +16,15 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import { COMMUNITY_PRICE_NOTE, formatFreshness, formatPrice, type Venue } from "@/lib/venues";
+import {
+  COMMUNITY_PRICE_NOTE,
+  formatFreshness,
+  formatObservedAt,
+  formatPrice,
+  type Venue,
+} from "@/lib/venues";
 import { buildVenueClaims, type ClaimKind, type Provenance } from "@/lib/curation";
+import type { PricedVenue } from "@/lib/priceUpdates";
 import {
   accessibilityChipLabels,
   quietHoursLabel,
@@ -316,6 +323,12 @@ export default function VenueInspector({
     [venue.id, venue.name, venue.filterHints?.searchText, venue.filterHints?.cuisineTags],
   );
 
+  // Sourced attribution from mergePriceUpdates (optional field on the runtime
+  // venue object). Absent when community is fresher or no refresh exists.
+  const sourcedPrice = (venue as PricedVenue).sourcedPrice ?? null;
+  const sourcedObserved =
+    sourcedPrice?.observedAt != null ? formatObservedAt(sourcedPrice.observedAt) : "";
+
   return (
     <section className="venueInspector">
       {/* The grab handle is the primary drag surface on mobile — a generous
@@ -436,14 +449,36 @@ export default function VenueInspector({
             <strong>Quiet hours:</strong> {quietHours}
           </p>
         ) : null}
+        {/* Price honesty on overview: community override wins, then sourced
+            observation, then baseline-on-record. Never imply a live feed. */}
         {latestContributorPrice !== null && latestContributorPrice !== undefined ? (
           <div className="contributorPrice">
-            <span>Latest Pint Drop price</span>
+            <span>
+              <ClaimBadge kind="contributor" /> Latest Pint Drop price
+            </span>
             <strong>{formatPrice(latestContributorPrice)}</strong>
             {venue.latestContributorAt ? (
               <small>{formatFreshness(venue.latestContributorAt)}</small>
             ) : null}
             <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+          </div>
+        ) : sourcedPrice ? (
+          <div className="contributorPrice">
+            <span>
+              <ClaimBadge kind="sourced" /> Sourced price
+            </span>
+            <strong>{formatPrice(venue.cheapestPrice)}</strong>
+            {sourcedObserved ? <small>{sourcedObserved}</small> : null}
+          </div>
+        ) : venue.cheapestPrice !== null && venue.cheapestPrice !== undefined ? (
+          <div className="contributorPrice">
+            <span>
+              <ClaimBadge kind="baseline" /> Baseline on record
+            </span>
+            <strong>{formatPrice(venue.cheapestPrice)}</strong>
+            <small className="communityPriceNote">
+              Dataset price — not a live tonight feed.
+            </small>
           </div>
         ) : null}
         {mode === "build" ? (

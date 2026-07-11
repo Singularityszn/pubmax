@@ -113,4 +113,12 @@ describe("preferredCityMapHref", () => {
       "/map/manchester?log=1",
     );
   });
+
+  it("rivalry-style city picks stick for subsequent Map nav", () => {
+    writePreferredCity("bristol");
+    expect(readPreferredCity()).toBe("bristol");
+    expect(preferredCityMapHref()).toBe("/map/bristol");
+    writePreferredCity("london");
+    expect(preferredCityMapHref()).toBe("/map");
+  });
 });
