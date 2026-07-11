@@ -9,6 +9,7 @@ import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/cur
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
+import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
 
 import "./borough.css";
 
@@ -139,6 +140,11 @@ export default async function BoroughPage({ params }: PageProps) {
   const pubs = pubsInBorough(venues, slug);
   const storyPubs = pubs.filter((pub) => pub.hasStory);
   const touchingCrawls = crawlsTouchingBorough(curatedCrawls, venues, slug);
+  // Cheapest-first sort already applied by pubsInBorough — first numeric
+  // price is our dataset's cheapest pint here. Used only for the CityMCP
+  // card's optional "vs our map" one-liner.
+  const ourCheapestPrice =
+    pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice ?? null;
 
   return (
     <main className="boroughPage">
@@ -161,6 +167,7 @@ export default async function BoroughPage({ params }: PageProps) {
             </>
           )}
         </p>
+        <BoroughPintPriceCard boroughName={name} ourCheapestPrice={ourCheapestPrice} />
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
           <p className="boroughThinBanner" role="status">
             Thin coverage in {name} for now ({pubs.length} of {BOROUGH_COVERAGE_FLOOR}+

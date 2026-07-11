@@ -512,3 +512,34 @@
       transform 0.18s ease;
   }
 }
+
+/* --- CityMCP pint-price chip (A1) ------------------------------------------ */
+
+.boroughPintChip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.boroughPintChipLabel {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--panel);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.boroughPintChipCompare {
+  color: var(--ink-soft);
+}
