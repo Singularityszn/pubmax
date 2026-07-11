@@ -49,7 +49,9 @@
 .mapPriceFab {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-width: 44px;
   min-height: 44px;
   padding: 0 12px 0 10px;
   border: 1px solid color-mix(in srgb, var(--pint) 34%, var(--line));

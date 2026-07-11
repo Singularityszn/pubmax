@@ -124,6 +124,6 @@
   .citySwitcherList {
     right: 0;
     left: auto;
-    z-index: 50;
+    z-index: var(--z-map-toolbar);
   }
 }
