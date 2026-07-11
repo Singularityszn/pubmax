@@ -1,7 +1,53 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-11T13:21:01.225Z",
+  "generatedAt": "2026-07-11T13:50:33.910Z",
   "updates": [
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Lucky Saint 0.5%",
+      "category": "beer",
+      "priceGbp": 4.6,
+      "producer": "Lucky Saint",
+      "abv": 0.5,
+      "style": "Low-alcohol lager",
+      "servingSize": "330ml bottle",
+      "source": {
+        "label": "PUBMAXXING demo menu fixture",
+        "url": "https://pubmaxx.vercel.app/data/drink_price_updates/latest.json",
+        "licence": "First-party demo fixture for UI coverage; not a live venue price."
+      },
+      "observedAt": "2026-07-06T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Elderflower Spritz 0.0",
+      "category": "cocktail",
+      "priceGbp": 5.2,
+      "abv": 0,
+      "style": "Alcohol-free spritz",
+      "servingSize": "highball",
+      "source": {
+        "label": "PUBMAXXING demo menu fixture",
+        "url": "https://pubmaxx.vercel.app/data/drink_price_updates/latest.json",
+        "licence": "First-party demo fixture for UI coverage; not a live venue price."
+      },
+      "observedAt": "2026-07-06T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Wapping Old Fashioned",
+      "category": "cocktail",
+      "priceGbp": 10.95,
+      "abv": 32,
+      "style": "Bourbon, bitters, orange",
+      "servingSize": "single",
+      "source": {
+        "label": "PUBMAXXING demo menu fixture",
+        "url": "https://pubmaxx.vercel.app/data/drink_price_updates/latest.json",
+        "licence": "First-party demo fixture for UI coverage; not a live venue price."
+      },
+      "observedAt": "2026-07-06T12:00:00.000Z"
+    },
     {
       "venueKey": "sherlock holmes|10 northumberland street, wc2n 5db|51.50730|-0.12534",
       "drinkName": "Organic Pinot Grigio, Riff, Italy",

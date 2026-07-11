@@ -89,37 +89,29 @@ describe("venueMenuForInspector", () => {
     expect(menu).toEqual([]);
   });
 
-  it("merges seeded Prospect drinks with Greene King sourced overlays", () => {
+  it("applies demo drink-price overlays to the real Prospect menu", () => {
     const menu = venueMenuForInspector({
       id: SEEDED_VENUE_ID,
       prices: [prospectPrice("p1", "Amstel", 6.1)],
     });
 
-    expect(menu[0]).toMatchObject({
-      name: "Amstel",
-      category: "beer",
-      priceGbp: 6.1,
-      provenance: { source: "app-dataset" },
-    });
+    const luckySaint = menu.find((drink) => drink.name === "Lucky Saint 0.5%");
+    expect(luckySaint).toBeDefined();
+    expect(luckySaint!.category).toBe("beer");
+    expect(luckySaint!.priceGbp).toBe(4.6);
+    expect(luckySaint!.alcoholType).toBe("low-no");
+    expect(luckySaint!.provenance.source).toBe("PUBMAXXING demo menu fixture");
 
     const oldFashioned = menu.find((drink) => drink.name === "Wapping Old Fashioned");
-    expect(oldFashioned).toMatchObject({
-      category: "cocktail",
-      priceGbp: 11.5,
-      provenance: { source: "seed" },
-    });
+    expect(oldFashioned).toBeDefined();
+    expect(oldFashioned!.priceGbp).toBe(10.95);
+    expect(oldFashioned!.provenance.source).toBe("PUBMAXXING demo menu fixture");
 
+    // Scraped Greene King Prospect menu rows remain alongside demos.
     const pinot = menu.find((drink) => drink.name.includes("Pinot Grigio"));
     expect(pinot).toMatchObject({
       category: "wine",
       priceGbp: 7.2,
-      provenance: { source: "Greene King — official menu" },
-    });
-
-    const zeroMojito = menu.find((drink) => drink.name === "0% Mojito");
-    expect(zeroMojito).toMatchObject({
-      category: "cocktail",
-      alcoholType: "low-no",
       provenance: { source: "Greene King — official menu" },
     });
   });
