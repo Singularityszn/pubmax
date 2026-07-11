@@ -123,16 +123,126 @@
   box-shadow: none;
 }
 
-/* Contextual food-mode hint — appears below the cuisine chips when a tag is
-   active. Keeps users oriented: "Showing 8 pubs tagged for pizza". Zero-match
-   state ("No pubs tagged for...") is rendered with a warning tint. */
-.mapToolbarFoodHint {
-  margin: 0;
-  padding: 4px 6px;
+/* ── Sticky filter status strip ────────────────────────────────────────────
+   Replaces the old food-only mapToolbarFoodHint. Appears below the toolbar
+   row whenever any lens (food / drink / query) is active. role=status keeps
+   screen readers informed of the current filter state. */
+.mapFilterStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  margin-top: 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brass) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));
+}
+
+.mapFilterStripText {
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--ink-soft);
-  line-height: 1.35;
+  line-height: 1.3;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapFilterStripClear {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  min-height: 22px;
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+
+.mapFilterStripClear:hover,
+.mapFilterStripClear:focus-visible {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+  color: var(--ink);
+}
+
+.mapFilterStripClear:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* ── Mobile combined Filters panel — segmented tabs ────────────────────── */
+
+/* Small active-state dot on a tab when that lens has filters set. */
+.mapFiltersTabDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--brass);
+  flex: 0 0 auto;
+}
+
+/* Small active-state dot on the Filters toolbar button. */
+.mapToolbarFilterDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--brass);
+  flex: 0 0 auto;
+}
+
+.mapFiltersTabBar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--line) 30%, transparent);
+  margin-bottom: 8px;
+}
+
+.mapFiltersTab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  min-height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+.mapFiltersTab.isActive {
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow:
+    0 1px 4px color-mix(in srgb, var(--ink) 10%, transparent),
+    0 0 0 0.5px color-mix(in srgb, var(--line) 40%, transparent);
+}
+
+.mapFiltersTab:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
 }
 
 .mapToolbarSearchApply {
@@ -215,9 +325,15 @@
   white-space: nowrap;
 }
 
+/* CitySwitcher wrapper — visible on desktop, hidden on mobile (it moves to
+   SiteNav.siteNavActions when on the floating map bar). */
+.mapToolbarCityDesktop {
+  flex: 0 0 auto;
+}
+
 @media (max-width: 640px) {
   .mapToolbar {
-    /* Visible so CitySwitcher dropdown can escape; clip only the search field. */
+    /* Visible so dropdowns can escape; clip only the search field. */
     overflow: visible;
     /* Match .siteNavBarFloating padding/radius so the two chrome cards read as twins. */
     padding: 2px 7px;
@@ -262,6 +378,11 @@
     display: none;
   }
 
+  /* City switcher lives in the SiteNav floating bar on mobile — hide from toolbar row. */
+  .mapToolbarCityDesktop {
+    display: none;
+  }
+
   .planBtn {
     min-height: 36px;
     height: 36px;
@@ -292,8 +413,14 @@
     padding: 4px 9px 4px 6px;
   }
 
+  /* Strip stays compact on mobile. */
+  .mapFilterStrip {
+    padding: 3px 6px;
+    margin-top: 3px;
+  }
+
   /*
-    Float the expanded drinks panel as an absolute overlay so it doesn't
+    Float the expanded filters panel as an absolute overlay so it doesn't
     push the map toolbar taller and clobber the map chrome below it.
     The toolbar already has overflow:visible so the panel can escape its bounds.
   */
@@ -354,6 +481,8 @@
 @media (prefers-reduced-motion: reduce) {
   .drinkShapeChip,
   .mapToolbarApplyBtn,
+  .mapFiltersTab,
+  .mapFilterStripClear,
   .appShell.sheet-full .mapToolbar,
   .appShell.sheet-full .mapLegend,
   .appShell.detail-open .mapToolbar,

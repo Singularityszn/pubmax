@@ -145,6 +145,12 @@
   margin-left: auto;
 }
 
+/* CitySwitcher host inside SiteNav actions — hidden on desktop (it lives in
+   MapToolbar row there); shown on mobile via the media query below. */
+.siteNavCitySwitcherWrap {
+  display: none;
+}
+
 /* ── Notification bell (story 34) ──────────────────────────────────────── */
 .siteNavBell {
   position: relative;
@@ -309,6 +315,19 @@
   }
 
   .siteNavBar .authUser {
+    display: none;
+  }
+
+  /* ── Item #2: CitySwitcher in SiteNav on mobile map ──────────────────── */
+  /* Reveal the CitySwitcher wrapper only on the floating map bar at ≤640px. */
+  .siteNavBarFloating .siteNavCitySwitcherWrap {
+    display: block;
+  }
+
+  /* ── Item #4: Declutter floating bar — hide bell + messages on mobile ─── */
+  /* Only ThemeToggle and sign-in are kept; the bell/messages add clutter on
+     the compact mobile map chrome where every pixel counts. */
+  .siteNavBarFloating .siteNavBell {
     display: none;
   }
 }

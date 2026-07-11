@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
+import CitySwitcher from "@/components/map/CitySwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
@@ -13,6 +14,7 @@ import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
+import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
 import "./siteNav.css";
 
@@ -91,6 +93,16 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
   const isMap =
     active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
+  // Derive the active city from the URL so the compact mobile bar can host
+  // the CitySwitcher that moves out of the MapToolbar row at ≤640px.
+  // "/map" → london (default); "/map/<cityId>" → that city.
+  const mapCityId: CityId | null = isMap
+    ? pathname === "/map"
+      ? DEFAULT_CITY_ID
+      : ((pathname.match(/^\/map\/([^/]+)/)?.[1] as CityId | undefined) ??
+        DEFAULT_CITY_ID)
+    : null;
+
   return (
     <nav
       className={isMap ? "siteNavBar siteNavBarFloating" : "siteNavBar"}
@@ -128,11 +140,17 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
       </ul>
 
       <div className="siteNavActions">
-        {/* Notification bell (story 34) — unread-count badge + link to /activity.
-            Shows on mobile too (the compact bar keeps the bell + toggle + sign-in). */}
+        {/* On mobile map the CitySwitcher moves here from the MapToolbar row.
+            Shown via CSS only at ≤640px on the floating bar variant. */}
+        {mapCityId ? (
+          <div className="siteNavCitySwitcherWrap">
+            <CitySwitcher cityId={mapCityId} />
+          </div>
+        ) : null}
+
+        {/* Notification bell — hidden on mobile map (item #4) to declutter. */}
         <NotificationBell />
-        {/* E4: 1:1 messaging inbox link — unread-count badge + link to /messages.
-            Same ambient island shape as the bell; shows on mobile too. */}
+        {/* Messages link — hidden on mobile map (item #4) to declutter. */}
         <MessagesLink />
         <ThemeToggle />
         <SignInButton />

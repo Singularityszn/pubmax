@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   drinksPanelSearchLabel,
+  filterStripText,
   foodPanelSearchLabel,
 } from "@/components/map/MapToolbar";
 
@@ -112,5 +113,83 @@ describe("drinksPanelSearchLabel", () => {
     expect(
       drinksPanelSearchLabel({ drinkCategory: "cocktail", requireCocktails: true }, null, 5),
     ).toBe("Show 5 Cocktail pubs");
+  });
+});
+
+// ── filterStripText ──────────────────────────────────────────────────────────
+
+describe("filterStripText", () => {
+  const noFilters = { cuisineTag: "", requireFood: false, drinkCategory: "", requireCocktails: false };
+
+  it("returns empty string when no filters active", () => {
+    expect(filterStripText("", noFilters, null, "", undefined)).toBe("");
+  });
+
+  it("shows count + cuisine tag when a cuisine tag is set", () => {
+    expect(
+      filterStripText("", { ...noFilters, cuisineTag: "pizza" }, null, "", 23),
+    ).toBe("23 pubs · Pizza");
+  });
+
+  it("capitalises the cuisine tag", () => {
+    expect(
+      filterStripText("", { ...noFilters, cuisineTag: "burger" }, null, "", 5),
+    ).toBe("5 pubs · Burger");
+  });
+
+  it("shows 'Food' when requireFood is set without a tag", () => {
+    expect(
+      filterStripText("", { ...noFilters, requireFood: true }, null, "", 18),
+    ).toBe("18 pubs · Food");
+  });
+
+  it("shows drink category from filters.drinkCategory", () => {
+    expect(
+      filterStripText("", { ...noFilters, drinkCategory: "gin" }, null, "", 10),
+    ).toBe("10 pubs · Gin");
+  });
+
+  it("shows drink category from the prop when filters.drinkCategory is empty", () => {
+    expect(filterStripText("", noFilters, null, "beer", 7)).toBe("7 pubs · Beer");
+  });
+
+  it("shows 'Cocktails' when requireCocktails is set", () => {
+    expect(
+      filterStripText("", { ...noFilters, requireCocktails: true }, null, "", 4),
+    ).toBe("4 pubs · Cocktails");
+  });
+
+  it("shows 'Your pint' when only a favourite pint is set", () => {
+    expect(filterStripText("", noFilters, "guinness", "", 12)).toBe("12 pubs · Your pint");
+  });
+
+  it("shows quoted query when only a free-text search is active", () => {
+    expect(filterStripText("near tube", noFilters, null, "", 33)).toBe(
+      `33 pubs · "near tube"`,
+    );
+  });
+
+  it("combines food tag and drink category with a comma separator", () => {
+    expect(
+      filterStripText(
+        "",
+        { ...noFilters, cuisineTag: "pizza", drinkCategory: "beer" },
+        null,
+        "",
+        8,
+      ),
+    ).toBe("8 pubs · Pizza, Beer");
+  });
+
+  it("shows just labels when count is undefined", () => {
+    expect(
+      filterStripText("", { ...noFilters, cuisineTag: "tapas" }, null, "", undefined),
+    ).toBe("Tapas");
+  });
+
+  it("shows singular 'pub' when count is 1", () => {
+    expect(
+      filterStripText("", { ...noFilters, cuisineTag: "steak" }, null, "", 1),
+    ).toBe("1 pub · Steak");
   });
 });
