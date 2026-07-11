@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Check, Copy, MapPin, Flag } from "lucide-react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
@@ -15,8 +15,16 @@ import {
   routePackPrimaryCrawl,
   routePacks,
 } from "@/lib/routePacks";
+import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
+import RouteThumbnail from "./RouteThumbnail";
+import {
+  buildCrawlRouteSummary,
+  crawlPriceRange,
+  formatCrawlRouteSummary,
+  formatPriceRange,
+} from "./routeSummary";
 import "./crawls.css";
 
 // The landmark a crawl starts at (story 27) — "starts at Big Ben"-style chip.
@@ -68,6 +76,25 @@ function CrawlsPageInner() {
   const story = useMemo<CrawlStory | null>(
     () => decodeCrawlStory(searchParams.get("s")),
     [searchParams],
+  );
+
+  // Slim venue index — the only client-safe source of stop coords + price, used
+  // to derive HONEST route metrics for the curated cards (E4). Loaded once on
+  // mount (same pattern as the Round route list); until it lands slimById is
+  // empty and the cards simply render without metrics rather than guessing.
+  const [slimVenues, setSlimVenues] = useState<SlimVenue[]>([]);
+  useEffect(() => {
+    let active = true;
+    void loadSlimVenues().then((venues) => {
+      if (active) setSlimVenues(venues);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const slimById = useMemo(
+    () => new Map(slimVenues.map((v) => [v.id, v])),
+    [slimVenues],
   );
 
   const [copied, setCopied] = useState(false);
@@ -151,11 +178,33 @@ function CrawlsPageInner() {
               const placeStory = crawl.placeStoryBandId
                 ? bandById(crawl.placeStoryBandId)
                 : undefined;
+              // HONEST route metrics from the slim index (E4). Undefined until
+              // the index loads or when a crawl's stops don't resolve — the card
+              // then shows only its existing stop-count line, never a fake shape,
+              // walk time, or price.
+              const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
+              const priceRange = crawlPriceRange(crawl.venueIds, slimById);
               return (
                 <li key={crawl.id} id={crawl.id} className="curatedCard">
                   <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
                   <h2 className="curatedName">{crawl.name}</h2>
                   <p className="curatedBlurb">{crawl.blurb}</p>
+                  {routeSummary ? (
+                    <div className="curatedRoute">
+                      <RouteThumbnail
+                        points={routeSummary.points}
+                        className="curatedRouteThumb"
+                      />
+                      <span className="curatedRouteMeta">
+                        {formatCrawlRouteSummary(routeSummary)}
+                      </span>
+                    </div>
+                  ) : null}
+                  {priceRange ? (
+                    <span className="curatedPriceFrom">
+                      Pints from {formatPriceRange(priceRange)}
+                    </span>
+                  ) : null}
                   {originName ? (
                     <span className="curatedOriginChip">
                       <Flag size={12} aria-hidden="true" /> Starts at {originName}
