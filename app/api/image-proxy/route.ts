@@ -85,8 +85,11 @@ export async function GET(request: Request): Promise<Response> {
     if (!upstream || !upstream.ok) {
       return new Response("Image source unavailable.", { status: 502 });
     }
-    const type = upstream.headers.get("content-type") ?? "";
-    if (!type.startsWith("image/")) {
+    const type = (upstream.headers.get("content-type") ?? "").toLowerCase();
+    // Raster images only. SVG is executable content — served same-origin it
+    // would be a stored-XSS vector (cursor bot, PR #171) — so it is refused
+    // outright rather than sandboxed.
+    if (!type.startsWith("image/") || type.includes("svg")) {
       return new Response("Not an image.", { status: 502 });
     }
     const declared = Number(upstream.headers.get("content-length") ?? "0");

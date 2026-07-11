@@ -71,6 +71,16 @@ describe("GET /api/image-proxy", () => {
     expect((await GET(req("https://example.com/p.jpg"))).status).toBe(502);
   });
 
+  it("refuses SVG — executable content must never be served same-origin", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("<svg onload=alert(1)></svg>", {
+        status: 200,
+        headers: { "content-type": "image/svg+xml" },
+      }),
+    );
+    expect((await GET(req("https://example.com/logo.svg"))).status).toBe(502);
+  });
+
   it("follows at most one validated redirect hop", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
