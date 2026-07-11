@@ -111,3 +111,105 @@ a.cityStatusBannerLink:hover {
     top: calc(var(--map-top-clearance) + 100px);
   }
 }
+
+/* A4 — expandable "Tonight in London" signals sheet, additive to the pill above. */
+.cityStatusSignalSheet {
+  position: absolute;
+  top: 132px; /* mirrors .cityStatusBanner's top; sheet renders as a sibling below the pill */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-map-banner);
+  margin-top: 46px; /* clears the pill's own height */
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(420px, calc(100vh - 220px));
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
+  border-radius: 16px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--map-overlay-shadow);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cityStatusSignalSheet {
+    animation: cityStatusSignalSheetIn var(--duration-base) var(--ease-out) both;
+  }
+
+  @keyframes cityStatusSignalSheetIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+    to { opacity: 1; transform: translateX(-50%); }
+  }
+}
+
+.cityStatusSignalSheetHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cityStatusSignalSheetHead strong {
+  font-family: var(--font-display, var(--serif));
+  font-size: 0.9rem;
+}
+.cityStatusSignalSheetMeta {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+}
+.cityStatusSignalSheetClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.cityStatusSignalSheetClose:hover { border-color: var(--brass); color: var(--brass); }
+
+.cityStatusSignalGroup + .cityStatusSignalGroup { margin-top: 10px; }
+.cityStatusSignalGroupLabel {
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brass);
+}
+.cityStatusSignalList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cityStatusSignalRow {
+  display: flex;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.cityStatusSignalRow:last-child { border-bottom: none; }
+.cityStatusSignalRowIcon { color: var(--brass); flex-shrink: 0; margin-top: 2px; }
+.cityStatusSignalRowBody { min-width: 0; }
+.cityStatusSignalRowHeadline { margin: 0; font-size: 0.78rem; font-weight: 700; color: var(--ink); }
+.cityStatusSignalRowMeta { margin: 2px 0 0; font-size: 0.68rem; color: var(--ink-soft); }
+.cityStatusSignalRowSource { margin: 4px 0 0; font-size: 0.68rem; }
+.cityStatusSignalRowSource a { color: var(--brass); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+.cityStatusSignalRowSource a:hover { text-decoration: underline; }
+.cityStatusSignalRowSource span { color: var(--ink-soft); }
+
+@media (max-width: 640px) {
+  .cityStatusSignalSheet {
+    top: 108px;
+    width: min(320px, calc(100vw - 20px));
+  }
+}

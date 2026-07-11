@@ -19,7 +19,8 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 15;
 
-const SIGNAL_CAP = 6;
+// A4: the banner's expanded feed shows every signal; the upstream sends ~8.
+const SIGNAL_CAP = 8;
 const CACHE_MAX_AGE_S = 60;
 const CACHE_STALE_WHILE_REVALIDATE_S = 300;
 
