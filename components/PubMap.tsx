@@ -11,12 +11,12 @@ import "@/components/map/logIntentFallback.css";
 
 import {
   buildCrawlRoute,
-  filterVenues,
   mergeVenueDrops,
   venueGroupingKey,
   type Filters,
   type Venue,
 } from "@/lib/venues";
+import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
@@ -368,41 +368,6 @@ function venueUpdateKey(venue: Venue): string {
   return firstPrice ? venueGroupingKey(firstPrice) : venue.id;
 }
 
-function filterMapVenues(
-  venues: Venue[],
-  filters: Filters,
-  hasPintDrops: (venueId: string) => boolean,
-): Venue[] {
-  // Slim pins deliberately carry prices: [] so the full pint dataset stays off
-  // the initial map load. Treat detail-only filters as unknown/pass for those
-  // pins; otherwise a drink/amenity choice such as Low/No or Cocktails would
-  // blank the fast map before lazy venue detail has a chance to answer it.
-  //
-  // Batch through filterVenues once per cohort (slim vs hydrated) instead of
-  // calling filterVenues([venue], …) per pin — that was O(n) full filter passes.
-  const slimPinFilters = {
-    ...filters,
-    canonicalOnly: false,
-    requireBeerGarden: false,
-    requireNonAlcoholic: false,
-    requireLiveSports: false,
-    requireFood: false,
-    requireCocktails: false,
-    requireWater: false,
-    requireHeritage: false,
-  };
-  const slim: Venue[] = [];
-  const hydrated: Venue[] = [];
-  for (const venue of venues) {
-    if (venue.prices.length === 0 && !venue.filterHints) slim.push(venue);
-    else hydrated.push(venue);
-  }
-  return [
-    ...filterVenues(slim, slimPinFilters, hasPintDrops),
-    ...filterVenues(hydrated, filters, hasPintDrops),
-  ];
-}
-
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
   try {
@@ -737,7 +702,12 @@ export default function PubMap({
     [pipelineVenues, savedOnly, savedIds],
   );
 
-  const canvasVenues = filteredVenues;
+  // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
+  // would otherwise hide a scraped gazetteer pub.
+  const canvasVenues = useMemo(
+    () => withForcedVenue(filteredVenues, venueById, selectedVenueId),
+    [filteredVenues, venueById, selectedVenueId],
+  );
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams);
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;

@@ -124,6 +124,23 @@ test("/discover renders the cheap-pint leaderboard section", async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
+test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
+  const errors = watchPageErrors(page);
+  const response = await page.goto("/pubs");
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: /pubs with a drink/i })).toBeVisible();
+  await expect(page.locator(".pubsCard").first()).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Pubs" }),
+  ).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Pubs" }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("/u/[handle] renders a public profile for any handle without crashing", async ({ page }) => {
   const errors = watchPageErrors(page);
   const response = await page.goto("/u/testdrinker");

@@ -81,6 +81,21 @@ describe("getVenueCuration", () => {
     expect(getVenueCuration([makeRow({ address: "A riverside spot" })]).nearWater).toBe(true);
     expect(getVenueCuration([makeRow({ address: "Dry Inland Road" })]).nearWater).toBeFalsy();
   });
+
+  it("address-qualifies Eating Europe's Islington Albion without labelling other Albions", () => {
+    const barnsbury = getVenueCuration([
+      makeRow({ pub_name: "The Albion", address: "Barnsbury, N1 1HW" }),
+    ]);
+    expect(barnsbury.heritageNote).toBeDefined();
+    expect(barnsbury.sourceLabel).toBe("Eating Europe");
+    expect(barnsbury.provenance).toBe("sourced");
+
+    const other = getVenueCuration([
+      makeRow({ pub_name: "The Albion", address: "121 Hammersmith Rd, London W14" }),
+    ]);
+    expect(other.heritageNote).toBeUndefined();
+    expect(other.sourceLabel).toBeUndefined();
+  });
 });
 
 describe("normaliseVenueName", () => {

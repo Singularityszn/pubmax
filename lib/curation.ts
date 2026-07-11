@@ -154,6 +154,82 @@ const curatedVenues: Record<string, VenueCuration> = {
       "Pimlico pub from 1846; a useful Victorian reference stop for the seeded heritage route.",
     storyTag: "Victorian pub",
   },
+  // Eating Europe "London's Pubs" guide — editorial / heritage only (never prices).
+  // https://www.eatingeurope.com/blog/londons-pubs/
+  "the mayflower": {
+    nearWater: true,
+    heritageEra: "Riverside historic",
+    heritageNote:
+      "Rotherhithe riverside pub highlighted by Eating Europe for its deck views and old-English snack menu — a classic Thames-side stop.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "lord wargrave": {
+    heritageEra: "Marylebone",
+    heritageNote:
+      "Marylebone whisky pub picked by Eating Europe for its eclectic dram list and St. Louis pork ribs — a food-and-whisky guide stop.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "ye old mitre": {
+    heritageEra: "Historic Holborn",
+    heritageNote:
+      "Ely Court hideaway praised by Eating Europe as the classic London pub room — red carpets, stools, a real fireplace, and board games on request.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "ye olde mitre": {
+    heritageEra: "Historic Holborn",
+    heritageNote:
+      "Ely Court hideaway praised by Eating Europe as the classic London pub room — red carpets, stools, a real fireplace, and board games on request.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  // Islington N1 Albion only — address token avoids mis-labelling other Albions.
+  "the albion|barnsbury": {
+    heritageEra: "Islington historic",
+    heritageNote:
+      "Barnsbury local tipped by Eating Europe for its garden and village-pub feel just north of the Angel.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "the spaniards inn": {
+    heritageEra: "Hampstead historic",
+    heritageNote:
+      "Hampstead gastropub outside the centre, recommended by Eating Europe for British charm and a blanket-ready outdoor garden.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "the ship soho": {
+    heritageEra: "Soho historic",
+    heritageNote:
+      "Soho historic pub with a warm wooden room and musical past — Eating Europe's guide pick for an always-on atmosphere.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "the grenadier": {
+    heritageEra: "Belgravia historic",
+    heritageNote:
+      "Belgrave Square boozer tipped by Eating Europe for beef Wellington and famous Bloody Marys — a grand old local for locals and visitors alike.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
 };
 
 const waterTerms = [
@@ -192,9 +268,30 @@ export function normaliseVenueName(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/**
+ * Look up editorial curation. Keys may be bare names (`the grenadier`) or
+ * address-qualified (`the albion|barnsbury`) so common pub names do not
+ * mis-label the wrong venue.
+ */
+export function lookupCuratedVenue(
+  pubName: string,
+  address = "",
+): VenueCuration {
+  const name = normaliseVenueName(pubName);
+  const addr = normaliseVenueName(address);
+  for (const [key, value] of Object.entries(curatedVenues)) {
+    const pipe = key.indexOf("|");
+    if (pipe === -1) continue;
+    const base = key.slice(0, pipe);
+    const token = key.slice(pipe + 1);
+    if (base === name && token && addr.includes(token)) return value;
+  }
+  return curatedVenues[name] ?? {};
+}
+
 export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
   const first = prices[0];
-  const explicit = curatedVenues[normaliseVenueName(first.pub_name)] ?? {};
+  const explicit = lookupCuratedVenue(first.pub_name, first.address ?? "");
   const haystack = [
     first.pub_name,
     first.address,
