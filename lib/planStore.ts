@@ -151,8 +151,15 @@ export const supabasePlanStore: PlanStore = {
 
 type MemoryMember = CrewMemberDTO & { tokenHash: string };
 type MemoryPlan = { plan: PlanDTO; stops: PlanStopDTO[]; crew: MemoryMember[] };
-const memoryPlans = new Map<string, MemoryPlan>();
-let memorySequence = 0;
+type PlanMemoryState = { plans: Map<string, MemoryPlan>; sequence: number };
+const planMemoryGlobal = globalThis as typeof globalThis & {
+  __pubmaxPlanMemory?: PlanMemoryState;
+};
+const planMemory = planMemoryGlobal.__pubmaxPlanMemory ??= {
+  plans: new Map<string, MemoryPlan>(),
+  sequence: 0,
+};
+const memoryPlans = planMemory.plans;
 
 function publicState(value: MemoryPlan): PlanState {
   return {
@@ -170,8 +177,8 @@ function publicState(value: MemoryPlan): PlanState {
 }
 
 function stamp(): string {
-  memorySequence += 1;
-  return new Date(Date.now() + memorySequence).toISOString();
+  planMemory.sequence += 1;
+  return new Date(Date.now() + planMemory.sequence).toISOString();
 }
 
 export const memoryPlanStore: PlanStore = {
@@ -228,5 +235,5 @@ export function planStore(): PlanStore {
 
 export function __resetMemoryPlans(): void {
   memoryPlans.clear();
-  memorySequence = 0;
+  planMemory.sequence = 0;
 }
