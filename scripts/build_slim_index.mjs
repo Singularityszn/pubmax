@@ -331,6 +331,7 @@ function buildCuisineHints(venueId, prices) {
 
 // Mirrors the curated names in lib/curation.ts. Keep this compact: the slim
 // artifact only needs the derived filter booleans, not the display copy.
+// Address-qualified keys use `name|token` (token must appear in the address).
 const CURATED_VENUES = {
   "prospect of whitby": { nearWater: true, hasHeritage: true },
   "the grapes": { nearWater: true, hasHeritage: true },
@@ -340,10 +341,32 @@ const CURATED_VENUES = {
   "the sun tavern": { hasHeritage: true },
   "the queens head": { hasHeritage: true },
   "the queens arms": { hasHeritage: true },
+  // Eating Europe guide — heritage rings on first paint (never prices).
+  "the mayflower": { nearWater: true, hasHeritage: true },
+  "lord wargrave": { hasHeritage: true },
+  "ye old mitre": { hasHeritage: true },
+  "ye olde mitre": { hasHeritage: true },
+  "the albion|barnsbury": { hasHeritage: true },
+  "the spaniards inn": { hasHeritage: true },
+  "the ship soho": { hasHeritage: true },
+  "the grenadier": { hasHeritage: true },
 };
 
 function normaliseVenueName(value) {
   return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function lookupCuratedVenue(pubName, address = "") {
+  const name = normaliseVenueName(pubName);
+  const addr = normaliseVenueName(address);
+  for (const [key, value] of Object.entries(CURATED_VENUES)) {
+    const pipe = key.indexOf("|");
+    if (pipe === -1) continue;
+    const base = key.slice(0, pipe);
+    const token = key.slice(pipe + 1);
+    if (base === name && token && addr.includes(token)) return value;
+  }
+  return CURATED_VENUES[name] ?? {};
 }
 
 function buildCurationHints(prices) {
@@ -353,7 +376,7 @@ function buildCurationHints(prices) {
     return left - right;
   });
   const first = sortedPrices[0] ?? prices[0];
-  const explicit = CURATED_VENUES[normaliseVenueName(first.pub_name)] ?? {};
+  const explicit = lookupCuratedVenue(first.pub_name, first.address ?? "");
   const haystack = [
     first.pub_name,
     first.address,

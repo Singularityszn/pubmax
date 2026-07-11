@@ -193,8 +193,16 @@ const curatedVenues: Record<string, VenueCuration> = {
     sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
     provenance: "sourced",
   },
-  // "The Albion" (Islington N1) is in the Eating Europe guide but our dataset only
-  // has other Albions — do not key curatedVenues by the bare name or we mis-label them.
+  // Islington N1 Albion only — address token avoids mis-labelling other Albions.
+  "the albion|barnsbury": {
+    heritageEra: "Islington historic",
+    heritageNote:
+      "Barnsbury local tipped by Eating Europe for its garden and village-pub feel just north of the Angel.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
   "the spaniards inn": {
     heritageEra: "Hampstead historic",
     heritageNote:
@@ -260,9 +268,30 @@ export function normaliseVenueName(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/**
+ * Look up editorial curation. Keys may be bare names (`the grenadier`) or
+ * address-qualified (`the albion|barnsbury`) so common pub names do not
+ * mis-label the wrong venue.
+ */
+export function lookupCuratedVenue(
+  pubName: string,
+  address = "",
+): VenueCuration {
+  const name = normaliseVenueName(pubName);
+  const addr = normaliseVenueName(address);
+  for (const [key, value] of Object.entries(curatedVenues)) {
+    const pipe = key.indexOf("|");
+    if (pipe === -1) continue;
+    const base = key.slice(0, pipe);
+    const token = key.slice(pipe + 1);
+    if (base === name && token && addr.includes(token)) return value;
+  }
+  return curatedVenues[name] ?? {};
+}
+
 export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
   const first = prices[0];
-  const explicit = curatedVenues[normaliseVenueName(first.pub_name)] ?? {};
+  const explicit = lookupCuratedVenue(first.pub_name, first.address ?? "");
   const haystack = [
     first.pub_name,
     first.address,

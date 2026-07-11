@@ -253,6 +253,7 @@ export default function ControlRail({
             <button
               key={crawl.id}
               className="featuredCrawl"
+              data-crawl-style={crawl.crawlStyle}
               aria-label={`Map the ${crawl.name} crawl with ${crawl.venueIds.length} stops`}
               onClick={() => onLoadCrawl(crawl)}
             >
