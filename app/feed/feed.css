@@ -163,6 +163,10 @@
 
 .presenceList {
   flex: 1 1 auto;
+  /* Allow the scroll container to shrink inside the flex row; without this a
+     long "who's here" run keeps its content width and pushes the whole strip
+     into horizontal overflow instead of scrolling within it. */
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -201,6 +205,14 @@
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: border-color 0.18s ease;
+  /* A single pathologically-long venue name clips with an ellipsis rather than
+     blowing out the ticker's scroll width. */
+  display: inline-block;
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .presenceVenue:hover {

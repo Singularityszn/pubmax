@@ -79,17 +79,38 @@ export function toLedgerEntry(drop: LedgerSourceDrop): LedgerEntry {
   };
 }
 
+// De-duplicate ledger entries so the same Pint Drop never appears twice in the
+// logbook. Duplicates can slip in when two store reads overlap, a drop is
+// re-posted, or an ambient/seeded row echoes a real one. Keyed by the stable
+// drop id; an entry with an empty/missing id falls back to a composite of
+// handle + timestamp + headline + note so genuinely distinct entries are always
+// preserved. First occurrence wins, so the pre-sort order is respected.
+function dedupeEntries(entries: LedgerEntry[]): LedgerEntry[] {
+  const seen = new Set<string>();
+  const out: LedgerEntry[] = [];
+  for (const entry of entries) {
+    const key = entry.id
+      ? `id:${entry.id}`
+      : `k:${entry.handle}|${entry.createdAt}|${entry.headline}|${entry.note}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(entry);
+  }
+  return out;
+}
+
 // The shared body behind both public builders below: map every drop to an
 // entry, drop the ones with nothing to show (no note and no price → empty
-// note), newest first. Kept private and un-exported on purpose — the two named
-// exports exist precisely so a call site commits to WHICH list it's building
-// (public logbook vs. legacy family lane); routing everyone through one public
-// function would defeat that guard. See buildFamilyTableEntries' note.
+// note), collapse duplicates, newest first. Kept private and un-exported on
+// purpose — the two named exports exist precisely so a call site commits to
+// WHICH list it's building (public logbook vs. legacy family lane); routing
+// everyone through one public function would defeat that guard. See
+// buildFamilyTableEntries' note.
 function composeEntries(drops: LedgerSourceDrop[]): LedgerEntry[] {
-  return drops
-    .map(toLedgerEntry)
-    .filter((entry) => entry.note.length > 0)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const entries = dedupeEntries(
+    drops.map(toLedgerEntry).filter((entry) => entry.note.length > 0),
+  );
+  return entries.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 /**
