@@ -56,7 +56,7 @@ import {
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { formatFreshness, formatObservedAt, formatPrice, type Venue } from "@/lib/venues";
-import { directVenueImageUrl } from "@/lib/venueImages";
+import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
 
 type VenueSignal = {
@@ -308,7 +308,7 @@ function hoverImageUrlFor(
   failedImage: FailedHoverImage | null,
   hoveredVenueId: string | null,
 ): string {
-  const src = directVenueImageUrl(hoverDetail?.imageUrl ?? "");
+  const src = proxiedVenueImageUrl(hoverDetail?.imageUrl ?? "");
   if (failedImage?.venueId === hoveredVenueId && failedImage.url === src) return "";
   return src;
 }
