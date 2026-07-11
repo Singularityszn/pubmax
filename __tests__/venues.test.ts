@@ -84,6 +84,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     canonicalOnly: false,
     drinkCategory: "",
     drinkBrand: "",
+    cuisineTag: "",
     ...overrides,
   };
 }
@@ -374,6 +375,67 @@ describe("filterVenues", () => {
   it("rejects unknown drinkBrand ids instead of no-opping", () => {
     const venues = groupVenuePrices([makeRow({ pint_name: "Lager", price_gbp: 5 })]);
     expect(filterVenues(venues, makeFilters({ drinkBrand: "not-a-real-brand" }))).toHaveLength(0);
+  });
+
+  it("cuisineTag empty string is a no-op (all venues pass)", () => {
+    const venues = groupVenuePrices([makeRow({ pub_name: "The Test Arms", price_gbp: 5 })]);
+    expect(filterVenues(venues, makeFilters({ cuisineTag: "" }))).toHaveLength(1);
+  });
+
+  it("cuisineTag filters via filterHints.cuisineTags on slim venues", () => {
+    const [base] = groupVenuePrices([makeRow({ pub_name: "The Roast Pub", price_gbp: 5 })]);
+    const slimWithTag = {
+      ...base,
+      prices: [],
+      cheapestPint: "",
+      filterHints: {
+        searchText: "the roast pub",
+        amenities: {
+          food: true,
+          cocktails: false,
+          beerGarden: false,
+          liveSports: false,
+          nonAlcoholic: false,
+        },
+        curation: { nearWater: false, hasStory: false },
+        canonical: true,
+        cuisineTags: ["roast", "gastropub"],
+      },
+    };
+    expect(filterVenues([slimWithTag], makeFilters({ cuisineTag: "roast" }))).toHaveLength(1);
+    expect(filterVenues([slimWithTag], makeFilters({ cuisineTag: "gastropub" }))).toHaveLength(1);
+    expect(filterVenues([slimWithTag], makeFilters({ cuisineTag: "pizza" }))).toHaveLength(0);
+  });
+
+  it("cuisineTag matches via cuisineTagsForVenue on full venues (curated id map)", () => {
+    // venue-1gs68ga = The George (Borough) → curated tags: roast, pie
+    const [base] = groupVenuePrices([makeRow({ price_gbp: 5 })]);
+    const georgeVenue = { ...base, id: "venue-1gs68ga", name: "The George" };
+    expect(filterVenues([georgeVenue], makeFilters({ cuisineTag: "roast" }))).toHaveLength(1);
+    expect(filterVenues([georgeVenue], makeFilters({ cuisineTag: "pie" }))).toHaveLength(1);
+    expect(filterVenues([georgeVenue], makeFilters({ cuisineTag: "thai" }))).toHaveLength(0);
+  });
+
+  it("cuisineTag is case-insensitive and trims whitespace", () => {
+    const [base] = groupVenuePrices([makeRow({ pub_name: "The Roast Pub", price_gbp: 5 })]);
+    const slimWithTag = {
+      ...base,
+      prices: [],
+      filterHints: {
+        searchText: "the roast pub",
+        amenities: {
+          food: true,
+          cocktails: false,
+          beerGarden: false,
+          liveSports: false,
+          nonAlcoholic: false,
+        },
+        curation: { nearWater: false, hasStory: false },
+        canonical: true,
+        cuisineTags: ["roast"],
+      },
+    };
+    expect(filterVenues([slimWithTag], makeFilters({ cuisineTag: " ROAST " }))).toHaveLength(1);
   });
 });
 

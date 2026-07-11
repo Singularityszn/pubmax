@@ -6,6 +6,7 @@ import {
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
 import { isDrinkCategory } from "@/lib/drinks";
+import { normaliseCuisineTag } from "@/lib/cuisineTags";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -131,6 +132,8 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (drinkBrand && findBrand(drinkBrand)) {
     params.set("brand", drinkBrand);
   }
+  const cuisineTag = filters.cuisineTag?.trim() ?? "";
+  if (cuisineTag) params.set("cuisine", cuisineTag);
   if (builtIds.length) params.set("pubs", builtIds.join(","));
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
@@ -167,6 +170,18 @@ export function decodeCrawl(
   if (params.get("food") === "1") filters.requireFood = true;
   const q = params.get("q")?.trim();
   if (q) filters.query = q.slice(0, 80);
+
+  // Cuisine tag filter (Wave E). Discover always pairs ?cuisine= with ?food=1,
+  // so decode also sets requireFood when it isn't already present in the URL —
+  // a stale share link with only ?cuisine= still narrows to food-serving pubs.
+  const cuisineRaw = params.get("cuisine");
+  if (cuisineRaw) {
+    const tag = normaliseCuisineTag(cuisineRaw);
+    if (tag) {
+      filters.cuisineTag = tag;
+      if (!filters.requireFood) filters.requireFood = true;
+    }
+  }
 
   // Discover → map drink deep-links (`?drink=` / `?brand=` from exploreHref).
   //   low-no / non-alcoholic → requireNonAlcoholic (+ mocktail alt style)

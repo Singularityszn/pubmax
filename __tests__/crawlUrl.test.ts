@@ -242,6 +242,54 @@ describe("crawlUrl", () => {
     expect(seeded.altStyle).toBe("mocktail");
   });
 
+  it("round-trips cuisine tag via ?cuisine= (Discover Hungry? chip deep-link)", () => {
+    // encode: cuisineTag present → cuisine= param
+    const encoded = encodeCrawl({
+      ...sample,
+      filters: { ...sample.filters, requireFood: true, cuisineTag: "pizza" },
+    });
+    expect(encoded).toContain("cuisine=pizza");
+    expect(encoded).toContain("food=1");
+
+    // decode: cuisine= → cuisineTag + requireFood implied
+    const decoded = decodeCrawl(new URLSearchParams(encoded));
+    expect(decoded.filters?.cuisineTag).toBe("pizza");
+    expect(decoded.filters?.requireFood).toBe(true);
+
+    // seedCrawlState round-trip
+    const seeded = seedCrawlState("?food=1&cuisine=pizza");
+    expect(seeded.filters.cuisineTag).toBe("pizza");
+    expect(seeded.filters.requireFood).toBe(true);
+    expect(seeded.filters.query).toBe("");
+
+    // empty cuisineTag is omitted (kept short)
+    const withoutCuisine = encodeCrawl({
+      ...sample,
+      filters: { ...sample.filters, cuisineTag: "" },
+    });
+    expect(withoutCuisine).not.toContain("cuisine=");
+  });
+
+  it("cuisine= sets requireFood even without food=1 (stale share link safety)", () => {
+    const seeded = seedCrawlState("?cuisine=roast");
+    expect(seeded.filters.cuisineTag).toBe("roast");
+    expect(seeded.filters.requireFood).toBe(true);
+    expect(seeded.filters.query).toBe("");
+  });
+
+  it("cuisine= does NOT map to q (the root bug fix)", () => {
+    const seeded = seedCrawlState("?food=1&cuisine=pizza");
+    expect(seeded.filters.query).toBe("");
+    expect(seeded.filters.cuisineTag).toBe("pizza");
+  });
+
+  it("unknown cuisine value is ignored (unknown tag stays empty)", () => {
+    const seeded = seedCrawlState("?cuisine=notarealtag");
+    expect(seeded.filters.cuisineTag).toBe("");
+    // requireFood must NOT be set to true for an invalid tag
+    expect(seeded.filters.requireFood).toBe(false);
+  });
+
   it("decodes food=1 into requireFood (Discover Hungry? deep-link)", () => {
     expect(decodeCrawl(new URLSearchParams("food=1")).filters?.requireFood).toBe(true);
     expect(decodeCrawl(new URLSearchParams("food=0")).filters?.requireFood).toBeUndefined();

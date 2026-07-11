@@ -40,11 +40,22 @@ import {
 import { getRoutePack, routePackPrimaryCrawl } from "@/lib/routePacks";
 import "./discover.css";
 
-/** Discover Hungry chips → map with food filter + cuisine hint in the query. */
+/** Discover Hungry chips → map with food filter + cuisine tag filter. */
 function hungryCuisineHref(tag: string, cityId: CityId): string {
-  const params = new URLSearchParams({ food: "1", q: tag });
+  const params = new URLSearchParams({ food: "1", cuisine: tag });
   return cityAwareMapPath(cityId, params);
 }
+
+/** Section jump links for the mobile sticky nav. */
+const SECTION_JUMPS = [
+  { id: "explore-title", label: "Drinks" },
+  { id: "hungry-title", label: "Hungry?" },
+  { id: "rivalry-title", label: "Cities" },
+  { id: "tonight-title", label: "Tonight" },
+  { id: "topRated-title", label: "Top Rated" },
+  { id: "cheap-title", label: "Cheapest" },
+  { id: "editorial-title", label: "Stories" },
+] as const;
 
 /** Cuisine chips shown on Discover — a short, scannable subset. */
 const DISCOVER_CUISINE_CHIPS = [
@@ -282,6 +293,19 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
           soft drinks that keep the night moving.
         </p>
       </header>
+
+      {/* Mobile-only sticky jump nav — lets users hop between sections without scrolling back up */}
+      <nav className="discoverJumpNav" aria-label="Discover sections">
+        <ul className="discoverJumpList">
+          {SECTION_JUMPS.map((s) => (
+            <li key={s.id}>
+              <a href={`#${s.id}`} className="discoverJumpLink">
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       <section className="discoverSection" aria-labelledby="explore-title">
         <h2 id="explore-title" className="discoverSectionTitle">
