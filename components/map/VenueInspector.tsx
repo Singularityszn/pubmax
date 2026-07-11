@@ -40,6 +40,7 @@ import type { PintDropsState } from "@/components/map/usePintDrops";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
 import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
+import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 import { menuHubTiles } from "@/lib/menuHub";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -401,6 +402,14 @@ export default function VenueInspector({
         ) : null}
         <p className="venueAddress">{venue.address}</p>
         <VenueActionStrip venue={venue} />
+        <CityPlaceStrip
+          venueId={venue.id}
+          venueName={venue.name}
+          latitude={venue.latitude}
+          longitude={venue.longitude}
+          primaryBorough={venue.primaryBorough}
+          cityId={cityId}
+        />
         <div className="amenityRow">
           <Amenity active={Boolean(venue.curation.nearWater)} label="water" />
           <Amenity active={venue.hasStory} label="heritage" />
