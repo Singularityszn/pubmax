@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
@@ -189,6 +190,10 @@ export default function RootLayout({
               production-only, registers after load. */}
           <OfflineReady />
         </AuthProvider>
+        {/* Vercel Web Analytics (R3) — cookie-less pageview + custom-event
+            tracking (see lib/analytics.ts for the typed trackEvent rail).
+            Outside AuthProvider on purpose: it's app infra, not identity. */}
+        <Analytics />
       </body>
     </html>
   );
