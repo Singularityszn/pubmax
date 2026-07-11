@@ -87,6 +87,61 @@ describe("GET /api/citymcp/places", () => {
     expect(upstream.params.arguments).toEqual({ query: "George Southwark", limit: 3 });
   });
 
+  it("forwards validated filter params to search_places", async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({
+          jsonrpc: "2.0",
+          id: 1,
+          result: { structuredContent: { places: [] } },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const res = await GET(
+      new Request(
+        "http://localhost/api/citymcp/places?q=beer%20garden&limit=3&openNow=true&minRating=4.2&maxPrice=%C2%A3%C2%A3&sort=rating",
+      ),
+    );
+    expect(res.status).toBe(200);
+    const [, init] = (global.fetch as unknown as { mock: { calls: [string, RequestInit][] } })
+      .mock.calls[0]!;
+    const upstream = JSON.parse(String(init.body));
+    expect(upstream.params.arguments).toEqual({
+      query: "beer garden",
+      limit: 3,
+      openNow: true,
+      minRating: 4.2,
+      maxPrice: "££",
+      sort: "rating",
+    });
+  });
+
+  it("drops invalid filter params instead of forwarding or erroring", async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({
+          jsonrpc: "2.0",
+          id: 1,
+          result: { structuredContent: { places: [] } },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const res = await GET(
+      new Request(
+        "http://localhost/api/citymcp/places?q=pub&openNow=maybe&minRating=99&maxPrice=cheap&sort=chaos",
+      ),
+    );
+    expect(res.status).toBe(200);
+    const [, init] = (global.fetch as unknown as { mock: { calls: [string, RequestInit][] } })
+      .mock.calls[0]!;
+    const upstream = JSON.parse(String(init.body));
+    expect(upstream.params.arguments).toEqual({ query: "pub", limit: 5 });
+  });
+
   it("fails soft with 200 + empty places on upstream error", async () => {
     global.fetch = vi.fn(async () => new Response("nope", { status: 500 }));
     const res = await GET(new Request("http://localhost/api/citymcp/places?q=anything"));
