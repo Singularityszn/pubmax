@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  canGroupGetIn,
+  estimateBusyness,
+  resolveBookingOption,
+  type BusynessReport,
+} from "@/lib/busyness";
+
+describe("estimateBusyness", () => {
+  it("marks a Friday evening as typically busy and stays honest about provenance", () => {
+    const result = estimateBusyness({
+      now: new Date("2026-07-10T19:30:00.000Z"),
+      timeZone: "Europe/London",
+    });
+
+    expect(result).toMatchObject({
+      level: "busy",
+      source: "typical-pattern",
+      isOpen: "unknown",
+      label: "Usually busy",
+    });
+  });
+
+  it("uses a fresh community report without presenting it as measured footfall", () => {
+    const reports: BusynessReport[] = [
+      {
+        level: "rammed",
+        reportedAt: "2026-07-10T19:24:00.000Z",
+        reporterName: "Priya",
+      },
+    ];
+
+    const result = estimateBusyness({
+      now: new Date("2026-07-10T19:30:00.000Z"),
+      timeZone: "Europe/London",
+      reports,
+    });
+
+    expect(result).toMatchObject({
+      level: "rammed",
+      source: "community-report",
+      label: "Reported rammed",
+      reportCount: 1,
+    });
+  });
+
+  it("ignores stale community reports", () => {
+    const result = estimateBusyness({
+      now: new Date("2026-07-10T19:30:00.000Z"),
+      timeZone: "Europe/London",
+      reports: [
+        {
+          level: "quiet",
+          reportedAt: "2026-07-10T16:00:00.000Z",
+          reporterName: "Sam",
+        },
+      ],
+    });
+
+    expect(result.source).toBe("typical-pattern");
+    expect(result.level).toBe("busy");
+  });
+});
+
+describe("canGroupGetIn", () => {
+  it("does not promise entry when a large group meets a busy estimate", () => {
+    expect(canGroupGetIn({ groupSize: 8, level: "busy", hasBookingLink: false })).toEqual({
+      fit: "unlikely",
+      label: "Call ahead",
+      reason: "A group of 8 may struggle at a usually busy time.",
+    });
+  });
+
+  it("offers booking as the honest next step when a link exists", () => {
+    expect(canGroupGetIn({ groupSize: 6, level: "rammed", hasBookingLink: true })).toMatchObject({
+      fit: "book-ahead",
+      label: "Book ahead",
+    });
+  });
+});
+
+describe("resolveBookingOption", () => {
+  it("only returns a scaffold for a real http(s) booking URL", () => {
+    expect(resolveBookingOption("https://example.com/book")).toEqual({
+      available: true,
+      label: "Book a table",
+      href: "https://example.com/book",
+      partner: null,
+    });
+    expect(resolveBookingOption("javascript:alert(1)")).toEqual({
+      available: false,
+      label: "Booking link unavailable",
+      href: null,
+      partner: null,
+    });
+  });
+});
