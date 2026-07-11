@@ -31,6 +31,7 @@ import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 import MapToolbar from "@/components/map/MapToolbar";
 import MapPriceControl from "@/components/map/MapPriceControl";
 import CitySuggestBanner from "@/components/map/CitySuggestBanner";
+import CityStatusBanner from "@/components/map/CityStatusBanner";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
@@ -1214,6 +1215,7 @@ export default function PubMap({
           cityId={cityId}
         />
         <CitySuggestBanner cityId={cityId} />
+        {cityId === "london" ? <CityStatusBanner cityId={cityId} /> : null}
         {logIntentFallbackVisible ? (
           <div className="logIntentFallback" role="status" aria-live="polite">
             <div>

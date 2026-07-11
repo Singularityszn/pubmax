@@ -1,0 +1,104 @@
+/* CityMCP London status strip — sits beside CitySuggestBanner, below the
+   CitySwitcher dropdown (z-index 560) so city picks stay tappable. */
+
+.cityStatusBanner {
+  position: absolute;
+  /* Sits under the map toolbar row (search + drink lens + city switcher).
+     Below the CitySwitcher dropdown (z-index 560) so city picks stay tappable. */
+  top: 132px;
+  left: 50%;
+  z-index: 512;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(460px, calc(100vw - 24px));
+  padding: 6px 6px 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--panel-raised) 94%, transparent),
+      color-mix(in srgb, var(--surface-tint-lager) 58%, transparent)
+    ),
+    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  color: var(--ink);
+  box-shadow: var(--map-overlay-shadow);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  transform: translateX(-50%);
+}
+
+.cityStatusBanner[data-severity="major"] {
+  border-color: color-mix(in srgb, #d33 55%, var(--line));
+}
+
+.cityStatusBanner[data-severity="notable"] {
+  border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+}
+
+.cityStatusBannerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+  font-family: inherit;
+}
+
+a.cityStatusBannerLink:hover {
+  text-decoration: underline;
+}
+
+.cityStatusBannerIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brass);
+}
+
+.cityStatusBanner[data-severity="major"] .cityStatusBannerIcon {
+  color: #d33;
+}
+
+.cityStatusBannerCopy {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cityStatusBannerDismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  min-width: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.cityStatusBannerDismiss:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+@media (max-width: 640px) {
+  .cityStatusBanner {
+    top: 108px;
+    max-width: min(380px, calc(100vw - 20px));
+  }
+  .cityStatusBannerCopy {
+    font-size: 0.72rem;
+  }
+}
