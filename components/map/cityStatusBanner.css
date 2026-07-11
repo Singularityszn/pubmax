@@ -101,4 +101,13 @@ a.cityStatusBannerLink:hover {
   .cityStatusBannerCopy {
     font-size: 0.72rem;
   }
+
+  /* U5 — at phone widths the banner keeps its own full-width row: while it is
+     on screen, the camera chips (London / No route — globals.css puts
+     .mapCameraControls at --map-top-clearance + 58px) yield below the banner
+     instead of stacking on top of its right edge. Dismissing the banner pops
+     the chips back up automatically. */
+  .mapStage:has(.cityStatusBanner) .mapCameraControls {
+    top: calc(var(--map-top-clearance) + 100px);
+  }
 }

@@ -1338,9 +1338,19 @@ input[type="range"] {
     padding: 20px 18px 22px;
   }
 
+  /* U6c — the sticky Dismiss footer floats over the card list mid-scroll;
+     reserve a footer's worth of space at the end of the list so the last
+     crawl's text can always scroll clear of the button instead of staying
+     hidden underneath it. The negative margin keeps the footer's resting
+     (scrolled-to-end) position exactly where it was. */
+  .mapOnboardingList {
+    padding-bottom: 48px;
+  }
+
   .mapOnboardingDismiss {
     position: sticky;
     bottom: -10px;
+    margin-top: -34px;
     background: linear-gradient(
       to top,
       var(--panel-raised) 72%,
