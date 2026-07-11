@@ -42,6 +42,7 @@ export default function VenueActionStrip({ venue, className }: VenueActionStripP
           href={action.href}
           target="_blank"
           rel="noopener noreferrer"
+          data-tier={action.tier}
         >
           <ActionIcon kind={action.kind} />
           <span>{action.label}</span>

@@ -14,6 +14,7 @@ import {
 } from "@/lib/scrapedPubs";
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { resolveBookingAction } from "@/lib/venueExternalActions";
 
 import "./pubsGallery.css";
 
@@ -123,7 +124,14 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
       </p>
 
       <ul className="pubsGrid">
-        {visible.map((pub) => (
+        {visible.map((pub) => {
+          const booking = resolveBookingAction({
+            name: pub.name,
+            bookingUrl: pub.bookingUrl,
+            menuUrl: pub.menuUrl,
+            areaHint: pub.borough,
+          });
+          return (
           <li key={pub.id} className="pubsCard">
             <DrinkArt
               accent={pub.drinkAccent}
@@ -162,21 +170,21 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
                     <ExternalLink size={13} aria-hidden="true" />
                   </a>
                 ) : null}
-                {pub.bookingUrl ? (
-                  <a
-                    className="pubsBookLink"
-                    href={pub.bookingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Book
-                    <ExternalLink size={13} aria-hidden="true" />
-                  </a>
-                ) : null}
+                <a
+                  className="pubsBookLink"
+                  href={booking.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-tier={booking.tier}
+                >
+                  {booking.label}
+                  <ExternalLink size={13} aria-hidden="true" />
+                </a>
               </div>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       {visible.length === 0 ? (
