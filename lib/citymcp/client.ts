@@ -31,6 +31,25 @@ const JOURNEY_TTL_MS = 3 * 60 * 1000;
 const PROTOCOL_VERSION = "2025-06-18";
 const CLIENT_INFO = { name: "pubmaxing-citymcp-client", version: "0.1.0" };
 const JOURNEY_CAP = 3;
+// Every in-memory cache below is module-scoped and gains one entry per unique
+// key (place id, journey pair, things_to_do args…). In a long-lived server
+// that's an unbounded memory leak, so we cap each Map and evict the oldest
+// (insertion-order) entry once the cap is hit.
+const CACHE_MAX_ENTRIES = 500;
+
+/**
+ * Write to a bounded Map cache. Re-inserting on write keeps the freshest key
+ * sorted last so eviction drops the least-recently-written entry (LRU-ish).
+ */
+function setCappedCache<K, V>(cache: Map<K, V>, key: K, value: V): void {
+  if (cache.has(key)) cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > CACHE_MAX_ENTRIES) {
+    const oldest = cache.keys().next().value as K | undefined;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
 
 // ---------- Public types ----------
 
@@ -336,7 +355,7 @@ export async function fetchCityStatus(
     tubeLines: Array.isArray(structured.tubeLines) ? structured.tubeLines : undefined,
     signals: Array.isArray(structured.signals) ? structured.signals : [],
   };
-  cityStatusCache.set(cacheKey, {
+  setCappedCache(cityStatusCache, cacheKey, {
     value: normalised,
     expiresAt: now + CITY_STATUS_TTL_MS,
   });
@@ -625,7 +644,7 @@ export async function fetchCityPlace(
   if (deep) args.deep = true;
   const result = await callCityMcpTool<unknown>("get_place", args, opts);
   const trimmed = trimCityPlace(id, result.structuredContent);
-  placeCache.set(cacheKey, { value: trimmed, expiresAt: now + PLACE_TTL_MS });
+  setCappedCache(placeCache, cacheKey, { value: trimmed, expiresAt: now + PLACE_TTL_MS });
   return trimmed;
 }
 
@@ -802,7 +821,7 @@ export async function fetchThingsToDo(
     asOf: pickString(structured.asOf),
     opportunities,
   };
-  thingsToDoCache.set(cacheKey, { value, expiresAt: now + THINGS_TO_DO_TTL_MS });
+  setCappedCache(thingsToDoCache, cacheKey, { value, expiresAt: now + THINGS_TO_DO_TTL_MS });
   return value;
 }
 
@@ -932,7 +951,7 @@ export async function fetchJourney(
   }
 
   const value: FetchJourneyResult = { journeys };
-  journeyCache.set(cacheKey, { value, expiresAt: now + JOURNEY_TTL_MS });
+  setCappedCache(journeyCache, cacheKey, { value, expiresAt: now + JOURNEY_TTL_MS });
   return value;
 }
 
