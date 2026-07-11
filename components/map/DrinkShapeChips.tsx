@@ -46,11 +46,14 @@ export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Fil
       drinkBrand: "",
     };
   }
+  // Switching to a drink lens clears any active cuisine chip so the two
+  // filter modes don't compound in unexpected ways.
   return {
     ...filters,
     requireCocktails: cat === "cocktail",
     drinkCategory: cat,
     drinkBrand: "",
+    cuisineTag: "",
   };
 }
 

@@ -95,6 +95,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireSeatedService: false,
     drinkCategory: "",
     drinkBrand: "",
+    cuisineTag: "",
     ...overrides,
   };
 }

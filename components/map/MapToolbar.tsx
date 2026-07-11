@@ -1,9 +1,10 @@
 "use client";
 
-import { Route, Search, Wine, X } from "lucide-react";
+import { Route, Search, Utensils, Wine, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import CitySwitcher from "@/components/map/CitySwitcher";
+import CuisineShapeChips from "@/components/map/CuisineShapeChips";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import type { CityId } from "@/lib/cities";
@@ -45,6 +46,7 @@ export default function MapToolbar({
   cityId = DEFAULT_CITY_ID,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
+  const [foodOpen, setFoodOpen] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
@@ -69,6 +71,7 @@ export default function MapToolbar({
   // light the Drinks control as if a drink filter were applied.
   const drinksActive =
     filters.requireCocktails || Boolean(drinkCategory) || Boolean(favoritePint);
+  const foodActive = filters.requireFood || Boolean(filters.cuisineTag);
 
   return (
     <div className="mapToolbar" role="search">
@@ -107,10 +110,32 @@ export default function MapToolbar({
           aria-pressed={drinksOpen}
           aria-expanded={drinksOpen}
           aria-label={drinksOpen ? "Hide drink filters" : "Show drink filters"}
-          onClick={() => setDrinksOpen((open) => !open)}
+          onClick={() => {
+            setDrinksOpen((open) => !open);
+            setFoodOpen(false);
+          }}
         >
           <Wine size={15} aria-hidden="true" />
           <span>Drinks</span>
+        </button>
+
+        <button
+          type="button"
+          className={
+            foodOpen || foodActive
+              ? "mapToolbarDrinksBtn isActive"
+              : "mapToolbarDrinksBtn"
+          }
+          aria-pressed={foodOpen}
+          aria-expanded={foodOpen}
+          aria-label={foodOpen ? "Hide food filters" : "Show food filters"}
+          onClick={() => {
+            setFoodOpen((open) => !open);
+            setDrinksOpen(false);
+          }}
+        >
+          <Utensils size={15} aria-hidden="true" />
+          <span>Food</span>
         </button>
 
         <button
@@ -131,6 +156,10 @@ export default function MapToolbar({
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
         {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
         <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+      </div>
+
+      <div className={foodOpen || foodActive ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
+        <CuisineShapeChips filters={filters} onFiltersChange={onFiltersChange} />
       </div>
     </div>
   );

@@ -24,6 +24,7 @@ function filters(overrides: Partial<Filters> = {}): Filters {
     requireSeatedService: false,
     drinkCategory: "",
     drinkBrand: "",
+    cuisineTag: "",
     ...overrides,
   };
 }
@@ -64,5 +65,28 @@ describe("nextDrinkShapeFilters", () => {
       drinkCategory: "cocktail",
       drinkBrand: "",
     });
+  });
+
+  it("clears an active cuisineTag when a drink shape is selected", () => {
+    expect(
+      nextDrinkShapeFilters(
+        filters({ cuisineTag: "pizza", requireFood: true }),
+        "beer",
+      ),
+    ).toMatchObject({
+      drinkCategory: "beer",
+      cuisineTag: "",
+    });
+  });
+
+  it("does not clear cuisineTag when the same drink chip is toggled off", () => {
+    // Toggle-off path: clears drink lens but does not touch cuisineTag
+    // (deactivating drinks shouldn't silently wipe an unrelated food filter).
+    const result = nextDrinkShapeFilters(
+      filters({ drinkCategory: "wine", cuisineTag: "burger" }),
+      "wine",
+    );
+    expect(result.drinkCategory).toBe("");
+    expect(result.cuisineTag).toBe("burger");
   });
 });
