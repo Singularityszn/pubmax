@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PUBMAXXING — What you've built</title>
+<meta name="description" content="A patient, end-to-end teaching tour of Pubmaxxing for a product owner: product, architecture, trust, and software fundamentals — using this product as the example." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,700&family=Source+Sans+3:ital,wght@0,400;0,550;0,650;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #1a1424;
+    --ink-soft: #3a3348;
+    --ink-muted: #6a6178;
+    --paper: #f6f1e8;
+    --paper-raised: #fffbf5;
+    --panel: #ebe4d8;
+    --line: #d4cbb8;
+    --brass: #b8943f;
+    --brass-bright: #d4b15a;
+    --brass-deep: #8a6e2e;
+    --river: #2a6f7a;
+    --river-bright: #3d8f9c;
+    --pint: #2f7a52;
+    --brick: #a84a3c;
+    --amber: #c4892a;
+    --glow: color-mix(in srgb, var(--brass) 18%, transparent);
+    --shadow: 0 18px 50px color-mix(in srgb, var(--ink) 18%, transparent);
+    --radius: 14px;
+    --nav-w: 240px;
+    --max: 52rem;
+    --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+    --font-body: "Source Sans 3", "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    .reveal { opacity: 1 !important; transform: none !important; }
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 90% 50% at 10% -10%, color-mix(in srgb, var(--brass) 22%, transparent), transparent 55%),
+      radial-gradient(ellipse 70% 40% at 100% 0%, color-mix(in srgb, var(--river) 16%, transparent), transparent 50%),
+      linear-gradient(180deg, #1a1424 0%, #1a1424 42vh, var(--paper) 42vh, var(--paper) 100%);
+    background-attachment: fixed;
+  }
+
+  a { color: var(--river); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+  a:hover { color: var(--brass-deep); }
+  code, .mono {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: color-mix(in srgb, var(--panel) 70%, var(--brass) 8%);
+    padding: 0.12em 0.38em;
+    border-radius: 5px;
+  }
+  pre {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    background: var(--ink);
+    color: #ebe4d8;
+    padding: 1.1rem 1.25rem;
+    border-radius: 10px;
+    overflow-x: auto;
+    border: 1px solid color-mix(in srgb, var(--brass) 35%, transparent);
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+
+  /* ——— Layout ——— */
+  .shell {
+    display: grid;
+    grid-template-columns: var(--nav-w) minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  .toc {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 1.5rem 1rem 2rem 1.25rem;
+    background: color-mix(in srgb, var(--ink) 96%, var(--brass));
+    color: #ebe4d8;
+    border-right: 1px solid color-mix(in srgb, var(--brass) 28%, transparent);
+    z-index: 20;
+  }
+  .toc-brand {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
+    color: var(--brass-bright);
+    margin: 0 0 0.35rem;
+  }
+  .toc-sub {
+    font-size: 0.78rem;
+    color: color-mix(in srgb, #ebe4d8 65%, transparent);
+    margin: 0 0 1.25rem;
+    line-height: 1.4;
+  }
+  .toc nav { display: flex; flex-direction: column; gap: 0.2rem; }
+  .toc a {
+    color: color-mix(in srgb, #ebe4d8 78%, transparent);
+    text-decoration: none;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    padding: 0.38rem 0.55rem;
+    border-radius: 7px;
+    border-left: 2px solid transparent;
+  }
+  .toc a:hover, .toc a:focus-visible {
+    color: #fff;
+    background: color-mix(in srgb, var(--brass) 18%, transparent);
+    border-left-color: var(--brass);
+    outline: none;
+  }
+  .toc a.active {
+    color: #fff;
+    background: color-mix(in srgb, var(--brass) 22%, transparent);
+    border-left-color: var(--brass-bright);
+  }
+  .toc-num {
+    display: inline-block;
+    width: 1.5em;
+    color: var(--brass);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.75em;
+  }
+
+  .main { min-width: 0; }
+  .content {
+    max-width: calc(var(--max) + 4rem);
+    margin: 0 auto;
+    padding: 0 1.5rem 5rem;
+  }
+
+  /* ——— Hero ——— */
+  .hero {
+    position: relative;
+    min-height: 78vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 3.5rem 0 3rem;
+    color: #f6f1e8;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: -20% -10% auto;
+    height: 120%;
+    background:
+      radial-gradient(circle at 70% 30%, color-mix(in srgb, var(--river) 35%, transparent), transparent 45%),
+      radial-gradient(circle at 20% 60%, color-mix(in srgb, var(--brass) 28%, transparent), transparent 40%);
+    pointer-events: none;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(-2%, 3%, 0) scale(1.05); }
+  }
+  .hero-inner { position: relative; z-index: 1; max-width: var(--max); }
+  .hero-brand {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.8rem, 8vw, 5.2rem);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    margin: 0 0 1rem;
+    background: linear-gradient(135deg, #f6f1e8 0%, var(--brass-bright) 55%, #f6f1e8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-weight: 550;
+    font-size: clamp(1.35rem, 3.2vw, 1.85rem);
+    line-height: 1.25;
+    margin: 0 0 0.85rem;
+    color: #ebe4d8;
+    max-width: 22ch;
+  }
+  .hero-lede {
+    margin: 0 0 1.75rem;
+    max-width: 38ch;
+    color: color-mix(in srgb, #ebe4d8 82%, transparent);
+    font-size: 1.1rem;
+  }
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    font-size: 0.85rem;
+    color: color-mix(in srgb, #ebe4d8 70%, transparent);
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--brass) 40%, transparent);
+    background: color-mix(in srgb, var(--ink) 40%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .pill::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--brass-bright);
+  }
+
+  /* ——— Sections ——— */
+  section {
+    padding: 3.25rem 0 1rem;
+    scroll-margin-top: 1.5rem;
+  }
+  .section-on-paper {
+    background: var(--paper);
+    color: var(--ink);
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    border-radius: 0;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brass-deep);
+    margin: 0 0 0.6rem;
+  }
+  .hero .eyebrow { color: var(--brass-bright); }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 650;
+    font-size: clamp(1.75rem, 3.5vw, 2.35rem);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    margin: 0 0 0.85rem;
+    max-width: 22ch;
+  }
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 650;
+    font-size: 1.28rem;
+    margin: 2rem 0 0.55rem;
+  }
+  .lede {
+    font-size: 1.12rem;
+    color: var(--ink-soft);
+    max-width: 48ch;
+    margin: 0 0 1.5rem;
+  }
+  p { margin: 0 0 1rem; max-width: 52ch; }
+  ul, ol { margin: 0 0 1.25rem; padding-left: 1.25rem; max-width: 52ch; }
+  li { margin-bottom: 0.4rem; }
+  li::marker { color: var(--brass); }
+
+  .callout {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--brass);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 1rem 1.15rem;
+    margin: 1.5rem 0;
+    max-width: 52ch;
+    box-shadow: var(--shadow);
+  }
+  .callout strong { color: var(--brass-deep); }
+  .callout.river { border-left-color: var(--river); }
+  .callout.danger { border-left-color: var(--brick); }
+  .callout.ok { border-left-color: var(--pint); }
+
+  /* ——— Surfaces grid ——— */
+  .surfaces {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+    gap: 0.75rem;
+    margin: 1.5rem 0 0.5rem;
+  }
+  .surface {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .surface:hover {
+    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+    transform: translateY(-2px);
+  }
+  .surface .path {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--brass-deep);
+    margin: 0 0 0.35rem;
+  }
+  .surface p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    max-width: none;
+  }
+
+  /* ——— Idea cards / fund cards ——— */
+  .ideas {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  @media (min-width: 720px) {
+    .ideas.four { grid-template-columns: 1fr 1fr; }
+  }
+  .idea {
+    background: linear-gradient(145deg, var(--paper-raised), color-mix(in srgb, var(--panel) 80%, var(--river) 8%));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.15rem 1.25rem;
+  }
+  .idea .n {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: var(--brass);
+    margin: 0 0 0.4rem;
+  }
+  .idea h3 { margin: 0 0 0.45rem; font-size: 1.15rem; }
+  .idea p { margin: 0; font-size: 0.95rem; color: var(--ink-soft); max-width: none; }
+
+  .fund-grid {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  @media (min-width: 720px) {
+    .fund-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .fund {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.15rem 1.2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .fund::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 64px; height: 64px;
+    background: radial-gradient(circle at 100% 0%, var(--glow), transparent 70%);
+    pointer-events: none;
+  }
+  .fund h3 { margin: 0 0 0.4rem; font-size: 1.08rem; }
+  .fund .def {
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+    margin: 0 0 0.75rem;
+    max-width: none;
+  }
+  .fund .ex {
+    font-size: 0.88rem;
+    margin: 0;
+    padding: 0.65rem 0.75rem;
+    background: color-mix(in srgb, var(--panel) 85%, var(--brass) 8%);
+    border-radius: 8px;
+    border-left: 3px solid var(--river);
+    max-width: none;
+  }
+  .fund .ex strong { color: var(--river); }
+
+  /* ——— SVG diagrams ——— */
+  .diagram {
+    margin: 1.75rem 0;
+    background: var(--ink);
+    border-radius: 16px;
+    padding: 1rem 0.5rem 1.25rem;
+    border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  .diagram figcaption {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brass-bright);
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+  .diagram svg {
+    display: block;
+    width: 100%;
+    min-width: 520px;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  /* ——— Steps ——— */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0;
+    max-width: 52ch;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 1.35rem 3rem;
+    border-left: 2px solid color-mix(in srgb, var(--brass) 45%, var(--line));
+    margin-left: 0.85rem;
+  }
+  .steps li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: -0.95rem;
+    top: 0;
+    width: 1.7rem; height: 1.7rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px var(--paper);
+  }
+  .steps strong { display: block; font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 0.2rem; }
+
+  /* ——— Effect NO ——— */
+  .verdict {
+    background: linear-gradient(135deg, #2a1a1a, var(--ink));
+    color: #f6f1e8;
+    border-radius: 16px;
+    padding: 1.5rem 1.5rem 1.35rem;
+    margin: 1.5rem 0;
+    border: 1px solid color-mix(in srgb, var(--brick) 50%, transparent);
+    max-width: 52ch;
+  }
+  .verdict .stamp {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0.06em;
+    color: #f0a090;
+    border: 3px solid #f0a090;
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    transform: rotate(-3deg);
+    margin-bottom: 1rem;
+  }
+  .verdict p { color: color-mix(in srgb, #f6f1e8 88%, transparent); max-width: none; }
+
+  /* ——— Ownership table ——— */
+  .own-grid {
+    display: grid;
+    gap: 1rem;
+    margin: 1.25rem 0;
+  }
+  @media (min-width: 640px) {
+    .own-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .own {
+    border-radius: var(--radius);
+    padding: 1.2rem 1.25rem;
+    border: 1px solid var(--line);
+  }
+  .own.you {
+    background: color-mix(in srgb, var(--brass) 12%, var(--paper-raised));
+    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  }
+  .own.agents {
+    background: color-mix(in srgb, var(--river) 10%, var(--paper-raised));
+    border-color: color-mix(in srgb, var(--river) 35%, var(--line));
+  }
+  .own h3 { margin: 0 0 0.65rem; }
+  .own ul { margin: 0; max-width: none; }
+
+  /* ——— Glossary ——— */
+  dl.glossary { max-width: 52ch; }
+  .glossary dt {
+    font-family: var(--font-display);
+    font-weight: 650;
+    font-size: 1.05rem;
+    margin-top: 1.1rem;
+    color: var(--ink);
+  }
+  .glossary dd {
+    margin: 0.25rem 0 0;
+    color: var(--ink-soft);
+  }
+
+  /* ——— Next paths ——— */
+  .paths {
+    display: grid;
+    gap: 0.55rem;
+    margin: 1rem 0;
+  }
+  .path-row {
+    display: grid;
+    grid-template-columns: minmax(10rem, 16rem) 1fr;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.65rem 0.85rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 0.92rem;
+  }
+  .path-row code {
+    font-size: 0.8rem;
+    word-break: break-all;
+  }
+  .path-row span { color: var(--ink-soft); }
+  @media (max-width: 640px) {
+    .path-row { grid-template-columns: 1fr; gap: 0.25rem; }
+  }
+
+  footer.page-foot {
+    margin-top: 3rem;
+    padding: 2rem 0 1rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.88rem;
+    color: var(--ink-muted);
+  }
+
+  /* ——— Reveal motion ——— */
+  .reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ——— Mobile ——— */
+  .toc-toggle {
+    display: none;
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 40;
+    background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+    color: var(--ink);
+    border: none;
+    border-radius: 999px;
+    padding: 0.75rem 1.15rem;
+    font-family: var(--font-body);
+    font-weight: 650;
+    font-size: 0.9rem;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .toc-toggle:focus-visible { outline: 3px solid var(--river); outline-offset: 2px; }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .toc {
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: min(280px, 86vw);
+      transform: translateX(-105%);
+      transition: transform 0.28s ease;
+      box-shadow: var(--shadow);
+    }
+    body.toc-open .toc { transform: none; }
+    body.toc-open::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: color-mix(in srgb, var(--ink) 55%, transparent);
+      z-index: 15;
+    }
+    .toc-toggle { display: block; }
+    body {
+      background:
+        radial-gradient(ellipse 90% 40% at 50% -5%, color-mix(in srgb, var(--brass) 25%, transparent), transparent 55%),
+        linear-gradient(180deg, #1a1424 0%, #1a1424 36vh, var(--paper) 36vh, var(--paper) 100%);
+    }
+    .hero { min-height: 70vh; padding-top: 2.5rem; }
+  }
+</style>
+</head>
+<body>
+<button type="button" class="toc-toggle" id="tocToggle" aria-expanded="false" aria-controls="toc">Contents</button>
+
+<div class="shell">
+  <aside class="toc" id="toc" aria-label="Table of contents">
+    <p class="toc-brand">PUBMAXXING</p>
+    <p class="toc-sub">A teaching tour for the product owner</p>
+    <nav>
+      <a href="#hero"><span class="toc-num">01</span> What you've built</a>
+      <a href="#product"><span class="toc-num">02</span> 60-second product</a>
+      <a href="#surfaces"><span class="toc-num">03</span> Map of the product</a>
+      <a href="#architecture"><span class="toc-num">04</span> Architecture layers</a>
+      <a href="#four-ideas"><span class="toc-num">05</span> Four ideas</a>
+      <a href="#drop-pint"><span class="toc-num">06</span> Drop a pint</a>
+      <a href="#plan-crawl"><span class="toc-num">07</span> Plan a crawl</a>
+      <a href="#sign-in"><span class="toc-num">08</span> Sign in &amp; identity</a>
+      <a href="#trust"><span class="toc-num">09</span> Trust &amp; security</a>
+      <a href="#fundamentals"><span class="toc-num">10</span> SE fundamentals</a>
+      <a href="#effect"><span class="toc-num">11</span> Effect-TS decision</a>
+      <a href="#agents"><span class="toc-num">12</span> How agents ship faster</a>
+      <a href="#ownership"><span class="toc-num">13</span> What you own</a>
+      <a href="#glossary"><span class="toc-num">14</span> Glossary</a>
+      <a href="#next"><span class="toc-num">15</span> Where to look next</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="content">
+
+      <!-- 1. HERO -->
+      <header class="hero" id="hero">
+        <div class="hero-inner">
+          <p class="eyebrow">Teaching document · karanmrn/pubmax</p>
+          <p class="hero-brand">PUBMAXXING</p>
+          <h1>What you've built</h1>
+          <p class="hero-lede">A price-aware, story-led UK pub-crawl map — and a working lesson in how modern software is layered, trusted, and shipped.</p>
+          <div class="hero-meta">
+            <span class="pill">Next.js 16 · React 19 · TypeScript</span>
+            <span class="pill">MapLibre · Supabase · Vercel</span>
+            <span class="pill">London + 8 cities</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- 2. 60-SECOND PRODUCT -->
+      <section id="product" class="section-on-paper reveal">
+        <p class="eyebrow">Section 02</p>
+        <h2>The 60-second product</h2>
+        <p class="lede">Imagine a living map of British pubs where every pin knows what a pint costs, what the room feels like, and whether the story is sourced history or a mate's note.</p>
+        <p>Pubmaxxing sits at the intersection of three things most pub apps keep separate:</p>
+        <ul>
+          <li><strong>Price</strong> — observed pint prices, colour-coded cheap → mid → expensive.</li>
+          <li><strong>Setting</strong> — by the water, gardens, walkable route shape, last trains home.</li>
+          <li><strong>Story</strong> — heritage era, listed status, editorial picks, and community <em>Pint Drops</em> (photo + price + passed-down note), each wearing a visible <strong>provenance</strong> badge so legend never pretends to be archive.</li>
+        </ul>
+        <p>London is the flagship. Eight more cities ship browseable maps (Manchester, Liverpool, Oxford, Durham, Glasgow, Bristol, Cambridge, Bath). You plan a crawl, share it via URL, drop a pint, build a passport, and — when the keys are set — talk to <strong>The Landlord</strong>, an AI that answers only from retrieved facts and honestly refuses to invent.</p>
+        <div class="callout">
+          <strong>For you as product owner:</strong> the “product” is not just screens. It is a trust contract (provenance), a map experience (MapLibre), and a thin server that never lets the browser write to the database directly.
+        </div>
+      </section>
+
+      <!-- 3. SURFACES -->
+      <section id="surfaces" class="reveal">
+        <p class="eyebrow">Section 03</p>
+        <h2>Map of the product</h2>
+        <p class="lede">These are the main doors users walk through. Each path below is a real route in the Next.js App Router.</p>
+        <div class="surfaces">
+          <div class="surface"><p class="path">/</p><p>Landing — brand, thesis, CTA into the map</p></div>
+          <div class="surface"><p class="path">/map · /map/[city]</p><p>Planner + city maps; filters, route, inspector</p></div>
+          <div class="surface"><p class="path">/discover</p><p>Editorial boards, rivalry, tonight energy</p></div>
+          <div class="surface"><p class="path">/feed</p><p>Social stream of drops and activity</p></div>
+          <div class="surface"><p class="path">/crawls</p><p>Saved &amp; featured crawl routes</p></div>
+          <div class="surface"><p class="path">/u/[handle]</p><p>Passport profile — shareable identity</p></div>
+          <div class="surface"><p class="path">/messages</p><p>Direct messages between drinkers</p></div>
+          <div class="surface"><p class="path">/activity</p><p>Notifications &amp; social signals</p></div>
+          <div class="surface"><p class="path">/admin</p><p>Moderation console (token-gated)</p></div>
+          <div class="surface"><p class="path">/p/[id]</p><p>Single pint-drop permalink</p></div>
+          <div class="surface"><p class="path">/borough · /landmark · /ledger</p><p>Place pages, landmarks, history ledger</p></div>
+          <div class="surface"><p class="path">/auth/callback</p><p>OAuth return — JWT session handoff</p></div>
+        </div>
+        <p style="margin-top:1.25rem">Under the hood, API routes live at <code>app/api/*</code> (pint drops, crawls, profiles, cards, last-train helpers). You rarely need those URLs as a user — but they are the server seam that enforces trust.</p>
+      </section>
+
+      <!-- 4. ARCHITECTURE -->
+      <section id="architecture" class="section-on-paper reveal">
+        <p class="eyebrow">Section 04</p>
+        <h2>Architecture layers</h2>
+        <p class="lede">Think of the system as four floors in one building. Requests enter at the top; secrets live at the bottom. Pure domain logic sits in the middle — testable without a browser.</p>
+
+        <figure class="diagram" aria-label="Architecture layers diagram">
+          <svg viewBox="0 0 720 420" role="img" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gInk" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#2a2238"/>
+                <stop offset="100%" stop-color="#1a1424"/>
+              </linearGradient>
+              <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" fill="#b8943f"/>
+              </marker>
+            </defs>
+            <rect width="720" height="420" fill="url(#gInk)" rx="12"/>
+            <!-- Layer boxes -->
+            <rect x="60" y="36" width="600" height="62" rx="10" fill="#2f2840" stroke="#b8943f" stroke-width="1.5"/>
+            <text x="80" y="62" fill="#d4b15a" font-family="IBM Plex Mono, monospace" font-size="11">FRONTEND</text>
+            <text x="80" y="82" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="14">app/ pages · components/ · MapLibre canvas · optimistic UI</text>
+
+            <line x1="360" y1="98" x2="360" y2="118" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <rect x="60" y="120" width="600" height="62" rx="10" fill="#273540" stroke="#3d8f9c" stroke-width="1.5"/>
+            <text x="80" y="146" fill="#3d8f9c" font-family="IBM Plex Mono, monospace" font-size="11">API / SERVER ROUTES</text>
+            <text x="80" y="166" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="14">app/api/* · validate · rate-limit · JWT · signed URLs</text>
+
+            <line x1="360" y1="182" x2="360" y2="202" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <rect x="60" y="204" width="600" height="62" rx="10" fill="#24382e" stroke="#2f7a52" stroke-width="1.5"/>
+            <text x="80" y="230" fill="#46b378" font-family="IBM Plex Mono, monospace" font-size="11">DOMAIN (PURE)</text>
+            <text x="80" y="250" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="14">lib/ — venues, crawls, curation, validatePintDrop, buildPassport</text>
+
+            <line x1="360" y1="266" x2="360" y2="286" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <rect x="60" y="288" width="280" height="72" rx="10" fill="#2a2238" stroke="#d4cbb8" stroke-width="1.2"/>
+            <text x="80" y="318" fill="#d4b15a" font-family="IBM Plex Mono, monospace" font-size="11">SUPABASE</text>
+            <text x="80" y="338" fill="#c4bca9" font-family="Source Sans 3, sans-serif" font-size="13">Postgres · Storage · RLS · RPCs</text>
+
+            <rect x="380" y="288" width="280" height="72" rx="10" fill="#2a2238" stroke="#d4cbb8" stroke-width="1.2"/>
+            <text x="400" y="318" fill="#d4b15a" font-family="IBM Plex Mono, monospace" font-size="11">VERCEL</text>
+            <text x="400" y="338" fill="#c4bca9" font-family="Source Sans 3, sans-serif" font-size="13">Deploy gate · Edge OG · env secrets</text>
+
+            <text x="60" y="400" fill="#6a6178" font-family="IBM Plex Mono, monospace" font-size="11">Trust boundary sits at the API layer — browser never holds service-role keys</text>
+          </svg>
+          <figcaption>Four layers · request flows downward · secrets stay server-side</figcaption>
+        </figure>
+
+        <h3>Three kinds of code (mental model)</h3>
+        <ul>
+          <li><strong>Pure domain</strong> (<code>lib/</code>) — functions that take data in and return data out. No network, no React. Easy to test. Example: <code>buildCrawlRoute</code>, <code>validatePintDrop</code>.</li>
+          <li><strong>Client map / UI</strong> (<code>components/</code>) — runs in the browser. Owns interaction, MapLibre WebGL, optimistic updates. Must treat every user input as untrusted until the server says otherwise.</li>
+          <li><strong>Server routes</strong> (<code>app/api/</code>) — the only place that may use the Supabase service role, hash IPs, mint signed photo URLs, and assert environment secrets.</li>
+        </ul>
+      </section>
+
+      <!-- 5. FOUR IDEAS -->
+      <section id="four-ideas" class="reveal">
+        <p class="eyebrow">Section 05</p>
+        <h2>The four ideas that run through everything</h2>
+        <p class="lede">If you remember only four product-engineering principles from Pubmaxxing, make them these.</p>
+        <div class="ideas four">
+          <article class="idea">
+            <p class="n">IDEA 01</p>
+            <h3>Provenance never flattens</h3>
+            <p>Sourced editorial, community contributions, anecdotes, and demo seeds stay visibly distinct. The badge <em>is</em> the trust signal. Never merge a historian’s note and a mate’s yarn into one undifferentiated string.</p>
+          </article>
+          <article class="idea">
+            <p class="n">IDEA 02</p>
+            <h3>Seams light up with keys</h3>
+            <p>No Supabase → in-memory stores and honest production-503s. No OpenRouter → The Landlord reads facts back instead of narrating. The app never pretends to have durability or intelligence it doesn’t.</p>
+          </article>
+          <article class="idea">
+            <p class="n">IDEA 03</p>
+            <h3>Content-hashed stable IDs</h3>
+            <p>A venue ID is an FNV hash of name + address + coords — not “row 47 in the JSON.” Seeds and curated crawls survive dataset reordering because identity follows content.</p>
+          </article>
+          <article class="idea">
+            <p class="n">IDEA 04</p>
+            <h3>One write path</h3>
+            <p>One Pint Drop API, one URL sync for crawls, one map mount lifecycle. Single seams keep invariants enforceable — and keep agents from inventing parallel half-broken paths.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- 6. DROP A PINT -->
+      <section id="drop-pint" class="section-on-paper reveal">
+        <p class="eyebrow">Section 06</p>
+        <h2>Walkthrough: Drop a pint</h2>
+        <p class="lede">The community’s core write. A drinker adds a photo, a price, and a note. The UI feels instant; the server stays honest.</p>
+
+        <figure class="diagram" aria-label="Drop a pint request flow">
+          <svg viewBox="0 0 720 380" role="img" xmlns="http://www.w3.org/2000/svg">
+            <rect width="720" height="380" fill="#1a1424" rx="12"/>
+            <!-- boxes -->
+            <rect x="30" y="40" width="130" height="56" rx="8" fill="#2f2840" stroke="#b8943f"/>
+            <text x="95" y="65" text-anchor="middle" fill="#d4b15a" font-family="IBM Plex Mono, monospace" font-size="10">BROWSER</text>
+            <text x="95" y="82" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="12">Optimistic UI</text>
+
+            <path d="M160 68 H210" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+            <text x="185" y="58" text-anchor="middle" fill="#6a6178" font-family="IBM Plex Mono, monospace" font-size="9">POST</text>
+
+            <rect x="210" y="40" width="150" height="56" rx="8" fill="#273540" stroke="#3d8f9c"/>
+            <text x="285" y="65" text-anchor="middle" fill="#3d8f9c" font-family="IBM Plex Mono, monospace" font-size="10">/api/pint-drops</text>
+            <text x="285" y="82" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="12">parse · validate</text>
+
+            <path d="M360 68 H410" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <rect x="410" y="40" width="140" height="56" rx="8" fill="#273540" stroke="#3d8f9c"/>
+            <text x="480" y="65" text-anchor="middle" fill="#3d8f9c" font-family="IBM Plex Mono, monospace" font-size="10">RATE LIMIT</text>
+            <text x="480" y="82" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="12">handle + IP hash</text>
+
+            <path d="M550 68 H600" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <rect x="600" y="40" width="90" height="56" rx="8" fill="#24382e" stroke="#2f7a52"/>
+            <text x="645" y="72" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="12">store()</text>
+
+            <!-- lower flow -->
+            <path d="M645 96 V140 H285 V170" stroke="#b8943f" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+            <rect x="40" y="170" width="200" height="70" rx="8" fill="#2a2238" stroke="#d4cbb8"/>
+            <text x="140" y="200" text-anchor="middle" fill="#d4b15a" font-family="IBM Plex Mono, monospace" font-size="10">STORAGE</text>
+            <text x="140" y="220" text-anchor="middle" fill="#c4bca9" font-family="Source Sans 3, sans-serif" font-size="12">Photo → private bucket</text>
+
+            <rect x="270" y="170" width="200" height="70" rx="8" fill="#2a2238" stroke="#d4cbb8"/>
+            <text x="370" y="200" text-anchor="middle" fill="#d4b15a" font-family="IBM Plex Mono, monospace" font-size="10">POSTGRES</text>
+            <text x="370" y="220" text-anchor="middle" fill="#c4bca9" font-family="Source Sans 3, sans-serif" font-size="12">Row insert · provenance</text>
+
+            <rect x="500" y="170" width="190" height="70" rx="8" fill="#2a2238" stroke="#b8943f"/>
+            <text x="595" y="200" text-anchor="middle" fill="#d4b15a" font-family="IBM Plex Mono, monospace" font-size="10">SIGNED URL</text>
+            <text x="595" y="220" text-anchor="middle" fill="#c4bca9" font-family="Source Sans 3, sans-serif" font-size="12">Time-limited photo link</text>
+
+            <path d="M595 240 V280 H95 V96" stroke="#3d8f9c" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
+            <text x="360" y="300" text-anchor="middle" fill="#3d8f9c" font-family="IBM Plex Mono, monospace" font-size="10">DTO response reconciles optimistic UI</text>
+
+            <text x="40" y="340" fill="#6a6178" font-family="Source Sans 3, sans-serif" font-size="13">Client never sets provenance. Server derives contributor vs anecdote from evidence.</text>
+            <text x="40" y="360" fill="#6a6178" font-family="Source Sans 3, sans-serif" font-size="13">If insert fails after upload → deletePhotos cleans orphans. Fail loud in prod without Supabase (503).</text>
+          </svg>
+          <figcaption>Optimistic → validate → store → signed URLs</figcaption>
+        </figure>
+
+        <ol class="steps">
+          <li>
+            <strong>Optimistic UI</strong>
+            The composer shows the drop immediately so the night feels alive. This is a preview — not truth yet.
+          </li>
+          <li>
+            <strong>Server validation (trust boundary)</strong>
+            <code>validatePintDrop</code> strips control chars, caps lengths, checks price £0–£20, requires price or note. The client’s claimed provenance is ignored.
+          </li>
+          <li>
+            <strong>Rate limit</strong>
+            Durably keyed on handle + salted IP hash so one noisy phone can’t flood the map.
+          </li>
+          <li>
+            <strong>Store + photo</strong>
+            Photo uploads to a private bucket under a deterministic key; then the DB row lands. Failure after upload triggers orphan cleanup.
+          </li>
+          <li>
+            <strong>Signed URL + DTO</strong>
+            The API returns a safe DTO (data transfer object) with a time-limited photo URL — never a raw private path forever.
+          </li>
+        </ol>
+      </section>
+
+      <!-- 7. PLAN A CRAWL -->
+      <section id="plan-crawl" class="reveal">
+        <p class="eyebrow">Section 07</p>
+        <h2>Walkthrough: Plan a crawl</h2>
+        <p class="lede">Planning is mostly pure client-side domain logic over a slim pin pack — fast, shareable, and deterministic.</p>
+        <ol class="steps">
+          <li>
+            <strong>Slim pins load</strong>
+            The map fetches a compact venue index for the city (not the full editorial dump). London + OSM city packs keep the first paint light.
+          </li>
+          <li>
+            <strong>Filter</strong>
+            Style, price band, amenities, heritage, near-water — <code>filterVenues</code> applies predicates. Unknown price ≠ expensive.
+          </li>
+          <li>
+            <strong>Build the route</strong>
+            <code>buildCrawlRoute</code> is a greedy nearest-good-neighbour walk: seed strong pubs, grow by score minus distance cost, pick the best whole route. Simple on purpose — not a travelling-salesman solver.
+          </li>
+          <li>
+            <strong>URL sync</strong>
+            <code>encodeCrawl</code> / <code>decodeCrawl</code> write the crawl into the query string (single write path, debounced). Share the link; a friend opens the same night.
+          </li>
+        </ol>
+        <div class="callout river">
+          <strong>Product insight:</strong> the crawl lives in the URL, so “share” is free. That only works because IDs are content-hashed and decode is forgiving (clamps numbers, drops unknowns, never throws).
+        </div>
+      </section>
+
+      <!-- 8. SIGN IN -->
+      <section id="sign-in" class="section-on-paper reveal">
+        <p class="eyebrow">Section 08</p>
+        <h2>Walkthrough: Sign in &amp; identity</h2>
+        <p class="lede">Identity turns a browser session into a passport someone can follow and share.</p>
+        <ol class="steps">
+          <li>
+            <strong>OAuth with PKCE</strong>
+            Sign-in starts with a provider (e.g. Google) using Proof Key for Code Exchange — a one-time secret so intercepted redirects can’t steal the session.
+          </li>
+          <li>
+            <strong>Callback → JWT</strong>
+            <code>/auth/callback</code> exchanges the code for a JSON Web Token (JWT). That token proves “this browser is this user” on later API calls.
+          </li>
+          <li>
+            <strong>Link a handle</strong>
+            The profile claims a public <code>@handle</code>. Ownership checks on the server ensure you can only edit your own passport.
+          </li>
+          <li>
+            <strong>Share passport + OG</strong>
+            <code>buildPassport</code> assembles the public surface; Open Graph card routes render social previews when you paste <code>/u/[handle]</code> into Slack or iMessage.
+          </li>
+        </ol>
+        <p>Messages, follows, activity, and admin moderation all hang off the same identity spine: JWT ownership on the server, public handle on the passport.</p>
+      </section>
+
+      <!-- 9. TRUST -->
+      <section id="trust" class="reveal">
+        <p class="eyebrow">Section 09</p>
+        <h2>Trust &amp; security model</h2>
+        <p class="lede">Security here is not a bolt-on checklist. It is the product’s honesty contract made technical.</p>
+
+        <figure class="diagram" aria-label="Trust boundary diagram">
+          <svg viewBox="0 0 720 360" role="img" xmlns="http://www.w3.org/2000/svg">
+            <rect width="720" height="360" fill="#1a1424" rx="12"/>
+            <!-- untrusted zone -->
+            <rect x="24" y="30" width="280" height="300" rx="12" fill="#2a1f28" stroke="#a84a3c" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <text x="164" y="58" text-anchor="middle" fill="#f0a090" font-family="IBM Plex Mono, monospace" font-size="11">UNTRUSTED · BROWSER</text>
+            <text x="50" y="95" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• Form fields &amp; photos</text>
+            <text x="50" y="118" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• Claimed provenance (ignored)</text>
+            <text x="50" y="141" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• NEXT_PUBLIC_* only</text>
+            <text x="50" y="164" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• Optimistic UI state</text>
+            <text x="50" y="187" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• x-forwarded-for (edge-normalised)</text>
+            <text x="50" y="230" fill="#6a6178" font-family="Source Sans 3, sans-serif" font-size="12">Anything here can be forged,</text>
+            <text x="50" y="248" fill="#6a6178" font-family="Source Sans 3, sans-serif" font-size="12">replayed, or inspected.</text>
+
+            <!-- boundary -->
+            <rect x="320" y="30" width="28" height="300" fill="#b8943f"/>
+            <text x="334" y="180" text-anchor="middle" fill="#1a1424" font-family="IBM Plex Mono, monospace" font-size="10" transform="rotate(-90 334 180)">TRUST BOUNDARY</text>
+
+            <!-- trusted zone -->
+            <rect x="364" y="30" width="332" height="300" rx="12" fill="#1e2a2c" stroke="#2f7a52" stroke-width="1.5"/>
+            <text x="530" y="58" text-anchor="middle" fill="#46b378" font-family="IBM Plex Mono, monospace" font-size="11">TRUSTED · SERVER</text>
+            <text x="390" y="95" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• validatePintDrop</text>
+            <text x="390" y="118" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• JWT ownership checks</text>
+            <text x="390" y="141" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• Service-role Supabase key</text>
+            <text x="390" y="164" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• Private Storage + signed URLs</text>
+            <text x="390" y="187" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• assertServerEnv (FATAL)</text>
+            <text x="390" y="210" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• Admin token (constant-time)</text>
+            <text x="390" y="233" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• RLS = second line of defense</text>
+            <text x="390" y="256" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">• Heritage honesty (no phantom facts)</text>
+            <text x="390" y="300" fill="#6a6178" font-family="Source Sans 3, sans-serif" font-size="12">Secrets never cross the brass wall.</text>
+          </svg>
+          <figcaption>Never trust the browser · RLS backs the server · heritage refuses to invent</figcaption>
+        </figure>
+
+        <ul>
+          <li><strong>Provenance</strong> is assigned server-side from evidence, never client assertion.</li>
+          <li><strong>JWT ownership</strong> gates edits to profiles, lists, and private actions.</li>
+          <li><strong>Private Storage + signed URLs</strong> so takedowns and expiry mean something.</li>
+          <li><strong>assertServerEnv FATAL</strong> — missing production secrets crash loud rather than run half-configured.</li>
+          <li><strong>Rate limits</strong> (durable RPCs) + <strong>admin token</strong> for moderation.</li>
+          <li><strong>Heritage honesty</strong> — The Landlord rejects answers that cite facts it was never given.</li>
+        </ul>
+      </section>
+
+      <!-- 10. FUNDAMENTALS -->
+      <section id="fundamentals" class="section-on-paper reveal">
+        <p class="eyebrow">Section 10</p>
+        <h2>Software engineering fundamentals</h2>
+        <p class="lede">Ten ideas every product owner benefits from recognising — each with a Pubmaxxing example you already ship.</p>
+        <div class="fund-grid">
+          <article class="fund">
+            <h3>Client vs server</h3>
+            <p class="def">Client code runs on the user’s device. Server code runs in your infrastructure. Only the server may hold secrets and make authoritative decisions.</p>
+            <p class="ex"><strong>Here:</strong> MapLibre paints pins in the browser; <code>app/api/pint-drops</code> decides whether a drop is stored.</p>
+          </article>
+          <article class="fund">
+            <h3>Pure functions</h3>
+            <p class="def">Same input → same output, no hidden side effects. Easy to test, easy for agents to change safely.</p>
+            <p class="ex"><strong>Here:</strong> <code>buildCrawlRoute</code>, <code>filterVenues</code>, <code>scoreVenue</code> live in <code>lib/</code> with Vitest suites pinning behaviour.</p>
+          </article>
+          <article class="fund">
+            <h3>Trust boundary</h3>
+            <p class="def">The line where untrusted input becomes trusted state. Re-validate everything that crosses it.</p>
+            <p class="ex"><strong>Here:</strong> <code>validatePintDrop</code> is the boundary. HTML is stripped; provenance is re-derived.</p>
+          </article>
+          <article class="fund">
+            <h3>DTO vs raw DB</h3>
+            <p class="def">A DTO is a shaped, public-safe object. Raw DB rows may contain private fields you must never leak.</p>
+            <p class="ex"><strong>Here:</strong> store adapters <code>toDTO</code> withhold URLs for hidden drops and mint signed photo links.</p>
+          </article>
+          <article class="fund">
+            <h3>Optimistic UI</h3>
+            <p class="def">Show the result before the network confirms — then reconcile or roll back.</p>
+            <p class="ex"><strong>Here:</strong> dropping a pint updates the feed instantly; a failed API call reconciles against the server DTO.</p>
+          </article>
+          <article class="fund">
+            <h3>Env secrets &amp; NEXT_PUBLIC_</h3>
+            <p class="def">Anything prefixed <code>NEXT_PUBLIC_</code> is baked into the browser bundle. Real secrets must omit that prefix.</p>
+            <p class="ex"><strong>Here:</strong> service-role Supabase key and <code>ADMIN_TOKEN</code> are server-only; public anon keys (if used) are the only browser-safe ones.</p>
+          </article>
+          <article class="fund">
+            <h3>RLS as second line</h3>
+            <p class="def">Row Level Security is Postgres policies that limit who can read/write rows — even if application code slips.</p>
+            <p class="ex"><strong>Here:</strong> deny-all writes for clients; public SELECT only for visible content. Server uses service role after validation.</p>
+          </article>
+          <article class="fund">
+            <h3>Content-hashed IDs</h3>
+            <p class="def">IDs derived from content stay stable when arrays shuffle. Index-based IDs break seeds and bookmarks.</p>
+            <p class="ex"><strong>Here:</strong> <code>stableVenueIdFromKey</code> (FNV-1a) powers curated crawls like Prospect of Whitby.</p>
+          </article>
+          <article class="fund">
+            <h3>Idempotency (reports)</h3>
+            <p class="def">Repeating the same action shouldn’t corrupt state. Concurrent reports must not lose counts.</p>
+            <p class="ex"><strong>Here:</strong> <code>report_pint_drop</code> RPC atomically increments and hides at threshold 2 — one report never hides alone.</p>
+          </article>
+          <article class="fund">
+            <h3>Fail loud vs fail soft</h3>
+            <p class="def">Fail loud when continuing would lie (missing prod DB). Fail soft when a non-critical feature can degrade (Landlord without an LLM key).</p>
+            <p class="ex"><strong>Here:</strong> production-503 without Supabase; structured fact readback without OpenRouter; rate limiter fails open but logs loudly.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- 11. EFFECT -->
+      <section id="effect" class="reveal">
+        <p class="eyebrow">Section 11</p>
+        <h2>Why we are NOT adopting Effect-TS</h2>
+        <p class="lede">You may hear that Effect is the “correct” way to do typed async in TypeScript. For Pubmaxxing right now, adopting it would slow the whole system down.</p>
+
+        <div class="verdict">
+          <div class="stamp">DO NOT ADOPT</div>
+          <p><strong>Effect</strong> is a power tool for complex, typed asynchronous orchestration — retries, dependency injection, structured concurrency. It shines in large teams with Effect experts and gnarly workflow graphs.</p>
+          <p>This app already has the seams that matter: <code>ValidationResult</code>-style validation, a <code>PintDropStore</code> interface with swappable adapters, and pure domain functions. Those are the 80% of Effect’s value without the dialect.</p>
+          <p>AI coding agents get <strong>slower</strong> on unfamiliar Effect idioms. Every PR would pay a translation tax. Adopt only much later if hired Effect experts hit real orchestration pain that the current interfaces cannot express.</p>
+          <p style="margin-bottom:0"><strong>Verdict: do not adopt Effect-TS now.</strong> Ship product on the seams you have.</p>
+        </div>
+      </section>
+
+      <!-- 12. AGENTS -->
+      <section id="agents" class="section-on-paper reveal">
+        <p class="eyebrow">Section 12</p>
+        <h2>How agents ship faster HERE</h2>
+        <p class="lede">Speed does not come from new frameworks. It comes from sharp docs, small seams, and tests that pin the honesty contract.</p>
+        <ul>
+          <li><strong>Docs as ground truth</strong> — <code>teach.md</code>, PRDs, ADRs, and this page tell agents what “done” means before they invent architecture.</li>
+          <li><strong>Pure lib/ seams</strong> — change <code>filterVenues</code> without touching MapLibre lifecycle.</li>
+          <li><strong>Single write paths</strong> — one Pint Drop API, one crawl URL encoder; agents extend instead of duplicating.</li>
+          <li><strong>CI that bites</strong> — <code>npm run ci</code> = validate-data + lint + typecheck + coverage + audit + build. Vercel runs this as the deploy gate.</li>
+          <li><strong>Honest fallbacks</strong> — agents can add features that degrade without keys instead of hard-requiring infrastructure on day one.</li>
+        </ul>
+
+        <figure class="diagram" aria-label="Deploy pipeline diagram">
+          <svg viewBox="0 0 720 220" role="img" xmlns="http://www.w3.org/2000/svg">
+            <rect width="720" height="220" fill="#1a1424" rx="12"/>
+            <rect x="24" y="70" width="100" height="50" rx="8" fill="#2f2840" stroke="#b8943f"/>
+            <text x="74" y="100" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="13">git push</text>
+
+            <path d="M124 95 H160" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <rect x="160" y="55" width="130" height="80" rx="8" fill="#273540" stroke="#3d8f9c"/>
+            <text x="225" y="85" text-anchor="middle" fill="#3d8f9c" font-family="IBM Plex Mono, monospace" font-size="10">PRE-PUSH</text>
+            <text x="225" y="105" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="12">npm run verify</text>
+            <text x="225" y="122" text-anchor="middle" fill="#6a6178" font-family="Source Sans 3, sans-serif" font-size="11">local gate</text>
+
+            <path d="M290 95 H330" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <rect x="330" y="40" width="200" height="110" rx="8" fill="#24382e" stroke="#2f7a52"/>
+            <text x="430" y="70" text-anchor="middle" fill="#46b378" font-family="IBM Plex Mono, monospace" font-size="10">VERCEL · npm run ci</text>
+            <text x="430" y="95" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="12">validate-data · lint</text>
+            <text x="430" y="113" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="12">typecheck · coverage</text>
+            <text x="430" y="131" text-anchor="middle" fill="#ebe4d8" font-family="Source Sans 3, sans-serif" font-size="12">audit · build</text>
+
+            <path d="M530 95 H570" stroke="#b8943f" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <rect x="570" y="70" width="126" height="50" rx="8" fill="#2f2840" stroke="#d4b15a"/>
+            <text x="633" y="100" text-anchor="middle" fill="#d4b15a" font-family="Source Sans 3, sans-serif" font-size="13">Production</text>
+
+            <text x="360" y="190" text-anchor="middle" fill="#6a6178" font-family="IBM Plex Mono, monospace" font-size="11">If any CI step fails, deploy never updates production</text>
+          </svg>
+          <figcaption>Local verify → Vercel ci gate → production</figcaption>
+        </figure>
+      </section>
+
+      <!-- 13. OWNERSHIP -->
+      <section id="ownership" class="reveal">
+        <p class="eyebrow">Section 13</p>
+        <h2>What you own vs what agents own</h2>
+        <p class="lede">Clear ownership keeps velocity without surrendering product judgment.</p>
+        <div class="own-grid">
+          <div class="own you">
+            <h3>You own</h3>
+            <ul>
+              <li>Product thesis &amp; trust contract (provenance honesty)</li>
+              <li>Which cities / surfaces ship next</li>
+              <li>Tone of heritage vs community voice</li>
+              <li>Go / no-go on frameworks (e.g. Effect)</li>
+              <li>Secrets, admin token, production env</li>
+              <li>Accepting risk trade-offs (fail-open rate limit, etc.)</li>
+            </ul>
+          </div>
+          <div class="own agents">
+            <h3>Agents own (with review)</h3>
+            <ul>
+              <li>Implementing features inside existing seams</li>
+              <li>Tests that pin invariants</li>
+              <li>Refactors that keep pure domain pure</li>
+              <li>Docs updates when behaviour changes</li>
+              <li>CI green — lint, types, coverage, build</li>
+              <li>Not inventing parallel write paths or flattening provenance</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout ok">
+          <strong>Rule of thumb:</strong> if a change alters what users should trust or believe, that is your call. If it alters how code reaches an already-decided behaviour, that is agent territory — under the gates above.
+        </div>
+      </section>
+
+      <!-- 14. GLOSSARY -->
+      <section id="glossary" class="section-on-paper reveal">
+        <p class="eyebrow">Section 14</p>
+        <h2>Glossary</h2>
+        <dl class="glossary">
+          <dt>App Router</dt>
+          <dd>Next.js file-based routing under <code>app/</code>. Folders become URLs; <code>page.tsx</code> is the screen.</dd>
+          <dt>JWT</dt>
+          <dd>JSON Web Token — a signed ticket proving who is signed in, checked on the server.</dd>
+          <dt>OAuth / PKCE</dt>
+          <dd>Sign-in via a provider. PKCE adds a one-time secret so stolen redirects can’t finish login.</dd>
+          <dt>Provenance</dt>
+          <dd>Where a claim came from: sourced, contributor, anecdote, or demo — shown as a badge, never flattened.</dd>
+          <dt>RLS</dt>
+          <dd>Row Level Security — database policies that restrict which rows a role may read or write.</dd>
+          <dt>DTO</dt>
+          <dd>Data Transfer Object — the shaped payload sent to clients, scrubbed of private fields.</dd>
+          <dt>Optimistic UI</dt>
+          <dd>Updating the screen before the server confirms, then reconciling with the real response.</dd>
+          <dt>Signed URL</dt>
+          <dd>A temporary, cryptographically authorised link to a private storage object.</dd>
+          <dt>FNV / content hash</dt>
+          <dd>A fingerprint of content used as an ID so identity survives reordering.</dd>
+          <dt>Idempotent</dt>
+          <dd>Doing the same operation twice leaves the system in a correct state (e.g. atomic report counts).</dd>
+          <dt>Service role</dt>
+          <dd>A privileged Supabase key that bypasses RLS — server-only, never shipped to the browser.</dd>
+          <dt>MapLibre</dt>
+          <dd>Open-source map engine (WebGL) that draws pubs, clusters, and brass route lines.</dd>
+          <dt>Edge runtime</dt>
+          <dd>Lightweight Vercel execution used for things like OG image generation.</dd>
+          <dt>CI</dt>
+          <dd>Continuous Integration — automated checks before code can ship (<code>npm run ci</code>).</dd>
+        </dl>
+      </section>
+
+      <!-- 15. NEXT -->
+      <section id="next" class="reveal">
+        <p class="eyebrow">Section 15</p>
+        <h2>Where to look next</h2>
+        <p class="lede">Jump from this tour into the real files. Paths are relative to the repo root.</p>
+        <div class="paths">
+          <div class="path-row"><code>teach.md</code><span>Long-form engineer onboarding (deeper than this page)</span></div>
+          <div class="path-row"><code>lib/venues.ts</code><span>Grouping, scoring, crawl builder, stable IDs</span></div>
+          <div class="path-row"><code>lib/curation.ts</code><span>Provenance model &amp; never-flatten claims</span></div>
+          <div class="path-row"><code>lib/pintDrops.ts</code><span>Validation trust boundary &amp; moderation threshold</span></div>
+          <div class="path-row"><code>lib/pintDropsStore.ts</code><span>Store interface, DTOs, signed URLs, report RPC</span></div>
+          <div class="path-row"><code>lib/crawlUrl.ts</code><span>Shareable crawl encode/decode</span></div>
+          <div class="path-row"><code>lib/cities.ts</code><span>London + 8-city configuration</span></div>
+          <div class="path-row"><code>lib/heritage.ts</code><span>The Landlord — grounded answers &amp; honest refusal</span></div>
+          <div class="path-row"><code>app/api/pint-drops/route.ts</code><span>The one write path</span></div>
+          <div class="path-row"><code>app/auth/callback/route.ts</code><span>OAuth PKCE return</span></div>
+          <div class="path-row"><code>components/PubMap.tsx</code><span>Planner state hub</span></div>
+          <div class="path-row"><code>components/PubMapCanvas.tsx</code><span>MapLibre lifecycle (read guards first)</span></div>
+          <div class="path-row"><code>components/profile/PintPassport.tsx</code><span>Passport surface</span></div>
+          <div class="path-row"><code>supabase/migrations/</code><span>Schema, RLS, rate-limit &amp; report RPCs</span></div>
+          <div class="path-row"><code>package.json</code><span><code>npm run ci</code> gate definition</span></div>
+          <div class="path-row"><code>docs/PRD_CANONICAL.md</code><span>Product vision &amp; roadmap spine</span></div>
+          <div class="path-row"><code>docs/DESIGN_SYSTEM.md</code><span>Tokens, type, pressed-ink craft</span></div>
+        </div>
+
+        <footer class="page-foot">
+          <p>PUBMAXXING teaching document · written for the product owner · grounded in the live <code>karanmrn/pubmax</code> architecture.</p>
+          <p style="margin:0">Open this file in any browser. No build step. Prefer reduced-motion? Animations stay still.</p>
+        </footer>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var toc = document.getElementById("toc");
+  var toggle = document.getElementById("tocToggle");
+  var links = toc ? toc.querySelectorAll("nav a") : [];
+  var sections = [];
+
+  links.forEach(function (a) {
+    var id = a.getAttribute("href");
+    if (id && id.charAt(0) === "#") {
+      var el = document.getElementById(id.slice(1));
+      if (el) sections.push({ id: id.slice(1), link: a, el: el });
+    }
+  });
+
+  function setActive() {
+    var y = window.scrollY + 120;
+    var current = sections[0];
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].el.offsetTop <= y) current = sections[i];
+    }
+    links.forEach(function (a) { a.classList.remove("active"); });
+    if (current) current.link.classList.add("active");
+  }
+
+  window.addEventListener("scroll", setActive, { passive: true });
+  setActive();
+
+  if (toggle) {
+    toggle.addEventListener("click", function () {
+      var open = document.body.classList.toggle("toc-open");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.textContent = open ? "Close" : "Contents";
+    });
+    document.addEventListener("click", function (e) {
+      if (!document.body.classList.contains("toc-open")) return;
+      if (toc.contains(e.target) || toggle.contains(e.target)) return;
+      document.body.classList.remove("toc-open");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.textContent = "Contents";
+    });
+    links.forEach(function (a) {
+      a.addEventListener("click", function () {
+        document.body.classList.remove("toc-open");
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.textContent = "Contents";
+      });
+    });
+  }
+
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var reveals = document.querySelectorAll(".reveal");
+  if (reduce || !("IntersectionObserver" in window)) {
+    reveals.forEach(function (el) { el.classList.add("in"); });
+  } else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    reveals.forEach(function (el) { io.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>
