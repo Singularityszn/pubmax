@@ -1175,3 +1175,30 @@
     scroll-snap-align: start;
   }
 }
+
+/* C1 hub row — Feed/Crawls link-outs (this page is their mobile hub). */
+.discoverHubRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.discoverHubLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.discoverHubLink:hover,
+.discoverHubLink:focus-visible {
+  border-color: var(--brass);
+}

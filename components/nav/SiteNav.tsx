@@ -36,6 +36,7 @@ type NavKey =
   | "home"
   | "map"
   | "pubs"
+  | "drop"
   | "feed"
   | "discover"
   | "crawls"
@@ -58,9 +59,14 @@ type NavLink = {
 const LINKS: NavLink[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"], accent: "beer" },
   { key: "pubs", href: "/pubs", label: "Pubs", match: ["/pubs"], accent: "whisky" },
+  // Desktop carries the same five core concepts as the mobile tab bar (C1);
+  // Pint Drop opens the composer on the preferred city's map. match is a
+  // never-matching sentinel: /map belongs to the Map link, so this one never
+  // shows as active.
+  { key: "drop", href: "/map?log=1", label: "Pint Drop", match: ["/__never__"], accent: "shot" },
   { key: "feed", href: "/feed", label: "Feed", match: ["/feed"], accent: "cocktail" },
-  { key: "discover", href: "/discover", label: "Drinks", match: ["/discover"], accent: "gin" },
-  { key: "borough", href: "/borough", label: "London", match: ["/borough"], accent: "wine" },
+  { key: "discover", href: "/discover", label: "Pint stories", match: ["/discover"], accent: "gin" },
+  { key: "borough", href: "/borough", label: "Boroughs", match: ["/borough"], accent: "wine" },
   { key: "crawls", href: "/crawls", label: "Crawls", match: ["/crawls"], accent: "rum" },
   { key: "profile", href: "/u/you", label: "You", match: ["/u"], accent: "vodka" },
 ];
@@ -90,9 +96,14 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
     preferredCityMapHref,
     () => "/map",
   );
-  const links = LINKS.map((link) =>
-    link.key === "map" ? { ...link, href: mapHref } : link,
-  );
+  const links = LINKS.map((link) => {
+    if (link.key === "map") return { ...link, href: mapHref };
+    if (link.key === "drop") {
+      // Same city-aware base as the Map link, with the composer flag.
+      return { ...link, href: `${mapHref}${mapHref.includes("?") ? "&" : "?"}log=1` };
+    }
+    return link;
+  });
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
   // (fixed) over it. Every other page keeps the bar in normal flow.
