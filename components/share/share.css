@@ -29,9 +29,10 @@
   width: 44px;
   height: 44px;
   padding: 0;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));
   border-radius: var(--radius-sm);
-  background: var(--panel);
+  /* panel-raised reads as a stamp on both light paper and dark night UI. */
+  background: var(--panel-raised);
   color: var(--ink-soft);
   cursor: pointer;
   text-decoration: none;

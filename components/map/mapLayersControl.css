@@ -198,6 +198,14 @@
   pointer-events: none;
 }
 
+/* Layers popover and Prices FAB share the bottom band — dim Prices while
+   the panel is open so the two chrome stacks don't fight. */
+.appShell:has(.mapLayersPanel) .mapPriceControl {
+  opacity: 0.28;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
 @media (max-width: 640px) {
   .mapLayersControl {
     right: 10px;

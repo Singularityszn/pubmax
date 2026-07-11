@@ -54,8 +54,11 @@
   box-shadow: none;
 }
 
-.planBtnShort {
-  display: none;
+/* Labels are chosen in MapToolbar (one span). Keep these as hooks for
+   any legacy markup / tests that still expect the class names. */
+.planBtnShort,
+.planBtnFull {
+  display: inline;
 }
 
 .mapToolbarDrinks {
@@ -203,14 +206,6 @@
     flex: 0 0 auto;
     box-shadow: 0 6px 14px color-mix(in srgb, var(--brass) 28%, transparent);
     box-sizing: border-box;
-  }
-
-  .planBtnFull {
-    display: none;
-  }
-
-  .planBtnShort {
-    display: inline;
   }
 
   .mapToolbarDrinksLens {

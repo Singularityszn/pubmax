@@ -121,8 +121,17 @@ export default function MapToolbar({
           aria-label={planningOpen ? "Close plan" : "Plan tonight"}
         >
           <Route size={15} aria-hidden="true" />
-          <span className="planBtnFull">{planningOpen ? "Close plan" : "Plan tonight"}</span>
-          <span className="planBtnShort">{planningOpen ? "Close" : "Plan"}</span>
+          {/* One label only — CSS hide of a sibling span still leaked into
+              textContent / some AT trees as "Plan tonight Plan". */}
+          <span className={isMobile === true ? "planBtnShort" : "planBtnFull"}>
+            {isMobile === true
+              ? planningOpen
+                ? "Close"
+                : "Plan"
+              : planningOpen
+                ? "Close plan"
+                : "Plan tonight"}
+          </span>
         </button>
 
         <CitySwitcher cityId={cityId} />

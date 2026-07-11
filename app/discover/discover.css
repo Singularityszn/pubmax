@@ -949,20 +949,23 @@
 .discoverBrandChip {
   display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
+  min-height: 44px;
+  padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  /* panel-raised stays clearly darker/lighter than ink in both themes —
+     an 8% brass mix on --panel was washing out to near-paper in light. */
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--ink);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 650;
   text-decoration: none;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .discoverBrandChip:hover {
-  border-color: color-mix(in srgb, var(--brass) 55%, transparent);
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel));
+  border-color: color-mix(in srgb, var(--brass) 60%, transparent);
+  background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
 }
 
 .discoverBrandChip:focus-visible {

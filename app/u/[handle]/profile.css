@@ -774,6 +774,24 @@
   border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
 }
 
+/* Keep the share stamp strip clear of the fixed mobile tab bar when the
+   passport hero fills the first viewport (empty own-profile). */
+@media (max-width: 640px) {
+  .profilePage .pintPassport--hero .passportShare {
+    margin-bottom: 8px;
+  }
+
+  .profilePage .pintPassport--hero {
+    margin-bottom: calc(var(--mobile-tab-clearance, 72px) + 12px);
+  }
+
+  .profilePage .passportShare .shareBar__btn {
+    background: var(--panel-raised);
+    border-color: color-mix(in srgb, var(--brass) 28%, var(--line));
+    color: var(--ink-soft);
+  }
+}
+
 .profilePage .passportHead {
   display: flex;
   align-items: flex-start;

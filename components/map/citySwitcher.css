@@ -132,6 +132,14 @@
     /* Above toolbar (560) so the list stays tappable. */
     z-index: 570;
   }
+
+  .citySwitcherLink {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    box-sizing: border-box;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
