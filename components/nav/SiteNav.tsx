@@ -9,6 +9,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SignInButton from "@/components/auth/SignInButton";
+import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import {
   preferredCityMapHref,
   subscribePreferredCity,
@@ -89,6 +90,9 @@ const HIDDEN_INDICATOR: IndicatorRect = { x: 0, width: 0, visible: false };
 
 export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Element {
   const pathname = usePathname() ?? "";
+  // Imperative handle onto the global ⌘K palette (feature N1) — the button below
+  // opens it for pointer users who won't reach for the shortcut.
+  const { open: openCommandPalette } = useCommandPalette();
   // Preference may be null → /map. useSyncExternalStore keeps SSR/hydration on
   // /map, then re-reads after mount (and on CitySwitcher writes).
   const mapHref = useSyncExternalStore(
@@ -192,6 +196,21 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
       </ul>
 
       <div className="siteNavActions">
+        {/* ⌘K command-palette affordance (feature N1). Unobtrusive hint button;
+            hidden on phones (the bottom tab bar owns nav and there's no keyboard
+            shortcut there). Label stays "⌘K" — Windows/Linux users still get the
+            same palette via Ctrl+K. */}
+        <button
+          type="button"
+          className="siteNavCmdk"
+          onClick={openCommandPalette}
+          aria-label="Open command palette"
+          title="Search & jump to a page (⌘K / Ctrl+K)"
+        >
+          <kbd className="siteNavCmdkKbd" aria-hidden="true">
+            ⌘K
+          </kbd>
+        </button>
         {/* Notification bell (story 34) — unread-count badge + link to /activity.
             Shows on mobile too (the compact bar keeps the bell + toggle + sign-in). */}
         <NotificationBell />

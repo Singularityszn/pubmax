@@ -6,6 +6,7 @@ import MobileTabBar from "@/components/nav/MobileTabBar";
 import OfflineReady from "@/components/OfflineReady";
 import FirstRunTour from "@/components/onboarding/FirstRunTour";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 
 // Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
@@ -178,16 +179,22 @@ export default function RootLayout({
             but never gates a route — anonymous browsing stays fully public. The
             session loads async client-side, so children render immediately. */}
         <AuthProvider>
-          {children}
-          {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
-              display:none on desktop so the existing navs are untouched. */}
-          <MobileTabBar />
-          {/* One-time first-run onboarding tour — renders nothing on the
-              server / for returning users (gated on hasSeenTour). */}
-          <FirstRunTour />
-          {/* Silent offline SW registration (issue #32) — renders nothing,
-              production-only, registers after load. */}
-          <OfflineReady />
+          {/* Global ⌘K / Ctrl+K command palette (feature N1). A client provider
+              mounted at the root so the shortcut works from any page; it owns the
+              open/close state and renders the dialog only while open. Wraps
+              children so SiteNav's ⌘K affordance can read its context. */}
+          <CommandPaletteProvider>
+            {children}
+            {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
+                display:none on desktop so the existing navs are untouched. */}
+            <MobileTabBar />
+            {/* One-time first-run onboarding tour — renders nothing on the
+                server / for returning users (gated on hasSeenTour). */}
+            <FirstRunTour />
+            {/* Silent offline SW registration (issue #32) — renders nothing,
+                production-only, registers after load. */}
+            <OfflineReady />
+          </CommandPaletteProvider>
         </AuthProvider>
       </body>
     </html>

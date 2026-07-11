@@ -195,6 +195,56 @@
   margin-left: auto;
 }
 
+/* ── Command-palette affordance (feature N1) ───────────────────────────── */
+/* A quiet "⌘K" pill that opens the global palette. Token-styled so it reads in
+   both themes; sits alongside the bell/messages island but stays visually
+   secondary (muted until hover/focus). */
+.siteNavCmdk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition:
+    color var(--duration-base) var(--ease-out),
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .siteNavCmdk:hover {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  }
+}
+
+.siteNavCmdk:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.siteNavCmdkKbd {
+  font-family: var(--font-data, monospace);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* Motion respect. */
+@media (prefers-reduced-motion: reduce) {
+  .siteNavCmdk {
+    transition: none;
+  }
+}
+
 /* ── Notification bell (story 34) ──────────────────────────────────────── */
 .siteNavBell {
   position: relative;
@@ -397,6 +447,12 @@
   }
 
   .siteNavBar .authUser {
+    display: none;
+  }
+
+  /* No hardware keyboard on phones — the bottom tab bar owns navigation, so the
+     ⌘K hint would only add noise. Hide it (the shortcut and provider remain). */
+  .siteNavCmdk {
     display: none;
   }
 }
