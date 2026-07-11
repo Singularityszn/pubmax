@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
@@ -19,6 +19,40 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const tokenEvent = `pubmax-plan-member-change:${planId}`;
+  const statusKey = `pubmax-plan-status:${planId}`;
+  const statusEvent = `pubmax-plan-status-change:${planId}`;
+
+  // Derived from sessionStorage so it survives a reload and stays lint-clean
+  // (no setState-in-effect) — same external-store pattern as memberToken below.
+  const myStatus = useSyncExternalStore<CrewPresenceStatus | "">(
+    (onChange) => {
+      window.addEventListener("storage", onChange);
+      window.addEventListener(statusEvent, onChange);
+      return () => {
+        window.removeEventListener("storage", onChange);
+        window.removeEventListener(statusEvent, onChange);
+      };
+    },
+    () => {
+      try {
+        const stored = sessionStorage.getItem(statusKey);
+        return stored && stored in STATUS_LABELS ? (stored as CrewPresenceStatus) : "";
+      } catch {
+        return "";
+      }
+    },
+    () => "",
+  );
+
+  const rememberStatus = useCallback((status: CrewPresenceStatus | "") => {
+    try {
+      if (status) sessionStorage.setItem(statusKey, status);
+      else sessionStorage.removeItem(statusKey);
+    } catch {
+      // sessionStorage can be unavailable (private mode); presence still works in-session.
+    }
+    window.dispatchEvent(new Event(statusEvent));
+  }, [statusKey, statusEvent]);
   const memberToken = useSyncExternalStore(
     (onChange) => {
       window.addEventListener("storage", onChange);
@@ -59,6 +93,7 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
       if (!response.ok || !body?.memberToken) throw new Error(body?.error || "Could not join this plan.");
       sessionStorage.setItem(`pubmax-plan-member:${planId}`, body.memberToken);
       window.dispatchEvent(new Event(tokenEvent));
+      rememberStatus("in");
       setCrew(body.plan?.crew ?? crew);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not join this plan.");
@@ -68,7 +103,9 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
   }
 
   async function updatePresence(status: CrewPresenceStatus) {
-    if (!memberToken) return;
+    if (!memberToken || status === myStatus) return;
+    const previous = myStatus;
+    rememberStatus(status); // optimistic: reflect the tap on the same frame (Apple: respond on press)
     setPending(true);
     setError("");
     try {
@@ -81,6 +118,7 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
       if (!response.ok) throw new Error(body?.error || "Could not update your status.");
       setCrew(body.crew ?? crew);
     } catch (caught) {
+      rememberStatus(previous); // roll back the optimistic state on failure
       setError(caught instanceof Error ? caught.message : "Could not update your status.");
     } finally {
       setPending(false);
@@ -95,7 +133,12 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
       </div>
       {crew.length ? (
         <ul className="planCrew__list">
-          {crew.map((member) => <li key={member.id}><span>{member.name}</span><small>{STATUS_LABELS[member.status]}</small></li>)}
+          {crew.map((member, index) => (
+            <li key={member.id} style={{ "--i": index } as CSSProperties}>
+              <span>{member.name}</span>
+              <small data-status={member.status}>{STATUS_LABELS[member.status]}</small>
+            </li>
+          ))}
         </ul>
       ) : <p className="planCrew__empty">Be the first name on the night.</p>}
 
@@ -105,8 +148,19 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
           <div><input id="join-name" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
         </form>
       ) : (
-        <div className="planCrew__presence" aria-label="Update your status">
-          {(Object.keys(STATUS_LABELS) as CrewPresenceStatus[]).map((status) => <button type="button" disabled={pending} key={status} onClick={() => updatePresence(status)}>{STATUS_LABELS[status]}</button>)}
+        <div className="planCrew__presence" role="group" aria-label="Update your status">
+          {(Object.keys(STATUS_LABELS) as CrewPresenceStatus[]).map((status) => (
+            <button
+              type="button"
+              key={status}
+              disabled={pending}
+              aria-pressed={myStatus === status}
+              data-active={myStatus === status ? "" : undefined}
+              onClick={() => updatePresence(status)}
+            >
+              {STATUS_LABELS[status]}
+            </button>
+          ))}
         </div>
       )}
       {error ? <p className="planComposer__error" role="alert">{error}</p> : null}

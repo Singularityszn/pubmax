@@ -49,7 +49,7 @@ export default async function PlanPage({ params }: Props) {
         <p>{state.stops.length} {state.stops.length === 1 ? "pub" : "pubs"}, one link, zero account walls.</p>
       </section>
       <div className="planPage__grid">
-        <PlanSummary state={state} />
+        <PlanSummary planId={id} state={state} />
         <aside className="planPage__side">
           <PlanCrew planId={id} initialCrew={state.crew} />
           <section className="planShare" aria-labelledby="plan-share-title">
