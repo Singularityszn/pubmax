@@ -106,5 +106,14 @@ describe("venueMenuForInspector", () => {
     expect(oldFashioned).toBeDefined();
     expect(oldFashioned!.priceGbp).toBe(10.95);
     expect(oldFashioned!.provenance.source).toBe("PUBMAXXING demo menu fixture");
+
+    // Scraped Greene King Prospect drink rows land alongside the demo rows,
+    // carrying honest attribution (never presented as community/organic).
+    const pinot = menu.find((drink) => drink.name.includes("Pinot Grigio"));
+    expect(pinot).toMatchObject({
+      category: "wine",
+      priceGbp: 7.2,
+      provenance: { source: "Greene King — official menu" },
+    });
   });
 });
