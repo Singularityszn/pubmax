@@ -4,14 +4,15 @@ import { useCallback, useRef, useState } from "react";
 
 import { resolveSheetSnap, type SheetSnap } from "@/lib/sheetSnap";
 
-// Mobile venue-detail bottom-sheet drag gesture (GH #17), lifted out of PubMap so
-// its branch-heavy pointer handlers live off PubMap's ESLint complexity budget.
-// Behaviour is byte-for-byte the same as the inline version this replaces — the
-// only change is location. The gesture is active only ≤640px (matches the mobile
-// breakpoint used across venueSheet.css / globals.css); above that width the panel
-// is the unchanged desktop side drawer and every handler bails out immediately.
+// Mobile bottom-sheet drag gesture (GH #17), lifted out of PubMap so its
+// branch-heavy pointer handlers live off PubMap's ESLint complexity budget.
+// Reusable for both drawers: venue detail (right) and crawl planner (left).
+// Call once per sheet — each instance owns its own snap + mid-drag offset.
+// The gesture is active only ≤640px (matches venueSheet.css / globals.css);
+// above that width the panel is the unchanged desktop side drawer and every
+// handler bails out immediately.
 //
-// PubMap owns WHICH snap is default on a fresh pick (it resets to "half" there);
+// PubMap owns WHICH snap is default on open (it resets to "half" there);
 // this hook owns the live drag → snap resolution and the mid-drag px offset.
 // Mid-drag translateY px use `sheetTranslateY` from lib/sheetSnap.ts (same
 // fractions as CSS `.sheet-*` and resolveSheetSnap) — do not reintroduce a
@@ -37,13 +38,13 @@ export interface SheetDrag {
 /**
  * Bottom-sheet drag state + pointer handlers. `onDismiss` fires when a drag
  * flings the sheet past its dismiss threshold (PubMap clears the selected venue
- * + closes the composer there). Pointer Events (not touch/mouse-specific) so a
+ * / closes the planner there). Pointer Events (not touch/mouse-specific) so a
  * mouse-drag on a narrow browser window works too — which keeps this testable
  * without a real touch device.
  */
 export function useSheetDrag(onDismiss: () => void): SheetDrag {
-  // "half" is the default resting snap whenever a venue is freshly selected —
-  // PubMap re-asserts that on each pick; we just seed it here.
+  // "half" is the default resting snap whenever a sheet opens — PubMap
+  // re-asserts that on each open; we just seed it here.
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("half");
   const [sheetDragY, setSheetDragY] = useState<number | null>(null);
   const dragRef = useRef<{
@@ -113,6 +114,7 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
       });
       setSheetDragY(null);
       if (result.dismissed) {
+        setSheetSnap("half");
         onDismiss();
         return;
       }

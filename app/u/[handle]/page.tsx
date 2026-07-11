@@ -381,6 +381,18 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
           </div>
         ) : (
           <>
+            {/* L4: own profile / anonymous /u/you → passport is the first visual
+                block (hero). Other people's profiles keep Header → Passport. */}
+            {passportIsOwn ? (
+              <PintPassport
+                handle={routeHandle}
+                displayName={profile.displayName}
+                data={passport}
+                isOwn={passportIsOwn}
+                hero
+              />
+            ) : null}
+
             <ProfileHeader
               profile={profile}
               stats={stats}
@@ -392,13 +404,15 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               actions={headerActions}
             />
 
-            <PintPassport
-              handle={routeHandle}
-              displayName={profile.displayName}
-              data={passport}
-              isOwn={passportIsOwn}
-              hero={passportIsOwn}
-            />
+            {!passportIsOwn ? (
+              <PintPassport
+                handle={routeHandle}
+                displayName={profile.displayName}
+                data={passport}
+                isOwn={passportIsOwn}
+                hero={false}
+              />
+            ) : null}
 
             {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
                 NextBadgeChips fetches public drops and filters by handle — works

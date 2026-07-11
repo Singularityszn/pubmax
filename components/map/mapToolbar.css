@@ -214,7 +214,9 @@
     padding: 4px 9px 4px 6px;
   }
 
-  /* Sheet / onboarding / planning / detail collision */
+  /* Sheet / onboarding / detail collision. Planner peek/half leave the
+     toolbar/legend visible so the map stays usable; sheet-full (venue or
+     planner at full) and detail-open still clear them. */
   .appShell.sheet-full .mapToolbar,
   .appShell.detail-open .mapToolbar {
     transform: translateY(-120%);
@@ -226,8 +228,7 @@
   }
 
   .appShell.sheet-full .mapLegend,
-  .appShell.onboarding-open .mapLegend,
-  .appShell.planning-open .mapLegend {
+  .appShell.onboarding-open .mapLegend {
     transform: translateY(120%);
     opacity: 0;
     pointer-events: none;
@@ -236,8 +237,7 @@
       opacity var(--duration-base) var(--ease-out);
   }
 
-  .appShell.onboarding-open .mapToolbar,
-  .appShell.planning-open .mapToolbar {
+  .appShell.onboarding-open .mapToolbar {
     transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
@@ -258,8 +258,6 @@
   .appShell.detail-open .mapToolbar,
   .appShell.onboarding-open .mapToolbar,
   .appShell.onboarding-open .mapLegend,
-  .appShell.planning-open .mapToolbar,
-  .appShell.planning-open .mapLegend,
   .mapToolbar,
   .mapLegend {
     transition: none;
