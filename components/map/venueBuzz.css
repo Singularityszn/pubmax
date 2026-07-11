@@ -1,0 +1,83 @@
+/* "Around the web" AI buzz block on the venue sheet Overview (task A3).
+   Same ambient language as .cityPlaceStrip: brass eyebrow, chip pills,
+   token-only colours. Static block — no transitions or animation, so it is
+   reduced-motion compliant by construction. 390px-first: everything wraps. */
+
+.venueBuzz {
+  margin: 12px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
+  color: var(--ink);
+}
+
+.venueBuzzHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-bottom: 6px;
+}
+
+.venueBuzzEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.venueBuzzSource {
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+}
+
+.venueBuzzSummary {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.venueBuzzMentions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.venueBuzzMention a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.venueBuzzMention a:hover,
+.venueBuzzMention a:focus-visible {
+  text-decoration: underline;
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+}
+
+.venueBuzzNote {
+  display: block;
+  margin: 0;
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}

@@ -42,6 +42,7 @@ import FoodMenu from "@/components/food/FoodMenu";
 import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
+import VenueBuzz from "@/components/map/VenueBuzz";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 import { menuHubTiles } from "@/lib/menuHub";
@@ -448,6 +449,16 @@ export default function VenueInspector({
         <p className="venueAddress">{venue.address}</p>
         <VenueActionStrip venue={venue} />
         <CityPlaceStrip
+          venueId={venue.id}
+          venueName={venue.name}
+          latitude={venue.latitude}
+          longitude={venue.longitude}
+          primaryBorough={venue.primaryBorough}
+          cityId={cityId}
+        />
+        {/* "What people say" (task A3) — AI-synthesised third-party buzz via
+            CityMCP, honestly labelled. Never community/editorial content. */}
+        <VenueBuzz
           venueId={venue.id}
           venueName={venue.name}
           latitude={venue.latitude}
