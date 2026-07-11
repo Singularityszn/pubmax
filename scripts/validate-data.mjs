@@ -17,6 +17,7 @@ const ROOT_DIR = join(__dirname, "..");
 const DATA_DIR = join(ROOT_DIR, "public", "data");
 const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
+const FOOD_PRICE_UPDATES_DIR = join(DATA_DIR, "food_price_updates");
 const DRINK_CATEGORIES = new Set([
   "beer",
   "wine",
@@ -26,6 +27,16 @@ const DRINK_CATEGORIES = new Set([
   "rum",
   "cocktail",
   "shot",
+  "other",
+]);
+const FOOD_CATEGORIES = new Set([
+  "starters",
+  "sharers",
+  "mains",
+  "burgers",
+  "desserts",
+  "sides",
+  "bar-snacks",
   "other",
 ]);
 
@@ -741,6 +752,98 @@ function validateDrinkPriceUpdates() {
   return { ok, count };
 }
 
+function validateOneFoodPriceUpdateFile(fileName) {
+  const name = `public/data/food_price_updates/${fileName}`;
+  const errs = makeCollector();
+  let data;
+  try {
+    const raw = readFileSync(join(FOOD_PRICE_UPDATES_DIR, fileName), "utf8");
+    data = JSON.parse(raw);
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  const rows = Array.isArray(data)
+    ? data
+    : typeof data === "object" && data !== null && Array.isArray(data.updates)
+      ? data.updates
+      : null;
+
+  if (rows === null) {
+    console.log(`FAIL ${name}: expected a top-level array or a { updates: [...] } envelope`);
+    return { ok: false, count: 0 };
+  }
+
+  const now = Date.now();
+  rows.forEach((row, i) => {
+    const where = `row ${i}`;
+    if (typeof row !== "object" || row === null) {
+      errs.add(`${where}: not an object`);
+      return;
+    }
+    if (typeof row.venueKey !== "string" || row.venueKey.length === 0) {
+      errs.add(`${where}: missing/empty venueKey`);
+    }
+    if (typeof row.itemName !== "string" || row.itemName.length === 0) {
+      errs.add(`${where}: missing/empty itemName`);
+    }
+    if (typeof row.category !== "string" || row.category.length === 0) {
+      errs.add(`${where}: missing/empty category`);
+    } else if (!FOOD_CATEGORIES.has(row.category)) {
+      errs.add(`${where}: invalid category "${row.category}"`);
+    }
+    if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) {
+      errs.add(`${where}: priceGbp must be a finite number >= 0 (got ${JSON.stringify(row.priceGbp)})`);
+    }
+    const source = row.source;
+    if (typeof source !== "object" || source === null) {
+      errs.add(`${where}: missing source`);
+    } else {
+      if (typeof source.label !== "string" || source.label.length === 0) {
+        errs.add(`${where}: missing/empty source.label`);
+      }
+      if (!isHttpUrlLocal(source.url)) {
+        errs.add(`${where}: source.url "${source.url}" is not an absolute http(s) URL`);
+      }
+      if (typeof source.licence !== "string" || source.licence.length === 0) {
+        errs.add(`${where}: missing/empty source.licence`);
+      }
+    }
+    if (typeof row.observedAt !== "string" || row.observedAt.length === 0) {
+      errs.add(`${where}: missing/empty observedAt`);
+    } else {
+      const ms = Date.parse(row.observedAt);
+      if (!Number.isFinite(ms)) {
+        errs.add(`${where}: observedAt "${row.observedAt}" is not a valid ISO timestamp`);
+      } else if (ms > now) {
+        errs.add(`${where}: observedAt "${row.observedAt}" is in the future`);
+      }
+    }
+  });
+
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: rows.length };
+}
+
+function validateFoodPriceUpdates() {
+  if (!existsSync(FOOD_PRICE_UPDATES_DIR)) {
+    console.log("SKIP public/data/food_price_updates/: directory does not exist");
+    return { ok: true, count: 0 };
+  }
+  const files = readdirSync(FOOD_PRICE_UPDATES_DIR).filter((f) => f.endsWith(".json"));
+  if (files.length === 0) {
+    console.log("SKIP public/data/food_price_updates/: no .json files present");
+    return { ok: true, count: 0 };
+  }
+  const results = files.map(validateOneFoodPriceUpdateFile);
+  const ok = results.every((r) => r.ok);
+  const count = results.reduce((sum, r) => sum + r.count, 0);
+  return { ok, count };
+}
+
 function isHttpUrl(value) {
   if (typeof value !== "string" || value.length === 0) return false;
   try {
@@ -937,6 +1040,7 @@ function main() {
     validateSlimVenues(),
     validateVenueDetails(),
     validateDrinkPriceUpdates(),
+    validateFoodPriceUpdates(),
     validatePubmaxxingSeed(),
   ];
   const failed = results.filter((r) => !r.ok).length;

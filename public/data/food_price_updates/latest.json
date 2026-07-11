@@ -1,0 +1,952 @@
+{
+  "$comment": "Food price updates from permissible first-party sources (Greene King official menus). Attributed use only.",
+  "version": 1,
+  "generatedAt": "2026-07-11T11:53:41.702Z",
+  "updates": [
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Soup of the Day",
+      "category": "starters",
+      "priceGbp": 6.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Vegan Soup of the Day",
+      "category": "starters",
+      "priceGbp": 6.45,
+      "dietary": [
+        "vegan"
+      ],
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Crispy Squid",
+      "category": "starters",
+      "priceGbp": 7.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Japanese-style Karaage Chicken",
+      "category": "starters",
+      "priceGbp": 8.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Mussels",
+      "category": "starters",
+      "priceGbp": 8.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Mushroom Bruschetta",
+      "category": "starters",
+      "priceGbp": 7.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Vegan Mushroom Bruschetta",
+      "category": "starters",
+      "priceGbp": 7.45,
+      "dietary": [
+        "vegan"
+      ],
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Burrata, Heritage Tomato & Pesto Salad",
+      "category": "starters",
+      "priceGbp": 8.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "House Sharer",
+      "category": "sharers",
+      "priceGbp": 20.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Crispy Duck Nachos",
+      "category": "sharers",
+      "priceGbp": 15.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Loaded Nachos",
+      "category": "sharers",
+      "priceGbp": 13.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Camembert Sharer",
+      "category": "sharers",
+      "priceGbp": 18.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Beef & Raclette Cheese Shortcrust Pie",
+      "category": "mains",
+      "priceGbp": 18.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Fish & Chips",
+      "category": "mains",
+      "priceGbp": 19.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Sausage & Mash",
+      "category": "mains",
+      "priceGbp": 16.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Panko Chicken Escalope",
+      "category": "mains",
+      "priceGbp": 16.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Sirloin Steak",
+      "category": "mains",
+      "priceGbp": 22.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Sirloin Steak with Large Salad",
+      "category": "mains",
+      "priceGbp": 22.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Sea Bream, Mussels & Chorizo",
+      "category": "mains",
+      "priceGbp": 21.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Camembert & Mushroom Galette",
+      "category": "mains",
+      "priceGbp": 17.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Vegan Mushroom Galette",
+      "category": "mains",
+      "priceGbp": 17.45,
+      "dietary": [
+        "vegan"
+      ],
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Ham, Eggs & Chips",
+      "category": "mains",
+      "priceGbp": 18.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Half Roasted Duck",
+      "category": "mains",
+      "priceGbp": 19.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Mediterranean-style Salad",
+      "category": "mains",
+      "priceGbp": 13.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Mediterranean-style Salad with Falafel Topper",
+      "category": "mains",
+      "priceGbp": 16.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Mediterranean-style Salad with Feta Topper",
+      "category": "mains",
+      "priceGbp": 16.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Mediterranean-style Salad with Chicken Topper",
+      "category": "mains",
+      "priceGbp": 16.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Beef Rump (Sunday Roast)",
+      "category": "mains",
+      "priceGbp": 19.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Lamb Rump (Sunday Roast)",
+      "category": "mains",
+      "priceGbp": 20.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Turkey (Sunday Roast)",
+      "category": "mains",
+      "priceGbp": 19.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Mushroom Galette (Sunday Roast)",
+      "category": "mains",
+      "priceGbp": 18.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Sirloin Steak Ciabatta",
+      "category": "mains",
+      "priceGbp": 11.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Chicken BLT Ciabatta",
+      "category": "mains",
+      "priceGbp": 10.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Cod Goujons Ciabatta",
+      "category": "mains",
+      "priceGbp": 10.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Hand-carved Ham Ciabatta",
+      "category": "mains",
+      "priceGbp": 9.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Toasted Cheddar & Camembert Ciabatta",
+      "category": "mains",
+      "priceGbp": 9.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Two Pork Sausages (Kids)",
+      "category": "mains",
+      "priceGbp": 6.08,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Panko Chicken (Kids)",
+      "category": "mains",
+      "priceGbp": 6.08,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Hand Battered Fish (Kids)",
+      "category": "mains",
+      "priceGbp": 6.08,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Two Quorn Sausages (Kids)",
+      "category": "mains",
+      "priceGbp": 6.08,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Kids Beef Rump (Sunday Roast)",
+      "category": "mains",
+      "priceGbp": 6.96,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Kids Turkey (Sunday Roast)",
+      "category": "mains",
+      "priceGbp": 6.96,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Kids Veggie Sausages (Sunday Roast)",
+      "category": "mains",
+      "priceGbp": 6.96,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Chicken & Bacon Burger",
+      "category": "burgers",
+      "priceGbp": 17.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Falafel & Spinach Burger",
+      "category": "burgers",
+      "priceGbp": 17.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Cheese & Bacon Burger",
+      "category": "burgers",
+      "priceGbp": 17.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Triple Chocolate Brownie",
+      "category": "desserts",
+      "priceGbp": 6.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Sticky Toffee Pudding",
+      "category": "desserts",
+      "priceGbp": 7.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Bramley Apple & Blackberry Crumble Tart",
+      "category": "desserts",
+      "priceGbp": 6.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Vegan Bramley Apple & Blackberry Crumble Tart",
+      "category": "desserts",
+      "priceGbp": 6.95,
+      "dietary": [
+        "vegan"
+      ],
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Baked Vanilla Cheesecake",
+      "category": "desserts",
+      "priceGbp": 7.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Chocolate Brownie (Kids)",
+      "category": "desserts",
+      "priceGbp": 2.58,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Fresh Strawberries & Ice Cream (Kids)",
+      "category": "desserts",
+      "priceGbp": 3.28,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Fresh Strawberries & Vegan Ice Cream (Kids)",
+      "category": "desserts",
+      "priceGbp": 3.28,
+      "dietary": [
+        "vegan"
+      ],
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Fresh Strawberries (Kids)",
+      "category": "desserts",
+      "priceGbp": 2.84,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Ice Cream (Kids)",
+      "category": "desserts",
+      "priceGbp": 2.14,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Proper Chips",
+      "category": "sides",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "House-seasoned Fries",
+      "category": "sides",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Crispy Smashed Potatoes",
+      "category": "sides",
+      "priceGbp": 3.5,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Garlic Ciabatta",
+      "category": "sides",
+      "priceGbp": 4.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Cheesy Garlic Ciabatta",
+      "category": "sides",
+      "priceGbp": 5.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Side Salad",
+      "category": "sides",
+      "priceGbp": 3.5,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Seasonal Veg",
+      "category": "sides",
+      "priceGbp": 3.45,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Onion Rings",
+      "category": "sides",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Ciabatta & Butter",
+      "category": "sides",
+      "priceGbp": 1.95,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Yorkshire Pudding (Sunday Side)",
+      "category": "sides",
+      "priceGbp": 1,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Pigs in Blankets (Sunday Side)",
+      "category": "sides",
+      "priceGbp": 2,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Cauliflower Cheese (Sunday Side)",
+      "category": "sides",
+      "priceGbp": 2,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Duck Fat Roast Potatoes (Sunday Side)",
+      "category": "sides",
+      "priceGbp": 2.5,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Vegan Roast Potatoes (Sunday Side)",
+      "category": "sides",
+      "priceGbp": 2,
+      "dietary": [
+        "vegan"
+      ],
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Cheese Straws",
+      "category": "bar-snacks",
+      "priceGbp": 5.75,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Chorizo",
+      "category": "bar-snacks",
+      "priceGbp": 6.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Mini Pies",
+      "category": "bar-snacks",
+      "priceGbp": 6.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Sticky Pickle Sausage Rolls",
+      "category": "bar-snacks",
+      "priceGbp": 6.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Scotch Egg",
+      "category": "bar-snacks",
+      "priceGbp": 6.25,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Crispy Smashed Potatoes",
+      "category": "bar-snacks",
+      "priceGbp": 6.05,
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "itemName": "Vegan Crispy Smashed Potatoes",
+      "category": "bar-snacks",
+      "priceGbp": 6.05,
+      "dietary": [
+        "vegan"
+      ],
+      "source": {
+        "label": "Greene King — official site",
+        "url": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+        "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
+      },
+      "observedAt": "2026-07-07T12:00:00.000Z"
+    }
+  ]
+}

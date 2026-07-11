@@ -31,7 +31,9 @@ import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
+import FoodMenu from "@/components/food/FoodMenu";
 import { venueMenuForInspector } from "@/lib/venueMenu";
+import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
@@ -276,6 +278,7 @@ export default function VenueInspector({
   // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
   // drinks) — see lib/venueMenu.ts for the composition seam.
   const menuDrinks = useMemo(() => venueMenuForInspector(venue), [venue]);
+  const menuFood = useMemo(() => venueFoodMenuForInspector(venue), [venue]);
   const venueImageUrl = directVenueImageUrl(venue.imageUrl);
 
   // Place stories (Wave D): which curated corridors pass through this venue,
@@ -668,6 +671,7 @@ export default function VenueInspector({
         className="venueTabPanel"
         hidden={tab !== "menu"}
       >
+        <FoodMenu items={menuFood} venueName={venue.name} />
         <DrinkMenu drinks={menuDrinks} venueName={venue.name} />
       </div>
 

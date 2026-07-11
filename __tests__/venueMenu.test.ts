@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { hasMenuBeyondPints } from "@/lib/drinkMenu";
 import type { VenuePrice } from "@/lib/venues";
-import { venueMenuForInspector } from "@/lib/venueMenu";
+import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
+import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -89,22 +90,51 @@ describe("venueMenuForInspector", () => {
     expect(menu).toEqual([]);
   });
 
-  it("applies demo drink-price overlays to the real Prospect menu", () => {
+  it("applies Greene King drink-price overlays to the real Prospect menu", () => {
     const menu = venueMenuForInspector({
       id: SEEDED_VENUE_ID,
       prices: [prospectPrice("p1", "Amstel", 6.1)],
     });
 
-    const luckySaint = menu.find((drink) => drink.name === "Lucky Saint 0.5%");
-    expect(luckySaint).toBeDefined();
-    expect(luckySaint!.category).toBe("beer");
-    expect(luckySaint!.priceGbp).toBe(4.6);
-    expect(luckySaint!.alcoholType).toBe("low-no");
-    expect(luckySaint!.provenance.source).toBe("PUBMAXXING demo menu fixture");
+    const margarita = menu.find((drink) => drink.name === "Margarita");
+    expect(margarita).toBeDefined();
+    expect(margarita!.category).toBe("cocktail");
+    expect(margarita!.priceGbp).toBe(10.5);
+    expect(margarita!.provenance.source).toBe("Greene King — official site");
 
-    const oldFashioned = menu.find((drink) => drink.name === "Wapping Old Fashioned");
-    expect(oldFashioned).toBeDefined();
-    expect(oldFashioned!.priceGbp).toBe(10.95);
-    expect(oldFashioned!.provenance.source).toBe("PUBMAXXING demo menu fixture");
+    const pinot = menu.find(
+      (drink) => drink.name.startsWith("Organic Pinot Grigio") && drink.servingSize === "glass",
+    );
+    expect(pinot).toBeDefined();
+    expect(pinot!.category).toBe("wine");
+    expect(pinot!.priceGbp).toBe(7.2);
+    expect(pinot!.provenance.source).toBe("Greene King — official site");
+  });
+
+  it("lookup keys fall back to name|address|lat|lng and venue.id when prices are empty", () => {
+    const keys = venueMenuLookupKeys({
+      id: "venue-mcr-8nl72x",
+      name: "George & Dragon",
+      address: "14, London Road, Stockport, SK7 4AH",
+      latitude: 53.3843726,
+      longitude: -2.127616,
+      prices: [],
+    });
+    expect(keys[0]).toBe(
+      "george & dragon|14, london road, stockport, sk7 4ah|53.38437|-2.12762",
+    );
+    expect(keys).toContain("venue-mcr-8nl72x");
+  });
+
+  it("attaches Prospect food updates from the food price layer", () => {
+    const food = venueFoodMenuForInspector({
+      id: SEEDED_VENUE_ID,
+      prices: [prospectPrice("p1", "Amstel", 6.1)],
+    });
+    expect(food.length).toBeGreaterThan(0);
+    const chips = food.find((item) => item.name === "Fish & Chips");
+    expect(chips?.priceGbp).toBe(19.95);
+    expect(chips?.category).toBe("mains");
+    expect(chips?.provenance.source).toBe("Greene King — official site");
   });
 });

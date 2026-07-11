@@ -1,0 +1,25 @@
+### **Starters**
+* **Soup of the Day**: £6.45
+* **Crispy Squid**: £7.45
+* **Mushroom Bruschetta**: £7.45
+
+### **Sharers**
+* **House Sharer**: £20.75
+* **Loaded Nachos**: £13.25
+
+### **Mains**
+* **Fish & Chips**: £19.95
+* **Sausage & Mash**: £16.95
+
+### **Burgers**
+* **Classic Burger**: £15.45
+* **Plant Burger**: £15.45
+
+### **Desserts**
+* **Sticky Toffee Pudding**: £7.45
+
+### **Sides**
+* **Chunky Chips**: £4.45
+
+### **Bar Snacks**
+* **Pork Crackling**: £3.95

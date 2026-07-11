@@ -68,6 +68,7 @@ export type DrinkMenuRow = {
   drinkName: string;
   category: DrinkCategory;
   priceGbp: number | null;
+  servingSize?: string;
   // Freshness of the most recent COMMUNITY observation for this exact drink
   // row, if any. Mirrors Venue.latestContributorAt in lib/venues.ts. null when
   // no community observation exists yet.
@@ -139,10 +140,14 @@ export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()
 }
 
 // The key a drink-price update targets: one venue + one named drink + its
-// category. Two rows for the same venue but different drinks are independent;
-// two rows for the same venue + drink + category collapse to the newest.
-function rowKey(venueKey: string, drinkName: string, category: string): string {
-  return `${venueKey}\u0000${drinkName.toLowerCase()}\u0000${category.toLowerCase()}`;
+// category + optional serving size (glass vs bottle must not collapse).
+function rowKey(
+  venueKey: string,
+  drinkName: string,
+  category: string,
+  servingSize?: string,
+): string {
+  return `${venueKey}\u0000${drinkName.toLowerCase()}\u0000${category.toLowerCase()}\u0000${(servingSize ?? "").toLowerCase()}`;
 }
 
 function updateProvenance(update: DrinkPriceUpdate): DrinkProvenance {
@@ -187,15 +192,20 @@ export function applyDrinkPriceUpdatesToMenu(
   const scoped = updates.filter((update) => update.venueKey === venueKey);
   if (scoped.length === 0) return existingDrinks;
   const byKey = new Map(
-    scoped.map((update) => [rowKey(update.venueKey, update.drinkName, update.category), update] as const),
+    scoped.map(
+      (update) =>
+        [rowKey(update.venueKey, update.drinkName, update.category, update.servingSize), update] as const,
+    ),
   );
   const used = new Set<string>();
 
   const merged = existingDrinks.map((drink) => {
-    const key = rowKey(venueKey, drink.name, drink.category);
-    const update = byKey.get(key);
+    const exactKey = rowKey(venueKey, drink.name, drink.category, drink.servingSize);
+    const bareKey = rowKey(venueKey, drink.name, drink.category, undefined);
+    // Exact serving match wins; an update with no servingSize may overlay any serve.
+    const update = byKey.get(exactKey) ?? (drink.servingSize ? byKey.get(bareKey) : undefined);
     if (!update) return drink;
-    used.add(key);
+    used.add(rowKey(update.venueKey, update.drinkName, update.category, update.servingSize));
     return {
       ...drink,
       priceGbp: update.priceGbp,
@@ -213,7 +223,7 @@ export function applyDrinkPriceUpdatesToMenu(
   });
 
   for (const update of scoped) {
-    const key = rowKey(update.venueKey, update.drinkName, update.category);
+    const key = rowKey(update.venueKey, update.drinkName, update.category, update.servingSize);
     if (!used.has(key)) merged.push(drinkFromPriceUpdate(update));
   }
   return merged;
@@ -233,7 +243,7 @@ export function parseDrinkPriceUpdates(raw: unknown, now: number = Date.now()): 
   const newestByKey = new Map<string, DrinkPriceUpdate>();
   for (const row of rows) {
     if (!isValidDrinkPriceUpdate(row, now)) continue;
-    const key = rowKey(row.venueKey, row.drinkName, row.category);
+    const key = rowKey(row.venueKey, row.drinkName, row.category, row.servingSize);
     const existing = newestByKey.get(key);
     if (!existing || Date.parse(row.observedAt) > Date.parse(existing.observedAt)) {
       newestByKey.set(key, row);
@@ -272,10 +282,14 @@ export function mergeDrinkPriceUpdates<T extends DrinkMenuRow>(
   keyFor: (row: T) => string,
 ): PricedDrinkMenuRow<T>[] {
   const byKey = new Map(
-    updates.map((u) => [rowKey(u.venueKey, u.drinkName, u.category), u] as const),
+    updates.map(
+      (u) => [rowKey(u.venueKey, u.drinkName, u.category, u.servingSize), u] as const,
+    ),
   );
   return existingDrinks.map((row) => {
-    const update = byKey.get(rowKey(keyFor(row), row.drinkName, row.category));
+    const exactKey = rowKey(keyFor(row), row.drinkName, row.category, row.servingSize);
+    const bareKey = rowKey(keyFor(row), row.drinkName, row.category, undefined);
+    const update = byKey.get(exactKey) ?? (row.servingSize ? byKey.get(bareKey) : undefined);
     if (!update) {
       return { ...row, sourcedPrice: null };
     }

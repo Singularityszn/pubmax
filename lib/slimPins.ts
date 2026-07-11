@@ -21,6 +21,35 @@
 import type { Venue } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
+/**
+ * City slim packs embed the OSM address inside filterHints.searchText as
+ *   "{name lower} {address lower} {borough lower}"
+ * Recover it so drink/food price updates keyed by name|address|lat|lng attach
+ * to city venues that have no VenuePrice rows.
+ */
+export function addressFromSlimSearchText(slim: SlimVenue): string {
+  const search = (slim.filterHints?.searchText ?? "").trim().toLowerCase();
+  if (!search) return "";
+  const name = slim.name.trim().toLowerCase();
+  const borough = slim.borough.trim().toLowerCase();
+  let rest = search;
+  const nameVariants = [name];
+  if (name.startsWith("the ")) nameVariants.push(name.slice(4));
+  for (const variant of nameVariants) {
+    if (variant && rest.startsWith(variant)) {
+      rest = rest.slice(variant.length).trim();
+      break;
+    }
+  }
+  if (borough && rest.endsWith(borough)) {
+    rest = rest.slice(0, rest.length - borough.length).trim();
+  }
+  // If we couldn't strip the name (London fixtures often use a short searchText),
+  // don't invent an address from the whole search blob.
+  if (rest === search) return "";
+  return rest;
+}
+
 // A slim pin is a real Venue value (so the canvas prop type is satisfied) built
 // from the compact fields the pin paint and fast filters need; every other field carries a
 // safe, inert default so nothing downstream throws before hydration.
@@ -28,7 +57,7 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
   return {
     id: slim.id,
     name: slim.name,
-    address: "",
+    address: addressFromSlimSearchText(slim),
     latitude: slim.lat,
     longitude: slim.lng,
     primaryBorough: slim.borough,
