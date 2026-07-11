@@ -1700,3 +1700,63 @@ html:not([data-theme="dark"]) .feedSpillCat,
 html:not([data-theme="dark"]) .feedSpillCat svg {
   color: color-mix(in srgb, var(--feed-cat) 82%, #ffffff);
 }
+
+/* ── N4: desktop layout — filter rail + two-up stream ─────────────────────
+   Below 1024px the two wrappers are display:contents (zero box — children
+   stay direct flex items of .feedShell exactly as before, so mobile layout
+   is byte-identical). At >=1024px they become a sticky rail | stream grid. */
+
+.feedGrid,
+.feedRail,
+.feedMain {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  .feedGrid {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    align-items: start;
+    gap: 28px;
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  .feedRail {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 96px; /* clears the floating SiteNav pill */
+    align-self: start;
+  }
+
+  .feedRail .feedFilters {
+    max-width: none;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .feedRail .presenceStrip {
+    max-width: none;
+    width: 100%;
+  }
+
+  .feedMain {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+  }
+
+  .feedMain .feedList {
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: dense;
+    align-items: start;
+    gap: 24px;
+  }
+}

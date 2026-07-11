@@ -664,10 +664,18 @@ export default function FeedPage() {
         </Link>
       </header>
 
-      <PresenceStrip spillingNow={spillingNow} />
+      {/* N4: two wrapper divs only — display:contents below 1024px means they
+          contribute ZERO box on mobile (byte-identical layout); at >=1024px
+          they become the rail | stream grid (see feed.css). DOM order is
+          unchanged. */}
+      <div className="feedGrid">
+        <div className="feedRail">
+          <PresenceStrip spillingNow={spillingNow} />
 
-      <FeedFilters active={filter} onChange={onFilterChange} />
+          <FeedFilters active={filter} onChange={onFilterChange} />
+        </div>
 
+        <div className="feedMain">
       {/* Live "N new pints" pill (issue #37): reveals buffered new drops on tap
           rather than yanking the scroll. Hidden when nothing is buffered. */}
       {pendingItems.length > 0 ? (
@@ -740,6 +748,8 @@ export default function FeedPage() {
           )}
         </>
       )}
+        </div>
+      </div>
     </main>
   );
 }
