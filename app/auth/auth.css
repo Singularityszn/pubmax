@@ -171,3 +171,216 @@
   width: 100%;
   text-align: right;
 }
+
+/* ── Wave L3: Claim your night ───────────────────────────────────────────── */
+
+.claimNightBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--ink-deep) 48%, transparent);
+  animation: claimNightFade 0.22s ease-out;
+}
+
+@keyframes claimNightFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.claimNightDialog {
+  width: min(100%, 26rem);
+  padding: 1.35rem 1.4rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
+  animation: claimNightRise 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes claimNightRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.claimNightTitle {
+  margin: 0 0 0.45rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.claimNightLead,
+.claimNightActivity,
+.claimNightSingle {
+  margin: 0 0 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.claimNightActivity strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.claimNightHandle {
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.claimNightConflict,
+.claimNightError {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--brick) 35%, var(--line));
+  background: color-mix(in srgb, var(--brick) 8%, var(--panel));
+  color: var(--brick);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.claimNightChoices {
+  margin: 0 0 1rem;
+  padding: 0;
+  border: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.claimNightLegend {
+  padding: 0;
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.claimNightOption {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--panel);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.claimNightOption:hover {
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+}
+
+.claimNightOption:has(input:checked) {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel));
+}
+
+.claimNightOption input {
+  margin-top: 0.2rem;
+  accent-color: var(--brass);
+}
+
+.claimNightOptionHint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.claimNightActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+
+.claimNightConfirm,
+.claimNightSkip {
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.claimNightConfirm {
+  border: 1px solid var(--brass);
+  background: var(--brass);
+  color: #fff;
+}
+
+.claimNightConfirm:hover:not(:disabled) {
+  background: var(--brass-bright);
+  border-color: var(--brass-bright);
+}
+
+.claimNightSkip {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.claimNightSkip:hover:not(:disabled) {
+  border-color: var(--ink-soft);
+  color: var(--ink);
+}
+
+.claimNightConfirm:focus-visible,
+.claimNightSkip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.claimNightConfirm:disabled,
+.claimNightSkip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .claimNightDialog {
+    padding: 1.15rem 1.1rem 1.05rem;
+  }
+
+  .claimNightActions {
+    flex-direction: column-reverse;
+  }
+
+  .claimNightConfirm,
+  .claimNightSkip {
+    width: 100%;
+    text-align: center;
+  }
+}

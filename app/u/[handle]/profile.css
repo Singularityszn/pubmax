@@ -746,9 +746,11 @@
   box-shadow: var(--shadow-1, 0 1px 2px rgba(0, 0, 0, 0.08));
 }
 
-/* Own-profile hero: passport is the first collectible signal above the fold. */
+/* Own-profile hero: passport is the first collectible signal above the fold.
+   Zero top margin — .profileMain grid gap owns spacing to the header below. */
 .profilePage .pintPassport--hero {
-  margin-top: 4px;
+  margin-top: 0;
+  margin-bottom: 0;
   padding: 26px 24px 28px;
   border-width: 1.5px;
   box-shadow:
@@ -758,6 +760,12 @@
 
 .profilePage .pintPassport--hero .passportHolder {
   font-size: clamp(1.55rem, 4vw, 1.85rem);
+}
+
+/* When passport leads, the header is secondary identity + edit/follow — slightly
+   tighter so the hero passport keeps visual priority without a second "hero". */
+.profilePage .pintPassport--hero + .profileHeader {
+  padding: clamp(16px, 3vw, 24px);
 }
 
 .profilePage .passportShare {

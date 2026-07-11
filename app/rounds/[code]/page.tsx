@@ -6,6 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import SiteNav from "@/components/nav/SiteNav";
+import {
+  clearActiveRoundCode,
+  writeActiveRoundCode,
+} from "@/lib/activeRound";
 import { normalizeHandle } from "@/lib/profiles";
 import { isValidRoundCode, normalizeRoundCode, type RoundState } from "@/lib/rounds";
 import {
@@ -103,31 +107,17 @@ export default function RoundPage({ params }: { params: Promise<{ code: string }
   const isOpen = state != null && state.round.closedAt == null;
 
   // Stickiness seam for the map composer (Loop 2): while this Round is open,
-  // stamp `pubmax_active_round` so Pint Drop's "My Round" chip lights up and a
+  // stamp the active Round key so Pint Drop's "My Round" chip lights up and a
   // successful drop can append the venue as a stop. Clear on leave / close, but
   // only when the stored value still matches THIS code (another tab may have
   // switched Rounds).
   useEffect(() => {
     if (!code || !isValidRoundCode(code)) return;
-    const key = "pubmax_active_round";
-    const clearIfMine = () => {
-      try {
-        if (window.localStorage.getItem(key) === code) {
-          window.localStorage.removeItem(key);
-        }
-      } catch {
-        // Storage disabled — nothing to clear.
-      }
-    };
     if (isOpen) {
-      try {
-        window.localStorage.setItem(key, code);
-      } catch {
-        // Private-mode / full storage — composer just won't see an active Round.
-      }
-      return clearIfMine;
+      writeActiveRoundCode(code);
+      return () => clearActiveRoundCode(code);
     }
-    clearIfMine();
+    clearActiveRoundCode(code);
     return undefined;
   }, [code, isOpen]);
 

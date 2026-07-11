@@ -10,6 +10,7 @@ import {
   cityMapOgTitle,
   cityMapShareUrl,
   firstSearchParam,
+  stopCountFromPubsParam,
 } from "@/lib/cityShare";
 
 type CityMapPageProps = {
@@ -34,7 +35,9 @@ export async function generateMetadata({
 
   const sp = searchParams ? await searchParams : undefined;
   const band = firstSearchParam(sp?.band);
-  const opts = { band };
+  const crawl = firstSearchParam(sp?.crawl);
+  const stopCount = stopCountFromPubsParam(firstSearchParam(sp?.pubs));
+  const opts = { band, crawl, stopCount };
   const title = cityMapOgTitle(cityId, opts);
   const description = cityMapOgDescription(cityId, opts);
   const url = cityMapShareUrl(cityId, opts);

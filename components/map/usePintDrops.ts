@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
+import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedFetch } from "@/lib/authedFetch";
 import type { CityId } from "@/lib/cities";
@@ -47,17 +48,6 @@ export type DropMsg = {
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB — server re-validates.
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
-const ACTIVE_ROUND_KEY = "pubmax_active_round";
-
-/** Read the active Round code stamped by /rounds/[code] (Loop 2 stickiness). */
-function readActiveRoundCode(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return (window.localStorage.getItem(ACTIVE_ROUND_KEY) ?? "").trim();
-  } catch {
-    return "";
-  }
-}
 
 /**
  * Best-effort: append this venue as a stop on the open Round. Fail-soft — a

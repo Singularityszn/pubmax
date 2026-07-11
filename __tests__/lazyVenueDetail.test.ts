@@ -33,6 +33,7 @@ function venue(id: string, name = id): Venue {
       nonAlcoholic: false,
     },
     website: "",
+    bookingLink: "",
     imageUrl: "",
     description: "",
     dataQualityNotes: [],

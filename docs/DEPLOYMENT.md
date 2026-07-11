@@ -25,7 +25,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 | Var | Purpose |
 |---|---|
 | `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
-| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-5`. |
+| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. |
 
 ## Supabase setup
 

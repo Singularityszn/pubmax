@@ -154,7 +154,7 @@ for (const path of ["/", "/map", "/feed", "/discover"]) {
 //
 // The control lives in the planner's control rail (components/map/ControlRail.tsx),
 // which is a DOM overlay beside the map — reachable WITHOUT the WebGL canvas by
-// opening the planner via the toolbar's "Plan a crawl" button. We open the
+// opening the planner via the toolbar's "Plan tonight" button. We open the
 // planner, find the "Non-alcoholic" checkbox, and prove clicking it flips its
 // checked state (the observable contract). No canvas interaction, no persistence
 // (the filter is per-session UI state, never written).
@@ -174,7 +174,7 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
   await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
 
   // Open the planner so the control rail's filter toggles become visible.
-  const planBtn = page.getByRole("button", { name: /Plan a crawl/i });
+  const planBtn = page.getByRole("button", { name: /Plan tonight/i });
   await expect(planBtn).toBeVisible();
   await planBtn.click();
 

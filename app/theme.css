@@ -1,6 +1,6 @@
-/* Dark theme: London after last orders — neutral night surfaces, coral action,
-   lager gold and tube-blue accents. Overrides the same tokens :root sets in
-   globals.css. Do NOT edit globals.css here. */
+/* Dark theme: Direction B Night Out — deep ink, amber route/CTA energy,
+   pint neon go. No purple mesh/glow. See DESIGN.md + PRODUCT.md.
+   Overrides the same tokens :root sets in globals.css. Do NOT edit globals.css here. */
 
 html:not([data-theme="dark"]) {
   color-scheme: light;
@@ -35,36 +35,36 @@ html:not([data-theme="dark"]) {
 html[data-theme="dark"] {
   color-scheme: dark;
 
-  --ink: #fff4e8;
-  --ink-soft: #e4d9c8;
-  --muted: #b0a698;
-  --line: #413a34;
-  --line-soft: #302b27;
-  --paper: #14110f;
-  --panel: #1a1714;
-  --panel-raised: #241f1b;
-  --ink-deep: #090806;
+  /* Deeper ink paper — Night Out street base (not warm charcoal-brown). */
+  --ink: #eef3ef;
+  --ink-soft: #c5d0c9;
+  --muted: #8fa399;
+  --line: #24302b;
+  --line-soft: #1a2420;
+  --paper: #070b0a;
+  --panel: #0e1613;
+  --panel-raised: #141c19;
+  --ink-deep: #040606;
 
-  --pint: #39d98a;
-  --amber: #ffc247;
-  --brick: #ff6b7a;
-  --brass: #ff6b7a;
-  --brass-bright: #ff9a62;
+  --pint: #3dff9a; /* neon-go / cheap / positive */
+  --amber: #f0a01a; /* mid price + route energy */
+  --brick: #ff6b7a; /* expensive / destructive — keeps coral job */
+  /* Amber owns Plan CTA / accent in dark (coral stays on --brick for dear). */
+  --brass: #f0a01a;
+  --brass-bright: #ffb328;
+  --night-amber: #f0a01a;
   --river: #64b5ff;
   --river-bright: #7dd3fc;
   --spritz: #ffd166;
   --neon: #5cff99;
-  --grape: #a78bfa;
+  --grape: #a78bfa; /* available but unused for glow — no purple mesh */
   --pink: #ff7ac8;
 
-  /* Candle-glow: dark theme's shadow gets a faint warm brass bloom instead of
-     a neutral drop shadow, so raised surfaces read as lit from within rather
-     than merely "dark mode dim". Light theme's --shadow (globals.css) stays a
-     cool paper-lift shadow by contrast — the day/night pairing is deliberate. */
-  --shadow: 0 18px 44px rgba(0, 0, 0, 0.55), 0 0 28px rgba(255, 138, 61, 0.08);
-  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.48), 0 0 14px rgba(255, 138, 61, 0.07);
-  --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 194, 71, 0.14);
-  --gradient-party: linear-gradient(135deg, var(--paper) 0%, #1b1714 48%, #101a1b 100%);
+  /* Night bloom: amber street-light lift, never purple. */
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.6), 0 0 28px rgba(240, 160, 26, 0.1);
+  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 14px rgba(240, 160, 26, 0.08);
+  --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(240, 160, 26, 0.16);
+  --gradient-party: linear-gradient(135deg, var(--paper) 0%, #0e1613 48%, #0a1210 100%);
 
   /* Map chrome on night basemap — black lift, not lavender paper shadows.
      Also set on .appShell below: that node redefines the same vars for light. */
@@ -75,7 +75,7 @@ html[data-theme="dark"] {
      on charcoal (thin muted greys wash out under night contrast). */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  text-rendering: optimizelegibility;
 }
 
 /* .appShell redefines --map-overlay-shadow* for the light map; override here so
@@ -190,4 +190,17 @@ html[data-theme="dark"] .venueInspector h3 {
   background: var(--panel-raised);
   border-color: var(--brass);
   transform: translateY(-1px);
+}
+
+/* Night Out Plan CTA: amber fill even if a consumer still expects coral brass.
+   --brass is already amber in dark; this pins the gradient to --night-amber. */
+html[data-theme="dark"] .planBtn {
+  background: linear-gradient(135deg, var(--night-amber), var(--brass-bright));
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--night-amber) 28%, transparent);
+  color: #0a0e0c;
+}
+
+html[data-theme="dark"] .planBtn.active {
+  background: linear-gradient(135deg, var(--ink-deep), color-mix(in srgb, var(--ink-deep) 70%, var(--pint)));
+  color: var(--color-on-inverse);
 }

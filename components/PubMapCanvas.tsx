@@ -54,8 +54,9 @@ import {
 } from "@/lib/categoryColors";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
-import { formatPrice, type Venue } from "@/lib/venues";
+import { formatFreshness, formatObservedAt, formatPrice, type Venue } from "@/lib/venues";
 import { directVenueImageUrl } from "@/lib/venueImages";
+import type { PricedVenue } from "@/lib/priceUpdates";
 
 type VenueSignal = {
   hasPintDrops: boolean;
@@ -98,6 +99,16 @@ type PubMapCanvasProps = {
   /** Wave K2 — parent keeps the loading chrome until WebGL style + scene are ready. */
   onMapReady?: (ready: boolean) => void;
   /**
+   * Called with `true` the moment the canvas commits to its user-facing error
+   * fallback (WebGL failure, tiles down, context-lost, zero-size, …), and
+   * `false` when a Retry click clears the error. Parents use this to drop any
+   * loading skeleton that would otherwise hide the honest error card — the
+   * `onMapReady(true)` we ALSO emit on error only lifts the "waiting for
+   * scene" branch; a separate signal is needed when slim pins are still in
+   * flight so the skeleton doesn't linger on top of the fallback.
+   */
+  onMapErrored?: (errored: boolean) => void;
+  /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
    */
@@ -112,6 +123,11 @@ type PubMapCanvasProps = {
    * (via cityMaxBounds). Defaults to Greater London.
    */
   maxBounds?: [[number, number], [number, number]];
+  /**
+   * Clean city arrival (no drink/crawl/pubs/route intent): fit city bounds once
+   * after style/load so Bristol/Oxford/etc. land framed, not on a default zoom.
+   */
+  fitCityOnArrival?: boolean;
   /**
    * Optional POI JSON path from CityConfig.poisPath. `null` skips the London
    * POI fetch so non-London cities do not 404 on `/data/london_pois.json`.
@@ -158,12 +174,11 @@ const FALLBACK_STYLES = {
 } as const;
 const STYLE_LOAD_TIMEOUT_MS = 8000;
 
-// Wider first view so outer boroughs (Barnet, Croydon, …) read at a glance —
-// still centred on the river, but zoomed out enough that Zone 1 isn't the
-// whole story on first paint (outer-London coverage P0).
+// Opening London zoom — tight enough that drink icons appear soon, not a sea
+// of mega-clusters (outer boroughs still reachable by pan/zoom).
 const LONDON_VIEW = {
   center: [-0.12, 51.52] as [number, number],
-  zoom: 9.85,
+  zoom: 11.1,
   pitch: 42,
   bearing: -12,
 };
@@ -177,7 +192,7 @@ const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
 const HOVER_DETAIL_CACHE_LIMIT = 24;
 const HOVER_CARD_VIEWPORT_GUTTER_PX = 16;
 const HOVER_CARD_WIDTH_PX = 292;
-const HOVER_CARD_HEIGHT_PX = 120;
+const HOVER_CARD_HEIGHT_PX = 138;
 const HOVER_CARD_MIN_TOP_PX = 84;
 const HOVER_CARD_X_OFFSET_PX = 18;
 const HOVER_CARD_Y_OFFSET_PX = -30;
@@ -297,6 +312,47 @@ function hoverImageUrlFor(
   return src;
 }
 
+type HoverPriceLine = {
+  price: number | null;
+  provenance: string;
+};
+
+// Compact honesty line for the map hover card. Price and provenance share one
+// precedence stack (community → sourced → baseline) so a baseline API detail
+// fetch never pairs with a Community/Sourced label.
+function hoverPriceLine(
+  mapVenue: Venue | undefined,
+  signal: VenueSignal | undefined,
+  hoverDetail: Venue | null | undefined,
+): HoverPriceLine {
+  const communityPrice =
+    signal?.latestContributorPrice ?? mapVenue?.latestContributorPrice ?? null;
+  if (communityPrice !== null && communityPrice !== undefined) {
+    const fresh = formatFreshness(mapVenue?.latestContributorAt);
+    return {
+      price: communityPrice,
+      provenance: fresh ? `Community · ${fresh}` : "Community · tap for detail",
+    };
+  }
+  const sourced = (mapVenue as PricedVenue | undefined)?.sourcedPrice ?? null;
+  if (sourced) {
+    const observed = formatObservedAt(sourced.observedAt);
+    // mergePriceUpdates already wrote the sourced amount onto cheapestPrice.
+    const price =
+      mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
+    return {
+      price: price ?? null,
+      provenance: observed ? `Sourced · ${observed}` : "Sourced · tap for detail",
+    };
+  }
+  const baseline =
+    mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
+  if (baseline !== null && baseline !== undefined) {
+    return { price: baseline, provenance: "Baseline · tap for detail" };
+  }
+  return { price: null, provenance: "Tap for detail" };
+}
+
 function pubsToGeoJSON(
   venues: Venue[],
   venueSignals: Map<string, VenueSignal>,
@@ -321,22 +377,24 @@ function pubsToGeoJSON(
           signals?.latestDemoPrice ??
           null;
       const bucket = priceBucket(price);
-      // Prefer the active non-beer lens for the glyph so gin/wine/etc. read
-      // honestly on the map; otherwise fall back to venue hint categories.
+      // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
+      // Without a lens, fall back to venue hint categories.
       const lens = drinkCategory?.trim().toLowerCase() ?? "";
       const drinkKind =
-        lens && lens !== "beer" && lens !== "other"
-          ? drinkPinKindFromCategories(
-              [lens],
-              lens === "cocktail" ||
+        lens === "beer"
+          ? "pint"
+          : lens && lens !== "other"
+            ? drinkPinKindFromCategories(
+                [lens],
+                lens === "cocktail" ||
+                  Boolean(venue.amenities.cocktails) ||
+                  Boolean(venue.filterHints?.amenities.cocktails),
+              )
+            : drinkPinKindFromCategories(
+                venue.filterHints?.drinkCategories,
                 Boolean(venue.amenities.cocktails) ||
-                Boolean(venue.filterHints?.amenities.cocktails),
-            )
-          : drinkPinKindFromCategories(
-              venue.filterHints?.drinkCategories,
-              Boolean(venue.amenities.cocktails) ||
-                Boolean(venue.filterHints?.amenities.cocktails),
-            );
+                  Boolean(venue.filterHints?.amenities.cocktails),
+              );
       return {
         type: "Feature" as const,
         properties: {
@@ -567,8 +625,10 @@ export default function PubMapCanvas({
   onAskPubmaxxer,
   initialLandmarkId = "",
   onMapReady,
+  onMapErrored,
   mapView = LONDON_VIEW,
   maxBounds = LONDON_BOUNDS,
+  fitCityOnArrival = false,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
   cityLandmarks = londonLandmarks,
@@ -606,12 +666,17 @@ export default function PubMapCanvas({
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
+  const onMapErroredRef = useRef(onMapErrored);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
-  }, [onMapReady]);
+    onMapErroredRef.current = onMapErrored;
+  }, [onMapReady, onMapErrored]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
+  }, []);
+  const publishMapErrored = useCallback((errored: boolean) => {
+    onMapErroredRef.current?.(errored);
   }, []);
   // The fallback is a real user-facing dead end, so it carries enough to be
   // honest about *why*: `kind` drives the copy (only "constructor" with a
@@ -630,10 +695,14 @@ export default function PubMapCanvas({
     (error: NonNullable<typeof mapError>) => {
       // Lift the parent's loading chrome so this honest error card is visible
       // (Wave K2 kept the overlay until mapReady — failures must still resolve it).
+      // Also broadcast a distinct errored signal so a parent whose skeleton
+      // still has other gates (e.g. slim pins in flight) can drop it and let
+      // the fallback show through.
       publishMapReady(true);
+      publishMapErrored(true);
       setMapError(error);
     },
-    [publishMapReady],
+    [publishMapErrored, publishMapReady],
   );
   // Bumped to re-run the mount effect: once silently (auto-retry after a
   // constructor throw) and again on the user's Retry click. The cleanup fully
@@ -1430,13 +1499,16 @@ export default function PubMapCanvas({
       });
 
       // --- Pubs: clustered GeoJSON source + designed data-driven layers.
+      // clusterRadius / clusterMaxZoom are create-time only (MapLibre does not
+      // update them via setData). Theme setStyle clears sources, so rebuilds
+      // pick up these values on the next addSource.
       if (!map.getSource("pubs")) {
         map.addSource("pubs", {
           type: "geojson",
           data: pubsDataRef.current,
           cluster: true,
-          clusterRadius: 46,
-          clusterMaxZoom: 13,
+          clusterRadius: 28,
+          clusterMaxZoom: 14,
         });
       }
       // Pint-Drops ring: a river-toned glow + a crisp outline so community
@@ -1448,11 +1520,11 @@ export default function PubMapCanvas({
         filter: ["all", ["!", ["has", "point_count"]], ["get", "drops"]],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 15],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 15, 12],
           "circle-stroke-color": tokens.riverBright,
-          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2],
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1, 15, 1.6],
           "circle-stroke-opacity": 0.7,
-          "circle-blur": 0.2,
+          "circle-blur": 0.15,
         },
       });
       // Story-band member halo (issue #15): while a band is active, its member
@@ -1471,11 +1543,11 @@ export default function PubMapCanvas({
         ],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 18],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8.5, 15, 14],
           "circle-stroke-color": bandColorRef.current,
-          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 2, 15, 3],
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.6, 15, 2.4],
           "circle-stroke-opacity": dark ? 0.85 : 0.8,
-          "circle-blur": 0.15,
+          "circle-blur": 0.1,
         },
       });
       addLayerOnce({
@@ -1490,9 +1562,9 @@ export default function PubMapCanvas({
             ["linear"],
             ["zoom"],
             10,
-            ["case", ["get", "story"], 0.55, 0.48],
+            ["case", ["get", "story"], 0.7, 0.62],
             15,
-            ["case", ["get", "story"], 0.92, 0.82],
+            ["case", ["get", "story"], 1.05, 0.95],
           ],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
@@ -1511,11 +1583,11 @@ export default function PubMapCanvas({
         filter: ["==", ["get", "id"], selectedIdRef.current],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 14, 15, 19],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 15],
           "circle-stroke-color": tokens.brass,
-          "circle-stroke-width": 4,
+          "circle-stroke-width": 3.2,
           "circle-stroke-opacity": 0.35,
-          "circle-blur": 0.3,
+          "circle-blur": 0.22,
         },
       });
       addLayerOnce({
@@ -1525,9 +1597,9 @@ export default function PubMapCanvas({
         filter: ["==", ["get", "id"], selectedIdRef.current],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 10, 15, 14],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 11],
           "circle-stroke-color": tokens.brassBright,
-          "circle-stroke-width": 2.5,
+          "circle-stroke-width": 2.2,
           "circle-stroke-opacity": 0.98,
         },
       });
@@ -1540,10 +1612,10 @@ export default function PubMapCanvas({
           // Wave J1 — pint → amber → brass by density (not ink-black discs).
           "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
           "circle-stroke-color": tokens.panelRaised,
-          "circle-stroke-width": ["step", ["get", "point_count"], 2, 40, 2.5, 100, 3],
+          "circle-stroke-width": ["step", ["get", "point_count"], 1.25, 40, 1.5, 100, 1.75],
           "circle-stroke-opacity": 0.95,
-          "circle-radius": ["step", ["get", "point_count"], 17, 25, 23, 100, 31],
-          "circle-blur": ["step", ["get", "point_count"], 0.05, 40, 0.12, 100, 0.18],
+          "circle-radius": ["step", ["get", "point_count"], 9, 25, 12, 100, 16],
+          "circle-blur": ["step", ["get", "point_count"], 0.02, 40, 0.05, 100, 0.08],
           "circle-opacity": 0.94,
         },
       });
@@ -1555,7 +1627,7 @@ export default function PubMapCanvas({
         layout: {
           "text-field": ["get", "point_count_abbreviated"],
           "text-font": textFont,
-          "text-size": ["step", ["get", "point_count"], 12, 25, 13, 100, 15],
+          "text-size": ["step", ["get", "point_count"], 9, 25, 10, 100, 11],
           "text-letter-spacing": 0.02,
         },
         paint: {
@@ -1947,9 +2019,11 @@ export default function PubMapCanvas({
   }, [
     // Intentionally omit mapView / maxBounds / landmarksGeoJSON — those are
     // read via refs so parent re-renders (new array identity) cannot remount
-    // MapLibre and flicker the loading chrome. City switches change
-    // transitLinesPath / showLandmarks and still remount cleanly.
+    // MapLibre and flicker the loading chrome. Include cityId so non-London
+    // city switches (shared null transitLinesPath + showLandmarks) still
+    // remount with fresh camera/bounds even if PubMap's key={cityId} is removed.
     cinematic,
+    cityId,
     selectLandmark,
     initAttempt,
     transitLinesPath,
@@ -2115,6 +2189,20 @@ export default function PubMapCanvas({
     });
   }, []);
 
+  // Clean city arrival: frame the city's maxBounds once after style/load.
+  // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
+  // see shouldFitCityBoundsOnArrival. Ref guards against effect re-runs.
+  const didFitOnArrivalRef = useRef(false);
+  useEffect(() => {
+    didFitOnArrivalRef.current = false;
+  }, [cityId]);
+  useEffect(() => {
+    if (!mapReady || !fitCityOnArrival) return;
+    if (didFitOnArrivalRef.current) return;
+    didFitOnArrivalRef.current = true;
+    fitCityBounds();
+  }, [mapReady, fitCityOnArrival, fitCityBounds]);
+
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere
   // selection change produce the same key, so the camera stays put while a user
@@ -2228,6 +2316,12 @@ export default function PubMapCanvas({
     () => (hoveredVenueId ? hoverDetails.get(hoveredVenueId) : undefined),
     [hoverDetails, hoveredVenueId],
   );
+  const hoverMapVenue = useMemo(
+    () => (hoveredVenueId ? venues.find((venue) => venue.id === hoveredVenueId) : undefined),
+    [venues, hoveredVenueId],
+  );
+  const hoverSignal = hoveredVenueId ? venueSignals.get(hoveredVenueId) : undefined;
+  const hoverPrice = hoverPriceLine(hoverMapVenue, hoverSignal, hoverDetail);
   const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
   const hoverCardStyle = hoveredVenue
     ? {
@@ -2266,6 +2360,7 @@ export default function PubMapCanvas({
               className="mapFallbackRetry"
               onClick={() => {
                 setMapError(null);
+                publishMapErrored(false);
                 publishMapReady(false);
                 setInitAttempt((a) => a + 1);
               }}
@@ -2430,12 +2525,13 @@ export default function PubMapCanvas({
                   : "Fast map preview"}
             </span>
             <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
-            <span>
+            <span className="venueHoverMeta">
               {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
-              {hoverDetail?.cheapestPrice !== null && hoverDetail?.cheapestPrice !== undefined
-                ? `${formatPrice(hoverDetail.cheapestPrice)} cheapest pint`
+              {hoverPrice.price !== null && hoverPrice.price !== undefined
+                ? `${formatPrice(hoverPrice.price)} cheapest pint`
                 : "Tap for full pub detail"}
             </span>
+            <span className="venueHoverProvenance">{hoverPrice.provenance}</span>
           </div>
         </aside>
       ) : null}

@@ -50,6 +50,11 @@
   margin-bottom: 12px;
 }
 
+/* Plan → Round bridge: invite friends from a ≥2-stop plan. */
+.planRoundBridge {
+  margin: 0 0 12px;
+}
+
 /* Loop 2: local crawl-completion controls — light touch, reuses panel tokens. */
 .crawlProgressRow {
   display: flex;

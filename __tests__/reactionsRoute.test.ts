@@ -237,6 +237,18 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
   });
 
   it("404s an unknown (non-persisted) drop id via UnknownDropError", async () => {
+    // Visibility gate must pass so we actually reach the store — stub it open
+    // for this contract (Supabase admin isn't real in this suite, so the real
+    // gate now returns null (outage) and would 503 first).
+    vi.doMock("@/lib/pintDropLookup", async () => {
+      const actual =
+        await vi.importActual<typeof import("@/lib/pintDropLookup")>("@/lib/pintDropLookup");
+      return {
+        ...actual,
+        filterPubliclyReadableDropIds: async (ids: readonly string[]) =>
+          ids.map((id) => id.trim()).filter(Boolean),
+      };
+    });
     vi.doMock("@/lib/reactionsStore", async () => {
       const actual =
         await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
@@ -262,6 +274,7 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "Pint drop not found." });
     vi.doUnmock("@/lib/reactionsStore");
+    vi.doUnmock("@/lib/pintDropLookup");
   });
 
   it("503s any other store failure (reactions are non-critical)", async () => {

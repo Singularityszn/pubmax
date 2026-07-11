@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "venues": {
+    "venue-gk2fp9": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food menu",
+          "hint": "Opens the pub menu",
+          "imageUrl": "https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/7fc80e2bb310441684ec3f4963698823?v=dcbec000&t=w1540"
+        }
+      ]
+    },
+    "venue-3kkk8e": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/camden-head/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/camden-head/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-1r4e6my": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/crown/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/crown/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-1ivvgts": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/fitzrovia/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/fitzrovia/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-yl1a48": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/friend-at-hand/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/friend-at-hand/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-1w54puk": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/fountains-abbey/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/fountains-abbey/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-w9me9i": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/chelsea-potter/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/chelsea-potter/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food menu",
+          "hint": "Opens the pub menu",
+          "imageUrl": "https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/68d551d66d1f434489def328a50fe346?v=c0376f9b&t=w1540"
+        }
+      ]
+    },
+    "venue-10jffb0": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/greyhound/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/greyhound/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-i1xo3p": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/three-tuns/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/three-tuns/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food menu",
+          "hint": "Opens the pub menu",
+          "imageUrl": "https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/e499119d915d4c7f8ec83fdc25df9aae?v=ea27492a&t=w1540"
+        }
+      ]
+    },
+    "venue-eu9pbj": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/city-of-quebec/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/city-of-quebec/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food menu",
+          "hint": "Opens the pub menu",
+          "imageUrl": "https://gkbr-p-001.sitecorecontenthub.cloud/api/public/content/cda02c9d0c6c4bdeb21eb894129b9262?v=b0d6b7d9&t=w1540"
+        }
+      ]
+    },
+    "venue-1rvq067": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/plumbers-arms/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/plumbers-arms/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-15v64k2": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/earls-court-tavern/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/earls-court-tavern/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-gv8lwa": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/anchor-bankside/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/anchor-bankside/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-16pnwmm": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-12bzb84": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/brewmaster/menu",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-149rmv7": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/duke-of-york/menu",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-15i2wst": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/golden-lion/menu",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-s68ndf": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/greene-man/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/greene-man/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-qky1h5": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/hope-and-anchor/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/hope-and-anchor/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-1ffe6u": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/lord-raglan/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/lord-raglan/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-r2rhk7": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/lucas-arms/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/lucas-arms/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-fr71bp": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/museum-tavern/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/museum-tavern/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-2z5s36": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/plough/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/plough/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-u68xn3": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/prince-of-wales/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/prince-of-wales/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-11bllvc": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-hx81tb": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/rising-sun/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/rising-sun/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-1jmwk6r": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/round-table/menu",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-hly7k3": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/royal-george/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/royal-george/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-e1srzr": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/shakespeares-head/menu",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-1sx1vco": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-cock-tavern/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-cock-tavern/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-1gnufko": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-10jw1vr": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/george-southwark/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/george-southwark/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    }
+  }
+}

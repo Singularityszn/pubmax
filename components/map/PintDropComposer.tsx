@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 
+import { readActiveRoundCode, subscribeActiveRound } from "@/lib/activeRound";
 import { VIBE_TAGS } from "@/lib/pintDropShared";
 import {
   QUICK_ADD_PRICES_GBP,
@@ -63,13 +64,6 @@ const GENERATION_PRESETS = [
   { label: "Old memory", value: "Old memory" },
   { label: "Family story", value: "Family story" },
 ] as const;
-
-// The optional client seam for "is a Round open right now?". No client-side
-// active-Round state ships yet (rounds are URL-bound + server-centric), so we
-// read a forward-compatible localStorage key: whoever wires Rounds into the
-// composer later can set `pubmax_active_round` and the "My Round" chip lights up
-// with zero further changes here. Absent → the chip is honestly disabled.
-const ACTIVE_ROUND_KEY = "pubmax_active_round";
 
 // Minimal, feature-detected typings for the Web Speech API — not in lib.dom.d.ts.
 type SpeechRecognitionResultLike = { 0: { transcript: string }; isFinal: boolean };
@@ -210,8 +204,8 @@ export default function PintDropComposer({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const noteBeforeListeningRef = useRef("");
 
-  // Active-Round detection for the "My Round" destination chip (see
-  // ACTIVE_ROUND_KEY). Read once after hydration; never blocks the composer.
+  // Active-Round detection for the "My Round" destination chip.
+  // Read once after hydration; never blocks the composer.
   const [hasActiveRound, setHasActiveRound] = useState(false);
 
   useEffect(() => {
@@ -233,34 +227,18 @@ export default function PintDropComposer({
     // Async wrapper defers the setState to a microtask after hydration (same
     // idiom as detectSpeech above), so the server render and first client paint
     // agree on "no active Round" and the repo's set-state-in-effect rule is met.
-    // Also re-check on focus / storage so a Round stamped on /rounds/[code]
-    // lights the chip without remounting the composer.
+    // subscribeActiveRound covers same-tab writes, cross-tab storage, and focus.
     let active = true;
-    function readOpen(): boolean {
-      try {
-        return Boolean(window.localStorage.getItem(ACTIVE_ROUND_KEY));
-      } catch {
-        return false;
-      }
-    }
     async function detectRound() {
-      const open = typeof window !== "undefined" ? readOpen() : false;
-      if (active) setHasActiveRound(open);
+      if (active) setHasActiveRound(Boolean(readActiveRoundCode()));
     }
-    function onFocusOrStorage() {
-      if (active) setHasActiveRound(readOpen());
-    }
-    if (typeof window !== "undefined") {
-      void detectRound();
-      window.addEventListener("focus", onFocusOrStorage);
-      window.addEventListener("storage", onFocusOrStorage);
-    }
+    void detectRound();
+    const unsubscribe = subscribeActiveRound(() => {
+      if (active) setHasActiveRound(Boolean(readActiveRoundCode()));
+    });
     return () => {
       active = false;
-      if (typeof window !== "undefined") {
-        window.removeEventListener("focus", onFocusOrStorage);
-        window.removeEventListener("storage", onFocusOrStorage);
-      }
+      unsubscribe();
     };
   }, []);
 

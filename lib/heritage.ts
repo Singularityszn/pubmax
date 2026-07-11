@@ -200,7 +200,7 @@ async function answerWithModel(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-5",
+        model: process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4-5",
         temperature: 0,
         max_tokens: LLM_MAX_TOKENS,
         messages: [
@@ -228,11 +228,23 @@ async function answerWithModel(
 // the paid LLM path is cached (the deterministic fallback is already cheap), and
 // hidden/moderated content never flows through here — facts come from the
 // server stores, and a bounded TTL means a moderation change is reflected within
-// five minutes. ponytail: process-memory Map, unbounded-in-theory but keyed on
-// (venue, question) with a 5-min TTL so it self-prunes on read — move to an LRU
-// only if key cardinality ever becomes a memory concern.
+// five minutes. Bounded to ANSWER_CACHE_MAX entries with insertion-order eviction
+// (Map iteration is insertion-order) so a hostile stream of (venue, question)
+// pairs can't grow the process memory without limit.
 const ANSWER_CACHE_TTL_MS = 5 * 60_000;
+const ANSWER_CACHE_MAX = 500;
 const answerCache = new Map<string, { at: number; response: HeritageResponse }>();
+
+function setAnswerCache(key: string, entry: { at: number; response: HeritageResponse }): void {
+  // Refreshing an existing key must not double-count against the bound.
+  if (answerCache.has(key)) answerCache.delete(key);
+  answerCache.set(key, entry);
+  while (answerCache.size > ANSWER_CACHE_MAX) {
+    const oldest = answerCache.keys().next().value;
+    if (oldest === undefined) break;
+    answerCache.delete(oldest);
+  }
+}
 
 function cacheKey(venueName: string, question: string): string {
   const qHash = createHash("sha256").update(question).digest("hex");
@@ -256,11 +268,11 @@ export async function answerHeritage(input: {
   const facts = await retrieveHeritage(input);
   const citations = dedupeCitations(facts);
 
-  if (useLlm) {
+  if (useLlm && key) {
     const modelAnswer = await answerWithModel(input.question, facts);
     if (modelAnswer) {
       const response: HeritageResponse = { answer: modelAnswer, citations };
-      answerCache.set(key!, { at: Date.now(), response });
+      setAnswerCache(key, { at: Date.now(), response });
       return response;
     }
     // else: fall through to the honest structured answer (not cached — cheap).
@@ -278,3 +290,11 @@ export async function answerHeritage(input: {
 export function __resetHeritageCache(): void {
   answerCache.clear();
 }
+
+// Test-only: current answer-cache size, for asserting the bound holds.
+export function __heritageCacheSizeForTests(): number {
+  return answerCache.size;
+}
+
+// Test-only: the answer-cache upper bound, so tests aren't coupled to the value.
+export const __HERITAGE_CACHE_MAX_FOR_TESTS = ANSWER_CACHE_MAX;

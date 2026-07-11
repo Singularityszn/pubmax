@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // F3 behaviour-seam coverage: the comments and reactions GETs are UNSCOPED
 // public reads (no viewer identity), so they must not serve child content for
@@ -97,6 +97,112 @@ describe("filterPubliclyReadableDropIds (batched parent-visibility gate)", () =>
   it("returns [] for an empty/blank batch", async () => {
     expect(await filterPubliclyReadableDropIds([])).toEqual([]);
     expect(await filterPubliclyReadableDropIds(["  ", ""])).toEqual([]);
+  });
+});
+
+// Distinct outage sentinel: the helper must return null (not []) when the
+// visibility lookup itself fails, so callers can 503 rather than 404. The
+// memory-only path never reaches this branch — we flip Supabase on and stub the
+// admin factory to fail. Isolated in its own describe so vi.resetModules() /
+// per-suite guard flips don't leak into the memory-backend suites above.
+describe("filterPubliclyReadableDropIds (outage sentinel)", () => {
+  it("returns null when Supabase is configured but the admin client is broken", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/supabase", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/supabase")>();
+      return {
+        ...actual,
+        isSupabaseConfigured: () => true,
+        getSupabaseAdmin: () => null,
+      };
+    });
+    const { filterPubliclyReadableDropIds: filterFresh } = await import(
+      "@/lib/pintDropLookup"
+    );
+    expect(await filterFresh(["drop-visible"])) .toBeNull();
+    vi.doUnmock("@/lib/supabase");
+    vi.resetModules();
+  });
+
+  it("returns null when the visibility read throws", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/supabase", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/supabase")>();
+      const admin = {
+        from: () => ({
+          select: () => ({
+            in: () => Promise.reject(new Error("boom")),
+          }),
+        }),
+      };
+      return {
+        ...actual,
+        isSupabaseConfigured: () => true,
+        getSupabaseAdmin: () => admin,
+      };
+    });
+    const { filterPubliclyReadableDropIds: filterFresh } = await import(
+      "@/lib/pintDropLookup"
+    );
+    expect(await filterFresh(["drop-visible"])).toBeNull();
+    vi.doUnmock("@/lib/supabase");
+    vi.resetModules();
+  });
+});
+
+// End-to-end: a visibility-lookup outage must produce a 503 on the write
+// paths (never a silent 404) while GETs stay fail-soft so the host feed keeps
+// rendering. We stub the lookup directly at the module seam — the routes read
+// it via the barrel import and this mock replaces both.
+describe("routes distinguish outage (503) from gated/unknown (404)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("@/lib/pintDropLookup", () => ({
+      filterPubliclyReadableDropIds: async () => null,
+    }));
+  });
+
+  it("POST /comments returns 503 when the visibility lookup is out", async () => {
+    const { POST: PostFresh } = await import("@/app/api/pint-drops/comments/route");
+    const res = await PostFresh(
+      new Request(COMMENTS_URL, {
+        method: "POST",
+        body: JSON.stringify({ dropId: "drop-visible", handle: "ale", body: "hi" }),
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Comments are unavailable." });
+  });
+
+  it("POST /reactions returns 503 when the visibility lookup is out", async () => {
+    const { POST: PostFresh } = await import("@/app/api/pint-drops/reactions/route");
+    const res = await PostFresh(
+      new Request(REACTIONS_URL, {
+        method: "POST",
+        body: JSON.stringify({ id: "drop-visible", actor: "dev-1", reaction: "cheers" }),
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Reactions are unavailable." });
+  });
+
+  it("GET /comments stays fail-soft (200 + empty) on a visibility outage", async () => {
+    const { GET: GetFresh } = await import("@/app/api/pint-drops/comments/route");
+    const res = await GetFresh(new Request(`${COMMENTS_URL}?dropId=drop-visible`));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ comments: [] });
+  });
+
+  it("GET /reactions stays fail-soft (200 + empty) on a visibility outage", async () => {
+    const { GET: GetFresh } = await import("@/app/api/pint-drops/reactions/route");
+    const res = await GetFresh(new Request(`${REACTIONS_URL}?ids=drop-visible&actor=dev-1`));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ summaries: {} });
+  });
+
+  afterEach(() => {
+    vi.doUnmock("@/lib/pintDropLookup");
+    vi.resetModules();
   });
 });
 

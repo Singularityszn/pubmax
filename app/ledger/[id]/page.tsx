@@ -76,7 +76,7 @@ async function resolveViewer(
   searchParams?: PageProps["searchParams"],
 ): Promise<ViewerContext | undefined> {
   const h = await headers();
-  const auth = h.get("authorization") ?? h.get("Authorization") ?? "";
+  const auth = h.get("authorization") ?? "";
   const reqHeaders: Record<string, string> = {};
   if (auth) reqHeaders.Authorization = auth;
   const request = new Request("http://localhost/ledger", { headers: reqHeaders });
