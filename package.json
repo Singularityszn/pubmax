@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "shots": "PW_SCREENSHOTS=1 playwright test --project=screenshots",
     "coverage": "vitest run --coverage",
     "prevalidate-data": "npm run build:slim && npm run build:pubmaxxing-seed",
     "validate-data": "node scripts/validate-data.mjs",
