@@ -10,6 +10,8 @@ import {
   ExternalLink,
   Landmark as LandmarkIcon,
   MapPinned,
+  Minus,
+  Plus,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -49,6 +51,7 @@ import {
   defaultPoiHiddenMobile,
   isTransitNetworkVisible,
 } from "@/lib/poiToggleGroups";
+import { isMapLensActive } from "@/lib/mapLens";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import {
   CATEGORY_COLORS,
@@ -99,6 +102,16 @@ type PubMapCanvasProps = {
    * its cuisineTags hints. No-op when drinkCategory is active.
    */
   requireFood?: boolean;
+  /**
+   * Whether the requireCocktails filter is on. Activates the lens so only
+   * matching pubs pop and landmarks / ambient POIs are hidden.
+   */
+  requireCocktails?: boolean;
+  /**
+   * Whether the requireNonAlcoholic filter is on. Activates the lens so
+   * only matching pubs pop and landmarks / ambient POIs are hidden.
+   */
+  requireNonAlcoholic?: boolean;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
   /** Issue #15 story bands — active band id ("" = none), synced to the URL by PubMap. */
@@ -645,6 +658,8 @@ export default function PubMapCanvas({
   drinkCategory = null,
   cuisineTag = null,
   requireFood = false,
+  requireCocktails = false,
+  requireNonAlcoholic = false,
   onLandmarkSelect,
   activeBandId = "",
   onBandChange,
@@ -662,6 +677,15 @@ export default function PubMapCanvas({
   cityId = DEFAULT_CITY_ID,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
+  // True when any food/drink lens is active → hide landmarks + ambient POIs.
+  const lensActive = isMapLensActive({
+    drinkCategory: drinkCategory ?? "",
+    cuisineTag: cuisineTag ?? "",
+    requireFood,
+    requireCocktails,
+    requireNonAlcoholic,
+  });
+  const lensActiveRef = useRef(lensActive);
   const landmarkById = useCallback(
     (id: string | null | undefined) =>
       id ? cityLandmarks.find((lm) => lm.id === id) : undefined,
@@ -1195,12 +1219,13 @@ export default function PubMapCanvas({
       const textFont = [usingFallback ? "Montserrat Medium" : "Noto Sans Bold"];
 
       // --- Sky + fog: horizon depth in both moods.
+      // Dark: warm amber horizon glow (candle-lit streetlight haze), not pure void.
       map.setSky({
-        "sky-color": dark ? tokens.inkDeep : tokens.riverBright,
-        "horizon-color": dark ? withAlpha(tokens.brass, 0.45) : tokens.paper,
-        "fog-color": dark ? tokens.inkDeep : tokens.paper,
+        "sky-color": dark ? "#080706" : tokens.riverBright,
+        "horizon-color": dark ? withAlpha(tokens.brass, 0.62) : tokens.paper,
+        "fog-color": dark ? "#080706" : tokens.paper,
         "sky-horizon-blend": 0.7,
-        "horizon-fog-blend": 0.6,
+        "horizon-fog-blend": 0.55,
         "fog-ground-blend": 0.4,
         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 8, 0.7, 12, 0.2],
       });
@@ -2185,6 +2210,29 @@ export default function PubMapCanvas({
     });
   }, []);
 
+  // Discrete zoom step controls — called by the +/- buttons in mapCameraControls.
+  // MapLibre's zoomIn/zoomOut animate by exactly 1 level; suspending orbit keeps
+  // the map still while the user taps repeatedly.
+  const handleZoomIn = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    holdUntilRef.current = Math.max(
+      holdUntilRef.current,
+      performance.now() + ORBIT_RESUME_MS,
+    );
+    map.zoomIn({ duration: reducedRef.current ? 0 : 200 });
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    holdUntilRef.current = Math.max(
+      holdUntilRef.current,
+      performance.now() + ORBIT_RESUME_MS,
+    );
+    map.zoomOut({ duration: reducedRef.current ? 0 : 200 });
+  }, []);
+
   // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
   const fitCityBounds = useCallback(() => {
     const map = mapRef.current;
@@ -2397,6 +2445,30 @@ export default function PubMapCanvas({
       <div ref={containerRef} className="maplibreMap" />
       {/* Camera fit for the active city — not a city switcher (toolbar owns that). */}
       <div className="mapCameraControls" aria-label="Map camera controls">
+        {/* Zoom +/- cluster: visible tap targets for mobile where pinch is
+            unreliable. cooperativeGestures stays OFF so one-finger pan and
+            pinch-to-zoom work directly; user-scalable=false (layout.tsx) stops
+            the browser intercepting pinch before MapLibre does. */}
+        <div className="mapZoomCluster">
+          <button
+            type="button"
+            className="mapZoomInBtn"
+            onClick={handleZoomIn}
+            aria-label="Zoom in"
+            title="Zoom in"
+          >
+            <Plus size={16} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="mapZoomOutBtn"
+            onClick={handleZoomOut}
+            aria-label="Zoom out"
+            title="Zoom out"
+          >
+            <Minus size={16} aria-hidden />
+          </button>
+        </div>
         <button
           type="button"
           className="mapFitLondonBtn"

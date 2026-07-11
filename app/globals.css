@@ -740,6 +740,62 @@ input[type="range"] {
   transform: translateY(-8px);
 }
 
+/* Zoom +/- cluster — grouped control with shared brass border.
+   Pairs with user-scalable=false in layout.tsx: browser never intercepts
+   pinch, MapLibre handles gestures, and tapping +/- gives explicit control. */
+.mapZoomCluster {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel-raised);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--map-overlay-shadow-tight);
+}
+
+.mapZoomInBtn,
+.mapZoomOutBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--brass);
+  cursor: pointer;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.mapZoomInBtn {
+  border-bottom: 1px solid var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapZoomInBtn:hover,
+  .mapZoomOutBtn:hover {
+    background: var(--brass);
+    color: var(--paper);
+  }
+}
+
+.mapZoomInBtn:active,
+.mapZoomOutBtn:active {
+  transform: scale(0.97);
+}
+
+.mapZoomInBtn:focus-visible,
+.mapZoomOutBtn:focus-visible {
+  outline: none;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 2px var(--brass-bright);
+}
+
 .mappedRouteChip {
   position: absolute;
   left: 50%;
@@ -1705,6 +1761,10 @@ input[type="range"] {
   width: 100%;
   height: 100%;
   background: var(--ink-deep);
+  /* MapLibre sets touch-action:none on its canvas; repeat on the container so
+     any gap between canvas and wrapper edge also suppresses default browser
+     scroll/zoom handling. cooperativeGestures stays OFF (full-screen map). */
+  touch-action: none;
 }
 
 /* Landmark history card — a sourced note pinned over the map. */
@@ -4161,6 +4221,13 @@ button:disabled {
     padding: 5px 9px;
     font-size: 0.68rem;
     border-radius: 999px;
+  }
+
+  /* Zoom cluster: enlarge to Apple HIG 44×44 pt minimum tap target on mobile. */
+  .mapZoomInBtn,
+  .mapZoomOutBtn {
+    width: 44px;
+    height: 44px;
   }
 
   /* .mapToolbar / .mapLegend sheet-full, onboarding-open, and detail-open hide

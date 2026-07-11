@@ -100,6 +100,10 @@ export const metadata: Metadata = {
 
 // theme_color matches --ink-deep (light tokens); viewport-fit=cover for
 // standalone PWA / notched phones.
+// maximumScale=1 / userScalable=false: the browser must not pinch-zoom the page
+// chrome (toolbar, buttons, overlay cards). MapLibre owns all zoom via its own
+// touch handlers and the +/- controls below; with user-scalable=false the
+// browser never intercepts pinch gestures before MapLibre does.
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#16122a" },
@@ -107,6 +111,8 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 
