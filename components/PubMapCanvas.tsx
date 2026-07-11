@@ -54,8 +54,9 @@ import {
 } from "@/lib/categoryColors";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
-import { formatPrice, type Venue } from "@/lib/venues";
+import { formatFreshness, formatObservedAt, formatPrice, type Venue } from "@/lib/venues";
 import { directVenueImageUrl } from "@/lib/venueImages";
+import type { PricedVenue } from "@/lib/priceUpdates";
 
 type VenueSignal = {
   hasPintDrops: boolean;
@@ -181,7 +182,7 @@ const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
 const HOVER_DETAIL_CACHE_LIMIT = 24;
 const HOVER_CARD_VIEWPORT_GUTTER_PX = 16;
 const HOVER_CARD_WIDTH_PX = 292;
-const HOVER_CARD_HEIGHT_PX = 120;
+const HOVER_CARD_HEIGHT_PX = 138;
 const HOVER_CARD_MIN_TOP_PX = 84;
 const HOVER_CARD_X_OFFSET_PX = 18;
 const HOVER_CARD_Y_OFFSET_PX = -30;
@@ -299,6 +300,47 @@ function hoverImageUrlFor(
   const src = directVenueImageUrl(hoverDetail?.imageUrl ?? "");
   if (failedImage?.venueId === hoveredVenueId && failedImage.url === src) return "";
   return src;
+}
+
+type HoverPriceLine = {
+  price: number | null;
+  provenance: string;
+};
+
+// Compact honesty line for the map hover card. Price and provenance share one
+// precedence stack (community → sourced → baseline) so a baseline API detail
+// fetch never pairs with a Community/Sourced label.
+function hoverPriceLine(
+  mapVenue: Venue | undefined,
+  signal: VenueSignal | undefined,
+  hoverDetail: Venue | null | undefined,
+): HoverPriceLine {
+  const communityPrice =
+    signal?.latestContributorPrice ?? mapVenue?.latestContributorPrice ?? null;
+  if (communityPrice !== null && communityPrice !== undefined) {
+    const fresh = formatFreshness(mapVenue?.latestContributorAt);
+    return {
+      price: communityPrice,
+      provenance: fresh ? `Community · ${fresh}` : "Community · tap for detail",
+    };
+  }
+  const sourced = (mapVenue as PricedVenue | undefined)?.sourcedPrice ?? null;
+  if (sourced) {
+    const observed = formatObservedAt(sourced.observedAt);
+    // mergePriceUpdates already wrote the sourced amount onto cheapestPrice.
+    const price =
+      mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
+    return {
+      price: price ?? null,
+      provenance: observed ? `Sourced · ${observed}` : "Sourced · tap for detail",
+    };
+  }
+  const baseline =
+    mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
+  if (baseline !== null && baseline !== undefined) {
+    return { price: baseline, provenance: "Baseline · tap for detail" };
+  }
+  return { price: null, provenance: "Tap for detail" };
 }
 
 function pubsToGeoJSON(
@@ -2252,6 +2294,12 @@ export default function PubMapCanvas({
     () => (hoveredVenueId ? hoverDetails.get(hoveredVenueId) : undefined),
     [hoverDetails, hoveredVenueId],
   );
+  const hoverMapVenue = useMemo(
+    () => (hoveredVenueId ? venues.find((venue) => venue.id === hoveredVenueId) : undefined),
+    [venues, hoveredVenueId],
+  );
+  const hoverSignal = hoveredVenueId ? venueSignals.get(hoveredVenueId) : undefined;
+  const hoverPrice = hoverPriceLine(hoverMapVenue, hoverSignal, hoverDetail);
   const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
   const hoverCardStyle = hoveredVenue
     ? {
@@ -2454,12 +2502,13 @@ export default function PubMapCanvas({
                   : "Fast map preview"}
             </span>
             <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
-            <span>
+            <span className="venueHoverMeta">
               {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
-              {hoverDetail?.cheapestPrice !== null && hoverDetail?.cheapestPrice !== undefined
-                ? `${formatPrice(hoverDetail.cheapestPrice)} cheapest pint`
+              {hoverPrice.price !== null && hoverPrice.price !== undefined
+                ? `${formatPrice(hoverPrice.price)} cheapest pint`
                 : "Tap for full pub detail"}
             </span>
+            <span className="venueHoverProvenance">{hoverPrice.provenance}</span>
           </div>
         </aside>
       ) : null}

@@ -2153,10 +2153,17 @@ input[type="range"] {
   white-space: nowrap;
 }
 
-.venueHoverBody span:last-child {
+.venueHoverMeta {
   color: var(--ink-soft);
   font-size: 0.78rem;
   line-height: 1.35;
+}
+
+.venueHoverProvenance {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 @media (hover: none), (pointer: coarse), (max-width: 700px) {
@@ -2673,9 +2680,10 @@ input[type="range"] {
 
 .contributorPrice {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   margin: 10px 0;
   padding: 10px 11px;
   border: 1px solid rgba(47, 143, 91, 0.3);
@@ -2684,6 +2692,9 @@ input[type="range"] {
 }
 
 .contributorPrice span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
@@ -2692,6 +2703,19 @@ input[type="range"] {
 .contributorPrice strong {
   color: var(--pint);
   font-variant-numeric: tabular-nums;
+}
+
+.contributorPrice small {
+  flex: 1 1 100%;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.contributorPrice .communityPriceNote {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 /* Claim list — every provenance-stamped claim renders as its own card so a
@@ -3970,18 +3994,24 @@ button:disabled {
   }
 
   /* Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css. */
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging) {
     transform: translateY(45vh) !important;
   }
 
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
     transform: translateY(86vh) !important;
   }
 
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-full:not(.sheet-dragging) {
     transform: translateY(8vh) !important;
   }
 
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-full:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
@@ -4133,8 +4163,9 @@ button:disabled {
     border-radius: 999px;
   }
 
-  /* .mapToolbar / .mapLegend sheet-full, onboarding-open, planning-open, and
-     detail-open hide rules live in mapToolbar.css (slide-out transforms).
+  /* .mapToolbar / .mapLegend sheet-full, onboarding-open, and detail-open hide
+     rules live in mapToolbar.css. Planner peek/half keep floating chrome so
+     the map stays usable; sheet-full (venue OR planner at full snap) clears it.
      Keep other floating chrome here so those overlays still clear the sheet. */
   .appShell.sheet-full .mapHeroCard,
   .appShell.sheet-full .mappedRouteChip,
@@ -4142,13 +4173,7 @@ button:disabled {
   .appShell.sheet-full .poiToggle,
   .appShell.sheet-full .bandPicker,
   .appShell.route-mapped .mapHeroCard,
-  .appShell.planning-open .mapCameraControls,
-  .appShell.planning-open .mapHeroCard,
-  .appShell.planning-open .mappedRouteChip,
-  .appShell.planning-open .bandOnboardingChip,
-  .appShell.planning-open .poiToggle,
-  .appShell.planning-open .bandPicker,
-  .appShell.planning-open .placeStoriesControl,
+  .appShell.sheet-full .mapCameraControls,
   .appShell.sheet-full .placeStoriesControl,
   .appShell.detail-open .mappedRouteChip,
   .appShell.detail-open .bandOnboardingChip {
@@ -4228,6 +4253,7 @@ button:disabled {
 
   .mapDrawer.left.open,
   .mapDrawer.right.open,
+  .mapDrawer.left.sheet-dragging,
   .mapDrawer.right.sheet-dragging {
     will-change: transform;
   }

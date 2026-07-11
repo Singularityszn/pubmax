@@ -1,10 +1,14 @@
 import { ImageResponse } from "next/og";
 
+import { normalizeHandle } from "@/lib/profiles";
+
 // Profile / Pint Passport OG share card. Lightweight — no DB read — so every
 // /u/[handle] share gets a branded card even when the profile is empty.
+// (Profile page is client-only; public stats aren't available here without
+// pulling the pint-drops store.)
 
 export const runtime = "nodejs";
-export const alt = "A Pint Passport on PUBMAXXING";
+export const alt = "Pint passport on PUBMAXXING";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -17,11 +21,7 @@ const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
 function clampHandle(raw: string): string {
-  return raw
-    .replace(/^@+/, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "")
-    .slice(0, 32) || "you";
+  return normalizeHandle(raw).slice(0, 32) || "you";
 }
 
 type PageProps = { params: Promise<{ handle: string }> };
@@ -56,13 +56,16 @@ export default async function Image({ params }: PageProps) {
                 fontWeight: 700,
               }}
             >
-              Pint Passport
+              Pint passport
             </div>
             <div style={{ fontFamily: serif, fontSize: 64, fontWeight: 600, lineHeight: 1.05 }}>
               @{handle}
             </div>
             <div style={{ fontSize: 28, color: CREAM_DIM, marginTop: 8 }}>
-              Pubs · boroughs · beers · nights on PUBMAXXING
+              Pint passport on PUBMAXXING
+            </div>
+            <div style={{ fontSize: 24, color: CREAM_DIM, marginTop: 4 }}>
+              Pubs · boroughs · beers · nights
             </div>
           </div>
           <div
