@@ -47,6 +47,7 @@ type CityPlaceEnrichment = {
   };
   transit?: {
     value?: {
+      nearbyStops?: Array<{ name: string; modes?: string[]; distanceM?: number }>;
       nearest?: string;
       lines?: string[];
       walkMinutes?: number;
@@ -117,12 +118,34 @@ async function fetchPlace(
   return body.place ?? null;
 }
 
-function formatTransit(
+// Live shape first: one compact line per nearby stop ("Old Street · Tube ·
+// 210m"), max 3. Falls back to the legacy single-line summary format so old
+// payloads still render.
+function formatTransitStops(
   transit: CityPlaceEnrichment["transit"],
-): string | null {
-  if (!transit?.value) return null;
+): string[] {
+  if (!transit?.value) return [];
+  const stops = transit.value.nearbyStops;
+  if (Array.isArray(stops) && stops.length > 0) {
+    return stops.slice(0, 3).flatMap((stop) => {
+      if (!stop || typeof stop.name !== "string" || !stop.name) return [];
+      const parts: string[] = [stop.name];
+      if (Array.isArray(stop.modes) && stop.modes.length > 0) {
+        parts.push(
+          stop.modes
+            .slice(0, 2)
+            .map((m) => (m === "tube" ? "Tube" : m.charAt(0).toUpperCase() + m.slice(1)))
+            .join("/"),
+        );
+      }
+      if (typeof stop.distanceM === "number" && Number.isFinite(stop.distanceM)) {
+        parts.push(`${Math.round(stop.distanceM)}m`);
+      }
+      return [parts.join(" · ")];
+    });
+  }
   const { nearest, walkMinutes, summary, lines } = transit.value;
-  if (summary && summary.length > 0) return summary;
+  if (summary && summary.length > 0) return [summary];
   const parts: string[] = [];
   if (nearest) parts.push(nearest);
   if (Array.isArray(lines) && lines.length > 0) {
@@ -131,7 +154,7 @@ function formatTransit(
   if (typeof walkMinutes === "number") {
     parts.push(`${Math.round(walkMinutes)} min walk`);
   }
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return parts.length > 0 ? [parts.join(" · ")] : [];
 }
 
 function formatHygiene(
@@ -217,7 +240,7 @@ export default function CityPlaceStrip({
   const userRatingCount = enrichment.userRatingCount;
   const openNow = enrichment.openNow;
   const hygiene = formatHygiene(enrichment.hygiene);
-  const transit = formatTransit(enrichment.transit);
+  const transitLines = formatTransitStops(enrichment.transit);
   const transitSource = enrichment.transit?.source;
   const hygieneSourceHref = firstHttp(hygiene?.sourceLabel) || undefined;
 
@@ -225,7 +248,7 @@ export default function CityPlaceStrip({
     typeof rating === "number" ||
     typeof openNow === "boolean" ||
     hygiene !== null ||
-    transit !== null;
+    transitLines.length > 0;
   if (!hasAny) return null;
 
   return (
@@ -277,11 +300,11 @@ export default function CityPlaceStrip({
             )}
           </span>
         ) : null}
-        {transit ? (
+        {transitLines.length > 0 ? (
           <span className="cityPlaceStripChip" data-kind="transit">
             <TrainFront size={12} aria-hidden="true" />
             <span title={transitSource ? `Source: ${transitSource}` : undefined}>
-              {transit}
+              {transitLines.join("  ·  ")}
             </span>
             {transitSource && firstHttp(transitSource) ? (
               <a

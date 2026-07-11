@@ -344,6 +344,49 @@ describe("trimCityPlace", () => {
     expect(place.hygiene).toBeUndefined();
     expect(place.transit).toBeUndefined();
   });
+
+  // A2 — the live get_place shape: transit.value.nearbyStops[]. The legacy
+  // nearest/lines/walkMinutes fields stopped arriving, which made the strip
+  // render nothing; the trim now reads the live shape first.
+  it("keeps live nearbyStops transit, capped at 3, dropping malformed stops", () => {
+    const place = trimCityPlace("abc", {
+      transit: {
+        value: {
+          nearbyStops: [
+            { name: "Old Street", modes: ["tube"], distanceM: 210 },
+            { name: "Moorgate", modes: ["tube", "rail"], distanceM: 480 },
+            { notAName: true },
+            { name: "Liverpool Street", distanceM: 700 },
+            { name: "Bank", modes: ["tube"], distanceM: 900 },
+          ],
+        },
+        source: "TfL",
+      },
+    });
+    expect(place.transit?.value?.nearbyStops).toEqual([
+      { name: "Old Street", modes: ["tube"], distanceM: 210 },
+      { name: "Moorgate", modes: ["tube", "rail"], distanceM: 480 },
+      { name: "Liverpool Street", distanceM: 700 },
+    ]);
+  });
+
+  it("still accepts the legacy transit shape (back-compat)", () => {
+    const place = trimCityPlace("abc", {
+      transit: {
+        value: { nearest: "London Bridge", walkMinutes: 4 },
+        source: "TfL",
+      },
+    });
+    expect(place.transit?.value?.nearest).toBe("London Bridge");
+    expect(place.transit?.value?.nearbyStops).toBeUndefined();
+  });
+
+  it("drops transit when every nearbyStop is malformed and no legacy fields exist", () => {
+    const place = trimCityPlace("abc", {
+      transit: { value: { nearbyStops: [{ distanceM: 100 }, {}] } },
+    });
+    expect(place.transit).toBeUndefined();
+  });
 });
 
 describe("fetchCityPlace", () => {
