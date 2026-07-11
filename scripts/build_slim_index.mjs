@@ -394,7 +394,7 @@ function buildCurationHints(prices) {
   };
 }
 
-function buildFilterHints(prices, venueId) {
+function buildFilterHints(prices, venueId, scrapedIds) {
   const first = prices[0];
   const searchParts = new Set(
     [
@@ -410,6 +410,26 @@ function buildFilterHints(prices, venueId) {
   const curation = buildCurationHints(prices);
   const drinkHints = buildDrinkHints(prices);
   const cuisineTags = buildCuisineHints(venueId, prices);
+  const scraped =
+    scrapedIds.has(venueId) ||
+    prices.some((price) =>
+      /london_chain|greene.?king|nicholson|youngs|eating.?europe/i.test(
+        String(price.source_datasets ?? ""),
+      ),
+    );
+
+  // Stable drink accent for scraped pubs that have no pint-name categories yet,
+  // so map pins match the /pubs gallery drink pictures.
+  const ACCENT_POOL = ["beer", "wine", "cocktail", "whisky", "gin", "rum", "vodka", "shot"];
+  let drinkCategories = drinkHints.drinkCategories;
+  if (scraped && (!drinkCategories || drinkCategories.length === 0)) {
+    let hash = 2166136261;
+    for (let i = 0; i < venueId.length; i += 1) {
+      hash ^= venueId.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    drinkCategories = [ACCENT_POOL[(hash >>> 0) % ACCENT_POOL.length]];
+  }
 
   return {
     searchText: Array.from(searchParts).join(" "),
@@ -422,9 +442,8 @@ function buildFilterHints(prices, venueId) {
     },
     curation,
     canonical: prices.some((price) => price.is_clean_canonical_app_row === true),
-    ...(drinkHints.drinkCategories.length
-      ? { drinkCategories: drinkHints.drinkCategories }
-      : {}),
+    ...(scraped ? { scraped: true } : {}),
+    ...(drinkCategories.length ? { drinkCategories } : {}),
     ...(drinkHints.drinkBrands.length ? { drinkBrands: drinkHints.drinkBrands } : {}),
     ...(cuisineTags.length ? { cuisineTags } : {}),
   };
@@ -437,6 +456,17 @@ async function main() {
   const rows = JSON.parse(rawText);
   if (!Array.isArray(rows)) {
     throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
+  }
+
+  // Enrichment venue ids (Young's / Nicholson's / Greene King) — stamp scraped
+  // + drink accents even when the underlying pint row is already canonical.
+  const scrapedIds = new Set();
+  try {
+    const enrichmentPath = path.join(ROOT, "public", "data", "venue_menu_enrichment.json");
+    const enrichment = JSON.parse(await readFile(enrichmentPath, "utf8"));
+    for (const id of Object.keys(enrichment?.venues ?? {})) scrapedIds.add(id);
+  } catch {
+    // Missing enrichment is fine — gazetteer source_datasets still stamps scraped.
   }
 
   // Group rows by the canonical key. Preserve first-seen order so the first row
@@ -485,7 +515,7 @@ async function main() {
       lng: Number(first.longitude),
       cheapestPrice,
       borough: String(first.primary_borough || ""),
-      filterHints: buildFilterHints(prices, id),
+      filterHints: buildFilterHints(prices, id, scrapedIds),
     });
 
     const detailLine = `${JSON.stringify({ id, rows: prices })}\n`;

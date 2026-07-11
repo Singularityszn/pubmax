@@ -148,6 +148,12 @@ export type VenueFilterHints = {
   };
   canonical: boolean;
   /**
+   * True when the venue came from a London chain/guide scrape (Young's,
+   * Nicholson's, Greene King, Eating Europe gazetteer). Used for map halos and
+   * drink-accent fallbacks — never invents prices.
+   */
+  scraped?: boolean;
+  /**
    * Soft cuisine / plate tags (roast, thai, pizza, …). Optional — absent on
    * most slim rows; when present they are short lowercase tokens for UI chips
    * and Discover "Hungry?" deep-links, never a hard filter gate.
