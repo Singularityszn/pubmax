@@ -1,11 +1,13 @@
 import { ImageResponse } from "next/og";
 
 import { getCity, parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
+import { curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
 import { bandByIdForCity } from "@/lib/cityStoryBands";
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 
-// City map OG share card — cult / Freshers deep links (`?band=subcrawl` etc.).
-// Query-aware route because opengraph-image.tsx cannot read searchParams.
+// City map OG share card — cult / Freshers deep links (`?band=subcrawl`) and
+// curated crawl shares (`?crawl=victorian-soho`). Query-aware because
+// opengraph-image.tsx cannot read searchParams.
 // Palette: ink + coral (app tokens), not brass-cream guidebook or purple AI defaults.
 
 export const runtime = "nodejs";
@@ -59,12 +61,28 @@ export async function GET(request: Request) {
   const cityRaw = clampParam(searchParams.get("city"), 32, DEFAULT_CITY_ID);
   const cityId = parseCityId(cityRaw) ?? DEFAULT_CITY_ID;
   const city = getCity(cityId);
+  const crawlRaw = clampParam(searchParams.get("crawl"), 64);
+  const crawl = crawlRaw ? curatedCrawlByIdForCity(cityId, crawlRaw) : undefined;
   const bandRaw = clampParam(searchParams.get("band"), 64);
-  const band = bandRaw ? bandByIdForCity(cityId, bandRaw) : undefined;
+  const band = !crawl && bandRaw ? bandByIdForCity(cityId, bandRaw) : undefined;
 
   const cityName = clampParam(city.displayName, 40, "London");
-  const tagline = clampParam(city.tagline, 72, "Price-aware pub crawls");
-  const bandTitle = band ? clampParam(band.title, 48) : "";
+  const tagline = crawl
+    ? clampParam(
+        crawl.venueIds.length > 0
+          ? `${crawl.venueIds.length}-stop crawl · ${city.tagline}`
+          : city.tagline,
+        72,
+        "Price-aware pub crawls",
+      )
+    : clampParam(city.tagline, 72, "Price-aware pub crawls");
+  // Crawl name wins over band chip when both are present (share URLs often carry both).
+  const highlightTitle = crawl
+    ? clampParam(crawl.name, 48)
+    : band
+      ? clampParam(band.title, 48)
+      : "";
+  const eyebrow = crawl ? "Crawl" : "City map";
 
   return new ImageResponse(
     (
@@ -168,11 +186,11 @@ export async function GET(request: Request) {
               textTransform: "uppercase",
             }}
           >
-            City map
+            {eyebrow}
           </div>
         </div>
 
-        {/* Hero: city name + optional band chip + tagline */}
+        {/* Hero: city name + optional crawl/band chip + tagline */}
         <div
           style={{
             display: "flex",
@@ -181,7 +199,7 @@ export async function GET(request: Request) {
             maxWidth: 980,
           }}
         >
-          {bandTitle ? (
+          {highlightTitle ? (
             <div
               style={{
                 display: "flex",
@@ -201,7 +219,7 @@ export async function GET(request: Request) {
                   borderRadius: 8,
                 }}
               >
-                {bandTitle}
+                {highlightTitle}
               </div>
             </div>
           ) : null}

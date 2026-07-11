@@ -85,6 +85,7 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
       nonAlcoholic: false,
     },
     website: "",
+    bookingLink: "",
     imageUrl: "",
     description: "",
     dataQualityNotes: [],

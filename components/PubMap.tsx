@@ -2,7 +2,7 @@
 
 import { Footprints, MapPinned, Route as RouteIcon, TrainFront, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 import "@/components/map/venueSheet.css";
@@ -26,11 +26,13 @@ import { curatedCrawlsForCity, curatedCrawlByIdForCity } from "@/lib/cityCurated
 import { landmarksForCity } from "@/lib/cityLandmarks";
 import { storyBandsForCity, bandByIdForCity } from "@/lib/cityStoryBands";
 import RoutePanel from "@/components/map/RoutePanel";
+import ActiveRoundChip from "@/components/map/ActiveRoundChip";
 import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 import MapToolbar from "@/components/map/MapToolbar";
 import MapPriceControl from "@/components/map/MapPriceControl";
 import CitySuggestBanner from "@/components/map/CitySuggestBanner";
+import CityStatusBanner from "@/components/map/CityStatusBanner";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
@@ -71,7 +73,7 @@ import {
   shouldShowCuratedOnboarding,
   truncateBandCopy,
 } from "@/lib/bandOnboardingChip";
-import { isDrinkShapeArrival, shouldOpenPlanningInitially } from "@/lib/mapArrival";
+import { isDrinkShapeArrival, shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially } from "@/lib/mapArrival";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -449,6 +451,9 @@ export default function PubMap({
   // crawl from localStorage on a clean /map tab click (that bloated the address
   // bar with stale ?mode=build&pubs=… every time someone returned to Map).
   const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch(), cityId));
+  // Freeze arrival search with the seed so fit-on-arrival does not flip when the
+  // user later maps a route or the address bar syncs.
+  const [arrivalSearch] = useState(() => currentSearch());
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
@@ -463,6 +468,10 @@ export default function PubMap({
   // pins and the basemap have arrived (warmup can make slim arrive first).
   // Canvas owns hang recovery (reportMapError lifts this via onMapReady).
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  // Canvas has committed to its user-facing error fallback (WebGL/tiles/etc.).
+  // We drop the loading skeleton immediately in that case even if slim pins
+  // are still in flight, so the fallback card isn't hidden behind chrome.
+  const [mapCanvasErrored, setMapCanvasErrored] = useState(false);
   // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
   // ~400 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
   // the ~5.6 MB full dataset lands so the first interactive pin appears fast.
@@ -495,6 +504,8 @@ export default function PubMap({
   // clean first map. Once the user chooses "Map route" (or a curated/nearby
   // crawl), keep the line visible even if the mobile planner closes.
   const [routeMapped, setRouteMapped] = useState<boolean>(seed.routeMapped);
+  // Lights ActiveRoundChip immediately after Plan-drawer Start Round (stay-on-map).
+  const [activeRoundStartedCode, setActiveRoundStartedCode] = useState<string | null>(null);
   // Favorite pint: re-prices the map to one beer. Persisted per-device.
   // A beer brand deep-link (`?drink=beer&brand=guinness`) seeds the same path.
   const [favoritePint, setFavoritePintState] = useState<string | null>(() => {
@@ -546,9 +557,9 @@ export default function PubMap({
   useLiveDrops(pintDrops.refreshAllDrops);
 
   // Mobile bottom-sheet drag (GH #17) — state + pointer handlers live in
-  // useSheetDrag. A fling-to-dismiss clears the selected venue and closes the
-  // composer, exactly as the inline handler did. "half" is the default resting
-  // snap; selectVenue re-asserts it on every fresh pick below.
+  // useSheetDrag. Two instances: venue (right) and planner (left). A fling
+  // past peek dismisses that sheet. "half" is the default resting snap;
+  // open/pick handlers re-assert it below.
   const dismissSheet = useCallback(() => {
     setSelectedVenueId("");
     closeComposer();
@@ -562,6 +573,58 @@ export default function PubMap({
     onSheetDragMove,
     onSheetDragEnd,
   } = useSheetDrag(dismissSheet);
+
+  // Ref so fling-dismiss can call the same closePlanning as chrome buttons
+  // without a hook ↔ callback cycle (useSheetDrag needs onDismiss up front).
+  const closePlanningRef = useRef<() => void>(() => {
+    setPlanningOpen(false);
+  });
+  const {
+    sheetSnap: plannerSheetSnap,
+    setSheetSnap: setPlannerSheetSnap,
+    sheetDragY: plannerSheetDragY,
+    setSheetDragY: setPlannerSheetDragY,
+    onSheetDragStart: onPlannerSheetDragStart,
+    onSheetDragMove: onPlannerSheetDragMove,
+    onSheetDragEnd: onPlannerSheetDragEnd,
+  } = useSheetDrag(() => {
+    closePlanningRef.current();
+  });
+
+  const closePlanning = useCallback(() => {
+    setPlanningOpen(false);
+    setPlannerSheetSnap("half");
+    setPlannerSheetDragY(null);
+  }, [setPlannerSheetDragY, setPlannerSheetSnap]);
+  useLayoutEffect(() => {
+    closePlanningRef.current = closePlanning;
+  }, [closePlanning]);
+
+  const openPlanning = useCallback(() => {
+    // Mobile: mutual exclusion with the venue sheet (planner stacks above it
+    // in z-order; keeping both open made Escape/dismiss order confusing).
+    if (isMobileViewport()) {
+      setSelectedVenueId("");
+      closeComposer();
+      setSheetSnap("half");
+      setSheetDragY(null);
+    }
+    setPlanningOpen(true);
+    setPlannerSheetSnap("half");
+    setPlannerSheetDragY(null);
+  }, [
+    closeComposer,
+    setPlannerSheetDragY,
+    setPlannerSheetSnap,
+    setSelectedVenueId,
+    setSheetDragY,
+    setSheetSnap,
+  ]);
+
+  const togglePlanning = useCallback(() => {
+    if (planningOpen) closePlanning();
+    else openPlanning();
+  }, [closePlanning, openPlanning, planningOpen]);
 
   // Issue #35 — stage 1: paint pins from the slim index. This resolves in ~400 KB
   // (or instantly from IndexedDB), and is the ONLY initial venue payload for the
@@ -760,14 +823,14 @@ export default function PubMap({
     (id: string, initialTab: TabKey = "pints") => {
       if (!id) return;
       prefetchVenue(id);
-      if (isMobileViewport()) setPlanningOpen(false);
+      if (isMobileViewport()) closePlanning();
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
       closeComposer();
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
     },
-    [closeComposer, setPlanningOpen, setSelectedVenueId, setSheetSnap, setSheetDragY],
+    [closeComposer, closePlanning, setSelectedVenueId, setSheetSnap, setSheetDragY],
   );
 
   const prefetchVenueDetail = useCallback((id: string) => {
@@ -783,7 +846,7 @@ export default function PubMap({
 
   const showLoadedRoute = useCallback(
     (firstStopId: string) => {
-      setPlanningOpen(true);
+      openPlanning();
       if (isMobileViewport()) {
         setSelectedVenueId("");
         setVenueInitialTab("pints");
@@ -796,8 +859,8 @@ export default function PubMap({
     },
     [
       closeComposer,
+      openPlanning,
       selectVenue,
-      setPlanningOpen,
       setSelectedVenueId,
       setSheetDragY,
       setSheetSnap,
@@ -864,17 +927,17 @@ export default function PubMap({
     setSavedOnly(false);
     setSavedIds(readSavedVenueIds());
     setFilters(seedCrawlState("").filters);
-    setPlanningOpen(false);
+    closePlanning();
     focusMapSearch();
-  }, [focusMapSearch, setFilters, setPlanningOpen]);
+  }, [closePlanning, focusMapSearch, setFilters]);
 
   const openComposerForLog = useCallback(() => {
-    setPlanningOpen(false);
+    closePlanning();
     setSheetSnap("full");
     setSheetDragY(null);
     dismissOnboarding();
     setComposerOpen(true);
-  }, [dismissOnboarding, setComposerOpen, setPlanningOpen, setSheetDragY, setSheetSnap]);
+  }, [closePlanning, dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
 
   const pickLogNearbyVenue = useCallback(
     (venueId: string) => {
@@ -928,20 +991,21 @@ export default function PubMap({
           search.focus();
         }
       } else if (event.key === "Escape") {
-        // Close the venue detail first; a second Escape closes the planner.
+        // Topmost first: planner (higher z on mobile) then venue detail.
+        if (planningOpen) {
+          closePlanning();
+          return;
+        }
         setSelectedVenueId((current) => {
-          if (current) {
-            closeComposer();
-            return "";
-          }
-          setPlanningOpen(false);
-          return current;
+          if (!current) return current;
+          closeComposer();
+          return "";
         });
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeComposer]);
+  }, [closeComposer, closePlanning, planningOpen]);
 
   const toggleBuiltStop = useCallback((id: string) => {
     setBuiltIds((current) =>
@@ -1015,7 +1079,10 @@ export default function PubMap({
     setBuiltIds,
     setRouteMapped,
     setActiveCrawl,
-    setPlanningOpen,
+    setPlanningOpen: (open) => {
+      if (open) openPlanning();
+      else closePlanning();
+    },
   });
 
   // "Pubs near me": ask for location, build a crawl from the nearest matching
@@ -1070,8 +1137,8 @@ export default function PubMap({
     if (route.length < 2) return;
     setRouteMapped(true);
     dismissOnboarding();
-    if (isMobileViewport()) setPlanningOpen(false);
-  }, [route.length, dismissOnboarding, setPlanningOpen, setRouteMapped]);
+    if (isMobileViewport()) closePlanning();
+  }, [route.length, closePlanning, dismissOnboarding, setRouteMapped]);
 
   const hideMappedRoute = useCallback(() => {
     setRouteMapped(false);
@@ -1080,9 +1147,9 @@ export default function PubMap({
   const checkLastTrainAtRouteEnd = useCallback(() => {
     const finalStop = route[route.length - 1];
     if (!finalStop) return;
-    setPlanningOpen(false);
+    closePlanning();
     selectVenue(finalStop.id, "getting-home");
-  }, [route, selectVenue, setPlanningOpen]);
+  }, [closePlanning, route, selectVenue]);
 
   const detailOpen = Boolean(selectedVenueId && selectedVenue);
 
@@ -1127,7 +1194,13 @@ export default function PubMap({
         "appShell dark" +
         (planningOpen ? " planning-open" : "") +
         (detailOpen ? " detail-open" : "") +
-        (detailOpen && sheetSnap === "full" ? " sheet-full" : "") +
+        // sheet-full: hide floating map chrome when either mobile sheet is at
+        // its most-expanded snap (venue detail OR planner). Peek/half keep
+        // the map usable — chrome stays visible above the sheet.
+        ((detailOpen && sheetSnap === "full") ||
+        (planningOpen && plannerSheetSnap === "full")
+          ? " sheet-full"
+          : "") +
         (routeMappedActive ? " route-mapped" : "") +
         (showOnboarding ? " onboarding-open" : "")
       }
@@ -1140,7 +1213,7 @@ export default function PubMap({
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank
             canvas. Copy matches MapLoadingSkeleton for a seamless handoff. */}
-        {!mapCanvasReady || (slimPins.length === 0 && !loaded) ? (
+        {!mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded)) ? (
           <div
             className="mapLoading"
             role="status"
@@ -1182,8 +1255,13 @@ export default function PubMap({
           initialLandmarkId={seed.landmarkId}
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
           onMapReady={setMapCanvasReady}
+          onMapErrored={setMapCanvasErrored}
           mapView={city.mapView}
           maxBounds={cityBounds}
+          fitCityOnArrival={shouldFitCityBoundsOnArrival(
+            arrivalSearch,
+            seed.routeMapped,
+          )}
           poisPath={city.poisPath}
           transitLinesPath={city.transitLinesPath}
           cityLandmarks={cityLandmarks}
@@ -1208,12 +1286,13 @@ export default function PubMap({
             }))
           }
           planningOpen={planningOpen}
-          onTogglePlanning={() => setPlanningOpen((open) => !open)}
+          onTogglePlanning={togglePlanning}
           filters={filters}
           onFiltersChange={setFilters}
           cityId={cityId}
         />
         <CitySuggestBanner cityId={cityId} />
+        {cityId === "london" ? <CityStatusBanner cityId={cityId} /> : null}
         {logIntentFallbackVisible ? (
           <div className="logIntentFallback" role="status" aria-live="polite">
             <div>
@@ -1228,7 +1307,8 @@ export default function PubMap({
               <ul className="logIntentNearbyList" aria-label="Nearby pubs to log">
                 {logNearbyCandidates.map((candidate) => {
                   const dist =
-                    typeof candidate.distanceKm === "number"
+                    typeof candidate.distanceKm === "number" &&
+                    Number.isFinite(candidate.distanceKm)
                       ? formatLogNearbyDistance(candidate.distanceKm)
                       : "";
                   return (
@@ -1263,6 +1343,7 @@ export default function PubMap({
             </div>
           </div>
         ) : null}
+        <ActiveRoundChip refreshKey={activeRoundStartedCode} />
         {routeMappedActive ? (
           <div className="mappedRouteChip" role="status" aria-live="polite">
             <RouteIcon size={16} aria-hidden="true" />
@@ -1273,7 +1354,7 @@ export default function PubMap({
                 {routeForMapLegs.totalKm.toFixed(1)} km, {routeForMapLegs.totalMinutes} min walk
               </span>
             </div>
-            <button type="button" onClick={() => setPlanningOpen(true)}>
+            <button type="button" onClick={openPlanning}>
               Edit
             </button>
             <button
@@ -1377,17 +1458,47 @@ export default function PubMap({
         ) : null}
       </section>
 
-      {/* Left drawer: the whole crawl planner, on demand. */}
+      {/* Left drawer: the whole crawl planner, on demand.
+          On mobile (≤640px) this is a drag bottom-sheet with the same snap
+          points as the venue sheet (peek/half/full — lib/sheetSnap.ts). Opens
+          at half so the map stays partially visible. Desktop is unchanged —
+          side drawer, no gesture. */}
       <div
-        className={planningOpen ? "mapDrawer left open" : "mapDrawer left"}
+        className={
+          (planningOpen ? "mapDrawer left open" : "mapDrawer left") +
+          (planningOpen ? ` sheet-${plannerSheetSnap}` : "") +
+          (plannerSheetDragY !== null ? " sheet-dragging" : "")
+        }
         aria-hidden={!planningOpen}
+        aria-modal={planningOpen && plannerSheetSnap === "full" ? true : undefined}
+        role={planningOpen && plannerSheetSnap === "full" ? "dialog" : undefined}
+        aria-label={planningOpen && plannerSheetSnap === "full" ? "Crawl planner" : undefined}
+        style={
+          plannerSheetDragY !== null
+            ? {
+                transform: `translateY(${Math.max(0, sheetTranslateY(plannerSheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + plannerSheetDragY)}px)`,
+                transition: "none",
+              }
+            : undefined
+        }
       >
+        <div
+          className="mapDrawerHead sheetDragHandle plannerSheetHead"
+          onPointerDown={onPlannerSheetDragStart}
+          onPointerMove={onPlannerSheetDragMove}
+          onPointerUp={onPlannerSheetDragEnd}
+          onPointerCancel={onPlannerSheetDragEnd}
+        >
+          <span className="venueSheetGrabZone" aria-hidden="true">
+            <span className="venueSheetGrab" />
+          </span>
+        </div>
         {planningOpen ? (
           <>
             <button
               type="button"
               className="plannerMapButton"
-              onClick={() => setPlanningOpen(false)}
+              onClick={closePlanning}
             >
               <MapPinned size={16} aria-hidden="true" />
               View {city.displayName} map
@@ -1434,6 +1545,7 @@ export default function PubMap({
               cityDisplayName={city.displayName}
               cityId={cityId}
               poisPath={city.poisPath}
+              onRoundStarted={setActiveRoundStartedCode}
             >
               {loaded && filteredVenues.length === 0 ? (
                 savedOnly && savedIds.size === 0 ? (

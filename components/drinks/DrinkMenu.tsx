@@ -145,14 +145,33 @@ export type DrinkMenuProps = {
   /** Venue id (E3): recorded alongside drink ratings when known. Optional —
       a drink's rating key is its own stable id, so ratings work without it. */
   venueId?: string;
+  /** When set, only this category's section is shown (Menu hub drill-in). */
+  categoryFilter?: DrinkCategory;
+  /** Optional back control for the Menu hub → deep-dive flow. */
+  onBack?: () => void;
+  backLabel?: string;
 };
 
-export default function DrinkMenu({ drinks, venueName, venueId }: DrinkMenuProps) {
-  const groups = groupDrinksByCategory(drinks);
+export default function DrinkMenu({
+  drinks,
+  venueName,
+  venueId,
+  categoryFilter,
+  onBack,
+  backLabel = "Menus",
+}: DrinkMenuProps) {
+  const groups = groupDrinksByCategory(drinks).filter((group) =>
+    categoryFilter ? group.category === categoryFilter : true,
+  );
 
   if (groups.length === 0) {
     return (
       <div className="drinkMenu drinkMenuEmpty" role="status">
+        {onBack ? (
+          <button type="button" className="drinkMenuBack" onClick={onBack}>
+            ← {backLabel}
+          </button>
+        ) : null}
         <p className="drinkMenuEmptyTitle">No menu on record yet</p>
         <p className="drinkMenuEmptyBody">
           {venueName ? `${venueName} hasn't` : "This pub hasn't"} logged any
@@ -165,6 +184,11 @@ export default function DrinkMenu({ drinks, venueName, venueId }: DrinkMenuProps
 
   return (
     <div className="drinkMenu">
+      {onBack ? (
+        <button type="button" className="drinkMenuBack" onClick={onBack}>
+          ← {backLabel}
+        </button>
+      ) : null}
       {groups.map((group) => (
         <CategorySection
           key={group.category}

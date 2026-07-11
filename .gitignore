@@ -23,7 +23,8 @@ scratch-*.mjs
 
 # Local agent / skill / MCP tooling — never part of the app, machine-specific
 .agents/
-.cursor/
+.cursor/*
+!.cursor/mcp.json
 .claude/
 .mcp.json
 .playwright-mcp/

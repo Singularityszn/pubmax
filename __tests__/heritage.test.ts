@@ -9,7 +9,13 @@ vi.mock("@/lib/serverEnv", () => ({
 }));
 
 import { POST } from "@/app/api/heritage/route";
-import { answerHeritage, retrieveHeritage, __resetHeritageCache } from "@/lib/heritage";
+import {
+  answerHeritage,
+  retrieveHeritage,
+  __resetHeritageCache,
+  __heritageCacheSizeForTests,
+  __HERITAGE_CACHE_MAX_FOR_TESTS,
+} from "@/lib/heritage";
 
 // These tests run fully offline: no OPENROUTER key, no Supabase, no network.
 // They pin two guarantees:
@@ -121,6 +127,21 @@ describe("POST /api/heritage", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.answer).toContain("1520");
+  });
+
+  it("caps an oversized venueName so a hostile client can't blow up retrieval", async () => {
+    // 5 kB of garbage. The route must accept the request (still a 200 — the
+    // demo never 500s), and the truncated normalised name matches no server
+    // facts, so we get the honest empty-line answer.
+    const padded = "Some Pub " + "x".repeat(5_000);
+    const res = await post({ venueName: padded, question: "How old is this pub?" });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(typeof body.answer).toBe("string");
+    // No server facts match a mangled 5 kB name → honest empty-line fallback.
+    expect(body.answer).toContain("no fuller story on record");
+    // And there are no citations for a name that doesn't resolve.
+    expect(body.citations).toHaveLength(0);
   });
 
   it("ignores a forged `context` in the request body", async () => {
@@ -240,6 +261,23 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
 
     expect(second.answer).toBe(first.answer);
     expect(fetchMock).toHaveBeenCalledTimes(1); // second read hit the cache
+  });
+
+  it("bounds the answer cache to a fixed maximum (oldest entry evicted)", async () => {
+    // Every LLM call returns a distinct short answer so cache keys don't collide
+    // on the (venue, question) axis and the size test measures the bound.
+    global.fetch = vi.fn(async () => okResponse("cached.")) as unknown as typeof fetch;
+
+    // Fill just past the bound with unique venue names.
+    const overshoot = 5;
+    for (let i = 0; i < __HERITAGE_CACHE_MAX_FOR_TESTS + overshoot; i += 1) {
+      await answerHeritage({
+        venueName: `Bounded Pub ${i}`,
+        question: "How old is this pub?",
+      });
+    }
+
+    expect(__heritageCacheSizeForTests()).toBe(__HERITAGE_CACHE_MAX_FOR_TESTS);
   });
 
   it("never returns one venue's cached answer for another venue", async () => {

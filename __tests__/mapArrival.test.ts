@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isCuratedCrawlArrival,
   isDrinkShapeArrival,
+  shouldFitCityBoundsOnArrival,
   shouldOpenPlanningInitially,
 } from "@/lib/mapArrival";
 
@@ -23,6 +24,23 @@ describe("isCuratedCrawlArrival", () => {
     expect(isCuratedCrawlArrival("?mode=build")).toBe(false);
     expect(isCuratedCrawlArrival("?pubs=a,b")).toBe(false);
     expect(isCuratedCrawlArrival("?q=Barnet")).toBe(false);
+  });
+});
+
+describe("shouldFitCityBoundsOnArrival", () => {
+  it("fits clean city arrivals (no crawl/drink/route intent)", () => {
+    expect(shouldFitCityBoundsOnArrival("")).toBe(true);
+    expect(shouldFitCityBoundsOnArrival("?q=Barnet")).toBe(true);
+    expect(shouldFitCityBoundsOnArrival("?band=subcrawl")).toBe(true);
+  });
+
+  it("skips drink, crawl, pubs, and mapped-route arrivals", () => {
+    expect(shouldFitCityBoundsOnArrival("?drink=wine")).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("?cocktails=1")).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("?crawl=victorian-soho")).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("?mode=build&pubs=a,b")).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("?pubs=a,b")).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("", true)).toBe(false);
   });
 });
 

@@ -15,6 +15,23 @@
   gap: 18px;
 }
 
+.drinkMenuBack {
+  align-self: flex-start;
+  margin: 0 0 4px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--brass);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.drinkMenuBack:hover {
+  color: var(--ink);
+}
+
 /* ── Category section ──────────────────────────────────────────────────────── */
 .drinkCategory {
   /* Fallback so a missing --cat-accent never renders a transparent rule. */

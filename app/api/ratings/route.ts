@@ -116,14 +116,24 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   // Top-rated list mode (the discover page's "Top rated pubs this month").
+  // Fail-soft: a storage error here degrades to an empty list, matching the
+  // batch-summary GET path — the discover page renders cleanly instead of 500ing.
   if (params.get("top")) {
     const rawLimit = Number(params.get("limit"));
     const limit =
       Number.isInteger(rawLimit) && rawLimit > 0
         ? Math.min(rawLimit, MAX_TOP_LIMIT)
         : 10;
-    const top = await ratingsStore().top(kind as RatingKind, { limit });
-    return jsonNoStore({ top }, { status: 200 });
+    try {
+      const top = await ratingsStore().top(kind as RatingKind, { limit });
+      return jsonNoStore({ top }, { status: 200 });
+    } catch (err) {
+      console.error(
+        "[ratings] top failed:",
+        err instanceof Error ? err.message : err,
+      );
+      return jsonNoStore({ top: [] }, { status: 200 });
+    }
   }
 
   // Batch summary mode. No refs → an empty (but valid) map, never an error.

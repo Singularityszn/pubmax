@@ -1,0 +1,55 @@
+/* Venue external CTAs — Book / Look at the menu / Pub website.
+   Token-only; sits inside the venue sheet Overview + Menu hub. */
+
+.venueActionStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.venueActionStrip__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--line);
+  background: var(--panel-raised, var(--panel));
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition:
+    border-color var(--duration-base, 180ms) ease-out,
+    background var(--duration-base, 180ms) ease-out,
+    color var(--duration-base, 180ms) ease-out;
+}
+
+.venueActionStrip__btn:hover {
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised, var(--panel)));
+  color: var(--ink);
+}
+
+.venueActionStrip__btn--book {
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel));
+}
+
+.venueActionStrip__btn--menu {
+  border-color: color-mix(in srgb, var(--cat-beer, var(--brass)) 35%, var(--line));
+}
+
+.venueActionStrip__ext {
+  opacity: 0.55;
+  margin-left: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .venueActionStrip__btn {
+    transition: none;
+  }
+}

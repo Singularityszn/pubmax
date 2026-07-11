@@ -2,8 +2,8 @@ import { ImageResponse } from "next/og";
 
 import { getCity, parseCityId } from "@/lib/cities";
 
-// City-scoped OG fallback (no searchParams). Band-aware cards are served via
-// `/api/city-map-card` and attached in generateMetadata when `?band=` is present.
+// City-scoped OG fallback (no searchParams). Band/crawl-aware cards are served
+// via `/api/city-map-card` and attached in generateMetadata for `?band=` / `?crawl=`.
 
 export const runtime = "nodejs";
 export const alt = "PUBMAXXING city map";

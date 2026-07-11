@@ -1,6 +1,7 @@
 /* ────────────────────────────────────────────────────────────────────────
-   PUBMAXXING token scale — see docs/DESIGN_SYSTEM.md for the full rationale.
-   Thesis: "Every pint has a story" — a candle-lit field-guide, not a map app.
+   PUBMAXXING token scale — see DESIGN.md + docs/DESIGN_SYSTEM.md.
+   Light default = Direction A Candle Coral (PRODUCT.md color decision).
+   Dark overrides = Direction B Night Out in app/theme.css.
 
    Every token name below that already existed keeps working unchanged (35+
    components and the map's readTokens() read these directly). New tokens are
@@ -8,34 +9,38 @@
    fork of the existing system.
    ──────────────────────────────────────────────────────────────────────── */
 :root {
-  /* — Colour: London night-out palette (coral action, lager, pint, tube blue). */
-  --ink: #191927;
-  --ink-soft: #403a4f;
-  --muted: #746c7c;
-  --line: #e5dae7;
-  --line-soft: #f0e8ee;
-  --paper: #fff8f4;
-  --panel: #fffdf8;
+  /* — Colour: Candle Coral (warm paper + coral Plan CTA). Neutrals tinted
+       peach-candle, not flat cream DTC (#F4F1EA). See DESIGN.md §2. */
+  --ink: #1c1412;
+  --ink-soft: #4a3632;
+  --muted: #7a5c55;
+  --line: #efcfc4;
+  --line-soft: #f5e0d6;
+  --paper: #fff1e6; /* candle peach — warmer than flat cream */
+  --panel: #fffaf6;
   --panel-raised: #ffffff;
   --ink-deep: #16122a;
 
-  --pint: #18a76d; /* cheap pint / positive */
+  --pint: #18a76d; /* cheap pint / positive — Field Guide semantic */
   --amber: #f2a71b; /* mid price / lager-gold */
-  --brick: #ff5a5f; /* primary action / expensive / destructive */
-  --brass: #ff5a5f; /* legacy accent token: PUBMAXXING coral */
-  --brass-bright: #ff8a5c; /* warm hover / map marker on dark basemap */
-  --river: #2864d8; /* tube blue / by-water + heritage */
+  --brick: #ff5a5f; /* expensive / destructive (price job, not Plan CTA) */
+  --brass: #ff5a5f; /* Plan CTA primary — Candle Coral (legacy name kept) */
+  --brass-bright: #ff7a55; /* louder warm hover for Plan hierarchy */
+  --river: #2864d8; /* tube blue / by-water + heritage — Field Guide semantic */
   --river-bright: #29b6f6;
   --spritz: #ffb000;
   --neon: #31d158;
   --grape: #7c3aed;
   --pink: #ff4fa3;
+  /* Dark-only accent alias (overridden in theme.css); defined here so
+     components can reference var(--night-amber) safely in both themes. */
+  --night-amber: var(--brass);
 
   /* — Colour, semantic roles: alias the palette above by job, not hue, so new
        components reach for "what this means" rather than re-picking a raw
        colour. These are pure aliases — change the palette above, everything
        here (and everything built on it) follows. */
-  --color-accent: var(--brass); /* the one accent — brass, always */
+  --color-accent: var(--brass); /* Plan CTA accent — coral light / amber dark */
   --color-accent-strong: var(--brass-bright);
   --color-positive: var(--pint); /* cheap pint */
   --color-caution: var(--amber); /* mid price */
@@ -115,8 +120,8 @@
   /* — Shadow: --shadow kept as the default (paper-lift in light, overridden to
        a deeper candle-glow in theme.css dark). --shadow-inset-* power the
        pressed-ink utility below and are shared by both themes. */
-  --shadow: 0 18px 45px rgba(44, 30, 62, 0.11), 0 8px 18px rgba(255, 90, 95, 0.06);
-  --shadow-sm: 0 7px 18px rgba(44, 30, 62, 0.09);
+  --shadow: 0 18px 45px rgba(60, 30, 20, 0.11), 0 8px 18px rgba(255, 90, 95, 0.07);
+  --shadow-sm: 0 7px 18px rgba(60, 30, 20, 0.09);
   --shadow-inset-press: inset 0 1px 2px rgba(22, 18, 42, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.55);
 
   /* — Motion: durations + easings, all consumed behind prefers-reduced-motion
@@ -942,18 +947,21 @@ input[type="range"] {
   border-radius: 999px;
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   color: var(--color-on-accent);
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.84rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--brass) 22%, transparent);
+  /* Louder than Drinks — primary Plan tonight CTA in map chrome. */
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 32%, transparent);
   box-sizing: border-box;
 }
 
 .planBtn.active {
   background: linear-gradient(135deg, var(--ink-deep), color-mix(in srgb, var(--ink-deep) 70%, var(--river)));
   color: var(--color-on-inverse);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--ink-deep) 28%, transparent);
 }
 
 .mapDrawer {
@@ -2145,10 +2153,17 @@ input[type="range"] {
   white-space: nowrap;
 }
 
-.venueHoverBody span:last-child {
+.venueHoverMeta {
   color: var(--ink-soft);
   font-size: 0.78rem;
   line-height: 1.35;
+}
+
+.venueHoverProvenance {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 @media (hover: none), (pointer: coarse), (max-width: 700px) {
@@ -2665,9 +2680,10 @@ input[type="range"] {
 
 .contributorPrice {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   margin: 10px 0;
   padding: 10px 11px;
   border: 1px solid rgba(47, 143, 91, 0.3);
@@ -2676,6 +2692,9 @@ input[type="range"] {
 }
 
 .contributorPrice span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
@@ -2684,6 +2703,19 @@ input[type="range"] {
 .contributorPrice strong {
   color: var(--pint);
   font-variant-numeric: tabular-nums;
+}
+
+.contributorPrice small {
+  flex: 1 1 100%;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.contributorPrice .communityPriceNote {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 /* Claim list — every provenance-stamped claim renders as its own card so a
@@ -3962,18 +3994,24 @@ button:disabled {
   }
 
   /* Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css. */
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging) {
     transform: translateY(45vh) !important;
   }
 
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
     transform: translateY(86vh) !important;
   }
 
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-full:not(.sheet-dragging) {
     transform: translateY(8vh) !important;
   }
 
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-full:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
@@ -4011,23 +4049,6 @@ button:disabled {
   .plannerMapButton:hover {
     border-color: var(--river);
     background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
-  }
-
-  /* Toolbar hugs the top under the nav; same inset/radius as the floating Home bar. */
-  .mapToolbar {
-    top: var(--map-top-clearance);
-    left: var(--map-chrome-inset);
-    right: var(--map-chrome-inset);
-    max-width: none;
-    transform: none;
-    flex-wrap: wrap;
-    justify-content: center;
-    border-radius: var(--map-chrome-radius);
-    box-sizing: border-box;
-  }
-
-  .mapToolbarSearch input {
-    min-width: 120px;
   }
 
   /* Keep the floating theme toggle clear of the map legend and reachable. */
@@ -4103,6 +4124,24 @@ button:disabled {
     --mobile-tab-clearance: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
+  /* Toolbar hugs the top under the nav; same inset/radius as the floating Home
+     bar — both switch to full-width at the same 640px breakpoint. */
+  .mapToolbar {
+    top: var(--map-top-clearance);
+    left: var(--map-chrome-inset);
+    right: var(--map-chrome-inset);
+    max-width: none;
+    transform: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: var(--map-chrome-radius);
+    box-sizing: border-box;
+  }
+
+  .mapToolbarSearch input {
+    min-width: 120px;
+  }
+
   .mapCameraControls {
     top: calc(var(--map-top-clearance) + 58px);
     right: 10px;
@@ -4125,24 +4164,29 @@ button:disabled {
     border-radius: 999px;
   }
 
-  /* .mapToolbar / .mapLegend sheet-full, onboarding-open, planning-open, and
-     detail-open hide rules live in mapToolbar.css (slide-out transforms).
+  /* .mapToolbar / .mapLegend sheet-full, onboarding-open, and detail-open hide
+     rules live in mapToolbar.css. Planner peek/half keep floating chrome so
+     the map stays usable; sheet-full (venue OR planner at full snap) clears it.
      Keep other floating chrome here so those overlays still clear the sheet. */
   .appShell.sheet-full .mapHeroCard,
   .appShell.sheet-full .mappedRouteChip,
+  .appShell.sheet-full .activeRoundChip,
   .appShell.sheet-full .bandOnboardingChip,
   .appShell.sheet-full .poiToggle,
   .appShell.sheet-full .bandPicker,
   .appShell.route-mapped .mapHeroCard,
+  .appShell.sheet-full .mapCameraControls,
   .appShell.planning-open .mapCameraControls,
   .appShell.planning-open .mapHeroCard,
   .appShell.planning-open .mappedRouteChip,
+  .appShell.planning-open .activeRoundChip,
   .appShell.planning-open .bandOnboardingChip,
   .appShell.planning-open .poiToggle,
   .appShell.planning-open .bandPicker,
   .appShell.planning-open .placeStoriesControl,
   .appShell.sheet-full .placeStoriesControl,
   .appShell.detail-open .mappedRouteChip,
+  .appShell.detail-open .activeRoundChip,
   .appShell.detail-open .bandOnboardingChip {
     opacity: 0;
     pointer-events: none;
@@ -4160,12 +4204,17 @@ button:disabled {
   }
 
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip {
     left: 10px;
     right: 10px;
     bottom: var(--map-bottom-chip-row);
     max-width: none;
     transform: none;
+  }
+
+  .activeRoundChip {
+    bottom: calc(var(--map-bottom-chip-row) + 52px);
   }
 
   /* Mobile: hide the mid-map POI strip + place-stories chrome.
@@ -4180,6 +4229,7 @@ button:disabled {
   .mapFitLondonBtn,
   .mapRecenterBtn,
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip,
   .mapToolbar,
   .mapLoading,
@@ -4206,6 +4256,7 @@ button:disabled {
 
   .mapToolbar,
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip {
     background:
       linear-gradient(135deg, var(--panel-raised), color-mix(in srgb, var(--surface-tint-river) 36%, var(--panel-raised) 64%)),
@@ -4214,12 +4265,14 @@ button:disabled {
   }
 
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip {
     border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
   }
 
   .mapDrawer.left.open,
   .mapDrawer.right.open,
+  .mapDrawer.left.sheet-dragging,
   .mapDrawer.right.sheet-dragging {
     will-change: transform;
   }
@@ -4288,17 +4341,20 @@ button:disabled {
   }
 
   .mappedRouteChip,
+  .activeRoundChip,
   .bandOnboardingChip {
     gap: 8px;
     padding: 8px;
   }
 
   .mappedRouteChip strong,
+  .activeRoundChip strong,
   .bandOnboardingChip strong {
     font-size: 0.78rem;
   }
 
   .mappedRouteChip span,
+  .activeRoundChip span,
   .bandOnboardingChip span {
     font-size: 0.68rem;
   }

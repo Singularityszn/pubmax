@@ -7,6 +7,7 @@ import {
   rankCities,
   rivalryScore,
 } from "@/lib/cityRivalry";
+import { cityMapShareUrl } from "@/lib/cityShare";
 import { demoPintDropsForCity } from "@/lib/pintDropSeeds";
 
 describe("rivalryScore", () => {
@@ -98,5 +99,14 @@ describe("buildCityRivalrySnapshot / cityRivalryLeaderboard", () => {
     expect(cityRivalryLeaderboard(venueOverrides)).toEqual(
       buildCityRivalrySnapshot(venueOverrides),
     );
+  });
+
+  it("rivalry city links use cityMapShareUrl (London /map, others /map/{id})", () => {
+    const board = buildCityRivalrySnapshot(venueOverrides);
+    const byId = Object.fromEntries(board.map((e) => [e.cityId, e]));
+    expect(cityMapShareUrl(byId.london.cityId)).toBe("/map");
+    expect(cityMapShareUrl(byId.bristol.cityId)).toBe("/map/bristol");
+    expect(cityMapShareUrl(byId.manchester.cityId)).toBe("/map/manchester");
+    expect(cityMapShareUrl(byId.glasgow.cityId)).toBe("/map/glasgow");
   });
 });

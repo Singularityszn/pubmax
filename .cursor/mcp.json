@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "citymcp-london": {
+      "url": "https://citymcp.com/london/mcp"
+    }
+  }
+}
