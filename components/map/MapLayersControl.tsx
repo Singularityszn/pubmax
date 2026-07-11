@@ -68,6 +68,8 @@ type MapLayersControlProps = {
   storyBands?: StoryBand[];
   /** City id for transit-aware aria/title/hint copy. Defaults to london. */
   cityId?: CityId;
+  /** When true (food/drink lens is active), show a note that landmarks are hidden. */
+  lensActive?: boolean;
 };
 
 export default function MapLayersControl({
@@ -77,6 +79,7 @@ export default function MapLayersControl({
   onBandChange,
   storyBands = STORY_BANDS,
   cityId = DEFAULT_CITY_ID,
+  lensActive = false,
 }: MapLayersControlProps) {
   // Deep-link `?band=` opens Layers without an effect: bandForcesOpen until the
   // user dismisses for that band id (Wave J removed mid-map band picker).
@@ -165,6 +168,12 @@ export default function MapLayersControl({
           </div>
 
           <p className="mapLayersHint">{layersCopy.hint}</p>
+
+          {lensActive ? (
+            <p className="mapLayersLensNote" role="status">
+              Landmarks hidden while filtering
+            </p>
+          ) : null}
 
           <div className="mapLayersGroup" role="group" aria-label="Points of interest">
             {POI_TOGGLE_GROUPS.map((group) => {

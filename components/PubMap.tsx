@@ -914,9 +914,22 @@ export default function PubMap({
   const filteredVenueCount = filteredVenues.length;
   const firstRouteId = route[0]?.id ?? "";
   const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
+
+  // Imperative fit-to-filtered-venues: the ref is populated by PubMapCanvas
+  // once the map is ready via onRegisterFitFiltered. When the user presses the
+  // Search CTA in the Drinks / Food panel, PubMap calls this function so the
+  // map zooms to the visible matching pub set.
+  const fitFilteredRef = useRef<(() => void) | null>(null);
   const focusMapSearch = useCallback(() => {
     const search = document.getElementById("mapSearchInput") as HTMLInputElement | null;
     if (search) search.focus();
+  }, []);
+
+  // Called when the user presses the Search CTA in the Food or Drinks panel.
+  // The panel closes itself inside MapToolbar; here we fit the map to the
+  // current filtered venue set so the "pop" of matching pins is obvious.
+  const handleSearchApply = useCallback(() => {
+    fitFilteredRef.current?.();
   }, []);
 
   const resetLogIntentFilters = useCallback(() => {
@@ -1246,6 +1259,8 @@ export default function PubMap({
           drinkCategory={filters.drinkCategory || null}
           cuisineTag={filters.cuisineTag || null}
           requireFood={filters.requireFood}
+          requireCocktails={filters.requireCocktails}
+          requireNonAlcoholic={filters.requireNonAlcoholic}
           activeBandId={activeBandId}
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}
@@ -1253,6 +1268,7 @@ export default function PubMap({
           initialLandmarkId={seed.landmarkId}
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
           onMapReady={setMapCanvasReady}
+          onRegisterFitFiltered={(fn) => { fitFilteredRef.current = fn; }}
           mapView={city.mapView}
           maxBounds={cityBounds}
           fitCityOnArrival={shouldFitCityBoundsOnArrival(
@@ -1293,6 +1309,7 @@ export default function PubMap({
           onFiltersChange={setFilters}
           cityId={cityId}
           filteredVenueCount={filteredVenueCount}
+          onSearchApply={handleSearchApply}
         />
         <CitySuggestBanner cityId={cityId} />
         {cityId === "london" ? <CityStatusBanner cityId={cityId} /> : null}

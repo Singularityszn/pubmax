@@ -127,6 +127,13 @@ type PubMapCanvasProps = {
   /** Wave K2 — parent keeps the loading chrome until WebGL style + scene are ready. */
   onMapReady?: (ready: boolean) => void;
   /**
+   * Called once when the map is ready with a stable imperative function that
+   * fits the map viewport around the currently visible (filtered) venues.
+   * Lets PubMap trigger a fit-to-results when the user presses the Search CTA
+   * in the Drinks / Food filter panel — without adding a per-render prop dep.
+   */
+  onRegisterFitFiltered?: (fitFn: () => void) => void;
+  /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
    */
@@ -667,6 +674,7 @@ export default function PubMapCanvas({
   onAskPubmaxxer,
   initialLandmarkId = "",
   onMapReady,
+  onRegisterFitFiltered,
   mapView = LONDON_VIEW,
   maxBounds = LONDON_BOUNDS,
   fitCityOnArrival = false,
@@ -1252,8 +1260,10 @@ export default function PubMapCanvas({
             "source-layer": "building",
             minzoom: 12.5,
             paint: {
+              // Warm stone gray (brown undertone) — matches basemap building
+              // palette; no cold steel-blue that fights the brass/candle brand.
               "fill-extrusion-color": dark
-                ? "#7a8496"
+                ? "#756a58"
                 : withAlpha(tokens.line, 0.95),
               "fill-extrusion-height": [
                 "interpolate",
@@ -1393,8 +1403,9 @@ export default function PubMapCanvas({
           },
           paint: {
             "text-color": tokens.ink,
-            "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-            "text-halo-width": 1.3,
+            // Warm near-black halo for landmark labels on dark land.
+            "text-halo-color": dark ? "#0c0906" : tokens.paper,
+            "text-halo-width": dark ? 1.6 : 1.3,
           },
           minzoom: 9.5,
         });
@@ -1452,8 +1463,8 @@ export default function PubMapCanvas({
         },
         paint: {
           "text-color": tokens.ink,
-          "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-          "text-halo-width": 1.2,
+          "text-halo-color": dark ? "#0c0906" : tokens.paper,
+          "text-halo-width": dark ? 1.5 : 1.2,
         },
       });
       addLayerOnce({
@@ -1466,7 +1477,9 @@ export default function PubMapCanvas({
           "circle-color": ["coalesce", ["get", "color"], tokens.muted],
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 3, 15, 6],
           "circle-opacity": 0.85,
-          "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
+          // Dark: semi-transparent cream ring lifts dots off the near-black land
+          // (inkDeep ≈ #040606 — nearly identical to land, giving zero separation).
+          "circle-stroke-color": dark ? withAlpha(tokens.ink, 0.55) : tokens.paper,
           "circle-stroke-width": 1.2,
         },
       });
@@ -1486,8 +1499,8 @@ export default function PubMapCanvas({
         },
         paint: {
           "text-color": tokens.ink,
-          "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-          "text-halo-width": 1.2,
+          "text-halo-color": dark ? "#0c0906" : tokens.paper,
+          "text-halo-width": dark ? 1.5 : 1.2,
         },
       });
 
@@ -1653,7 +1666,9 @@ export default function PubMapCanvas({
         paint: {
           // Wave J1 — pint → amber → brass by density (not ink-black discs).
           "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
-          "circle-stroke-color": tokens.panelRaised,
+          // Dark: semi-transparent cream stroke so clusters pop off near-black land.
+          // Light: paper white halo gives clean separation on warm parchment map.
+          "circle-stroke-color": dark ? withAlpha(tokens.ink, 0.6) : tokens.panelRaised,
           "circle-stroke-width": ["step", ["get", "point_count"], 1.25, 40, 1.5, 100, 1.75],
           "circle-stroke-opacity": 0.95,
           "circle-radius": ["step", ["get", "point_count"], 9, 25, 12, 100, 16],
@@ -1707,6 +1722,19 @@ export default function PubMapCanvas({
         // Stops are always dark-filled, so the label is the light-side token.
         paint: { "text-color": dark ? tokens.ink : tokens.paper },
       });
+
+      // Lens visibility: when a food/drink lens is active, hide landmarks and
+      // ambient POI dots so only matching pubs pop. Applied after all layers
+      // are added so addLayerOnce's default-visible state is immediately
+      // overridden. Transit layers are left at their user-chosen state.
+      if (lensActiveRef.current) {
+        for (const layer of ["pois-dot", "pois-label"]) {
+          if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", "none");
+        }
+        if (map.getLayer("landmarks-icon")) {
+          map.setLayoutProperty("landmarks-icon", "visibility", "none");
+        }
+      }
 
       // Flush any mutations that arrived while the style was mid-load (initial
       // load or a theme swap). buildScene has just re-seeded every source/layer
@@ -2156,6 +2184,25 @@ export default function PubMapCanvas({
     });
   }, [poiHidden, mapReady, applyToMap]);
 
+  // Food/drink lens visibility: hide landmarks + ambient POI dots when any
+  // lens filter is active so only matching pubs pop on the map. The ref is
+  // always updated so buildScene's inline lens block (which runs on every
+  // theme rebuild) reads the current state even if this effect hasn't re-run.
+  // Transit layers are intentionally untouched.
+  useEffect(() => {
+    lensActiveRef.current = lensActive;
+    if (!mapReady) return;
+    applyToMap("lens:visibility", (map) => {
+      const vis = lensActiveRef.current ? "none" : "visible";
+      for (const layer of ["pois-dot", "pois-label"]) {
+        if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", vis);
+      }
+      if (map.getLayer("landmarks-icon")) {
+        map.setLayoutProperty("landmarks-icon", "visibility", vis);
+      }
+    });
+  }, [lensActive, mapReady, applyToMap]);
+
   // Route + selection ring → sources/filter.
   useEffect(() => {
     routeLineRef.current = routeToLine(route);
@@ -2253,6 +2300,43 @@ export default function PubMapCanvas({
       bearing: view.bearing,
     });
   }, []);
+
+  // Fit the map around the current filtered-venue set. Reads venuesRef (a
+  // live ref) so the callback itself is stable and only needs to be registered
+  // once when the map is ready. Called via the ref PubMap stores from
+  // onRegisterFitFiltered when the user presses the Search / Show-results CTA.
+  const fitFiltered = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const current = venuesRef.current;
+    if (current.length === 0) return;
+    const bounds = new maplibregl.LngLatBounds();
+    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+    holdUntilRef.current = Math.max(
+      holdUntilRef.current,
+      performance.now() + 900 + ORBIT_RESUME_MS,
+    );
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
+    map.fitBounds(bounds, {
+      padding: isPhone
+        ? { top: 160, right: 28, bottom: 200, left: 28 }
+        : 90,
+      maxZoom: 14,
+      duration: reducedRef.current ? 0 : 800,
+    });
+  }, []);
+
+  // Register the fit-filtered function with the parent once the map is ready.
+  // Keep a ref so the effect never re-fires just because onRegisterFitFiltered
+  // changes identity across renders.
+  const onRegisterFitFilteredRef = useRef(onRegisterFitFiltered);
+  useEffect(() => {
+    onRegisterFitFilteredRef.current = onRegisterFitFiltered;
+  }, [onRegisterFitFiltered]);
+  useEffect(() => {
+    if (!mapReady) return;
+    onRegisterFitFilteredRef.current?.(fitFiltered);
+  }, [mapReady, fitFiltered]);
 
   // Clean city arrival: frame the city's maxBounds once after style/load.
   // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
@@ -2656,6 +2740,7 @@ export default function PubMapCanvas({
         onBandChange={onBandChange}
         storyBands={cityStoryBands}
         cityId={cityId}
+        lensActive={lensActive}
       />
       {activePoi ? (
         <div className="poiLabelCard" role="status">
