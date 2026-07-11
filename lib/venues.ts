@@ -213,13 +213,23 @@ function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-export function venueGroupingKey(row: VenuePrice): string {
+/** Grouping key from bare venue fields — same formula as venueGroupingKey. */
+export function venueCoordsGroupingKey(
+  name: string,
+  address: string,
+  lat: number,
+  lng: number,
+): string {
   return [
-    normaliseVenueKeyPart(row.pub_name),
-    normaliseVenueKeyPart(row.address),
-    row.latitude.toFixed(5),
-    row.longitude.toFixed(5),
+    normaliseVenueKeyPart(name),
+    normaliseVenueKeyPart(address),
+    lat.toFixed(5),
+    lng.toFixed(5),
   ].join("|");
+}
+
+export function venueGroupingKey(row: VenuePrice): string {
+  return venueCoordsGroupingKey(row.pub_name, row.address, row.latitude, row.longitude);
 }
 
 export function stableVenueIdFromKey(key: string): string {
