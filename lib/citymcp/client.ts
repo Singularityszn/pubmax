@@ -424,6 +424,12 @@ export async function searchCityPlaces(
  * Every field is optional because the upstream may omit anything at any
  * time; the UI must render "nothing" rather than a fabricated fact.
  */
+export type CityTransitStop = {
+  name: string;
+  modes?: string[];
+  distanceM?: number;
+};
+
 export type CityPlace = {
   id: string;
   name?: string;
@@ -445,6 +451,9 @@ export type CityPlace = {
   };
   transit?: {
     value?: {
+      /* Live get_place shape (2026): a list of nearby stops. */
+      nearbyStops?: CityTransitStop[];
+      /* Legacy fields kept for back-compat with older payloads/fixtures. */
       nearest?: string;
       lines?: string[];
       walkMinutes?: number;
@@ -530,16 +539,47 @@ function trimHygiene(raw: unknown): CityPlace["hygiene"] {
   };
 }
 
+function pickTransitStop(raw: unknown): CityTransitStop | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rec = raw as Record<string, unknown>;
+  const name = pickString(rec.name);
+  if (!name) return null;
+  const modes = pickStringArray(rec.modes, 4);
+  const distanceM = pickNumber(rec.distanceM);
+  return {
+    name,
+    ...(modes ? { modes } : {}),
+    ...(distanceM !== undefined ? { distanceM } : {}),
+  };
+}
+
+function pickTransitStops(raw: unknown, cap = 3): CityTransitStop[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const stops = raw
+    .map(pickTransitStop)
+    .filter((stop): stop is CityTransitStop => stop !== null)
+    .slice(0, cap);
+  return stops.length > 0 ? stops : undefined;
+}
+
 function trimTransit(raw: unknown): CityPlace["transit"] {
   const block = readEnrichmentBlock(raw);
   if (!block) return undefined;
+  // Live get_place shape first (transit.value.nearbyStops[]); the older
+  // nearest/lines/walkMinutes/summary fields are kept as a fallback so old
+  // payloads and fixtures still render. Without this remap the strip showed
+  // NOTHING — the live API stopped sending the legacy fields.
+  const nearbyStops = pickTransitStops(block.value.nearbyStops);
   const nearest = pickString(block.value.nearest);
   const lines = pickStringArray(block.value.lines, 4);
   const walkMinutes = pickNumber(block.value.walkMinutes);
   const summary = pickString(block.value.summary);
-  if (!nearest && !lines && walkMinutes === undefined && !summary) return undefined;
+  if (!nearbyStops && !nearest && !lines && walkMinutes === undefined && !summary) {
+    return undefined;
+  }
   return {
     value: {
+      ...(nearbyStops ? { nearbyStops } : {}),
       ...(nearest ? { nearest } : {}),
       ...(lines ? { lines } : {}),
       ...(walkMinutes !== undefined ? { walkMinutes } : {}),
