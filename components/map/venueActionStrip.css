@@ -60,6 +60,16 @@
   margin-left: 2px;
 }
 
+.venueActionStrip__btn--book[data-tier="search"] {
+  border-style: dashed;
+}
+
+@media (max-width: 640px) {
+  .venueActionStrip__btn {
+    min-height: 44px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .venueActionStrip__btn {
     transition: none;
