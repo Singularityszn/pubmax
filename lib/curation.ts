@@ -154,6 +154,74 @@ const curatedVenues: Record<string, VenueCuration> = {
       "Pimlico pub from 1846; a useful Victorian reference stop for the seeded heritage route.",
     storyTag: "Victorian pub",
   },
+  // Eating Europe "London's Pubs" guide — editorial / heritage only (never prices).
+  // https://www.eatingeurope.com/blog/londons-pubs/
+  "the mayflower": {
+    nearWater: true,
+    heritageEra: "Riverside historic",
+    heritageNote:
+      "Rotherhithe riverside pub highlighted by Eating Europe for its deck views and old-English snack menu — a classic Thames-side stop.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "lord wargrave": {
+    heritageEra: "Marylebone",
+    heritageNote:
+      "Marylebone whisky pub picked by Eating Europe for its eclectic dram list and St. Louis pork ribs — a food-and-whisky guide stop.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "ye old mitre": {
+    heritageEra: "Historic Holborn",
+    heritageNote:
+      "Ely Court hideaway praised by Eating Europe as the classic London pub room — red carpets, stools, a real fireplace, and board games on request.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "ye olde mitre": {
+    heritageEra: "Historic Holborn",
+    heritageNote:
+      "Ely Court hideaway praised by Eating Europe as the classic London pub room — red carpets, stools, a real fireplace, and board games on request.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  // "The Albion" (Islington N1) is in the Eating Europe guide but our dataset only
+  // has other Albions — do not key curatedVenues by the bare name or we mis-label them.
+  "the spaniards inn": {
+    heritageEra: "Hampstead historic",
+    heritageNote:
+      "Hampstead gastropub outside the centre, recommended by Eating Europe for British charm and a blanket-ready outdoor garden.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "the ship soho": {
+    heritageEra: "Soho historic",
+    heritageNote:
+      "Soho historic pub with a warm wooden room and musical past — Eating Europe's guide pick for an always-on atmosphere.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
+  "the grenadier": {
+    heritageEra: "Belgravia historic",
+    heritageNote:
+      "Belgrave Square boozer tipped by Eating Europe for beef Wellington and famous Bloody Marys — a grand old local for locals and visitors alike.",
+    storyTag: "Eating Europe guide",
+    sourceLabel: "Eating Europe",
+    sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
+    provenance: "sourced",
+  },
 };
 
 const waterTerms = [

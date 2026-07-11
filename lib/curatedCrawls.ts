@@ -246,6 +246,35 @@ export const curatedCrawls: CuratedCrawl[] = [
     startLandmarkId: "piccadilly-circus",
     placeStoryBandId: "royal-civic",
   },
+  {
+    id: "eating-europe-london-pubs",
+    name: "Historic pubs (Eating Europe guide)",
+    blurb:
+      "Stops from Eating Europe's London pubs guide that we can pin in our dataset today — heritage notes only, never prices. More of the guide's pubs will join as the gazetteer grows.",
+    crawlStyle: "heritage",
+    // Matched guide pubs only (honest). Grenadier is the clear Belgravia hit;
+    // Mayflower / Mitre / Spaniards / Ship Soho / Albion / Wargrave are curated
+    // in lib/curation.ts but not yet in pint_prices_app_dataset.json.
+    venueIds: [
+      "venue-1ha28jc", // The Grenadier — 18 Wilton Row
+    ],
+  },
+  {
+    id: "youngs-beer-gardens",
+    name: "Young's beer gardens",
+    blurb:
+      "Garden pubs from Young's own regional guides that match our London map — official microsite links, beer-garden story, no invented prices.",
+    crawlStyle: "beerGarden",
+    // Matched Young's garden pubs (website hostname). Spread across London on
+    // purpose — a guide-derived set, not a single tight walk.
+    venueIds: [
+      "venue-1lf3cw", // The Founder's Arms — Southbank
+      "venue-1yd70c7", // The Lamb — Bloomsbury
+      "venue-1dafrop", // The Narrowboat — Islington
+      "venue-jxen6y", // The Castle — Islington
+      "venue-17nbxyh", // The Coborn — Mile End
+    ],
+  },
 ];
 
 /** Curated crawls that package a given Place story corridor (Wave F2). */
