@@ -107,11 +107,15 @@ export function warmMapRoute(
 ): void {
   const prefetchHref = href.split("?")[0] || href;
   if (seen.has(prefetchHref)) return;
-  seen.add(prefetchHref);
   try {
     router.prefetch(prefetchHref);
+    // Only mark warmed AFTER a successful prefetch call — a throw here (dev
+    // HMR, router-not-mounted, transient) must let the next intent retry
+    // rather than get silently deduped forever.
+    seen.add(prefetchHref);
   } catch {
-    // Best-effort — navigation must never depend on prefetch.
+    // Best-effort — navigation must never depend on prefetch. Leave `seen`
+    // untouched so a follow-up hover/touch can try again.
   }
   // Only warm slim/POI payloads for map routes (not Discover etc.).
   if (prefetchHref === "/map" || prefetchHref.startsWith("/map/")) {

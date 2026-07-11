@@ -176,11 +176,18 @@ function isMissingVisibilityColumnError(
  *     memory store), while an unknown id simply has no server-side children on
  *     the Supabase path (child tables FK visit_reports) and keeps dev/demo
  *     ergonomics on the memory path.
- *   • Supabase lookup failure               → fail CLOSED (drop the whole
- *     batch): a store outage must degrade to "no comments/reactions", never to
- *     leaking a moderated drop's thread.
+ *   • Supabase lookup failure               → returns `null` (outage sentinel).
+ *     Callers MUST distinguish this from an empty allow-list: a POST maps null
+ *     to 503 (dependency outage) while a gated/unknown id stays 404; a GET may
+ *     still fail-soft to the empty shape so the feed keeps rendering.
+ *
+ * Return value: the kept ids (may be empty when all were gated/blank), or
+ * `null` when the visibility lookup itself failed and no verdict could be
+ * reached. Callers should NOT conflate `[]` with `null`.
  */
-export async function filterPubliclyReadableDropIds(ids: readonly string[]): Promise<string[]> {
+export async function filterPubliclyReadableDropIds(
+  ids: readonly string[],
+): Promise<string[] | null> {
   const requested = ids.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean);
   if (requested.length === 0) return [];
   const unique = [...new Set(requested)];
@@ -191,7 +198,10 @@ export async function filterPubliclyReadableDropIds(ids: readonly string[]): Pro
   if (isSupabaseConfigured()) {
     try {
       const admin = getSupabaseAdmin();
-      if (!admin) return []; // configured-but-broken: fail closed, not open
+      // Configured-but-broken (admin key missing / factory returned null) is a
+      // dependency outage, not a "nobody's readable" answer. Fail CLOSED with a
+      // typed sentinel so callers can 503 vs. 404.
+      if (!admin) return null;
       const firstRead = await admin
         .from("visit_reports")
         .select("id,status,visibility")
@@ -208,7 +218,7 @@ export async function filterPubliclyReadableDropIds(ids: readonly string[]): Pro
           | null;
         error = fallbackRead.error;
       }
-      if (error) return []; // fail closed — see doc comment
+      if (error) return null; // outage sentinel — see doc comment
       for (const row of data ?? []) {
         verdicts.set(String(row.id), isPubliclyReadableDrop({
           status: String(row.status ?? "") as PintDrop["status"],
@@ -216,7 +226,7 @@ export async function filterPubliclyReadableDropIds(ids: readonly string[]): Pro
         }));
       }
     } catch {
-      return []; // fail closed — see doc comment
+      return null; // outage sentinel — see doc comment
     }
   }
 

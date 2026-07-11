@@ -35,9 +35,9 @@ export function shouldFitCityBoundsOnArrival(
 /**
  * Whether the planner (left drawer) should open on first paint.
  *
- * Opens for shared/restored crawls (`builtIds` from storage, bare `mode=build`,
- * `style=` / `mode=`). Stays closed for drink-shape arrivals, curated crawl
- * arrivals (map-first polyline), and borough browse deep-links (`?q=` only).
+ * Opens for URL-seeded hand-built crawls (`pubs=`, bare `mode=build`, `style=`
+ * / `mode=`). Stays closed for drink-shape arrivals, curated crawl arrivals
+ * (map-first polyline), and borough browse deep-links (`?q=` only).
  */
 export function shouldOpenPlanningInitially(
   seededBuiltIds: string[],

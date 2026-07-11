@@ -144,12 +144,14 @@ const wedge: {
 
 const drops = [
   {
+    id: "chiswick-grandad-cask-landlord",
     who: "@meridian_w4",
     price: "£4.10",
     note: "Cask Landlord, poured properly. My grandad drank here after his shifts at the brewery - same corner table, still the cheapest in Chiswick.",
     when: "Added 2 days ago · Chiswick",
   },
   {
+    id: "rotherhithe-jetty-tide",
     who: "@olly.se16",
     price: "£5.40",
     note: "Pricey, but you drink it on the jetty watching the tide turn. Worth it once. Bring someone you like.",
@@ -379,7 +381,7 @@ export default function LandingPage() {
           <div className="dropsGrid">
             <ol className="dropTimeline reveal" aria-label="Sample Pint Drops">
               {drops.map((d, i) => (
-                <li className="dropTimelineItem" key={d.who}>
+                <li className="dropTimelineItem" key={d.id}>
                   {i > 0 ? (
                     <div className="dropTimelineConnector" aria-hidden="true">
                       <span className="dropTimelineLine" />

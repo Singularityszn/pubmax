@@ -142,6 +142,35 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     expect(paints.some(([id, prop]) => id === "road_minor" && prop === "line-color")).toBe(true);
   });
 
+  it("discovered pass does not repaint known layers (no double-paint)", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layers = new Set(["road_major", "highway_major_casing", "custom_road_layer"]);
+    const map = {
+      getLayer: (id: string) => (layers.has(id) ? { id } : undefined),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      getStyle: () => ({
+        layers: [
+          // Known layers — should only be painted once by paintKnownLayers
+          { id: "road_major", type: "line" },
+          { id: "highway_major_casing", type: "line" },
+          // Unknown layer — should be painted by the discovered pass
+          { id: "custom_road_layer", type: "line" },
+        ],
+      }),
+    };
+
+    applyBasemapTaste(map, darkTokens, true);
+
+    // Known layers: each painted exactly once (by paintKnownLayers only)
+    const roadMajorPaints = paints.filter(([id]) => id === "road_major");
+    expect(roadMajorPaints.length).toBe(1);
+
+    // Discovered-only layer must still be painted
+    expect(paints.some(([id]) => id === "custom_road_layer")).toBe(true);
+  });
+
   it("builds a step expression for cluster colors using pint/amber/brass", () => {
     const expr = clusterCircleColorExpr(tokens, false) as unknown[];
     expect(expr[0]).toBe("step");

@@ -4051,23 +4051,6 @@ button:disabled {
     background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
   }
 
-  /* Toolbar hugs the top under the nav; same inset/radius as the floating Home bar. */
-  .mapToolbar {
-    top: var(--map-top-clearance);
-    left: var(--map-chrome-inset);
-    right: var(--map-chrome-inset);
-    max-width: none;
-    transform: none;
-    flex-wrap: wrap;
-    justify-content: center;
-    border-radius: var(--map-chrome-radius);
-    box-sizing: border-box;
-  }
-
-  .mapToolbarSearch input {
-    min-width: 120px;
-  }
-
   /* Keep the floating theme toggle clear of the map legend and reachable. */
   .themeToggle.floating {
     top: 12px;
@@ -4139,6 +4122,24 @@ button:disabled {
   .appShell.detail-open,
   .appShell.planning-open {
     --mobile-tab-clearance: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Toolbar hugs the top under the nav; same inset/radius as the floating Home
+     bar — both switch to full-width at the same 640px breakpoint. */
+  .mapToolbar {
+    top: var(--map-top-clearance);
+    left: var(--map-chrome-inset);
+    right: var(--map-chrome-inset);
+    max-width: none;
+    transform: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: var(--map-chrome-radius);
+    box-sizing: border-box;
+  }
+
+  .mapToolbarSearch input {
+    min-width: 120px;
   }
 
   .mapCameraControls {

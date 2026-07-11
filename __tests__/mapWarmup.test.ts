@@ -151,4 +151,30 @@ describe("warmMapRoute", () => {
     expect(prefetch).toHaveBeenCalledTimes(1);
     expect(prefetch).toHaveBeenCalledWith("/discover");
   });
+
+  it("retries prefetch on the next intent when the first prefetch threw", async () => {
+    // A prefetch throw (dev HMR, router-not-mounted, transient) must NOT
+    // silently poison the seen set. The route stays unwarmed until a call
+    // succeeds so a follow-up hover/touch actually retries.
+    const { warmMapRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi
+      .fn<(href: string) => void>()
+      .mockImplementationOnce(() => {
+        throw new Error("router not mounted");
+      })
+      .mockImplementationOnce(() => undefined);
+
+    warmMapRoute({ prefetch }, "/map", seen);
+    expect(prefetch).toHaveBeenCalledTimes(1);
+    expect(seen.has("/map")).toBe(false);
+
+    warmMapRoute({ prefetch }, "/map", seen);
+    expect(prefetch).toHaveBeenCalledTimes(2);
+    expect(seen.has("/map")).toBe(true);
+
+    // A third attempt is deduped now that a successful prefetch has landed.
+    warmMapRoute({ prefetch }, "/map", seen);
+    expect(prefetch).toHaveBeenCalledTimes(2);
+  });
 });
