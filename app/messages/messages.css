@@ -8,11 +8,17 @@
 
 .messagesMain {
   max-width: 720px;
+  /* U6a — standard page gutters (matches the discover/feed page padding) so
+     the heading and thread never sit flush against the screen edge on phones. */
   padding-block: 1.5rem 4rem;
+  padding-inline: 20px;
+  margin-inline: auto;
 }
 
 .messagesHeading {
-  font-family: var(--font-serif, Georgia, serif);
+  /* U6a — the app's display face (Space Grotesk). --font-serif was never
+     defined, so this fell back to Georgia — the only serif in the app. */
+  font-family: var(--font-display, var(--serif));
   font-size: 1.5rem;
   color: var(--ink);
   margin: 0 0 1rem;

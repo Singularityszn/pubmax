@@ -369,6 +369,22 @@
      safe-area breathing buffer (see globals.css). Don't hardcode tab height. */
   .venueInspector {
     padding-bottom: calc(var(--mobile-tab-clearance, 12px) + 8px);
+    /* U6b — inside the bottom sheet the title block used to sit flush at x=0;
+       give the whole inspector the sheet's standard 18px gutter (matches
+       .venueSheetSkeleton's `margin: 0 18px`). */
+    padding-inline: 18px;
+    /* U6b — collapse the desktop drawer's separator spacing (20px margin +
+       18px padding + border) so there isn't ~40px of dead air between the
+       sticky close row and the grabber/title when the sheet is expanded. */
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  /* U6b — tighten the grab zone's clearance above the title; the zone keeps
+     its 28px touch target, it just stops adding extra empty margin. */
+  .mapDrawer.right .venueSheetGrabZone {
+    margin: -10px 0 0;
   }
 
   .venueSheetStickyBar {

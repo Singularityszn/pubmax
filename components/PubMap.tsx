@@ -1292,11 +1292,16 @@ export default function PubMap({
               <p className="description">
                 {userLocation
                   ? "Nearest pubs to you first. Choose one, search, or tap the map — then we\u2019ll open the Pint Drop composer."
-                  : "We won\u2019t guess which pub you\u2019re in. Choose one nearby, search, or tap the map — then we\u2019ll open the Pint Drop composer."}
+                  : "We won\u2019t guess which pub you\u2019re in. Choose one below, search, or tap the map — then we\u2019ll open the Pint Drop composer."}
               </p>
             </div>
             {logNearbyCandidates.length > 0 ? (
-              <ul className="logIntentNearbyList" aria-label="Nearby pubs to log">
+              /* U6e — only claim "nearby" when we actually have a location fix;
+                 without one the list is just the filtered map order. */
+              <ul
+                className="logIntentNearbyList"
+                aria-label={userLocation ? "Nearby pubs to log" : "Pubs to log"}
+              >
                 {logNearbyCandidates.map((candidate) => {
                   const dist =
                     typeof candidate.distanceKm === "number" &&
