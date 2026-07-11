@@ -4,6 +4,13 @@
    dark map shell. Fixed to the bottom on phones only; display:none above 640px
    so the desktop navs are entirely unaffected. */
 
+/* Single source of truth for the tab-bar's reserved height. The body's
+   bottom clearance (below) must always match the bar so map/feed content never
+   hides behind it; hoisting the magic number here keeps the two in lockstep. */
+:root {
+  --tabbar-h: 64px;
+}
+
 .mobileTabBar {
   display: none;
 }
@@ -24,7 +31,7 @@
 @media (max-width: 640px) {
   /* Compact tab bar — room for a fifth tab later; map chrome stays clear. */
   body {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
 
   .mobileTabBar {

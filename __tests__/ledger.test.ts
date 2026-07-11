@@ -83,6 +83,31 @@ describe("buildLedgerEntries", () => {
   it("returns an empty array for no drops", () => {
     expect(buildLedgerEntries([])).toEqual([]);
   });
+
+  // Dedupe regression (D1): a drop that appears twice in the source array (e.g.
+  // two overlapping store reads, or a seeded row echoing a real one) must
+  // collapse to a single logbook entry keyed by its stable id.
+  it("collapses two entries with the same id into one", () => {
+    const drops = [
+      makeDrop({ id: "dup", passedDownNote: "Same drop, twice." }),
+      makeDrop({ id: "dup", passedDownNote: "Same drop, twice." }),
+    ];
+    const entries = buildLedgerEntries(drops);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].id).toBe("dup");
+  });
+
+  // The mirror of the dedupe: genuinely distinct drops (different ids) must all
+  // survive — the dedupe must never over-collapse.
+  it("preserves genuinely distinct entries", () => {
+    const drops = [
+      makeDrop({ id: "a", passedDownNote: "First note", createdAt: "2024-06-03T12:00:00.000Z" }),
+      makeDrop({ id: "b", passedDownNote: "Second note", createdAt: "2024-06-02T12:00:00.000Z" }),
+    ];
+    const entries = buildLedgerEntries(drops);
+    expect(entries).toHaveLength(2);
+    expect(entries.map((e) => e.id)).toEqual(["a", "b"]);
+  });
 });
 
 describe("The Family Table (issue #27)", () => {
