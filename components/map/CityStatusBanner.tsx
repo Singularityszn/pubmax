@@ -145,12 +145,77 @@ function iconFor(kind: "signal" | "tube" | "weather", severity: string) {
   return <Info size={14} aria-hidden="true" />;
 }
 
+// --- A4: the full "Tonight in London" signals feed --------------------------
+// The API hands us every signal (gigs, strikes, alerts) but the pill shows
+// one. These pure helpers bucket them for the expandable sheet; exported for
+// tests. Alerts first (safety-relevant), then transport, events, other —
+// upstream order preserved within each bucket.
+
+export type SignalKindGroup = "alert" | "transport" | "event" | "other";
+
+const KIND_ORDER: SignalKindGroup[] = ["alert", "transport", "event", "other"];
+const KIND_LABELS: Record<SignalKindGroup, string> = {
+  alert: "Alerts",
+  transport: "Transport",
+  event: "Events",
+  other: "Other",
+};
+
+export function normaliseSignalKind(kind: string | undefined): SignalKindGroup {
+  const k = String(kind ?? "").trim().toLowerCase();
+  if (k === "alert" || k === "alerts") return "alert";
+  if (k === "transport" || k === "transit" || k === "tube" || k === "tfl") return "transport";
+  if (k === "event" || k === "events" || k === "gig" || k === "gigs") return "event";
+  return "other";
+}
+
+export type SignalGroup = { kind: SignalKindGroup; label: string; signals: Signal[] };
+
+export function groupSignalsByKind(signals: Signal[] | undefined): SignalGroup[] {
+  if (!Array.isArray(signals) || signals.length === 0) return [];
+  const buckets = new Map<SignalKindGroup, Signal[]>();
+  for (const s of signals) {
+    const k = normaliseSignalKind(s.kind);
+    const list = buckets.get(k) ?? [];
+    list.push(s);
+    buckets.set(k, list);
+  }
+  return KIND_ORDER.filter((k) => buckets.has(k)).map((k) => ({
+    kind: k,
+    label: KIND_LABELS[k],
+    signals: buckets.get(k) ?? [],
+  }));
+}
+
+function formatAsOfLabel(asOf: string | null | undefined): string {
+  if (!asOf) return "CityMCP";
+  const parsed = Date.parse(asOf);
+  if (!Number.isFinite(parsed)) return "CityMCP";
+  const time = new Date(parsed).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `Updated ${time} · CityMCP`;
+}
+
 export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
   // Only render on London — the API/tools are London-only.
   const isLondon = cityId === "london" || cityId === undefined;
   const [data, setData] = useState<StatusResponse | null>(null);
   const [dismissed, setDismissed] = useState<boolean>(false);
+  // A4 — whether the full signals sheet is open. Collapses on Escape and on
+  // each fresh fetch (setData below always starts collapsed).
+  const [expanded, setExpanded] = useState(false);
   const aborted = useRef(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   useEffect(() => {
     aborted.current = false;
@@ -174,7 +239,10 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
         if (!res.ok) return;
         const body = (await res.json()) as StatusResponse;
         void Promise.resolve().then(() => {
-          if (!aborted.current) setData(body);
+          if (!aborted.current) {
+            setData(body);
+            setExpanded(false);
+          }
         });
       } catch {
         // Fail-soft: no banner is fine.
@@ -201,6 +269,10 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
     setDismissed(true);
   };
 
+  const signalCount = data.signals?.length ?? 0;
+  const hasSignals = signalCount > 0;
+  const groups = groupSignalsByKind(data.signals);
+
   const content = (
     <>
       <span className="cityStatusBannerIcon" data-kind={headline.kind}>
@@ -213,13 +285,27 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
   );
 
   return (
+    <>
     <div
       className="cityStatusBanner"
       data-severity={headline.severity}
       role="status"
       aria-live="polite"
     >
-      {headline.href ? (
+      {headline.kind === "signal" && hasSignals ? (
+        /* A4: a signal headline now opens the FULL feed rather than jumping to
+           one source; identical class/children so the pill looks unchanged at
+           rest. Per-signal source links live inside the sheet. */
+        <button
+          type="button"
+          className="cityStatusBannerLink"
+          aria-expanded={expanded}
+          aria-controls="cityStatusSignalSheet"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {content}
+        </button>
+      ) : headline.href ? (
         <a
           className="cityStatusBannerLink"
           href={headline.href}
@@ -242,5 +328,64 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
         <X size={12} strokeWidth={2.25} aria-hidden="true" />
       </button>
     </div>
+      {expanded && hasSignals ? (
+        <div
+          id="cityStatusSignalSheet"
+          className="cityStatusSignalSheet"
+          role="region"
+          aria-label="Tonight in London — all signals"
+        >
+          <div className="cityStatusSignalSheetHead">
+            <strong>Tonight in London</strong>
+            <span className="cityStatusSignalSheetMeta">{formatAsOfLabel(data.asOf)}</span>
+            <button
+              type="button"
+              className="cityStatusSignalSheetClose"
+              aria-label="Close signals list"
+              onClick={() => setExpanded(false)}
+            >
+              <X size={14} strokeWidth={2.25} aria-hidden="true" />
+            </button>
+          </div>
+          {groups.map((group) => (
+            <div className="cityStatusSignalGroup" key={group.kind}>
+              <h4 className="cityStatusSignalGroupLabel">{group.label}</h4>
+              <ul className="cityStatusSignalList">
+                {group.signals.map((s, i) => {
+                  const href = firstHttp(s.sourceUrl) || undefined;
+                  return (
+                    <li className="cityStatusSignalRow" key={`${group.kind}-${i}`}>
+                      <span className="cityStatusSignalRowIcon" aria-hidden="true">
+                        {iconFor(
+                          group.kind === "transport" ? "tube" : "signal",
+                          String(s.severity ?? "info").toLowerCase(),
+                        )}
+                      </span>
+                      <div className="cityStatusSignalRowBody">
+                        <p className="cityStatusSignalRowHeadline">{s.headline}</p>
+                        {s.timeWindow || (s.areas && s.areas.length > 0) ? (
+                          <p className="cityStatusSignalRowMeta">
+                            {[s.timeWindow, s.areas?.join(", ")].filter(Boolean).join(" · ")}
+                          </p>
+                        ) : null}
+                        <p className="cityStatusSignalRowSource">
+                          {href ? (
+                            <a href={href} target="_blank" rel="noreferrer noopener">
+                              CityMCP source ↗
+                            </a>
+                          ) : (
+                            <span>CityMCP</span>
+                          )}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -31,7 +31,7 @@ describe("GET /api/citymcp/status", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("returns trimmed tube lines (dropping 'Good Service') and top-6 signals by severity", async () => {
+  it("returns trimmed tube lines (dropping 'Good Service') and top-8 signals by severity", async () => {
     const signals = Array.from({ length: 12 }, (_, i) => ({
       headline: `Signal ${i}`,
       severity: i % 3 === 0 ? "major" : i % 3 === 1 ? "notable" : "info",
@@ -63,7 +63,7 @@ describe("GET /api/citymcp/status", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.asOf).toBe("2026-07-11T00:00:00Z");
-    expect(body.signals).toHaveLength(6);
+    expect(body.signals).toHaveLength(8);
     // All top signals should be `major` first, then `notable` — never `info`.
     expect(body.signals.every((s: { severity: string }) => s.severity !== "info")).toBe(true);
     expect(body.tubeLines).toHaveLength(2);
