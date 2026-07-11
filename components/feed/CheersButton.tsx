@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   applyOptimisticFlip,
+  cheersTapFeedback,
   reconcileToggle,
+  type CheersTapFeedback,
   type ToggleBase,
   type ToggleView,
 } from "@/lib/optimisticToggle";
@@ -38,8 +40,12 @@ export default function CheersButton({
   count: number;
   mine: boolean;
   // Same signature FeedCard already threads for reactions; the parent maps this
-  // to its toggleReaction(dropId, "cheers").
-  onToggle: (dropId: string) => void;
+  // to its toggleReaction(dropId, "cheers"). U2: the parent may return a
+  // promise reporting whether the toggle actually stuck — false (or a
+  // rejection) means the POST failed, so the button reverts its optimistic
+  // tick and shows the claim-a-handle prompt. Void-returning callers keep the
+  // old fire-and-forget behaviour.
+  onToggle: (dropId: string) => Promise<boolean | void> | void;
   className?: string;
 }) {
   const base: ToggleBase = { mine, count };
@@ -71,12 +77,37 @@ export default function CheersButton({
   // work). Cleared after the animation window so it can re-fire on the next tap.
   const [inking, setInking] = useState(false);
   const inkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // U2 — inline failure feedback. When the parent reports the toggle didn't
+  // save (anonymous store gating answers 503, or the network dropped), show a
+  // small claim-a-handle prompt beside the button for a few seconds. Same
+  // quiet shape as SaveToListControl's toast: local string state rendered with
+  // role="status", auto-hidden on a timer, cleared on unmount with the ink
+  // timer.
+  const [gatePrompt, setGatePrompt] = useState<string | null>(null);
+  const promptTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
       if (inkTimer.current) clearTimeout(inkTimer.current);
+      if (promptTimer.current) clearTimeout(promptTimer.current);
     },
     [],
   );
+
+  // Act on the resolved outcome of a tap (cheersTapFeedback in
+  // lib/optimisticToggle.ts, unit-tested there). Revert FIRST: dropping the
+  // pending override snaps the view back to the parent's already-rolled-back
+  // authoritative props — the explicit signal prop-diffing alone cannot
+  // provide, because a rollback landing on the exact pre-flip values looks
+  // identical to "still pending".
+  function applyTapFeedback(feedback: CheersTapFeedback) {
+    if (feedback.revertOptimistic) setPending(null);
+    if (feedback.prompt) {
+      setGatePrompt(feedback.prompt);
+      if (promptTimer.current) clearTimeout(promptTimer.current);
+      promptTimer.current = setTimeout(() => setGatePrompt(null), 4200);
+    }
+  }
 
   function handleClick() {
     // Instant optimistic flip: predict the new view and override the props with
@@ -95,35 +126,51 @@ export default function CheersButton({
       inkTimer.current = setTimeout(() => setInking(false), 420);
     }
 
-    // Fire the parent's toggle (it owns the network + rollback).
-    onToggle(dropId);
+    // Fire the parent's toggle (it owns the network + its own summary
+    // rollback). U2: consume the reported outcome — `false` or a rejection
+    // means the POST failed (e.g. the anonymous 503 gate), so the optimistic
+    // tick reverts and the prompt shows. A legacy void-returning parent
+    // resolves to undefined, which counts as success — behaviour unchanged.
+    void Promise.resolve(onToggle(dropId))
+      .then((ok) => applyTapFeedback(cheersTapFeedback(ok !== false)))
+      .catch(() => applyTapFeedback(cheersTapFeedback(false)));
   }
 
   return (
-    <button
-      type="button"
-      className={`cheersBtn${view.mine ? " isCheered" : ""}${inking ? " isInking" : ""}${
-        className ? ` ${className}` : ""
-      }`}
-      aria-pressed={view.mine}
-      aria-label={
-        view.count > 0
-          ? `Cheers, ${view.count}${view.mine ? " — you cheered this" : ""}`
-          : view.mine
-            ? "Cheers — you cheered this"
-            : "Cheers"
-      }
-      onClick={handleClick}
-    >
-      <span className="cheersGlyph" aria-hidden="true">
-        🍺
-      </span>
-      <span className="cheersText">Cheers</span>
-      {view.count > 0 ? (
-        <span className="cheersCount" aria-hidden="true">
-          {view.count}
+    <>
+      <button
+        type="button"
+        className={`cheersBtn${view.mine ? " isCheered" : ""}${inking ? " isInking" : ""}${
+          className ? ` ${className}` : ""
+        }`}
+        aria-pressed={view.mine}
+        aria-label={
+          view.count > 0
+            ? `Cheers, ${view.count}${view.mine ? " — you cheered this" : ""}`
+            : view.mine
+              ? "Cheers — you cheered this"
+              : "Cheers"
+        }
+        onClick={handleClick}
+      >
+        <span className="cheersGlyph" aria-hidden="true">
+          🍺
         </span>
+        <span className="cheersText">Cheers</span>
+        {view.count > 0 ? (
+          <span className="cheersCount" aria-hidden="true">
+            {view.count}
+          </span>
+        ) : null}
+      </button>
+      {/* U2 — failure prompt: shown only after a reported failed toggle, in
+          the app's claim-a-handle voice. role="status" so screen readers hear
+          it without stealing focus. */}
+      {gatePrompt ? (
+        <p className="cheersGatePrompt" role="status">
+          {gatePrompt}
+        </p>
       ) : null}
-    </button>
+    </>
   );
 }

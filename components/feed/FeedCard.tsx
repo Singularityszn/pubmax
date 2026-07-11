@@ -119,7 +119,11 @@ export default function FeedCard({
 }: {
   item: FeedItem;
   summary: ReactionSummary;
-  onToggleReaction: (dropId: string, reaction: ReactionKey) => void;
+  // U2: the toggle may return a promise reporting whether it actually stuck
+  // (false = the POST failed and the page rolled the summary back). The
+  // CheersButton consumes it to revert its tick + show the claim-a-handle
+  // prompt; the tucked-away chip row keeps ignoring the return value.
+  onToggleReaction: (dropId: string, reaction: ReactionKey) => Promise<boolean | void> | void;
   onRetryPost?: (clientRequestId: string) => void;
 }) {
   const hero = item.photoUrls[0];

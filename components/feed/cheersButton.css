@@ -213,3 +213,21 @@
   border-color: color-mix(in srgb, var(--feed-cat, var(--brass)) 82%, #ffffff);
   color: var(--ink-deep, #0f1c16);
 }
+
+/* ── U2: inline failure prompt ───────────────────────────────────────────────────
+   Shown for a few seconds when the toggle POST failed (anonymous store gating
+   answers 503, or the network dropped). Same quiet shape as .saveToListToast,
+   but on its own raised panel so it stays readable over the Spill card's dark
+   scrim as well as the plain receipt card. Warm brass on paper — honest, not
+   an error klaxon. */
+.cheersGatePrompt {
+  margin: 8px 0 0;
+  padding: 6px 12px;
+  max-width: 36ch;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-raised);
+  color: var(--brass);
+  font-size: 13px;
+  line-height: 1.4;
+}
