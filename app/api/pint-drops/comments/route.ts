@@ -42,7 +42,12 @@ export async function GET(request: Request): Promise<Response> {
   // with no comments (200, never 404) so the response is not an existence
   // oracle — matching how the feed silently omits these drops.
   const readable = await filterPubliclyReadableDropIds([dropId]);
-  if (readable.length === 0) return jsonNoStore({ comments: [] }, { status: 200 });
+  // GET stays fail-soft: an outage (`null`) degrades to the same empty shape
+  // as a gated parent so the host feed keeps rendering — never a 500/503 that
+  // breaks the whole page. POST distinguishes the two below.
+  if (!readable || readable.length === 0) {
+    return jsonNoStore({ comments: [] }, { status: 200 });
+  }
   // listComments is fail-soft (returns [] on any store error), so a comments
   // outage can never surface as a 500 that breaks the host feed.
   const comments = await commentsStore().listComments(dropId);
@@ -61,8 +66,14 @@ export async function POST(request: Request): Promise<Response> {
   if (!dropId) return jsonNoStore({ error: "Missing pint drop id." }, { status: 400 });
 
   // F3 write gate: mirror GET — do not accept comments on hidden/friends/legacy
-  // parents. 404 matches the unknown-drop posture (no existence oracle).
+  // parents. 404 matches the unknown-drop posture (no existence oracle). A
+  // visibility LOOKUP failure (`null`) is a distinct dependency outage → 503,
+  // never the same shape as a genuinely-gated id (would silently swallow all
+  // writes during a Supabase blip / misconfig).
   const readable = await filterPubliclyReadableDropIds([dropId]);
+  if (readable === null) {
+    return jsonNoStore({ error: "Comments are unavailable." }, { status: 503 });
+  }
   if (readable.length === 0) {
     return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
   }
