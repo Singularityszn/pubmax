@@ -236,15 +236,47 @@
 
 /* ── Filter chips ─────────────────────────────────────────────────────── */
 .feedFilters {
+  position: relative;
   width: 100%;
   max-width: var(--feed-max);
   display: flex;
-  gap: 8px;
+  column-gap: 8px;
+  /* Extra vertical breathing room so the gliding indicator (a slim underline
+     hugging each chip's bottom edge) never crowds a wrapped second row. */
+  row-gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
+/* Wave L1 — the active lane used to just swap fill instantly; this slim brass
+   underline now GLIDES from the previous active chip to the new one, measured
+   off the real chip buttons (FeedFilters.tsx) so it tracks correctly whether
+   the strip has wrapped to a second row (desktop) or sits mid-scroll (mobile).
+   Sits BEHIND the chips (z-index 0) and is purely decorative (aria-hidden) —
+   each chip's own active fill/border/text colour (below) is still the primary,
+   always-correct cue; the glide is an additive craft touch. */
+.feedFilterIndicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brass), var(--brass-bright, var(--brass)));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--brass) 45%, transparent);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .feedFilterIndicator {
+    transition: transform 180ms var(--ease-out-strong, ease-out),
+      width 180ms var(--ease-out-strong, ease-out);
+  }
+}
+
 .feedFilterChip {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -258,14 +290,16 @@
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--shadow, 0 2px 8px rgba(22, 18, 42, 0.05));
-  transition: border-color var(--duration-base, 0.15s) var(--ease-out, ease),
-    background var(--duration-base, 0.15s) var(--ease-out, ease),
-    color var(--duration-base, 0.15s) var(--ease-out, ease);
+  transition: border-color 180ms var(--ease-out-strong, ease-out),
+    background 180ms var(--ease-out-strong, ease-out),
+    color 180ms var(--ease-out-strong, ease-out);
 }
 
-.feedFilterChip:hover {
-  border-color: var(--brass);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .feedFilterChip:hover {
+    border-color: var(--brass);
+    color: var(--ink);
+  }
 }
 
 .feedFilterChip.isActive {
@@ -653,7 +687,7 @@
   aspect-ratio: 9 / 16;
   /* Desktop guard: never let a single Spill dominate the viewport. */
   max-height: 70vh;
-  background: #0c0b08;
+  background: var(--spill-surface);
   overflow: hidden;
 }
 
@@ -679,7 +713,7 @@
   gap: 5px;
   padding: 5px 10px 5px 8px;
   border-radius: 999px;
-  background: rgba(12, 11, 8, 0.72);
+  background: var(--spill-veil);
   backdrop-filter: blur(3px);
   color: var(--brass-bright, #d8ab55);
   font-size: 0.66rem;
@@ -1038,8 +1072,14 @@
 
 .feedSkelPhoto {
   width: 100%;
-  aspect-ratio: 1;
-  border-radius: 12px;
+  /* Wave L1 — most drops carry a photo and render as the 9:16 Spill card
+     (.feedSpill); a square skeleton used to snap to a much taller box the
+     instant real data landed. Matching the dominant card's silhouette here
+     means the loading state already hints at what's coming, and swap-in
+     doesn't jump the page as hard. */
+  aspect-ratio: 9 / 16;
+  max-height: 420px;
+  border-radius: 16px;
   background: var(--line-soft, var(--line));
   margin-bottom: 14px;
 }
@@ -1092,15 +1132,25 @@
   }
 
   .feedSpill {
-    max-height: min(62vh, 520px);
+    /* Wave L1 — a taller cap so the 9:16 "IG Stories" ratio actually holds on
+       a phone (390×844-class viewport): the old 62vh/520px cap forced a much
+       squarer ~0.7 ratio (object-fit: cover was cropping the photo more than
+       the "every pint is a Story" treatment intends). Still short of the full
+       aspect-ratio-implied height, so the feed stays scrollable, not one card
+       eating the whole viewport. */
+    max-height: min(72vh, 620px);
   }
 
   .feedFilters {
     justify-content: flex-start;
     flex-wrap: nowrap;
     overflow-x: auto;
-    padding: 0 2px 6px;
+    /* Extra trailing pad so the last chip ("Cheapest") clears the edge-fade
+       and isn't flush against the viewport edge — it used to read as cut off
+       with no hint the strip kept scrolling. */
+    padding: 0 28px 6px 2px;
     scroll-snap-type: x proximity;
+    scroll-padding-inline: 2px 28px;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -1108,6 +1158,26 @@
     flex: 0 0 auto;
     min-height: 44px;
     scroll-snap-align: start;
+  }
+
+  /* Subtle edge fade — hints there's more to scroll. Only painted while the
+     strip actually has hidden content to the right (FeedFilters.tsx tracks
+     real scroll position), so it never dangles a hint with nothing behind it.
+     pointer-events: none keeps the last chip fully tappable underneath. */
+  .feedFilters.hasScrollHint::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 6px;
+    width: 32px;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in srgb, var(--paper) 86%, var(--panel-raised) 14%) 78%
+    );
   }
 
   .feedCardFooter .shareBar {
@@ -1156,17 +1226,63 @@
       0 10px 22px color-mix(in srgb, var(--brass) 10%, transparent);
   }
 
+  /* Wave L1 — mount-only card entrance (FeedCard.tsx flips `entered` via rAF
+     right after first paint). A TRANSITION, not a @keyframes animation, so a
+     card torn down mid-entrance (fast filter switch, a live reveal) has
+     nothing to cancel or jump — it just stops wherever it was. Never scale
+     from 0: a small settle from scale(.98), matching the rubric. */
+  .feedCardEnter {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  .feedCardEntered {
+    opacity: 1;
+    transform: none;
+    transition-property: opacity, transform;
+    transition-duration: var(--duration-slow, 0.28s);
+    transition-timing-function: var(--ease-out-strong, ease-out);
+    transition-delay: 0ms;
+  }
+
+  /* A light stagger (30–80ms) across the first screenful only — capped so
+     page 2+ of "Load more"/infinite scroll never queues a long, draggy
+     cascade; everything past the 7th card settles together. */
+  .feedList > .feedCard:nth-child(2).feedCardEntered {
+    transition-delay: 40ms;
+  }
+  .feedList > .feedCard:nth-child(3).feedCardEntered {
+    transition-delay: 80ms;
+  }
+  .feedList > .feedCard:nth-child(4).feedCardEntered {
+    transition-delay: 120ms;
+  }
+  .feedList > .feedCard:nth-child(5).feedCardEntered {
+    transition-delay: 160ms;
+  }
+  .feedList > .feedCard:nth-child(6).feedCardEntered {
+    transition-delay: 200ms;
+  }
+  .feedList > .feedCard:nth-child(n + 7).feedCardEntered {
+    transition-delay: 240ms;
+  }
+
   .feedSkelAvatar,
   .feedSkelPhoto,
   .feedSkelLine {
+    /* Wave L1 — calmer shimmer: a softer, wider glint mixed toward the raised
+       panel tone (not a stark line→line-soft jump) sweeping at a constant
+       (linear, not ease-in-out) pace. ease-in-out's deceleration right at the
+       loop boundary read as a small hitch/breath each cycle; linear keeps it
+       one continuous, unhurried glide. */
     background: linear-gradient(
-      90deg,
-      var(--line-soft, var(--line)) 25%,
-      var(--line) 50%,
-      var(--line-soft, var(--line)) 75%
+      100deg,
+      var(--line-soft, var(--line)) 30%,
+      color-mix(in srgb, var(--line) 55%, var(--panel-raised) 45%) 50%,
+      var(--line-soft, var(--line)) 70%
     );
-    background-size: 200% 100%;
-    animation: feedShimmer 1.4s ease-in-out infinite;
+    background-size: 220% 100%;
+    animation: feedShimmer 1.9s linear infinite;
   }
 
   /* The "live tonight" dot breathes gently so the band reads as active. Gated

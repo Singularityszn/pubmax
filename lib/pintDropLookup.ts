@@ -69,6 +69,35 @@ type VisibleRow = {
   venue_photo_key: string | null;
 };
 
+// The moderation-status union, narrowed safely from an untrusted DB value.
+// Anything that isn't a known member falls back to "hidden" — a non-visible
+// default, so an unexpected status can never make a drop publicly readable
+// (identical to the old `String(status ?? "")` behaviour, which also only
+// treated an exact "visible" as readable).
+const PINT_DROP_STATUSES: readonly PintDrop["status"][] = ["visible", "hidden", "pending"];
+function toPintDropStatus(value: unknown): PintDrop["status"] {
+  return typeof value === "string" && (PINT_DROP_STATUSES as readonly string[]).includes(value)
+    ? (value as PintDrop["status"])
+    : "hidden";
+}
+
+// Validate the untyped `.maybeSingle()` result before trusting the VisibleRow
+// cast: a row is usable only if it's a non-null object carrying the identity
+// fields (`id`, `venue_id`) as strings. A malformed row returns false so the
+// caller falls through to the not-found / memory path instead of building a
+// bogus DTO from missing keys.
+function isVisibleRow(value: unknown): value is VisibleRow {
+  if (typeof value !== "object" || value === null) return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.id === "string" &&
+    row.id !== "" &&
+    typeof row.venue_id === "string" &&
+    row.venue_id !== "" &&
+    typeof row.created_at === "string"
+  );
+}
+
 function toPrice(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
@@ -221,7 +250,7 @@ export async function filterPubliclyReadableDropIds(
       if (error) return null; // outage sentinel — see doc comment
       for (const row of data ?? []) {
         verdicts.set(String(row.id), isPubliclyReadableDrop({
-          status: String(row.status ?? "") as PintDrop["status"],
+          status: toPintDropStatus(row.status),
           visibility: cleanVisibility(row.visibility),
         }));
       }
@@ -273,8 +302,8 @@ export async function getPintDropById(
           .eq("id", dropId)
           .eq("status", "visible")
           .maybeSingle();
-        if (!error && data) {
-          const row = data as unknown as VisibleRow;
+        if (!error && isVisibleRow(data)) {
+          const row = data;
           const [pintPhotoUrl, venuePhotoUrl] = await Promise.all([
             signedPhotoUrl(row.pint_photo_key),
             signedPhotoUrl(row.venue_photo_key),

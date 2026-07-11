@@ -66,6 +66,31 @@
   transform: scale(1.12) rotate(-6deg);
 }
 
+/* Wave L1 — a genuine tactile "pop" on tap, distinct from the sustained tilt
+   above: the glyph overshoots via --ease-spring (the one token reserved for
+   occasional overshoot, and a cheer is exactly that occasion) then hands back
+   to the regular cascade — the resting isCheered tilt or the neutral glyph,
+   whichever the tap landed on. Riding the SAME .isInking one-shot class the
+   ink bloom already uses (see below), so a fast double-tap can't stack two
+   pops: React bails out on the redundant setInking(true) while one is still
+   playing, the class never re-triggers, and the animation can't restart mid
+   flight — it just plays once and settles, never "abuse-annoying". */
+@keyframes cheersPop {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.3) rotate(-10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.cheersBtn.isInking .cheersGlyph {
+  animation: cheersPop 0.3s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
 .cheersText {
   white-space: nowrap;
 }
@@ -131,6 +156,9 @@
   .cheersBtn.isInking::after {
     animation: none;
     content: none;
+  }
+  .cheersBtn.isInking .cheersGlyph {
+    animation: none;
   }
 }
 

@@ -1,0 +1,327 @@
+/* First-run onboarding tour — centered modal card over a dimming scrim.
+   Design rubric: one accent (--brass, coral light / amber dark) owns the CTA;
+   candle-peach --panel-raised card, --radius-lg, --shadow for lift; Space
+   Grotesk (--serif) title, Inter body, sentence case. Motion animates only
+   transform/opacity, never ease-in, all gated behind prefers-reduced-motion
+   with an opacity-only fallback; :hover gated behind hover+fine pointer. */
+
+.tourScrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay-top);
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  /* Soft focus dim — deep ink so the card and CTA carry the eye. */
+  background: color-mix(in srgb, var(--ink-deep) 52%, transparent);
+  /* Always-on base = opacity cross-fade (the reduced-motion fallback);
+     transform/scale is layered in only under no-preference below. */
+  animation: tourFadeIn var(--duration-slow) var(--ease-out-strong) both;
+}
+
+.tourScrim.isClosing {
+  animation: tourFadeOut var(--duration-base) var(--ease-out-strong) both;
+}
+
+.tourCard {
+  position: relative;
+  width: min(100%, 25rem);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  /* Modal-style: scales from its own center, never from a corner. */
+  transform-origin: center;
+  outline: none;
+  /* Base = opacity cross-fade; scale added under no-preference. */
+  animation: tourFadeIn var(--duration-slow) var(--ease-out-strong) both;
+}
+
+.tourScrim.isClosing .tourCard {
+  animation: tourFadeOut var(--duration-base) var(--ease-out-strong) both;
+}
+
+/* Base step swap = opacity cross-fade; slide added under no-preference.
+   min-height keeps the card from jumping as the copy length changes. */
+.tourStep {
+  min-height: 5.75rem;
+  animation: tourFadeIn var(--duration-base) var(--ease-out-strong) both;
+}
+
+.tourClose {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.tourEyebrow {
+  margin: 0 0 var(--space-2);
+  font-family: var(--serif);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.tourTitle {
+  margin: 0 0 var(--space-3);
+  font-family: var(--serif);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  color: var(--ink);
+}
+
+.tourBody {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.tourDots {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-5) 0 var(--space-5);
+}
+
+.tourDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--ink-soft) 32%, transparent);
+}
+
+.tourDot.isActive {
+  width: 20px;
+  background: var(--brass);
+}
+
+.tourActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.tourSkip,
+.tourNext {
+  font: inherit;
+  font-weight: 650;
+  font-size: var(--text-sm);
+  line-height: 1;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.tourSkip {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.tourNext {
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid var(--brass);
+  background: var(--brass);
+  color: #fff;
+}
+
+.tourClose:focus-visible,
+.tourSkip:focus-visible,
+.tourNext:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* — Approximate spotlight toward the real bottom tab bar. Mobile only; the
+     tab bar is display:none above 640px, so the hint is hidden there too.
+     Positioned by fixed coords over the (dimmed) tab slot — we never touch
+     the nav components. Robustness over pixel-perfect anchoring. */
+.tourSpotlight {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .tourSpotlight {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+    width: 64px;
+    height: 64px;
+    margin-left: -32px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    /* Warm glow ring keyed to the accent. */
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--brass) 30%, transparent) 0%,
+      transparent 68%
+    );
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 40%, transparent);
+    pointer-events: none;
+  }
+
+  /* 5 tab slots span the width → centers near 10 / 30 / 50 / 70 / 90%. */
+  .tourSpotlight[data-target="map"] {
+    left: 10%;
+  }
+  .tourSpotlight[data-target="drop"] {
+    left: 50%;
+  }
+  .tourSpotlight[data-target="discover"] {
+    left: 70%;
+  }
+
+  .tourSpotlightArrow {
+    position: absolute;
+    top: -12px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 7px solid color-mix(in srgb, var(--brass) 78%, transparent);
+  }
+}
+
+/* Give the card a touch more room on narrow phones. */
+@media (max-width: 400px) {
+  .tourCard {
+    padding: var(--space-5) var(--space-5) var(--space-4);
+  }
+  .tourTitle {
+    font-size: var(--text-lg);
+  }
+}
+
+/* — Motion: entrances, exits, and the step crossfade only exist for users who
+     accept motion. Outside this block the overlay simply appears (no scale,
+     no slide) — the opacity-only fallback. */
+@media (prefers-reduced-motion: no-preference) {
+  /* The card materialises from its center: scale .95→1 + opacity. Exit
+     reverses. The scrim keeps its plain opacity fade in both modes. */
+  .tourCard {
+    animation: tourCardIn var(--duration-slow) var(--ease-out-strong) both;
+  }
+  .tourScrim.isClosing .tourCard {
+    animation: tourCardOut var(--duration-base) var(--ease-out-strong) both;
+  }
+
+  /* Step advance: quick direction-aware slide + fade (Next → from right,
+     Back → from left). Keyed remount replays this per step. */
+  .tourStep[data-dir="1"] {
+    animation: tourStepInRight var(--duration-base) var(--ease-out-strong) both;
+  }
+  .tourStep[data-dir="-1"] {
+    animation: tourStepInLeft var(--duration-base) var(--ease-out-strong) both;
+  }
+
+  .tourSpotlight {
+    animation: tourGlow var(--duration-ambient) var(--ease-out) infinite;
+  }
+}
+
+@keyframes tourFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tourFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tourCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes tourCardOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes tourStepInRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tourStepInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tourGlow {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+/* :hover only where a real hovering pointer exists (no sticky mobile hover). */
+@media (hover: hover) and (pointer: fine) {
+  .tourClose:hover {
+    border-color: var(--line);
+    color: var(--ink);
+  }
+  .tourSkip:hover {
+    color: var(--ink);
+  }
+  .tourNext:hover {
+    background: var(--brass-bright);
+    border-color: var(--brass-bright);
+  }
+}

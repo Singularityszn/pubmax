@@ -45,7 +45,15 @@ export async function POST(request: Request): Promise<Response> {
     const question = rawQuestion.slice(0, MAX_QUESTION_LEN);
 
     const limiterKey = `heritage:${hashIp(clientIp(request))}`;
-    if (await isLimited(limiterKey, limiterKey, HERITAGE_RATE_LIMIT, HERITAGE_RATE_WINDOW_MS)) {
+    // Fail CLOSED on the durable path: this route fronts paid OpenRouter spend,
+    // so if Supabase is configured but the durable limiter can't answer
+    // (missing-rpc / no-client / error), refuse rather than fall back to a
+    // scriptable per-instance budget.
+    if (
+      await isLimited(limiterKey, limiterKey, HERITAGE_RATE_LIMIT, HERITAGE_RATE_WINDOW_MS, {
+        failClosed: true,
+      })
+    ) {
       return jsonNoStore({ error: "Too many questions, slow down." }, { status: 429 });
     }
 

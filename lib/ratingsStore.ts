@@ -105,6 +105,25 @@ function emptySummaries(refs: string[]): Record<string, RatingSummary> {
   return out;
 }
 
+// Guard the untyped supabase-js projection (rows come back as unknown for the
+// dynamic column select). A malformed row — non-object, missing ref, a
+// non-numeric rating, or a non-string timestamp — is SKIPPED rather than
+// coerced into a bogus vote; a well-formed row normalises exactly as before.
+function normalizeRatingRow(
+  r: unknown,
+  refColumn: string,
+): { ref: string; rating: number; createdAt: string } | null {
+  if (typeof r !== "object" || r === null) return null;
+  const row = r as Record<string, unknown>;
+  const ref = row[refColumn];
+  const rating = row.rating;
+  const createdAt = row.created_at;
+  if (typeof ref !== "string" || ref === "") return null;
+  if (typeof rating !== "number" || !Number.isFinite(rating)) return null;
+  if (typeof createdAt !== "string" || createdAt === "") return null;
+  return { ref, rating, createdAt };
+}
+
 function groupRecords(
   rows: Array<{ ref: string; rating: number; createdAt: string }>,
 ): Map<string, RatingRecord[]> {
@@ -161,14 +180,9 @@ export const supabaseRatingsStore: RatingsStore = {
         .in(refColumn, refs);
       if (error) throw new Error(error.message);
       const byRef = groupRecords(
-        (data ?? []).map((r) => {
-          const row = r as unknown as Record<string, unknown>;
-          return {
-            ref: String(row[refColumn] ?? ""),
-            rating: Number(row.rating),
-            createdAt: String(row.created_at ?? ""),
-          };
-        }),
+        (data ?? [])
+          .map((r) => normalizeRatingRow(r, refColumn))
+          .filter((row): row is { ref: string; rating: number; createdAt: string } => row !== null),
       );
       const now = Date.now();
       const out: Record<string, RatingSummary> = {};
@@ -204,14 +218,9 @@ export const supabaseRatingsStore: RatingsStore = {
         .limit(TOP_SCAN_ROWS);
       if (error) throw new Error(error.message);
       const byRef = groupRecords(
-        (data ?? []).map((r) => {
-          const row = r as unknown as Record<string, unknown>;
-          return {
-            ref: String(row[refColumn] ?? ""),
-            rating: Number(row.rating),
-            createdAt: String(row.created_at ?? ""),
-          };
-        }),
+        (data ?? [])
+          .map((r) => normalizeRatingRow(r, refColumn))
+          .filter((row): row is { ref: string; rating: number; createdAt: string } => row !== null),
       );
       return topRated(
         Array.from(byRef, ([ref, ratings]) => ({ ref, ratings })),

@@ -60,8 +60,16 @@
     transform var(--duration-base, 180ms) ease-out;
 }
 
-.menuHub__tile:hover {
-  border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+@media (hover: hover) and (pointer: fine) {
+  .menuHub__tile:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .menuHub__tile:hover {
+      transform: translateY(-2px);
+    }
+  }
 }
 
 .menuHub__item--primary .menuHub__tile {

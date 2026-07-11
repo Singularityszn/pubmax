@@ -22,10 +22,22 @@
   font-size: 0.86rem;
   font-weight: 650;
   text-decoration: none;
+  /* These are <a> anchors, so the global button press-feedback doesn't reach
+     them, and adding [data-pressable]/.pressable would clobber this transition
+     shorthand (and out-specify it). So press feedback is baked in locally: the
+     transform is named alongside the colour transitions, with a gated :active
+     scale below — matching the global press feel without the cascade fight. */
   transition:
     border-color var(--duration-base, 180ms) ease-out,
     background var(--duration-base, 180ms) ease-out,
-    color var(--duration-base, 180ms) ease-out;
+    color var(--duration-base, 180ms) ease-out,
+    transform var(--duration-press, 130ms) var(--ease-out-strong, ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .venueActionStrip__btn:active {
+    transform: scale(var(--press-scale, 0.97));
+  }
 }
 
 .venueActionStrip__btn:hover {

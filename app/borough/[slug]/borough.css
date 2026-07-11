@@ -221,13 +221,13 @@
 .priceStamp {
   display: inline-block;
   padding: 4px 9px;
-  border-radius: 6px;
-  border: 1.5px solid var(--brass);
+  border-radius: var(--ink-stamp-radius);
+  border: var(--ink-stamp-border);
   color: var(--brass);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.3px;
-  transform: rotate(-1.5deg);
+  transform: rotate(var(--ink-stamp-tilt));
 }
 
 /* --- index: borough cards ------------------------------------------------- */

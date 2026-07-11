@@ -8,10 +8,23 @@
   display: none;
 }
 
+/* Drop's calm idle presence — a slow, low-amplitude glow bloom, never a fast
+   high-contrast pulse. Kept top-level (not nested) so it stays readable
+   alongside the other keyframes in this file. */
+@keyframes mobileTabDropGlow {
+  0%,
+  100% {
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--brass) 20%, transparent);
+  }
+  50% {
+    box-shadow: 0 2px 13px color-mix(in srgb, var(--brass) 32%, transparent);
+  }
+}
+
 @media (max-width: 640px) {
   /* Compact tab bar — room for a fifth tab later; map chrome stays clear. */
   body {
-    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
 
   .mobileTabBar {
@@ -27,7 +40,9 @@
       color-mix(in srgb, var(--paper) 88%, transparent),
       transparent
     );
-    padding: 0 12px calc(2px + env(safe-area-inset-bottom, 0px));
+    /* 6px base clearance + the home-indicator inset, so the pill never reads
+       as flush with the indicator on notched/home-indicator phones. */
+    padding: 0 12px calc(6px + env(safe-area-inset-bottom, 0px));
     pointer-events: none;
     transition:
       opacity var(--duration-base) var(--ease-out),
@@ -42,6 +57,7 @@
   }
 
   .mobileTabList {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -59,7 +75,36 @@
     pointer-events: auto;
   }
 
+  /* Gliding active-tab highlight (still solid — Flat-Chrome-On-Map Rule; this
+     is a tint of the panel's own accent, not glass). Sized to one of the five
+     equal flex columns and translated by --active-index * 100% of its OWN
+     width, so it only ever animates `transform` (+ opacity to hide when no
+     tab matches the route). A decorative first child, painted behind the tab
+     items by DOM order. */
+  .mobileTabHighlight {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: calc((100% - 4px) / 5);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--brass) 13%, transparent);
+    transform: translateX(calc(var(--active-index, -1) * 100%));
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mobileTabHighlight {
+      transition:
+        transform var(--duration-base) var(--ease-out-strong),
+        opacity var(--duration-fast) var(--ease-out-strong);
+    }
+  }
+
   .mobileTabItem {
+    position: relative;
+    z-index: 1;
     flex: 1 1 0;
     min-width: 0;
     display: flex;
@@ -72,20 +117,20 @@
     align-items: center;
     justify-content: center;
     gap: 1px;
-    /* Visual slim; keep ≥40px hit area for thumbs. */
-    min-height: 40px;
-    padding: 2px 1px;
+    /* Keep ≥44px hit area for thumbs (WCAG 2.5.5 minimum). */
+    min-height: 44px;
+    padding: 4px 2px;
     border-radius: 12px;
     color: var(--muted, var(--ink-soft));
     text-decoration: none;
-    font-size: 0.52rem;
+    font-size: 0.625rem;
     font-weight: 700;
     letter-spacing: 0;
-    line-height: 1;
+    line-height: 1.05;
     transition:
       color var(--duration-base) var(--ease-out),
       background var(--duration-base) var(--ease-out),
-      transform var(--duration-fast) var(--ease-out);
+      transform var(--duration-press) var(--ease-out-strong);
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
@@ -93,12 +138,12 @@
   .mobileTabIcon {
     display: grid;
     place-items: center;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     color: currentcolor;
     transition:
       color var(--duration-base) var(--ease-out),
-      transform var(--duration-fast) var(--ease-out),
+      transform var(--duration-press) var(--ease-out-strong),
       background var(--duration-base) var(--ease-out);
   }
 
@@ -114,17 +159,24 @@
     color: var(--ink-soft);
   }
 
-  .mobileTab:hover,
   .mobileTab:focus-visible {
     color: var(--ink);
     background: color-mix(in srgb, var(--brass) 8%, transparent);
-  }
-
-  .mobileTab:focus-visible {
     outline: 2px solid var(--brass);
     outline-offset: -2px;
   }
+}
 
+/* Real-hover-only affordances, split out from the tap states above so touch
+   devices never get a stuck :hover fill after a tap. */
+@media (max-width: 640px) and (hover: hover) and (pointer: fine) {
+  .mobileTab:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 8%, transparent);
+  }
+}
+
+@media (max-width: 640px) {
   /* Active = icon tint + soft fill, not a heavy inset card that dwarfs siblings. */
   .mobileTab.isActive {
     color: var(--brass);
@@ -159,19 +211,51 @@
     font-weight: 700;
   }
 
-  .mobileTabPrimary:hover,
   .mobileTabPrimary:focus-visible {
     background: color-mix(in srgb, var(--brass) 8%, transparent);
     color: var(--brass);
   }
 
-  .mobileTabPrimary:hover .mobileTabLabel,
   .mobileTabPrimary:focus-visible .mobileTabLabel {
     color: var(--brass);
   }
 
-  .mobileTabPrimary:hover .mobileTabIcon,
   .mobileTabPrimary:focus-visible .mobileTabIcon {
+    background: var(--brass-bright, #ff8a5c);
+    transform: translateY(-1px);
+  }
+
+  /* Confident tactile press — a firmer dip than the row's default .pressable
+     scale (Drop is the emphasized action) and it works from touch alone, no
+     :hover required. */
+  .mobileTabPrimary:active .mobileTabIcon {
+    animation-play-state: paused;
+    transform: scale(var(--press-scale-firm));
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--brass) 26%, transparent);
+  }
+}
+
+/* Calm idle presence: a slow (3.2s), low-amplitude glow so Drop keeps reading
+   as the primary action at rest — never a fast/high-contrast pulse. Scoped
+   entirely inside no-preference, so reduced-motion users simply never get the
+   animation (nothing to opt back out of). */
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .mobileTabPrimary .mobileTabIcon {
+    animation: mobileTabDropGlow 3200ms var(--ease-in-out-strong) infinite;
+  }
+}
+
+@media (max-width: 640px) and (hover: hover) and (pointer: fine) {
+  .mobileTabPrimary:hover {
+    background: color-mix(in srgb, var(--brass) 8%, transparent);
+    color: var(--brass);
+  }
+
+  .mobileTabPrimary:hover .mobileTabLabel {
+    color: var(--brass);
+  }
+
+  .mobileTabPrimary:hover .mobileTabIcon {
     background: var(--brass-bright, #ff8a5c);
     transform: translateY(-1px);
   }
@@ -195,10 +279,21 @@
     max-width: 340px;
   }
 
+  /* The list's own padding shrank to 1px above — keep the highlight's inset
+     in lockstep so it still sits flush inside the pill at the smallest step. */
+  .mobileTabHighlight {
+    top: 1px;
+    bottom: 1px;
+    left: 1px;
+    width: calc((100% - 2px) / 5);
+  }
+
   .mobileTab {
-    font-size: 0.48rem;
-    padding: 1px 0;
-    min-height: 38px;
+    /* Hold the 44px WCAG tap target even on the smallest phones; only the
+       label shrinks slightly to fit five tabs across ~340px. */
+    font-size: 0.5625rem;
+    padding: 2px 0;
+    min-height: 44px;
   }
 
   .mobileTabPrimary .mobileTabIcon {

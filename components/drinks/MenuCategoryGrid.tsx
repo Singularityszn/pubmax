@@ -53,7 +53,7 @@ export default function MenuCategoryGrid({
             return (
               <li key={tile.id} className="menuHub__item menuHub__item--food">
                 <a
-                  className="menuHub__tile"
+                  className="menuHub__tile pressable"
                   href={tile.href}
                   target="_blank"
                   rel="noopener noreferrer"

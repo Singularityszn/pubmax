@@ -71,18 +71,50 @@
    Each item becomes a tappable, category-tinted card. The card frame reads the
    category token via `--cat` (set inline per item) so the tint, border and hover
    all speak the drink's colour — additively over the paper base, glyph + label
-   always present (never colour alone). */
+   always present (never colour alone).
+
+   Rendered as a horizontal LANE, not a wrapping grid: scroll-snap + momentum
+   scrolling + an edge-fade mask hint "more →" the same way TonightNearbyLane
+   and the editorial lane do. A fixed-width `catShowcase__item` gives the row a
+   steady rhythm instead of the cards stretching to fill leftover space. */
 .catShowcase--explore .catShowcase__grid {
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  display: flex;
   gap: var(--space-3, 12px);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 2px 6px;
+  margin: 0 -2px;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20px,
+    black calc(100% - 20px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20px,
+    black calc(100% - 20px),
+    transparent
+  );
+}
+
+.catShowcase--explore .catShowcase__grid::-webkit-scrollbar {
+  display: none;
 }
 
 .catShowcase--explore .catShowcase__item {
+  flex: 0 0 180px;
   padding: 0;
   border: 0;
   background: none;
   border-radius: var(--radius-sm);
   overflow: hidden;
+  scroll-snap-align: start;
 }
 
 .catShowcase__link {
@@ -113,9 +145,13 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--cat, var(--brass)) 28%, transparent);
 }
 
-.catShowcase__link:hover {
-  border-color: color-mix(in srgb, var(--cat, var(--brass)) 62%, transparent);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--cat, var(--brass)) 16%, transparent);
+/* Hover only on devices that actually hover — a finger tap must never leave a
+   card looking "stuck" in its hover state. */
+@media (hover: hover) and (pointer: fine) {
+  .catShowcase__link:hover {
+    border-color: color-mix(in srgb, var(--cat, var(--brass)) 62%, transparent);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--cat, var(--brass)) 16%, transparent);
+  }
 }
 
 .catShowcase__link:focus-visible {
@@ -141,8 +177,64 @@
   letter-spacing: 0;
 }
 
+/* ── Glyph motion (E5's signature element) ─────────────────────────────────
+   The drink glyph is the one truly bespoke asset on this page, so it carries
+   the showcase's motion identity: a soft spring pop-in on arrival, and a
+   playful lean on hover — both reduced-motion-safe, hover gated to real
+   pointers so touch never leaves a glyph mid-tilt. */
+.catShowcase__swatch {
+  transform-origin: 50% 55%;
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .catShowcase__swatch {
+    transition: transform var(--duration-base) var(--ease-out-strong);
+  }
+
+  .catShowcase--explore .catShowcase__item {
+    animation: catShowcaseIn var(--duration-slow) var(--ease-spring) both;
+  }
+
+  .catShowcase--explore .catShowcase__item:nth-child(2) {
+    animation-delay: 40ms;
+  }
+
+  .catShowcase--explore .catShowcase__item:nth-child(3) {
+    animation-delay: 80ms;
+  }
+
+  .catShowcase--explore .catShowcase__item:nth-child(4) {
+    animation-delay: 120ms;
+  }
+
+  .catShowcase--explore .catShowcase__item:nth-child(5) {
+    animation-delay: 160ms;
+  }
+
+  .catShowcase--explore .catShowcase__item:nth-child(n + 6) {
+    animation-delay: 200ms;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .catShowcase__link:hover {
     transform: translateY(-2px);
+  }
+
+  .catShowcase__link:hover .catShowcase__swatch {
+    transform: scale(1.08) rotate(-4deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes catShowcaseIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 }

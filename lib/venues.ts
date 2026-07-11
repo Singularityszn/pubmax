@@ -1,4 +1,5 @@
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 import {
   findBrand,
@@ -540,15 +541,8 @@ export function priceColor(price: number | null): string {
 }
 
 export function distanceKm(a: Venue, b: Venue): number {
-  const earthRadiusKm = 6371;
-  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const dLng = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const lat1 = (a.latitude * Math.PI) / 180;
-  const lat2 = (b.latitude * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  // Thin adapter over the canonical great-circle helper (GeoJSON [lng, lat]).
+  return haversineKm([a.longitude, a.latitude], [b.longitude, b.latitude]);
 }
 
 export function scoreVenue(venue: Venue, style: CrawlStyle): number {

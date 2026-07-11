@@ -1,3 +1,6 @@
+"use client";
+
+import { useCallback, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
@@ -61,6 +64,101 @@ function StoryBars({ baseline, now }: { baseline: VenuePriceStamp; now: VenuePri
   );
 }
 
+// A hand-drawn check — an inline SVG (not a lucide glyph) so the confirmed state
+// can stroke-draw the tick on: the single path is animated via stroke-dashoffset
+// in venuePriceStory.css, gated behind prefers-reduced-motion.
+function ConfirmTick() {
+  return (
+    <svg
+      className="vpsConfirmTick"
+      viewBox="0 0 20 20"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path className="vpsConfirmTickPath" d="M4 10.6 L8.4 15 L16 5.4" />
+    </svg>
+  );
+}
+
+// One-tap "still accurate?" micro-contribution. Tapping vouches the displayed
+// price is still right and flips to an optimistic confirmed state instantly (a
+// satisfying scale-in + tick draw); the POST to /api/price-confirm is fail-soft,
+// so the confirmed state stands even if the backend is unavailable. This is a
+// lightweight community signal, never a new price — the store only ever counts
+// distinct confirmers of an already-shown figure. Keyed by venue+price by the
+// caller so it resets cleanly when the inspected pub changes.
+function PriceConfirmChip({
+  venueId,
+  priceGbp,
+  priceLabel,
+}: {
+  venueId: string;
+  priceGbp: number;
+  priceLabel: string;
+}) {
+  const [confirmed, setConfirmed] = useState(false);
+  const [confirms, setConfirms] = useState<number | null>(null);
+
+  const confirm = useCallback(async () => {
+    if (confirmed) return; // a vouch is one-way; re-taps are inert (idempotent).
+    // Optimistic: flip to confirmed before the network round-trip so the tap
+    // feels instant. The real distinct-confirmer count backfills when it lands.
+    setConfirmed(true);
+    try {
+      const res = await fetch("/api/price-confirm", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ venueId, priceGbp }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { confirms?: number };
+        if (typeof data.confirms === "number") setConfirms(data.confirms);
+      }
+    } catch {
+      // Fail-soft: the optimistic confirmed state stays put on any error.
+    }
+  }, [confirmed, venueId, priceGbp]);
+
+  const countLabel =
+    confirms !== null ? `${confirms} ${confirms === 1 ? "confirm" : "confirms"}` : "";
+
+  // One persistent <button> across idle → confirmed so keyboard focus is never
+  // dropped (a node swap would send focus to <body>). Confirmed is announced via
+  // the adjacent sr-only live region.
+  return (
+    <div className="vpsConfirm">
+      <button
+        type="button"
+        className={confirmed ? "vpsConfirmBtn vpsConfirmDone" : "vpsConfirmBtn"}
+        onClick={confirm}
+        aria-pressed={confirmed}
+        aria-label={
+          confirmed
+            ? `Confirmed a pint here is still ${priceLabel}`
+            : `Confirm a pint here is still ${priceLabel}`
+        }
+      >
+        <ConfirmTick />
+        <span className="vpsConfirmText">
+          {confirmed ? "Confirmed just now" : `Still ${priceLabel}?`}
+          {confirmed && countLabel ? <span className="vpsConfirmCount"> · {countLabel}</span> : null}
+        </span>
+      </button>
+      {confirmed ? (
+        <span className="srOnly" role="status">
+          Confirmed{countLabel ? ` · ${countLabel}` : ""}.
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 type VenuePriceStoryProps = {
   venue: Venue;
   drops: VenuePriceStoryDrop[];
@@ -86,6 +184,9 @@ export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) 
   }
 
   const { baseline, now, deltaGbp, pct, inflation } = story;
+  // The freshest actionable price to vouch for: the community "now" price when
+  // present, otherwise the baseline on record.
+  const confirmTarget = now ?? baseline;
   const dir = deltaGbp !== null ? direction(deltaGbp) : "flat";
   const DirIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
 
@@ -151,6 +252,19 @@ export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) 
                 )} baseline, community-reported.`}
           </span>
         </p>
+      ) : null}
+
+      {/* One-tap "still accurate?" community signal for the freshest actionable
+          price (the community "now" price when present, else the baseline on
+          record). Keyed by venue+price so the confirmed state never leaks across
+          pubs (the component instance persists between selections). */}
+      {confirmTarget ? (
+        <PriceConfirmChip
+          key={`${venue.id}:${Math.round(confirmTarget.gbp * 100)}`}
+          venueId={venue.id}
+          priceGbp={confirmTarget.gbp}
+          priceLabel={formatPrice(confirmTarget.gbp)}
+        />
       ) : null}
 
       {/* The inflation line — a dated, priced memory revalued into today's

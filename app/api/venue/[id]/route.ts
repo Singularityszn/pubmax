@@ -18,10 +18,11 @@
 
 import { NextResponse } from "next/server";
 
+import { canGroupGetIn, estimateBusyness, resolveBookingOption } from "@/lib/busyness";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
@@ -31,15 +32,30 @@ export async function GET(
     return NextResponse.json({ error: "Venue not found." }, { status: 404 });
   }
 
+  const requestedGroupSize = Number(new URL(request.url).searchParams.get("groupSize") ?? 2);
+  const groupSize = Number.isFinite(requestedGroupSize)
+    ? Math.max(1, Math.min(30, Math.round(requestedGroupSize)))
+    : 2;
+  const busyness = estimateBusyness({ timeZone: "Europe/London" });
+  const booking = resolveBookingOption(venue.bookingLink);
+  const getIn = {
+    groupSize,
+    ...canGroupGetIn({
+      groupSize,
+      level: busyness.level,
+      hasBookingLink: booking.available,
+    }),
+  };
+
   return NextResponse.json(
-    { venue },
+    { venue, busyness, getIn, booking },
     {
       status: 200,
       headers: {
-        // Detail is derived from a static dataset that only changes on a data
-        // refresh — cache hard at the edge, keep serving stale for a week while
-        // it revalidates in the background.
-        "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
+        // Venue detail itself is static, but the additive day/time estimate is
+        // not. Keep the response briefly cacheable without freezing "busy now"
+        // for a full day.
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
       },
     },
   );

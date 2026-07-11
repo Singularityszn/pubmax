@@ -57,7 +57,7 @@
   top: calc(100% + 6px);
   right: 0;
   /* Above CitySuggestBanner (540) and map camera controls (530) so taps land. */
-  z-index: 560;
+  z-index: var(--z-map-toolbar);
   min-width: 9.5rem;
   max-height: min(70vh, 22rem);
   overflow-y: auto;

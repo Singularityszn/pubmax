@@ -11,6 +11,7 @@ import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import { authedFetch } from "@/lib/authedFetch";
 import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
 import { normalizeHandle } from "@/lib/profiles";
+import { relativeTime } from "@/lib/relativeTime";
 
 import "./activity.css";
 
@@ -54,19 +55,6 @@ function subjectHref(n: NotificationDTO): string | null {
     default:
       return null;
   }
-}
-
-function timeAgo(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return "";
-  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (secs < 60) return "just now";
-  const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.round(hrs / 24);
-  return `${days}d ago`;
 }
 
 export default function ActivityPage(): React.JSX.Element {
@@ -183,7 +171,7 @@ export default function ActivityPage(): React.JSX.Element {
                   {n.subjectLabel ? (
                     <span className="activitySubject"> — {n.subjectLabel}</span>
                   ) : null}
-                  <span className="activityTime"> · {timeAgo(n.createdAt)}</span>
+                  <span className="activityTime"> · {relativeTime(n.createdAt)}</span>
                   {href ? (
                     <Link href={href} className="activityLink">
                       View

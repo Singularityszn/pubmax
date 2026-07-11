@@ -61,7 +61,9 @@
     color-mix(in srgb, var(--line-soft) 70%, transparent)
   );
   background-size: 200% 100%;
-  animation: venueSheetSkeletonShimmer 1.2s ease-in-out infinite;
+  /* A calm, slow sweep — a lit page warming up, not a busy loading bar. Motion
+     is non-essential: it degrades to a static tint under reduced-motion below. */
+  animation: venueSheetSkeletonShimmer 1.6s var(--ease-in-out-strong) infinite;
 }
 
 .venueSheetSkeletonTitle {
@@ -302,6 +304,9 @@
   .mapDrawer.right.sheet-dragging {
     user-select: none;
     -webkit-user-select: none;
+    /* Promote to its own compositor layer for the duration of the drag so the
+       1:1 finger-tracked transform never touches layout/paint — glass-smooth. */
+    will-change: transform;
   }
 
   /* The header (grabber + close button) is a drag surface too, not just the
@@ -921,5 +926,36 @@ html[data-legacy="1"] .venueTabPanel::before {
   .venueTab {
     padding-inline: 9px;
     font-size: 0.78rem;
+  }
+}
+
+/* ── Tab content crossfade (signature-surface motion polish) ──────────────────
+   Each tab panel is display:none via [hidden] until selected; the moment it
+   becomes the shown panel it settles in with a short rise + fade. Because the
+   old panel leaves instantly and the new one eases in, tab switches read as a
+   quick crossfade rather than a hard swap. Keyed purely to the display flip, so
+   it replays on every visit but never on an unrelated re-render, and it only
+   ever animates the one visible panel. transform/opacity only; --ease-out-strong
+   (never ease-in on UI). Fully gated behind no-preference — reduced-motion users
+   get the instant, static swap. */
+@media (prefers-reduced-motion: no-preference) {
+  .venueTabPanel:not([hidden]) {
+    /* `backwards` (not `both`/`forwards`): the panel takes the from-state before
+       the first frame (no flash) but reverts to no-transform once settled — a
+       lingering transform would break `position: sticky` descendants (e.g. the
+       desktop in-tab Drop bar). The transform is only live for the ~150ms run,
+       while the panel is just appearing and nothing is being scrolled. */
+    animation: venueTabPanelIn var(--duration-base) var(--ease-out-strong) backwards;
+  }
+}
+
+@keyframes venueTabPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

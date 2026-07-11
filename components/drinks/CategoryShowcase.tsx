@@ -116,7 +116,7 @@ export function CategoryShowcase({
                 </button>
               ) : explore && hrefFor ? (
                 <Link
-                  className="catShowcase__link"
+                  className="catShowcase__link pressable"
                   href={hrefFor(category)}
                   aria-label={`Explore ${label}`}
                 >

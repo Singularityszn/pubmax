@@ -202,7 +202,7 @@
 
 .leaderboard thead th {
   text-align: left;
-  padding: 12px 14px;
+  padding: 10px 14px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -217,8 +217,14 @@
     box-shadow 0.16s ease;
 }
 
-.leaderboard tbody tr:hover {
-  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .leaderboard tbody tr:hover {
+    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+  }
+}
+
+.leaderboard tbody tr:active {
+  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
 }
 
 .leaderboard tbody tr:last-child {
@@ -227,7 +233,7 @@
 
 .leaderboard td,
 .leaderboard th[scope="row"] {
-  padding: 12px 14px;
+  padding: 10px 14px;
   vertical-align: middle;
   font-weight: 400;
   color: var(--ink);
@@ -248,9 +254,27 @@
   background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
   border: 1px solid color-mix(in srgb, var(--brass) 44%, var(--line));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 85%, transparent);
+  font-family: var(--font-data, var(--font-body));
   font-weight: 700;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
   color: var(--brass);
+}
+
+/* Rank hierarchy: the podium reads first, ranks fall away in confidence
+   after that — the same "gold/silver/bronze then the field" language a real
+   leaderboard uses, built from the existing rank circle (no new markup). */
+.leaderboard tbody tr:nth-child(1) .leaderboardRankNum {
+  border-color: var(--brass);
+  background: linear-gradient(155deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 20%, transparent);
+}
+
+.leaderboard tbody tr:nth-child(2) .leaderboardRankNum,
+.leaderboard tbody tr:nth-child(3) .leaderboardRankNum {
+  border-color: color-mix(in srgb, var(--brass) 70%, var(--line));
+  background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
 }
 
 .leaderboardName {
@@ -264,10 +288,12 @@
   text-decoration: none;
 }
 
-.leaderboardPub:hover {
-  color: var(--brass);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+@media (hover: hover) and (pointer: fine) {
+  .leaderboardPub:hover {
+    color: var(--brass);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 }
 
 .leaderboardPint {
@@ -302,9 +328,11 @@
   text-decoration: none;
 }
 
-.cityRivalryLink:hover .leaderboardPub {
-  color: var(--river);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .cityRivalryLink:hover .leaderboardPub {
+    color: var(--river);
+    text-decoration: underline;
+  }
 }
 
 .cityRivalryLink:focus-visible {
@@ -316,9 +344,16 @@
 .cityRivalryScoreNum {
   display: inline-block;
   min-width: 3.2ch;
+  font-family: var(--font-data, var(--font-body));
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--ink-soft);
+}
+
+.cityRivalryDrops {
+  font-family: var(--font-data, var(--font-body));
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .priceStamp {
@@ -364,14 +399,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   transition: background-color 0.16s ease, border-color 0.16s ease,
     box-shadow 0.16s ease;
 }
 
-.tonightRow:hover {
-  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .tonightRow:hover {
+    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+  }
+}
+
+.tonightRow:active {
+  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
 }
 
 .tonightRow:last-child {
@@ -389,9 +430,26 @@
   background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
   border: 1px solid color-mix(in srgb, var(--brass) 44%, var(--line));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 85%, transparent);
+  font-family: var(--font-data, var(--font-body));
   font-weight: 700;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
   color: var(--brass);
+}
+
+/* Same podium hierarchy as the leaderboard rank circle — tonight's #1 pint
+   reads as the headline, not just another row. */
+.tonightRow:nth-child(1) .tonightRank {
+  border-color: var(--brass);
+  background: linear-gradient(155deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 20%, transparent);
+}
+
+.tonightRow:nth-child(2) .tonightRank,
+.tonightRow:nth-child(3) .tonightRank {
+  border-color: color-mix(in srgb, var(--brass) 70%, var(--line));
+  background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
 }
 
 .tonightMain {
@@ -411,9 +469,11 @@
   white-space: nowrap;
 }
 
-.tonightPub:hover {
-  color: var(--brass);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .tonightPub:hover {
+    color: var(--brass);
+    text-decoration: underline;
+  }
 }
 
 .tonightPub:focus-visible {
@@ -483,9 +543,11 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.tvnCard:hover {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .tvnCard:hover {
+    border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
+    box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+  }
 }
 
 .tvnName {
@@ -566,14 +628,42 @@
 
 /* ── Editorial cards ───────────────────────────────────────────────── */
 
+/* A horizontal lane, matching TonightNearbyLane and the category showcase:
+   scroll-snap + momentum + an edge-fade mask hinting "more →". A fixed card
+   width keeps the rhythm steady instead of stretching to fill the row. */
 .editorialGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: flex;
   gap: 16px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 2px 10px;
+  margin: 0 -2px;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 24px,
+    black calc(100% - 24px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 24px,
+    black calc(100% - 24px),
+    transparent
+  );
+}
+
+.editorialGrid::-webkit-scrollbar {
+  display: none;
 }
 
 .editorialCard {
   display: flex;
+  flex: 0 0 300px;
   flex-direction: column;
   padding: 20px;
   border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
@@ -586,6 +676,7 @@
     ),
     var(--panel-raised);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
+  scroll-snap-align: start;
 }
 
 .editorialEyebrow {
@@ -630,9 +721,11 @@
   transition: filter 0.16s ease, transform 0.16s ease;
 }
 
-.editorialLink:hover {
-  filter: brightness(1.06);
-  text-decoration: none;
+@media (hover: hover) and (pointer: fine) {
+  .editorialLink:hover {
+    filter: brightness(1.06);
+    text-decoration: none;
+  }
 }
 
 .editorialLink:focus-visible {
@@ -645,9 +738,11 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.editorialCard:hover {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .editorialCard:hover {
+    border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
+    box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+  }
 }
 
 .discoverEmpty a:focus-visible,
@@ -655,6 +750,51 @@
   outline: 2px solid var(--brass);
   outline-offset: 2px;
   border-radius: 3px;
+}
+
+/* ── Scroll entrance (Then vs Now / Tonight / Leaderboard / editorial rows) ──
+   Rows and cards carrying [data-reveal] start settled a few pixels down and
+   fade up into place the first time they near the viewport (JS in
+   DiscoverPageClient toggles .is-revealed via IntersectionObserver, once per
+   element). Opacity/transform only, capped stagger, fully inert unless the
+   viewer welcomes motion — a element that never gets JS-marked stays fully
+   visible since this whole block lives behind no-preference. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity var(--duration-slow) var(--ease-out-strong),
+      transform var(--duration-slow) var(--ease-out-strong);
+  }
+
+  [data-reveal].is-revealed {
+    opacity: 1;
+    transform: none;
+  }
+
+  [data-reveal]:nth-child(2) {
+    transition-delay: 40ms;
+  }
+
+  [data-reveal]:nth-child(3) {
+    transition-delay: 80ms;
+  }
+
+  [data-reveal]:nth-child(4) {
+    transition-delay: 120ms;
+  }
+
+  [data-reveal]:nth-child(5) {
+    transition-delay: 160ms;
+  }
+
+  [data-reveal]:nth-child(6) {
+    transition-delay: 200ms;
+  }
+
+  [data-reveal]:nth-child(n + 7) {
+    transition-delay: 240ms;
+  }
 }
 
 /* Screen-reader-only utility (LeaderboardTable caption + rank labels). */
@@ -728,14 +868,21 @@
     display: table-cell;
   }
 
-  .editorialGrid,
   .tvnGrid {
     grid-template-columns: 1fr;
   }
+
+  /* Editorial stays a lane at every width — just a narrower card so two
+     "more →" peek in on a 390px screen instead of one. */
+  .editorialCard {
+    flex-basis: 78vw;
+    max-width: 320px;
+  }
 }
 
-/* Motion (gated): the card lift only where motion is welcome. */
-@media (prefers-reduced-motion: no-preference) {
+/* Motion (gated): the card lift only where motion is welcome AND the device
+   actually hovers — a finger tap must never leave a card "stuck" lifted. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .editorialCard:hover,
   .tvnCard:hover {
     transform: translateY(-2px);
@@ -785,10 +932,6 @@
   transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.topRatedItem:hover {
-  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
-}
-
 .topRatedRank {
   display: inline-grid;
   place-items: center;
@@ -799,8 +942,15 @@
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .discoverExplore .catShowcase__link:hover,
+/* Hover-capable pointers only — the lane's own glyph/link hover already lives
+   in categoryShowcase.css; this covers the top-rated row and editorial CTA. */
+@media (hover: hover) and (pointer: fine) {
+  .topRatedItem:hover {
+    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .topRatedItem:hover,
   .editorialLink:hover {
     transform: translateY(-2px);
@@ -821,20 +971,15 @@
     padding: 12px;
   }
 
+  /* The lane's scroll-snap/mask setup lives in categoryShowcase.css (all
+     viewports); mobile just narrows the gap and card width. */
   .discoverExplore .catShowcase__grid {
-    display: flex;
     gap: 8px;
-    grid-template-columns: none;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    padding: 0 2px 6px;
-    scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
+    padding: 2px 2px 6px;
   }
 
   .discoverExplore .catShowcase__item {
-    flex: 0 0 128px;
-    scroll-snap-align: start;
+    flex-basis: 128px;
   }
 
   .discoverExplore .catShowcase__link {

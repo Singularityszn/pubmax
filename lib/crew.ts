@@ -1,0 +1,30 @@
+import { cleanText } from "@/lib/textClean";
+
+export const CREW_NAME_MAX = 40;
+export const CREW_MAX_MEMBERS = 20;
+
+export const CREW_PRESENCE_STATUSES = [
+  "in",
+  "on_the_way",
+  "here",
+  "running_late",
+  "start_without_me",
+] as const;
+
+export type CrewPresenceStatus = (typeof CREW_PRESENCE_STATUSES)[number];
+
+export type CrewMemberDTO = {
+  id: string;
+  name: string;
+  status: CrewPresenceStatus;
+  joinedAt: string;
+  updatedAt: string;
+};
+
+export function cleanCrewName(value: unknown): string {
+  return cleanText(value, CREW_NAME_MAX);
+}
+
+export function isCrewPresenceStatus(value: unknown): value is CrewPresenceStatus {
+  return typeof value === "string" && CREW_PRESENCE_STATUSES.includes(value as CrewPresenceStatus);
+}
