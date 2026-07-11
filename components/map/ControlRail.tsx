@@ -94,6 +94,7 @@ export const initialFilters: Filters = {
   requireSeatedService: false,
   drinkCategory: "",
   drinkBrand: "",
+  cuisineTag: "",
 };
 
 type ControlRailProps = {

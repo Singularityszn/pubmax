@@ -13,6 +13,7 @@ import {
   type VenueAccessibility,
 } from "@/lib/venueAccessibility";
 import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
+import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 
 export type CrawlStyle =
   | "balanced"
@@ -185,6 +186,11 @@ export type Filters = {
   // lib/drinkBrands. Cocktail / low-no still prefer the amenity flags above.
   drinkCategory: string;
   drinkBrand: string;
+  // Cuisine-lens filter (food pin lens). A single cuisine tag token (e.g.
+  // "pizza", "burger") — when set, all visible pub pins swap to food glyphs
+  // for that kind. Empty string = off (falls back to drink pins or, when
+  // requireFood is on, per-venue food-kind inference).
+  cuisineTag: string;
 };
 
 export function truthyFlag(value: string): boolean {
@@ -488,6 +494,27 @@ function matchesDrinkBrand(venue: Venue, drinkBrand: string): boolean {
   return haystackMatchesBrand(venueDrinkHaystack(venue), hit.brand);
 }
 
+function matchesCuisineTag(venue: Venue, tag: string): boolean {
+  const needle = tag.trim().toLowerCase();
+  if (!needle) return true;
+
+  // Fast path: slim index carries pre-resolved cuisineTags hints.
+  const hinted = venue.filterHints?.cuisineTags;
+  if (Array.isArray(hinted) && hinted.includes(needle)) return true;
+
+  // Full venue path: derive tags from curated map + name/description.
+  if (venue.prices.length > 0) {
+    const tags = cuisineTagsForVenue({
+      id: venue.id,
+      name: venue.name,
+      hintTags: venue.filterHints?.cuisineTags,
+    });
+    return tags.includes(needle);
+  }
+
+  return false;
+}
+
 export function filterVenues(
   venues: Venue[],
   filters: Filters,
@@ -496,6 +523,7 @@ export function filterVenues(
   const query = filters.query.trim().toLowerCase();
   const drinkCategory = filters.drinkCategory?.trim() ?? "";
   const drinkBrand = filters.drinkBrand?.trim() ?? "";
+  const cuisineTag = filters.cuisineTag?.trim().toLowerCase() ?? "";
   return venues.filter((venue) => {
     const matchesPrice =
       venue.cheapestPrice === null || venue.cheapestPrice <= filters.maxPrice;
@@ -519,7 +547,8 @@ export function filterVenues(
       matchesPintDrops &&
       matchesAccessibility &&
       matchesDrinkCategory(venue, drinkCategory) &&
-      matchesDrinkBrand(venue, drinkBrand)
+      matchesDrinkBrand(venue, drinkBrand) &&
+      matchesCuisineTag(venue, cuisineTag)
     );
   });
 }

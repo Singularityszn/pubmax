@@ -36,6 +36,9 @@ import {
   MAP_ICON_SPECS,
   drinkPinIconKey,
   drinkPinKindFromCategories,
+  foodPinIconKey,
+  foodPinKindFromCuisineTag,
+  foodPinKindFromCuisineTags,
   iconId,
   rasterize,
   type IconTokens,
@@ -84,6 +87,18 @@ type PubMapCanvasProps = {
    * glyph; pin prices stay on the beer/pint path — never fake brand pricing.
    */
   drinkCategory?: string | null;
+  /**
+   * Active cuisine-lens tag (e.g. "pizza", "burger"). When set and no drink
+   * lens is active, all visible pins render as food glyphs for that kind.
+   * Empty / null = off.
+   */
+  cuisineTag?: string | null;
+  /**
+   * Whether the requireFood filter is on. When cuisineTag is absent but
+   * requireFood is true, each pin shows per-venue food-kind inferred from
+   * its cuisineTags hints. No-op when drinkCategory is active.
+   */
+  requireFood?: boolean;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
   /** Issue #15 story bands — active band id ("" = none), synced to the URL by PubMap. */
@@ -348,7 +363,19 @@ function pubsToGeoJSON(
   venueSignals: Map<string, VenueSignal>,
   favoritePint: string | null,
   drinkCategory: string | null = null,
+  cuisineTag: string | null = null,
+  requireFood: boolean = false,
 ): GeoJSON.FeatureCollection {
+  // Resolve cuisine-lens state once (outside the per-venue loop).
+  const drinkLens = drinkCategory?.trim().toLowerCase() ?? "";
+  const cuisineLens = cuisineTag?.trim().toLowerCase() ?? "";
+  // Food pins take over when there is no active drink lens AND either a
+  // specific cuisine tag or the requireFood filter is on.
+  const useFoodPins = !drinkLens && (Boolean(cuisineLens) || requireFood);
+  // When a specific tag is active, all pins share the same kind (like the
+  // drink lens). When requireFood alone is on, kind is resolved per venue.
+  const globalFoodKind = cuisineLens ? foodPinKindFromCuisineTag(cuisineLens) : null;
+
   return {
     type: "FeatureCollection",
     features: venues.map((venue) => {
@@ -367,24 +394,33 @@ function pubsToGeoJSON(
           signals?.latestDemoPrice ??
           null;
       const bucket = priceBucket(price);
-      // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
-      // Without a lens, fall back to venue hint categories.
-      const lens = drinkCategory?.trim().toLowerCase() ?? "";
-      const drinkKind =
-        lens === "beer"
-          ? "pint"
-          : lens && lens !== "other"
-            ? drinkPinKindFromCategories(
-                [lens],
-                lens === "cocktail" ||
+
+      let icon: string;
+      if (useFoodPins) {
+        const foodKind =
+          globalFoodKind ?? foodPinKindFromCuisineTags(venue.filterHints?.cuisineTags);
+        icon = iconId("food", foodPinIconKey(foodKind, bucket));
+      } else {
+        // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
+        // Without a lens, fall back to venue hint categories.
+        const drinkKind =
+          drinkLens === "beer"
+            ? "pint"
+            : drinkLens && drinkLens !== "other"
+              ? drinkPinKindFromCategories(
+                  [drinkLens],
+                  drinkLens === "cocktail" ||
+                    Boolean(venue.amenities.cocktails) ||
+                    Boolean(venue.filterHints?.amenities.cocktails),
+                )
+              : drinkPinKindFromCategories(
+                  venue.filterHints?.drinkCategories,
                   Boolean(venue.amenities.cocktails) ||
-                  Boolean(venue.filterHints?.amenities.cocktails),
-              )
-            : drinkPinKindFromCategories(
-                venue.filterHints?.drinkCategories,
-                Boolean(venue.amenities.cocktails) ||
-                  Boolean(venue.filterHints?.amenities.cocktails),
-              );
+                    Boolean(venue.filterHints?.amenities.cocktails),
+                );
+        icon = iconId("drink", drinkPinIconKey(drinkKind, bucket));
+      }
+
       return {
         type: "Feature" as const,
         properties: {
@@ -394,8 +430,7 @@ function pubsToGeoJSON(
           story: venue.hasStory,
           drops: Boolean(signals?.hasPintDrops),
           serves,
-          drinkKind,
-          icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
+          icon,
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
       };
@@ -608,6 +643,8 @@ export default function PubMapCanvas({
   venueSignals = new Map(),
   favoritePint = null,
   drinkCategory = null,
+  cuisineTag = null,
+  requireFood = false,
   onLandmarkSelect,
   activeBandId = "",
   onBandChange,
@@ -2036,6 +2073,8 @@ export default function PubMapCanvas({
       venueSignals,
       favoritePint,
       drinkCategory,
+      cuisineTag,
+      requireFood,
     );
     if (!mapReady) return;
     applyToMap("pubs:data", (map) => {
@@ -2043,7 +2082,7 @@ export default function PubMapCanvas({
         pubsDataRef.current,
       );
     });
-  }, [venues, venueSignals, favoritePint, drinkCategory, mapReady, applyToMap]);
+  }, [venues, venueSignals, favoritePint, drinkCategory, cuisineTag, requireFood, mapReady, applyToMap]);
 
   // POIs load once (client fetch) and feed the "pois" source.
   // Non-London cities pass poisPath=null → empty layer, no 404.

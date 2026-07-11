@@ -31,7 +31,7 @@ export type IconTokens = {
   muted?: string;
 };
 
-export type IconNamespace = "lm" | "tfl" | "drink";
+export type IconNamespace = "lm" | "tfl" | "drink" | "food";
 
 export type IconSpec = {
   key: string; // e.g. "clock-tower", "underground", "pint-0"
@@ -832,6 +832,282 @@ export function drinkPinKindFromCategories(
 }
 
 // ---------------------------------------------------------------------------
+// Food glyphs (ns: "food") — cuisine-themed pub pins. Key: `{kind}-{bucket}`
+// (pizza|burger|roast|tapas|pie|fish|steak|plate × price band). Same shadow +
+// priceFill pattern as drink pins. Generic = plate.
+// ---------------------------------------------------------------------------
+
+export type FoodPinKind = "pizza" | "burger" | "roast" | "tapas" | "pie" | "fish" | "steak" | "plate";
+
+export function foodPinIconKey(kind: FoodPinKind, bucket: number): string {
+  const b = bucket >= 0 && bucket <= 3 ? bucket : 3;
+  return `${kind}-${b}`;
+}
+
+/** Map a single cuisine tag token (lowercase) to its FoodPinKind. */
+export function foodPinKindFromCuisineTag(tag: string): FoodPinKind {
+  const t = tag.trim().toLowerCase();
+  if (t === "pizza" || t === "italian") return "pizza";
+  if (t === "burger") return "burger";
+  if (t === "roast") return "roast";
+  if (t === "tapas") return "tapas";
+  if (t === "pie") return "pie";
+  if (t === "fish") return "fish";
+  if (t === "steak" || t === "grill") return "steak";
+  return "plate";
+}
+
+/**
+ * Pick the best FoodPinKind from an array of cuisine tags. Returns the first
+ * specific kind found; falls back to "plate" (generic food) when all tags
+ * map to it or when the list is empty.
+ */
+export function foodPinKindFromCuisineTags(
+  tags: readonly string[] | null | undefined,
+): FoodPinKind {
+  if (!tags || tags.length === 0) return "plate";
+  for (const tag of tags) {
+    const kind = foodPinKindFromCuisineTag(tag);
+    if (kind !== "plate") return kind;
+  }
+  return "plate";
+}
+
+function drawPizzaSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  // Pizza slice: triangle pointing down, quadratic crust across the top.
+  ctx.beginPath();
+  ctx.moveTo(cx, BOX * 0.82);
+  ctx.lineTo(cx - BOX * 0.3, BOX * 0.22);
+  ctx.quadraticCurveTo(cx, BOX * 0.12, cx + BOX * 0.3, BOX * 0.22);
+  ctx.closePath();
+  fillStroke(ctx);
+  // Two circular toppings in the contrasting stroke colour.
+  ctx.save();
+  ctx.fillStyle = stroke;
+  ctx.beginPath();
+  ctx.arc(cx - BOX * 0.1, BOX * 0.44, BOX * 0.055, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx + BOX * 0.06, BOX * 0.32, BOX * 0.055, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBurgerSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  // Top bun dome.
+  ctx.beginPath();
+  ctx.arc(cx, BOX * 0.38, BOX * 0.2, Math.PI, 0);
+  ctx.lineTo(cx + BOX * 0.2, BOX * 0.43);
+  ctx.lineTo(cx - BOX * 0.2, BOX * 0.43);
+  ctx.closePath();
+  fillStroke(ctx);
+  // Patty slab.
+  roundRectPath(ctx, cx - BOX * 0.22, BOX * 0.45, BOX * 0.44, BOX * 0.1, BOX * 0.03);
+  fillStroke(ctx);
+  // Bottom bun.
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.2, BOX * 0.57);
+  ctx.lineTo(cx + BOX * 0.2, BOX * 0.57);
+  ctx.lineTo(cx + BOX * 0.16, BOX * 0.71);
+  ctx.lineTo(cx - BOX * 0.16, BOX * 0.71);
+  ctx.closePath();
+  fillStroke(ctx);
+}
+
+function drawRoastSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  // Meat body: tilted ellipse in the upper half.
+  ctx.beginPath();
+  ctx.ellipse(cx - BOX * 0.04, BOX * 0.38, BOX * 0.19, BOX * 0.22, -0.25, 0, Math.PI * 2);
+  fillStroke(ctx);
+  // Bone handle: narrow rounded rect below the meat.
+  roundRectPath(ctx, cx + BOX * 0.1, BOX * 0.52, BOX * 0.07, BOX * 0.18, BOX * 0.035);
+  fillStroke(ctx);
+  // Bone knob at the end.
+  ctx.beginPath();
+  ctx.arc(cx + BOX * 0.135, BOX * 0.74, BOX * 0.075, 0, Math.PI * 2);
+  fillStroke(ctx);
+}
+
+function drawTapasSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  // Plate at the bottom: flat ellipse.
+  ctx.beginPath();
+  ctx.ellipse(cx, BOX * 0.72, BOX * 0.22, BOX * 0.08, 0, 0, Math.PI * 2);
+  fillStroke(ctx);
+  // Cocktail stick.
+  ctx.beginPath();
+  ctx.moveTo(cx, BOX * 0.26);
+  ctx.lineTo(cx, BOX * 0.72);
+  ctx.stroke();
+  // Olive circle at the top of the stick.
+  ctx.beginPath();
+  ctx.arc(cx, BOX * 0.22, BOX * 0.09, 0, Math.PI * 2);
+  fillStroke(ctx);
+  // Pimento dot inside the olive.
+  ctx.save();
+  ctx.fillStyle = stroke;
+  ctx.beginPath();
+  ctx.arc(cx, BOX * 0.22, BOX * 0.04, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPieSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  // Pie dome: half-circle closing flat at the dish rim.
+  ctx.beginPath();
+  ctx.arc(cx, BOX * 0.5, BOX * 0.22, Math.PI, 0);
+  ctx.lineTo(cx + BOX * 0.22, BOX * 0.56);
+  ctx.lineTo(cx - BOX * 0.22, BOX * 0.56);
+  ctx.closePath();
+  fillStroke(ctx);
+  // Dish rim: wide shallow rounded rect.
+  roundRectPath(ctx, cx - BOX * 0.24, BOX * 0.54, BOX * 0.48, BOX * 0.2, BOX * 0.04);
+  fillStroke(ctx);
+  // Vent hole on top: a small open circle (stroke only).
+  ctx.beginPath();
+  ctx.arc(cx, BOX * 0.43, BOX * 0.05, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawFishSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  // Fish body: ellipse leaning slightly left of centre.
+  ctx.beginPath();
+  ctx.ellipse(cx - BOX * 0.04, BOX * 0.5, BOX * 0.2, BOX * 0.14, 0, 0, Math.PI * 2);
+  fillStroke(ctx);
+  // Fan tail on the right.
+  ctx.beginPath();
+  ctx.moveTo(cx + BOX * 0.16, BOX * 0.5);
+  ctx.lineTo(cx + BOX * 0.3, BOX * 0.34);
+  ctx.lineTo(cx + BOX * 0.3, BOX * 0.66);
+  ctx.closePath();
+  fillStroke(ctx);
+  // Eye dot.
+  ctx.save();
+  ctx.fillStyle = stroke;
+  ctx.beginPath();
+  ctx.arc(cx - BOX * 0.15, BOX * 0.45, BOX * 0.04, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSteakSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  // Steak silhouette: irregular rounded blob (beef-cut shape).
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.12, BOX * 0.2);
+  ctx.bezierCurveTo(
+    cx + BOX * 0.22, BOX * 0.16,
+    cx + BOX * 0.28, BOX * 0.38,
+    cx + BOX * 0.2, BOX * 0.6,
+  );
+  ctx.bezierCurveTo(
+    cx + BOX * 0.12, BOX * 0.82,
+    cx - BOX * 0.18, BOX * 0.82,
+    cx - BOX * 0.24, BOX * 0.6,
+  );
+  ctx.bezierCurveTo(
+    cx - BOX * 0.32, BOX * 0.38,
+    cx - BOX * 0.26, BOX * 0.2,
+    cx - BOX * 0.12, BOX * 0.2,
+  );
+  ctx.closePath();
+  fillStroke(ctx);
+  // T-bone stub on the right side.
+  roundRectPath(ctx, cx + BOX * 0.22, BOX * 0.3, BOX * 0.07, BOX * 0.14, BOX * 0.035);
+  fillStroke(ctx);
+}
+
+function drawPlateSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  // Plate circle (filled).
+  ctx.beginPath();
+  ctx.arc(cx, BOX * 0.5, BOX * 0.25, 0, Math.PI * 2);
+  fillStroke(ctx);
+  // Inner ring (plate rim suggestion — stroke only).
+  ctx.beginPath();
+  ctx.arc(cx, BOX * 0.5, BOX * 0.18, 0, Math.PI * 2);
+  ctx.stroke();
+  // Fork on the left: handle + two tines.
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.1, BOX * 0.36);
+  ctx.lineTo(cx - BOX * 0.1, BOX * 0.64);
+  ctx.moveTo(cx - BOX * 0.14, BOX * 0.36);
+  ctx.lineTo(cx - BOX * 0.14, BOX * 0.46);
+  ctx.moveTo(cx - BOX * 0.06, BOX * 0.36);
+  ctx.lineTo(cx - BOX * 0.06, BOX * 0.46);
+  ctx.stroke();
+  // Knife on the right: simple vertical handle.
+  ctx.beginPath();
+  ctx.moveTo(cx + BOX * 0.1, BOX * 0.36);
+  ctx.lineTo(cx + BOX * 0.1, BOX * 0.64);
+  ctx.stroke();
+}
+
+function makeFoodDraw(kind: FoodPinKind, bucket: number) {
+  return (ctx: CanvasRenderingContext2D, t: IconTokens) => {
+    const fill = priceFill(t, bucket);
+    drawDrinkShadow(ctx, t);
+    const stroke = bucket === 3 ? t.ink : t.paper;
+    if (kind === "pizza") drawPizzaSilhouette(ctx, fill, stroke);
+    else if (kind === "burger") drawBurgerSilhouette(ctx, fill, stroke);
+    else if (kind === "roast") drawRoastSilhouette(ctx, fill, stroke);
+    else if (kind === "tapas") drawTapasSilhouette(ctx, fill, stroke);
+    else if (kind === "pie") drawPieSilhouette(ctx, fill, stroke);
+    else if (kind === "fish") drawFishSilhouette(ctx, fill, stroke);
+    else if (kind === "steak") drawSteakSilhouette(ctx, fill, stroke);
+    else drawPlateSilhouette(ctx, fill, stroke);
+  };
+}
+
+const FOOD_KINDS: FoodPinKind[] = ["pizza", "burger", "roast", "tapas", "pie", "fish", "steak", "plate"];
+const FOOD_BUCKETS = [0, 1, 2, 3] as const;
+
+// ---------------------------------------------------------------------------
 // The registry. `MAP_ICON_SPECS` is the single ordered list the caller iterates
 // to register every icon via `map.addImage(iconId(ns, key), rasterize(spec, …))`.
 // ---------------------------------------------------------------------------
@@ -866,6 +1142,17 @@ export const MAP_ICON_SPECS: IconSpec[] = [
       }),
     ),
   ),
+  // Food pins — one raster per kind × price bucket (8 × 4 = 32).
+  ...FOOD_KINDS.flatMap((kind) =>
+    FOOD_BUCKETS.map(
+      (bucket): IconSpec => ({
+        key: foodPinIconKey(kind, bucket),
+        ns: "food",
+        size: BOX,
+        draw: makeFoodDraw(kind, bucket),
+      }),
+    ),
+  ),
 ];
 
 // Namespaced id used as the MapLibre image name: iconId("lm","clock-tower") →
@@ -886,6 +1173,10 @@ export const TFL_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
 
 export const DRINK_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
   (s) => s.ns === "drink",
+).map((s) => s.key);
+
+export const FOOD_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
+  (s) => s.ns === "food",
 ).map((s) => s.key);
 
 // Rasterize a spec to ImageData for `map.addImage(...)`. BROWSER-ONLY: it creates

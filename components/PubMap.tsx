@@ -1244,6 +1244,8 @@ export default function PubMap({
           venueSignals={venueSignals}
           favoritePint={favoritePint}
           drinkCategory={filters.drinkCategory || null}
+          cuisineTag={filters.cuisineTag || null}
+          requireFood={filters.requireFood}
           activeBandId={activeBandId}
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}

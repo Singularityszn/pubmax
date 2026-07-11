@@ -5,8 +5,12 @@ import {
   LANDMARK_ICON_KEYS,
   TFL_ICON_KEYS,
   DRINK_ICON_KEYS,
+  FOOD_ICON_KEYS,
   drinkPinIconKey,
   drinkPinKindFromCategories,
+  foodPinIconKey,
+  foodPinKindFromCuisineTag,
+  foodPinKindFromCuisineTags,
   iconId,
   type IconSpec,
   type IconTokens,
@@ -138,7 +142,7 @@ describe("MAP_ICON_SPECS registry", () => {
 
   it("every spec has a valid namespace, a draw function, and a positive size", () => {
     for (const spec of MAP_ICON_SPECS) {
-      expect(["lm", "tfl", "drink"], `${spec.key} ns`).toContain(spec.ns);
+      expect(["lm", "tfl", "drink", "food"], `${spec.key} ns`).toContain(spec.ns);
       expect(typeof spec.draw, `${spec.key} draw`).toBe("function");
       expect(spec.size, `${spec.key} size`).toBeGreaterThan(0);
       expect(typeof spec.key, `${spec.key} key type`).toBe("string");
@@ -181,6 +185,52 @@ describe("derived key lists", () => {
       for (const bucket of [0, 1, 2, 3] as const) {
         const key = drinkPinIconKey(kind, bucket);
         const spec = MAP_ICON_SPECS.find((s) => s.ns === "drink" && s.key === key);
+        expect(spec, `spec ${key}`).toBeDefined();
+        const tallies = exercise(spec!);
+        expect(tallies.paths, `${key} path ops`).toBeGreaterThan(0);
+        expect(tallies.fills + tallies.strokes, `${key} paint ops`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("FOOD_ICON_KEYS covers every kind × price bucket (8 × 4 = 32)", () => {
+    expect(FOOD_ICON_KEYS).toHaveLength(32);
+    expect(FOOD_ICON_KEYS).toContain(foodPinIconKey("pizza", 0));
+    expect(FOOD_ICON_KEYS).toContain(foodPinIconKey("burger", 1));
+    expect(FOOD_ICON_KEYS).toContain(foodPinIconKey("steak", 3));
+    expect(FOOD_ICON_KEYS).toContain(foodPinIconKey("plate", 2));
+  });
+
+  it("foodPinKindFromCuisineTag maps cuisine tokens correctly", () => {
+    expect(foodPinKindFromCuisineTag("pizza")).toBe("pizza");
+    expect(foodPinKindFromCuisineTag("italian")).toBe("pizza");
+    expect(foodPinKindFromCuisineTag("burger")).toBe("burger");
+    expect(foodPinKindFromCuisineTag("roast")).toBe("roast");
+    expect(foodPinKindFromCuisineTag("tapas")).toBe("tapas");
+    expect(foodPinKindFromCuisineTag("pie")).toBe("pie");
+    expect(foodPinKindFromCuisineTag("fish")).toBe("fish");
+    expect(foodPinKindFromCuisineTag("steak")).toBe("steak");
+    expect(foodPinKindFromCuisineTag("grill")).toBe("steak");
+    expect(foodPinKindFromCuisineTag("gastropub")).toBe("plate");
+    expect(foodPinKindFromCuisineTag("thai")).toBe("plate");
+    expect(foodPinKindFromCuisineTag("unknown")).toBe("plate");
+  });
+
+  it("foodPinKindFromCuisineTags picks first specific kind, falls back to plate", () => {
+    expect(foodPinKindFromCuisineTags(["pizza", "gastropub"])).toBe("pizza");
+    expect(foodPinKindFromCuisineTags(["gastropub", "roast"])).toBe("roast");
+    expect(foodPinKindFromCuisineTags(["gastropub", "kitchen"])).toBe("plate");
+    expect(foodPinKindFromCuisineTags([])).toBe("plate");
+    expect(foodPinKindFromCuisineTags(null)).toBe("plate");
+    expect(foodPinKindFromCuisineTags(undefined)).toBe("plate");
+  });
+
+  it("food pin draws do not throw for every kind × bucket", () => {
+    const kinds = ["pizza", "burger", "roast", "tapas", "pie", "fish", "steak", "plate"] as const;
+    for (const kind of kinds) {
+      for (const bucket of [0, 1, 2, 3] as const) {
+        const key = foodPinIconKey(kind, bucket);
+        const spec = MAP_ICON_SPECS.find((s) => s.ns === "food" && s.key === key);
         expect(spec, `spec ${key}`).toBeDefined();
         const tallies = exercise(spec!);
         expect(tallies.paths, `${key} path ops`).toBeGreaterThan(0);
