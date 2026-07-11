@@ -1,0 +1,185 @@
+export const CONCIERGE_MOODS = [
+  "balanced",
+  "quiet",
+  "lively",
+  "cosy",
+  "garden",
+  "riverside",
+  "sports",
+  "date",
+  "food",
+  "cocktails",
+  "heritage",
+] as const;
+
+export type ConciergeMood = (typeof CONCIERGE_MOODS)[number];
+
+export type ConciergeIntent = {
+  mood: ConciergeMood[];
+  groupSize: number;
+  area?: string;
+  maxPintPrice?: number;
+};
+
+export type ConciergeContext = {
+  weather?: "rainy" | "cold" | "warm-dry" | "mild";
+  dayType?: "weekday" | "weekend";
+  timeOfDay?: "afternoon" | "evening" | "late";
+};
+
+export type ConciergeVenue = {
+  id: string;
+  name: string;
+  area: string;
+  lat: number;
+  lng: number;
+  cheapestPrice: number | null;
+  amenities: {
+    beerGarden: boolean;
+    cocktails: boolean;
+    food: boolean;
+    liveSports: boolean;
+    liveMusic: boolean;
+  };
+  nearWater: boolean;
+  hasStory: boolean;
+  canonical: boolean;
+  /** Server-owned searchable venue text, used only to resolve an area phrase. */
+  searchText?: string;
+  /** Paid placements are never eligible for concierge results. */
+  promoted?: boolean;
+};
+
+export type RankedConciergeVenue = {
+  venue: ConciergeVenue;
+  score: number;
+  reasons: string[];
+};
+
+type RankingOptions = {
+  limit?: number;
+  context?: ConciergeContext;
+};
+
+function normalise(value: string): string {
+  return value.trim().toLocaleLowerCase("en-GB").replace(/\s+/g, " ");
+}
+
+function amenityScore(venue: ConciergeVenue, mood: ConciergeMood): number {
+  const a = venue.amenities;
+  switch (mood) {
+    case "quiet":
+      return Number(a.food) * 2 + Number(venue.hasStory) * 2 - Number(a.liveSports) * 5 - Number(a.liveMusic) * 5 - Number(a.cocktails) * 2;
+    case "lively":
+      return Number(a.liveMusic) * 8 + Number(a.liveSports) * 4 + Number(a.cocktails) * 3;
+    case "cosy":
+      return Number(venue.hasStory) * 6 + Number(a.food) * 3 - Number(a.beerGarden) * 1;
+    case "garden":
+      return Number(a.beerGarden) * 12;
+    case "riverside":
+      return Number(venue.nearWater) * 12 + Number(a.beerGarden) * 2;
+    case "sports":
+      return Number(a.liveSports) * 12;
+    case "date":
+      return Number(a.cocktails) * 5 + Number(a.food) * 4 + Number(venue.nearWater) * 3 + Number(venue.hasStory) * 2;
+    case "food":
+      return Number(a.food) * 12;
+    case "cocktails":
+      return Number(a.cocktails) * 12;
+    case "heritage":
+      return Number(venue.hasStory) * 12;
+    case "balanced":
+      return Number(a.food) * 2 + Number(a.beerGarden) * 2 + Number(venue.hasStory) * 2;
+  }
+}
+
+function scoreOne(
+  venue: ConciergeVenue,
+  intent: ConciergeIntent,
+  context: ConciergeContext,
+): RankedConciergeVenue {
+  let score = venue.canonical ? 1 : 0;
+  const reasons: string[] = [];
+
+  const requestedArea = normalise(intent.area ?? "");
+  const venueArea = normalise(`${venue.area} ${venue.searchText ?? ""}`);
+  if (requestedArea && venueArea.includes(requestedArea)) {
+    // Area is the strongest coordination constraint: a perfect mood match in
+    // the wrong part of town is rarely useful for a same-evening plan.
+    score += 30;
+    reasons.push(`In ${intent.area!.trim()}`);
+  }
+
+  if (intent.maxPintPrice !== undefined) {
+    if (venue.cheapestPrice === null) {
+      score -= 2;
+    } else if (venue.cheapestPrice <= intent.maxPintPrice) {
+      score += 10 + Math.min(3, intent.maxPintPrice - venue.cheapestPrice);
+      reasons.push(`£${venue.cheapestPrice.toFixed(2)} is within budget`);
+    } else {
+      score -= 3 * (venue.cheapestPrice - intent.maxPintPrice);
+    }
+  } else if (venue.cheapestPrice !== null) {
+    score += Math.max(0, 8 - venue.cheapestPrice);
+  }
+
+  for (const mood of intent.mood.length ? intent.mood : ["balanced" as const]) {
+    const contribution = amenityScore(venue, mood);
+    score += contribution;
+    if (contribution > 0) {
+      const label: Partial<Record<ConciergeMood, string>> = {
+        quiet: "A calmer fit",
+        lively: "Lively atmosphere",
+        cosy: "Cosy character",
+        garden: "Beer garden",
+        riverside: "Near the water",
+        sports: "Shows live sport",
+        date: "Good date-night fit",
+        food: "Food available",
+        cocktails: "Cocktails available",
+        heritage: "Venue heritage on record",
+      };
+      if (label[mood]) reasons.push(label[mood]!);
+    }
+  }
+
+  if (intent.groupSize >= 6) {
+    score += Number(venue.amenities.food) * 2 + Number(venue.amenities.beerGarden) * 2;
+  }
+
+  if (context.weather === "warm-dry" && venue.amenities.beerGarden) {
+    score += 5;
+    reasons.push("Garden weather");
+  }
+  if ((context.weather === "rainy" || context.weather === "cold") && (venue.amenities.food || venue.hasStory)) {
+    score += 4;
+    reasons.push("A good fit for the weather");
+  }
+  if (context.dayType === "weekend" && context.timeOfDay === "late") {
+    score += Number(venue.amenities.liveMusic) * 3 + Number(venue.amenities.cocktails) * 2;
+  }
+
+  return { venue, score: Number(score.toFixed(4)), reasons: [...new Set(reasons)].slice(0, 3) };
+}
+
+/** Pure, stable honest ranking. The result never mutates or depends on input order. */
+export function rankConciergeVenues(
+  venues: readonly ConciergeVenue[],
+  intent: ConciergeIntent,
+  options: RankingOptions = {},
+): RankedConciergeVenue[] {
+  const limit = Math.min(10, Math.max(1, Math.trunc(options.limit ?? 3)));
+  return venues
+    .filter((venue) => !venue.promoted)
+    .map((venue) => scoreOne(venue, intent, options.context ?? {}))
+    .sort((left, right) => right.score - left.score || left.venue.id.localeCompare(right.venue.id, "en-GB"))
+    .slice(0, limit);
+}
+
+export function narrateCrawl(results: readonly RankedConciergeVenue[]): string | undefined {
+  if (results.length === 0) return undefined;
+  if (results.length === 1) return `Start at ${results[0].venue.name}.`;
+  const names = results.map((result) => result.venue.name);
+  if (names.length === 2) return `Start at ${names[0]}, then finish at ${names[1]}.`;
+  return `Start at ${names[0]}, then head to ${names.slice(1, -1).join(", ")}, and finish at ${names.at(-1)}.`;
+}
