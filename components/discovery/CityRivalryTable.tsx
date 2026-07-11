@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Map } from "lucide-react";
 
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import { writePreferredCity } from "@/lib/cityPreference";
@@ -44,6 +45,9 @@ export default function CityRivalryTable({
           <th scope="col" className="leaderboardPriceHead cityRivalryScore">
             Energy
           </th>
+          <th scope="col" className="cityRivalryMap">
+            <span className="srOnly">Map</span>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -68,6 +72,17 @@ export default function CityRivalryTable({
             <td className="leaderboardArea cityRivalryDrops">{entry.dropCount}</td>
             <td className="leaderboardPriceHead cityRivalryScore">
               <span className="cityRivalryScoreNum">{formatScore(entry.score)}</span>
+            </td>
+            <td className="cityRivalryMap">
+              <Link
+                className="cityRivalryMapBtn"
+                href={cityMapShareUrl(entry.cityId)}
+                onClick={() => writePreferredCity(entry.cityId)}
+                aria-label={`View map for ${entry.displayName}`}
+              >
+                <Map size={13} aria-hidden="true" />
+                <span aria-hidden="true">Map</span>
+              </Link>
             </td>
           </tr>
         ))}

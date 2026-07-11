@@ -1030,3 +1030,183 @@
     scroll-snap-align: start;
   }
 }
+
+/* ── City rivalry: View map CTA per row ──────────────────────────────────── */
+
+.cityRivalryMap {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cityRivalryMapBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 44px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+  color: var(--brass);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.cityRivalryMapBtn:hover {
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  border-color: var(--brass);
+}
+
+.cityRivalryMapBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Desktop: keep drops visible; map CTA is a helpful extra column. */
+@media (min-width: 641px) {
+  .cityRivalry .cityRivalryDrops {
+    display: table-cell;
+  }
+}
+
+/* Mobile: swap drops column for map CTA to keep table readable. */
+@media (max-width: 640px) {
+  /* Undo the ≤560px .cityRivalry .cityRivalryDrops: display:table-cell override */
+  .cityRivalry .cityRivalryDrops {
+    display: none !important;
+  }
+
+  .cityRivalryMap {
+    display: table-cell;
+  }
+}
+
+/* ── Stretched-link: TonightRow full-row tap target ──────────────────────── */
+
+/*
+  Make the whole row tappable via the stretched-link CSS pattern.
+  .tonightRow is the containing block; .tonightPub::after stretches to cover it.
+  No nested <a> elements are created so the markup stays valid and accessible.
+*/
+.tonightRow {
+  position: relative;
+}
+
+.tonightPub::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* ── Stretched-link: EditorialCard full-card tap target ──────────────────── */
+
+/*
+  .editorialCard is position:relative so .editorialLink::after positions from it.
+  The after element stretches to card edges (inset:0 relative to the card).
+*/
+.editorialCard {
+  position: relative;
+}
+
+.editorialLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+}
+
+/* ── Mobile sticky jump nav ──────────────────────────────────────────────── */
+
+.discoverJumpNav {
+  display: none;
+}
+
+.discoverJumpList {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 640px) {
+  /* Bottom tabs own app navigation — the SiteNav compact bar is redundant. */
+  .discoverPage > .siteNavBar {
+    display: none;
+  }
+
+  .discoverJumpNav {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    margin: 6px 0 0;
+    background: var(--panel-raised);
+    border: 1px solid color-mix(in srgb, var(--line) 74%, var(--brass) 26%);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 8%, transparent);
+    overflow: hidden;
+  }
+
+  .discoverJumpList {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding: 0 4px;
+  }
+
+  .discoverJumpList::-webkit-scrollbar {
+    display: none;
+  }
+
+  .discoverJumpLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 10px;
+    flex: 0 0 auto;
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: 8px;
+    scroll-snap-align: start;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .discoverJumpLink:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 8%, transparent);
+  }
+
+  .discoverJumpLink:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: -2px;
+    border-radius: 6px;
+  }
+
+  /* Increase scroll-margin-top to clear the sticky jump nav (~40px + gap). */
+  .discoverSection {
+    scroll-margin-top: 56px;
+  }
+
+  /* Further compress the hero header on small screens. */
+  .discoverTitle {
+    font-size: 22px;
+  }
+
+  .discoverLede {
+    font-size: 14px;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
