@@ -14,6 +14,7 @@
 // Responses are long-cached: scraped photos change on scrape cadence, and the
 // URL is the cache key.
 
+import { allowedVenueImageHosts } from "@/lib/venueImageHosts.server";
 import { directVenueImageUrl } from "@/lib/venueImages";
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -45,6 +46,10 @@ function validate(raw: string): URL | null {
   }
   if (url.protocol !== "https:") return null;
   if (isForbiddenHost(url.hostname)) return null;
+  // SSRF hard gate (cursor bot, PR #171): only hosts present in the app's own
+  // committed datasets may be fetched — an attacker-supplied hostname (even a
+  // public one rebinding to an internal address) is simply not in the set.
+  if (!allowedVenueImageHosts().has(url.hostname.toLowerCase())) return null;
   return url;
 }
 
@@ -86,8 +91,23 @@ export async function GET(request: Request): Promise<Response> {
     }
     const declared = Number(upstream.headers.get("content-length") ?? "0");
     if (declared > MAX_BYTES) return new Response("Image too large.", { status: 502 });
-    const body = await upstream.arrayBuffer();
-    if (body.byteLength > MAX_BYTES) return new Response("Image too large.", { status: 502 });
+    // Stream with a hard byte cap (cursor bot, PR #171): a chunked/mislabelled
+    // response is aborted the moment it crosses the cap, never fully buffered.
+    const reader = upstream.body?.getReader();
+    if (!reader) return new Response("Image source unavailable.", { status: 502 });
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > MAX_BYTES) {
+        controller.abort();
+        return new Response("Image too large.", { status: 502 });
+      }
+      chunks.push(value);
+    }
+    const body = new Blob(chunks as BlobPart[]);
     return new Response(body, {
       status: 200,
       headers: {

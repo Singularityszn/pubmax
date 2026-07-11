@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// The proxy only fetches hosts present in the app's own datasets (SSRF gate);
+// tests pin behaviour with a controlled allowlist instead of the real files.
+vi.mock("@/lib/venueImageHosts.server", () => ({
+  allowedVenueImageHosts: () =>
+    new Set(["www.thelamblondon.com", "www.oldshiphammersmith.co.uk", "example.com", "cdn.example.com"]),
+}));
+
 import { GET } from "@/app/api/image-proxy/route";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 
@@ -33,6 +40,9 @@ describe("GET /api/image-proxy", () => {
       "https://localhost/p.jpg",
       "https://internal.local/p.jpg",
       "ftp://example.com/p.jpg",
+      // Public host NOT present in the app's datasets — the SSRF gate rejects
+      // it before any DNS/network activity (covers rebinding-style attacks).
+      "https://attacker-controlled.example.net/p.jpg",
       "",
     ]) {
       const res = await GET(req(bad));
