@@ -199,6 +199,28 @@ const LONDON_BOUNDS: [[number, number], [number, number]] = [
   [0.35, 51.72],
 ];
 
+// Single source of truth for the cluster/uncluster boundary. The pubs source
+// clusters at/below this zoom (clusterMaxZoom); the unclustered per-pub layers
+// carry the SAME value as their `minzoom` floor so that at city-wide zoom only
+// cluster discs render — never a scatter of stray singleton pins ("pin soup").
+// Isolated pubs sit outside any cluster radius, so without this floor they
+// paint as individual pins at every zoom in BOTH themes; the dark basemap just
+// masked it. Tying both to one constant guarantees a clean handoff: below it,
+// clusters only; above it, clusters dissolve and pins appear together.
+const PIN_UNCLUSTER_ZOOM = 12;
+// Every pub-source layer, gated together so pin paint can be withheld until the
+// basemap has actually painted (see the tile-paint gate in buildSceneBody).
+const PUB_PIN_LAYERS = [
+  "pubs-scraped-halo",
+  "pubs-drops-halo",
+  "band-members-halo",
+  "pubs-point",
+  "pubs-selected-glow",
+  "pubs-selected",
+  "clusters",
+  "cluster-count",
+] as const;
+
 const ORBIT_DEG_PER_SEC = 0.7; // gentle drift — a full turn in ~8.5 minutes
 const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
 const HOVER_DETAIL_CACHE_LIMIT = 24;
@@ -1576,7 +1598,7 @@ export default function PubMapCanvas({
           // Tighter clusters + earlier uncluster so drink silhouettes (pint /
           // wine / cocktail / spirits) dominate sooner — MAP_MARKERS_PLAN.
           clusterRadius: 22,
-          clusterMaxZoom: 12,
+          clusterMaxZoom: PIN_UNCLUSTER_ZOOM,
         });
       }
       // Scraped-pub halo: warm brass ring so Young's / Nicholson's / gazetteer
@@ -1585,6 +1607,7 @@ export default function PubMapCanvas({
         id: "pubs-scraped-halo",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["all", ["!", ["has", "point_count"]], ["get", "scraped"]],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
@@ -1601,6 +1624,7 @@ export default function PubMapCanvas({
         id: "pubs-drops-halo",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["all", ["!", ["has", "point_count"]], ["get", "drops"]],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
@@ -1620,6 +1644,7 @@ export default function PubMapCanvas({
         id: "band-members-halo",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: [
           "all",
           ["!", ["has", "point_count"]],
@@ -1638,6 +1663,7 @@ export default function PubMapCanvas({
         id: "pubs-point",
         type: "symbol",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["!", ["has", "point_count"]],
         layout: {
           "icon-image": ["get", "icon"],
@@ -1664,6 +1690,7 @@ export default function PubMapCanvas({
         id: "pubs-selected-glow",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["==", ["get", "id"], selectedIdRef.current],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
@@ -1678,6 +1705,7 @@ export default function PubMapCanvas({
         id: "pubs-selected",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["==", ["get", "id"], selectedIdRef.current],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
@@ -1720,6 +1748,28 @@ export default function PubMapCanvas({
           "text-halo-width": 1,
         },
       });
+
+      // --- Tile-paint gate (D2). buildScene runs on `style.load`, which fires
+      // BEFORE the basemap's vector tiles have painted. The pub layers draw from
+      // a GeoJSON source (no network tiles), so without this they paint on the
+      // very next frame — floating over a blank/white basemap (worst in the light
+      // Liberty/Positron style, which has no dark background to mask it; the dark
+      // style just hid the same race). Hold every pub layer hidden until the map
+      // reaches `idle` (all tiles + sources loaded and rendered), then reveal
+      // them together. Applies on the initial load AND every theme swap, so pins
+      // never render over an unpainted basemap in either theme. Skipped when tiles
+      // are already loaded (cached / a duplicate build) so there is no needless
+      // flash.
+      if (!map.areTilesLoaded()) {
+        for (const id of PUB_PIN_LAYERS) {
+          if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
+        }
+        map.once("idle", () => {
+          for (const id of PUB_PIN_LAYERS) {
+            if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
+          }
+        });
+      }
 
       // --- Route stops (numbered) above everything.
       if (!map.getSource("route-stops")) {
