@@ -60,3 +60,60 @@ export function reconcileToggle(
   // authoritative state is now the truth; drop the optimistic override.
   return { view: base, clearPending: true };
 }
+
+// ── U2: the network half + failure feedback of the one-tap Cheers ──────────
+// The POST that backs a reaction toggle, extracted from app/feed/page.tsx so
+// the FAILURE path (a 503 from anonymous store gating, a network drop) is
+// unit-testable in the node environment — no React/DOM in the loop. The
+// outcome vocabulary is exactly what the page's toggleReaction must decide
+// between:
+//   confirmed    → 2xx; reconcile from the returned authoritative summary.
+//   unknown-drop → 404; a demo seed the backend doesn't persist — the caller
+//                  keeps the toggle local-only (existing behaviour).
+//   failed       → anything else (503 store gating, other 5xx, network error)
+//                  — the caller must roll back its optimistic state AND tell
+//                  the viewer (see cheersTapFeedback below).
+export type ReactionPostOutcome =
+  | { kind: "confirmed"; summary: unknown }
+  | { kind: "unknown-drop" }
+  | { kind: "failed" };
+
+export async function postReactionToggle(
+  body: { id: string; actor: string; reaction: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<ReactionPostOutcome> {
+  try {
+    const res = await fetchImpl("/api/pint-drops/reactions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 404) return { kind: "unknown-drop" };
+    if (!res.ok) return { kind: "failed" };
+    const data = (await res.json()) as { summary?: unknown };
+    return { kind: "confirmed", summary: data.summary };
+  } catch {
+    return { kind: "failed" };
+  }
+}
+
+// What the CheersButton must do once the round-trip resolves. Success needs
+// nothing extra — the parent's reconciled props flow down as before. Failure
+// must (a) drop the optimistic override so the tick honestly reverts (a
+// rollback that lands on the exact pre-flip values is invisible to
+// reconcileToggle's prop-diffing by design), and (b) tell the viewer WHY.
+// The copy echoes the anonymous-gated empty state on /activity ("Sign in or
+// claim a handle") — honest and warm, not an error klaxon.
+export const CHEERS_GATE_PROMPT =
+  "That cheers didn't save — sign in or claim a handle, then try again.";
+
+export type CheersTapFeedback = {
+  revertOptimistic: boolean;
+  prompt: string | null;
+};
+
+export function cheersTapFeedback(ok: boolean): CheersTapFeedback {
+  return ok
+    ? { revertOptimistic: false, prompt: null }
+    : { revertOptimistic: true, prompt: CHEERS_GATE_PROMPT };
+}

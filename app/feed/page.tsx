@@ -28,6 +28,7 @@ import {
   reconcileOptimisticSpill,
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
+import { postReactionToggle } from "@/lib/optimisticToggle";
 import { normalizeHandle } from "@/lib/profiles";
 import { currentMode, MODE_DEFAULT_LANE } from "@/lib/viewMode";
 import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
@@ -506,8 +507,12 @@ export default function FeedPage() {
   // immediately, then reconcile from the server's authoritative summary. A 404
   // (demo seed the backend doesn't know) drops this id into local-only mode and
   // persists the toggle to localStorage — so sample cards react without a crash.
+  // U2: returns whether the toggle actually stuck — false means the POST failed
+  // (503 store gating, network) and the optimistic flip was rolled back. The
+  // CheersButton consumes this to revert its own optimistic overlay and show
+  // the claim-a-handle prompt; other callers may ignore it (the chip row does).
   const toggleReaction = useCallback(
-    async (dropId: string, reaction: ReactionKey) => {
+    async (dropId: string, reaction: ReactionKey): Promise<boolean> => {
       // Local-only (a known demo seed) — never hit the network again.
       if (localOnly.current.has(dropId)) {
         setSummaries((prev) => {
@@ -516,7 +521,7 @@ export default function FeedPage() {
           writeLocalMine(dropId, mine);
           return { ...prev, [dropId]: localSummary(mine) };
         });
-        return;
+        return true;
       }
 
       // Optimistic flip against the current summary.
@@ -531,39 +536,40 @@ export default function FeedPage() {
         return { ...prev, [dropId]: { counts, mine: optimisticMine } };
       });
 
-      try {
-        const res = await fetch("/api/pint-drops/reactions", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ id: dropId, actor: actorId, reaction }),
-        });
-        if (res.status === 404) {
-          // Unknown drop (demo seed): keep the optimistic toggle, persist it
-          // locally, and mark the id local-only for future toggles.
-          localOnly.current.add(dropId);
-          writeLocalMine(dropId, optimisticMine);
-          setSummaries((prev) => ({ ...prev, [dropId]: localSummary(optimisticMine) }));
-          return;
-        }
-        if (!res.ok) throw new Error(String(res.status));
-        const data = (await res.json()) as { summary?: ReactionSummary };
-        // Reconcile from the source of truth (never trust the optimistic copy).
-        if (data.summary) {
-          setSummaries((prev) => ({ ...prev, [dropId]: data.summary as ReactionSummary }));
-        }
-      } catch {
-        // Network/500 — best-effort. Revert the optimistic flip so counts stay
-        // honest; a retry will re-toggle.
-        setSummaries((prev) => {
-          const current = prev[dropId] ?? EMPTY_SUMMARY;
-          const on = current.mine.includes(reaction);
-          const mine = toggleMine(current.mine, reaction);
-          const counts = { ...current.counts };
-          counts[reaction] = Math.max(0, (counts[reaction] ?? 0) + (on ? -1 : 1));
-          if (counts[reaction] === 0) delete counts[reaction];
-          return { ...prev, [dropId]: { counts, mine } };
-        });
+      // The POST lives in lib/optimisticToggle.ts (postReactionToggle) so the
+      // failure path is unit-testable; it never throws — it answers with an
+      // outcome kind this handler maps onto the existing three branches.
+      const outcome = await postReactionToggle({ id: dropId, actor: actorId, reaction });
+      if (outcome.kind === "unknown-drop") {
+        // Unknown drop (demo seed): keep the optimistic toggle, persist it
+        // locally, and mark the id local-only for future toggles.
+        localOnly.current.add(dropId);
+        writeLocalMine(dropId, optimisticMine);
+        setSummaries((prev) => ({ ...prev, [dropId]: localSummary(optimisticMine) }));
+        return true;
       }
+      if (outcome.kind === "confirmed") {
+        // Reconcile from the source of truth (never trust the optimistic copy).
+        if (outcome.summary) {
+          setSummaries((prev) => ({ ...prev, [dropId]: outcome.summary as ReactionSummary }));
+        }
+        return true;
+      }
+      // Network/503 — revert the optimistic flip so counts stay honest; a
+      // retry will re-toggle. Report the failure: a rollback that lands on the
+      // exact pre-flip values is invisible to CheersButton's prop-diffing, so
+      // this boolean is its only honest signal to revert the tick and show the
+      // claim-a-handle prompt (U2).
+      setSummaries((prev) => {
+        const current = prev[dropId] ?? EMPTY_SUMMARY;
+        const on = current.mine.includes(reaction);
+        const mine = toggleMine(current.mine, reaction);
+        const counts = { ...current.counts };
+        counts[reaction] = Math.max(0, (counts[reaction] ?? 0) + (on ? -1 : 1));
+        if (counts[reaction] === 0) delete counts[reaction];
+        return { ...prev, [dropId]: { counts, mine } };
+      });
+      return false;
     },
     [actorId],
   );

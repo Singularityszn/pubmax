@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyOptimisticFlip,
+  CHEERS_GATE_PROMPT,
+  cheersTapFeedback,
+  postReactionToggle,
   reconcileToggle,
   type ToggleBase,
   type ToggleView,
@@ -74,5 +77,90 @@ describe("reconcileToggle", () => {
     const external: ToggleBase = { mine: false, count: 7 };
     const result = reconcileToggle(external, { predicted, baseline: base });
     expect(result).toEqual({ view: external, clearPending: true });
+  });
+});
+
+// ── U2: the POST seam + failure feedback behind the Cheers button ─────────
+// The bug these pin: an anonymous Cheers whose POST answers 503 used to fail
+// SILENTLY — the parent rolled its summary back to the exact pre-flip values,
+// which reconcileToggle cannot distinguish from "still pending" (by design, see
+// above), so the button stayed visually cheered forever with zero feedback.
+// The explicit outcome + feedback pair below is the fix.
+
+describe("postReactionToggle", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const body = { id: "drop-1", actor: "anon-1", reaction: "cheers" };
+
+  it("confirms a 200 and hands back the authoritative summary", async () => {
+    const summary = { counts: { cheers: 3 }, mine: ["cheers"] };
+    const fetchMock = vi.fn(async () => Response.json({ summary }, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(postReactionToggle(body)).resolves.toEqual({
+      kind: "confirmed",
+      summary,
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/pint-drops/reactions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  });
+
+  it("maps a 404 (demo seed) to unknown-drop so the local-only path keeps working", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "Pint drop not found." }, { status: 404 })),
+    );
+    await expect(postReactionToggle(body)).resolves.toEqual({ kind: "unknown-drop" });
+  });
+
+  it("maps a 503 (anonymous store gating) to failed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "Reactions are unavailable." }, { status: 503 })),
+    );
+    await expect(postReactionToggle(body)).resolves.toEqual({ kind: "failed" });
+  });
+
+  it("maps a network error to failed instead of throwing", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("offline"))));
+    await expect(postReactionToggle(body)).resolves.toEqual({ kind: "failed" });
+  });
+});
+
+describe("cheersTapFeedback", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("a successful toggle needs no revert and no prompt", () => {
+    expect(cheersTapFeedback(true)).toEqual({ revertOptimistic: false, prompt: null });
+  });
+
+  it("503 failure path: the optimistic state reverts and the claim-a-handle prompt shows", async () => {
+    // The full failure path, exactly as the button runs it: optimistic flip →
+    // POST answers 503 → outcome failed → feedback says revert + prompt.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "Reactions are unavailable." }, { status: 503 })),
+    );
+    const base: ToggleBase = { mine: false, count: 5 };
+    const predicted = applyOptimisticFlip(base);
+    expect(predicted).toEqual({ mine: true, count: 6 }); // instant tick shown
+
+    const outcome = await postReactionToggle({ id: "d1", actor: "a1", reaction: "cheers" });
+    const feedback = cheersTapFeedback(outcome.kind !== "failed");
+
+    // The prompt is shown, in the app's claim-a-handle voice…
+    expect(feedback.prompt).toBe(CHEERS_GATE_PROMPT);
+    expect(CHEERS_GATE_PROMPT).toMatch(/sign in or claim a handle/i);
+    // …and the button must drop its optimistic override: with pending cleared
+    // the view snaps back to the authoritative pre-flip base — the revert.
+    expect(feedback.revertOptimistic).toBe(true);
+    expect(reconcileToggle(base, null).view).toEqual(base);
   });
 });
