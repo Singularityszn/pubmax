@@ -47,6 +47,7 @@ import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
+import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -70,7 +71,6 @@ import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
   buildLogNearbyCandidates,
-  formatLogNearbyDistance,
   hasMapLogIntent,
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
@@ -1099,59 +1099,15 @@ export default function PubMap({
           />
         ) : null}
         {logIntentFallbackVisible ? (
-          <div className="logIntentFallback" role="status" aria-live="polite">
-            <div>
-              <strong>Pick a pub to log a Pint Drop</strong>
-              <p className="description">
-                {userLocation
-                  ? "Nearest pubs to you first. Choose one, search, or tap the map — then we\u2019ll open the Pint Drop composer."
-                  : "We won\u2019t guess which pub you\u2019re in. Choose one below, search, or tap the map — then we\u2019ll open the Pint Drop composer."}
-              </p>
-            </div>
-            {logNearbyCandidates.length > 0 ? (
-              /* U6e — only claim "nearby" when we actually have a location fix;
-                 without one the list is just the filtered map order. */
-              <ul
-                className="logIntentNearbyList"
-                aria-label={userLocation ? "Nearby pubs to log" : "Pubs to log"}
-              >
-                {logNearbyCandidates.map((candidate) => {
-                  const dist =
-                    typeof candidate.distanceKm === "number" &&
-                    Number.isFinite(candidate.distanceKm)
-                      ? formatLogNearbyDistance(candidate.distanceKm)
-                      : "";
-                  return (
-                    <li key={candidate.id}>
-                      <button
-                        type="button"
-                        className="logIntentNearbyBtn"
-                        onClick={() => pickLogNearbyVenue(candidate.id)}
-                        onPointerEnter={() => prefetchVenueDetail(candidate.id)}
-                        onTouchStart={() => prefetchVenueDetail(candidate.id)}
-                      >
-                        <span>{candidate.name}</span>
-                        <span className="logIntentNearbyMeta">
-                          {dist ? <span className="logIntentNearbyDist">{dist}</span> : null}
-                          <span>{candidate.priceLabel}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-            <div className="logIntentActions">
-              <button type="button" className="addStopBtn" onClick={focusMapSearch}>
-                Search pubs
-              </button>
-              {filteredVenueCount === 0 ? (
-                <button type="button" className="addStopBtn" onClick={resetLogIntentFilters}>
-                  Show all pubs
-                </button>
-              ) : null}
-            </div>
-          </div>
+          <LogIntentFallback
+            candidates={logNearbyCandidates}
+            hasUserLocation={Boolean(userLocation)}
+            filteredVenueCount={filteredVenueCount}
+            onPickVenue={pickLogNearbyVenue}
+            onPrefetchVenue={prefetchVenueDetail}
+            onFocusSearch={focusMapSearch}
+            onResetFilters={resetLogIntentFilters}
+          />
         ) : null}
         <ActiveRoundChip refreshKey={activeRoundStartedCode} />
         {routeMappedActive ? (
