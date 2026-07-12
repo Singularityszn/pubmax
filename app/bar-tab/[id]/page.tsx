@@ -9,6 +9,7 @@ import ShareBar from "@/components/share/ShareBar";
 import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } from "@/lib/feed";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -48,7 +49,12 @@ async function getVenue(id: string): Promise<Venue | null> {
     }
     cachedVenues = index;
   }
-  return cachedVenues.get(id) ?? null;
+  const direct = cachedVenues.get(id);
+  if (direct) return direct;
+  // Resolve a merged duplicate id (D1) so a Bar Tab link to a losing id still
+  // opens the surviving canonical venue.
+  const canonical = await resolveCanonicalVenueId(id);
+  return canonical === id ? null : cachedVenues.get(canonical) ?? null;
 }
 
 function pintDropStoreFor() {

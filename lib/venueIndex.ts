@@ -3,6 +3,7 @@ import path from "path";
 
 import { listEnabledCities } from "@/lib/cities";
 import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import type { Venue } from "@/lib/venues";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
@@ -106,7 +107,13 @@ export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
 
 export async function resolveVenue(id: string): Promise<VenueRef | null> {
   if (!id) return null;
-  return (await getVenueIndex()).get(id) ?? null;
+  const index = await getVenueIndex();
+  const direct = index.get(id);
+  if (direct) return direct;
+  // Fall back to the D1 alias map so a reference to a merged duplicate id still
+  // resolves to the surviving canonical venue.
+  const canonical = await resolveCanonicalVenueId(id);
+  return canonical === id ? null : index.get(canonical) ?? null;
 }
 
 // A display label that never surfaces a raw id: the pub name, or a friendly

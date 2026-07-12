@@ -1,0 +1,856 @@
+{
+  "version": 1,
+  "generatedBy": "scripts/canonicalize_venue_dataset.mjs",
+  "note": "duplicateVenueId -> canonicalVenueId. The same physical pub appeared twice across dataset lineages (e.g. Wetherspoons directory vs seed); those identities were collapsed into one venue. A stored reference to a merged id resolves to its canonical id via lib/venueAliases.ts — no id is ever deleted silently.",
+  "aliasCount": 73,
+  "aliases": {
+    "venue-10jw1vr": "venue-16ze6b1",
+    "venue-1gs68ga": "venue-16ze6b1",
+    "venue-41nyuw": "venue-1e6ogfb",
+    "venue-1eqf2e5": "venue-1pf9vt5",
+    "venue-bdasst": "venue-1dosq7b",
+    "venue-nxfoov": "venue-1dosq7b",
+    "venue-1j4rs86": "venue-64ymvx",
+    "venue-w42man": "venue-10jffb0",
+    "venue-157ewj0": "venue-1451o7c",
+    "venue-1echfld": "venue-1bckkxz",
+    "venue-xg4k2j": "venue-yl1a48",
+    "venue-vmted7": "venue-164nra2",
+    "venue-rhpttv": "venue-qky1h5",
+    "venue-1ffe6u": "venue-1qwm0di",
+    "venue-1pe2dsh": "venue-17m0t8h",
+    "venue-1wn2oun": "venue-17rj45g",
+    "venue-m07t50": "venue-1fde856",
+    "venue-x2i8ai": "venue-jfkv2h",
+    "venue-1m1dmc5": "venue-136xtuu",
+    "venue-1xx7zno": "venue-1jhq3s4",
+    "venue-thm3tm": "venue-1ros0mx",
+    "venue-oiqrsa": "venue-cee7f9",
+    "venue-1q5c8ff": "venue-gvz1hf",
+    "venue-19g8xwk": "venue-1tmuwrp",
+    "venue-1xrz3dn": "venue-1rzudoh",
+    "venue-14i11vw": "venue-3zgjrk",
+    "venue-e4t5m3": "venue-1pvqxca",
+    "venue-1mr5its": "venue-10mil9j",
+    "venue-1tfxg3g": "venue-myhgdk",
+    "venue-vm2exh": "venue-zottpx",
+    "venue-6kf8ts": "venue-dmli42",
+    "venue-1r5qszr": "venue-1bb3t97",
+    "venue-d4bi3v": "venue-2xghrm",
+    "venue-g5zwb8": "venue-2xghrm",
+    "venue-1r8zf1b": "venue-1hq7rkl",
+    "venue-7hax2l": "venue-1eqhj8d",
+    "venue-10ae8zp": "venue-vtgxk6",
+    "venue-j5fmw5": "venue-1dyrfr0",
+    "venue-8eceak": "venue-ndc1rt",
+    "venue-15g7bz0": "venue-1mc221y",
+    "venue-1b4y2r4": "venue-a31bnk",
+    "venue-owvpwc": "venue-1lisyr9",
+    "venue-edzuzk": "venue-1duinu2",
+    "venue-1la3fsq": "venue-lbm3ws",
+    "venue-6jhiht": "venue-1g1ttqf",
+    "venue-1ys6lb7": "venue-1ae0qgz",
+    "venue-1oizrwi": "venue-1ogexf4",
+    "venue-1l19dv5": "venue-11tttn4",
+    "venue-b8uey5": "venue-15v64k2",
+    "venue-np3kin": "venue-vey5le",
+    "venue-1uvkcpu": "venue-1gnw3uj",
+    "venue-1mloe4": "venue-1khnupq",
+    "venue-10zhewm": "venue-txfgkc",
+    "venue-rfu9p9": "venue-gdlj1b",
+    "venue-10n8xmn": "venue-194uq0b",
+    "venue-3nj2os": "venue-194uq0b",
+    "venue-bos6ly": "venue-1oz2l6e",
+    "venue-hq42d9": "venue-1beqe9l",
+    "venue-1qktspi": "venue-1beqe9l",
+    "venue-z8dc3b": "venue-ekvkuv",
+    "venue-1rtz3rm": "venue-1oolo7w",
+    "venue-16nkuhy": "venue-1oa8eys",
+    "venue-2hpyl9": "venue-12qgqym",
+    "venue-5vxlmk": "venue-qz6pcy",
+    "venue-1n5b2v8": "venue-1g5u0d8",
+    "venue-1uqwaup": "venue-oj2cg",
+    "venue-1cq1l8z": "venue-1hsf01d",
+    "venue-dy1d7d": "venue-1lpbgp3",
+    "venue-udq7rd": "venue-1dqfi1i",
+    "venue-4xt9gm": "venue-1l86ijg",
+    "venue-1m0bktp": "venue-1fabngq",
+    "venue-4rj5un": "venue-1y5lg8a",
+    "venue-1m7so6h": "venue-1ad37ry"
+  },
+  "clusters": [
+    {
+      "canonicalId": "venue-16ze6b1",
+      "canonicalName": "George (Southwark)",
+      "mergedFrom": [
+        {
+          "id": "venue-10jw1vr",
+          "name": "George",
+          "rows": 1
+        },
+        {
+          "id": "venue-1gs68ga",
+          "name": "The George",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1e6ogfb",
+      "canonicalName": "The George",
+      "mergedFrom": [
+        {
+          "id": "venue-41nyuw",
+          "name": "The George - JD Wetherspoon",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1pf9vt5",
+      "canonicalName": "The Furze Wren - JD Wetherspoon",
+      "mergedFrom": [
+        {
+          "id": "venue-1eqf2e5",
+          "name": "The Furze Wren (Wetherspoons)",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1dosq7b",
+      "canonicalName": "Kings Arms (Bishopsgate)",
+      "mergedFrom": [
+        {
+          "id": "venue-bdasst",
+          "name": "Kings Arms",
+          "rows": 7
+        },
+        {
+          "id": "venue-nxfoov",
+          "name": "Kings Arms",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-64ymvx",
+      "canonicalName": "Kings Arms (Mayfair)",
+      "mergedFrom": [
+        {
+          "id": "venue-1j4rs86",
+          "name": "The Kings Arms",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-10jffb0",
+      "canonicalName": "Greyhound",
+      "mergedFrom": [
+        {
+          "id": "venue-w42man",
+          "name": "The Greyhound",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1451o7c",
+      "canonicalName": "Red Lion (Moorgate)",
+      "mergedFrom": [
+        {
+          "id": "venue-157ewj0",
+          "name": "Red Lion",
+          "rows": 6
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1bckkxz",
+      "canonicalName": "Fox on the green",
+      "mergedFrom": [
+        {
+          "id": "venue-1echfld",
+          "name": "The Fox On The Green",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-yl1a48",
+      "canonicalName": "Friend At Hand",
+      "mergedFrom": [
+        {
+          "id": "venue-xg4k2j",
+          "name": "The Friend at Hand",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-164nra2",
+      "canonicalName": "Golden Lion",
+      "mergedFrom": [
+        {
+          "id": "venue-vmted7",
+          "name": "Golden Lion",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-qky1h5",
+      "canonicalName": "Hope & Anchor",
+      "mergedFrom": [
+        {
+          "id": "venue-rhpttv",
+          "name": "Hope & Anchor",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1qwm0di",
+      "canonicalName": "Lord Raglan (Holborn)",
+      "mergedFrom": [
+        {
+          "id": "venue-1ffe6u",
+          "name": "Lord Raglan",
+          "rows": 6
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-17m0t8h",
+      "canonicalName": "McGlynn's Free House",
+      "mergedFrom": [
+        {
+          "id": "venue-1pe2dsh",
+          "name": "McGlynn’s Free House",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-17rj45g",
+      "canonicalName": "Prince of Wales",
+      "mergedFrom": [
+        {
+          "id": "venue-1wn2oun",
+          "name": "The Prince of Wales",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1fde856",
+      "canonicalName": "Prince of Wales (Wimbledon)",
+      "mergedFrom": [
+        {
+          "id": "venue-m07t50",
+          "name": "Prince of Wales",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-jfkv2h",
+      "canonicalName": "The Castle",
+      "mergedFrom": [
+        {
+          "id": "venue-x2i8ai",
+          "name": "The Castle",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-136xtuu",
+      "canonicalName": "The Colonel Fawcett",
+      "mergedFrom": [
+        {
+          "id": "venue-1m1dmc5",
+          "name": "The Colonel Fawcett",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1jhq3s4",
+      "canonicalName": "The Earl of Essex",
+      "mergedFrom": [
+        {
+          "id": "venue-1xx7zno",
+          "name": "The Earl of Essex",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1ros0mx",
+      "canonicalName": "Junction (Clapham)",
+      "mergedFrom": [
+        {
+          "id": "venue-thm3tm",
+          "name": "The Junction",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-cee7f9",
+      "canonicalName": "The White Swan",
+      "mergedFrom": [
+        {
+          "id": "venue-oiqrsa",
+          "name": "The White Swan - JD Wetherspoon",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-gvz1hf",
+      "canonicalName": "White Swan",
+      "mergedFrom": [
+        {
+          "id": "venue-1q5c8ff",
+          "name": "The White Swan",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1tmuwrp",
+      "canonicalName": "The york",
+      "mergedFrom": [
+        {
+          "id": "venue-19g8xwk",
+          "name": "The York",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1rzudoh",
+      "canonicalName": "BrewDog Waterloo",
+      "mergedFrom": [
+        {
+          "id": "venue-1xrz3dn",
+          "name": "Brewdog Waterloo",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-3zgjrk",
+      "canonicalName": "Cheshire Cheese",
+      "mergedFrom": [
+        {
+          "id": "venue-14i11vw",
+          "name": "The Cheshire Cheese",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1pvqxca",
+      "canonicalName": "Lord Clyde",
+      "mergedFrom": [
+        {
+          "id": "venue-e4t5m3",
+          "name": "The Lord Clyde",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-10mil9j",
+      "canonicalName": "Railway (London Ec2)",
+      "mergedFrom": [
+        {
+          "id": "venue-1mr5its",
+          "name": "Railway",
+          "rows": 5
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-myhgdk",
+      "canonicalName": "The Artillery Arms",
+      "mergedFrom": [
+        {
+          "id": "venue-1tfxg3g",
+          "name": "The Artillery Arms",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-zottpx",
+      "canonicalName": "The Crosse Keys",
+      "mergedFrom": [
+        {
+          "id": "venue-vm2exh",
+          "name": "The Crosse Keys",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-dmli42",
+      "canonicalName": "The Dean Swift",
+      "mergedFrom": [
+        {
+          "id": "venue-6kf8ts",
+          "name": "The Dean Swift",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1bb3t97",
+      "canonicalName": "The Mudlark",
+      "mergedFrom": [
+        {
+          "id": "venue-1r5qszr",
+          "name": "The Mudlark",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-2xghrm",
+      "canonicalName": "The Woodins Shades",
+      "mergedFrom": [
+        {
+          "id": "venue-d4bi3v",
+          "name": "The Woodins Shades",
+          "rows": 1
+        },
+        {
+          "id": "venue-g5zwb8",
+          "name": "The Woodins Shades",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1hq7rkl",
+      "canonicalName": "Windsor Fenchurch",
+      "mergedFrom": [
+        {
+          "id": "venue-1r8zf1b",
+          "name": "Windsor Fenchurch",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1eqhj8d",
+      "canonicalName": "O'Briens",
+      "mergedFrom": [
+        {
+          "id": "venue-7hax2l",
+          "name": "O'Briens",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-vtgxk6",
+      "canonicalName": "The Old George",
+      "mergedFrom": [
+        {
+          "id": "venue-10ae8zp",
+          "name": "The Old George",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1dyrfr0",
+      "canonicalName": "The Rochester Castle",
+      "mergedFrom": [
+        {
+          "id": "venue-j5fmw5",
+          "name": "The Rochester Castle - JD Wetherspoon",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-ndc1rt",
+      "canonicalName": "The Sun Tavern",
+      "mergedFrom": [
+        {
+          "id": "venue-8eceak",
+          "name": "The Sun Tavern",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1mc221y",
+      "canonicalName": "Packhorse & Talbot",
+      "mergedFrom": [
+        {
+          "id": "venue-15g7bz0",
+          "name": "Packhorse and Talbot",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-a31bnk",
+      "canonicalName": "The Chancellors",
+      "mergedFrom": [
+        {
+          "id": "venue-1b4y2r4",
+          "name": "The Chancellors",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1lisyr9",
+      "canonicalName": "The Moon on the Hill - JD Wetherspoon",
+      "mergedFrom": [
+        {
+          "id": "venue-owvpwc",
+          "name": "The Moon on the Hill - JD Wetherspoon",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1duinu2",
+      "canonicalName": "Alma",
+      "mergedFrom": [
+        {
+          "id": "venue-edzuzk",
+          "name": "ALMA",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-lbm3ws",
+      "canonicalName": "The Cellar Taps",
+      "mergedFrom": [
+        {
+          "id": "venue-1la3fsq",
+          "name": "The Cellar Taps",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1g1ttqf",
+      "canonicalName": "The Hercules",
+      "mergedFrom": [
+        {
+          "id": "venue-6jhiht",
+          "name": "The Hercules",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1ae0qgz",
+      "canonicalName": "The Snooty Fox",
+      "mergedFrom": [
+        {
+          "id": "venue-1ys6lb7",
+          "name": "The Snooty Fox",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1ogexf4",
+      "canonicalName": "The Blackbird",
+      "mergedFrom": [
+        {
+          "id": "venue-1oizrwi",
+          "name": "Blackbird",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-11tttn4",
+      "canonicalName": "Courtfield",
+      "mergedFrom": [
+        {
+          "id": "venue-1l19dv5",
+          "name": "The Courtfield",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-15v64k2",
+      "canonicalName": "Earls Court Tavern",
+      "mergedFrom": [
+        {
+          "id": "venue-b8uey5",
+          "name": "The Earls Court Tavern",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-vey5le",
+      "canonicalName": "Hoop & Toy",
+      "mergedFrom": [
+        {
+          "id": "venue-np3kin",
+          "name": "The Hoop & Toy",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1gnw3uj",
+      "canonicalName": "Stanhope Arms",
+      "mergedFrom": [
+        {
+          "id": "venue-1uvkcpu",
+          "name": "The Stanhope Arms",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1khnupq",
+      "canonicalName": "Pop Brixton",
+      "mergedFrom": [
+        {
+          "id": "venue-1mloe4",
+          "name": "Pop Brixton",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-txfgkc",
+      "canonicalName": "The Falcon",
+      "mergedFrom": [
+        {
+          "id": "venue-10zhewm",
+          "name": "The Falcon",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-gdlj1b",
+      "canonicalName": "The Fox on the Hill",
+      "mergedFrom": [
+        {
+          "id": "venue-rfu9p9",
+          "name": "The Fox on the Hill - JD Wetherspoon",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-194uq0b",
+      "canonicalName": "Leather Bottle",
+      "mergedFrom": [
+        {
+          "id": "venue-10n8xmn",
+          "name": "Leather Bottle",
+          "rows": 7
+        },
+        {
+          "id": "venue-3nj2os",
+          "name": "The Leather Bottle",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1oz2l6e",
+      "canonicalName": "The Wibbas Down Inn - JD Wetherspoon",
+      "mergedFrom": [
+        {
+          "id": "venue-bos6ly",
+          "name": "The Wibbas Down Inn - JD Wetherspoon",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1beqe9l",
+      "canonicalName": "The Rockingham Arms",
+      "mergedFrom": [
+        {
+          "id": "venue-hq42d9",
+          "name": "The Rockingham Arms",
+          "rows": 2
+        },
+        {
+          "id": "venue-1qktspi",
+          "name": "The Rockingham Arms - JD Wetherspoon",
+          "rows": 9
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-ekvkuv",
+      "canonicalName": "The Grapes",
+      "mergedFrom": [
+        {
+          "id": "venue-z8dc3b",
+          "name": "The Grapes",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1oolo7w",
+      "canonicalName": "Old Fields (Southfields)",
+      "mergedFrom": [
+        {
+          "id": "venue-1rtz3rm",
+          "name": "The Old Fields",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1oa8eys",
+      "canonicalName": "The Asparagus",
+      "mergedFrom": [
+        {
+          "id": "venue-16nkuhy",
+          "name": "The Asparagus - JD Wetherspoon",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-12qgqym",
+      "canonicalName": "The Eight Bells",
+      "mergedFrom": [
+        {
+          "id": "venue-2hpyl9",
+          "name": "Eight Bells",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-qz6pcy",
+      "canonicalName": "The Princess of Wales",
+      "mergedFrom": [
+        {
+          "id": "venue-5vxlmk",
+          "name": "The Princess of Wales",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1g5u0d8",
+      "canonicalName": "The Bridge House",
+      "mergedFrom": [
+        {
+          "id": "venue-1n5b2v8",
+          "name": "The Bridge House",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-oj2cg",
+      "canonicalName": "The Stag",
+      "mergedFrom": [
+        {
+          "id": "venue-1uqwaup",
+          "name": "The Stag",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1hsf01d",
+      "canonicalName": "The Star of Bethnal Green",
+      "mergedFrom": [
+        {
+          "id": "venue-1cq1l8z",
+          "name": "The Star of Bethnal Green",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1lpbgp3",
+      "canonicalName": "The Washington",
+      "mergedFrom": [
+        {
+          "id": "venue-dy1d7d",
+          "name": "The Washington",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1dqfi1i",
+      "canonicalName": "Sylvan Post",
+      "mergedFrom": [
+        {
+          "id": "venue-udq7rd",
+          "name": "Sylvan post",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1l86ijg",
+      "canonicalName": "The Garden Gate",
+      "mergedFrom": [
+        {
+          "id": "venue-4xt9gm",
+          "name": "The Garden Gate",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1fabngq",
+      "canonicalName": "The Kentish Drovers",
+      "mergedFrom": [
+        {
+          "id": "venue-1m0bktp",
+          "name": "The Kentish Drovers - JD Wetherspoon",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1y5lg8a",
+      "canonicalName": "The Lord Napier Star",
+      "mergedFrom": [
+        {
+          "id": "venue-4rj5un",
+          "name": "The Lord Napier Star",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1ad37ry",
+      "canonicalName": "The Surrey Docks",
+      "mergedFrom": [
+        {
+          "id": "venue-1m7so6h",
+          "name": "The Surrey Docks - JD Wetherspoon",
+          "rows": 10
+        }
+      ]
+    }
+  ]
+}

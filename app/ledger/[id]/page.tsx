@@ -14,6 +14,7 @@ import {
 } from "@/lib/ledger";
 import { type ViewerContext } from "@/lib/pintDrops";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -63,7 +64,12 @@ async function getVenue(id: string): Promise<Venue | null> {
     }
     cachedVenues = index;
   }
-  return cachedVenues.get(id) ?? null;
+  const direct = cachedVenues.get(id);
+  if (direct) return direct;
+  // Resolve a merged duplicate id (D1) so a Ledger link to a losing id still
+  // opens the surviving canonical venue.
+  const canonical = await resolveCanonicalVenueId(id);
+  return canonical === id ? null : cachedVenues.get(canonical) ?? null;
 }
 
 function pintDropStoreFor() {
