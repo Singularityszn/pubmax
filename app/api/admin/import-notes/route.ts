@@ -15,6 +15,7 @@ import {
   restoreImportNote,
   validateImportNote,
 } from "@/lib/importNotesStore";
+import { isImportNotesLimited } from "@/lib/importNotesRateLimit";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
@@ -35,6 +36,9 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   if (!isModerator(request)) return forbidden();
+  if (await isImportNotesLimited(request)) {
+    return jsonNoStore({ error: "Too many requests, slow down." }, { status: 429 });
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
