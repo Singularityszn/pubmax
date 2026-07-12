@@ -1,51 +1,69 @@
-// Typed product-analytics rail over Vercel Analytics (R3). Cycle metrics
-// depend on a small, closed set of named events — this module is the ONLY
-// place that set is allowed to grow, so every caller stays in sync with the
-// metrics contract and nobody free-types an event name that silently never
-// gets counted.
+// Client-side event beacon (Wave D · D0). One entry point — trackEvent — that
+// the whole app uses to record a self-owned, privacy-first signal. This
+// replaces the earlier Vercel Analytics-backed rail (R3); the same closed set
+// of ~10 named events those cycle metrics depend on now lives in the shared
+// registry (lib/analyticsEvents.ts) instead of a third-party `track()` call,
+// so every existing caller (badge_tap, booking_click, tour_complete, etc.)
+// keeps working unchanged.
 //
-// Privacy posture: cookie-less (Vercel Web Analytics), no PII. Props are
-// intentionally flat and primitive-only (string | number | boolean) — venue
-// ids, tiers, counts, and booleans are fine; a display name, message body,
-// address, or any other free-text user content is NOT. Callers must not pass
-// user-authored text as a prop value.
+// Privacy-first: honours Do-Not-Track, sends only registry-known events with
+// allow-listed primitive props (validated again here as defence in depth), and
+// carries NO identifier — just the event, its props, the coarse path, and a
+// timestamp. Fire-and-forget: uses navigator.sendBeacon so it survives a page
+// unload/navigation, falls back to keepalive fetch, and swallows every error so
+// analytics can never break a user flow.
 
-import { track } from "@vercel/analytics";
+import {
+  sanitizeEvent,
+  type AnalyticsEventName,
+  type AnalyticsProps,
+} from "@/lib/analyticsEvents";
 
-/** Closed union of the ~10 named events the R3 cycle metrics depend on. */
-export type AnalyticsEventName =
-  | "badge_tap"
-  | "lane_card_tap"
-  | "lane_to_plan"
-  | "cmdk_open"
-  | "night_mode_active"
-  | "drop_logged"
-  | "booking_click"
-  | "whats_on_filter"
-  | "tour_complete"
-  | "plan_created";
+const ENDPOINT = "/api/events";
 
-/** No PII, no free-text user content — venue ids, tiers, counts are OK. */
-export type AnalyticsEventProps = Record<string, string | number | boolean>;
-
-function hasWindow(): boolean {
-  return typeof window !== "undefined";
+function doNotTrack(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const nav = navigator as Navigator & { doNotTrack?: string };
+  const win = typeof window !== "undefined"
+    ? (window as Window & { doNotTrack?: string })
+    : undefined;
+  const dnt = nav.doNotTrack ?? win?.doNotTrack;
+  return dnt === "1" || dnt === "yes";
 }
 
 /**
- * Track a typed product event. No-ops safely on the server (SSR/RSC render,
- * route handlers, build) and under test, where `window` is undefined —
- * mirrors the storage-guard idiom in lib/firstRunTour.ts and the
- * performance.mark guard in lib/performanceMarks.ts. Never throws: analytics
- * is best-effort and must never break the app (a blocked script, an
- * ad-blocker, or a missing DSN should be silent).
+ * Record a product event. No-ops on the server, under Do-Not-Track, or for an
+ * unknown/invalid event name. Never throws.
  */
-export function trackEvent(name: AnalyticsEventName, props?: AnalyticsEventProps): void {
-  if (!hasWindow()) return;
+export function trackEvent(
+  name: AnalyticsEventName,
+  props?: AnalyticsProps,
+): void {
   try {
-    track(name, props);
+    if (typeof window === "undefined") return;
+    if (doNotTrack()) return;
+    const event = sanitizeEvent(name, props);
+    if (!event) return;
+
+    const payload = JSON.stringify({
+      name: event.name,
+      props: event.props,
+      path: window.location?.pathname ?? null,
+      ts: Date.now(),
+    });
+
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([payload], { type: "application/json" });
+      if (navigator.sendBeacon(ENDPOINT, blob)) return;
+    }
+    // Fallback: keepalive fetch (still fire-and-forget).
+    void fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: payload,
+      keepalive: true,
+    }).catch(() => {});
   } catch {
-    // Best-effort only — swallow so a blocked/ad-blocked analytics script
-    // never surfaces as an app error.
+    /* analytics must never break a flow */
   }
 }

@@ -33,6 +33,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { trackEvent } from "@/lib/analytics";
 import {
   eventChipsForVenue,
   matchOpportunitiesToVenue,
@@ -97,6 +98,10 @@ export default function VenueTonightChips(props: VenueRef): React.JSX.Element | 
           if (controller.signal.aborted) return;
           setChips(derived);
           setAsOf(body.asOf ?? null);
+          // D0: this venue surfaced ≥1 event chip. One signal per kind shown.
+          for (const chip of derived) {
+            trackEvent("event_chip_view", { kind: chip.kind });
+          }
         });
       } catch {
         /* fail-soft: no chips */

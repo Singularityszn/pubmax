@@ -25,6 +25,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, ExternalLink, Footprints, MapPin } from "lucide-react";
 
 import SiteNav from "@/components/nav/SiteNav";
+import TonightShareButton from "./TonightShareButton";
+import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
 import {
   coverageLabel,
@@ -100,6 +102,12 @@ export default function TonightClient() {
     return () => controller.abort();
   }, []);
 
+  // D0: the headline Wave A metric — the screen was opened. Fired once on
+  // mount, independent of whether the upstream had anything tonight.
+  useEffect(() => {
+    trackEvent("tonight_screen_view");
+  }, []);
+
   // Progressive enhancement: once (and only if) the viewer shares their
   // location, walk-time estimates fill in. Never blocks the list; a denial or
   // missing API simply leaves walk time off.
@@ -135,7 +143,10 @@ export default function TonightClient() {
       <SiteNav active="tonight" />
 
       <header className="tonightHead">
-        <p className="tonightEyebrow">Tonight in London</p>
+        <div className="tonightEyebrowRow">
+          <p className="tonightEyebrow">Tonight in London</p>
+          <TonightShareButton />
+        </div>
         <h1 className="tonightTitle">What&rsquo;s on near you, right now.</h1>
         <p className="tonightLede">
           A grounded read of London tonight — via CityMCP London. No invented
@@ -195,7 +206,10 @@ export default function TonightClient() {
                   className="tonightChip"
                   data-active={activeKind === facet.kind}
                   aria-pressed={activeKind === facet.kind}
-                  onClick={() => setActiveKind(facet.kind)}
+                  onClick={() => {
+                    setActiveKind(facet.kind);
+                    trackEvent("tonight_filter_select", { kind: facet.kind });
+                  }}
                 >
                   {facet.label}
                   <span className="tonightChipCount">{facet.count}</span>

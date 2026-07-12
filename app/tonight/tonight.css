@@ -15,6 +15,13 @@
   margin: 8px 0 20px;
 }
 
+.tonightEyebrowRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .tonightEyebrow {
   margin: 0 0 6px;
   font-size: 0.72rem;
@@ -22,6 +29,28 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--brass);
+}
+
+.tonightShare {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tonightShare:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+    color: var(--brass);
+  }
 }
 
 .tonightTitle {
