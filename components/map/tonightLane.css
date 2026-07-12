@@ -74,8 +74,11 @@ body:has(.appShell.planning-open) .tonightLane {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  /* 44px tap target + touch-action (adopted from #232's parallel lane) so the
+     facet chips meet the mobile hit-size bar without double-tap zoom lag. */
   min-height: 44px;
   padding: 4px 12px;
+  touch-action: manipulation;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
@@ -84,7 +87,6 @@ body:has(.appShell.planning-open) .tonightLane {
   font-weight: 700;
   white-space: nowrap;
   backdrop-filter: blur(6px);
-  touch-action: manipulation;
 }
 
 .tonightLaneChip[data-active="true"] {
@@ -219,9 +221,11 @@ body:has(.appShell.planning-open) .tonightLane {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* 44px tap target + touch-action — same #232-adopted hit-size bar as the chips. */
   min-height: 44px;
   margin-top: 8px;
   padding: 4px 12px;
+  touch-action: manipulation;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
   background: color-mix(in srgb, var(--brass) 12%, transparent);
@@ -229,7 +233,6 @@ body:has(.appShell.planning-open) .tonightLane {
   font-size: 0.7rem;
   font-weight: 700;
   text-decoration: none;
-  touch-action: manipulation;
 }
 
 .tonightLanePlan:hover {
@@ -242,5 +245,13 @@ body:has(.appShell.planning-open) .tonightLane {
   }
   .tonightLaneCardTap:active {
     transform: scale(0.98);
+  }
+  /* Pointer-down feedback stays visual-only (:active); activation itself is
+     onClick so keyboard users and drag-scrolls on the chip rail behave. */
+  .tonightLaneChip {
+    transition: transform 120ms ease;
+  }
+  .tonightLaneChip:active {
+    transform: scale(0.96);
   }
 }

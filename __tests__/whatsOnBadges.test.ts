@@ -123,6 +123,14 @@ describe("time + provenance helpers", () => {
     expect(checkedLabel("nope")).toBe("Freshness unknown");
   });
 
+  it("checkedLabel uses the LONDON calendar day (23:xx UTC in BST rolls forward)", () => {
+    // 23:30 UTC on 12 Jul is 00:30 London (BST) on 13 Jul — the label must
+    // agree with the London wall clock formatWhatsOnTime renders in.
+    expect(checkedLabel("2026-07-12T23:30:00.000Z")).toBe("Checked 13 Jul");
+    // And just before the boundary it stays on the 12th.
+    expect(checkedLabel("2026-07-12T22:30:00.000Z")).toBe("Checked 12 Jul");
+  });
+
   it("kind meta matches owner decision 4 (quiz timed, sport untimed)", () => {
     expect(WHATS_ON_KIND_META.quiz.timed).toBe(true);
     expect(WHATS_ON_KIND_META.sport.timed).toBe(false);
