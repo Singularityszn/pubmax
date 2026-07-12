@@ -100,6 +100,32 @@ for (const viewport of VIEWPORTS) {
         await shot(page, `map-log-${theme}-${viewport.name}`);
       });
 
+      test(`tonight (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/tonight");
+        expect(response?.status()).toBe(200);
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `tonight-${theme}-${viewport.name}`, true);
+      });
+
+      test(`plan (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/plan");
+        expect(response?.status()).toBe(200);
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `plan-${theme}-${viewport.name}`, true);
+      });
+
+      test(`venue sheet desktop (${theme}, ${viewport.name})`, async ({ page }) => {
+        test.skip(viewport.width < 1024, "desktop inspector only");
+        await setTheme(page, theme);
+        const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+        expect(response?.status()).toBe(200);
+        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
+        await page.waitForTimeout(2000);
+        await shot(page, `venue-desktop-${theme}-${viewport.name}`);
+      });
+
       test(`feed (${theme}, ${viewport.name})`, async ({ page }) => {
         await setTheme(page, theme);
         const response = await page.goto("/feed");
