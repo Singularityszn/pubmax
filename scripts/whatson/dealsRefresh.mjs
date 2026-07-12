@@ -39,20 +39,22 @@
 // venues are filtered to Greater London via the SAME postcode tables
 // quizParsers.mjs already curated for the quiz vertical (isGreaterLondonPostcode).
 //
-// VENUE MATCHING: rows ship with `venueId` omitted (never invented). pubs.json's
-// own name/address strings do not match the shape the main venues dataset's
-// venueGroupingKey formula expects (that dataset uses Google-Places-style
-// addresses; pubs.json uses the chain's own postcode-only address) — computing
-// a venueId from mismatched fields would silently produce a WRONG id rather
-// than an honest "unresolved". lat/lng ARE included (the chain's own
-// coordinates) so the row still plots + sorts-by-near; a later venueId match
-// can be layered on via lib/whatsOn.ts matchVenueId, same as the quiz rows.
+// VENUE MATCHING (W6): pubs.json's own name/address strings rarely line up
+// with the canonical dataset's venueGroupingKey formula (that dataset uses
+// Google-Places-style addresses; pubs.json uses the chain's own
+// postcode-only address), so an exact-key match is rare. resolveVenueId
+// (scripts/whatson/resolveVenueId.mjs) is used instead — its conservative
+// fallback confirms a normalized-name match via postcode district or <=75m
+// proximity, both of which pubs.json carries (postcode + lat/lng). `venueId`
+// is only set when resolveVenueId returns non-null; a row that can't be
+// confidently resolved simply omits the field, never a guessed id.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { nextWeeklyOccurrence, isGreaterLondonPostcode } from "./quizParsers.mjs";
+import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WETHERSPOONS_PATH = join(ROOT, "public", "data", "wetherspoons", "pubs.json");
@@ -202,7 +204,7 @@ export function filterGreaterLondonWetherspoons(pubs) {
 // source's own "may vary per pub" caveat is carried in `detail`). A venue
 // missing a slug/name is dropped; a deal whose weekly slot cannot be resolved
 // is dropped (never guessed).
-export function buildWetherspoonsDealRows({ deals, venues, observedAt }) {
+export function buildWetherspoonsDealRows({ deals, venues, observedAt, venueIndex = null }) {
   const rows = [];
   for (const deal of deals ?? []) {
     const startsAt = nextWeeklyOccurrence(deal.dayName, deal.startTime, observedAt);
@@ -232,6 +234,13 @@ export function buildWetherspoonsDealRows({ deals, venues, observedAt }) {
       const lng = coordOf(venue.longitude);
       if (lat !== null) row.lat = lat;
       if (lng !== null) row.lng = lng;
+      if (venueIndex) {
+        const resolved = resolveVenueId(
+          { name, address: venue.fullAddress, postcode: venue.postcode, lat, lng },
+          venueIndex,
+        );
+        if (resolved) row.venueId = resolved;
+      }
       rows.push(row);
     }
   }
@@ -250,10 +259,12 @@ function main() {
   const allPubs = Array.isArray(wetherspoons?.pubs) ? wetherspoons.pubs : [];
   const londonPubs = filterGreaterLondonWetherspoons(allPubs);
 
+  const venueIndex = loadCanonicalVenueIndex();
   const rows = buildWetherspoonsDealRows({
     deals: WETHERSPOONS_DEALS,
     venues: londonPubs,
     observedAt,
+    venueIndex,
   });
 
   if (rows.length > 2000) {

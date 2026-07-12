@@ -58,17 +58,22 @@
 // none of these residencies' own pages state how long the set runs — omitted
 // rather than guessed.
 //
-// VENUE MATCHING: rows ship with no venueId and no lat/lng (never invented —
-// neither residency's own page publishes coordinates, and there is no
-// reliable venueGroupingKey cross-reference dataset for either pub the way
-// dealsRefresh.mjs has for Wetherspoons). A later refresh can layer venueId on
-// via lib/whatsOn.ts matchVenueId once a geocoded match is confirmed.
+// VENUE MATCHING (W6): rows carry no address/postcode/coordinates (neither
+// residency's own page publishes them), so resolveVenueId's fallback path —
+// which requires an independent postcode-district or <=75m proximity
+// confirmation on top of the normalized-name match — can rarely confirm a
+// match here; it is still run (via loadCanonicalVenueIndex in main()) so a
+// venue whose normalized name happens to be unambiguous in the canonical
+// dataset still resolves, but most rows are expected to stay unresolved
+// until a geocoded match is manually confirmed and added as address/lat/lng
+// above.
 
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { nextWeeklyOccurrence } from "./quizParsers.mjs";
+import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "music_london.json");
@@ -225,7 +230,7 @@ export const MUSIC_RESIDENCIES = [
 // first-party published programme, not a per-night confirmation that this
 // exact lineup plays this exact week). A residency whose weekly slot cannot
 // be resolved (malformed day/time) is dropped, never guessed.
-export function buildMusicResidencyRows({ residencies, observedAt }) {
+export function buildMusicResidencyRows({ residencies, observedAt, venueIndex = null }) {
   const rows = [];
   for (const res of residencies ?? []) {
     const startsAt = nextWeeklyOccurrence(res?.dayName, res?.startTime, observedAt);
@@ -238,7 +243,7 @@ export function buildMusicResidencyRows({ residencies, observedAt }) {
     if (typeof res.title !== "string" || res.title.length === 0) continue;
     if (typeof res.detail !== "string" || res.detail.length === 0) continue;
 
-    rows.push({
+    const row = {
       id: `music-${res.id}`,
       placeName: res.placeName,
       kind: "music",
@@ -248,7 +253,12 @@ export function buildMusicResidencyRows({ residencies, observedAt }) {
       source: { ...res.source },
       observedAt,
       confidence: "listed",
-    });
+    };
+    if (venueIndex) {
+      const resolved = resolveVenueId({ name: res.placeName }, venueIndex);
+      if (resolved) row.venueId = resolved;
+    }
+    rows.push(row);
   }
   rows.sort((a, b) => a.id.localeCompare(b.id));
   return rows;
@@ -261,7 +271,8 @@ export function buildMusicResidencyRows({ residencies, observedAt }) {
 function main() {
   const observedAt = new Date().toISOString();
 
-  const rows = buildMusicResidencyRows({ residencies: MUSIC_RESIDENCIES, observedAt });
+  const venueIndex = loadCanonicalVenueIndex();
+  const rows = buildMusicResidencyRows({ residencies: MUSIC_RESIDENCIES, observedAt, venueIndex });
 
   // Fail closed: never let a silent regression (malformed day/time, dropped
   // entries) collapse the baseline to zero while main() still reports

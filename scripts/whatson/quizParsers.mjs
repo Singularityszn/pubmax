@@ -16,6 +16,8 @@
 //     2026-07-11: page is now only their office address — no venue finder.)
 // Aggregators (pubquizzers.com etc.) are cross-check only, never ingested.
 
+import { resolveVenueId } from "./resolveVenueId.mjs";
+
 const LONDON_TZ = "Europe/London";
 
 export const DAY_NAMES = [
@@ -266,7 +268,7 @@ const AMPM_HOURS = (hhmm) => {
 // lookups. Detail wins over card for the slot; London filter is
 // postcode-first with NO area-name guessing — a card without a London
 // postcode is dropped and counted, not invented.
-export function buildQuestionOneRows({ cards, detailsByUrl = new Map(), observedAt }) {
+export function buildQuestionOneRows({ cards, detailsByUrl = new Map(), observedAt, venueIndex = null }) {
   const rows = [];
   const dropped = { nonWeekly: 0, notLondon: 0, noSlot: 0 };
   for (const card of cards) {
@@ -289,9 +291,20 @@ export function buildQuestionOneRows({ cards, detailsByUrl = new Map(), observed
     if (detail.feeGbp != null) detailBits.push(`entry £${detail.feeGbp}`);
     if (detail.postcode) detailBits.push(detail.postcode);
     detailBits.push("run by Question One");
+    // Question One's own titles are "Pub Name, Area" (placeNameFromQuestionOneTitle
+    // above) — the trailing ", Area" is a locality qualifier, not part of the
+    // pub's own name, so it's stripped ONLY for resolver matching (never for
+    // the displayed placeName) to line up with the canonical dataset's bare
+    // pub_name.
+    const resolverName = placeName.includes(",")
+      ? placeName.slice(0, placeName.lastIndexOf(",")).trim()
+      : placeName;
+    const resolvedVenueId = venueIndex
+      ? resolveVenueId({ name: resolverName, address: detail.address, postcode: detail.postcode }, venueIndex)
+      : null;
     rows.push({
       id: `quiz-qo-${slug}`,
-      venueId: null,
+      venueId: resolvedVenueId,
       placeName,
       kind: "quiz",
       startsAt,

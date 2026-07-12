@@ -24,6 +24,7 @@ export declare const MUSIC_RESIDENCIES: MusicResidencyDef[];
 
 export type WhatsOnMusicRow = {
   id: string;
+  venueId?: string;
   placeName: string;
   kind: "music";
   startsAt: string;
@@ -37,4 +38,5 @@ export type WhatsOnMusicRow = {
 export declare function buildMusicResidencyRows(input: {
   residencies: MusicResidencyDef[];
   observedAt: string;
+  venueIndex?: import("./resolveVenueId.d.mts").VenueResolverIndex | null;
 }): WhatsOnMusicRow[];
