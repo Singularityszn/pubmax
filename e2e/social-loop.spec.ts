@@ -76,10 +76,12 @@ test("feed shows real pub names, is shareable, and links to the map (§9/§11)",
   expect(errors).toEqual([]);
 });
 
-// A4 — the primary one-tap "Cheers" kudos renders on every feed card. READ-ONLY:
-// we assert the affordance is PRESENT and labelled, never click it (a click would
-// POST a reaction). Guarded by card presence so an empty DB is a valid pass.
-test("feed cards carry a primary one-tap 'Cheers' kudos affordance (A4)", async ({ page }) => {
+// A4/UX2 — every feed card carries exactly ONE Cheers affordance: the first
+// chip of the reaction row (the old standalone CheersButton duplicated the
+// same "cheers" reaction and was removed). READ-ONLY: we assert the chip is
+// PRESENT and labelled, never click it (a click would POST a reaction).
+// Guarded by card presence so an empty DB is a valid pass.
+test("feed cards carry a one-tap 'Cheers' reaction chip (A4)", async ({ page }) => {
   const errors = watchPageErrors(page);
 
   const response = await page.goto("/feed");
@@ -92,9 +94,10 @@ test("feed cards carry a primary one-tap 'Cheers' kudos affordance (A4)", async 
     .toBeGreaterThan(0);
 
   if ((await cards.count()) > 0) {
-    // Every rendered card exposes exactly one prominent Cheers button, with an
-    // accessible pressed-state (aria-pressed) — the Strava-kudos primary ack.
-    const cheers = cards.first().locator(".cheersBtn").first();
+    // Every rendered card exposes exactly one Cheers control — the reaction
+    // row's cheers chip, with an accessible pressed-state (aria-pressed).
+    const cheers = cards.first().getByRole("button", { name: /^Cheers/ });
+    await expect(cheers).toHaveCount(1);
     await expect(cheers).toBeVisible();
     await expect(cheers).toHaveAttribute("aria-pressed", /true|false/);
   } else {

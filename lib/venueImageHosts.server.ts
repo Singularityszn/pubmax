@@ -13,22 +13,48 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const DATA_FILES = [
+// Files whose entire raw JSON is trusted app-served content: every https URL
+// anywhere in these files is one the app itself may fetch through the proxy.
+const WHOLE_FILE_SCAN_DATA_FILES = [
   "public/data/venue_menu_enrichment.json",
   "public/data/pubmaxxing_seed_snapshot.json",
 ];
 
+// pint_prices_app_dataset.json is NOT scanned whole: alongside the venue
+// photo field it also carries ~hundreds of third-party pub `website`,
+// `booking_link`, and `pub_url`/`constructed_pub_url`/`borough_urls` fields
+// (plus www.pint-prices.com itself). Those are not app-served image content,
+// so a raw-text regex scan of this file would allowlist ~439 pub-website
+// hosts for the proxy — turning it into a much broader SSRF surface than
+// intended. Only `image_url` (venue.imageUrl, the /pubs card photo — largely
+// Google Places photos on lh3.googleusercontent.com, plus scraped pub-site
+// photo hosts) is an actual photo URL, so hosts are extracted from that field
+// alone, via a real JSON parse rather than a text scan.
+const PHOTO_FIELD_DATA_FILE = "public/data/pint_prices_app_dataset.json";
+const PHOTO_URL_FIELDS = ["image_url"] as const;
+
 let cached: Set<string> | null = null;
+
+function hostnameOf(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return null;
+    return parsed.hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
 
 export function allowedVenueImageHosts(): Set<string> {
   if (cached) return cached;
   const hosts = new Set<string>();
-  for (const rel of DATA_FILES) {
+
+  for (const rel of WHOLE_FILE_SCAN_DATA_FILES) {
     try {
       const raw = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
-      // Hostname extraction over the raw JSON is deliberate: every https URL
-      // in these files is app-served content, and this avoids hardcoding each
-      // file's shape here.
+      // Hostname extraction over the raw JSON is deliberate for these two
+      // files: every https URL in them is app-served content, and this
+      // avoids hardcoding each file's shape here.
       for (const match of raw.matchAll(/https:\/\/([a-z0-9][a-z0-9.-]*)/gi)) {
         hosts.add(match[1].toLowerCase());
       }
@@ -36,6 +62,28 @@ export function allowedVenueImageHosts(): Set<string> {
       // A missing data file just contributes no hosts — fail closed.
     }
   }
+
+  try {
+    const raw = fs.readFileSync(
+      path.join(process.cwd(), PHOTO_FIELD_DATA_FILE),
+      "utf8",
+    );
+    const rows: unknown = JSON.parse(raw);
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        if (!row || typeof row !== "object") continue;
+        for (const field of PHOTO_URL_FIELDS) {
+          const value = (row as Record<string, unknown>)[field];
+          if (typeof value !== "string" || !value) continue;
+          const host = hostnameOf(value);
+          if (host) hosts.add(host);
+        }
+      }
+    }
+  } catch {
+    // A missing/malformed data file just contributes no hosts — fail closed.
+  }
+
   cached = hosts;
   return hosts;
 }
