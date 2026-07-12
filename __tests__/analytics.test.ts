@@ -43,4 +43,10 @@ describe("trackEvent", () => {
     });
     expect(() => trackEvent("plan_created", { count: 3 })).not.toThrow();
   });
+
+  it("fires lane_to_plan event with stops count prop", () => {
+    (globalThis as { window?: unknown }).window = {};
+    trackEvent("lane_to_plan", { stops: 3 });
+    expect(trackMock).toHaveBeenCalledWith("lane_to_plan", { stops: 3 });
+  });
 });

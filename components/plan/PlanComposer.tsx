@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { trackEvent } from "@/lib/analytics";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { stopsFromConcierge } from "@/components/plan/planPresentation";
 
@@ -100,6 +101,7 @@ export default function PlanComposer() {
       if (!response.ok || !body?.plan?.plan?.id) {
         throw new Error(body?.error || "The plan could not be created.");
       }
+      trackEvent("lane_to_plan", { stops: completeStops.length });
       if (body.memberToken) {
         sessionStorage.setItem(`pubmax-plan-member:${body.plan.plan.id}`, body.memberToken);
       }
