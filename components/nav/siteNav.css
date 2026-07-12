@@ -36,9 +36,16 @@
    margin pair below (still centred because every host column is itself
    centred). The floating map variant and the ≤640px compact bar keep their
    own geometry — this rule is scoped away from both. */
+/* Issue #215 — re-verified at 1440/1280/1180/1024/900px on /pubs, /feed,
+   /crawls, /borough, /discover: with the compact single-"Sign in" disclosure
+   above (auth.css .authUserNav hides the two full provider buttons in every
+   nav host) every link's scrollWidth already fits its clientWidth — 0 of the
+   9 labels ellipsis-clip at any of those widths. --site-nav-width keeps a
+   little extra headroom over that measured floor (1100px, up from 1080px) so
+   future label/utility additions don't reopen the clip. */
 @media (min-width: 641px) {
   .siteNavBar:not(.siteNavBarFloating) {
-    --site-nav-width: min(1080px, 100vw - 48px);
+    --site-nav-width: min(1100px, 100vw - 48px);
     width: var(--site-nav-width);
     margin-inline: calc((100% - var(--site-nav-width)) / 2);
   }
@@ -554,4 +561,35 @@
   .siteNavLink {
     transition: none;
   }
+}
+
+/* ── Issue #215 / 0b audit F8 — keep the nav out of the route crossfade ────
+   globals.css (IDEAS B4) wraps every App-Router navigation in a whole-page
+   startViewTransition() crossfade: the browser snapshots the OLD page and
+   the NEW page into ::view-transition-old/new(root) and fades between them.
+   SiteNav is mounted per-page (not hoisted into a shared root layout), so
+   without its own view-transition-name it was swept into that root snapshot
+   pair like everything else — the outgoing bar's blurred/translucent pixels
+   briefly stacked under the incoming bar's for the ~150ms crossfade window.
+   Two overlapping backdrop-blurred pills read as a grey "ghost" smear right
+   over the icon cluster (bell/messages/theme/sign-in).
+
+   Naming the bar carves it into its own transition group, separate from
+   root; animation:none on that group's old/new pair makes the swap instant
+   (no fade), so the bar simply never visibly changes across a route
+   transition — the glitch is gone and the page-content crossfade the root
+   group still owns is untouched. Unconditional (not gated behind the
+   reduced-motion media query above) so the nav never ghosts either way. */
+.siteNavBar {
+  view-transition-name: site-nav-bar;
+}
+
+::view-transition-group(site-nav-bar) {
+  animation: none;
+}
+
+::view-transition-old(site-nav-bar),
+::view-transition-new(site-nav-bar) {
+  animation: none;
+  mix-blend-mode: normal;
 }
