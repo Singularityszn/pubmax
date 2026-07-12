@@ -1,5 +1,9 @@
 import type maplibregl from "maplibre-gl";
-import { applyBasemapTaste, clusterCircleColorExpr } from "@/lib/mapBasemapTaste";
+import {
+  applyBasemapTaste,
+  applySelectionMute,
+  clusterCircleColorExpr,
+} from "@/lib/mapBasemapTaste";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import type { IconTokens } from "@/lib/mapIcons";
@@ -52,6 +56,10 @@ export type SceneCtx = {
   tonightData: GeoJSON.FeatureCollection;
   tonightVisible: boolean;
   selectedId: string;
+  /** M2 — caller-owned store of pre-mute paint originals (layerId::prop → value)
+   *  for the POI-at-initiation selection mute. Survives across builds via a ref;
+   *  cleared + re-applied here on every style.load. */
+  selectionMuteStore: Map<string, unknown>;
 };
 
 // Wave J1 — warm paper/river/brass washes on the stock basemap before we add
@@ -711,4 +719,19 @@ export function assembleScene(ctx: SceneCtx) {
   buildPubs(ctx);
   buildRouteStops(ctx);
   buildTonight(ctx);
+  applySelectionState(ctx);
+}
+
+// M2 · POI-at-initiation gating — re-apply the selection mute after a fresh
+// style build. A setStyle (theme swap) wipes every layer and its paint, so the
+// previous store's snapshots are stale: clear them, then, if a venue is still
+// selected, re-mute (recapturing this style's fresh originals). With nothing
+// selected this is a pure clear — the initial city overview stays untouched
+// (PRD part c: landmark/POI set visible and unchanged at zero selection).
+export function applySelectionState(ctx: SceneCtx) {
+  const { map, selectionMuteStore, selectedId } = ctx;
+  selectionMuteStore.clear();
+  if (selectedId) {
+    applySelectionMute(map, true, selectionMuteStore);
+  }
 }
