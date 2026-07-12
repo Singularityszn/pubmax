@@ -104,6 +104,10 @@ for (const viewport of VIEWPORTS) {
         await setTheme(page, theme);
         const response = await page.goto("/tonight");
         expect(response?.status()).toBe(200);
+        // Deterministic: the tonight screen mounts with this testid once it
+        // has rendered real content (or the honest empty/thin state) — never
+        // the loading/error shell.
+        await page.getByTestId("tonight-screen").waitFor({ state: "visible", timeout: 15000 });
         await page.waitForLoadState("networkidle").catch(() => {});
         await shot(page, `tonight-${theme}-${viewport.name}`, true);
       });
@@ -112,6 +116,11 @@ for (const viewport of VIEWPORTS) {
         await setTheme(page, theme);
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
+        // Deterministic: the plan builder's h1 guards against shooting a
+        // loading/error shell.
+        await page
+          .getByRole("heading", { level: 1, name: "Put the night in order." })
+          .waitFor({ state: "visible", timeout: 15000 });
         await page.waitForLoadState("networkidle").catch(() => {});
         await shot(page, `plan-${theme}-${viewport.name}`, true);
       });
@@ -122,7 +131,14 @@ for (const viewport of VIEWPORTS) {
         const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
         expect(response?.status()).toBe(200);
         await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
-        await page.waitForTimeout(2000);
+        // Deterministic: wait for the selected venue's inspector content (the
+        // desktop docked panel) instead of a fixed sleep.
+        const inspector = page.locator(".venueInspector");
+        await inspector.waitFor({ state: "visible", timeout: 15000 });
+        await inspector
+          .getByText("Arnos Arms")
+          .first()
+          .waitFor({ state: "visible", timeout: 15000 });
         await shot(page, `venue-desktop-${theme}-${viewport.name}`);
       });
 
