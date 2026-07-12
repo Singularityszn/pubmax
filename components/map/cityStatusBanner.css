@@ -99,7 +99,14 @@ a.cityStatusBannerLink:hover {
 
 @media (max-width: 640px) {
   .cityStatusBanner {
-    top: 108px;
+    /* F6: was a bare 108px, predating --map-top-clearance's safe-area-aware
+       mobile formula (globals.css). At zero safe-area that left as little as
+       2px of clearance under the toolbar; on a notched phone (bigger
+       --map-top-clearance pushes the toolbar further down) it overlapped the
+       toolbar/search-bar outright. Anchor to --map-top-clearance like the
+       desktop rule below (D7), stacked under .citySuggestBanner's own
+       (now anchored) +58px slot with room for its ~48px height. */
+    top: calc(var(--map-top-clearance, 0px) + 112px);
     max-width: min(380px, calc(100vw - 20px));
   }
   .cityStatusBannerCopy {
@@ -110,9 +117,10 @@ a.cityStatusBannerLink:hover {
      on screen, the camera chips (London / No route — globals.css puts
      .mapCameraControls at --map-top-clearance + 58px) yield below the banner
      instead of stacking on top of its right edge. Dismissing the banner pops
-     the chips back up automatically. */
+     the chips back up automatically. F6: bumped from +100px to clear the
+     banner's own new +112px anchored top plus its ~48px row height. */
   .mapStage:has(.cityStatusBanner) .mapCameraControls {
-    top: calc(var(--map-top-clearance) + 100px);
+    top: calc(var(--map-top-clearance) + 164px);
   }
 }
 
@@ -213,7 +221,8 @@ a.cityStatusBannerLink:hover {
 
 @media (max-width: 640px) {
   .cityStatusSignalSheet {
-    top: 108px;
+    /* F6: mirrors .cityStatusBanner's own (now anchored) mobile top above. */
+    top: calc(var(--map-top-clearance, 0px) + 112px);
     width: min(320px, calc(100vw - 20px));
   }
 }

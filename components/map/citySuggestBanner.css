@@ -91,6 +91,16 @@
 
 @media (max-width: 640px) {
   .citySuggestBanner {
-    top: 52px;
+    /* F6: was a bare 52px, predating --map-top-clearance's safe-area-aware
+       mobile formula (globals.css). On a zero-safe-area viewport the toolbar
+       itself already starts at ~56px, so 52px sat the banner UNDER the
+       toolbar (z-index 512 < toolbar's 560) — completely hidden, but still
+       occupying the same tap target as the search bar. On a notched phone
+       (larger --map-top-clearance) it's positioned even further off from the
+       toolbar's real top. Anchor to --map-top-clearance like the desktop
+       rule above (D7) so this always clears the toolbar's own compact
+       single-row height — matches .mapCameraControls' mobile +58px offset,
+       the same "row after the toolbar" convention used elsewhere. */
+    top: calc(var(--map-top-clearance, 0px) + 58px);
   }
 }
