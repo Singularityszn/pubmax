@@ -6,6 +6,9 @@ export type MusicSource = { label: string; url: string };
 
 export declare const SKEHANS_SOURCE: MusicSource;
 export declare const IVY_HOUSE_SOURCE: MusicSource;
+export declare const SPICE_OF_LIFE_SOURCE: MusicSource;
+export declare const AINT_NOTHIN_BUT_SOURCE: MusicSource;
+export declare const TROUBADOUR_SOURCE: MusicSource;
 
 export type MusicResidencyDef = {
   id: string;

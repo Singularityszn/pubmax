@@ -20,28 +20,35 @@
 //   structured signal to cross-reference the way sportFixtures.mjs does; this
 //   vertical is entirely hand-seeded instead.
 //
-// SCOPE — why only two venues / six rows ship in this seed: PRD_WHATS_ON B5
-// explicitly accepts thin coverage over invented coverage ("a dozen verified
-// venues beats 200 invented"). A short pass across well-known London
-// live-music pubs turned up many candidates whose OWN site either had no
-// working page, no specific day/time (e.g. The Gladstone Arms: "gigs every
-// Tuesday and Sunday" with no time; The Old Blue Last: "EVERY SUNDAY" jazz
-// with no time), or only a biweekly slot (The Grafton NW5: "every other
-// Thursday" acoustic night; The Betsey Trotwood: alternate-Thursday folk) —
-// none of those honestly fit this vertical's weekly-recurrence contract, so
-// none is included. Only Skehan's (Nunhead) and The Ivy House (Nunhead) had a
-// fully-specified weekly day + start time confirmed on their own site at
-// verification time (2026-07-12).
+// SCOPE — PRD_WHATS_ON B5 explicitly accepts thin coverage over invented
+// coverage ("a dozen verified venues beats 200 invented"). Two verification
+// passes (2026-07-12) across well-known London live-music pubs produced the
+// six venues below — each with an unambiguous weekly day + start time on its
+// own site. Weekly-only for now: the row contract would also support one-off
+// dated gig rows, but no first-party dated-gig source verified this pass was
+// clean enough to justify expanding the generator, so this stays weekly-only.
 //
-// DROPPED CANDIDATES (not included — see reasons above): The Gladstone Arms
-// (thegladpub.co.uk) — day confirmed, no time. The Old Blue Last
-// (theoldbluelast.com) — day confirmed, no time. The Grafton NW5
-// (graftonkentishtown.co.uk) — biweekly, not weekly. The Betsey Trotwood
-// (thebetsey.com) — biweekly, not weekly. Duke of Kendal
-// (thedukeofkendal.co.uk) — site returned 404 on every path tried, could not
-// re-verify the day/time reported by secondary sources. TAM Elephant & Castle
-// (tam.tv) — the only day/time found on tam.tv was a stale dated 2023 event
-// page, not a live recurring-schedule claim.
+// DROPPED CANDIDATES (investigated on their OWN sites, not included):
+//   The Gladstone Arms (thegladpub.co.uk) — "gigs every Tuesday and Sunday"
+//     confirmed, no start time stated. The Old Blue Last (theoldbluelast.com)
+//     — "EVERY SUNDAY" jazz confirmed, no time. The Grafton NW5 — acoustic
+//     night is "every other Thursday" (biweekly, not weekly). The Betsey
+//     Trotwood (thebetsey.com) — alternate-Thursday folk (biweekly). Duke of
+//     Kendal (thedukeofkendal.co.uk + dukeofkendal.co.uk) — 404/403 on every
+//     path tried; could not re-verify secondary-source claims. TAM Elephant &
+//     Castle (tam.tv) — only a stale dated 2023 event page. The Blues Kitchen
+//     (theblueskitchen.com) — "live music until late every night" but no
+//     per-night start time published. Dublin Castle (thedublincastle.com) —
+//     page served no readable schedule; dated one-off gigs only. Green Note
+//     (greennote.co.uk) — dated one-off gigs only, no fixed weekly night.
+//     Half Moon Putney (halfmoon.co.uk) — "New Moon Monday" named on the
+//     homepage but its own ticket listings show it as bank-holiday specials,
+//     not a fixed weekly slot; no weekly day+time stated. Bull's Head Barnes
+//     (thebullshead.com) — site unreachable (connection refused) at both
+//     verification attempts. Ain't Nothin' But SUNDAY afternoon jam — day
+//     confirmed on the venue's own site, but no Sunday start time found
+//     (only the Monday jam's 8pm is published), so only Monday is included.
+//   606 Club — skipped: a members/supper jazz club, not a pub.
 //
 // RECURRENCE MODEL — same technique as the deals vertical: each row is "the
 // next occurrence" of a weekly residency slot, computed DST-aware in
@@ -80,6 +87,31 @@ export const SKEHANS_SOURCE = {
 export const IVY_HOUSE_SOURCE = {
   label: "The Ivy House — What's On",
   url: "https://www.ivyhousenunhead.com/whats-on",
+};
+
+// The Spice of Life's own events page, checked 2026-07-12: two explicitly
+// weekly residencies — "DOVE JONES CONNECTION BLUES & JAZZ JAM PARTY … Every
+// Monday Doors at 7pm" and "Jazz Notes Jazz Jam … Every Sunday Doors at 1pm".
+export const SPICE_OF_LIFE_SOURCE = {
+  label: "The Spice of Life — Events",
+  url: "https://www.spiceoflifesoho.com/events/",
+};
+
+// Ain't Nothin' But's own site, checked 2026-07-12: "Our jams are held on
+// Sunday afternoons and Monday nights" (aintnothinbut.co.uk), with the Monday
+// Blues Jam's own listing on the venue's What's On page stating 8pm-1am.
+// The Sunday jam carries no published start time, so only Monday is emitted.
+export const AINT_NOTHIN_BUT_SOURCE = {
+  label: "Ain't Nothin' But — What's On",
+  url: "https://www.aintnothinbut.co.uk/whatson",
+};
+
+// The Troubadour's own Sunday Jazz page, checked 2026-07-12: a longstanding
+// weekly Jazz Sundays residency directed by Sebastiaan de Krom; doors/table
+// reservations 7:30pm, artists play 8pm-10:30pm.
+export const TROUBADOUR_SOURCE = {
+  label: "Troubadour — Sunday Jazz",
+  url: "https://www.troubadourlondon.com/sunday-jazz",
 };
 
 // Every entry MUST already be a currently-published, unambiguous weekly
@@ -142,6 +174,46 @@ export const MUSIC_RESIDENCIES = [
     detail:
       "Live jazz band on the community pub's stage, paired with Sunday roasts. Free entry; booking recommended for food.",
     source: IVY_HOUSE_SOURCE,
+  },
+  {
+    id: "spiceoflife-monday-jam",
+    placeName: "The Spice of Life",
+    dayName: "Monday",
+    startTime: "19:00",
+    title: "Dove Jones Connection Blues & Jazz Jam Party",
+    detail:
+      "Weekly blues and jazz jam residency on the Spice of Life stage. Doors 7pm, per the venue's own events page.",
+    source: SPICE_OF_LIFE_SOURCE,
+  },
+  {
+    id: "spiceoflife-sunday-jazzjam",
+    placeName: "The Spice of Life",
+    dayName: "Sunday",
+    startTime: "13:00",
+    title: "Jazz Notes Jazz Jam",
+    detail:
+      "Weekly Sunday-afternoon jazz jam — instrumentalists and singers welcome to join on the day. Doors 1pm, per the venue's own events page.",
+    source: SPICE_OF_LIFE_SOURCE,
+  },
+  {
+    id: "aintnothinbut-monday-bluesjam",
+    placeName: "Ain't Nothin' But",
+    dayName: "Monday",
+    startTime: "20:00",
+    title: "Monday Night Blues Jam",
+    detail:
+      "The Soho blues bar's famous Monday night Blues Jam, 8pm-1am — bring your instrument and sign up on the night.",
+    source: AINT_NOTHIN_BUT_SOURCE,
+  },
+  {
+    id: "troubadour-sunday-jazz",
+    placeName: "Troubadour",
+    dayName: "Sunday",
+    startTime: "20:00",
+    title: "Jazz Sundays",
+    detail:
+      "Longstanding weekly jazz residency directed by Sebastiaan de Krom. Doors and table reservations 7:30pm; artists play 8pm-10:30pm. Booking recommended.",
+    source: TROUBADOUR_SOURCE,
   },
 ];
 
@@ -234,6 +306,30 @@ function main() {
         notes:
           "The Ivy House's own 'Jazz + Roasts Sundays' — recurring Sunday " +
           "16:00 live jazz session, checked 2026-07-12.",
+      },
+      {
+        ...SPICE_OF_LIFE_SOURCE,
+        firstParty: true,
+        notes:
+          "The venue's own events page (checked 2026-07-12): 'Dove Jones " +
+          "Connection Blues & Jazz Jam Party … Every Monday Doors at 7pm' and " +
+          "'Jazz Notes Jazz Jam … Every Sunday Doors at 1pm'.",
+      },
+      {
+        ...AINT_NOTHIN_BUT_SOURCE,
+        firstParty: true,
+        notes:
+          "The venue's own site (checked 2026-07-12): jams 'Sunday afternoons " +
+          "and Monday nights'; the Monday Blues Jam's own What's-On listing " +
+          "states 8pm-1am. Sunday jam has no published start time, so only " +
+          "Monday is emitted.",
+      },
+      {
+        ...TROUBADOUR_SOURCE,
+        firstParty: true,
+        notes:
+          "The venue's own Sunday Jazz page (checked 2026-07-12): weekly " +
+          "residency, doors 7:30pm, artists 8pm-10:30pm.",
       },
     ],
     rows,

@@ -124,8 +124,13 @@ describe("MUSIC_RESIDENCIES", () => {
     }
   });
 
-  it("carries at least two independently-verified first-party venues", () => {
+  it("carries at least four independently-verified first-party venues (round-2 coverage floor)", () => {
     const venues = new Set(MUSIC_RESIDENCIES.map((r) => r.placeName));
-    expect(venues.size).toBeGreaterThanOrEqual(2);
+    expect(venues.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it("spans at least three distinct first-party source domains (no single-source coverage)", () => {
+    const domains = new Set(MUSIC_RESIDENCIES.map((r) => new URL(r.source.url).hostname));
+    expect(domains.size).toBeGreaterThanOrEqual(3);
   });
 });
