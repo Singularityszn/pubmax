@@ -67,6 +67,17 @@ describe("loadBaselineWhatsOn", () => {
       expect(r.endsAt).toBeDefined();
     }
   });
+
+  it("loads + validates the bundled sport_fixtures.json derived rows", () => {
+    const rows = loadBaselineWhatsOn();
+    const sportRows = rows.filter((r) => r.kind === "sport");
+    expect(sportRows.length).toBeGreaterThan(0);
+    for (const r of sportRows) {
+      expect(r.confidence).toBe("derived");
+      expect(r.source.label).toBe("Greene King");
+      expect(r.source.url).toMatch(/^https?:\/\//);
+    }
+  });
 });
 
 describe("mergeWhatsOn precedence", () => {

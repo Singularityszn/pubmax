@@ -19,7 +19,7 @@ const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
 const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
 const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music"]);
-const WHATS_ON_CONFIDENCES = new Set(["confirmed", "listed"]);
+const WHATS_ON_CONFIDENCES = new Set(["confirmed", "listed", "derived"]);
 const DRINK_CATEGORIES = new Set([
   "beer",
   "wine",
