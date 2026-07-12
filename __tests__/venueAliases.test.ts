@@ -56,4 +56,21 @@ describe("resolveCanonicalVenueId", () => {
     setVenueAliasesPathForTests(path.join(os.tmpdir(), "does-not-exist-venue-aliases.json"));
     expect(await resolveCanonicalVenueId("venue-anything")).toBe("venue-anything");
   });
+
+  it("recovers once a previously-missing alias file is created (no cached-empty poisoning)", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "venue-aliases-late-"));
+    const file = path.join(dir, "venue_id_aliases.json");
+    setVenueAliasesPathForTests(file);
+
+    // First call hits a missing file — must resolve to identity, and must NOT
+    // cache the failure so a later, successful read still counts.
+    expect(await resolveCanonicalVenueId("venue-dupe1")).toBe("venue-dupe1");
+
+    await fs.writeFile(
+      file,
+      JSON.stringify({ aliases: { "venue-dupe1": "venue-canon" } }),
+    );
+
+    expect(await resolveCanonicalVenueId("venue-dupe1")).toBe("venue-canon");
+  });
 });

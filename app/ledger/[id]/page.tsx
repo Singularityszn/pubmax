@@ -145,9 +145,14 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   const viewer = await resolveViewer(searchParams);
   const venue = await getVenue(id);
   if (!venue) return <NotInTheLedger />;
+  // Everything below reads/links off the canonical venue id (D1) so a merged
+  // alias URL and the surviving canonical URL share the same logbook, Family
+  // Table, and ratings — never the raw route param, which may be a losing
+  // duplicate id.
+  const canonicalId = venue.id;
 
   const curation = getVenueCuration(venue.prices);
-  const drops = await pintDropStoreFor().listVisible(id);
+  const drops = await pintDropStoreFor().listVisible(canonicalId);
   const claimDrops = ledgerClaimDrops(
     drops.map((d) => ({
       id: d.id,
@@ -178,7 +183,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // listLegacyForVenue capability (issue #29) — deliberately a SEPARATE store
   // call from listVisible above, never a filter over `drops`, so a legacy row
   // can never accidentally end up rendered in the public logbook above.
-  const legacyDrops = await pintDropStoreFor().listLegacyForVenue(id);
+  const legacyDrops = await pintDropStoreFor().listLegacyForVenue(canonicalId);
   const legacySources = legacyDrops.map((d) => ({
     id: d.id,
     handle: d.handle,
@@ -203,7 +208,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // origin is added by the browser/mail client itself. A future "email this
   // digest" project (see ShareWithFamilyButton's ponytail-ceiling note) would
   // want an absolute URL and should add a proper site-origin helper then.
-  const ledgerUrl = `/ledger/${encodeURIComponent(id)}`;
+  const ledgerUrl = `/ledger/${encodeURIComponent(canonicalId)}`;
 
   // Text handed to the "Read this page" button: name, heritage note, then the
   // newest few entries — kept short and skimmable for a screen reader / TTS
@@ -234,10 +239,10 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
         </p>
 
         <div className="ledgerHeadActions">
-          <Link className="ledgerMapLink" href={venueMapUrl(id)}>
+          <Link className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
             Open on the map
           </Link>
-          <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(id)}`}>
+          <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
             See the bar tab
           </Link>
           <ReadLedgerButton text={speechParts.join(" ")} />
@@ -247,7 +252,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
         {/* Pub rating (E3): community stars (shown past the 10-vote floor) +
             the viewer's own half-star vote. A client sliver; the rest of the
             page stays a server render. */}
-        <VenueRatingPanel venueId={id} venueName={venue.name} />
+        <VenueRatingPanel venueId={canonicalId} venueName={venue.name} />
       </header>
 
       <p className="ledgerLaneNote">
@@ -372,7 +377,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
       </section>
 
       <p className="ledgerFootnote">
-        Every pint has a story. <Link href={venueMapUrl(id)}>See {venue.name} on the map →</Link>
+        Every pint has a story. <Link href={venueMapUrl(canonicalId)}>See {venue.name} on the map →</Link>
       </p>
     </main>
   );

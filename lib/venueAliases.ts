@@ -32,12 +32,17 @@ async function loadAliases(): Promise<Map<string, string>> {
         if (typeof to === "string" && to && from !== to) map.set(from, to);
       }
     }
+    // Cache only a successful load. A file that's missing/corrupt now but
+    // created/repaired later must be picked up on the next call — never poison
+    // the cache with an empty map from a transient failure.
+    cached = map;
+    return cached;
   } catch {
     // No alias file (fresh checkout before generation, or a read error) — every
-    // id resolves to itself.
+    // id resolves to itself for THIS call, but nothing is cached so a later
+    // call can retry once the file exists/is readable.
+    return map;
   }
-  cached = map;
-  return cached;
 }
 
 // Map a possibly-merged (duplicate-lineage) venue id to its canonical id.

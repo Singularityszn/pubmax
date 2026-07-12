@@ -63,12 +63,15 @@ const LAT_MAX = 51.72;
 // truncated. Fail hard so we never ship a gutted map.
 const PINT_ROW_FLOOR = 2500;
 // Venue-count floors are MINIMUMS, not targets. The D1 canonicalization step
-// (scripts/canonicalize_venue_dataset.mjs) collapses ~70 duplicate identities
-// of the same physical pub across dataset lineages, so the London venue count
-// dropped honestly from ~1094 to ~1024 — still comfortably above this floor.
-// The floor stays at 900: a real dataset regression (truncation) would blow
-// well past it, and this validator rebuilds its expectations from the same
-// canonicalized rows, so slim/detail counts stay self-consistent after dedup.
+// (scripts/canonicalize_venue_dataset.mjs) collapses duplicate identities of
+// the same physical pub across dataset lineages, so the London venue count
+// drops honestly (e.g. the artifact generated for this change went 1,094 ->
+// 1,021) — still comfortably above this floor. Deliberately not hard-coding
+// that count here: it's a volatile, generated-artifact value, and this
+// validator rebuilds its expectations from the same canonicalized rows, so
+// slim/detail counts stay self-consistent after dedup regardless of the
+// exact number. The floor stays at 900: a real dataset regression
+// (truncation) would blow well past it.
 const SLIM_VENUE_FLOOR = 900;
 const DETAIL_VENUE_FLOOR = 900;
 const PUBMAXXING_PUB_FLOOR = 150;

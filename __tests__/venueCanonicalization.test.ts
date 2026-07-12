@@ -8,7 +8,12 @@ import {
   stableVenueIdFromKey,
   venueGroupingKey,
 } from "@/scripts/lib/venueCanonicalization.mjs";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import {
+  groupVenuePrices,
+  stableVenueIdFromKey as tsStableVenueIdFromKey,
+  venueGroupingKey as tsVenueGroupingKey,
+  type VenuePrice,
+} from "@/lib/venues";
 
 // A row factory mirroring __tests__/venues.test.ts so canonicalized rows can be
 // fed straight into groupVenuePrices for the regression assertion.
@@ -200,5 +205,41 @@ describe("canonicalizeDataset — safety guards", () => {
     expect(aliases).toEqual({});
     expect(stats.venueIdentitiesAfter).toBe(1);
     expect(out).toEqual(rows);
+  });
+});
+
+// scripts/lib/venueCanonicalization.mjs's venueGroupingKey/stableVenueIdFromKey
+// are a manually-mirrored copy of lib/venues.ts's (plain-Node scripts can't
+// import the .ts runtime module). If the two implementations ever drift —
+// e.g. a new field folded into one side's key but not the other's —
+// canonicalization/validate-data would silently pass while runtime grouping
+// computes a DIFFERENT venue identity, defeating the whole guarantee without
+// erroring anywhere. This test fuzzes both implementations across varied
+// inputs (including edge cases: mixed case, extra whitespace, unicode,
+// boundary coordinates) and fails the moment they disagree, so a future
+// one-sided edit is caught here instead of shipping silently.
+describe("venueGroupingKey / stableVenueIdFromKey — parity with lib/venues.ts", () => {
+  const cases: Array<Partial<VenuePrice>> = [
+    {},
+    { pub_name: "  The   ROCHESTER Castle  ", address: "12 High St" },
+    { pub_name: "café münchen", address: "Straße 1, München" },
+    { pub_name: "The Crown", latitude: 0, longitude: 0 },
+    { pub_name: "The Crown", latitude: -51.5, longitude: 179.999999 },
+    { pub_name: "", address: "" },
+    { pub_name: "UPPER-Case-Pub", address: "Tab\tSeparated\nAddress" },
+    { latitude: 51.500001, longitude: -0.099999 },
+    { latitude: 51.5000049, longitude: -0.0999949 }, // rounds differently at 5dp boundary
+  ];
+
+  it.each(cases)("matches for row %#", (overrides) => {
+    const row = makeRow(overrides);
+
+    const scriptsKey = venueGroupingKey(row);
+    const libKey = tsVenueGroupingKey(row);
+    expect(scriptsKey).toBe(libKey);
+
+    const scriptsId = stableVenueIdFromKey(scriptsKey);
+    const libId = tsStableVenueIdFromKey(libKey);
+    expect(scriptsId).toBe(libId);
   });
 });
