@@ -37,6 +37,7 @@ import { useCrawlJourneys } from "@/components/map/useCrawlJourneys";
 import { useTonightOpportunities } from "@/components/map/useTonightOpportunities";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import TonightLane from "@/components/map/TonightLane";
+import MapConciergeAsk from "@/components/map/MapConciergeAsk";
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
@@ -1108,6 +1109,10 @@ export default function PubMap({
             onDismiss={dismissTonightOverlay}
           />
         ) : null}
+        {/* F3: concierge as map home — a first-class grounded ask affordance in
+            the bottom map-home lane. Rendered before the Tonight lane so its
+            sibling CSS lifts the lane above the collapsed pill (no collision). */}
+        <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} />
         {isLondon ? (
           <TonightLane
             rows={whatsOnTonight.rows}

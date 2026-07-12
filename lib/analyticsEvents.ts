@@ -22,6 +22,9 @@ export const ANALYTICS_EVENTS = {
   drop_logged: [],
   booking_click: ["venueId", "tier"],
   whats_on_filter: [],
+  // Wave F · F3 — concierge-as-map-home
+  concierge_ask: [],
+  concierge_result_tap: [],
   tour_complete: ["completed"],
   plan_created: ["count"],
   // Wave A
