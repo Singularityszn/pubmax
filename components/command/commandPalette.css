@@ -34,14 +34,14 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .cmdkBackdrop {
-    animation: cmdkFade var(--duration-fast) var(--ease-out) both;
+    animation: cmdk-fade var(--duration-fast) var(--ease-out) both;
   }
   .cmdkPanel {
-    animation: cmdkPop var(--duration-slow) var(--ease-out-strong) both;
+    animation: cmdk-pop var(--duration-slow) var(--ease-out-strong) both;
   }
 }
 
-@keyframes cmdkFade {
+@keyframes cmdk-fade {
   from {
     opacity: 0;
   }
@@ -52,7 +52,7 @@
 
 /* Never appears from scale(0) — starts near full size + a small lift, matching
    the app-wide entrance-motion convention. */
-@keyframes cmdkPop {
+@keyframes cmdk-pop {
   from {
     opacity: 0;
     transform: translateY(-8px) scale(0.98);
