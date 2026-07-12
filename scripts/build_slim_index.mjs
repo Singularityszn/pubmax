@@ -209,7 +209,7 @@ const CURATED_CUISINE_BY_VENUE_ID = {
   "venue-xiesdn": ["gastropub"],
   "venue-phqazo": ["gastropub"],
   "venue-15i2wst": ["roast", "gastropub"],
-  "venue-1gs68ga": ["roast", "pie"],
+  "venue-16ze6b1": ["roast", "pie"],
   "venue-2e3otf": ["gastropub"],
   "venue-ral8ik": ["burger"],
   "venue-140rjwt": ["tapas"],

@@ -119,11 +119,11 @@ export const curatedCrawls: CuratedCrawl[] = [
     // Bishopsgate/Cornhill cluster, EC2/EC3 — every leg under 550m, all inside
     // the 22 Bishopsgate viewpoint's "on the way" radius via lib/routeLegs.
     venueIds: [
-      "venue-bdasst", // Kings Arms (beer garden) — 27-28 Wormwood Street
+      "venue-1dosq7b", // Kings Arms (beer garden) — 27-28 Wormwood Street
       "venue-25y8c7", // The Counting House — 50 Cornhill
       "venue-zottpx", // The Crosse Keys — 9 Gracechurch Street
       "venue-6r6xa3", // The Lord Aberconway — 72 Old Broad Street
-      "venue-1mr5its", // Railway (beer garden) — 15 Liverpool Street
+      "venue-10mil9j", // Railway (beer garden) — 15 Liverpool Street
     ],
     startLandmarkId: "leadenhall-market",
     placeStoryBandId: "coding-pint",
@@ -138,7 +138,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     venueIds: [
       "venue-133uf6h", // Katzenjammers — The Hop Exchange, 24 Southwark St
       "venue-fpmfjs", // The Rake — 14A Winchester Walk
-      "venue-1gs68ga", // The George — 75-77 Borough High Street
+      "venue-16ze6b1", // The George — 75-77 Borough High Street
       "venue-1ywc2og", // The Old King's Head — King's Head Yard
       "venue-2e3otf", // The Barrowboy & Banker — 6-8 Borough High St
     ],
