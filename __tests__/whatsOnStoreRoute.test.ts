@@ -1,8 +1,28 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect } from "vitest";
 
-import { handleWhatsOnRequest } from "@/app/api/whats-on/route";
+import { handleWhatsOnRequest } from "@/lib/whatsOnHandler";
 import { loadBaselineWhatsOn, loadWhatsOn, mergeWhatsOn } from "@/lib/whatsOnStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+
+// The route now rate-limits per IP (S2) before anything else. Vercel's vitest
+// run sets NODE_ENV=production with real Supabase env vars, which would send
+// the limiter down its durable (network) path here; deleting the two env vars
+// for the test keeps it on the deterministic in-memory path (same technique
+// as __tests__/lastTrainRoute.test.ts).
+const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
+const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+beforeEach(() => {
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+});
+
+afterEach(() => {
+  if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+  else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+  if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  else process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+});
 
 const NOW = Date.parse("2026-07-11T20:00:00.000Z");
 
@@ -162,5 +182,27 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
     const body = await res.json();
     expect(body.rows).toEqual([]);
     expect(body.error).toBe("baseline corrupt");
+  });
+
+  it("429s past its own ~60/min-per-IP budget, separate from the CityMCP surface", async () => {
+    const deps = { now: NOW, loadBaseline: () => [makeRow()], fetchLive: async () => [] };
+    const responses: Response[] = [];
+    for (let i = 0; i < 61; i++) {
+      responses.push(
+        await handleWhatsOnRequest(
+          new Request("http://localhost/api/whats-on", {
+            headers: { "x-forwarded-for": "198.51.100.40" },
+          }),
+          deps,
+        ),
+      );
+    }
+
+    expect(responses.slice(0, 60).every((res) => res.status !== 429)).toBe(true);
+    expect(responses[60].status).toBe(429);
+    expect(await responses[60].json()).toEqual({
+      rows: [],
+      error: "Too many requests, slow down.",
+    });
   });
 });

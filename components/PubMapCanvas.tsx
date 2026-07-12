@@ -199,6 +199,35 @@ const LONDON_BOUNDS: [[number, number], [number, number]] = [
   [0.35, 51.72],
 ];
 
+// Single source of truth for the cluster/uncluster boundary: the zoom at which
+// individual pins take over. The unclustered per-pub layers use it directly as
+// their `minzoom` floor; the pubs source clusters strictly BELOW it
+// (clusterMaxZoom = PIN_UNCLUSTER_ZOOM - 1, because MapLibre renders clusters
+// up to AND INCLUDING clusterMaxZoom — an equal value would draw cluster discs
+// and singleton pins together across the 12.x band). Isolated pubs sit outside
+// any cluster radius, so without the minzoom floor they paint as individual
+// pins at every zoom in BOTH themes ("pin soup" at city zoom); the dark
+// basemap just masked it. One constant, one clean handoff: below it, clusters
+// only; at/above it, clusters dissolve and pins appear together.
+const PIN_UNCLUSTER_ZOOM = 12;
+// Hard ceiling on the tile-paint gate: if the map never reaches `idle` (the
+// ambient orbit nudges the camera every frame, which on a slow tile connection
+// can starve the idle event indefinitely), reveal the pins anyway — a
+// briefly-bare basemap beats a permanently pinless map.
+const PIN_REVEAL_TIMEOUT_MS = 3000;
+// Every pub-source layer, gated together so pin paint can be withheld until the
+// basemap has actually painted (see the tile-paint gate in buildSceneBody).
+const PUB_PIN_LAYERS = [
+  "pubs-scraped-halo",
+  "pubs-drops-halo",
+  "band-members-halo",
+  "pubs-point",
+  "pubs-selected-glow",
+  "pubs-selected",
+  "clusters",
+  "cluster-count",
+] as const;
+
 const ORBIT_DEG_PER_SEC = 0.7; // gentle drift — a full turn in ~8.5 minutes
 const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
 const HOVER_DETAIL_CACHE_LIMIT = 24;
@@ -1167,6 +1196,10 @@ export default function PubMapCanvas({
     // them into helpers would thread that state through several signatures and
     // fracture the single readable pass without reducing real risk, so this is
     // the one intentionally tolerated lint warning for the app.
+    // Fallback timer for the tile-paint gate (see buildSceneBody); lives at
+    // construct scope so a theme-swap rebuild replaces the previous timer and
+    // teardown can clear it.
+    let pinRevealTimer: ReturnType<typeof setTimeout> | undefined;
     const buildScene = () => {
       // Stale-event guard. A style.load can arrive from a style that a rapid
       // setStyle() just superseded (e.g. two theme flips inside one style-fetch
@@ -1183,7 +1216,7 @@ export default function PubMapCanvas({
 
       // Wave K2: style.load already flipped `styleLoaded`, so the tile hard-fail
       // timer will never fire. Any throw below must still lift the parent
-      // loading chrome — otherwise "Checking cached pins…" covers the map forever.
+      // loading chrome — otherwise "Finding the pubs…" covers the map forever.
       try {
         buildSceneBody();
         settleSceneReady();
@@ -1576,7 +1609,9 @@ export default function PubMapCanvas({
           // Tighter clusters + earlier uncluster so drink silhouettes (pint /
           // wine / cocktail / spirits) dominate sooner — MAP_MARKERS_PLAN.
           clusterRadius: 22,
-          clusterMaxZoom: 12,
+          // -1: clusters render up to AND INCLUDING clusterMaxZoom, so this
+          // must sit one below the pin layers' minzoom or both draw at 12.x.
+          clusterMaxZoom: PIN_UNCLUSTER_ZOOM - 1,
         });
       }
       // Scraped-pub halo: warm brass ring so Young's / Nicholson's / gazetteer
@@ -1585,6 +1620,7 @@ export default function PubMapCanvas({
         id: "pubs-scraped-halo",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["all", ["!", ["has", "point_count"]], ["get", "scraped"]],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
@@ -1601,6 +1637,7 @@ export default function PubMapCanvas({
         id: "pubs-drops-halo",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["all", ["!", ["has", "point_count"]], ["get", "drops"]],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
@@ -1620,6 +1657,7 @@ export default function PubMapCanvas({
         id: "band-members-halo",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: [
           "all",
           ["!", ["has", "point_count"]],
@@ -1638,6 +1676,7 @@ export default function PubMapCanvas({
         id: "pubs-point",
         type: "symbol",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["!", ["has", "point_count"]],
         layout: {
           "icon-image": ["get", "icon"],
@@ -1664,6 +1703,7 @@ export default function PubMapCanvas({
         id: "pubs-selected-glow",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["==", ["get", "id"], selectedIdRef.current],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
@@ -1678,6 +1718,7 @@ export default function PubMapCanvas({
         id: "pubs-selected",
         type: "circle",
         source: "pubs",
+        minzoom: PIN_UNCLUSTER_ZOOM,
         filter: ["==", ["get", "id"], selectedIdRef.current],
         paint: {
           "circle-color": "rgba(0,0,0,0)",
@@ -1720,6 +1761,39 @@ export default function PubMapCanvas({
           "text-halo-width": 1,
         },
       });
+
+      // --- Tile-paint gate (D2). buildScene runs on `style.load`, which fires
+      // BEFORE the basemap's vector tiles have painted. The pub layers draw from
+      // a GeoJSON source (no network tiles), so without this they paint on the
+      // very next frame — floating over a blank/white basemap (worst in the light
+      // Liberty/Positron style, which has no dark background to mask it; the dark
+      // style just hid the same race). Hold every pub layer hidden until the map
+      // reaches `idle` (all tiles + sources loaded and rendered), then reveal
+      // them together. Applies on the initial load AND every theme swap, so pins
+      // never render over an unpainted basemap in either theme. Skipped when tiles
+      // are already loaded (cached / a duplicate build) so there is no needless
+      // flash. `idle` can be starved — the ambient orbit moves the camera every
+      // frame, so on a slow tile connection the map may never go idle — hence
+      // the PIN_REVEAL_TIMEOUT_MS fallback: whichever fires first reveals the
+      // pins and disarms the other.
+      if (!map.areTilesLoaded()) {
+        for (const id of PUB_PIN_LAYERS) {
+          if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
+        }
+        const revealPins = () => {
+          clearTimeout(pinRevealTimer);
+          pinRevealTimer = undefined;
+          map.off("idle", revealPins);
+          for (const id of PUB_PIN_LAYERS) {
+            if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
+          }
+        };
+        map.once("idle", revealPins);
+        // A theme-swap rebuild re-arms the gate; drop the previous build's timer
+        // so only the latest reveal pair is live.
+        clearTimeout(pinRevealTimer);
+        pinRevealTimer = setTimeout(revealPins, PIN_REVEAL_TIMEOUT_MS);
+      }
 
       // --- Route stops (numbered) above everything.
       if (!map.getSource("route-stops")) {
@@ -2153,6 +2227,7 @@ export default function PubMapCanvas({
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
+      if (pinRevealTimer) clearTimeout(pinRevealTimer);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
@@ -2618,17 +2693,21 @@ export default function PubMapCanvas({
           <MapPinned size={14} aria-hidden />
           {cityDisplayName}
         </button>
-        <button
-          type="button"
-          className="mapRecenterBtn"
-          onClick={fitRoute}
-          disabled={!canRecenter}
-          aria-label={canRecenter ? "Recenter route" : "No route to recenter"}
-          title={canRecenter ? "Recenter route" : "No route"}
-        >
-          <Crosshair size={14} aria-hidden />
-          {canRecenter ? "Recenter" : "No route"}
-        </button>
+        {/* D7: only render once there's a route to recenter — a disabled
+            "No route" ghost chip sitting in the camera-controls stack reads
+            as a stuck/broken control when the map is routeless. */}
+        {canRecenter ? (
+          <button
+            type="button"
+            className="mapRecenterBtn"
+            onClick={fitRoute}
+            aria-label="Recenter route"
+            title="Recenter route"
+          >
+            <Crosshair size={14} aria-hidden />
+            Recenter
+          </button>
+        ) : null}
       </div>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>

@@ -52,7 +52,7 @@ export default function Error({
             lineHeight: 1.1,
           }}
         >
-          Something went wrong.
+          Spilled.
         </h1>
         <p style={{ margin: "0 0 28px", color: "var(--ink-soft)", lineHeight: 1.6 }}>
           The map lost its footing for a moment. Try again, or head back to the

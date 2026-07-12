@@ -8,6 +8,7 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { fetchCityArea } from "@/lib/citymcp/area";
 import { CityMcpError } from "@/lib/citymcp/client";
+import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -15,6 +16,13 @@ export const maxDuration = 15;
 const MAX_BOROUGH_LEN = 60;
 
 export async function GET(request: Request): Promise<Response> {
+  if (await isCityMcpLimited(request)) {
+    return jsonNoStore(
+      { borough: null, averagePintGbp: null, asOf: null, error: "Too many requests, slow down." },
+      { status: 429 },
+    );
+  }
+
   const params = new URL(request.url).searchParams;
   const borough = params.get("borough")?.trim();
 

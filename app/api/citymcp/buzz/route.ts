@@ -11,6 +11,7 @@
 
 import { CityMcpError } from "@/lib/citymcp/client";
 import { fetchCityBuzz, type CityBuzz } from "@/lib/citymcp/buzz";
+import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -36,6 +37,10 @@ function jsonResponse(
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (await isCityMcpLimited(request)) {
+    return jsonResponse({ error: "Too many requests, slow down.", buzz: null }, { status: 429 });
+  }
+
   const params = new URL(request.url).searchParams;
   const id = params.get("id")?.trim() ?? "";
   if (id.length === 0) {

@@ -81,16 +81,17 @@ test.describe("security headers", () => {
 
     const csp = response?.headers()["content-security-policy"];
     expect(csp).toBeTruthy();
-    // Sanity-check a couple of the load-bearing directives from
-    // next.config.mjs rather than pinning the whole string (which would make
-    // this test brittle to any future directive tweak).
+    // Sanity-check a couple of the load-bearing directives from proxy.ts
+    // rather than pinning the whole string (which would make this test brittle
+    // to any future directive tweak).
     expect(csp).toMatch(/default-src 'self'/);
     expect(csp).toMatch(/frame-ancestors 'none'/);
     expect(csp).toMatch(/object-src 'none'/);
-    // Next.js App Router requires script-src 'unsafe-inline' for its inline
-    // RSC/hydration bootstrap (see next.config.mjs). A per-request nonce would
-    // drop it but forces dynamic rendering — documented tradeoff, not a gap.
-    expect(csp).toMatch(/script-src[^;]*'unsafe-inline'/);
+    // script-src is now nonce-based (proxy.ts): a per-request nonce replaces
+    // 'unsafe-inline' so Next's inline RSC/hydration bootstrap is allowed by
+    // 'nonce-<value>' while inline injection is otherwise blocked.
+    expect(csp).toMatch(/script-src[^;]*'nonce-[^']+'/);
+    expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
   });
 
   test("/ sets X-Frame-Options DENY (aligned with CSP frame-ancestors 'none')", async ({ page }) => {

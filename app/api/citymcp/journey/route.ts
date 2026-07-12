@@ -13,6 +13,7 @@ import {
   formatJourneyPoint,
   type CityJourney,
 } from "@/lib/citymcp/client";
+import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -67,6 +68,13 @@ function isUkLatLng(lat: number, lng: number): boolean {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (await isCityMcpLimited(request)) {
+    return jsonResponse(
+      { error: "Too many requests, slow down.", from: null, to: null, journeys: [] },
+      { status: 429 },
+    );
+  }
+
   const params = new URL(request.url).searchParams;
 
   const fromLat = parseCoord(params.get("fromLat"));

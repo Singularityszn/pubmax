@@ -2,7 +2,11 @@
 
 .citySuggestBanner {
   position: absolute;
-  top: 58px;
+  /* D7: anchor to --map-top-clearance (the toolbar's own top offset) instead
+     of a bare magic number — the old fixed 58px predated the toolbar's
+     current top offset and left the banner overlapping the search input.
+     +60px clears the toolbar's single-row resting height plus a gap. */
+  top: calc(var(--map-top-clearance, 0px) + 60px);
   left: 50%;
   /* Below map toolbar / CitySwitcher dropdown (560) so city picks stay tappable,
      and below cityStatusBanner (--z-map-banner) so outage state wins the nudge. */

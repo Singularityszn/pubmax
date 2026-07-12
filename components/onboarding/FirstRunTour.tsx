@@ -27,6 +27,7 @@ import {
   markTourSeen,
   subscribeTour,
 } from "@/lib/firstRunTour";
+import { trackEvent } from "@/lib/analytics";
 import "./firstRunTour.css";
 
 type TabTarget = "map" | "drop" | "discover" | null;
@@ -110,12 +111,15 @@ export default function FirstRunTour(): React.JSX.Element | null {
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.
-  const dismiss = useCallback(() => {
+  // `completed` distinguishes finishing all steps (Start exploring) from an
+  // early skip/close/backdrop/Esc dismissal, for the tour_complete event.
+  const dismiss = useCallback((completed: boolean = false) => {
     if (finalizedRef.current) return;
     setClosing(true);
     const finalize = () => {
       if (finalizedRef.current) return;
       finalizedRef.current = true;
+      trackEvent("tour_complete", { completed });
       markTourSeen();
     };
     window.setTimeout(finalize, prefersReducedMotion() ? 0 : EXIT_MS);
@@ -123,7 +127,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
 
   const goNext = useCallback(() => {
     if (step >= LAST) {
-      dismiss();
+      dismiss(true);
       return;
     }
     setDir(1);
@@ -160,7 +164,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        dismiss();
+        dismiss(false);
         return;
       }
       if (e.key !== "Tab") return;
@@ -199,7 +203,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
       className={`tourScrim${closing ? " isClosing" : ""}`}
       // Backdrop click (only on the scrim itself, not the card) dismisses.
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) dismiss(false);
       }}
       onKeyDown={onKeyDown}
     >
@@ -224,7 +228,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
         <button
           type="button"
           className="tourClose pressable"
-          onClick={dismiss}
+          onClick={() => dismiss(false)}
           aria-label="Skip the tour"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
@@ -265,7 +269,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
           <button
             type="button"
             className="tourSkip pressable"
-            onClick={step > 0 ? goBack : dismiss}
+            onClick={step > 0 ? goBack : () => dismiss(false)}
           >
             {step > 0 ? "Back" : "Skip"}
           </button>

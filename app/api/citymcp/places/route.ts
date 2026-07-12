@@ -11,6 +11,7 @@ import {
   type SearchCityPlacesOpts,
   type SearchPlacesRow,
 } from "@/lib/citymcp/client";
+import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -94,6 +95,10 @@ function thinRow(row: SearchPlacesRow): SearchPlacesRow {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (await isCityMcpLimited(request)) {
+    return jsonResponse({ error: "Too many requests, slow down.", places: [] }, 429);
+  }
+
   const params = new URL(request.url).searchParams;
   const q = params.get("q")?.trim() ?? "";
   if (q.length === 0) {

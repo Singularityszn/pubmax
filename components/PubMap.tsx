@@ -1287,7 +1287,7 @@ export default function PubMap({
             role="status"
             aria-busy="true"
             aria-live="polite"
-            aria-label={`Loading the ${city.displayName} pub map. Checking cached pins, then warming live prices.`}
+            aria-label={`Loading the ${city.displayName} pub map. Finding the pubs. Fetching tonight's prices.`}
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -1300,7 +1300,7 @@ export default function PubMap({
             </div>
             <div className="mapLoadingCopy">
               <span className="mapLoadingEyebrow">{city.displayName} pub map</span>
-              <span>Checking cached pins, then warming live prices.</span>
+              <span>Finding the pubs. Fetching tonight&rsquo;s prices.</span>
             </div>
           </div>
         ) : null}

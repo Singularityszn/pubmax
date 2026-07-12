@@ -919,6 +919,9 @@ html[data-legacy="1"] .venueTabPanel::before {
     min-height: 36px;
     padding: 7px 10px;
     font-size: 0.8rem;
+    /* Tighter tracking (not just a smaller size) buys back a couple of px per
+       tab so the short labels sit comfortably instead of clipping. */
+    letter-spacing: -0.01em;
   }
 
   .venueTabFull {
@@ -940,8 +943,9 @@ html[data-legacy="1"] .venueTabPanel::before {
   }
 
   .venueTab {
-    padding-inline: 9px;
-    font-size: 0.78rem;
+    padding-inline: 7px;
+    font-size: 0.76rem;
+    letter-spacing: -0.015em;
   }
 }
 

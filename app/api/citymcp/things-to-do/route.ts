@@ -18,6 +18,7 @@ import {
   type ThingsToDoWindow,
 } from "@/lib/citymcp/client";
 import { enrichOpportunityLocations } from "@/lib/citymcp/enrichOpportunityLocations";
+import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -96,6 +97,13 @@ function parsePrice(raw: string | null): ThingsToDoPrice | undefined {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (await isCityMcpLimited(request)) {
+    return jsonResponse(
+      { error: "Too many requests, slow down.", opportunities: [] },
+      { status: 429 },
+    );
+  }
+
   const params = new URL(request.url).searchParams;
 
   const windowParam = parseWindow(params.get("window"));

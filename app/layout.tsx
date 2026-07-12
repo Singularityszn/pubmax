@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
@@ -112,11 +114,15 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Per-request CSP nonce (set by proxy.ts). Stamped onto our inline
+  // speculation-rules block below — inline speculation rules are gated by
+  // script-src, so under the nonce policy they need the nonce to be honoured.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -147,13 +153,15 @@ export default function RootLayout({
                 MapLibre canvas is wasteful and janky) and every route with side
                 effects (auth, composer, /api).
             This is a JSON data block, NOT executable JavaScript: the browser
-            parses it as speculation rules, never runs it. CSP: it is governed by
-            script-src, and our policy already allows 'unsafe-inline' there (see
-            next.config.mjs), so no CSP change is needed. Unsupported browsers
-            ignore an unknown script type entirely → pure progressive
-            enhancement, zero behaviour change where it isn't understood. */}
+            parses it as speculation rules, never runs it. CSP: it is still
+            governed by script-src, so under the per-request nonce policy
+            (proxy.ts) it carries the nonce below; without it the browser would
+            drop the rules. Unsupported browsers ignore an unknown script type
+            entirely → pure progressive enhancement, zero behaviour change where
+            it isn't understood. */}
         <script
           type="speculationrules"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               prerender: [
@@ -196,6 +204,10 @@ export default function RootLayout({
             <OfflineReady />
           </CommandPaletteProvider>
         </AuthProvider>
+        {/* Vercel Web Analytics (R3) — cookie-less pageview + custom-event
+            tracking (see lib/analytics.ts for the typed trackEvent rail).
+            Outside AuthProvider on purpose: it's app infra, not identity. */}
+        <Analytics />
       </body>
     </html>
   );

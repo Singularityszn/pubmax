@@ -472,6 +472,22 @@
   pointer-events: none;
 }
 
+/* Pointer-aware verb: default (touch/no media support) reads "Tap"; a
+   mouse-driven pointer swaps in "Choose" so desktop never claims tapping. */
+.lp .thamesHeroHintPointer {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp .thamesHeroHintTouch {
+    display: none;
+  }
+
+  .lp .thamesHeroHintPointer {
+    display: inline;
+  }
+}
+
 .lp .thamesHeroPins {
   position: absolute;
   /* Inset the pin coordinate space so percentage-placed glyph tiles never hug
