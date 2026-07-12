@@ -60,6 +60,22 @@ html[data-theme="dark"] {
   --grape: #a78bfa; /* available but unused for glow — no purple mesh */
   --pink: #ff7ac8;
 
+  /* P1 chrome cleanup — Apple-neutral near-black DOM-chrome surfaces.
+     --paper/--panel/--panel-raised/--line above carry a deliberate sage/green
+     bias (the M4 "Night Out" street palette) that the map canvas reads
+     directly for its own paint (components/map/canvas/tokens.ts readTokens()
+     — ink/paper/panelRaised/line feed pin/label/route colour). Retinting
+     those shared tokens would silently repaint the map, which is out of
+     scope here (map keeps its M4 dusk identity). These --chrome-* tokens are
+     a SEPARATE, DOM-chrome-only neutral scale that a handful of non-map
+     containers opt into by locally reassigning --panel/--panel-raised/
+     --paper/--line to the --chrome-* values (see the three rules below) —
+     everything that doesn't opt in, including the map, is unchanged. */
+  --chrome-paper: #090909;
+  --chrome-panel: #121212;
+  --chrome-panel-raised: #181818;
+  --chrome-line: #2a2a2a;
+
   /* M4 — dusk/night signature look. Deep indigo zenith fading to a warm brass
      horizon band (setSky); warmed 3-D building massing (never full brass —
      stays a desaturated warm gray so footprints read against inkDeep); park
@@ -213,4 +229,54 @@ html[data-theme="dark"] .planBtn {
 html[data-theme="dark"] .planBtn.active {
   background: linear-gradient(135deg, var(--ink-deep), color-mix(in srgb, var(--ink-deep) 70%, var(--pint)));
   color: var(--color-on-inverse);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   P1 dark-chrome cleanup (owner audit, cycle-trust-tonight)
+   ---------------------------------------------------------------------------
+   1) Nav active-pill: siteNav.css's per-route drink-category tint
+      (.siteNavLink.isActive[data-cat]) is correct product direction in LIGHT
+      (D1 pass) but several dark --cat-* values (e.g. --cat-wine #e07a97) read
+      as an off-brand pink/coral leak against the near-black dark shell, and
+      others (--cat-other) land as a dull off-brass tan — neither is the
+      single brass/amber accent family the dark chrome owns. Pin every route's
+      active pill back to brass in dark only; light keeps its category tints.
+   2) Olive "dusk kitsch": the shared --paper/--panel/--panel-raised/--line
+      tokens carry the M4 sage/green bias the map itself needs (see the
+      --chrome-* token comment above). These three DOM-chrome surfaces read
+      those shared tokens for a plain background fill (no map paint involved),
+      so they picked up the same green cast by accident. Scope-override the
+      tokens locally on each container — CSS custom properties cascade to
+      every descendant that reads var(--panel-raised) etc., so this is a
+      three-rule fix rather than a chase through every consumer line. ═══════ */
+
+/* 1) Nav active pill — always brass/amber in dark, regardless of data-cat. */
+html[data-theme="dark"] .siteNavLink.isActive[data-cat] {
+  background: var(--brass);
+  color: var(--color-on-accent);
+}
+
+/* 2a) "Start with a story" map onboarding modal. */
+html[data-theme="dark"] .mapOnboarding {
+  --panel: var(--chrome-panel);
+  --panel-raised: var(--chrome-panel-raised);
+  --line: var(--chrome-line);
+}
+
+/* 2b) Home city cards (CityChooser's embedded --section variant only — the
+   full-bleed --page /choose-city variant already sits on --ink-deep, which
+   is already near-neutral, so it's untouched). */
+html[data-theme="dark"] .cityChooser--section {
+  --panel: var(--chrome-panel);
+  --panel-raised: var(--chrome-panel-raised);
+  --paper: var(--chrome-paper);
+  --line: var(--chrome-line);
+}
+
+/* 2c) Feed — the diagonal category streaks + every card surface under it. */
+html[data-theme="dark"] .feedShell {
+  --panel: var(--chrome-panel);
+  --panel-raised: var(--chrome-panel-raised);
+  --paper: var(--chrome-paper);
+  --line: var(--chrome-line);
 }
