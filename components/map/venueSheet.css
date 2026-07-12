@@ -1017,3 +1017,73 @@ html[data-legacy="1"] .venueTabPanel::before {
   color: var(--muted);
   letter-spacing: 0.02em;
 }
+
+/* ── Desktop docked-panel treatment (N3) ─────────────────────────────────────
+   ≥1024px matches the app's established "real desktop" cut (see globals.css
+   .logDropBar / .mapLegend @media (max-width: 1050px) — the inverse of that
+   is roughly here) rather than the 641px mobile-gesture cut above, which only
+   tells us the drag-sheet is off; a narrow tablet width still wants the
+   mobile-shaped strip. Scoped to the right drawer that actually hosts the
+   venue inspector (`:has`) so the planner's left drawer — a different, already
+   desktop-plain side panel — is untouched. Everything here is presentation
+   only: no gesture/tab logic changes, and nothing below 1024px is affected. */
+@media (min-width: 1024px) {
+  .mapDrawer.right:has(.venueInspector) {
+    /* Wide enough for the two-column Pints layout below without feeling like
+       a full takeover — still clearly a docked side panel, not the map. */
+    width: 640px;
+    max-width: 46vw;
+  }
+
+  /* The mobile bottom-sheet grab affordance has no meaning on a docked side
+     panel — PubMap never wires drag handlers above the gesture breakpoint,
+     so this was always a visual no-op; hide it outright at desktop widths. */
+  .venueInspector .venueSheetGrabZone {
+    display: none;
+  }
+
+  /* Full, non-scrolling tab bar — the mobile "strip" (horizontal scroll,
+     short labels, tight padding) is a small-viewport affordance the docked
+     panel doesn't need at this width. */
+  .venueInspector .venueTabs {
+    flex-wrap: wrap;
+    overflow: visible;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .venueInspector .venueTab {
+    padding: 9px 16px;
+    font-size: 0.9rem;
+  }
+
+  .venueInspector .venueTabFull {
+    display: inline;
+  }
+
+  .venueInspector .venueTabShort {
+    display: none;
+  }
+
+  .venueInspector .venueTabPanel {
+    padding: 18px;
+  }
+
+  /* Golden Thread (or the composer, when open) beside the Pint Drops list
+     instead of stacked — the panel is wide enough now to read both at once. */
+  .venuePintsCols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .venuePintsCols .pintDrops {
+    /* Reset the stacked-section rule (globals.css) — as a grid column it no
+       longer needs the dashed divider that used to separate it from the
+       Golden Thread above. */
+    margin: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
