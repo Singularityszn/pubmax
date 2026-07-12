@@ -17,30 +17,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { applyBasemapTaste, clusterCircleColorExpr } from "@/lib/mapBasemapTaste";
 import { landmarks as londonLandmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
 import {
-  bandAnchors,
   bandMemberPubs,
   STORY_BANDS as LONDON_STORY_BANDS,
   type StoryBand,
 } from "@/lib/storyBands";
-import { offsetIndexForLine } from "@/lib/tubeOffsets";
-import { priceForBeer } from "@/lib/beers";
 import {
   loadPoisFromPath,
   LONDON_POIS_PATH,
   POI_CATEGORY_META,
   TRANSPORT_CATEGORIES,
-  type Poi,
   type PoiCategory,
 } from "@/lib/pois";
-import {
-  MAP_ICON_SPECS,
-  drinkPinIconKey,
-  drinkPinKindFromCategories,
-  iconId,
-  rasterize,
-  type IconTokens,
-} from "@/lib/mapIcons";
-import { drinkAccentForVenue } from "@/lib/scrapedPubs";
+import { type IconTokens } from "@/lib/mapIcons";
 import {
   defaultPoiHidden,
   defaultPoiHiddenForViewport,
@@ -48,28 +36,32 @@ import {
   isTransitNetworkVisible,
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
-import {
-  CATEGORY_COLORS,
-  categoryVar,
-  type DrinkCategory,
-} from "@/lib/categoryColors";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
-import { formatFreshness, formatObservedAt, formatPrice, type Venue } from "@/lib/venues";
-import { proxiedVenueImageUrl } from "@/lib/venueImages";
-import type { PricedVenue } from "@/lib/priceUpdates";
+import { formatPrice, type Venue } from "@/lib/venues";
+import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
+import {
+  MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, LONDON_BOUNDS,
+  ORBIT_DEG_PER_SEC, ORBIT_RESUME_MS, DASH_SEQ,
+  readTokens, withAlpha, registerMapIcons,
+} from "@/components/map/canvas/tokens";
+import {
+  pubsToGeoJSON, poisToGeoJSON, routeToLine, routeToStops,
+  bandCorridorGeoJSON, landmarksToGeoJSON,
+} from "@/components/map/canvas/geojson";
+import {
+  AMBIENT_CATEGORIES, poiFilter, transportFilter, TRANSPORT_ICON_MATCH,
+  TONIGHT_OPPORTUNITY_LAYERS, opportunityForFeature,
+  TUBE_LINE_OFFSET_EXPR,
+} from "@/components/map/canvas/filters";
+import {
+  HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
+  HOVER_CARD_MIN_TOP_PX, HOVER_CARD_X_OFFSET_PX, HOVER_CARD_Y_OFFSET_PX,
+  withBoundedHoverDetailCache, hoverImageUrlFor, hoverPriceLine,
+} from "@/components/map/canvas/hoverCard";
 
-type VenueSignal = {
-  hasPintDrops: boolean;
-  latestContributorPrice: number | null;
-  /** Display-only demo price for pin colour when cheapestPrice is null. */
-  latestDemoPrice?: number | null;
-};
-type HoveredVenue = { id: string; name: string; x: number; y: number };
-type VenueDetailResponse = { venue?: Venue | null };
-type FailedHoverImage = { venueId: string; url: string };
 
 type PubMapCanvasProps = {
   venues: Venue[];
@@ -167,37 +159,6 @@ type PubMapCanvasProps = {
   fitQueryOnArrival?: boolean;
 };
 
-// OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
-// data (free for commercial use, unlike CARTO's basemaps), and OpenMapTiles
-// schema: a `building` source-layer with `render_height` for our 3-D extrusion.
-// "liberty" is a rich, colourful consumer-map look (land-use tints, POI labels,
-// road hierarchy); "dark" matches our candle-lit night mode.
-const MAP_STYLES = {
-  dark: "https://tiles.openfreemap.org/styles/dark",
-  light: "https://tiles.openfreemap.org/styles/liberty",
-} as const;
-
-// If OpenFreeMap (community-run) is slow or down, fall back to CARTO's keyless
-// vector styles — same OpenMapTiles-ish `building` source-layer so 3-D buildings
-// and buildScene keep working. Last resort after this is the WebGL notice.
-const FALLBACK_STYLES = {
-  dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-  light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-} as const;
-const STYLE_LOAD_TIMEOUT_MS = 8000;
-
-// Slightly wider opening London zoom (outer-London P0) so outer boroughs read
-// at first glance while drink icons still appear soon after a nudge in.
-const LONDON_VIEW = {
-  center: [-0.12, 51.52] as [number, number],
-  zoom: 10.7,
-  pitch: 42,
-  bearing: -12,
-};
-const LONDON_BOUNDS: [[number, number], [number, number]] = [
-  [-0.55, 51.28],
-  [0.35, 51.72],
-];
 
 // Single source of truth for the cluster/uncluster boundary: the zoom at which
 // individual pins take over. The unclustered per-pub layers use it directly as
@@ -228,462 +189,7 @@ const PUB_PIN_LAYERS = [
   "cluster-count",
 ] as const;
 
-const ORBIT_DEG_PER_SEC = 0.7; // gentle drift — a full turn in ~8.5 minutes
-const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
-const HOVER_DETAIL_CACHE_LIMIT = 24;
-const HOVER_CARD_VIEWPORT_GUTTER_PX = 16;
-const HOVER_CARD_WIDTH_PX = 292;
-const HOVER_CARD_HEIGHT_PX = 138;
-const HOVER_CARD_MIN_TOP_PX = 84;
-const HOVER_CARD_X_OFFSET_PX = 18;
-const HOVER_CARD_Y_OFFSET_PX = -30;
 
-// Classic "marching ants" dash cycle for the brass route line.
-const DASH_SEQ: number[][] = [
-  [0, 4, 3],
-  [0.5, 4, 2.5],
-  [1, 4, 2],
-  [1.5, 4, 1.5],
-  [2, 4, 1],
-  [2.5, 4, 0.5],
-  [3, 4, 0],
-  [0, 0.5, 3, 3.5],
-  [0, 1, 3, 3],
-  [0, 1.5, 3, 2.5],
-  [0, 2, 3, 2],
-  [0, 2.5, 3, 1.5],
-  [0, 3, 3, 1],
-  [0, 3.5, 3, 0.5],
-];
-
-type Tokens = {
-  ink: string;
-  inkDeep: string;
-  paper: string;
-  panelRaised: string;
-  line: string;
-  muted: string;
-  pint: string;
-  amber: string;
-  brick: string;
-  brass: string;
-  brassBright: string;
-  river: string;
-  riverBright: string;
-  // Drink-category accents (E5). ADDITIVE — resolves the live `--cat-*` vars
-  // (lib/categoryColors.ts) into the map's token object so a future
-  // pin-by-category paint tints a pin by a venue's dominant drink family from
-  // the SAME light/dark/legacy source the venue-sheet swatches use. Not wired
-  // into any live paint yet: the Venue model carries no honest dominant category
-  // (see the ready-to-apply patch in components/map/mapColor.css), and the
-  // honesty rule is never to colour a pin by a guessed category.
-  cat: Record<DrinkCategory, string>;
-};
-
-// Every map colour derives from the app's theme tokens so both modes
-// (candle-lit night / positron day guidebook) flip from one system.
-function readTokens(): Tokens {
-  const styles = getComputedStyle(document.documentElement);
-  const token = (name: string, fallback: string) =>
-    styles.getPropertyValue(name).trim() || fallback;
-  // Additive `--cat-*` read: one entry per drink family, resolved from the live
-  // computed vars (with the canonical light hex as a fallback) so map consumers
-  // never re-hardcode a category palette.
-  const cat = Object.fromEntries(
-    (Object.keys(CATEGORY_COLORS) as DrinkCategory[]).map((c) => [
-      c,
-      token(categoryVar(c), CATEGORY_COLORS[c].light),
-    ]),
-  ) as Record<DrinkCategory, string>;
-  return {
-    cat,
-    ink: token("--ink", "#1b2620"),
-    inkDeep: token("--ink-deep", "#0f1c16"),
-    paper: token("--paper", "#f4efe4"),
-    panelRaised: token("--panel-raised", "#ffffff"),
-    line: token("--line", "#ddd5c4"),
-    muted: token("--muted", "#6b726a"),
-    pint: token("--pint", "#2f8f5b"),
-    amber: token("--amber", "#d99f45"),
-    brick: token("--brick", "#d16353"),
-    brass: token("--brass", "#b0813a"),
-    brassBright: token("--brass-bright", "#d3a44a"),
-    river: token("--river", "#2f6f8f"),
-    riverBright: token("--river-bright", "#4f9ec4"),
-  };
-}
-
-function withAlpha(hex: string, alpha: number): string {
-  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!match) return hex;
-  const n = parseInt(match[1], 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-}
-
-function priceBucket(price: number | null): number {
-  if (price === null) return 3;
-  if (price <= 5.5) return 0;
-  if (price <= 7) return 1;
-  return 2;
-}
-
-function withBoundedHoverDetailCache(
-  details: Map<string, Venue | null>,
-  id: string,
-  venue: Venue | null,
-): Map<string, Venue | null> {
-  const next = new Map(details);
-  next.delete(id);
-  next.set(id, venue);
-  while (next.size > HOVER_DETAIL_CACHE_LIMIT) {
-    const oldestId = next.keys().next().value;
-    if (oldestId === undefined) break;
-    next.delete(oldestId);
-  }
-  return next;
-}
-
-function hoverImageUrlFor(
-  hoverDetail: Venue | null | undefined,
-  failedImage: FailedHoverImage | null,
-  hoveredVenueId: string | null,
-): string {
-  const src = proxiedVenueImageUrl(hoverDetail?.imageUrl ?? "");
-  if (failedImage?.venueId === hoveredVenueId && failedImage.url === src) return "";
-  return src;
-}
-
-type HoverPriceLine = {
-  price: number | null;
-  provenance: string;
-};
-
-// Compact honesty line for the map hover card. Price and provenance share one
-// precedence stack (community → sourced → baseline) so a baseline API detail
-// fetch never pairs with a Community/Sourced label.
-function hoverPriceLine(
-  mapVenue: Venue | undefined,
-  signal: VenueSignal | undefined,
-  hoverDetail: Venue | null | undefined,
-): HoverPriceLine {
-  const communityPrice =
-    signal?.latestContributorPrice ?? mapVenue?.latestContributorPrice ?? null;
-  if (communityPrice !== null && communityPrice !== undefined) {
-    const fresh = formatFreshness(mapVenue?.latestContributorAt);
-    return {
-      price: communityPrice,
-      provenance: fresh ? `Community · ${fresh}` : "Community · tap for detail",
-    };
-  }
-  const sourced = (mapVenue as PricedVenue | undefined)?.sourcedPrice ?? null;
-  if (sourced) {
-    const observed = formatObservedAt(sourced.observedAt);
-    // mergePriceUpdates already wrote the sourced amount onto cheapestPrice.
-    const price =
-      mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
-    return {
-      price: price ?? null,
-      provenance: observed ? `Sourced · ${observed}` : "Sourced · tap for detail",
-    };
-  }
-  const baseline =
-    mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
-  if (baseline !== null && baseline !== undefined) {
-    return { price: baseline, provenance: "Baseline · tap for detail" };
-  }
-  return { price: null, provenance: "Tap for detail" };
-}
-
-function pubsToGeoJSON(
-  venues: Venue[],
-  venueSignals: Map<string, VenueSignal>,
-  favoritePint: string | null,
-  drinkCategory: string | null = null,
-): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: venues.map((venue) => {
-      const signals = venueSignals.get(venue.id);
-      // Beer favorite-pint path only: re-price + dim non-servers. Non-beer
-      // drink/brand lenses filter via filterVenues — never invent brand prices.
-      const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
-      const serves = !favoritePint || beerPrice !== null;
-      // Contributor price wins; then slim-index cheapestPrice; then an honest
-      // demo seed price so city packs with null cheapestPrice still colour pins.
-      // Demo never merges into venue.cheapestPrice (mergeVenueDrops ignores it).
-      const price = favoritePint
-        ? beerPrice
-        : signals?.latestContributorPrice ??
-          venue.cheapestPrice ??
-          signals?.latestDemoPrice ??
-          null;
-      const bucket = priceBucket(price);
-      // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
-      // Without a lens, fall back to venue hint categories.
-      const lens = drinkCategory?.trim().toLowerCase() ?? "";
-      const hintCategories = venue.filterHints?.drinkCategories;
-      const accentCategories =
-        hintCategories && hintCategories.length > 0
-          ? hintCategories
-          : [drinkAccentForVenue(venue.id)];
-      const drinkKind =
-        lens === "beer"
-          ? "pint"
-          : lens && lens !== "other"
-            ? drinkPinKindFromCategories(
-                [lens],
-                lens === "cocktail" ||
-                  Boolean(venue.amenities.cocktails) ||
-                  Boolean(venue.filterHints?.amenities.cocktails),
-              )
-            : drinkPinKindFromCategories(
-                accentCategories,
-                Boolean(venue.amenities.cocktails) ||
-                  Boolean(venue.filterHints?.amenities.cocktails),
-              );
-      const scraped = Boolean(
-        venue.filterHints?.scraped ||
-          venue.sourceDatasets?.some((source) =>
-            /london_chain|greene.?king|nicholson|youngs/i.test(source),
-          ),
-      );
-      return {
-        type: "Feature" as const,
-        properties: {
-          id: venue.id,
-          name: venue.name,
-          bucket,
-          story: venue.hasStory,
-          drops: Boolean(signals?.hasPintDrops),
-          serves,
-          drinkKind,
-          scraped,
-          icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
-        },
-        geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
-      };
-    }),
-  };
-}
-
-// POIs → GeoJSON, one feature per point. category drives which layer/symbol it
-// renders on; rank (1 = major interchange, 2 = minor) drives the zoom-depth
-// reveal so the network reads wide and detail fills in as you zoom.
-function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: pois.map((poi) => ({
-      type: "Feature" as const,
-      properties: {
-        id: poi.id,
-        name: poi.name,
-        category: poi.category,
-        rank: poi.rank ?? 2,
-        // Ambient dot colour baked per-feature from the category palette so the
-        // dot layer stays data-driven as new categories are added.
-        color: POI_CATEGORY_META[poi.category].color,
-      },
-      geometry: { type: "Point" as const, coordinates: poi.coordinates },
-    })),
-  };
-}
-
-// Ambient categories render as soft coloured dots; transport (TRANSPORT_CATEGORIES)
-// render as their real TfL / National Rail symbol on separate layers.
-const AMBIENT_CATEGORIES: readonly PoiCategory[] = [
-  "park",
-  "garden",
-  "market",
-  "historic",
-  "viewpoint",
-  "sight",
-];
-
-// A MapLibre filter keeping only the not-hidden categories within a given group
-// (the transport symbols and the ambient dots live on different layers).
-function poiFilter(
-  hidden: Record<PoiCategory, boolean>,
-  group: readonly PoiCategory[],
-): maplibregl.FilterSpecification {
-  const visible = group.filter((category) => !hidden[category]);
-  return ["in", ["get", "category"], ["literal", visible]];
-}
-
-// Transport filter, split by rank so majors (the skeleton) and minors (revealed
-// deeper) can sit on separate zoom-gated layers while both honour the toggles.
-function transportFilter(
-  hidden: Record<PoiCategory, boolean>,
-  majorOnly: boolean,
-): maplibregl.FilterSpecification {
-  const visible = TRANSPORT_CATEGORIES.filter((category) => !hidden[category]);
-  const inCategory: maplibregl.ExpressionSpecification = [
-    "in",
-    ["get", "category"],
-    ["literal", visible],
-  ];
-  const rankTest: maplibregl.ExpressionSpecification = majorOnly
-    ? ["==", ["coalesce", ["get", "rank"], 2], 1]
-    : ["!=", ["coalesce", ["get", "rank"], 2], 1];
-  return ["all", inCategory, rankTest];
-}
-
-// icon-image match for a transport feature → its TfL symbol id (lib/mapIcons).
-const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
-  "match",
-  ["get", "category"],
-  "tube",
-  iconId("tfl", "underground"),
-  "rail",
-  iconId("tfl", "rail"),
-  "bus",
-  iconId("tfl", "bus"),
-  "river",
-  iconId("tfl", "river"),
-  iconId("tfl", "underground"),
-];
-const TONIGHT_OPPORTUNITY_LAYERS = [
-  "tonight-halo",
-  "tonight-point",
-  "tonight-label",
-] as const;
-
-function normaliseFeatureString(value: unknown): string {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function opportunityForFeature(
-  props: GeoJSON.GeoJsonProperties | undefined,
-  opportunities: readonly ThingsToDoOpportunity[],
-): ThingsToDoOpportunity | undefined {
-  const title = normaliseFeatureString(props?.title);
-  const placeName = normaliseFeatureString(props?.placeName);
-  return opportunities.find((op) => {
-    const opTitle = normaliseFeatureString(op.title);
-    const opPlaceName = normaliseFeatureString(op.place?.name);
-    if (title && placeName) return opTitle === title && opPlaceName === placeName;
-    if (title) return opTitle === title;
-    return Boolean(placeName && opPlaceName === placeName);
-  });
-}
-
-// Issue #16 — parallel coloured tube lines. The known sub-surface fan lines
-// (Metropolitan / Circle / H&C / District) run four-abreast through shared
-// central corridors; we fan them apart with a per-line `line-offset` so they
-// read side-by-side like the real tube map instead of one overlapping stroke.
-//
-// Offset math: offsetIndexForLine(line) gives a symmetric index (…-1.5, -0.5,
-// 0.5, 1.5) for the fan lines and 0 for everything else. We turn that index into
-// a MapLibre `match` expression, then multiply by a zoom-scaled pixel step so
-// the lines CONVERGE at low zoom (network reads as one line) and FAN OUT from
-// ~zoom 12 (the corridor separates). Documented ceiling: the source geometry is
-// per-line from independent OSM ways and rarely shares vertices, so we offset
-// the whole line by its fan index rather than per-shared-segment — the accepted
-// ceiling in issue #16.
-const FAN_LINES = ["Metropolitan", "Circle", "Hammersmith & City", "District"] as const;
-
-// A `["match", ["get","line"], name, index, …, 0]` expression: each fan line to
-// its offset index, all others to 0. Built once (module const) from the pure
-// offsetIndexForLine so the map and the unit-tested logic never drift.
-const TUBE_OFFSET_INDEX_EXPR: maplibregl.ExpressionSpecification = [
-  "match",
-  ["get", "line"],
-  ...FAN_LINES.flatMap((line) => [line, offsetIndexForLine(line)] as [string, number]).flat(),
-  0,
-] as unknown as maplibregl.ExpressionSpecification;
-
-// The signed pixel offset for a line at the current zoom: offsetIndex × a
-// zoom-interpolated per-index step. At/below zoom 11 the step is 0 (lines
-// converge); it grows to a full fan by zoom 14. `line-offset` is in pixels and
-// perpendicular to the line, so a symmetric index set fans the group evenly.
-const TUBE_LINE_OFFSET_EXPR: maplibregl.ExpressionSpecification = [
-  "*",
-  TUBE_OFFSET_INDEX_EXPR,
-  ["interpolate", ["linear"], ["zoom"], 11, 0, 12, 1.4, 14, 3.2, 16, 4.5],
-] as unknown as maplibregl.ExpressionSpecification;
-
-function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features:
-      route.length > 1
-        ? [
-            {
-              type: "Feature" as const,
-              properties: {},
-              geometry: {
-                type: "LineString" as const,
-                coordinates: route.map((venue) => [venue.longitude, venue.latitude]),
-              },
-            },
-          ]
-        : [],
-  };
-}
-
-function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: route.map((venue, index) => ({
-      type: "Feature" as const,
-      properties: { id: venue.id, label: String(index + 1) },
-      geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
-    })),
-  };
-}
-
-// Issue #15 story bands — the tinted corridor through a band's anchor landmarks.
-// A simple polyline joining the anchors in order: the map draws it as a soft,
-// low-opacity token-tinted stroke UNDER the pins so it hints at the walk without
-// fighting the price-colour fill. Empty when the band resolves to <2 anchors.
-function bandCorridorGeoJSON(
-  band: StoryBand | undefined,
-  catalog: readonly Landmark[],
-): GeoJSON.FeatureCollection {
-  if (!band) return { type: "FeatureCollection", features: [] };
-  const anchors = bandAnchors(band, catalog);
-  if (anchors.length < 2) return { type: "FeatureCollection", features: [] };
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: anchors.map((lm) => lm.coordinates),
-        },
-      },
-    ],
-  };
-}
-
-function landmarksToGeoJSON(catalog: readonly Landmark[]): GeoJSON.FeatureCollection {
-  // Each landmark carries its own pictogram id (lib/mapIcons, ns "lm") so the
-  // symbol layer draws a recognisable silhouette per feature.
-  return {
-    type: "FeatureCollection",
-    features: catalog.map((landmark) => ({
-      type: "Feature",
-      properties: {
-        id: landmark.id,
-        name: landmark.name,
-        icon: iconId("lm", landmark.icon),
-      },
-      geometry: { type: "Point", coordinates: landmark.coordinates },
-    })),
-  };
-}
-
-// Register every designed marker image (landmark pictograms + TfL symbols) with
-// the map, re-tinting from the live theme tokens. Called from buildScene on the
-// first load and after each theme-driven setStyle (which wipes prior images).
-function registerMapIcons(map: maplibregl.Map, tokens: IconTokens) {
-  for (const spec of MAP_ICON_SPECS) {
-    const id = iconId(spec.ns, spec.key);
-    if (map.hasImage(id)) map.removeImage(id);
-    map.addImage(id, rasterize(spec, tokens), { pixelRatio: 2 });
-  }
-}
 
 export default function PubMapCanvas({
   venues,
