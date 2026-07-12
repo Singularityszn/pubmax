@@ -28,6 +28,22 @@
   -webkit-backdrop-filter: blur(14px) saturate(1.06);
 }
 
+/* Content pages embed the bar inside a narrow reading column (~880px), which
+   cannot fit the full eight-label link row — labels used to ellipsize into
+   unreadable fragments at 1440px even with nothing else crowding them. On
+   desktop the bar now self-sizes: a centred pill up to the room the VIEWPORT
+   actually has, escaping the host column symmetrically via the auto-negative
+   margin pair below (still centred because every host column is itself
+   centred). The floating map variant and the ≤640px compact bar keep their
+   own geometry — this rule is scoped away from both. */
+@media (min-width: 641px) {
+  .siteNavBar:not(.siteNavBarFloating) {
+    --site-nav-width: min(1080px, 100vw - 48px);
+    width: var(--site-nav-width);
+    margin-inline: calc((100% - var(--site-nav-width)) / 2);
+  }
+}
+
 /* Map variant: the shell is overflow-hidden + full-bleed, so the bar floats
    across the top. Centred pill on desktop; full-width compact bar on phone
    so it matches the Search/Plan toolbar width and inset. */
@@ -344,6 +360,12 @@
 @media (max-width: 900px) {
   .siteNavBrand {
     font-size: 0.94rem;
+  }
+
+  /* Densest band for the link row: the ⌘K hint is the most expendable item
+     (the shortcut + palette remain), so its width goes back to the labels. */
+  .siteNavCmdk {
+    display: none;
   }
 
   .siteNavLink {

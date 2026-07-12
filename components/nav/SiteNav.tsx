@@ -218,7 +218,10 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
             Same ambient island shape as the bell; shows on mobile too. */}
         <MessagesLink />
         <ThemeToggle />
-        <SignInButton />
+        {/* Compact host: a single "Sign in" disclosure below the width where
+            the two full provider buttons genuinely fit (auth.css ≥1680px), so
+            they can never crowd the link row into clipped fragments. */}
+        <SignInButton compact />
       </div>
     </nav>
   );
