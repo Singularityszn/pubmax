@@ -398,11 +398,12 @@ export default function PubMapCanvas({
     venuesRef.current = venues;
   }, [venues]);
   const selectedIdRef = useRef(selectedVenueId);
-  // M7 pin entrance — set once, right after the first settleSceneReady(), and
-  // driven off the existing orbit/dash/pulse RAF loop below. `active` gates
-  // the per-frame work; `startedAt` anchors elapsed time. Never re-armed by a
-  // theme swap or filter change — see settleSceneReady's own `sceneSettled`
-  // guard, which only ever fires once per mount.
+  // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
+  // (settleSceneReady when the D2 tile-paint gate never armed, else that
+  // gate's revealPins), and driven off the existing orbit/dash/pulse RAF loop
+  // below. `active` gates the per-frame work; `startedAt` anchors elapsed
+  // time. Never re-armed by a theme swap or filter change — see
+  // startPinEntrance's own fire-once `pinEntranceFired` guard.
   const pinEntranceActiveRef = useRef(false);
   const pinEntranceStartRef = useRef(0);
   // buildScene reads this on every (re)build so a theme swap keeps the toggles.
@@ -823,6 +824,12 @@ export default function PubMapCanvas({
           for (const id of PUB_PIN_LAYERS) {
             if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
           }
+          // M7 — this is the true "first pin reveal" when the gate was armed:
+          // settleSceneReady already ran (and deferred) while pins were still
+          // hidden, so kick the entrance off here instead. Fire-once inside
+          // startPinEntrance, so theme-swap rebuilds re-running this reveal
+          // can never replay the entrance.
+          startPinEntrance();
         };
         map.once("idle", revealPins);
         // A theme-swap rebuild re-arms the gate; drop the previous build's timer
@@ -908,11 +915,23 @@ export default function PubMapCanvas({
       map.setLayoutProperty("pubs-point", "icon-size", PIN_ICON_SIZE_EXPR);
       map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
     };
-    // Fired once, from settleSceneReady's first pin reveal. `sceneSettled`
-    // upstream already guarantees this never re-arms on a filter change,
-    // theme swap, or city switch within the same mount.
+    // Fired once per mount, at the FIRST moment pins are actually visible:
+    // either directly from settleSceneReady (tiles were already loaded, so the
+    // D2 tile-paint gate never armed) or from the gate's own revealPins (see
+    // buildSceneBody) once it flips the pub layers back to visible. Starting
+    // the clock at settle while the gate still held pins at visibility:none
+    // would burn the whole 400ms ramp invisibly — users would only ever see
+    // the instant post-entrance state. `pinEntranceFired` (not `sceneSettled`)
+    // is the once-only guard so the deferred reveal path can still fire, while
+    // theme-swap rebuilds (which re-run revealPins) can never re-trigger it.
+    let pinEntranceFired = false;
     const startPinEntrance = () => {
-      if (reducedRef.current || !map.getLayer("pubs-point")) return; // no-preference gated
+      if (pinEntranceFired || !map.getLayer("pubs-point")) return;
+      // D2 gate still holding pins hidden — revealPins re-invokes this at the
+      // actual first reveal. Deliberately NOT marked fired yet.
+      if (map.getLayoutProperty("pubs-point", "visibility") === "none") return;
+      pinEntranceFired = true;
+      if (reducedRef.current) return; // no-preference gated: instant pins
       pinEntranceActiveRef.current = true;
       pinEntranceStartRef.current = performance.now();
       map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
@@ -1069,7 +1088,22 @@ export default function PubMapCanvas({
       // pop since nothing was visible meanwhile). A mid-ramp reduced-motion
       // toggle also finishes instantly rather than leaving pins stuck
       // half-visible forever.
-      if (pinEntranceActiveRef.current && map.isStyleLoaded() && map.getLayer("pubs-point")) {
+      //
+      // Style guard: `_loaded` (the exact flag buildScene's stale-event guard
+      // keys on), NOT isStyleLoaded() — isStyleLoaded() also waits for
+      // tiles/sprite and reports false for seconds after style.load on a slow
+      // connection (and again during every zoom-triggered tile load), which
+      // starved this block entirely: startPinEntrance's t=0 write (opacity 0)
+      // then sat un-progressed until the map fully quiesced — pins invisible
+      // for the whole window. `_loaded` only goes false across a genuine
+      // setStyle swap, which is the case this guard exists for.
+      const frameStyle = map.style as unknown as { _loaded?: boolean } | undefined;
+      if (
+        pinEntranceActiveRef.current &&
+        frameStyle &&
+        frameStyle._loaded !== false &&
+        map.getLayer("pubs-point")
+      ) {
         if (reducedRef.current) {
           finishPinEntrance();
         } else {
