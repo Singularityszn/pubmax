@@ -756,18 +756,25 @@
    Rows and cards carrying [data-reveal] start settled a few pixels down and
    fade up into place the first time they near the viewport (JS in
    DiscoverPageClient toggles .is-revealed via IntersectionObserver, once per
-   element). Opacity/transform only, capped stagger, fully inert unless the
-   viewer welcomes motion — a element that never gets JS-marked stays fully
-   visible since this whole block lives behind no-preference. */
+   element).
+   The opacity:0 starting state is scoped to .revealArmed, which
+   DiscoverPageClient only adds on the page's first real `scroll` event — NOT
+   on mount. A one-shot full-document capture (headless screenshot tool,
+   print, share-image generation) never fires a `scroll` event, so it always
+   renders every [data-reveal] row/card at full opacity, matching the no-JS
+   baseline. Without that gate this rule used to hide rows unconditionally
+   the instant JS mounted them, so any below-the-fold table (Cheap Pint
+   Leaderboard, Cheapest Pints Tonight, Ways to drink) stayed permanently
+   blank until a real scroll happened to trip the observer first. */
 @media (prefers-reduced-motion: no-preference) {
-  [data-reveal] {
+  .discoverPage.revealArmed [data-reveal] {
     opacity: 0;
     transform: translateY(14px);
     transition: opacity var(--duration-slow) var(--ease-out-strong),
       transform var(--duration-slow) var(--ease-out-strong);
   }
 
-  [data-reveal].is-revealed {
+  .discoverPage.revealArmed [data-reveal].is-revealed {
     opacity: 1;
     transform: none;
   }
