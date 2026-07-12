@@ -14,18 +14,17 @@ Greptile) must pass, then the architect (Fable) reviews before merge. Never
 | T2 | UI slices, wiring, copy, tests | Sonnet 5 | GPT-5.5 / Codex |
 | T1 | mechanical: renames, CSS swaps, docs | Haiku 4.5 | Codex |
 
-## State of the world (verified 2026-07-11)
+## State of the world (verified 2026-07-12)
 
-- Prod (pubmaxxing.com) serves main `9022b34`, all routes healthy.
-- PR #149 (Sort-My-Night P0 + Waves A+B + UX quick wins, 14 commits) is open,
-  gates green (vitest 2063/2063, tsc, eslint), architect-reviewed.
-- Migrations `0024_plans` / `0025_price_confirms` NOT yet applied to live
-  Supabase (owner: re-auth Supabase MCP). Plan-create 503s on prod until then.
-- GitHub Actions dead at the ACCOUNT level (billing/spending limit — every run
-  `startup_failure` pre-allocation). Owner-only fix. Vercel build + local
-  gates are the interim gate; ci.yml stays manual-only until fixed.
-- ~12 Cursor draft PRs were closed unmerged; the valuable content survives
-  only on their branches (see Wave S below).
+- Prod (pubmaxxing.com) serves current main; Vercel + local-ci are the interim gates.
+- Migrations `0024_plans` / `0025_price_confirms` **APPLIED** on live Supabase
+  (`iankajxliutqogqkmvdg`) — plans + price confirms durable. Unit tests must
+  clear `SUPABASE_*` env so CI does not hit live tables.
+- GitHub Actions still dead at the ACCOUNT level (billing/spending limit — every
+  run `startup_failure` pre-allocation). Owner-only fix. Vercel build + local
+  gates remain the interim gate; ci.yml stays manual-only until fixed.
+- W4 music data + W5 concierge what's-on intents + E2 Night Mode + lane_to_plan
+  analytics are on main; W1 map Tonight surface lands via the roadmap PR.
 
 ## House guardrails (bind every task)
 
@@ -89,9 +88,10 @@ labels added, its own bot+architect review.
 
 1. GitHub Actions billing/spending limit (github.com/settings/billing) → then
    branch protection on main + required checks.
-2. Supabase MCP re-auth → apply migrations 0024 + 0025 + advisors → plan
-   creation goes live on prod.
+2. ~~Supabase MCP re-auth → apply migrations 0024 + 0025~~ **DONE 2026-07-12**
+   (plans + price_confirms live on prod). Keep advisors green after schema PRs.
 3. Review the copy wording in the C2 diff before merge.
+4. Firecrawl key re-auth when scrape refresh PRs need higher quality.
 
 ## Verification bar (every PR)
 

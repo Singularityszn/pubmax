@@ -1,0 +1,48 @@
+.venueImage {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-raised) 80%, var(--ink-deep) 8%);
+}
+
+.venueImage__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.venueImage--empty {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: 1rem;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.venueImage__caption {
+  margin: 0;
+  padding: 0.35rem 0.55rem 0.45rem;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* N3 desktop inspector photo header — taller, edge-to-edge under title. */
+@media (min-width: 960px) {
+  .venueInspector .venueImage--header {
+    border-radius: 0 0 14px 14px;
+    margin: 0 0 0.75rem;
+  }
+
+  .venueInspector .venueImage--header .venueImage__img,
+  .venueInspector .venueImage--header.venueImage--empty {
+    min-height: 180px;
+    max-height: 220px;
+    object-fit: cover;
+  }
+}

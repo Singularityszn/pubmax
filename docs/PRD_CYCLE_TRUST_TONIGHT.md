@@ -10,22 +10,23 @@ routing per house convention.
 Since 2026-07-11 the fleet shipped all of Wave A (A1–A6), the B1 What's-On spine,
 B2 sport data (37 attribute rows, 0 timed — FANZO robots-gated), B3 quiz data
 (83 timed rows), C-1 booking links, the IA unification, and the U2–U6 polish
-batch. But the spine has **zero UI consumers**, every Wave D defect is still
-live, plans 503 on prod (0024/0025 unapplied pending Supabase re-auth), the map
-god-component grew to 2,814 lines, GitHub Actions is billing-dead, and a fresh
-security sweep found the perimeter's expensive endpoints unthrottled. This cycle
-converts invisible shipped work into the flagship user surface, repairs trust
-(defects + security), and pays down the map decomposition debt in full.
+batch. **Status update 2026-07-12 (live audit):** migrations **0024_plans** and
+**0025_price_confirms** are **applied** on prod (`iankajxliutqogqkmvdg`) with
+RPCs `create_plan_atomic` / `join_plan_atomic` present. E2 Night Mode, W4 music
+data, W5 concierge what's-on intents, lane_to_plan analytics, and map
+decomposition waves (F1/M*) have landed on main. The remaining flagship gap is
+**W1 map Tonight lane + pin badges consuming `/api/whats-on`** (shipping in the
+roadmap PR). Docs that still said “0024/0025 unapplied / plans 503” were stale.
 
 ## Owner decisions (binding, from the 2026-07-12 grill)
 
 1. **Flagship = Tonight surface (B6+E1 fused)**; cycle opens with a parallel trust wave.
-2. **Prod migrations wait for the owner's Supabase MCP re-auth** — no manual SQL apply. Plans/price-confirms stay 503 on prod until then; E2 and the lane→plan metric are gated on it.
+2. **Prod migrations 0024/0025 — APPLIED** (2026-07-12). Plans/price-confirms durable path is live; keep store fail-soft + CI env isolation for unit tests.
 3. **Security scope**: rate-limit batch + CSP nonce + T1 riders (HSTS preload, migration-ledger notes). Image-proxy DNS-rebinding formally accepted (see docs/SECURITY_POSTURE.md).
 4. **Tonight launch story**: quiz = timed hero; sport = untimed "Screens live sport" attribute badge; parallel data PR attempts fixture×screening cross-reference (`confidence: derived`).
 5. **All four verticals ship this cycle** — B4 deals and B5 music both in (B5 last, honest thin-coverage labels).
 6. **B7 concierge what's-on intents in**, last in the What's-On lane.
-7. **Wave E**: E4 in; E3 at tightened scope (one shared proxied image component + photo header + thumbnails; lore deferred); E2 last, migration-gated.
+7. **Wave E**: E4 in; E3 at tightened scope (one shared proxied image component + photo header + thumbnails; lore deferred); E2 Night Mode shipped (no longer migration-gated).
 8. **Desktop**: land PR #186 (N4); N1 + N3 mid-cycle; N2 stretch-only behind F1.
 9. **Full refactor lane F1→F2→F3→F4 this cycle**; N3 lands after F2 splits VenueInspector.
 10. **Design verification**: harness upgrade + Gate-0 baseline + per-PR before/after shots + end-of-cycle graded re-review.
@@ -86,7 +87,7 @@ flight while it runs.
 E4 crawl cards (PR #190) · E3′ one shared proxied venue-image component
 (replaces the VenueInspector/PubsGallery/FeedCard/hover-card 3-way split) +
 photo header + provenance-labelled thumbnails · E2 Night Mode bottom card —
-**gated on owner Supabase re-auth applying 0024/0025 to prod**.
+**shipped** (migrations 0024/0025 applied on prod).
 
 ### Wave N — Desktop (parallel)
 N4 feed desktop (PR #186) · N1 ⌘K palette (PR #191) · N3 venue inspector
@@ -122,6 +123,7 @@ row coverage by borough; median `observedAt` freshness.
 
 ## Owner actions
 
-1. **Supabase MCP re-auth** → apply 0024/0025 → un-503 plans/price-confirms on prod; gates E2 + `lane_to_plan`.
+1. ~~**Supabase MCP re-auth** → apply 0024/0025~~ **DONE 2026-07-12** on prod.
 2. **GitHub Actions billing (#41)** → revives the bot rail.
 3. Firecrawl key re-auth (W2/W3 scrape quality); CAMRA/Collins/OpenTable applications (C-2 rails epic, next cycle).
+4. Owner wording review on C2 copy PR (#204) before merge.

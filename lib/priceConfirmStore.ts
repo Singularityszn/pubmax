@@ -21,7 +21,13 @@
 // device re-tapping the chip refreshes the timestamp but never inflates the
 // count — `confirms` stays an honest tally of distinct confirmers.
 
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import {
+  createMemoryFallbackWarner,
+  missingTables,
+  runStoreOp,
+  selectStore,
+} from "@/lib/storeBackend";
+import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type PriceConfirmResult = {
   /** Distinct confirmers who vouched this (venue, price) is still right. */
@@ -159,26 +165,9 @@ export const memoryPriceConfirmStore: PriceConfirmStore = {
 };
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-const memoryFallbackWarnings = new Set<string>();
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function isMissingSchema(err: unknown): boolean {
-  return /Could not find the table 'public\.price_confirms'|relation "public\.price_confirms" does not exist|schema cache/i.test(
-    errorMessage(err),
-  );
-}
-
-function warnMemoryFallback(context: string, err: unknown): void {
-  if (memoryFallbackWarnings.has(context)) return;
-  memoryFallbackWarnings.add(context);
-  console.warn(
-    `[price-confirm] ${context} durable table missing — using process-memory fallback (apply migration 0025):`,
-    errorMessage(err),
-  );
-}
+const { warn: warnSchemaMiss, resetWarnings: resetSchemaMissWarnings } =
+  createMemoryFallbackWarner("price-confirm", "apply migration 0025");
+const isMissingPriceConfirmsSchema = missingTables("price_confirms");
 
 // Reduce raw confirm rows to a distinct-actor tally + latest timestamp. Guards
 // the untyped supabase-js projection: a malformed row is SKIPPED, never coerced.
@@ -218,52 +207,56 @@ export const supabasePriceConfirmStore: PriceConfirmStore = {
     const key = normalizeKey(input.venueId, input.priceGbp);
     if (!key) return { ...EMPTY };
     const actor = actorToken(input.actor, now);
-    try {
-      const { error } = await requireSupabaseAdmin()
-        .from("price_confirms")
-        .upsert(
-          {
-            venue_id: key.venueId,
-            price_pennies: key.pennies,
-            actor,
-            // Refresh on re-tap so recency reads see the latest confirm.
-            last_confirmed_at: new Date(now).toISOString(),
-          },
-          { onConflict: "venue_id,price_pennies,actor" },
-        );
-      if (error) throw new Error(error.message);
-      return await selectTally(key.venueId, key.pennies);
-    } catch (err) {
-      if (isMissingSchema(err)) {
-        warnMemoryFallback("confirm", err);
-        return memoryPriceConfirmStore.confirm(input, now);
-      }
-      // A hard durable-write failure is a degraded dependency: flag it so the
-      // route answers 503 instead of pretending the tap landed (house rule).
-      console.error("[price-confirm] confirm failed — flagging degraded write:", errorMessage(err));
-      return { ...EMPTY, failed: true };
-    }
+    return runStoreOp({
+      context: "confirm",
+      isSchemaMiss: isMissingPriceConfirmsSchema,
+      warnSchemaMiss,
+      onSchemaMiss: () => memoryPriceConfirmStore.confirm(input, now),
+      logError: {
+        tag: "price-confirm",
+        message: "confirm failed — flagging degraded write",
+      },
+      onError: () => ({ ...EMPTY, failed: true }),
+      run: async () => {
+        const { error } = await requireSupabaseAdmin()
+          .from("price_confirms")
+          .upsert(
+            {
+              venue_id: key.venueId,
+              price_pennies: key.pennies,
+              actor,
+              // Refresh on re-tap so recency reads see the latest confirm.
+              last_confirmed_at: new Date(now).toISOString(),
+            },
+            { onConflict: "venue_id,price_pennies,actor" },
+          );
+        if (error) throw new Error(error.message);
+        return selectTally(key.venueId, key.pennies);
+      },
+    });
   },
 
   async read(query) {
     const key = normalizeKey(query.venueId, query.priceGbp);
     if (!key) return { ...EMPTY };
-    try {
-      return await selectTally(key.venueId, key.pennies);
-    } catch (err) {
-      if (isMissingSchema(err)) {
-        warnMemoryFallback("read", err);
-        return memoryPriceConfirmStore.read(query);
-      }
-      console.error("[price-confirm] read failed — returning empty tally:", errorMessage(err));
-      return { ...EMPTY };
-    }
+    return runStoreOp({
+      context: "read",
+      isSchemaMiss: isMissingPriceConfirmsSchema,
+      warnSchemaMiss,
+      onSchemaMiss: () => memoryPriceConfirmStore.read(query),
+      logError: {
+        tag: "price-confirm",
+        message: "read failed — returning empty tally",
+      },
+      onError: () => ({ ...EMPTY }),
+      run: () => selectTally(key.venueId, key.pennies),
+    });
   },
 };
 
 /** The single backend selection point (mirrors the other stores). */
 export function priceConfirmStore(): PriceConfirmStore {
-  return isSupabaseConfigured() ? supabasePriceConfirmStore : memoryPriceConfirmStore;
+  return selectStore(memoryPriceConfirmStore, supabasePriceConfirmStore);
 }
 
 /**
@@ -287,5 +280,5 @@ export function readPriceConfirm(query: PriceConfirmQuery): Promise<PriceConfirm
 /** Test-only: clear the in-memory confirmations between cases. */
 export function __resetPriceConfirms(): void {
   records.clear();
-  memoryFallbackWarnings.clear();
+  resetSchemaMissWarnings();
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
 import { CREW_NAME_MAX } from "@/lib/crew";
+import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
 import { stopsFromConcierge } from "@/components/plan/planPresentation";
 
 type DraftStop = { key: number; venueId: string; venueName: string };
@@ -123,6 +124,30 @@ export default function PlanComposer() {
 
   return (
     <form className="planComposer" onSubmit={submit}>
+      <section className="planComposer__templates" aria-labelledby="plan-templates-title">
+        <h2 id="plan-templates-title">Start from an occasion</h2>
+        <p className="planComposer__templatesLead">
+          One tap fills the title and concierge prompt — still editable.
+        </p>
+        <div className="planComposer__templateRow" role="list">
+          {PLAN_TEMPLATES.map((template: PlanTemplate) => (
+            <button
+              key={template.id}
+              type="button"
+              role="listitem"
+              className="planComposer__template"
+              title={template.blurb}
+              onClick={() => {
+                setTitle(template.title);
+                setConciergeQuery(template.conciergeQuery);
+                setConciergeNote(template.blurb);
+              }}
+            >
+              {template.label}
+            </button>
+          ))}
+        </div>
+      </section>
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title">
         <div>
           <span className="planPage__eyebrow">PUBMAXXER concierge</span>

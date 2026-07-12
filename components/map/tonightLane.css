@@ -74,8 +74,11 @@ body:has(.appShell.planning-open) .tonightLane {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 30px;
-  padding: 4px 11px;
+  /* 44px tap target + touch-action (adopted from #232's parallel lane) so the
+     facet chips meet the mobile hit-size bar without double-tap zoom lag. */
+  min-height: 44px;
+  padding: 4px 12px;
+  touch-action: manipulation;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
@@ -218,9 +221,11 @@ body:has(.appShell.planning-open) .tonightLane {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
+  /* 44px tap target + touch-action — same #232-adopted hit-size bar as the chips. */
+  min-height: 44px;
   margin-top: 8px;
-  padding: 4px 10px;
+  padding: 4px 12px;
+  touch-action: manipulation;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
   background: color-mix(in srgb, var(--brass) 12%, transparent);
