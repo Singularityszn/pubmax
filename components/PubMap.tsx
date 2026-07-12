@@ -1112,6 +1112,7 @@ export default function PubMap({
           <TonightLane
             rows={whatsOnTonight.rows}
             asOf={whatsOnTonight.asOf}
+            status={whatsOnTonight.status}
             onSelectVenue={(id) => selectVenue(id)}
           />
         ) : null}

@@ -192,14 +192,24 @@ export function laneCardsFromRows(
   return cards;
 }
 
-/** Honest "Checked 12 Jul" freshness line from an ISO observedAt / asOf. */
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+/**
+ * Honest "Checked 12 Jul" freshness line from an ISO observedAt / asOf.
+ * London wall-clock date parts — the same zone formatWhatsOnTime renders in —
+ * so a 23:xx UTC check during BST reads as the London calendar day it actually
+ * happened on, not the UTC day before midnight.
+ */
 export function checkedLabel(iso?: string | null): string {
   if (!iso) return "Freshness unknown";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "Freshness unknown";
-  return `Checked ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return "Freshness unknown";
+  try {
+    const formatted = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      day: "numeric",
+      month: "short",
+    }).format(new Date(ms));
+    return `Checked ${formatted.replace(/,/g, "")}`;
+  } catch {
+    return "Freshness unknown";
+  }
 }

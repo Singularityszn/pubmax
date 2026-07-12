@@ -31,10 +31,17 @@ import "./tonightLane.css";
 type TonightLaneProps = {
   rows: WhatsOnRow[];
   asOf: string | null;
+  /** Spine load status — "error" renders an honest "unavailable" pill. */
+  status?: "idle" | "ready" | "empty" | "error";
   onSelectVenue: (venueId: string) => void;
 };
 
-export default function TonightLane({ rows, asOf, onSelectVenue }: TonightLaneProps) {
+export default function TonightLane({
+  rows,
+  asOf,
+  status = "idle",
+  onSelectVenue,
+}: TonightLaneProps) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
 
   const facets = useMemo(() => laneKindFacets(rows), [rows]);
@@ -42,6 +49,21 @@ export default function TonightLane({ rows, asOf, onSelectVenue }: TonightLanePr
     () => laneCardsFromRows(filterLaneRows(rows, activeKind), { limit: 5 }),
     [rows, activeKind],
   );
+
+  // Honest outage state: the PRIMARY spine failed — say so quietly instead of
+  // pretending it's a quiet night. Badges are simply absent in this state.
+  if (status === "error") {
+    return (
+      <section className="tonightLane" aria-label="On tonight near you">
+        <div className="tonightLaneTitleRow" role="status">
+          <h2 className="tonightLaneTitle">On tonight</h2>
+          <span className="tonightLaneChecked">
+            Tonight&rsquo;s listings unavailable right now
+          </span>
+        </div>
+      </section>
+    );
+  }
 
   if (rows.length === 0) return null;
 
@@ -63,7 +85,7 @@ export default function TonightLane({ rows, asOf, onSelectVenue }: TonightLanePr
               className="tonightLaneChip"
               data-active={activeKind === null}
               aria-pressed={activeKind === null}
-              onPointerDown={() => {
+              onClick={() => {
                 setActiveKind(null);
                 trackEvent("whats_on_filter");
               }}
@@ -78,7 +100,7 @@ export default function TonightLane({ rows, asOf, onSelectVenue }: TonightLanePr
                 data-active={activeKind === facet.kind}
                 data-kind={facet.kind}
                 aria-pressed={activeKind === facet.kind}
-                onPointerDown={() => {
+                onClick={() => {
                   setActiveKind(facet.kind);
                   trackEvent("whats_on_filter");
                 }}
