@@ -393,16 +393,23 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               />
             ) : null}
 
-            <ProfileHeader
-              profile={profile}
-              stats={stats}
-              crawls={storyCount}
-              memories={stats.memoriesPosted}
-              drops={drops}
-              followers={counts.followers}
-              following={counts.following}
-              actions={headerActions}
-            />
+            {/* Anonymous /u/you: the hero Passport IS the profile block — the
+                header would repeat the same synthesized identity right under it
+                (double profile block) with no actions (headerActions is null on
+                this route). Every real handle keeps the header: it carries the
+                stats row plus Edit / Claim / Follow. */}
+            {!(isYouRoute && isAnonymous) ? (
+              <ProfileHeader
+                profile={profile}
+                stats={stats}
+                crawls={storyCount}
+                memories={stats.memoriesPosted}
+                drops={drops}
+                followers={counts.followers}
+                following={counts.following}
+                actions={headerActions}
+              />
+            ) : null}
 
             {!passportIsOwn ? (
               <PintPassport
