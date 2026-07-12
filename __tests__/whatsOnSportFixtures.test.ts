@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildSportFixtureRows,
+  buildSportFixtureRowsWithDiagnostics,
   londonWallClockToIso,
   SPORT_FIXTURES,
 } from "../scripts/whatson/sportFixtures.mjs";
@@ -70,6 +71,35 @@ describe("londonWallClockToIso", () => {
     expect(londonWallClockToIso("2026-07-14", "bad")).toBeNull();
     expect(londonWallClockToIso(undefined, undefined)).toBeNull();
   });
+
+  it("returns null on a calendar date that doesn't exist, rather than rolling over", () => {
+    // February 2026 has 28 days (not a leap year) — JS Date rollover
+    // semantics would otherwise silently turn this into 2026-03-02.
+    expect(londonWallClockToIso("2026-02-30", "12:00")).toBeNull();
+    expect(londonWallClockToIso("2026-04-31", "12:00")).toBeNull();
+    expect(londonWallClockToIso("2026-13-01", "12:00")).toBeNull();
+    expect(londonWallClockToIso("2026-07-00", "12:00")).toBeNull();
+  });
+
+  it("returns null in the spring-forward DST gap (a wall-clock hour that never happens)", () => {
+    // Europe/London clocks jump 01:00 -> 02:00 on the last Sunday of March
+    // 2026 (29 Mar); 01:30 local time that day does not exist.
+    expect(londonWallClockToIso("2026-03-29", "01:30")).toBeNull();
+    // The instant either side of the gap resolves fine.
+    expect(londonWallClockToIso("2026-03-29", "00:30")).toBe("2026-03-29T00:30:00+00:00");
+    expect(londonWallClockToIso("2026-03-29", "02:30")).toBe("2026-03-29T02:30:00+01:00");
+  });
+
+  it("deterministically resolves the autumn fall-back ambiguous hour to the later (GMT) occurrence", () => {
+    // Europe/London clocks go back 02:00 -> 01:00 on the last Sunday of
+    // October 2026 (25 Oct), so 01:30 local occurs twice: once at BST
+    // (+01:00, the earlier instant) and once at GMT (+00:00, the later
+    // instant). This resolves to the later, GMT instant — never a guess,
+    // just a documented, stable choice (see the function's doc comment).
+    const iso = londonWallClockToIso("2026-10-25", "01:30");
+    expect(iso).toBe("2026-10-25T01:30:00+00:00");
+    expect(new Date(iso!).toISOString()).toBe("2026-10-25T01:30:00.000Z");
+  });
 });
 
 describe("buildSportFixtureRows", () => {
@@ -104,10 +134,12 @@ describe("buildSportFixtureRows", () => {
       confidence: "derived",
     });
     // Both provenances honestly present: the venue-specific screening source
-    // (structured `source`) AND the fixture calendar source (named in prose).
+    // (structured `source`) AND the fixture's own source — BOTH the label
+    // AND the URL — named in prose.
     expect(row.detail).toContain("Greene King-listed");
     expect(row.detail).toContain("not confirmed by the venue");
-    expect(row.detail).toContain("FIFA World Cup 2026 match schedule");
+    expect(row.detail).toContain(SPORT_FIXTURES[0].source.label);
+    expect(row.detail).toContain(SPORT_FIXTURES[0].source.url);
   });
 
   it("passes isValidWhatsOnRow (the spine's own guard)", () => {
@@ -134,6 +166,12 @@ describe("buildSportFixtureRows", () => {
 
   it("drops a fixture whose kickoff cannot be resolved, rather than fabricating a time", () => {
     const badFixture = { ...SPORT_FIXTURES[0], kickoffLondonTime: "not-a-time" };
+    const rows = buildSportFixtureRows({ attributeRows: [ARKLES], fixtures: [badFixture], observedAt });
+    expect(rows).toHaveLength(0);
+  });
+
+  it("drops a fixture whose own source URL isn't a real absolute http(s) URL", () => {
+    const badFixture = { ...SPORT_FIXTURES[0], source: { label: "bad", url: "not-a-url" } };
     const rows = buildSportFixtureRows({ attributeRows: [ARKLES], fixtures: [badFixture], observedAt });
     expect(rows).toHaveLength(0);
   });
@@ -182,11 +220,53 @@ describe("buildSportFixtureRows", () => {
   });
 });
 
+describe("buildSportFixtureRowsWithDiagnostics", () => {
+  const observedAt = "2026-07-12T00:00:00.000Z";
+
+  it("reports a dropped fixture with its reason, never silently", () => {
+    const badFixture = { ...SPORT_FIXTURES[0], kickoffLondonTime: "not-a-time" };
+    const { rows, diagnostics } = buildSportFixtureRowsWithDiagnostics({
+      attributeRows: [ARKLES],
+      fixtures: [badFixture],
+      observedAt,
+    });
+    expect(rows).toHaveLength(0);
+    expect(diagnostics.droppedFixtures).toHaveLength(1);
+    expect(diagnostics.droppedFixtures[0]).toMatchObject({
+      id: badFixture.id,
+      reason: "unresolved kickoff",
+    });
+  });
+
+  it("reports dropped (fixture, pub) pairs with a reason, never silently", () => {
+    const { rows, diagnostics } = buildSportFixtureRowsWithDiagnostics({
+      attributeRows: [{ ...ARKLES, placeName: undefined }, { ...ARKLES, source: {} }],
+      fixtures: [SPORT_FIXTURES[0]],
+      observedAt,
+    });
+    expect(rows).toHaveLength(0);
+    expect(diagnostics.droppedAttributeRows).toHaveLength(2);
+  });
+});
+
 describe("SPORT_FIXTURES", () => {
-  it("every fixture carries a real http(s) source and a resolvable kickoff", () => {
+  it("every fixture carries a real http(s) source (label + url) and a resolvable kickoff", () => {
     for (const fixture of SPORT_FIXTURES) {
       expect(fixture.source.url).toMatch(/^https:\/\//);
+      expect(fixture.source.label.length).toBeGreaterThan(0);
       expect(londonWallClockToIso(fixture.kickoffLondonDate, fixture.kickoffLondonTime)).not.toBeNull();
+    }
+  });
+
+  it("both semi-finals kick off at 20:00 London time (verified against independent press)", () => {
+    for (const fixture of SPORT_FIXTURES) {
+      expect(fixture.kickoffLondonTime).toBe("20:00");
+    }
+  });
+
+  it("ships confirmed teams, not placeholders — both quarter-finals had resolved by refresh time", () => {
+    for (const fixture of SPORT_FIXTURES) {
+      expect(fixture.title).not.toMatch(/TBC|TBD|winner of/i);
     }
   });
 });

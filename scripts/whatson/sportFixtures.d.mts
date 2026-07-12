@@ -45,8 +45,21 @@ export type WhatsOnDerivedSportRow = {
 
 export declare function londonWallClockToIso(dateStr: unknown, timeStr: unknown): string | null;
 
+export type SportFixtureDropReason = string;
+
+export type SportFixtureDiagnostics = {
+  droppedFixtures: Array<{ id: string; reason: SportFixtureDropReason }>;
+  droppedAttributeRows: Array<{ fixtureId: string; attrRowId: string; reason: SportFixtureDropReason }>;
+};
+
 export declare function buildSportFixtureRows(input: {
   attributeRows: SportAttributeRow[];
   fixtures: SportFixture[];
   observedAt: string;
 }): WhatsOnDerivedSportRow[];
+
+export declare function buildSportFixtureRowsWithDiagnostics(input: {
+  attributeRows: SportAttributeRow[];
+  fixtures: SportFixture[];
+  observedAt: string;
+}): { rows: WhatsOnDerivedSportRow[]; diagnostics: SportFixtureDiagnostics };

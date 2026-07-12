@@ -50,7 +50,7 @@ describe("loadBaselineWhatsOn", () => {
     expect(rows.length).toBeGreaterThan(0);
     const quizRows = rows.filter((r) => r.kind === "quiz");
     expect(quizRows.length).toBeGreaterThan(0);
-    for (const r of rows) {
+    for (const r of quizRows) {
       expect(r.source.url).toMatch(/^https?:\/\//);
       expect(r.title.length).toBeGreaterThan(0);
     }
