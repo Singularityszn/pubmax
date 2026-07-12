@@ -40,7 +40,9 @@ describe("what's-on venueId resolution (W6)", () => {
     expect(rows.length).toBeGreaterThan(0);
     // Question One venues are a real-world third-party listing that only
     // sometimes lines up with the canonical dataset — an honest partial rate.
-    expect(resolutionRate(rows)).toBeGreaterThanOrEqual(0);
+    // Current baseline resolves 22/83 (~27%); floor at 25% so a resolver or
+    // wiring regression that drops resolution actually fails this test.
+    expect(resolutionRate(rows)).toBeGreaterThanOrEqual(0.25);
   });
 
   it("music_london.json: rows are honestly left unresolved while the venues are absent from the canonical dataset", () => {
@@ -48,9 +50,11 @@ describe("what's-on venueId resolution (W6)", () => {
     expect(rows.length).toBeGreaterThan(0);
     // The seeds now carry hand-verified address+postcode, but none of the five
     // residency venues exists in pint_prices_app_dataset.json yet, so the
-    // resolver (correctly) has no candidate to confirm — this asserts the
-    // honest floor, not a false positive rate. When the canonical dataset
-    // grows to include these pubs, resolution lights up automatically.
-    expect(resolutionRate(rows)).toBeGreaterThanOrEqual(0);
+    // resolver (correctly) has no candidate to confirm. Assert the explicit
+    // current invariant: exactly zero resolved. When the canonical dataset
+    // grows to include these pubs, resolution lights up automatically and
+    // this assertion should be flipped to a positive floor.
+    const resolved = rows.filter((r) => typeof r.venueId === "string" && r.venueId.length > 0);
+    expect(resolved).toEqual([]);
   });
 });
