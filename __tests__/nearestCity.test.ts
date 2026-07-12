@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { CITIES } from "@/lib/cities";
-import { nearestEnabledCity } from "@/lib/nearestCity";
+import { nearestEnabledCity, resolveNearMe } from "@/lib/nearestCity";
+import { cityMapShareUrl } from "@/lib/cityShare";
 
 describe("nearestEnabledCity", () => {
   it("resolves Manchester coords to manchester", () => {
@@ -30,5 +31,24 @@ describe("nearestEnabledCity", () => {
   it("falls back to nearest center within ~80km when outside all bounds", () => {
     // Just south of Manchester bounds (latMax 53.55) — still near the centre.
     expect(nearestEnabledCity(53.6, -2.24)).toBe("manchester");
+  });
+});
+
+describe("resolveNearMe", () => {
+  it("resolves a coord to the nearest city id + its map href", () => {
+    const [lng, lat] = CITIES.manchester.mapView.center;
+    expect(resolveNearMe(lat, lng)).toEqual({
+      cityId: "manchester",
+      href: cityMapShareUrl("manchester"),
+    });
+  });
+
+  it("keeps London on the back-compat /map path", () => {
+    const resolved = resolveNearMe(51.52, -0.12);
+    expect(resolved).toEqual({ cityId: "london", href: "/map" });
+  });
+
+  it("returns null when the point is outside every mapped city", () => {
+    expect(resolveNearMe(0, -30)).toBeNull();
   });
 });

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,7 +31,9 @@ import {
   preferredCityMapHref,
   readPreferredCity,
   subscribePreferredCity,
+  writePreferredCity,
 } from "@/lib/cityPreference";
+import { resolveNearMe } from "@/lib/nearestCity";
 import {
   categoryGradient,
   rotateCategory,
@@ -189,11 +198,67 @@ export default function LandingPage() {
   );
   const hasPreferredCity = preferredCity != null;
   const mapHref = preferredCityMapHref();
+  // No preferred city → the primary CTA offers an honest "near me": it asks for
+  // the browser's location and opens the nearest mapped city. `/choose-city` is
+  // the href fallback (JS-off, geolocation denied/unsupported, or no city near),
+  // so the label never over-promises what a plain navigation would do.
+  const [nearMePending, setNearMePending] = useState(false);
   const primaryCtaHref = hasPreferredCity ? mapHref : "/choose-city";
-  // Wave C2: one clear primary CTA regardless of city state — "Find pubs
-  // near me" reads as an invitation either way; the href still branches to
-  // /choose-city first when there's no preferred city yet.
-  const primaryCtaLabel = "Find pubs near me";
+  const primaryCtaLabel = hasPreferredCity
+    ? "Open your map"
+    : nearMePending
+      ? "Finding pubs near you…"
+      : "Find pubs near me";
+
+  // Ask for location, then route to the nearest mapped city's map; on denial,
+  // unsupported geolocation, or no nearby city, fall back to `/choose-city`.
+  const goNearMe = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      router.push("/choose-city");
+      return;
+    }
+    setNearMePending(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setNearMePending(false);
+        const resolved = resolveNearMe(
+          pos.coords.latitude,
+          pos.coords.longitude,
+        );
+        if (!resolved) {
+          router.push("/choose-city");
+          return;
+        }
+        writePreferredCity(resolved.cityId);
+        router.push(resolved.href);
+      },
+      () => {
+        setNearMePending(false);
+        router.push("/choose-city");
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
+    );
+  }, [router]);
+
+  // Primary CTA click: with a preferred city, let the Link navigate to the map
+  // as before; without one, intercept and run the near-me flow.
+  const handlePrimaryCta = useCallback(
+    (event: ReactMouseEvent<HTMLAnchorElement>) => {
+      if (hasPreferredCity) return;
+      event.preventDefault();
+      goNearMe();
+    },
+    [hasPreferredCity, goNearMe],
+  );
+
+  // Footer "Find pubs near me": always run near-me (Link href is the fallback).
+  const handleNearMeLink = useCallback(
+    (event: ReactMouseEvent<HTMLAnchorElement>) => {
+      event.preventDefault();
+      goNearMe();
+    },
+    [goNearMe],
+  );
   // Wave K2 — mirror the tab bar: prefetch /map + slim payloads on intent
   // (pointerDown fires before navigation on phones; enter/focus cover desktop).
   const warmMap = useCallback(() => warmMapRoute(router, mapHref), [router, mapHref]);
@@ -228,6 +293,8 @@ export default function LandingPage() {
             <Link
               href={primaryCtaHref}
               className="btn btnPrimary topbarCta"
+              onClick={handlePrimaryCta}
+              aria-busy={nearMePending || undefined}
               {...(hasPreferredCity ? mapWarmProps : {})}
             >
               {primaryCtaLabel}
@@ -245,7 +312,7 @@ export default function LandingPage() {
                 PUBMAXXING
               </h1>
               <p className="heroTagline lpSerif">
-                Know the price before you order…
+                Pubs for every kind of night.
               </p>
               <p className="heroLede">
                 Real pint prices, drink-shaped pins, and crawls that welcome
@@ -523,6 +590,8 @@ export default function LandingPage() {
             <Link
               href={primaryCtaHref}
               className="btn btnPrimary"
+              onClick={handlePrimaryCta}
+              aria-busy={nearMePending || undefined}
               {...(hasPreferredCity ? mapWarmProps : {})}
             >
               {primaryCtaLabel}
@@ -579,7 +648,13 @@ export default function LandingPage() {
                 />
                 The map
               </Link>
-              <Link href="/choose-city">Choose your city</Link>
+              <Link
+                href="/choose-city"
+                onClick={handleNearMeLink}
+                aria-busy={nearMePending || undefined}
+              >
+                Find pubs near me
+              </Link>
               <a href="#wedge">How it works</a>
               <a href="#drops">Pint Drops</a>
               <a href="#landlord">The PUBMAXXER</a>

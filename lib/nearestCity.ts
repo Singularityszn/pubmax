@@ -5,6 +5,7 @@ import {
   pointInCityBounds,
   type CityId,
 } from "@/lib/cities";
+import { cityMapShareUrl } from "@/lib/cityShare";
 import { haversineKm } from "@/lib/haversine";
 
 /** Max distance (km) from a city map center when the point is outside all bounds. */
@@ -41,4 +42,17 @@ export function nearestEnabledCity(lat: number, lng: number): CityId | null {
   if (inBounds.length > 0) return bestId;
   if (bestId != null && bestKm <= NEAREST_CENTER_MAX_KM) return bestId;
   return null;
+}
+
+export type NearMeResolution = { cityId: CityId; href: string };
+
+/**
+ * Resolve a coordinate to the nearest enabled city and its canonical map href.
+ * Returns null when the point is outside every mapped city — callers should
+ * then fall back to `/choose-city` (honest "near me" degrades to the picker).
+ */
+export function resolveNearMe(lat: number, lng: number): NearMeResolution | null {
+  const cityId = nearestEnabledCity(lat, lng);
+  if (!cityId) return null;
+  return { cityId, href: cityMapShareUrl(cityId) };
 }

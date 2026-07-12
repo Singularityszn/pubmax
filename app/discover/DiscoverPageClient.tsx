@@ -437,7 +437,7 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
           add to the score.
         </p>
         <p className="discoverSectionNote">
-          Demo seeds only where they exist — no invented organics.
+          A few real spots to start — nothing invented.
         </p>
         <CityRivalryTable entries={rivalry} />
       </section>
