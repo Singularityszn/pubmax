@@ -16,19 +16,9 @@ import { useCallback, useRef, useState } from "react";
 import { MessageCircleQuestion, MapPin, Sparkles, X } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
+import { createAskSession, type AskCard } from "@/lib/conciergeAskClient";
 
 import "./mapConciergeAsk.css";
-
-// A normalised, map-linkable answer card — from either concierge response shape
-// (venue ranking or a What's-On listing). `venueId` empty means "not tappable".
-type AskCard = {
-  key: string;
-  venueId: string;
-  title: string;
-  place: string;
-  note: string;
-  price: number | null;
-};
 
 const EXAMPLE_PROMPTS = [
   "Quiet-ish near Bank, 4 of us",
@@ -66,36 +56,23 @@ export default function MapConciergeAsk({
     setOpen(false);
   }, []);
 
+  // All race-guard / timeout / error-curation logic lives in the pure session
+  // (lib/conciergeAskClient.ts, unit-tested): latest ask wins, stale responses
+  // resolve to null, hung requests abort after ASK_TIMEOUT_MS, and no raw JS
+  // error text ever surfaces — only the route's explicit copy or the curated
+  // fallback.
+  const sessionRef = useRef<ReturnType<typeof createAskSession> | null>(null);
+
   const ask = useCallback(
     async (raw: string) => {
       const text = raw.trim();
       if (!text) return;
+      sessionRef.current ??= createAskSession();
       setState({ status: "loading" });
       trackEvent("concierge_ask");
-      try {
-        const response = await fetch("/api/concierge", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ query: text, cityId, limit: 4 }),
-        });
-        const body = await response.json();
-        if (!response.ok) {
-          throw new Error(
-            typeof body?.error === "string"
-              ? body.error
-              : "The landlord couldn't sort that one just now.",
-          );
-        }
-        setState(answerFromBody(body));
-      } catch (caught) {
-        setState({
-          status: "error",
-          message:
-            caught instanceof Error
-              ? caught.message
-              : "The landlord couldn't sort that one just now.",
-        });
-      }
+      const result = await sessionRef.current(text, cityId);
+      if (result === null) return; // superseded by a newer ask — do nothing
+      setState(result);
     },
     [cityId],
   );
@@ -205,7 +182,7 @@ export default function MapConciergeAsk({
         ) : null}
 
         {state.status === "answered" ? (
-          <div className="mapConciergeAskAnswer">
+          <div className="mapConciergeAskAnswer" role="status" aria-live="polite">
             <p className="mapConciergeAskMsg">{state.message}</p>
             {state.cards.length > 0 ? (
               <ul className="mapConciergeAskList">
@@ -258,69 +235,4 @@ export default function MapConciergeAsk({
       </section>
     </div>
   );
-}
-
-// Normalise either concierge response shape into map-linkable cards. Both paths
-// stay grounded: venue ranking returns real venues with reasons; the What's-On
-// path returns verified listings with provenance. We never fabricate a message —
-// the route always supplies its own honest copy (including refusals).
-function answerFromBody(body: unknown): AskState {
-  const record =
-    body && typeof body === "object" && !Array.isArray(body)
-      ? (body as Record<string, unknown>)
-      : {};
-
-  // What's-On answer (grounded listings). Carries its own honest message.
-  if (record.mode === "whats-on") {
-    const listings = Array.isArray(record.listings) ? record.listings : [];
-    const cards: AskCard[] = listings.map((raw, index) => {
-      const item = (raw ?? {}) as Record<string, unknown>;
-      return {
-        key: str(item.id) || `wo-${index}`,
-        venueId: str(item.venueId),
-        title: str(item.title) || "Listing",
-        place: str(item.venue),
-        note: str(item.detail),
-        price: num(item.priceGbp),
-      };
-    });
-    return {
-      status: "answered",
-      message: str(record.message) || "Here's what I found.",
-      cards,
-    };
-  }
-
-  // Venue-ranking answer. `message` is only present on the degraded/empty path.
-  const venues = Array.isArray(record.venues) ? record.venues : [];
-  const cards: AskCard[] = venues.map((raw, index) => {
-    const item = (raw ?? {}) as Record<string, unknown>;
-    const reasons = Array.isArray(item.reasons)
-      ? (item.reasons.filter((r) => typeof r === "string") as string[])
-      : [];
-    return {
-      key: str(item.id) || `v-${index}`,
-      venueId: str(item.id),
-      title: str(item.name) || "Pub",
-      place: str(item.area),
-      note: reasons[0] ?? "",
-      price: num(item.cheapestPrice),
-    };
-  });
-
-  const message =
-    str(record.message) ||
-    (cards.length > 0
-      ? `${cards.length} grounded ${cards.length === 1 ? "pick" : "picks"} — tap to see it on the map.`
-      : "No grounded matches for that — try a nearby area or a broader mood.");
-
-  return { status: "answered", message, cards };
-}
-
-function str(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function num(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
