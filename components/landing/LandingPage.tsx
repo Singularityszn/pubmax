@@ -136,7 +136,7 @@ const wedge: {
   {
     icon: BookOpen,
     title: "Story",
-    body: "Listed buildings, coaching inns, the bar Dickens leaned on. Every pin carries the history on record — so a crawl reads like a walk through the city.",
+    body: "Listed buildings, coaching inns, taverns with centuries of paperwork behind them. Every pin carries what's actually on record — and says so when a claim is folklore, not fact.",
     n: "03 — Who came before",
     wedgeKey: "story",
   },
@@ -190,10 +190,12 @@ export default function LandingPage() {
   const hasPreferredCity = preferredCity != null;
   const mapHref = preferredCityMapHref();
   const primaryCtaHref = hasPreferredCity ? mapHref : "/choose-city";
-  // Wave C2: one clear primary CTA regardless of city state — "Find pubs
-  // near me" reads as an invitation either way; the href still branches to
-  // /choose-city first when there's no preferred city yet.
-  const primaryCtaLabel = "Find pubs near me";
+  // Wave C2 (#204): one clear primary CTA regardless of city state. It does
+  // not request geolocation and never claims to — it opens the preferred
+  // city's map directly, or /choose-city first when there's no preference
+  // yet. "Find pubs near me" implied an automatic location lookup that never
+  // happens here, so the label says exactly what the click does instead.
+  const primaryCtaLabel = "Open the map";
   // Wave K2 — mirror the tab bar: prefetch /map + slim payloads on intent
   // (pointerDown fires before navigation on phones; enter/focus cover desktop).
   const warmMap = useCallback(() => warmMapRoute(router, mapHref), [router, mapHref]);
@@ -251,8 +253,8 @@ export default function LandingPage() {
                 Know the price before you order…
               </p>
               <p className="heroLede">
-                Real pint prices, drink-shaped pins, and crawls that welcome
-                first-timers and regulars alike — tap a glass to start.
+                Real pint prices, drink-shaped pins, and what&apos;s actually
+                on tonight — tap a glass to start.
               </p>
               <div className="heroActions">
                 <Link
@@ -296,8 +298,8 @@ export default function LandingPage() {
             </h2>
             <p>
               A listings site tells you a pub exists. PUBMAXXING tells you what
-              it costs, what it feels like, and why it has stood there for two
-              hundred years.
+              it costs, what it feels like, and — where the record survives —
+              how long it&apos;s actually been standing there.
             </p>
           </div>
           <div className="cardGrid">
@@ -495,8 +497,8 @@ export default function LandingPage() {
               Why it matters
             </p>
             <blockquote id="unity-title" className="lpSerif">
-              London loses a pub roughly every week. The map is how we
-              <em> keep the table set.</em>
+              London keeps losing pubs it can&apos;t get back. The map is how
+              we<em> keep the table set.</em>
             </blockquote>
             <p>
               The good pub was always the one room where the eighteen-year-old on
