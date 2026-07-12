@@ -68,6 +68,45 @@ describe("resolveVenueImage", () => {
     expect(resolved).toEqual({ url: alreadyProxied, provenance: "chain" });
   });
 
+  it("rejects a malformed pre-proxied chain URL and falls through to community", () => {
+    // Missing/blocked/invalid ?src must not become a guaranteed-broken <img>
+    // that suppresses the community fallback.
+    const community = "https://storage.supabase.co/pint.jpg";
+    for (const bad of [
+      "/api/image-proxy?nope=1",
+      "/api/image-proxy?src=",
+      "/api/image-proxy?src=not%20a%20url",
+      "/api/image-proxy?src=" + encodeURIComponent("javascript:alert(1)"),
+      "/api/image-proxy?src=" + encodeURIComponent("https://images.app.goo.gl/abc"),
+    ]) {
+      const resolved = resolveVenueImage([
+        { url: bad, provenance: "chain" },
+        { url: community, provenance: "community" },
+      ]);
+      expect(resolved).toEqual({ url: community, provenance: "community" });
+    }
+  });
+
+  it("skips a candidate whose resolved URL already failed to load (chain fails → community renders)", () => {
+    const chain = "https://pub.example.com/photo.jpg";
+    const chainResolved = "/api/image-proxy?src=" + encodeURIComponent(chain);
+    const community = "https://storage.supabase.co/pint.jpg";
+    const sources = [
+      { url: chain, provenance: "chain" as const },
+      { url: community, provenance: "community" as const },
+    ];
+
+    // First pass: chain wins.
+    expect(resolveVenueImage(sources)?.url).toBe(chainResolved);
+    // Chain <img> errored → excluded → community renders, honestly labelled.
+    expect(resolveVenueImage(sources, new Set([chainResolved]))).toEqual({
+      url: community,
+      provenance: "community",
+    });
+    // Both failed → null → gradient fallback, never an unknown photo.
+    expect(resolveVenueImage(sources, new Set([chainResolved, community]))).toBeNull();
+  });
+
   it("returns null when nothing resolves — the honest gradient-fallback case", () => {
     expect(resolveVenueImage([])).toBeNull();
     expect(

@@ -4,10 +4,12 @@
 // feed/gallery/hover-card thumbnails. Always routes chain (scraped) photos
 // through /api/image-proxy via resolveVenueImage so CSP img-src stays tight;
 // community (Pint Drop) photos are already same-origin signed Storage URLs.
-// Honest by construction: `sources` are tried in priority order and the
-// first one that resolves wins, with its provenance labelled on-image — a
-// photo whose provenance is unknown is never rendered, only the gradient
-// fallback.
+// Honest by construction: `sources` are tried in priority order; when the
+// preferred candidate's <img> fails to load, that URL is excluded and
+// resolution advances to the next candidate (a dead chain proxy falls back
+// to the community photo, not straight to "No photo yet"). The winning
+// source's provenance is always labelled on-image — a photo whose provenance
+// is unknown is never rendered, only the gradient fallback.
 
 import Image from "next/image";
 import { useState } from "react";
@@ -32,8 +34,6 @@ type VenueImageProps = {
   priority?: boolean;
   /** When true, fill the parent (object-fit cover). */
   fill?: boolean;
-  /** Show the on-image provenance label ("Photo: pub website"/"Photo: community"). Default true. */
-  showProvenance?: boolean;
 };
 
 export default function VenueImage({
@@ -45,13 +45,23 @@ export default function VenueImage({
   height = 360,
   priority = false,
   fill = false,
-  showProvenance = true,
 }: VenueImageProps) {
-  const [failed, setFailed] = useState(false);
-  const resolved = resolveVenueImage(sources);
-  const show = Boolean(resolved) && !failed;
+  // Per-candidate failure tracking: a resolved URL whose <img> errored is
+  // excluded on the next resolution pass, so the next source in priority
+  // order gets its turn. Callers pass fresh array literals every render, so
+  // the reset keys off a content signature of the source set (the repo's
+  // adjust-state-during-render idiom — never an effect).
+  const [failedUrls, setFailedUrls] = useState<ReadonlySet<string>>(new Set());
+  const sourcesKey = sources.map((s) => `${s.provenance}:${s.url ?? ""}`).join("|");
+  const [prevSourcesKey, setPrevSourcesKey] = useState(sourcesKey);
+  if (prevSourcesKey !== sourcesKey) {
+    setPrevSourcesKey(sourcesKey);
+    setFailedUrls(new Set());
+  }
 
-  if (!show) {
+  const resolved = resolveVenueImage(sources, failedUrls);
+
+  if (!resolved) {
     return (
       <div
         className={`venueImage venueImage--empty ${className}`.trim()}
@@ -63,8 +73,10 @@ export default function VenueImage({
     );
   }
 
-  const src = resolved!.url;
-  const provenanceLabel = VENUE_IMAGE_PROVENANCE_LABEL[resolved!.provenance];
+  const { url: src, provenance } = resolved;
+  const provenanceLabel = VENUE_IMAGE_PROVENANCE_LABEL[provenance];
+  const markFailed = () =>
+    setFailedUrls((prev) => (prev.has(src) ? prev : new Set(prev).add(src)));
 
   return (
     <figure className={`venueImage ${className}`.trim()}>
@@ -77,7 +89,7 @@ export default function VenueImage({
           className="venueImage__img"
           priority={priority}
           unoptimized
-          onError={() => setFailed(true)}
+          onError={markFailed}
         />
       ) : (
         <Image
@@ -88,12 +100,10 @@ export default function VenueImage({
           className="venueImage__img"
           priority={priority}
           unoptimized
-          onError={() => setFailed(true)}
+          onError={markFailed}
         />
       )}
-      {showProvenance ? (
-        <span className="venueImage__provenance">{provenanceLabel}</span>
-      ) : null}
+      <span className="venueImage__provenance">{provenanceLabel}</span>
       {caption ? <figcaption className="venueImage__caption">{caption}</figcaption> : null}
     </figure>
   );

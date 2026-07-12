@@ -59,7 +59,6 @@ export default function PintDropsList({
                       alt={`Pint at ${venue.name} shared by ${drop.handle}`}
                       width={480}
                       height={480}
-                      showProvenance={false}
                     />
                     <figcaption>the pint</figcaption>
                   </figure>
@@ -72,7 +71,6 @@ export default function PintDropsList({
                       alt={`${drop.handle} at the bar at ${venue.name}`}
                       width={480}
                       height={480}
-                      showProvenance={false}
                     />
                     <figcaption>at the bar</figcaption>
                   </figure>

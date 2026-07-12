@@ -86,7 +86,7 @@ export default function VenueInspector({
   // the empty gradient.
   const communityPhotoUrl = useMemo(
     () =>
-      drops.find((drop) => drop.venuePhotoUrl || drop.pintPhotoUrl)?.venuePhotoUrl ??
+      drops.find((drop) => drop.venuePhotoUrl)?.venuePhotoUrl ??
       drops.find((drop) => drop.pintPhotoUrl)?.pintPhotoUrl ??
       null,
     [drops],

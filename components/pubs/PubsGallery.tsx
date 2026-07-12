@@ -51,7 +51,6 @@ function DrinkArt({
           sources={[{ url: photoUrl, provenance: "chain" }]}
           alt=""
           fill
-          showProvenance={false}
         />
       ) : null}
       <div className="pubsCardArtWash" aria-hidden="true" />
