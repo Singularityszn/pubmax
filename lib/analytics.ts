@@ -60,13 +60,27 @@ export function trackEvent(name: AnalyticsEventName, props?: AnalyticsEventProps
 // work adds `?src=tonight-lane`); anything else yields null and the event
 // stays silent. Honest zero > invented signal.
 
-/** `src` prefixes that count as a lane surface for `lane_to_plan`. */
-const LANE_SOURCE_PREFIXES = ["tonight-lane", "whats-on"] as const;
+/**
+ * Exact allowlist of canonical `src` tokens that count as a lane surface for
+ * `lane_to_plan`. EXACT matching only — never prefix matching — so a crafted
+ * link like `/plan?src=whats-on-jane.doe@example.com` can never push raw
+ * query text (potential PII / free text) into telemetry. Grow this set as
+ * lane surfaces ship (W1 Tonight lane, What's-On verticals).
+ */
+const LANE_SOURCES = new Set([
+  "tonight-lane",
+  "whats-on-quiz",
+  "whats-on-sport",
+  "whats-on-deal",
+  "whats-on-music",
+]);
 
 /**
  * Extract lane provenance from a location search string (e.g.
- * "?src=tonight-lane"). Returns the `src` value when it names a known lane
- * surface, null otherwise (missing, empty, or unknown src → no event).
+ * "?src=tonight-lane"). Returns the matched canonical token only when the
+ * `src` value is EXACTLY one of the allowlisted lane sources; null otherwise
+ * (missing, empty, unknown, or prefix-extended src → no event). Raw query
+ * text is never forwarded into telemetry.
  */
 export function laneSourceFromSearch(search: string): string | null {
   let src: string | null;
@@ -75,6 +89,5 @@ export function laneSourceFromSearch(search: string): string | null {
   } catch {
     return null;
   }
-  if (!src) return null;
-  return LANE_SOURCE_PREFIXES.some((prefix) => src.startsWith(prefix)) ? src : null;
+  return src !== null && LANE_SOURCES.has(src) ? src : null;
 }

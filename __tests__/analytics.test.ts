@@ -55,9 +55,11 @@ describe("trackEvent", () => {
 });
 
 describe("laneSourceFromSearch", () => {
-  it("returns the src when it names a known lane surface", () => {
+  it("returns the canonical token for exact allowlisted src values", () => {
     expect(laneSourceFromSearch("?src=tonight-lane")).toBe("tonight-lane");
     expect(laneSourceFromSearch("?src=whats-on-quiz&x=1")).toBe("whats-on-quiz");
+    expect(laneSourceFromSearch("?src=whats-on-sport")).toBe("whats-on-sport");
+    expect(laneSourceFromSearch("?src=whats-on-deal")).toBe("whats-on-deal");
   });
 
   it("returns null without a src param (default /plan visits stay silent)", () => {
@@ -69,5 +71,11 @@ describe("laneSourceFromSearch", () => {
     expect(laneSourceFromSearch("?src=")).toBeNull();
     expect(laneSourceFromSearch("?src=nav")).toBeNull();
     expect(laneSourceFromSearch("?src=discover-editorial")).toBeNull();
+  });
+
+  it("rejects prefix-extended src values — raw query text never reaches telemetry", () => {
+    expect(laneSourceFromSearch("?src=whats-on-jane.doe@example.com")).toBeNull();
+    expect(laneSourceFromSearch("?src=tonight-lane-extra")).toBeNull();
+    expect(laneSourceFromSearch("?src=whats-on")).toBeNull();
   });
 });
