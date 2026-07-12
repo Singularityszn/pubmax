@@ -42,6 +42,8 @@ import { useSheetDrag } from "@/components/map/useSheetDrag";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
+import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
+import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -67,8 +69,6 @@ import {
   buildLogNearbyCandidates,
   formatLogNearbyDistance,
   hasMapLogIntent,
-  resolveMapLogIntent,
-  shouldRunMapLogIntent,
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
@@ -82,7 +82,6 @@ import {
 import { shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
 import {
   hasCrawlArrivalParams,
-  crawlStopsFromPubIds,
   filtersForCuratedCrawl,
   buildMapSeed,
   detailStatusFor,
@@ -127,135 +126,8 @@ const BUILT_STORAGE_KEY = "pubmax_built_ids";
 // crawlStopsFromPubIds, filtersForCuratedCrawl, resolveSeededCuratedCrawl,
 // MapSeed and buildMapSeed (all pure) now live in @/lib/pubMap.
 
-// Issue #15: the landmark card's two journey actions, hoisted into their own
-// hook so their branches live off PubMap's complexity budget.
-//   • startCrawlFromPubs — drop the nearest pubs into Build mode (shareable via
-//     ?mode=build&pubs=…, reusing the curated-crawl path), then leave the route
-//     list visible on mobile.
-//   • askPubmaxxerAtPub — select the nearest story pub so its inspector opens
-//     with the grounded "Ask the PUBMAXXER" panel a tap away. Seeding a question
-//     straight into that panel is invasive (another agent owns VenueInspector),
-//     so selecting the pub is the documented ceiling.
-function useLandmarkJourney(deps: {
-  selectVenue: (id: string) => void;
-  showLoadedRoute: (firstStopId: string) => void;
-  dismissOnboarding: () => void;
-  setMode: (mode: CrawlMode) => void;
-  setBuiltIds: (ids: string[]) => void;
-  setRouteMapped: (mapped: boolean) => void;
-  setActiveCrawl: (crawl: CuratedCrawl | null) => void;
-  setPlanningOpen: (open: boolean) => void;
-}) {
-  const {
-    selectVenue,
-    showLoadedRoute,
-    dismissOnboarding,
-    setMode,
-    setBuiltIds,
-    setRouteMapped,
-    setActiveCrawl,
-    setPlanningOpen,
-  } =
-    deps;
-  const startCrawlFromPubs = useCallback(
-    (ids: string[]) => {
-      const stops = crawlStopsFromPubIds(ids);
-      if (stops.length) {
-        setMode("build");
-        setBuiltIds(stops);
-        setRouteMapped(true);
-        setActiveCrawl(null); // a landmark-seeded crawl isn't a curated one
-        showLoadedRoute(stops[0]);
-        dismissOnboarding();
-      }
-    },
-    [
-      dismissOnboarding,
-      setMode,
-      setBuiltIds,
-      setRouteMapped,
-      setActiveCrawl,
-      showLoadedRoute,
-    ],
-  );
-  const askPubmaxxerAtPub = useCallback(
-    (venueId: string) => {
-      setPlanningOpen(true);
-      selectVenue(venueId);
-    },
-    [selectVenue, setPlanningOpen],
-  );
-  return { startCrawlFromPubs, askPubmaxxerAtPub };
-}
-
-function useLogIntent(deps: {
-  hasLogIntent: boolean;
-  loaded: boolean;
-  firstFilteredVenueId: string;
-  firstRouteId: string;
-  selectedVenueId: string;
-  selectedVenueResolvable: boolean;
-  selectVenue: (id: string) => void;
-  openComposerForLog: () => void;
-  setFallbackVisible: (visible: boolean) => void;
-}) {
-  const {
-    hasLogIntent,
-    loaded,
-    firstFilteredVenueId,
-    firstRouteId,
-    selectedVenueId,
-    selectedVenueResolvable,
-    selectVenue,
-    openComposerForLog,
-    setFallbackVisible,
-  } = deps;
-  const handled = useRef(false);
-
-  useEffect(() => {
-    if (!hasLogIntent) {
-      handled.current = false;
-      setFallbackVisible(false);
-      return;
-    }
-    if (!shouldRunMapLogIntent({ hasLogIntent, handled: handled.current })) return;
-    const resolution = resolveMapLogIntent({
-      hasLogIntent,
-      loaded,
-      selectedVenueId,
-      selectedVenueResolvable,
-      firstRouteId,
-      firstFilteredVenueId,
-    });
-    if (resolution.status === "inactive" || resolution.status === "pending") return;
-    if (resolution.status === "fallback") {
-      setFallbackVisible(true);
-      return;
-    }
-    handled.current = true;
-    setFallbackVisible(false);
-    markPubmaxTiming("pubmax:drop-route-ready");
-    let active = true;
-    void Promise.resolve().then(() => {
-      if (!active) return;
-      selectVenue(resolution.venueId);
-      openComposerForLog();
-    });
-    return () => {
-      active = false;
-    };
-  }, [
-    hasLogIntent,
-    loaded,
-    firstFilteredVenueId,
-    firstRouteId,
-    openComposerForLog,
-    selectVenue,
-    selectedVenueId,
-    selectedVenueResolvable,
-    setFallbackVisible,
-  ]);
-}
+// useLandmarkJourney and useLogIntent now live in
+// components/map/pubmap/useLandmarkJourney.ts and .../useLogIntent.ts.
 
 // §4.5 curated-crawl onboarding: dismissal is per-session so a reload during the
 // same visit doesn't re-nag, but a fresh session gets the offer again. sessionStorage
