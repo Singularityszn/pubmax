@@ -35,11 +35,23 @@ export type ActivePlanRef = {
 };
 
 function hasLocal(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  if (typeof window === "undefined") return false;
+  try {
+    // Property ACCESS itself can throw in storage-restricted browsers, so the
+    // read must live inside the guard — not just the later getItem/setItem.
+    return !!window.localStorage;
+  } catch {
+    return false;
+  }
 }
 
 function hasSession(): boolean {
-  return typeof window !== "undefined" && !!window.sessionStorage;
+  if (typeof window === "undefined") return false;
+  try {
+    return !!window.sessionStorage;
+  } catch {
+    return false;
+  }
 }
 
 function notify(eventName: string): void {
@@ -123,9 +135,22 @@ export function writeActivePlan(ref: ActivePlanRef): void {
  * Preserves an existing stopIndex when re-recording the SAME plan (a revisit
  * must not reset how far the crew has walked); resets to 0 for a new plan.
  */
-export function markActivePlan(id: string, startTime: string): void {
+export function markActivePlan(id: string, startTime: string, now: number = Date.now()): void {
   if (!isPlanId(id) || Number.isNaN(Date.parse(startTime))) return;
   const current = readActivePlan();
+  // Opening a past/future plan page must not evict the plan that's live RIGHT
+  // NOW (which would hide the live Night Mode card). Only replace the pointer
+  // when there's no stored plan, it's the same plan, the stored plan is no
+  // longer in its active window, or the incoming plan is itself active now.
+  const candidate: ActivePlanRef = { id, startTime, stopIndex: 0 };
+  if (
+    current &&
+    current.id !== id &&
+    isPlanActiveNow(current, now) &&
+    !isPlanActiveNow(candidate, now)
+  ) {
+    return;
+  }
   const stopIndex = current && current.id === id ? current.stopIndex : 0;
   writeActivePlan({ id, startTime, stopIndex });
 }
@@ -205,6 +230,38 @@ export function restoreNightMode(id: string): void {
   } catch {
     // ignore
   }
+}
+
+// ── night_mode_active dedupe (session-scoped, per plan) ──────────────────────
+// The night_mode_active metric should fire once per plan per browser session —
+// not once per sheet mount. A ref resets on dismiss/reopen and only remembers a
+// single id, so an A → B → A plan switch refires A. Persist a per-plan marker in
+// sessionStorage (survives remounts, gone next session) with an in-memory
+// fallback for storage-restricted browsers.
+
+const NIGHT_ACTIVE_PREFIX = "pubmax:night-mode-active-fired:";
+const nightActiveMemory = new Set<string>();
+
+/**
+ * Mark night_mode_active as fired for `id`, returning true only the FIRST time
+ * this session (so the caller fires the event exactly once per plan). Falls back
+ * to an in-memory set when sessionStorage is unavailable or throws.
+ */
+export function markNightModeActiveFired(id: string): boolean {
+  if (!isPlanId(id)) return false;
+  const key = `${NIGHT_ACTIVE_PREFIX}${id}`;
+  if (hasSession()) {
+    try {
+      if (window.sessionStorage.getItem(key) === "1") return false;
+      window.sessionStorage.setItem(key, "1");
+      return true;
+    } catch {
+      // fall through to in-memory dedupe
+    }
+  }
+  if (nightActiveMemory.has(id)) return false;
+  nightActiveMemory.add(id);
+  return true;
 }
 
 /** Subscribe to dismiss/restore toggles (same-tab custom event + cross-tab storage). */

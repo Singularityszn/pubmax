@@ -11,6 +11,7 @@ import {
   isNightModeDismissed,
   isPlanActiveNow,
   markActivePlan,
+  markNightModeActiveFired,
   parseActivePlan,
   readActivePlan,
   restoreNightMode,
@@ -126,13 +127,29 @@ describe("storage round-trip", () => {
   });
 
   it("markActivePlan resets stopIndex for a new plan but preserves it on revisit", () => {
-    markActivePlan(PLAN_ID, START);
+    const now = Date.parse(START); // both plans share START → both active
+    markActivePlan(PLAN_ID, START, now);
     setActivePlanStopIndex(2);
     expect(readActivePlan()?.stopIndex).toBe(2);
-    markActivePlan(PLAN_ID, START); // same plan → keep the walked cursor
+    markActivePlan(PLAN_ID, START, now); // same plan → keep the walked cursor
     expect(readActivePlan()?.stopIndex).toBe(2);
-    markActivePlan(OTHER_ID, START); // new plan → reset
+    markActivePlan(OTHER_ID, START, now); // new plan (also active) → reset + replace
     expect(readActivePlan()).toEqual({ id: OTHER_ID, startTime: START, stopIndex: 0 });
+  });
+
+  it("markActivePlan does not evict a live plan for an inactive page view (#7)", () => {
+    const now = Date.parse(START);
+    // A is on tonight.
+    markActivePlan(PLAN_ID, START, now);
+    expect(readActivePlan()?.id).toBe(PLAN_ID);
+    // Opening B, whose night is days away, must NOT overwrite the live pointer.
+    const future = "2026-07-30T18:00:00.000Z";
+    markActivePlan(OTHER_ID, future, now);
+    expect(readActivePlan()?.id).toBe(PLAN_ID);
+    // But if the stored plan is no longer active, B is free to take over.
+    const later = Date.parse(future);
+    markActivePlan(OTHER_ID, future, later);
+    expect(readActivePlan()?.id).toBe(OTHER_ID);
   });
 
   it("clearActivePlan honours onlyIfId", () => {
@@ -169,5 +186,30 @@ describe("dismissal (session-scoped, per plan)", () => {
       throw new Error("blocked");
     });
     expect(() => dismissNightMode(PLAN_ID)).not.toThrow();
+  });
+});
+
+describe("markNightModeActiveFired (session dedupe, #4)", () => {
+  beforeEach(() => installWindow());
+
+  it("fires once per plan per session across remounts and A→B→A switches", () => {
+    expect(markNightModeActiveFired(PLAN_ID)).toBe(true);
+    expect(markNightModeActiveFired(PLAN_ID)).toBe(false); // remount / reopen
+    expect(markNightModeActiveFired(OTHER_ID)).toBe(true); // different plan
+    expect(markNightModeActiveFired(PLAN_ID)).toBe(false); // A again → still deduped
+  });
+
+  it("ignores non-plan ids", () => {
+    expect(markNightModeActiveFired("nope")).toBe(false);
+  });
+
+  it("falls back to in-memory dedupe when sessionStorage throws", () => {
+    vi.spyOn(window.sessionStorage, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    // A fresh id the in-memory set hasn't seen this run.
+    const id = "22222222-3333-4444-8555-666666666666";
+    expect(markNightModeActiveFired(id)).toBe(true);
+    expect(markNightModeActiveFired(id)).toBe(false);
   });
 });

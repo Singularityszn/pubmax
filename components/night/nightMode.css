@@ -6,7 +6,7 @@
 .nightCard {
   position: fixed;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(var(--night-drag-y, 0px));
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   width: min(440px, calc(100vw - 20px));
   z-index: 640; /* under tab bar (700) + modals (1200); above page content */
@@ -21,7 +21,7 @@
   box-shadow: var(--shadow, 0 12px 40px rgba(0, 0, 0, 0.28));
   font-size: 14px;
   line-height: 1.4;
-  animation: nightCardRise 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: night-card-rise 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* On phones the app's bottom tab bar (≤640px, 64px tall) owns the very bottom —
@@ -31,12 +31,12 @@
     left: 10px;
     right: 10px;
     width: auto;
-    transform: none;
+    transform: translateY(var(--night-drag-y, 0px));
     bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 8px);
   }
 }
 
-@keyframes nightCardRise {
+@keyframes night-card-rise {
   from {
     opacity: 0;
     transform: translateY(16px) translateX(-50%);
@@ -48,7 +48,7 @@
 }
 
 @media (max-width: 640px) {
-  @keyframes nightCardRise {
+  @keyframes night-card-rise {
     from {
       opacity: 0;
       transform: translateY(16px);

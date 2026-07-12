@@ -28,6 +28,7 @@ import {
   restoreNightMode,
   setActivePlanStopIndex,
   clampStopIndex,
+  markNightModeActiveFired,
   type ActivePlanRef,
 } from "@/lib/activePlan";
 import { trackEvent } from "@/lib/analytics";
@@ -57,7 +58,9 @@ export default function NightModeCard() {
 
   if (dismissed && ref) return <NightModePill id={ref.id} />;
   if (!visible || !ref) return null;
-  return <NightModeSheet entry={ref} />;
+  // Key by plan id so a plan switch remounts the sheet fresh — React otherwise
+  // preserves the prior plan's route/crew/last-train state until refetch lands.
+  return <NightModeSheet key={ref.id} entry={ref} />;
 }
 
 function NightModePill({ id }: { id: string }) {
@@ -79,10 +82,15 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   const [plan, setPlan] = useState<PlanState | null>(null);
   const [report, setReport] = useState<PlanGetInReportDTO | null>(null);
   const [coords, setCoords] = useState<VenueCoord[] | null>(null);
-  const [lastTrain, setLastTrain] = useState<LastTrainSlim | null>(null);
+  // Store the last-train result tagged with the venue it belongs to, so a result
+  // from a previous stop is never rendered against the current one (the tag is
+  // checked at read time — cheaper and lint-cleaner than a clear-in-effect).
+  const [lastTrain, setLastTrain] = useState<{ venueId: string; data: LastTrainSlim } | null>(null);
   const [dragY, setDragY] = useState(0);
   const dragStart = useRef<number | null>(null);
-  const firedFor = useRef<string | null>(null);
+  // Track the live drag distance in a ref too: a fast pointer-up can fire before
+  // the dragY state commit, so release must read the ref, not stale state.
+  const dragYRef = useRef(0);
 
   // Plan state + get-in report — the two feeds the plan screen already uses.
   useEffect(() => {
@@ -138,6 +146,7 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   // when we have no coords or the feed can't produce a station.
   useEffect(() => {
     if (!currentCoord) return;
+    const venueId = currentCoord.id;
     const url = lastRideFetchUrl("london", currentCoord.lat, currentCoord.lng);
     if (!url) return;
     let active = true;
@@ -145,7 +154,7 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
     fetch(url, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((body: LastTrainSlim | null) => {
-        if (active) setLastTrain(body && body.station ? body : null);
+        if (active) setLastTrain(body && body.station ? { venueId, data: body } : null);
       })
       .catch(() => undefined);
     return () => {
@@ -157,8 +166,8 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   // Fire night_mode_active once per plan per mount-session, when the card has a
   // real plan to show (R3 metrics rail — event already typed in lib/analytics).
   useEffect(() => {
-    if (!plan || firedFor.current === id) return;
-    firedFor.current = id;
+    if (!plan) return;
+    if (!markNightModeActiveFired(id)) return;
     trackEvent("night_mode_active", { stops: stops.length, crew: plan.crew.length });
   }, [plan, id, stops.length]);
 
@@ -170,35 +179,48 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
 
   // Lightweight swipe-down-to-dismiss on the grabber (Apple sheet idiom) — kept
   // local so we don't couple to the map-only useSheetDrag host.
+  const resetDrag = () => {
+    dragStart.current = null;
+    dragYRef.current = 0;
+    setDragY(0);
+  };
   const onPointerDown = (e: React.PointerEvent) => {
     dragStart.current = e.clientY;
+    dragYRef.current = 0;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (dragStart.current === null) return;
-    setDragY(Math.max(0, e.clientY - dragStart.current));
+    const dy = Math.max(0, e.clientY - dragStart.current);
+    dragYRef.current = dy;
+    setDragY(dy);
   };
   const onPointerUp = () => {
-    if (dragStart.current !== null && dragY > SWIPE_DISMISS_PX) dismissNightMode(id);
-    dragStart.current = null;
-    setDragY(0);
+    // Read the ref, not dragY state: a fast release can precede the state commit.
+    if (dragStart.current !== null && dragYRef.current > SWIPE_DISMISS_PX) dismissNightMode(id);
+    resetDrag();
   };
+  const onPointerCancel = () => resetDrag();
 
-  // Gate on currentCoord so a stale reading from a previous stop never lingers
-  // after the crew advances to a venue we couldn't locate.
-  const lastTrainLeaveBy = currentCoord ? lastTrain?.decision?.leaveByIso ?? null : null;
+  // Only honour a result that belongs to the CURRENT venue — a reading tagged
+  // with a previous stop (or held while we advance to a venue we couldn't
+  // locate) is ignored, so nothing stale lingers between venue changes.
+  const currentTrain =
+    currentCoord && lastTrain?.venueId === currentCoord.id ? lastTrain.data : null;
+  const lastTrainLeaveBy = currentTrain?.decision?.leaveByIso ?? null;
 
   return (
     <section
       className="nightCard"
       aria-label="Tonight's plan"
-      style={dragY ? { transform: `translateY(${dragY}px)` } : undefined}
+      style={dragY ? ({ "--night-drag-y": `${dragY}px` } as React.CSSProperties) : undefined}
     >
       <div
         className="nightCard__grab"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
         aria-hidden="true"
       >
         <span className="nightCard__grabber" />
@@ -236,7 +258,7 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
       )}
 
       {lastTrainLeaveBy ? (
-        <LastTrainLine leaveByIso={lastTrainLeaveBy} stationName={lastTrain?.station?.name ?? null} />
+        <LastTrainLine leaveByIso={lastTrainLeaveBy} stationName={currentTrain?.station?.name ?? null} />
       ) : null}
 
       {nextStop ? (
