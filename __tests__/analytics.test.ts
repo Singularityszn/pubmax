@@ -8,7 +8,7 @@ vi.mock("@vercel/analytics", () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
-import { trackEvent } from "@/lib/analytics";
+import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
 
 describe("trackEvent", () => {
   afterEach(() => {
@@ -44,9 +44,30 @@ describe("trackEvent", () => {
     expect(() => trackEvent("plan_created", { count: 3 })).not.toThrow();
   });
 
-  it("fires lane_to_plan event with stops count prop", () => {
+  it("fires lane_to_plan event with source + stops props", () => {
     (globalThis as { window?: unknown }).window = {};
-    trackEvent("lane_to_plan", { stops: 3 });
-    expect(trackMock).toHaveBeenCalledWith("lane_to_plan", { stops: 3 });
+    trackEvent("lane_to_plan", { source: "tonight-lane", stops: 3 });
+    expect(trackMock).toHaveBeenCalledWith("lane_to_plan", {
+      source: "tonight-lane",
+      stops: 3,
+    });
+  });
+});
+
+describe("laneSourceFromSearch", () => {
+  it("returns the src when it names a known lane surface", () => {
+    expect(laneSourceFromSearch("?src=tonight-lane")).toBe("tonight-lane");
+    expect(laneSourceFromSearch("?src=whats-on-quiz&x=1")).toBe("whats-on-quiz");
+  });
+
+  it("returns null without a src param (default /plan visits stay silent)", () => {
+    expect(laneSourceFromSearch("")).toBeNull();
+    expect(laneSourceFromSearch("?other=1")).toBeNull();
+  });
+
+  it("returns null for unknown or empty src values", () => {
+    expect(laneSourceFromSearch("?src=")).toBeNull();
+    expect(laneSourceFromSearch("?src=nav")).toBeNull();
+    expect(laneSourceFromSearch("?src=discover-editorial")).toBeNull();
   });
 });

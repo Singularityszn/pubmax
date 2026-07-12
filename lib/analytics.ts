@@ -49,3 +49,32 @@ export function trackEvent(name: AnalyticsEventName, props?: AnalyticsEventProps
     // never surfaces as an app error.
   }
 }
+
+// ---------------------------------------------------------------------------
+// lane_to_plan provenance (R3)
+//
+// `lane_to_plan` must only count plan creations that genuinely started on a
+// What's-On / Tonight lane surface — otherwise it is indistinguishable from
+// `plan_created` and reports conversions that never involved a lane. Lane
+// surfaces link to the composer with `?src=<lane source>` (W1 Tonight-surface
+// work adds `?src=tonight-lane`); anything else yields null and the event
+// stays silent. Honest zero > invented signal.
+
+/** `src` prefixes that count as a lane surface for `lane_to_plan`. */
+const LANE_SOURCE_PREFIXES = ["tonight-lane", "whats-on"] as const;
+
+/**
+ * Extract lane provenance from a location search string (e.g.
+ * "?src=tonight-lane"). Returns the `src` value when it names a known lane
+ * surface, null otherwise (missing, empty, or unknown src → no event).
+ */
+export function laneSourceFromSearch(search: string): string | null {
+  let src: string | null;
+  try {
+    src = new URLSearchParams(search).get("src");
+  } catch {
+    return null;
+  }
+  if (!src) return null;
+  return LANE_SOURCE_PREFIXES.some((prefix) => src.startsWith(prefix)) ? src : null;
+}
