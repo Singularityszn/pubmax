@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import PlanCrew from "@/components/plan/PlanCrew";
 import SiteNav from "@/components/nav/SiteNav";
 import PlanSummary from "@/components/plan/PlanSummary";
@@ -40,6 +41,9 @@ export default async function PlanPage({ params }: Props) {
 
   return (
     <main className="planPage">
+      {/* Marks this plan as "on tonight" so the shell's Night Mode card can
+          follow it across screens (client-only pointer, no backend). */}
+      <ActivePlanMarker id={id} startTime={state.plan.startTime} />
       {/* Standard site navigation — a shared plan link is many people's first
           screen; it must route onward, not dead-end on a wordmark. SiteNav
           carries the brand, so the masthead keeps just the plan actions. */}

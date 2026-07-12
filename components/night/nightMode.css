@@ -1,0 +1,330 @@
+/* Night Mode bottom card (Wave E2). Folds into the app's existing surface
+   language: paper/ink tokens, both themes for free, safe-area aware, 44px
+   touch targets, tuned for 390×844 first. Sits above the mobile tab bar but
+   below full-screen overlays/modals. No map-canvas coupling. */
+
+.nightCard {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%) translateY(var(--night-drag-y, 0px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  width: min(440px, calc(100vw - 20px));
+  z-index: 640; /* under tab bar (700) + modals (1200); above page content */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 14px 14px;
+  border-radius: var(--radius-lg, 18px);
+  border: 1px solid var(--line, #d9d4c7);
+  background: var(--panel-raised, #fbf9f2);
+  color: var(--ink, #2a2a26);
+  box-shadow: var(--shadow, 0 12px 40px rgba(0, 0, 0, 0.28));
+  font-size: 14px;
+  line-height: 1.4;
+  animation: night-card-rise 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* On phones the app's bottom tab bar (≤640px, 64px tall) owns the very bottom —
+   lift the card clear of it so both stay tappable. */
+@media (max-width: 640px) {
+  .nightCard {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    transform: translateY(var(--night-drag-y, 0px));
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 8px);
+  }
+}
+
+@keyframes night-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) translateX(-50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(-50%);
+  }
+}
+
+@media (max-width: 640px) {
+  @keyframes night-card-rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nightCard {
+    animation: none;
+  }
+}
+
+.nightCard__grab {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 2px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.nightCard__grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line, #d9d4c7);
+}
+
+.nightCard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nightCard__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--ink-soft, #6b726a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nightCard__close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -6px -6px 0;
+  border: none;
+  background: none;
+  color: var(--ink-soft, #6b726a);
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.nightCard__close:hover {
+  background: color-mix(in srgb, var(--ink, #2a2a26) 8%, transparent);
+}
+
+.nightCard__stop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nightCard__marker {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--brass, #9b7a2a);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nightCard__stopBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nightCard__now {
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nightCard__busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-soft, #6b726a);
+}
+
+.nightCard__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-soft, #6b726a);
+}
+.nightCard__dot[data-level="quiet"] { background: #2f7a3d; }
+.nightCard__dot[data-level="steady"] { background: #9b7a2a; }
+.nightCard__dot[data-level="busy"] { background: #b5651d; }
+.nightCard__dot[data-level="rammed"] { background: #b3261e; }
+
+.nightCard__logBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--brass, #9b7a2a);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nightCard__logBtn:active {
+  transform: translateY(1px);
+}
+
+.nightCard__loading,
+.nightCard__last {
+  margin: 2px 0;
+  color: var(--ink-soft, #6b726a);
+  font-size: 13px;
+}
+
+.nightCard__train {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 10px);
+  background: color-mix(in srgb, var(--ink, #2a2a26) 5%, transparent);
+  font-size: 13px;
+  color: var(--ink, #2a2a26);
+}
+
+.nightCard__train[data-urgent] {
+  color: #b3261e;
+  background: color-mix(in srgb, #b3261e 10%, transparent);
+}
+
+.nightCard__station {
+  color: var(--ink-soft, #6b726a);
+}
+
+.nightCard__next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line, #d9d4c7);
+  border-radius: var(--radius-sm, 10px);
+  background: var(--paper, #fff);
+  color: var(--ink, #2a2a26);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nightCard__next:active {
+  transform: translateY(1px);
+}
+
+.nightCard__nextLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft, #6b726a);
+  font-size: 13px;
+}
+
+.nightCard__nextLabel strong {
+  color: var(--ink, #2a2a26);
+}
+
+.nightCard__nextAction {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--brass, #9b7a2a);
+}
+
+.nightCard__crew {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nightCard__crewCount {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-soft, #6b726a);
+}
+
+.nightCard__crewList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nightCard__crewList li {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink, #2a2a26) 7%, transparent);
+  font-size: 12px;
+}
+
+.nightCard__crewList li[data-status="here"] {
+  background: color-mix(in srgb, #2f7a3d 16%, transparent);
+  color: #1f5a2b;
+}
+
+/* Re-open pill (shown after dismissal). */
+.nightPill {
+  position: fixed;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  z-index: 640;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line, #d9d4c7);
+  border-radius: 999px;
+  background: var(--panel-raised, #fbf9f2);
+  color: var(--ink, #2a2a26);
+  box-shadow: var(--shadow-sm, 0 6px 18px rgba(0, 0, 0, 0.18));
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .nightPill {
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 10px);
+  }
+}

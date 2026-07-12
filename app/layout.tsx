@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
+import NightModeCard from "@/components/night/NightModeCard";
 import OfflineReady from "@/components/OfflineReady";
 import FirstRunTour from "@/components/onboarding/FirstRunTour";
 import { AuthProvider } from "@/components/auth/AuthProvider";
@@ -196,6 +197,10 @@ export default async function RootLayout({
             {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
                 display:none on desktop so the existing navs are untouched. */}
             <MobileTabBar />
+            {/* Night Mode (Wave E2) — the "during the night" surface. A
+                persistent bottom card that appears across every screen while a
+                plan is on tonight; renders nothing otherwise. */}
+            <NightModeCard />
             {/* One-time first-run onboarding tour — renders nothing on the
                 server / for returning users (gated on hasSeenTour). */}
             <FirstRunTour />
