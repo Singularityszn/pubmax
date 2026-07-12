@@ -1,0 +1,91 @@
+import { Waves } from "lucide-react";
+
+import type { Venue } from "@/lib/venues";
+import type { TabKey } from "@/lib/venueInspectorTabs";
+import VenueTonightChips from "@/components/map/VenueTonightChips";
+
+type TabDef = { key: TabKey; label: string; shortLabel: string };
+
+type VenueInspectorHeaderProps = {
+  venue: Venue;
+  TABS: TabDef[];
+  tab: TabKey;
+  tabRefs: React.MutableRefObject<Record<TabKey, HTMLButtonElement | null>>;
+  selectTab: (key: TabKey) => void;
+  onTabKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>, current: TabKey) => void;
+  onGrabDragStart?: (event: React.PointerEvent<HTMLElement>) => void;
+  onGrabDragMove?: (event: React.PointerEvent<HTMLElement>) => void;
+  onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
+};
+
+export default function VenueInspectorHeader({
+  venue,
+  TABS,
+  tab,
+  tabRefs,
+  selectTab,
+  onTabKeyDown,
+  onGrabDragStart,
+  onGrabDragMove,
+  onGrabDragEnd,
+}: VenueInspectorHeaderProps) {
+  return (
+    <>
+      {/* The grab handle is the primary drag surface on mobile — a generous
+          hit area (not just the thin visual bar) so it's easy to grab with a
+          thumb. Pointer handlers are optional props; when absent (e.g. any
+          future non-map usage of this component) it's simply not draggable. */}
+      <div
+        className="venueSheetGrabZone"
+        onPointerDown={onGrabDragStart}
+        onPointerMove={onGrabDragMove}
+        onPointerUp={onGrabDragEnd}
+        onPointerCancel={onGrabDragEnd}
+      >
+        <span className="venueSheetGrab" aria-hidden="true" />
+      </div>
+      <div className="inspectorTitle">
+        <Waves size={17} />
+        <span>Venue Detail</span>
+      </div>
+      <h3>{venue.name}</h3>
+
+      {/* What's on at this venue tonight (A1) — pure sheet DOM, fail-soft. */}
+      <VenueTonightChips
+        id={venue.id}
+        name={venue.name}
+        latitude={venue.latitude}
+        longitude={venue.longitude}
+      />
+
+      <div className="venueTabs" role="tablist" aria-label="Venue detail sections">
+        {TABS.map(({ key, label, shortLabel }) => {
+          const active = tab === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              id={`venueTab-${key}`}
+              aria-controls={`venuePanel-${key}`}
+              aria-label={label}
+              aria-selected={active}
+              tabIndex={active ? 0 : -1}
+              className={active ? "venueTab active" : "venueTab"}
+              ref={(el) => {
+                tabRefs.current[key] = el;
+              }}
+              onClick={() => selectTab(key)}
+              onKeyDown={(event) => onTabKeyDown(event, key)}
+            >
+              <span className="venueTabFull">{label}</span>
+              <span className="venueTabShort" aria-hidden="true">
+                {shortLabel}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,168 @@
+import Link from "next/link";
+import { useMemo } from "react";
+import { BookOpen, ExternalLink } from "lucide-react";
+
+import { ClaimBadge } from "@/components/map/venueInspectorBits";
+import { formatPrice, type Venue } from "@/lib/venues";
+import { buildVenueClaims } from "@/lib/curation";
+import type { DropWithPhotos } from "@/components/map/usePintDrops";
+import { bandsForVenue, type StoryBand } from "@/lib/storyBands";
+import { nearestLandmarks, type Landmark } from "@/lib/landmarks";
+import { curatedCrawlsForBand, placeStoryMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
+import type { CityId } from "@/lib/cities";
+import type { TabKey } from "@/lib/venueInspectorTabs";
+
+export default function VenueStoryTab({
+  venue,
+  tab,
+  drops,
+  cityId,
+  cityLandmarks,
+  cityStoryBands,
+  cityCuratedCrawls,
+}: {
+  venue: Venue;
+  tab: TabKey;
+  drops: DropWithPhotos[];
+  cityId: CityId;
+  cityLandmarks: Landmark[];
+  cityStoryBands: StoryBand[];
+  cityCuratedCrawls?: CuratedCrawl[];
+}) {
+  // The distinct, provenance-stamped claim list for the inspected venue.
+  // Editorial Sourced claims and contributor/anecdote drops stay separate.
+  const claims = useMemo(() => buildVenueClaims(venue.curation, drops), [venue.curation, drops]);
+
+  // Place stories (Wave D): which curated corridors pass through this venue,
+  // plus nearby landmark names for the Lore "Around here" section.
+  const placeStories = useMemo(
+    () => bandsForVenue(venue, cityStoryBands, cityLandmarks),
+    [venue, cityStoryBands, cityLandmarks],
+  );
+  const aroundHere = useMemo(
+    () => nearestLandmarks([venue.longitude, venue.latitude], 3, 0.75, cityLandmarks),
+    [venue.latitude, venue.longitude, cityLandmarks],
+  );
+
+  return (
+    <div
+      role="tabpanel"
+      id="venuePanel-story"
+      aria-labelledby="venueTab-story"
+      className="venueTabPanel"
+      hidden={tab !== "story"}
+    >
+      {venue.description ? (
+        <p className="description">{venue.description}</p>
+      ) : (
+        <p className="description muted">
+          No heritage note for {venue.name} yet — log a Pint Drop below with a passed-down story
+          to be the first to give this pub some character.
+        </p>
+      )}
+      {claims.length > 0 ? (
+        <div className="claimList">
+          {claims.map((claim, index) => (
+            <div key={`${claim.kind}-${index}`} className="claimCard">
+              <div className="claimHead">
+                <span className="claimEra">{claim.era ?? claim.label}</span>
+                <ClaimBadge kind={claim.kind} />
+              </div>
+              <p>{claim.content}</p>
+              {claim.sourceRef ? (
+                <a href={claim.sourceRef} target="_blank" rel="noreferrer">
+                  {claim.label}
+                  <ExternalLink size={13} />
+                </a>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Place stories / Around here (Wave D) — user-facing copy uses
+          "Place stories", never internal corridor jargon. */}
+      <section className="placeStories" aria-labelledby="place-stories-title">
+        <div className="inspectorTitle">
+          <BookOpen size={16} />
+          <span id="place-stories-title">Place stories</span>
+        </div>
+        <p className="placeStoriesLead">What should I know about this place?</p>
+        {placeStories.length === 0 ? (
+          <p className="description muted">
+            No Place stories pass through {venue.name} yet — open Place stories
+            on the map, or ask the PUBMAXXER.
+          </p>
+        ) : (
+          <div className="placeStoryList">
+            {placeStories.map((band) => {
+              const source = band.sources[0];
+              const storyCrawls = curatedCrawlsForBand(band.id, cityCuratedCrawls);
+              const primaryCrawl = storyCrawls[0];
+              return (
+                <article key={band.id} className="placeStoryCard">
+                  <h4 className="placeStoryTitle">{band.title}</h4>
+                  <p className="placeStoryCopy">{band.copy}</p>
+                  <div className="placeStoryActions">
+                    <Link
+                      className="placeStoryWalk"
+                      href={placeStoryMapHref(
+                        band.id,
+                        primaryCrawl?.id,
+                        cityId,
+                        cityCuratedCrawls,
+                      )}
+                    >
+                      Walk this story
+                    </Link>
+                    {primaryCrawl ? (
+                      <Link
+                        className="placeStoryCrawl"
+                        href={`/crawls#${encodeURIComponent(primaryCrawl.id)}`}
+                      >
+                        {primaryCrawl.name}
+                      </Link>
+                    ) : null}
+                    {source ? (
+                      <a
+                        className="placeStorySource"
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {source.label}
+                        <ExternalLink size={13} />
+                      </a>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+        {aroundHere.length > 0 ? (
+          <div className="aroundHere">
+            <p className="aroundHereLabel">Around here</p>
+            <ul className="aroundHereList">
+              {aroundHere.map(({ landmark, km }) => (
+                <li key={landmark.id}>
+                  <span>{landmark.name}</span>
+                  <small>{km < 0.1 ? "<100 m" : `${km.toFixed(1)} km`}</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </section>
+
+      <div className="priceList">
+        {venue.prices.slice(0, 6).map((price) => (
+          <div key={price.app_price_id}>
+            <span>{price.pint_name}</span>
+            <strong>{formatPrice(price.price_gbp)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
