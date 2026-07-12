@@ -17,6 +17,7 @@ import CityRivalryTable from "@/components/discovery/CityRivalryTable";
 import TonightBoard from "@/components/discovery/TonightBoard";
 import EditorialCard, { type EditorialCardData } from "@/components/discovery/EditorialCard";
 import TonightNearbyLane from "@/components/discovery/TonightNearbyLane";
+import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import GardenTonightCard from "@/components/discovery/GardenTonightCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
@@ -485,6 +486,8 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
       </section>
 
       <TonightNearbyLane />
+
+      <DealsTonightLane />
 
       <GardenTonightCard />
 
