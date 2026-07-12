@@ -66,7 +66,10 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
     <main className="landmarkChapterPage">
       <SiteNav active="discover" />
       <header className="landmarkChapterHead">
-        <Link className="landmarkChapterEyebrow" href="/map">
+        {/* Deep-link to THIS landmark on the map (?landmark= is the existing
+            shareable-URL param PubMap seeds from) — a bare /map dead-ends with
+            nothing selected. */}
+        <Link className="landmarkChapterEyebrow" href={mapHref}>
           PUBMAXXING · London stories
         </Link>
         <h1 className="landmarkChapterTitle">{landmark.name}</h1>
