@@ -43,6 +43,7 @@ import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage }
 import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, LONDON_BOUNDS,
   ORBIT_DEG_PER_SEC, ORBIT_RESUME_MS, DASH_SEQ,
+  GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
   readTokens,
 } from "@/components/map/canvas/tokens";
 import {
@@ -51,7 +52,7 @@ import {
 } from "@/components/map/canvas/geojson";
 import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
-  TONIGHT_OPPORTUNITY_LAYERS,
+  TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
@@ -996,6 +997,15 @@ export default function PubMapCanvas({
         dashStep = (dashStep + 1) % DASH_SEQ.length;
         map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[dashStep]);
       }
+      // M1 selection spotlight — breathing pulse on the selected pub's glow
+      // ring, reusing THIS RAF loop (no second one). Gated by the same
+      // reduced-motion / hidden / blurred guard above, so reduced-motion gets
+      // a static ring (the dim-opacity spotlight still applies, unaffected).
+      if (selectedIdRef.current && map.getLayer("pubs-selected-glow")) {
+        const pulse = glowPulsePaint(now);
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", pulse.opacity);
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", pulse.width);
+      }
     };
     rafId = requestAnimationFrame(frame);
 
@@ -1191,9 +1201,23 @@ export default function PubMapCanvas({
       ];
       if (map.getLayer("pubs-selected-glow")) {
         map.setFilter("pubs-selected-glow", selectedFilter);
+        // Reset to the static baseline on every selection change; the RAF
+        // loop takes over from here again next frame if a venue is selected,
+        // and a deselect leaves the ring at this baseline (not mid-pulse).
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", GLOW_BASE_STROKE_WIDTH);
       }
       if (map.getLayer("pubs-selected")) {
         map.setFilter("pubs-selected", selectedFilter);
+      }
+      // M1 selection spotlight — dim every non-selected pub pin; the selected
+      // pin stays fully opaque. Deselect restores the plain serves-based dim.
+      if (map.getLayer("pubs-point")) {
+        map.setPaintProperty(
+          "pubs-point",
+          "icon-opacity",
+          pubIconOpacityExpr(selectedIdRef.current),
+        );
       }
     });
   }, [route, selectedVenueId, mapReady, applyToMap]);

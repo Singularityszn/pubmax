@@ -46,6 +46,21 @@ export const LONDON_BOUNDS: [[number, number], [number, number]] = [
 export const ORBIT_DEG_PER_SEC = 0.7; // gentle drift — a full turn in ~8.5 minutes
 export const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
 
+// M1 selection spotlight — non-selected pub pins ease down to this opacity so
+// the selected pin reads as unmissable at any zoom. Filtered-out pins (the
+// favourite-pint `serves` dim) stay at their existing 0.22 floor either way.
+export const SELECTION_DIM_OPACITY = 0.45;
+// Selected-glow "breathing" pulse — one continuous sine cycle driven off the
+// EXISTING RAF loop (no second requestAnimationFrame). Base values match the
+// static pubs-selected-glow paint below so a deselect cleanly resets to them.
+export const GLOW_BASE_STROKE_OPACITY = 0.35;
+export const GLOW_BASE_STROKE_WIDTH = 3.2;
+export const GLOW_PULSE_PERIOD_MS = 1600;
+export const GLOW_PULSE_MIN_OPACITY = 0.3;
+export const GLOW_PULSE_MAX_OPACITY = 0.62;
+export const GLOW_PULSE_MIN_WIDTH = 3;
+export const GLOW_PULSE_MAX_WIDTH = 4.6;
+
 // Classic "marching ants" dash cycle for the brass route line.
 export const DASH_SEQ: number[][] = [
   [0, 4, 3],

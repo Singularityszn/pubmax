@@ -3,6 +3,14 @@ import { iconId } from "@/lib/mapIcons";
 import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import {
+  SELECTION_DIM_OPACITY,
+  GLOW_PULSE_PERIOD_MS,
+  GLOW_PULSE_MIN_OPACITY,
+  GLOW_PULSE_MAX_OPACITY,
+  GLOW_PULSE_MIN_WIDTH,
+  GLOW_PULSE_MAX_WIDTH,
+} from "./tokens";
 
 // Ambient categories render as soft coloured dots; transport (TRANSPORT_CATEGORIES)
 // render as their real TfL / National Rail symbol on separate layers.
@@ -57,6 +65,36 @@ export const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
   iconId("tfl", "river"),
   iconId("tfl", "underground"),
 ];
+// M1 selection spotlight — pubs-point `icon-opacity`. With no selection, the
+// existing serves-based dim is untouched (0.98 serving / 0.22 filtered-out).
+// With a selection: the selected pub always reads at full opacity (unmissable
+// even if it's dimmed by the favourite-pint filter), every other serving pub
+// eases to SELECTION_DIM_OPACITY, and already-filtered-out pubs stay at their
+// existing 0.22 floor rather than popping brighter.
+export function pubIconOpacityExpr(selectedId: string): maplibregl.ExpressionSpecification {
+  if (!selectedId) {
+    return ["case", ["get", "serves"], 0.98, 0.22];
+  }
+  return [
+    "case",
+    ["==", ["get", "id"], selectedId],
+    1,
+    ["case", ["get", "serves"], SELECTION_DIM_OPACITY, 0.22],
+  ];
+}
+
+// M1 selection spotlight — the breathing pulse for `pubs-selected-glow`,
+// driven off the map's EXISTING RAF loop (no second requestAnimationFrame).
+// Pure function of `now` (ms) so it's unit-testable without a map/DOM.
+export function glowPulsePaint(now: number): { opacity: number; width: number } {
+  const phase = ((now % GLOW_PULSE_PERIOD_MS) / GLOW_PULSE_PERIOD_MS) * Math.PI * 2;
+  const wave = (1 + Math.sin(phase)) / 2; // 0..1, smooth breathing cycle
+  return {
+    opacity: GLOW_PULSE_MIN_OPACITY + (GLOW_PULSE_MAX_OPACITY - GLOW_PULSE_MIN_OPACITY) * wave,
+    width: GLOW_PULSE_MIN_WIDTH + (GLOW_PULSE_MAX_WIDTH - GLOW_PULSE_MIN_WIDTH) * wave,
+  };
+}
+
 export const TONIGHT_OPPORTUNITY_LAYERS = [
   "tonight-halo",
   "tonight-point",
