@@ -4,6 +4,8 @@ import Link from "next/link";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { groupVenuePrices, formatPrice, type VenuePrice } from "@/lib/venues";
 import { listBoroughs } from "@/lib/boroughs";
+import { allBoroughHeritageCounts } from "@/lib/boroughHeritage";
+import { loadHistoricPubs } from "@/lib/historic";
 import SiteNav from "@/components/nav/SiteNav";
 
 import "./[slug]/borough.css";
@@ -50,6 +52,11 @@ async function loadVenues() {
 export default async function BoroughIndexPage() {
   const venues = await loadVenues();
   const boroughs = listBoroughs(venues);
+  // Cited historic-pub count per borough (borough-heritage rollup, Wave H).
+  // Additive: shown as a subtle badge only where a borough has any on record.
+  const heritageCounts = new Map(
+    allBoroughHeritageCounts(await loadHistoricPubs()).map((h) => [h.slug, h.count]),
+  );
 
   return (
     <main className="boroughPage">
@@ -79,6 +86,11 @@ export default async function BoroughIndexPage() {
                 <span className="boroughCardMeta">
                   {borough.pubCount} {borough.pubCount === 1 ? "pub" : "pubs"}
                 </span>
+                {heritageCounts.get(borough.slug) ? (
+                  <span className="boroughCardHistoric">
+                    {heritageCounts.get(borough.slug)} historic
+                  </span>
+                ) : null}
                 <span className="boroughCardPrice">
                   {borough.cheapestGbp === null ? (
                     <span className="boroughNoPrice">No price yet</span>

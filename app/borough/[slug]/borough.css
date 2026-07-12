@@ -281,6 +281,22 @@
   color: var(--ink-soft);
 }
 
+/* Subtle heritage count on an index card — only rendered where a borough has
+   cited historic pubs (borough-heritage rollup, Wave H). Additive, never
+   restructures the card. */
+.boroughCardHistoric {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill, 999px);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  border: 1px solid color-mix(in srgb, var(--brass) 28%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--brass);
+}
+
 /* --- night-out chapter sections (story pubs / crawls) ---------------------- */
 
 .boroughSection {
@@ -375,6 +391,121 @@
   text-decoration: underline;
 }
 
+/* --- historic pubs (borough-heritage rollup, Wave H) ---------------------- */
+/* Reuses the /historic card idiom (era/grade chips, 2-line hook clamp) so the
+   two heritage surfaces read as one system. Tokens only; both themes track. */
+
+.boroughHeritageProvenance {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.boroughHeritageList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.boroughHeritageCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.boroughHeritageMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.boroughHeritageEra {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill, 999px);
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brass);
+}
+
+.boroughHeritageGrade {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill, 999px);
+  background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
+  border: 1px solid color-mix(in srgb, var(--river) 32%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--river);
+}
+
+.boroughHeritageName {
+  margin: 0;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.boroughHeritageHook {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  /* Clamp to ~2 lines; the full, cited sentence lives one tap away on /historic. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.boroughHeritageMapLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: auto;
+  color: var(--brass);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.boroughHeritageMapLink:hover {
+  text-decoration: underline;
+}
+
+.boroughHeritageFoot {
+  margin: 14px 0 0;
+}
+
+.boroughHeritageFoot a {
+  color: var(--brass);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.boroughHeritageFoot a:hover {
+  text-decoration: underline;
+}
+
 /* --- footnote ------------------------------------------------------------- */
 
 .boroughFootnote {
@@ -404,6 +535,8 @@
 .boroughEmpty a:focus-visible,
 .boroughEyebrow a:focus-visible,
 .boroughFootnote a:focus-visible,
+.boroughHeritageMapLink:focus-visible,
+.boroughHeritageFoot a:focus-visible,
 .boroughPassportFoot a:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 3px;

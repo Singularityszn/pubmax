@@ -53,7 +53,7 @@
 .venueSheetSkeletonStamp,
 .venueSheetSkeletonBody span {
   display: block;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--line-soft) 70%, transparent),
@@ -214,9 +214,12 @@
   margin-top: 12px;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--line) 72%, var(--panel-raised));
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--ink) 9%, transparent);
+  /* Theme-aware elevation token — the old ink-derived shadow painted a WHITE
+     halo in dark (where --ink is near-white). --shadow-sm suits a panel nested
+     inside the already-raised drawer. */
+  box-shadow: var(--shadow-sm);
 }
 
 .venueBaselinePhoto {
@@ -228,7 +231,9 @@
   border-radius: 18px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel)), color-mix(in srgb, var(--river) 8%, var(--panel)));
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--ink-deep) 14%, transparent);
+  /* One shadow language: the theme-aware token instead of a hand-rolled
+     ink-deep shade, matching the panel this photo sits inside. */
+  box-shadow: var(--shadow-sm);
 }
 
 .venueBaselinePhoto img {
@@ -694,7 +699,8 @@ html[data-legacy="1"] .venueTabPanel::before {
 .venueTabPanel .priceList {
   border-color: color-mix(in srgb, var(--line) 74%, var(--panel-raised));
   background: var(--panel-raised);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--ink) 7%, transparent);
+  /* Theme-aware token, not an ink-derived shade (white-halo in dark). */
+  box-shadow: var(--shadow-sm);
 }
 
 .venueTabPanel .dropCard,
@@ -803,7 +809,7 @@ html[data-legacy="1"] .venueTabPanel::before {
   color: var(--ink);
   text-decoration: none;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid color-mix(in srgb, var(--brass) 36%, var(--line));
   background: color-mix(in srgb, var(--brass) 10%, var(--panel));
 }
@@ -912,7 +918,7 @@ html[data-legacy="1"] .venueTabPanel::before {
     gap: 3px;
     margin-top: 10px;
     padding: 3px;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
   }
 
   .venueTab {
@@ -1086,4 +1092,114 @@ html[data-legacy="1"] .venueTabPanel::before {
     padding-top: 0;
     border-top: 0;
   }
+/* ── Passive cited heritage ("On record") ────────────────────────────────────
+   The facts a pub carries on record, surfaced at the top of the Lore tab the
+   instant it opens so the story reads passively — no need to interrogate the
+   Landlord. Provenance rides every fact: a source chip (Wikipedia / Wikidata /
+   OpenStreetMap / "On record" for our own seed) plus a citation link when the
+   record has one. Matches the sheet's card idiom + the /historic source chips;
+   tokens only, so it reads cleanly in both themes. */
+.venueTabPanel .heritageOnRecord {
+  margin: 0 0 14px;
+}
+
+.venueTabPanel .heritageFactList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.venueTabPanel .heritageFact {
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.venueTabPanel .heritageFactText {
+  margin: 0 0 8px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.venueTabPanel .heritageFactMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.venueTabPanel .heritageSourceChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--brass);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Seed facts are our own curation ("on record") — a quieter, river-tinted chip
+   distinguishes them from named external sources without inventing authority. */
+.venueTabPanel .heritageSourceChip[data-source="seed"] {
+  border-color: color-mix(in srgb, var(--river) 30%, var(--line));
+  background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
+  color: var(--river);
+}
+
+.venueTabPanel .heritageFactCite {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px; /* 44px-safe tap target on the citation link */
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.venueTabPanel .heritageFactCite:hover {
+  text-decoration: underline;
+}
+
+.venueTabPanel .heritageFactCite:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.venueTabPanel .heritageFollowUp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px; /* 44px-safe tap target */
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+  color: var(--brass);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
+}
+
+.venueTabPanel .heritageFollowUp:hover {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+}
+
+.venueTabPanel .heritageFollowUp:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
