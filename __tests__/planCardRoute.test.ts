@@ -40,7 +40,7 @@ describe("GET /api/plan-card", () => {
     });
     if (!created.ok) throw new Error("fixture Plan was not created");
 
-    const response = await GET(new Request(`http://localhost/api/plan-card?id=${created.plan.plan.id}`));
+    const response = await GET(new Request(`http://localhost/api/plan-card?id=${created.plan.plan.id}`, { headers: { "x-forwarded-for": "198.51.100.1" } }));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("image/png");
@@ -48,7 +48,7 @@ describe("GET /api/plan-card", () => {
   });
 
   it("404s rather than leaking whether a malformed capability resembles a Plan", async () => {
-    const response = await GET(new Request("http://localhost/api/plan-card?id=not-a-plan"));
+    const response = await GET(new Request("http://localhost/api/plan-card?id=not-a-plan", { headers: { "x-forwarded-for": "198.51.100.2" } }));
     expect(response.status).toBe(404);
   });
 
