@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import CheersButton from "@/components/feed/CheersButton";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
@@ -13,6 +12,7 @@ import { computeChaosScore } from "@/lib/chaosScore";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
 import type { FeedItem, OptimisticSpillState } from "@/lib/feed";
+import { CHEERS_GATE_PROMPT } from "@/lib/optimisticToggle";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import prefetchVenue from "@/lib/prefetchVenue";
@@ -21,6 +21,10 @@ import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+
+// For .cheersGatePrompt — the claim-a-handle failure prompt style (U2), now
+// rendered beside the reaction row.
+import "./cheersButton.css";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
 // canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
@@ -37,6 +41,28 @@ const REACTION_META: Record<ReactionKey, { label: string; emoji: string }> = {
 
 function formatGbp(price: number): string {
   return `£${price.toFixed(2)}`;
+}
+
+// U2 — inline failure feedback for the reaction row. When a toggle reports it
+// didn't save (anonymous store gating answers 503, or the network dropped),
+// the row shows the claim-a-handle prompt for a few seconds. Same quiet shape
+// the standalone CheersButton used: local string state, role="status",
+// auto-hidden on a timer, cleared on unmount.
+function useCheersGatePrompt(): { gatePrompt: string | null; showGatePrompt: () => void } {
+  const [gatePrompt, setGatePrompt] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const showGatePrompt = useCallback(() => {
+    setGatePrompt(CHEERS_GATE_PROMPT);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setGatePrompt(null), 4200);
+  }, []);
+  return { gatePrompt, showGatePrompt };
 }
 
 
@@ -121,8 +147,8 @@ export default function FeedCard({
   summary: ReactionSummary;
   // U2: the toggle may return a promise reporting whether it actually stuck
   // (false = the POST failed and the page rolled the summary back). The
-  // CheersButton consumes it to revert its tick + show the claim-a-handle
-  // prompt; the tucked-away chip row keeps ignoring the return value.
+  // reaction row consumes it to show the claim-a-handle prompt (see
+  // handleReaction below) — a gated tap must never fail silently.
   onToggleReaction: (dropId: string, reaction: ReactionKey) => Promise<boolean | void> | void;
   onRetryPost?: (clientRequestId: string) => void;
 }) {
@@ -150,14 +176,16 @@ export default function FeedCard({
     const raf = requestAnimationFrame(() => setEntered(true));
     return () => cancelAnimationFrame(raf);
   }, []);
-  // A4 — the primary one-tap "Cheers" kudos reuses the existing "cheers"
-  // reaction key (no schema/key change): its count + whether the viewer cheered
-  // are read off the same durable summary the chip row uses, so the big button
-  // and the tucked-away chip stay in lockstep. onToggleReaction owns the network
-  // round-trip + rollback; CheersButton just adds the instant optimistic flip.
-  const cheersCount = summary.counts.cheers ?? 0;
-  const cheeredByMe = mine.has("cheers");
-  const onCheers = (dropId: string) => onToggleReaction(dropId, "cheers");
+  // U2 — the reaction row's failure feedback (see useCheersGatePrompt above).
+  // The page's toggleReaction owns the optimistic flip + rollback; `false`
+  // (or a rejection) is its honest signal that the POST failed and the counts
+  // were rolled back — the viewer must hear WHY, not see nothing.
+  const { gatePrompt, showGatePrompt } = useCheersGatePrompt();
+  function handleReaction(reaction: ReactionKey) {
+    void Promise.resolve(onToggleReaction(item.id, reaction))
+      .then((ok) => (ok === false ? showGatePrompt() : undefined))
+      .catch(showGatePrompt);
+  }
   // One normalized "@handle" used everywhere this card names the author, so a
   // seed handle that already carries a leading "@" can't render as "@@".
   const shownHandle = displayHandle(item.handle);
@@ -296,25 +324,15 @@ export default function FeedCard({
               </span>
             ) : null}
             {item.caption ? <p className="feedSpillNote">{item.caption}</p> : null}
-            {/* A4 — primary one-tap Cheers, over the dark scrim (frosted variant). */}
+            {/* Cheers lives ONCE per card, as the first chip of the reaction
+                row below — a second standalone button here duplicated it. */}
             {!isOptimistic ? (
-              <>
-                <div className="feedSpillCheers">
-                  <CheersButton
-                    dropId={item.id}
-                    count={cheersCount}
-                    mine={cheeredByMe}
-                    onToggle={onCheers}
-                    className={`cheersBtnOnScrim${categoryResolved ? " cheersBtnCat" : ""}`}
-                  />
-                </div>
-                <Link
-                  className="feedSpillBarTab"
-                  href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
-                >
-                  See the bar tab
-                </Link>
-              </>
+              <Link
+                className="feedSpillBarTab"
+                href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
+              >
+                See the bar tab
+              </Link>
             ) : null}
           </div>
         </div>
@@ -419,21 +437,9 @@ export default function FeedCard({
           </p>
         ) : null}
 
-        {/* A4 — the dominant primary ack, above the tucked-away chip row. On the
-            9:16 Spill card this lives over the scrim instead (see above), so only
-            the text-only receipt card mounts it here. */}
-        {!hero && !isOptimistic ? (
-          <div className="feedCheers">
-            <CheersButton
-              dropId={item.id}
-              count={cheersCount}
-              mine={cheeredByMe}
-              onToggle={onCheers}
-              className={categoryResolved ? "cheersBtnCat" : undefined}
-            />
-          </div>
-        ) : null}
-
+        {/* ONE reaction surface per card: the chip row (cheers is its first
+            chip). The old standalone Cheers button above this row duplicated
+            the same "cheers" reaction key and confused the card. */}
         {!isOptimistic ? (
           <div className="feedReactions" role="group" aria-label="React to this pint">
             {REACTION_KEYS.map((key) => {
@@ -447,7 +453,7 @@ export default function FeedCard({
                   className={`feedReactBtn${on ? " isOn" : ""}`}
                   aria-pressed={on}
                   aria-label={count ? `${meta.label}, ${count}` : meta.label}
-                  onClick={() => onToggleReaction(item.id, key)}
+                  onClick={() => handleReaction(key)}
                 >
                   <span aria-hidden="true">{meta.emoji}</span>
                   <span className="feedReactLabel">{meta.label}</span>
@@ -456,6 +462,14 @@ export default function FeedCard({
               );
             })}
           </div>
+        ) : null}
+
+        {/* U2 — honest failure feedback for a signed-out / gated reaction tap:
+            the toggle rolled back, so say why instead of silently un-ticking. */}
+        {gatePrompt ? (
+          <p className="cheersGatePrompt" role="status">
+            {gatePrompt}
+          </p>
         ) : null}
 
         {/* Every pint is its own shareable post: open the standalone permalink
