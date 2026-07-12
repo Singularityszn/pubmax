@@ -1,0 +1,131 @@
+import { describe, expect, it } from "vitest";
+
+import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
+import {
+  checkedLabel,
+  filterLaneRows,
+  formatWhatsOnTime,
+  laneCardsFromRows,
+  laneKindFacets,
+  laneTimeLabel,
+  summariseWhatsOnByVenue,
+  WHATS_ON_KIND_META,
+} from "@/lib/whatsOnBadges";
+
+function row(overrides: Partial<WhatsOnRow> & { kind: WhatsOnKind }): WhatsOnRow {
+  return {
+    id: `row-${Math.random().toString(36).slice(2)}`,
+    placeName: "The Test Arms",
+    // 2026-07-12 20:00 BST → 19:00Z
+    startsAt: "2026-07-12T19:00:00.000Z",
+    title: `${overrides.kind} night`,
+    source: { label: "Organiser", url: "https://example.com/e" },
+    observedAt: "2026-07-12T09:00:00.000Z",
+    confidence: "listed",
+    ...overrides,
+  };
+}
+
+describe("summariseWhatsOnByVenue (badge join)", () => {
+  it("joins on venueId only and drops rows without one", () => {
+    const rows = [
+      row({ kind: "quiz", venueId: "v1" }),
+      row({ kind: "sport", venueId: "v1" }),
+      row({ kind: "music" }), // no venueId → dropped from badge join
+    ];
+    const map = summariseWhatsOnByVenue(rows);
+    expect(map.size).toBe(1);
+    expect(map.has("v1")).toBe(true);
+    expect(map.get("v1")?.count).toBe(2);
+  });
+
+  it("picks the hero kind by priority (quiz > sport > deal > music)", () => {
+    const map = summariseWhatsOnByVenue([
+      row({ kind: "music", venueId: "v1" }),
+      row({ kind: "sport", venueId: "v1" }),
+      row({ kind: "quiz", venueId: "v1" }),
+    ]);
+    const summary = map.get("v1");
+    expect(summary?.heroKind).toBe("quiz");
+    expect(summary?.timed).toBe(true); // quiz is timed
+    expect(summary?.kinds).toEqual(["quiz", "sport", "music"]);
+  });
+
+  it("marks an untimed hero (sport-only) as not timed", () => {
+    const map = summariseWhatsOnByVenue([row({ kind: "sport", venueId: "v2" })]);
+    expect(map.get("v2")?.heroKind).toBe("sport");
+    expect(map.get("v2")?.timed).toBe(false);
+  });
+});
+
+describe("lane filtering + facets", () => {
+  const rows = [
+    row({ kind: "quiz", venueId: "v1" }),
+    row({ kind: "quiz", venueId: "v2" }),
+    row({ kind: "sport", venueId: "v3" }),
+  ];
+
+  it("filterLaneRows returns all when no kind, and matches by kind", () => {
+    expect(filterLaneRows(rows, null)).toHaveLength(3);
+    expect(filterLaneRows(rows, "quiz")).toHaveLength(2);
+    expect(filterLaneRows(rows, "sport")).toHaveLength(1);
+    expect(filterLaneRows(rows, "deal")).toHaveLength(0);
+  });
+
+  it("laneKindFacets counts present kinds in hero-priority order", () => {
+    const facets = laneKindFacets(rows);
+    expect(facets.map((f) => f.kind)).toEqual(["quiz", "sport"]);
+    expect(facets[0]).toMatchObject({ kind: "quiz", count: 2 });
+  });
+});
+
+describe("laneCardsFromRows", () => {
+  it("caps at the limit and preserves order", () => {
+    const rows = Array.from({ length: 8 }, (_, i) =>
+      row({ kind: "quiz", venueId: `v${i}`, title: `Quiz ${i}` }),
+    );
+    const cards = laneCardsFromRows(rows, { limit: 3 });
+    expect(cards).toHaveLength(3);
+    expect(cards[0].title).toBe("Quiz 0");
+  });
+
+  it("carries venueId + price and a London time for timed kinds", () => {
+    const [card] = laneCardsFromRows([
+      row({ kind: "quiz", venueId: "v1", priceGbp: 2 }),
+    ]);
+    expect(card.venueId).toBe("v1");
+    expect(card.priceGbp).toBe(2);
+    expect(card.timeLabel).toBe("8:00 pm"); // 19:00Z = 20:00 BST
+  });
+
+  it("leaves sport untimed (badge label instead of a clock)", () => {
+    const [card] = laneCardsFromRows([row({ kind: "sport", venueId: "v1" })]);
+    expect(card.timeLabel).toBeNull();
+    expect(card.badgeLabel).toBe("Screens live sport");
+  });
+});
+
+describe("time + provenance helpers", () => {
+  it("formatWhatsOnTime renders London wall-clock, null on garbage", () => {
+    expect(formatWhatsOnTime("2026-07-12T19:00:00.000Z")).toBe("8:00 pm");
+    expect(formatWhatsOnTime("not-a-date")).toBeNull();
+    expect(formatWhatsOnTime(undefined)).toBeNull();
+  });
+
+  it("laneTimeLabel honours per-kind timed flag", () => {
+    expect(laneTimeLabel(row({ kind: "quiz" }))).toBe("8:00 pm");
+    expect(laneTimeLabel(row({ kind: "sport" }))).toBeNull();
+  });
+
+  it("checkedLabel formats or reports unknown", () => {
+    expect(checkedLabel("2026-07-12T09:00:00.000Z")).toBe("Checked 12 Jul");
+    expect(checkedLabel(null)).toBe("Freshness unknown");
+    expect(checkedLabel("nope")).toBe("Freshness unknown");
+  });
+
+  it("kind meta matches owner decision 4 (quiz timed, sport untimed)", () => {
+    expect(WHATS_ON_KIND_META.quiz.timed).toBe(true);
+    expect(WHATS_ON_KIND_META.sport.timed).toBe(false);
+    expect(WHATS_ON_KIND_META.sport.badgeLabel).toBe("Screens live sport");
+  });
+});

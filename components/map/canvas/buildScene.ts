@@ -496,6 +496,43 @@ export function buildPubs(ctx: SceneCtx) {
       "circle-blur": 0.15,
     },
   });
+  // W1 What's-On tonight badge: a crisp accent ring on pins with a venueId-
+  // joined quiz/sport/deal/music row on tonight (feature prop `whatsOn` = hero
+  // kind). Colour reads the kind; timed heroes (quiz/deal/music) get a slightly
+  // stronger ring than the untimed "screens live sport" attribute badge. Pure
+  // property-driven layer on the EXISTING pubs source — no new source, frozen
+  // canvas honoured.
+  addLayerOnce({
+    id: "pubs-whatson-badge",
+    type: "circle",
+    source: "pubs",
+    minzoom: PIN_UNCLUSTER_ZOOM,
+    filter: ["all", ["!", ["has", "point_count"]], ["has", "whatsOn"]],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 15],
+      "circle-stroke-color": [
+        "match",
+        ["get", "whatsOn"],
+        "quiz", tokens.amber,
+        "sport", tokens.riverBright,
+        "deal", tokens.brassBright,
+        "music", tokens.river,
+        tokens.brass,
+      ] as maplibregl.ExpressionSpecification,
+      "circle-stroke-width": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        11,
+        ["case", ["get", "whatsOnTimed"], 1.8, 1.3],
+        15,
+        ["case", ["get", "whatsOnTimed"], 2.8, 2.1],
+      ],
+      "circle-stroke-opacity": dark ? 0.9 : 0.85,
+      "circle-blur": 0.08,
+    },
+  });
   // Story-band member halo (issue #15): while a band is active, its member
   // pubs get a token-tinted ring so they read as "part of this walk" — an
   // EMPHASIS only. The price fill under it (pubs-point) is untouched, so the

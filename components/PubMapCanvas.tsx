@@ -50,6 +50,7 @@ import {
   pubsToGeoJSON, poisToGeoJSON, routeToLine, routeToStops,
   bandCorridorGeoJSON, landmarksToGeoJSON,
 } from "@/components/map/canvas/geojson";
+import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
@@ -85,6 +86,12 @@ type PubMapCanvasProps = {
    * glyph; pin prices stay on the beer/pint path — never fake brand pricing.
    */
   drinkCategory?: string | null;
+  /**
+   * W1: venueId-joined What's-On summary per venue (quiz/sport/deal/music on
+   * tonight). Drives pin BADGES through the existing pin pipeline. Absent =
+   * no badges.
+   */
+  whatsOnByVenue?: Map<string, VenueWhatsOnSummary> | null;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
   /** Issue #15 story bands — active band id ("" = none), synced to the URL by PubMap. */
@@ -176,6 +183,7 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 const PUB_PIN_LAYERS = [
   "pubs-scraped-halo",
   "pubs-drops-halo",
+  "pubs-whatson-badge",
   "band-members-halo",
   "pubs-point",
   "pubs-selected-glow",
@@ -196,6 +204,7 @@ export default function PubMapCanvas({
   venueSignals = new Map(),
   favoritePint = null,
   drinkCategory = null,
+  whatsOnByVenue = null,
   onLandmarkSelect,
   activeBandId = "",
   onBandChange,
@@ -1121,6 +1130,7 @@ export default function PubMapCanvas({
       venueSignals,
       favoritePint,
       drinkCategory,
+      whatsOnByVenue,
     );
     if (!mapReady) return;
     applyToMap("pubs:data", (map) => {
@@ -1128,7 +1138,7 @@ export default function PubMapCanvas({
         pubsDataRef.current,
       );
     });
-  }, [venues, venueSignals, favoritePint, drinkCategory, mapReady, applyToMap]);
+  }, [venues, venueSignals, favoritePint, drinkCategory, whatsOnByVenue, mapReady, applyToMap]);
 
   // CityMCP tonight opportunities → source data + overlay visibility. Kept out
   // of the mount effect deps so live opportunity refreshes never remount MapLibre.

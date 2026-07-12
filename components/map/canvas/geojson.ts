@@ -5,6 +5,7 @@ import { drinkAccentForVenue } from "@/lib/scrapedPubs";
 import type { Landmark } from "@/lib/landmarks";
 import { bandAnchors, type StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
+import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import type { VenueSignal } from "./types";
 
 export function priceBucket(price: number | null): number {
@@ -19,11 +20,16 @@ export function pubsToGeoJSON(
   venueSignals: Map<string, VenueSignal>,
   favoritePint: string | null,
   drinkCategory: string | null = null,
+  // W1: venueId-joined What's-On summary per venue (quiz/sport/deal/music
+  // tonight). Feeds pin BADGES through the existing pin pipeline — a hero-kind
+  // glyph property the badge layer paints. Absent map = no badges (default).
+  whatsOnByVenue: Map<string, VenueWhatsOnSummary> | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: venues.map((venue) => {
       const signals = venueSignals.get(venue.id);
+      const whatsOn = whatsOnByVenue?.get(venue.id) ?? null;
       // Beer favorite-pint path only: re-price + dim non-servers. Non-beer
       // drink/brand lenses filter via filterVenues — never invent brand prices.
       const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
@@ -79,6 +85,12 @@ export function pubsToGeoJSON(
           drinkKind,
           scraped,
           icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
+          // W1 badge props. `whatsOn` is the hero kind slug (absent when the
+          // venue has nothing on tonight, so ["has","whatsOn"] filters cleanly);
+          // `whatsOnTimed` gates the "timed hero vs untimed attribute" styling.
+          ...(whatsOn
+            ? { whatsOn: whatsOn.heroKind, whatsOnTimed: whatsOn.timed }
+            : {}),
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
       };
