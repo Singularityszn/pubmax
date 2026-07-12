@@ -248,6 +248,51 @@
 .planShare .shareBar { margin-top: 20px; }
 
 .planComposer { max-width: 920px; margin: 0 auto; padding: clamp(22px, 5vw, 46px); display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.planComposer__templates {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  padding: 0 0 8px;
+}
+
+.planComposer__templates h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.planComposer__templatesLead {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.planComposer__templateRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.planComposer__template {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.planComposer__template:hover,
+.planComposer__template:focus-visible {
+  border-color: var(--plan-accent);
+  color: var(--plan-accent-strong);
+  outline: none;
+}
+
 .planComposer__concierge { grid-column: 1 / -1; padding: 0 0 28px; border-bottom: 1px solid var(--line); }
 .planComposer__concierge h2 { margin: 0; max-width: 600px; font-size: clamp(1.6rem, 4vw, 2.7rem); line-height: 1; }
 .planComposer__conciergeInput { margin-top: 20px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }

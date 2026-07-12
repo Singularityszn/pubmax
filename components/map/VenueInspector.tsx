@@ -1,7 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import VenueImage from "@/components/media/VenueImage";
+import {
+  Amenity,
+  ClaimBadge,
+  ProvenanceChip,
+} from "@/components/map/venueInspectorBits";
 import {
   BookOpen,
   ExternalLink,
@@ -23,7 +28,7 @@ import {
   formatPrice,
   type Venue,
 } from "@/lib/venues";
-import { buildVenueClaims, type ClaimKind, type Provenance } from "@/lib/curation";
+import { buildVenueClaims } from "@/lib/curation";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import {
   accessibilityChipLabels,
@@ -51,7 +56,6 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
-import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import { bandsForVenue, STORY_BANDS, type StoryBand } from "@/lib/storyBands";
 import { landmarks as londonLandmarks, nearestLandmarks, type Landmark } from "@/lib/landmarks";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
@@ -101,34 +105,6 @@ function isUserCancelledShare(error: unknown): boolean {
     "name" in error &&
     (error as { name?: unknown }).name === "AbortError"
   );
-}
-
-const PROVENANCE_LABEL: Record<Provenance, string> = {
-  sourced: "Sourced",
-  contributor: "Contributor",
-  anecdote: "Anecdote",
-  demo: "Demo",
-};
-
-function ProvenanceChip({ provenance }: { provenance: Provenance }) {
-  return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
-}
-
-const CLAIM_KIND_LABEL: Record<ClaimKind, string> = {
-  baseline: "Baseline",
-  sourced: "Sourced",
-  contributor: "Contributor",
-  anecdote: "Anecdote",
-  "needs-source": "Needs Source",
-};
-
-// Reuses .provChip; needs-source/baseline get their own colour classes in CSS.
-function ClaimBadge({ kind }: { kind: ClaimKind }) {
-  return <span className={`provChip ${kind}`}>{CLAIM_KIND_LABEL[kind]}</span>;
-}
-
-function Amenity({ active, label }: { active: boolean; label: string }) {
-  return <span className={active ? "amenity active" : "amenity"}>{label}</span>;
 }
 
 type VenueInspectorProps = {
@@ -349,7 +325,6 @@ export default function VenueInspector({
     setMenuViewVenueId(venue.id);
     setMenuView({ mode: "hub" });
   }
-  const venueImageUrl = proxiedVenueImageUrl(venue.imageUrl);
 
   // Place stories (Wave D): which curated corridors pass through this venue,
   // plus nearby landmark names for the Lore "Around here" section.
@@ -445,18 +420,13 @@ export default function VenueInspector({
         className="venueTabPanel"
         hidden={tab !== "overview"}
       >
-        {venueImageUrl ? (
-          <figure className="venueBaselinePhoto">
-            <Image
-              src={venueImageUrl}
-              alt={`${venue.name} exterior or bar photo`}
-              width={720}
-              height={420}
-              loading="lazy"
-              unoptimized
-            />
-          </figure>
-        ) : null}
+        <VenueImage
+          className="venueImage--header venueBaselinePhoto"
+          src={venue.imageUrl}
+          alt={`${venue.name} exterior or bar photo`}
+          width={720}
+          height={420}
+        />
         <p className="venueAddress">{venue.address}</p>
         <VenueActionStrip venue={venue} />
         <CityPlaceStrip
@@ -720,28 +690,24 @@ export default function VenueInspector({
                       <div className="instaFrame">
                         {drop.pintPhotoUrl ? (
                           <figure className="instaShot">
-                            <Image
+                            <VenueImage
                               className="dropPhoto"
                               src={drop.pintPhotoUrl}
                               alt={`Pint at ${venue.name} shared by ${drop.handle}`}
                               width={480}
                               height={480}
-                              loading="lazy"
-                              unoptimized
                             />
                             <figcaption>the pint</figcaption>
                           </figure>
                         ) : null}
                         {drop.venuePhotoUrl ? (
                           <figure className="instaShot">
-                            <Image
+                            <VenueImage
                               className="dropPhoto"
                               src={drop.venuePhotoUrl}
                               alt={`${drop.handle} at the bar at ${venue.name}`}
                               width={480}
                               height={480}
-                              loading="lazy"
-                              unoptimized
                             />
                             <figcaption>at the bar</figcaption>
                           </figure>
