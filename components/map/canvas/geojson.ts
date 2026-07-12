@@ -7,6 +7,8 @@ import { bandAnchors, type StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import type { VenueSignal } from "./types";
+import { hashEntranceSeed } from "./filters";
+import { PIN_ENTRANCE_BUCKETS } from "./tokens";
 
 export function priceBucket(price: number | null): number {
   if (price === null) return 3;
@@ -85,6 +87,10 @@ export function pubsToGeoJSON(
           drinkKind,
           scraped,
           icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
+          // M7 pin entrance — a stable per-pub stagger bucket (hash of id, not
+          // insertion order/coordinates) so the entrance cascade reads as a
+          // pleasant scatter rather than left-to-right or dataset-order.
+          entranceSeed: hashEntranceSeed(venue.id, PIN_ENTRANCE_BUCKETS),
           // W1 badge props. `whatsOn` is the hero kind slug (absent when the
           // venue has nothing on tonight, so ["has","whatsOn"] filters cleanly);
           // `whatsOnTimed` gates the "timed hero vs untimed attribute" styling.
