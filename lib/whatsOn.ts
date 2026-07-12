@@ -16,7 +16,13 @@ import {
 export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music"] as const;
 export type WhatsOnKind = (typeof WHATS_ON_KINDS)[number];
 
-export const WHATS_ON_CONFIDENCES = ["confirmed", "listed"] as const;
+// "confirmed": venue/organiser directly confirms this row. "listed": a
+// first-party listing names this exact row (e.g. a quiz supplier's own venue
+// page). "derived": cross-referenced from two separate first-party facts that
+// were never jointly confirmed by either source (e.g. "this pub screens live
+// sport" x "this fixture kicks off at 8pm") — a plausible, sourced inference,
+// not a confirmation. See scripts/whatson/sportFixtures.mjs.
+export const WHATS_ON_CONFIDENCES = ["confirmed", "listed", "derived"] as const;
 export type WhatsOnConfidence = (typeof WHATS_ON_CONFIDENCES)[number];
 
 // Provenance is non-negotiable: every row is attributable to a real link.

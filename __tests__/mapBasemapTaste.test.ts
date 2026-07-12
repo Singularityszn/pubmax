@@ -2,8 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   applyBasemapTaste,
+  applySelectionMute,
   buildPalette,
   clusterCircleColorExpr,
+  isBasemapSelectionMuteLayer,
+  SELECTION_MUTE_OPACITY,
 } from "@/lib/mapBasemapTaste";
 
 const tokens = {
@@ -178,5 +181,141 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     expect(serialized).toContain("47, 143, 91"); // pint rgb
     expect(serialized).toContain("217, 159, 69"); // amber
     expect(serialized).toContain("176, 129, 58"); // brass
+  });
+});
+
+describe("M2 · POI-at-initiation selection mute", () => {
+  describe("isBasemapSelectionMuteLayer (pure classifier)", () => {
+    it("matches baked transit / POI / street-name symbol layers", () => {
+      for (const id of [
+        "poi_z16",
+        "poi_transit",
+        "poi_label",
+        "road_label",
+        "road_shield",
+        "highway-name-path",
+        "transit_stop_label",
+        "railway_station_label",
+        "airport-label",
+      ]) {
+        expect(isBasemapSelectionMuteLayer(id, "symbol")).toBe(true);
+      }
+    });
+
+    it("leaves place / water labels and road GEOMETRY untouched", () => {
+      // Place + water labels are legit overview context — never muted.
+      for (const id of [
+        "place_city",
+        "place_suburb",
+        "place_country_1",
+        "water_name",
+        "waterway-name",
+        "mountain_peak",
+      ]) {
+        expect(isBasemapSelectionMuteLayer(id, "symbol")).toBe(false);
+      }
+      // Road/water GEOMETRY are line/fill layers, not symbols — out of scope.
+      expect(isBasemapSelectionMuteLayer("road_major", "line")).toBe(false);
+      expect(isBasemapSelectionMuteLayer("water", "fill")).toBe(false);
+      expect(isBasemapSelectionMuteLayer("background", "background")).toBe(false);
+    });
+
+    it("skips our own app layers (they are muted by explicit id, not the classifier)", () => {
+      for (const id of [
+        "pois-label",
+        "pois-transport-major",
+        "pubs-point",
+        "tube-lines-color",
+        "landmarks-icon",
+        "route-line",
+        "tonight-point",
+      ]) {
+        expect(isBasemapSelectionMuteLayer(id, "symbol")).toBe(false);
+      }
+    });
+  });
+
+  // A minimal fake map: layers with per-prop paint values that getPaintProperty
+  // reads back and setPaintProperty mutates, so we can assert snapshot/restore.
+  function makeMuteMap() {
+    const paint: Record<string, Record<string, unknown>> = {
+      // Baked basemap symbol (should be muted).
+      poi_label: { "text-opacity": 0.9 },
+      road_label: { "text-opacity": 1 },
+      // Baked place label (should be LEFT ALONE).
+      place_city: { "text-opacity": 0.95 },
+      // Our own app layers (muted by explicit id list).
+      "pois-label": { "text-opacity": 0.88 },
+      "tube-lines-color": { "line-opacity": ["interpolate"] },
+      "landmarks-icon": { "icon-opacity": 1, "text-opacity": 1 },
+    };
+    const layerTypes: Record<string, string> = {
+      poi_label: "symbol",
+      road_label: "symbol",
+      place_city: "symbol",
+      "pois-label": "symbol",
+      "tube-lines-color": "line",
+      "landmarks-icon": "symbol",
+    };
+    return {
+      paint,
+      getLayer: (id: string) => (paint[id] ? { id } : undefined),
+      getPaintProperty: (id: string, prop: string) => paint[id]?.[prop],
+      setPaintProperty: (id: string, prop: string, value: unknown) => {
+        (paint[id] ??= {})[prop] = value;
+      },
+      getStyle: () => ({
+        layers: Object.keys(layerTypes).map((id) => ({ id, type: layerTypes[id] })),
+      }),
+    };
+  }
+
+  it("mutes basemap + app label layers on selection, leaves place labels alone", () => {
+    const map = makeMuteMap();
+    const store = new Map<string, unknown>();
+    applySelectionMute(map, true, store);
+
+    expect(map.paint.poi_label["text-opacity"]).toBe(SELECTION_MUTE_OPACITY);
+    expect(map.paint.road_label["text-opacity"]).toBe(SELECTION_MUTE_OPACITY);
+    expect(map.paint["pois-label"]["text-opacity"]).toBe(SELECTION_MUTE_OPACITY);
+    expect(map.paint["tube-lines-color"]["line-opacity"]).toBe(SELECTION_MUTE_OPACITY);
+    expect(map.paint["landmarks-icon"]["icon-opacity"]).toBe(SELECTION_MUTE_OPACITY);
+    // Place labels are overview context — untouched.
+    expect(map.paint.place_city["text-opacity"]).toBe(0.95);
+  });
+
+  it("restores EXACT originals on deselect (idempotent select/deselect cycles)", () => {
+    const map = makeMuteMap();
+    const store = new Map<string, unknown>();
+    const before = JSON.stringify(map.paint);
+
+    // Two select→deselect cycles must land back on the exact original paint.
+    for (let i = 0; i < 2; i++) {
+      applySelectionMute(map, true, store);
+      applySelectionMute(map, false, store);
+      expect(JSON.stringify(map.paint)).toBe(before);
+      expect(store.size).toBe(0);
+    }
+  });
+
+  it("re-muting while already muted does not clobber the stored original", () => {
+    const map = makeMuteMap();
+    const store = new Map<string, unknown>();
+    applySelectionMute(map, true, store); // captures 0.9
+    applySelectionMute(map, true, store); // must NOT capture the muted 0.12
+    expect(store.get("poi_label::text-opacity")).toBe(0.9);
+    applySelectionMute(map, false, store);
+    expect(map.paint.poi_label["text-opacity"]).toBe(0.9);
+  });
+
+  it("restores an unset paint prop to style default via undefined", () => {
+    const map = makeMuteMap();
+    // road_label has text-opacity but no icon-opacity — snapshot must be undefined.
+    const store = new Map<string, unknown>();
+    applySelectionMute(map, true, store);
+    expect(store.get("road_label::icon-opacity")).toBeUndefined();
+    applySelectionMute(map, false, store);
+    // Restored to undefined (style default), not left at the mute value.
+    expect(map.paint.road_label["icon-opacity"]).toBeUndefined();
   });
 });

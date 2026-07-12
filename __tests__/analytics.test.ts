@@ -1,56 +1,90 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// Mock the @vercel/analytics `track` export so we can assert on calls without
-// a real browser/DSN, and so the SSR/no-window guard is exercised directly
-// (the vitest environment here is "node" — window is undefined by default).
-const trackMock = vi.fn();
-vi.mock("@vercel/analytics", () => ({
-  track: (...args: unknown[]) => trackMock(...args),
-}));
-
 import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
 
-describe("trackEvent", () => {
-  afterEach(() => {
-    trackMock.mockReset();
-    delete (globalThis as { window?: unknown }).window;
-  });
+type FakeNavigator = Partial<Navigator> & {
+  sendBeacon?: (url: string, data?: BodyInit | null) => boolean;
+  doNotTrack?: string;
+};
 
+function setWindow(navigatorOverrides: FakeNavigator = {}): void {
+  const nav: FakeNavigator = {
+    sendBeacon: vi.fn().mockReturnValue(true),
+    ...navigatorOverrides,
+  };
+  (globalThis as { navigator?: unknown }).navigator = nav;
+  (globalThis as { window?: unknown }).window = {
+    location: { pathname: "/tonight" },
+  };
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  delete (globalThis as { window?: unknown }).window;
+  delete (globalThis as { navigator?: unknown }).navigator;
+});
+
+describe("trackEvent", () => {
   it("no-ops when window is undefined (SSR / tests) and never throws", () => {
     expect(() => trackEvent("cmdk_open")).not.toThrow();
-    expect(trackMock).not.toHaveBeenCalled();
   });
 
-  it("forwards name + props to track() when a browser window is present", () => {
-    (globalThis as { window?: unknown }).window = {};
+  it("sends a known event via sendBeacon with allow-listed props", () => {
+    setWindow();
     trackEvent("booking_click", { venueId: "venue-1", tier: "direct" });
-    expect(trackMock).toHaveBeenCalledWith("booking_click", {
-      venueId: "venue-1",
-      tier: "direct",
-    });
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).toHaveBeenCalledTimes(1);
+    const [url, blob] = beacon.mock.calls[0];
+    expect(url).toBe("/api/events");
+    expect(blob).toBeInstanceOf(Blob);
   });
 
-  it("forwards with no props when none are given", () => {
-    (globalThis as { window?: unknown }).window = {};
+  it("forwards with empty props when none are given", () => {
+    setWindow();
     trackEvent("tour_complete");
-    expect(trackMock).toHaveBeenCalledWith("tour_complete", undefined);
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).toHaveBeenCalledTimes(1);
   });
 
-  it("swallows errors thrown by track() (analytics must never break the app)", () => {
-    (globalThis as { window?: unknown }).window = {};
-    trackMock.mockImplementationOnce(() => {
-      throw new Error("blocked by adblocker");
+  it("drops an unknown event silently (never throws)", () => {
+    setWindow();
+    expect(() =>
+      // @ts-expect-error intentionally invalid event name for this test
+      trackEvent("not_a_real_event", { count: 3 }),
+    ).not.toThrow();
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).not.toHaveBeenCalled();
+  });
+
+  it("honors Do-Not-Track and never calls sendBeacon", () => {
+    setWindow({ doNotTrack: "1" });
+    trackEvent("plan_created", { count: 3 });
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).not.toHaveBeenCalled();
+  });
+
+  it("swallows errors thrown by sendBeacon (analytics must never break the app)", () => {
+    setWindow({
+      sendBeacon: vi.fn().mockImplementation(() => {
+        throw new Error("blocked by adblocker");
+      }),
     });
-    expect(() => trackEvent("plan_created", { count: 3 })).not.toThrow();
+    expect(() => trackEvent("tour_complete", { completed: true })).not.toThrow();
   });
 
-  it("fires lane_to_plan event with source + stops props", () => {
-    (globalThis as { window?: unknown }).window = {};
+  it("fires lane_to_plan event with source + stops props via sendBeacon", () => {
+    setWindow();
     trackEvent("lane_to_plan", { source: "tonight-lane", stops: 3 });
-    expect(trackMock).toHaveBeenCalledWith("lane_to_plan", {
-      source: "tonight-lane",
-      stops: 3,
-    });
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).toHaveBeenCalledTimes(1);
+    const [url, blob] = beacon.mock.calls[0];
+    expect(url).toBe("/api/events");
+    expect(blob).toBeInstanceOf(Blob);
   });
 });
 

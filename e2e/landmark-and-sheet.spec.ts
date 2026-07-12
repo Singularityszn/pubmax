@@ -23,6 +23,16 @@ import { test, expect, type Page } from "@playwright/test";
 // House style (e2e/social-loop.spec.ts): read-only, `.count()`-guarded,
 // WebGL-agnostic, web-first assertions, no waitForTimeout.
 
+// The first-run tour (app/layout.tsx <FirstRunTour />, added after this spec)
+// overlays a .tourScrim on fresh storage that intercepts pointer events —
+// mark it seen up-front (same seed screenshots.spec.ts uses) so tab clicks
+// inside the venue sheet aren't swallowed by the onboarding overlay.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+  });
+});
+
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
@@ -73,8 +83,10 @@ test("venue Story tab renders the heritage story: copy, and credited source when
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
 
-  // Switch to the Story tab and assert its panel becomes the visible one.
-  const storyTab = tablist.getByRole("tab", { name: "Story" });
+  // Switch to the story tab and assert its panel becomes the visible one.
+  // Target by the stable #venueTab-story id (the label was renamed "Story" →
+  // "Lore" in VenueInspector after this spec was written).
+  const storyTab = page.locator("#venueTab-story");
   await storyTab.click();
   await expect(storyTab).toHaveAttribute("aria-selected", "true");
 

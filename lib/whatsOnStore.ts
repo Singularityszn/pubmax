@@ -18,6 +18,7 @@ import {
 import { fetchThingsToDo, type ThingsToDoResult } from "@/lib/citymcp/client";
 import rawQuizLondon from "../public/data/whats_on/quiz_london.json";
 import rawDealsLondon from "../public/data/whats_on/deals_london.json";
+import rawSportFixtures from "../public/data/whats_on/sport_fixtures.json";
 import rawWhatsOnLatest from "../public/data/whats_on/latest.json";
 
 // Parse a bundled file with `now` fixed to the file's own generatedAt, so a row
@@ -30,13 +31,16 @@ function generatedAtOf(raw: unknown): number {
 
 // Validated + de-duped baseline rows from every bundled whats_on rows file.
 // (Attribute sidecars like sport_attributes.json are a different contract and
-// are deliberately NOT loaded here — they carry no startsAt.)
+// are deliberately NOT loaded here — they carry no startsAt. sport_fixtures.json
+// IS loaded: it derives startsAt rows from sport_attributes.json x a fixture
+// calendar — see scripts/whatson/sportFixtures.mjs.)
 export function loadBaselineWhatsOn(): WhatsOnRow[] {
   const quiz = parseWhatsOnRows(rawQuizLondon, generatedAtOf(rawQuizLondon));
   const deals = parseWhatsOnRows(rawDealsLondon, generatedAtOf(rawDealsLondon));
+  const sportFixtures = parseWhatsOnRows(rawSportFixtures, generatedAtOf(rawSportFixtures));
   const latest = parseWhatsOnRows(rawWhatsOnLatest, generatedAtOf(rawWhatsOnLatest));
   const byKey = new Map<string, WhatsOnRow>();
-  for (const row of [...quiz, ...deals, ...latest]) {
+  for (const row of [...quiz, ...deals, ...sportFixtures, ...latest]) {
     const key = dedupeKey(row);
     const existing = byKey.get(key);
     if (!existing || Date.parse(row.observedAt) > Date.parse(existing.observedAt)) {
@@ -46,7 +50,13 @@ export function loadBaselineWhatsOn(): WhatsOnRow[] {
   return Array.from(byKey.values());
 }
 
-const CONFIDENCE_RANK: Record<WhatsOnRow["confidence"], number> = { confirmed: 2, listed: 1 };
+// derived < listed < confirmed: a cross-referenced inference never outranks
+// an actual listing or confirmation on collision (mergeWhatsOn below).
+const CONFIDENCE_RANK: Record<WhatsOnRow["confidence"], number> = {
+  confirmed: 2,
+  listed: 1,
+  derived: 0,
+};
 
 // Union baseline + live, de-duped by the same (place, kind, startsAt) key. A
 // confirmed baseline row beats a listed live row on collision; otherwise the
@@ -67,6 +77,22 @@ export function mergeWhatsOn(baseline: WhatsOnRow[], live: WhatsOnRow[]): WhatsO
     }
   }
   return Array.from(byKey.values());
+}
+
+// A row more than this far in the past is treated as a finished event still
+// sitting in a bundled static file (nothing expires those on its own) rather
+// than something worth serving. The "tonight" window already excludes
+// past-window rows via filterTonight/isOnTonight, so this only bites on the
+// DEFAULT (no window) query path — the one that would otherwise serve a
+// derived sport fixture (or any other row) forever once its kickoff has
+// passed.
+const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+function dropStale(rows: WhatsOnRow[], now: number): WhatsOnRow[] {
+  return rows.filter((row) => {
+    const startsAt = Date.parse(row.startsAt);
+    return !Number.isFinite(startsAt) || now - startsAt < STALE_AFTER_MS;
+  });
 }
 
 export type LoadWhatsOnParams = {
@@ -121,6 +147,7 @@ export async function loadWhatsOn(
   }
 
   let rows = mergeWhatsOn(baseline, live);
+  if (!params.window) rows = dropStale(rows, now);
   if (params.kind) rows = filterByKind(rows, params.kind);
   if (params.window === "tonight") rows = filterTonight(rows, now);
   if (params.near) rows = sortByNear(rows, params.near);

@@ -137,9 +137,15 @@ export default function TonightNearbyLane() {
       className="discoverSection tonightNearbySection"
       aria-labelledby="tonightNearby-title"
     >
-      <h2 id="tonightNearby-title" className="discoverSectionTitle">
-        Tonight nearby
-      </h2>
+      <div className="tonightNearbyHeader">
+        <h2 id="tonightNearby-title" className="discoverSectionTitle">
+          Tonight nearby
+        </h2>
+        <Link href="/tonight" className="tonightNearbySeeAll pressable">
+          See all tonight
+          <ArrowUpRight size={14} aria-hidden="true" />
+        </Link>
+      </div>
       <p className="discoverSectionDek">
         Curated things to do in London tonight — via CityMCP London. Grounded,
         upstream-sourced; no invented listings.

@@ -979,3 +979,41 @@ html[data-legacy="1"] .venueTabPanel::before {
     transform: translateY(0);
   }
 }
+
+/* "On tonight at this venue" chips (Wave A · A1). A glyph-led chip per event
+   kind sits just under the venue title; the whole row is fed by the grounded
+   CityMCP things_to_do tonight window and fail-softs to nothing when the venue
+   has no listing. Kept compact so it never crowds the title/tabs. */
+.venueTonightChips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+
+.venueTonightChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.venueTonightChip svg {
+  color: var(--brass);
+}
+
+.venueTonightChecked {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
