@@ -8,6 +8,7 @@ import {
   glowPulsePaint,
   hashEntranceSeed,
   pinEntranceLocalT,
+  pinEntranceLocalTExpr,
   pinEntranceIconSizeExpr,
   pinEntranceIconOpacityExpr,
   PIN_ICON_SIZE_EXPR,
@@ -159,6 +160,84 @@ describe("pinEntranceLocalT (M7 pure stagger/ramp math)", () => {
   it("clamps to [0, 1] outside the ramp window", () => {
     expect(pinEntranceLocalT(-500, 0, 14, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS)).toBe(0);
     expect(pinEntranceLocalT(999999, 13, 14, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS)).toBe(1);
+  });
+});
+
+// Tiny recursive evaluator for the specific arithmetic/get/coalesce subset of
+// MapLibre expression syntax pinEntranceLocalTExpr is built from — enough to
+// prove, without a live map, that the expression twin and the plain-number
+// twin (pinEntranceLocalT) compute the exact same ramp. `entranceSeed`
+// missing from `props` (M7 nit — guard against undefined/missing
+// entranceSeed) surfaces as `undefined` here, exactly like MapLibre's `get`.
+function evalMapLibreExpr(expr: unknown, props: Record<string, unknown>): number {
+  if (!Array.isArray(expr)) return expr as number;
+  const [op, ...args] = expr as [string, ...unknown[]];
+  if (op === "get") return props[args[0] as string] as number;
+  if (op === "coalesce") {
+    for (const a of args) {
+      const v = Array.isArray(a) ? evalMapLibreExpr(a, props) : (a as number | undefined | null);
+      if (v !== undefined && v !== null) return v as number;
+    }
+    return undefined as unknown as number;
+  }
+  const vals = args.map((a) => evalMapLibreExpr(a, props));
+  switch (op) {
+    case "+":
+      return vals[0] + vals[1];
+    case "-":
+      return vals[0] - vals[1];
+    case "*":
+      return vals[0] * vals[1];
+    case "/":
+      return vals[0] / vals[1];
+    case "min":
+      return Math.min(...vals);
+    case "max":
+      return Math.max(...vals);
+    default:
+      throw new Error(`evalMapLibreExpr: unhandled op "${op}"`);
+  }
+}
+
+describe("pinEntranceLocalTExpr (M7 — MapLibre-expression twin of pinEntranceLocalT)", () => {
+  const buckets = PIN_ENTRANCE_BUCKETS;
+  const stagger = PIN_ENTRANCE_STAGGER_MS;
+  const ramp = PIN_ENTRANCE_RAMP_MS;
+
+  it("evaluates to 0 (hidden) at elapsed=0, for every bucket", () => {
+    const expr = pinEntranceLocalTExpr(0, buckets, stagger, ramp);
+    for (let seed = 0; seed < buckets; seed++) {
+      expect(evalMapLibreExpr(expr, { entranceSeed: seed })).toBe(0);
+    }
+  });
+
+  it("evaluates to 1 (full) once stagger + ramp have elapsed, for every bucket", () => {
+    const expr = pinEntranceLocalTExpr(PIN_ENTRANCE_TOTAL_MS, buckets, stagger, ramp);
+    for (let seed = 0; seed < buckets; seed++) {
+      expect(evalMapLibreExpr(expr, { entranceSeed: seed })).toBe(1);
+    }
+  });
+
+  it("matches the plain-number twin (pinEntranceLocalT) across the ramp", () => {
+    const elapsedSamples = [0, 50, stagger / 2, stagger, stagger + ramp / 2, PIN_ENTRANCE_TOTAL_MS, 5000];
+    for (const elapsedMs of elapsedSamples) {
+      const expr = pinEntranceLocalTExpr(elapsedMs, buckets, stagger, ramp);
+      for (let seed = 0; seed < buckets; seed++) {
+        expect(evalMapLibreExpr(expr, { entranceSeed: seed })).toBeCloseTo(
+          pinEntranceLocalT(elapsedMs, seed, buckets, stagger, ramp),
+          10,
+        );
+      }
+    }
+  });
+
+  it("M7 nit — a missing entranceSeed coalesces to 0 instead of NaN-ing the ramp", () => {
+    const expr = pinEntranceLocalTExpr(PIN_ENTRANCE_TOTAL_MS, buckets, stagger, ramp);
+    // No `entranceSeed` key at all — the real-world "feature forgot the prop" case.
+    const result = evalMapLibreExpr(expr, {});
+    expect(result).not.toBeNaN();
+    // Coalesces to seed 0 (no stagger delay) — same result as an explicit seed 0.
+    expect(result).toBe(evalMapLibreExpr(expr, { entranceSeed: 0 }));
   });
 });
 

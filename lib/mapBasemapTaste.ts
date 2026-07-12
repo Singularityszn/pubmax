@@ -411,6 +411,20 @@ export function applyBasemapTaste(
  *  for the selected pub. */
 export const SELECTION_MUTE_OPACITY = 0.12;
 
+/** Issue #222 — the mute must only ever ATTENUATE a layer's opacity, never
+ *  raise it. A flat opacity assignment (the old behaviour) silently raises
+ *  any original whose zoom-ramp value is already below SELECTION_MUTE_OPACITY
+ *  at the current zoom — e.g. `pois-transport-minor`'s icon-opacity ramps
+ *  0→1 across zoom 12.4–13.1 (buildScene.ts); at zoom 12.4 it's invisible
+ *  (0), and a flat 0.12 mute would pop it visible. `min` composes with any
+ *  original — a plain number, a zoom/data expression, or unset (which
+ *  defaults to the style spec's opacity default of 1) — and MapLibre
+ *  re-evaluates the whole expression every frame, so the attenuation tracks
+ *  a zoom ramp continuously instead of freezing a one-shot snapshot value. */
+export function muteOpacityExpr(original: unknown, opacity: number): unknown {
+  return ["min", original ?? 1, opacity];
+}
+
 // Our own scene layers carry these prefixes; the basemap classifier skips them
 // so it only ever matches genuinely baked (stock-style) symbol layers.
 const APP_LAYER_PREFIXES = [
@@ -473,6 +487,13 @@ const BASEMAP_MUTE_PROPS = ["text-opacity", "icon-opacity"] as const;
  * clears the store. A style reload wipes the live layers, so the caller must
  * clear the store and re-mute after style.load (see applySelectionState) —
  * exactly the applyBasemapTaste re-apply pattern.
+ *
+ * Issue #222 — the muted value is never the flat `opacity` literal; it's
+ * `muteOpacityExpr(original, opacity)` (`["min", original, opacity]`), so a
+ * zoom-ramped original that's already below `opacity` at the current zoom is
+ * attenuated further, never raised. `store` always holds the true pre-mute
+ * original (re-mute reads it back rather than re-snapshotting the already
+ * muted paint value), so nested mute calls can't compound the min().
  */
 export function applySelectionMute(
   map: MuteMap,
@@ -489,7 +510,7 @@ export function applySelectionMute(
       for (const prop of props) {
         const key = `${id}::${prop}`;
         if (!store.has(key)) store.set(key, map.getPaintProperty(id, prop));
-        tryPaint(map, id, prop, opacity);
+        tryPaint(map, id, prop, muteOpacityExpr(store.get(key), opacity));
       }
     }
     return;

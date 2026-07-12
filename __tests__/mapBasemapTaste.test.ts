@@ -8,9 +8,11 @@ import {
   clusterCircleColorExpr,
   isBasemapSelectionMuteLayer,
   mixHex,
+  muteOpacityExpr,
   SELECTION_MUTE_OPACITY,
   withAlpha,
 } from "@/lib/mapBasemapTaste";
+import { applySelectionState, type SceneCtx } from "@/components/map/canvas/buildScene";
 
 const tokens = {
   paper: "#f4efe4",
@@ -380,11 +382,16 @@ describe("M2 · POI-at-initiation selection mute", () => {
     const store = new Map<string, unknown>();
     applySelectionMute(map, true, store);
 
-    expect(map.paint.poi_label["text-opacity"]).toBe(SELECTION_MUTE_OPACITY);
-    expect(map.paint.road_label["text-opacity"]).toBe(SELECTION_MUTE_OPACITY);
-    expect(map.paint["pois-label"]["text-opacity"]).toBe(SELECTION_MUTE_OPACITY);
-    expect(map.paint["tube-lines-color"]["line-opacity"]).toBe(SELECTION_MUTE_OPACITY);
-    expect(map.paint["landmarks-icon"]["icon-opacity"]).toBe(SELECTION_MUTE_OPACITY);
+    // Issue #222 — the muted value is min(original, 0.12), not a flat 0.12.
+    expect(map.paint.poi_label["text-opacity"]).toEqual(["min", 0.9, SELECTION_MUTE_OPACITY]);
+    expect(map.paint.road_label["text-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
+    expect(map.paint["pois-label"]["text-opacity"]).toEqual(["min", 0.88, SELECTION_MUTE_OPACITY]);
+    expect(map.paint["tube-lines-color"]["line-opacity"]).toEqual([
+      "min",
+      ["interpolate"],
+      SELECTION_MUTE_OPACITY,
+    ]);
+    expect(map.paint["landmarks-icon"]["icon-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
     // Place labels are overview context — untouched.
     expect(map.paint.place_city["text-opacity"]).toBe(0.95);
   });
@@ -422,5 +429,85 @@ describe("M2 · POI-at-initiation selection mute", () => {
     applySelectionMute(map, false, store);
     // Restored to undefined (style default), not left at the mute value.
     expect(map.paint.road_label["icon-opacity"]).toBeUndefined();
+  });
+});
+
+describe("muteOpacityExpr (issue #222 — mute must only ever attenuate)", () => {
+  it("wraps the original in a min() against the mute floor", () => {
+    expect(muteOpacityExpr(0.9, SELECTION_MUTE_OPACITY)).toEqual(["min", 0.9, SELECTION_MUTE_OPACITY]);
+  });
+
+  it("defaults a missing (unset) original to the style spec's opacity default of 1", () => {
+    expect(muteOpacityExpr(undefined, SELECTION_MUTE_OPACITY)).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
+    expect(muteOpacityExpr(null, SELECTION_MUTE_OPACITY)).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
+  });
+
+  it("never raises a zoom-ramped original that dips below the mute floor", () => {
+    // pois-transport-minor's real icon-opacity ramp (buildScene.ts): 0 at
+    // zoom 12.4, 1 by zoom 13.1. At the low end it's already invisible (0) —
+    // min(0, 0.12) must stay 0, not jump to 0.12 and pop the icon visible.
+    const expr = muteOpacityExpr(0, SELECTION_MUTE_OPACITY) as [string, number, number];
+    expect(expr).toEqual(["min", 0, SELECTION_MUTE_OPACITY]);
+    expect(expr[1]).toBe(0); // the pre-mute original, verbatim — never rewritten upward
+  });
+
+  it("still attenuates a plain original that sits above the mute floor", () => {
+    const expr = muteOpacityExpr(0.98, SELECTION_MUTE_OPACITY) as [string, number, number];
+    expect(expr[2]).toBe(SELECTION_MUTE_OPACITY);
+  });
+});
+
+describe("style.load recapture path (applySelectionState, buildScene.ts)", () => {
+  // A minimal SceneCtx-shaped fake: applySelectionState only reads
+  // map/selectionMuteStore/selectedId off ctx, so the rest can stay absent.
+  function makeCtx(map: unknown, store: Map<string, unknown>, selectedId: string): SceneCtx {
+    return { map, selectionMuteStore: store, selectedId } as unknown as SceneCtx;
+  }
+
+  it("clears stale originals from the old style and re-snapshots fresh ones from the new style", () => {
+    // Simulate the NEW style's freshly-rebuilt pois-transport-minor layer,
+    // caught at the low end of its zoom ramp (icon-opacity 0 — invisible).
+    const paint: Record<string, Record<string, unknown>> = {
+      "pois-transport-minor": { "icon-opacity": 0 },
+    };
+    const map = {
+      getLayer: (id: string) => (paint[id] ? { id } : undefined),
+      getPaintProperty: (id: string, prop: string) => paint[id]?.[prop],
+      setPaintProperty: (id: string, prop: string, value: unknown) => {
+        (paint[id] ??= {})[prop] = value;
+      },
+      getStyle: () => ({ layers: [{ id: "pois-transport-minor", type: "symbol" }] }),
+    };
+
+    // A STALE store entry left over from the OLD style — e.g. a moment where
+    // the layer's icon-opacity happened to be 0.9 pre-mute. If this survived
+    // the reload, muteOpacityExpr(0.9, 0.12) === min(0.9, 0.12) = 0.12 would
+    // raise the fresh (0-opacity) layer visible, reintroducing #222.
+    const store = new Map<string, unknown>([["pois-transport-minor::icon-opacity", 0.9]]);
+
+    applySelectionState(makeCtx(map, store, "venue-1"));
+
+    // The stale 0.9 must be gone — re-snapshotted from the NEW style's own
+    // fresh paint value (0), not reused from before the reload.
+    expect(store.get("pois-transport-minor::icon-opacity")).toBe(0);
+    // The muted paint attenuates the FRESH original, never the stale one —
+    // min(0, 0.12) stays 0, not min(0.9, 0.12) = 0.12 (a raise).
+    expect(paint["pois-transport-minor"]["icon-opacity"]).toEqual(["min", 0, SELECTION_MUTE_OPACITY]);
+  });
+
+  it("with nothing selected, a reload is a pure clear — no mute is (re)applied", () => {
+    const setPaintProperty = vi.fn();
+    const map = {
+      getLayer: () => ({ id: "pois-transport-minor" }),
+      getPaintProperty: () => 0,
+      setPaintProperty,
+      getStyle: () => ({ layers: [] }),
+    };
+    const store = new Map<string, unknown>([["stale::key", 1]]);
+
+    applySelectionState(makeCtx(map, store, ""));
+
+    expect(store.size).toBe(0);
+    expect(setPaintProperty).not.toHaveBeenCalled();
   });
 });
