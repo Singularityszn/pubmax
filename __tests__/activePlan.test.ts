@@ -212,4 +212,17 @@ describe("markNightModeActiveFired (session dedupe, #4)", () => {
     expect(markNightModeActiveFired(id)).toBe(true);
     expect(markNightModeActiveFired(id)).toBe(false);
   });
+
+  it("syncs to in-memory on successful storage write; prevents refire if storage later fails", () => {
+    const id = "33333333-4444-5555-8666-777777777777";
+    // First call succeeds in both storage and memory.
+    expect(markNightModeActiveFired(id)).toBe(true);
+    expect(markNightModeActiveFired(id)).toBe(false);
+    // Now simulate storage failure on subsequent checks (e.g., becoming restricted).
+    vi.spyOn(window.sessionStorage, "getItem").mockImplementation(() => {
+      throw new Error("storage restricted");
+    });
+    // The in-memory Set should still have it, preventing a refire.
+    expect(markNightModeActiveFired(id)).toBe(false);
+  });
 });
