@@ -94,6 +94,7 @@ describe("laneSourceFromSearch", () => {
     expect(laneSourceFromSearch("?src=whats-on-quiz&x=1")).toBe("whats-on-quiz");
     expect(laneSourceFromSearch("?src=whats-on-sport")).toBe("whats-on-sport");
     expect(laneSourceFromSearch("?src=whats-on-deal")).toBe("whats-on-deal");
+    expect(laneSourceFromSearch("?src=whats-on-music")).toBe("whats-on-music");
   });
 
   it("returns null without a src param (default /plan visits stay silent)", () => {
