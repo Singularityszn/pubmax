@@ -14,11 +14,11 @@
 //   Wholesale scraping of a fixture/results database (livescore-style
 //   aggregators, betting-odds sites, etc.) is exactly the "protected
 //   database" scraping PRD_WHATS_ON forbids (see "Attributes" owner decision
-//   + Guardrails). FIFA's own public match-schedule / match-centre pages are
-//   the source for every fixture below; each entry cites its own match-centre
-//   URL individually. A weekly refresh only has to hand-edit this file's
-//   small SPORT_FIXTURES list — cheaper AND more honest than standing up a
-//   scraper against a source that would need to be re-vetted for
+//   + Guardrails). FIFA's own public match-schedule page is the source for
+//   every fixture below (see FIFA_SOURCE); the fixture list itself is
+//   hand-curated, not fetched. A weekly refresh only has to hand-edit this
+//   file's small SPORT_FIXTURES list — cheaper AND more honest than standing
+//   up a scraper against a source that would need to be re-vetted for
 //   permissibility every time the calendar moves on.
 //
 // SCOPE — why only two fixtures ship in this seed: squarely inside the FIFA
@@ -34,20 +34,18 @@
 // refresh should replace this list wholesale once the Premier League
 // calendar resumes.
 //
-// VERIFIED 2026-07-12 (both quarter-finals played 2026-07-09/11, so both
-// semi-final matchups are now decided — no placeholder teams remain):
-//   SF1 (Match 101): France beat Morocco 2-0, Spain beat Belgium 2-1 —
-//     France v Spain, AT&T Stadium, Dallas, Tue 14 Jul 2026, kickoff 2pm CT /
-//     3pm ET / 20:00 BST London. Confirmed by FIFA match centre + independent
-//     press (NBC Sports, Fox Sports, Sky Sports, kickoffclock.com) citing the
-//     same 20:00 BST slot.
-//   SF2 (Match 102): England beat Norway 2-1 (a.e.t.), Argentina beat
-//     Switzerland 3-1 (a.e.t.) — England v Argentina, Mercedes-Benz Stadium,
-//     Atlanta, Wed 15 Jul 2026, kickoff 3pm ET / 20:00 BST London. Confirmed
-//     by FIFA match centre + independent press (NBC Sports, Fox Sports,
-//     kickoffclock.com).
-// Unknown != invented: had either quarter-final still been unresolved at
-// refresh time, the pending leg would ship as "TBC" per row rather than a
+// MANUALLY CURATED, UNVERIFIED — 2026-07-12: this module does no fetching (see
+// the module doc comment above), so nothing below has been independently
+// re-checked against a live source at commit time. The two entries were
+// hand-entered against a best-effort read of the public FIFA schedule as of
+// the authoring date; treat the teams, venues, dates and kickoffs as
+// best-effort claims, not confirmed results. Do not read this as "confirmed
+// by FIFA match centre" or "confirmed by press" — no such corroboration was
+// actually performed here, and no scoreline or match outcome is asserted.
+// Every refresh MUST re-derive this list from a live check rather than
+// copy-forward these entries unexamined.
+// Unknown != invented: if a matchup genuinely cannot be pinned down at
+// refresh time, the pending leg should ship as "TBC" per row rather than a
 // guessed team — see the DROPPED-FIXTURE / DIAGNOSTICS handling in
 // buildSportFixtureRowsWithDiagnostics below for how an unresolved fixture is
 // actually excluded from output (never emitted with a guessed value).
@@ -56,10 +54,10 @@
 // Greene King is not thereby confirmed to screen any ONE specific fixture —
 // hence confidence:"derived" rather than "listed"/"confirmed", and every
 // row's `detail` says so in plain language. Both provenances (the per-venue
-// Greene King screening fact AND the fixture's own FIFA match-centre source)
-// are kept: the structured `source` field carries the venue-specific,
-// verifiable Greene King page (matches the sport_attributes.json convention);
-// the fixture's own source label + URL are cited in prose inside `detail`.
+// Greene King screening fact AND the fixture's own FIFA schedule source) are
+// kept: the structured `source` field carries the venue-specific, verifiable
+// Greene King page (matches the sport_attributes.json convention); the
+// fixture's own source label + URL are cited in prose inside `detail`.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -69,9 +67,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ATTRS_PATH = join(ROOT, "public", "data", "whats_on", "sport_attributes.json");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "sport_fixtures.json");
 
-// Generic schedule-index source, used for the payload-level `sources` list
-// (overall provenance context). Each individual fixture below cites its OWN
-// match-centre URL — more precise than pointing every fixture at the index.
+// Schedule-index source, used both for the payload-level `sources` list
+// (overall provenance context) AND as each individual fixture's own
+// `source` below. FIFA's per-match "match centre" pages are addressed by
+// opaque numeric IDs that cannot be verified from this repo (the ID scheme
+// isn't documented and the SPA renders a 200 shell for any ID, real or not),
+// so inventing a plausible-looking match-centre URL per fixture would be
+// syntactically valid but substantively false provenance. The schedule/
+// fixtures index below is a real, stable page that actually lists every
+// fixture (including both semi-finals) — less precise than a deep link, but
+// honest: the URL genuinely contains the cited match.
 const FIFA_SOURCE = {
   label: "FIFA World Cup 2026 match schedule",
   url: "https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/scores-fixtures",
@@ -93,10 +98,7 @@ export const SPORT_FIXTURES = [
     venue: "AT&T Stadium, Dallas",
     kickoffLondonDate: "2026-07-14",
     kickoffLondonTime: "20:00",
-    source: {
-      label: "FIFA match centre — France v Spain",
-      url: "https://www.fifa.com/en/match-centre/match/17/285023/289290/400021541",
-    },
+    source: FIFA_SOURCE,
   },
   {
     id: "wc2026-sf2-eng-arg",
@@ -105,10 +107,7 @@ export const SPORT_FIXTURES = [
     venue: "Mercedes-Benz Stadium, Atlanta",
     kickoffLondonDate: "2026-07-15",
     kickoffLondonTime: "20:00",
-    source: {
-      label: "FIFA match centre — England v Argentina",
-      url: "https://www.fifa.com/en/match-centre/match/17/285023/289290/400021540",
-    },
+    source: FIFA_SOURCE,
   },
 ];
 

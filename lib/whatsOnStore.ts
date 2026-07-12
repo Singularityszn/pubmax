@@ -79,6 +79,22 @@ export function mergeWhatsOn(baseline: WhatsOnRow[], live: WhatsOnRow[]): WhatsO
   return Array.from(byKey.values());
 }
 
+// A row more than this far in the past is treated as a finished event still
+// sitting in a bundled static file (nothing expires those on its own) rather
+// than something worth serving. The "tonight" window already excludes
+// past-window rows via filterTonight/isOnTonight, so this only bites on the
+// DEFAULT (no window) query path — the one that would otherwise serve a
+// derived sport fixture (or any other row) forever once its kickoff has
+// passed.
+const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+function dropStale(rows: WhatsOnRow[], now: number): WhatsOnRow[] {
+  return rows.filter((row) => {
+    const startsAt = Date.parse(row.startsAt);
+    return !Number.isFinite(startsAt) || now - startsAt < STALE_AFTER_MS;
+  });
+}
+
 export type LoadWhatsOnParams = {
   kind?: WhatsOnKind;
   window?: "tonight";
@@ -131,6 +147,7 @@ export async function loadWhatsOn(
   }
 
   let rows = mergeWhatsOn(baseline, live);
+  if (!params.window) rows = dropStale(rows, now);
   if (params.kind) rows = filterByKind(rows, params.kind);
   if (params.window === "tonight") rows = filterTonight(rows, now);
   if (params.near) rows = sortByNear(rows, params.near);
