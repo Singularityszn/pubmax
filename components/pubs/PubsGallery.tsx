@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { ExternalLink, MapPinned } from "lucide-react";
 
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
+import { trackEvent } from "@/lib/analytics";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import {
   SCRAPED_SOURCE_LABELS,
@@ -176,6 +177,9 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   data-tier={booking.tier}
+                  onClick={() =>
+                    trackEvent("booking_click", { venueId: pub.id, tier: booking.tier })
+                  }
                 >
                   {booking.label}
                   <ExternalLink size={13} aria-hidden="true" />

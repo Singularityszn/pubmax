@@ -1,5 +1,6 @@
 import { CalendarDays, ExternalLink, UtensilsCrossed } from "lucide-react";
 
+import { trackEvent } from "@/lib/analytics";
 import {
   venueExternalActions,
   type VenueExternalAction,
@@ -43,6 +44,15 @@ export default function VenueActionStrip({ venue, className }: VenueActionStripP
           target="_blank"
           rel="noopener noreferrer"
           data-tier={action.tier}
+          onClick={
+            action.kind === "book"
+              ? () =>
+                  trackEvent("booking_click", {
+                    venueId: venue.id,
+                    tier: action.tier ?? "search",
+                  })
+              : undefined
+          }
         >
           <ActionIcon kind={action.kind} />
           <span>{action.label}</span>
