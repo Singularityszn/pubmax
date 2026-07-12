@@ -175,6 +175,14 @@
   list-style: none;
   overflow-x: auto;
   scrollbar-width: none;
+  /* D8: the ticker used to hard-clip whichever item sat at the scroll edge
+     mid-word ("@handle at 'T…") with no hint there was more to scroll.
+     Snapping keeps a rested scroll position on a full item, never a sliver
+     of the next one, and the mask fades that edge item to transparent
+     instead of a hard pixel cut when it doesn't fully fit. */
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - 22px), transparent 100%);
 }
 
 .presenceList::-webkit-scrollbar {
@@ -182,6 +190,7 @@
 }
 
 .presenceItem {
+  scroll-snap-align: start;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: baseline;
@@ -200,6 +209,11 @@
 }
 
 .presenceVenue {
+  display: inline-block;
+  max-width: 46vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   color: var(--river);
   font-weight: 700;
   text-decoration: none;

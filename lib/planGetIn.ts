@@ -83,6 +83,8 @@ export async function planGetInReport(
         groupSize,
         level: busyness.level,
         hasBookingLink: booking.available,
+        now,
+        timeZone: "Europe/London",
       });
 
       return {

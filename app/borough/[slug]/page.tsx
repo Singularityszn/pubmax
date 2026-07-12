@@ -170,9 +170,8 @@ export default async function BoroughPage({ params }: PageProps) {
         <BoroughPintPriceCard boroughName={name} ourCheapestPrice={ourCheapestPrice} />
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
           <p className="boroughThinBanner" role="status">
-            Thin coverage in {name} for now ({pubs.length} of {BOROUGH_COVERAGE_FLOOR}+
-            we&rsquo;re aiming for). Every pin is a real pub — we won&rsquo;t invent
-            denser streets.
+            Only {pubs.length} pubs mapped in {name} so far. Every pin&rsquo;s a real
+            pub — we just haven&rsquo;t covered every street yet.
           </p>
         ) : null}
         <div className="boroughMapLinks">

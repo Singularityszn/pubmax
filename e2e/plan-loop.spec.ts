@@ -12,7 +12,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   await expect(page.getByText(/Grounded picks added|Start at/)).toBeVisible();
 
   await page.getByLabel("Your name").fill("Karan");
-  await page.getByRole("button", { name: "Make it a Plan" }).click();
+  await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
   await expect(page.getByText("Karan", { exact: true })).toBeVisible();

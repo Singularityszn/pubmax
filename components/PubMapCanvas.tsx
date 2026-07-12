@@ -1216,7 +1216,7 @@ export default function PubMapCanvas({
 
       // Wave K2: style.load already flipped `styleLoaded`, so the tile hard-fail
       // timer will never fire. Any throw below must still lift the parent
-      // loading chrome — otherwise "Checking cached pins…" covers the map forever.
+      // loading chrome — otherwise "Finding the pubs…" covers the map forever.
       try {
         buildSceneBody();
         settleSceneReady();
