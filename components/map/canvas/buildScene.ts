@@ -1,4 +1,4 @@
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import {
   applyBasemapTaste,
   applySelectionMute,
@@ -144,6 +144,11 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
             ["*", ["coalesce", ["get", "render_height"], ["get", "height"], 14], 1.08],
           ],
           "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+          // M6: fake-AO massing — MapLibre shades each extrusion face by height
+          // so building bases read subtly darker than their tops, giving the
+          // skyline weight without any real light source. Cheap depth cue that
+          // makes the City/Canary Wharf clusters feel solid on pitched zoom.
+          "fill-extrusion-vertical-gradient": true,
           "fill-extrusion-opacity": dark ? 0.9 : 0.58,
         },
       },

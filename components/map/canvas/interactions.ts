@@ -1,4 +1,4 @@
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { Landmark } from "@/lib/landmarks";
 import type { PoiCategory } from "@/lib/pois";

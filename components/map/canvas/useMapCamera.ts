@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { MutableRefObject } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
 import { ORBIT_RESUME_MS } from "./tokens";
 import { LONG_JUMP_CURVE } from "./easing";

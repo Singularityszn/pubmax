@@ -26,8 +26,14 @@ export type BasemapTasteTokens = {
   parkTint: string;
 };
 
+// NOTE: setPaintProperty/getPaintProperty are declared with method syntax
+// (not arrow-property syntax) so their parameters are checked bivariantly.
+// MapLibre 6 made Map.setPaintProperty generic (`name: K extends keyof
+// AllPaintProperties`); a real Map is only assignable to this structural
+// subset under bivariant method-param checking, since we call these helpers
+// with arbitrary `string` property names.
 type PaintMap = {
-  setPaintProperty: (layerId: string, name: string, value: unknown) => void;
+  setPaintProperty(layerId: string, name: string, value: unknown): void;
   getLayer: (layerId: string) => unknown;
   getStyle: () => { layers?: Array<{ id: string; type?: string }> };
 };
@@ -35,7 +41,7 @@ type PaintMap = {
 /** Superset of PaintMap that can also read a layer's current paint value —
  *  needed by the selection-mute machinery to snapshot originals before muting. */
 type MuteMap = PaintMap & {
-  getPaintProperty: (layerId: string, name: string) => unknown;
+  getPaintProperty(layerId: string, name: string): unknown;
 };
 
 type TastePalette = {

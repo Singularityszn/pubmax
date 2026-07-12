@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
 
 import Link from "next/link";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import {
   Crosshair,
   ExternalLink,
