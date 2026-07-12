@@ -29,7 +29,7 @@ import {
   type RoundStopDTO,
 } from "@/lib/rounds";
 import { normalizeHandle } from "@/lib/profiles";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { admin, selectStore } from "@/lib/storeBackend";
 
 // How many times to retry a code collision before giving up. A 6-char code over a
 // 28-symbol alphabet collides so rarely that one retry would do; a handful is
@@ -70,10 +70,6 @@ export type RoundsStore = {
 const ROUNDS = "rounds";
 const MEMBERS = "round_members";
 const STOPS = "round_stops";
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 // ── Row → DTO mappers (Supabase) ─────────────────────────────────────────────
 function roundFromRow(row: Record<string, unknown>): RoundDTO {
@@ -365,7 +361,7 @@ export const memoryRoundsStore: RoundsStore = {
 
 /** The single backend selection point (mirrors the other stores). */
 export function roundsStore(): RoundsStore {
-  return isSupabaseConfigured() ? supabaseRoundsStore : memoryRoundsStore;
+  return selectStore(memoryRoundsStore, supabaseRoundsStore);
 }
 
 /** Test-only: clear the in-memory Round map between cases. */

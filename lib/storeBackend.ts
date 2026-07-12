@@ -3,7 +3,8 @@
 // optional try/catch wrapper for fail-soft reads. Adopt incrementally — each
 // store keeps its own interface, empty sentinels, and domain logic.
 
-import { isSupabaseConfigured } from "@/lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 /** Normalise unknown thrown values to a log-safe string. */
 export function errorMessage(err: unknown): string {
@@ -13,6 +14,29 @@ export function errorMessage(err: unknown): string {
 /** Single seam: durable Supabase when env keys exist, process-memory otherwise. */
 export function selectStore<T>(memory: T, supabase: T): T {
   return isSupabaseConfigured() ? supabase : memory;
+}
+
+/**
+ * The repeated `function admin() { return requireSupabaseAdmin(); }` wrapper
+ * every Supabase-backed store implementation calls at each operation — a thin,
+ * lazy indirection so the client is resolved per-call (not captured at module
+ * load, before env vars / mocks are in place). Shared here so stores don't each
+ * redeclare an identical one-liner.
+ */
+export function admin(): SupabaseClient {
+  return requireSupabaseAdmin();
+}
+
+/** Postgres unique_violation (23505): a duplicate insert racing an existing
+ *  row — the idempotent-success case for toggle/insert-if-absent writes. */
+export function isUniqueViolation(error: { code?: string } | null | undefined): boolean {
+  return error?.code === "23505";
+}
+
+/** Postgres foreign_key_violation (23503): the referenced row doesn't exist
+ *  (e.g. a reaction/comment on a demo seed not present in visit_reports). */
+export function isForeignKeyViolation(error: { code?: string } | null | undefined): boolean {
+  return error?.code === "23503";
 }
 
 /**

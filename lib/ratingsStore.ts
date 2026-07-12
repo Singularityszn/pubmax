@@ -33,7 +33,12 @@ import {
   TOP_RATED_WINDOW_DAYS,
 } from "@/lib/ratings";
 import { normalizeHandle } from "@/lib/profiles";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import {
+  admin,
+  createMemoryFallbackWarner,
+  missingTables,
+  selectStore,
+} from "@/lib/storeBackend";
 
 export { isRatingKind, type RatingKind } from "@/lib/ratings";
 
@@ -67,30 +72,12 @@ const TABLES: Record<RatingKind, { table: string; refColumn: string }> = {
 // Cap how many raw vote rows a recency scan pulls for the top list — plenty at
 // this scale, bounded on purpose.
 const TOP_SCAN_ROWS = 5000;
-const memoryFallbackWarnings = new Set<string>();
 
-function admin() {
-  return requireSupabaseAdmin();
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function isMissingRatingsSchema(err: unknown): boolean {
-  return /Could not find the table 'public\.(drink_ratings|venue_ratings)'|relation "public\.(drink_ratings|venue_ratings)" does not exist|schema cache/i.test(
-    errorMessage(err),
-  );
-}
-
-function warnMemoryFallback(context: string, err: unknown): void {
-  if (memoryFallbackWarnings.has(context)) return;
-  memoryFallbackWarnings.add(context);
-  console.warn(
-    `[ratings] ${context} durable table missing — using process-memory fallback (apply migration 0020):`,
-    errorMessage(err),
-  );
-}
+const isMissingRatingsSchema = missingTables("drink_ratings", "venue_ratings");
+const { warn: warnMemoryFallback } = createMemoryFallbackWarner(
+  "ratings",
+  "apply migration 0020",
+);
 
 const EMPTY_SUMMARY: RatingSummary = {
   average: null,
@@ -290,7 +277,7 @@ export const memoryRatingsStore: RatingsStore = {
 
 /** The single backend selection point (mirrors the other stores). */
 export function ratingsStore(): RatingsStore {
-  return isSupabaseConfigured() ? supabaseRatingsStore : memoryRatingsStore;
+  return selectStore(memoryRatingsStore, supabaseRatingsStore);
 }
 
 /** Test-only: clear the in-memory vote maps between cases. */

@@ -18,7 +18,12 @@
 // constants/types from @/lib/reactions instead. (The repo has no `server-only`
 // package installed, so this comment is the guard.)
 
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import {
+  admin,
+  isForeignKeyViolation,
+  isUniqueViolation,
+  selectStore,
+} from "@/lib/storeBackend";
 
 // Canonical allowlist + DTO shapes live in the browser-safe module and are
 // re-exported here so server callers (route, tests) keep one import site and the
@@ -48,22 +53,6 @@ export class UnknownDropError extends Error {
 }
 
 const TABLE = "pint_drop_reactions";
-
-function admin() {
-  return requireSupabaseAdmin();
-}
-
-function isForeignKeyViolation(error: { code?: string } | null): boolean {
-  return error?.code === "23503";
-}
-
-// A concurrent double-insert of the same (drop, actor, reaction) trips the
-// unique constraint (Postgres 23505). It is NOT an error for a toggle: it means
-// the actor's reaction already exists, so we treat it as idempotent success and
-// recompute the summary rather than surfacing a spurious 503.
-function isUniqueViolation(error: { code?: string } | null): boolean {
-  return error?.code === "23505";
-}
 
 // Fold raw (reaction, actor_hash) rows for a single drop into a summary.
 function summarizeRows(
@@ -189,7 +178,7 @@ export const memoryReactionsStore: ReactionsStore = {
 
 /** The single backend selection point (mirrors the other stores). */
 export function reactionsStore(): ReactionsStore {
-  return isSupabaseConfigured() ? supabaseReactionsStore : memoryReactionsStore;
+  return selectStore(memoryReactionsStore, supabaseReactionsStore);
 }
 
 /** Test-only: clear the in-memory reaction set between cases. */
