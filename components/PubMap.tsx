@@ -1,6 +1,6 @@
 "use client";
 
-import { Footprints, MapPinned, Route as RouteIcon, TrainFront, X } from "lucide-react";
+import { MapPinned, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
@@ -12,7 +12,6 @@ import "@/components/map/logIntentFallback.css";
 import {
   buildCrawlRoute,
   mergeVenueDrops,
-  venueGroupingKey,
   type Filters,
   type Venue,
 } from "@/lib/venues";
@@ -22,7 +21,7 @@ import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
-import { curatedCrawlsForCity, curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
+import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
 import { landmarksForCity } from "@/lib/cityLandmarks";
 import { storyBandsForCity, bandByIdForCity } from "@/lib/cityStoryBands";
 import RoutePanel from "@/components/map/RoutePanel";
@@ -40,6 +39,15 @@ import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
+import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
+import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
+import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
+import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
+import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
+import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
+import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
+import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
+import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -63,10 +71,7 @@ import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
   buildLogNearbyCandidates,
-  formatLogNearbyDistance,
   hasMapLogIntent,
-  resolveMapLogIntent,
-  shouldRunMapLogIntent,
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
@@ -75,9 +80,18 @@ import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
-  truncateBandCopy,
 } from "@/lib/bandOnboardingChip";
-import { isDrinkShapeArrival, shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import { shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import {
+  hasCrawlArrivalParams,
+  filtersForCuratedCrawl,
+  buildMapSeed,
+  detailStatusFor,
+  venueUpdateKey,
+  normaliseTonightVenueLookup,
+  type MapSeed,
+  type VenueDetailStatus,
+} from "@/lib/pubMap";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -96,17 +110,7 @@ function currentSearch(): string {
   return typeof window === "undefined" ? "" : window.location.search;
 }
 
-// §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
-// link)? If any are present the arrival is intentional and we never onboard.
-// Module-level (pure) so the branch lives off PubMap's complexity budget.
-// `drink=` counts (landing drink-shape taps) but is NOT a planner-open signal.
-function hasCrawlArrivalParams(search: string): boolean {
-  // Intentional deep links (landmark/band/food/log/etc.) must also suppress
-  // curated onboarding — not only crawl planner params (#79 follow-up).
-  return /[?&](pubs|sel|style|mode|q|drink|cocktails|landmark|band|food|max|alt|log|crawl)=/.test(
-    search,
-  );
-}
+// hasCrawlArrivalParams (pure §4.5 deep-link probe) now lives in @/lib/pubMap.
 
 function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
@@ -121,211 +125,11 @@ function isMobileViewport(): boolean {
 // only share/restore source.
 const BUILT_STORAGE_KEY = "pubmax_built_ids";
 
-// Issue #15: normalise a landmark's nearest-pub ids into crawl stops — drop
-// blanks, cap at three. Module-level (pure) so the branch lives outside the
-// PubMap component body and off its complexity budget.
-function crawlStopsFromPubIds(ids: string[]): string[] {
-  return ids.filter(Boolean).slice(0, 3);
-}
+// crawlStopsFromPubIds, filtersForCuratedCrawl, resolveSeededCuratedCrawl,
+// MapSeed and buildMapSeed (all pure) now live in @/lib/pubMap.
 
-// Issue #31: fold a curated crawl's style choices onto the current filters. A
-// mocktail crawl composes with the non-alcoholic filter — the honest, minimal
-// way an alt style touches the actual route. Module-level (pure) so the branch
-// lives off PubMap's complexity budget.
-function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters {
-  return {
-    ...current,
-    crawlStyle: crawl.crawlStyle,
-    requireNonAlcoholic: crawl.altStyle === "mocktail" ? true : current.requireNonAlcoholic,
-  };
-}
-
-/** Resolve a curated crawl from ?crawl= or an exact pubs= stop list match. */
-function resolveSeededCuratedCrawl(
-  cityId: CityId,
-  crawlId: string | undefined,
-  builtIds: string[],
-): CuratedCrawl | null {
-  const byId = curatedCrawlByIdForCity(cityId, crawlId);
-  if (byId) return byId;
-  if (builtIds.length < 2) return null;
-  const cityCrawls = curatedCrawlsForCity(cityId);
-  return (
-    cityCrawls.find(
-      (crawl) =>
-        crawl.venueIds.length === builtIds.length &&
-        crawl.venueIds.every((id, i) => id === builtIds[i]),
-    ) ?? null
-  );
-}
-
-type MapSeed = ReturnType<typeof seedCrawlState> & {
-  activeCrawl: CuratedCrawl | null;
-  routeMapped: boolean;
-};
-
-/**
- * One-shot mount seed from the shareable URL only.
- * Pure module helper so PubMap can lazy-init state without a useMemo that the
- * React Compiler cannot preserve (react-hooks/preserve-manual-memoization).
- * Do NOT resurrect a previous hand-built crawl from localStorage on a clean
- * /map tab click — that bloated the address bar with stale ?pubs=… (PR #79).
- */
-function buildMapSeed(search: string, cityId: CityId = DEFAULT_CITY_ID): MapSeed {
-  const seeded = seedCrawlState(search);
-  // Landing drink-shape taps should land on a clean filtered map.
-  if (isDrinkShapeArrival(search)) {
-    return { ...seeded, activeCrawl: null, routeMapped: false };
-  }
-  // Curated / featured arrival: hydrate the named crawl so the polyline +
-  // blurb show map-first (planner stays closed via shouldOpenPlanningInitially).
-  const activeCrawl = resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
-  if (activeCrawl) {
-    return {
-      ...seeded,
-      filters: filtersForCuratedCrawl(seeded.filters, activeCrawl),
-      altStyle: activeCrawl.altStyle ?? seeded.altStyle,
-      crawlId: activeCrawl.id,
-      activeCrawl,
-      routeMapped: true,
-    };
-  }
-  return {
-    ...seeded,
-    activeCrawl: null,
-    routeMapped: seeded.builtIds.length >= 2,
-  };
-}
-
-// Issue #15: the landmark card's two journey actions, hoisted into their own
-// hook so their branches live off PubMap's complexity budget.
-//   • startCrawlFromPubs — drop the nearest pubs into Build mode (shareable via
-//     ?mode=build&pubs=…, reusing the curated-crawl path), then leave the route
-//     list visible on mobile.
-//   • askPubmaxxerAtPub — select the nearest story pub so its inspector opens
-//     with the grounded "Ask the PUBMAXXER" panel a tap away. Seeding a question
-//     straight into that panel is invasive (another agent owns VenueInspector),
-//     so selecting the pub is the documented ceiling.
-function useLandmarkJourney(deps: {
-  selectVenue: (id: string) => void;
-  showLoadedRoute: (firstStopId: string) => void;
-  dismissOnboarding: () => void;
-  setMode: (mode: CrawlMode) => void;
-  setBuiltIds: (ids: string[]) => void;
-  setRouteMapped: (mapped: boolean) => void;
-  setActiveCrawl: (crawl: CuratedCrawl | null) => void;
-  setPlanningOpen: (open: boolean) => void;
-}) {
-  const {
-    selectVenue,
-    showLoadedRoute,
-    dismissOnboarding,
-    setMode,
-    setBuiltIds,
-    setRouteMapped,
-    setActiveCrawl,
-    setPlanningOpen,
-  } =
-    deps;
-  const startCrawlFromPubs = useCallback(
-    (ids: string[]) => {
-      const stops = crawlStopsFromPubIds(ids);
-      if (stops.length) {
-        setMode("build");
-        setBuiltIds(stops);
-        setRouteMapped(true);
-        setActiveCrawl(null); // a landmark-seeded crawl isn't a curated one
-        showLoadedRoute(stops[0]);
-        dismissOnboarding();
-      }
-    },
-    [
-      dismissOnboarding,
-      setMode,
-      setBuiltIds,
-      setRouteMapped,
-      setActiveCrawl,
-      showLoadedRoute,
-    ],
-  );
-  const askPubmaxxerAtPub = useCallback(
-    (venueId: string) => {
-      setPlanningOpen(true);
-      selectVenue(venueId);
-    },
-    [selectVenue, setPlanningOpen],
-  );
-  return { startCrawlFromPubs, askPubmaxxerAtPub };
-}
-
-function useLogIntent(deps: {
-  hasLogIntent: boolean;
-  loaded: boolean;
-  firstFilteredVenueId: string;
-  firstRouteId: string;
-  selectedVenueId: string;
-  selectedVenueResolvable: boolean;
-  selectVenue: (id: string) => void;
-  openComposerForLog: () => void;
-  setFallbackVisible: (visible: boolean) => void;
-}) {
-  const {
-    hasLogIntent,
-    loaded,
-    firstFilteredVenueId,
-    firstRouteId,
-    selectedVenueId,
-    selectedVenueResolvable,
-    selectVenue,
-    openComposerForLog,
-    setFallbackVisible,
-  } = deps;
-  const handled = useRef(false);
-
-  useEffect(() => {
-    if (!hasLogIntent) {
-      handled.current = false;
-      setFallbackVisible(false);
-      return;
-    }
-    if (!shouldRunMapLogIntent({ hasLogIntent, handled: handled.current })) return;
-    const resolution = resolveMapLogIntent({
-      hasLogIntent,
-      loaded,
-      selectedVenueId,
-      selectedVenueResolvable,
-      firstRouteId,
-      firstFilteredVenueId,
-    });
-    if (resolution.status === "inactive" || resolution.status === "pending") return;
-    if (resolution.status === "fallback") {
-      setFallbackVisible(true);
-      return;
-    }
-    handled.current = true;
-    setFallbackVisible(false);
-    markPubmaxTiming("pubmax:drop-route-ready");
-    let active = true;
-    void Promise.resolve().then(() => {
-      if (!active) return;
-      selectVenue(resolution.venueId);
-      openComposerForLog();
-    });
-    return () => {
-      active = false;
-    };
-  }, [
-    hasLogIntent,
-    loaded,
-    firstFilteredVenueId,
-    firstRouteId,
-    openComposerForLog,
-    selectVenue,
-    selectedVenueId,
-    selectedVenueResolvable,
-    setFallbackVisible,
-  ]);
-}
+// useLandmarkJourney and useLogIntent now live in
+// components/map/pubmap/useLandmarkJourney.ts and .../useLogIntent.ts.
 
 // §4.5 curated-crawl onboarding: dismissal is per-session so a reload during the
 // same visit doesn't re-nag, but a fresh session gets the offer again. sessionStorage
@@ -351,27 +155,13 @@ const DETAIL_WARNING_STYLE: CSSProperties = {
   background: "rgba(209, 99, 83, 0.12)",
 };
 
-type VenueDetailStatus = "idle" | "loading" | "ready" | "unavailable";
+// VenueDetailStatus, detailStatusFor and venueUpdateKey (all pure) now live in
+// @/lib/pubMap.
 
 type UserLocation = {
   lat: number;
   lng: number;
 };
-
-function detailStatusFor(
-  selectedVenueId: string,
-  detailById: Map<string, Venue>,
-  detailStatusById: Map<string, VenueDetailStatus>,
-): VenueDetailStatus {
-  if (!selectedVenueId) return "idle";
-  if (detailById.has(selectedVenueId)) return "ready";
-  return detailStatusById.get(selectedVenueId) ?? "loading";
-}
-
-function venueUpdateKey(venue: Venue): string {
-  const firstPrice = venue.prices[0];
-  return firstPrice ? venueGroupingKey(firstPrice) : venue.id;
-}
 
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
@@ -391,15 +181,7 @@ function readTonightOverlayDismissed(): boolean {
   }
 }
 
-function normaliseTonightVenueLookup(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[’']/g, "")
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
+// normaliseTonightVenueLookup (pure) now lives in @/lib/pubMap.
 
 // G3: per-band session dismiss for the Place story deep-link chip. Distinct from
 // ONBOARDING_DISMISSED_KEY so dismissing one never silences the other.
@@ -827,17 +609,9 @@ export default function PubMap({
     Promise.resolve().then(() => setTonightOverlayVisible(true));
   }, [tonightStatus, tonightDismissed]);
 
-  // Refresh-safety net: mirror the hand-built stops to localStorage. This effect
-  // ONLY writes storage (no setState — react-hooks/set-state-in-effect is an
-  // error here). The explicit Clear action removes the key via clearBuilt.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (builtIds.length) {
-      window.localStorage.setItem(BUILT_STORAGE_KEY, JSON.stringify(builtIds));
-    } else {
-      window.localStorage.removeItem(BUILT_STORAGE_KEY);
-    }
-  }, [builtIds]);
+  // Refresh-safety net: mirror hand-built stops to localStorage (see
+  // components/map/pubmap/useBuiltIdsPersistence.ts).
+  useBuiltIdsPersistence(builtIds, BUILT_STORAGE_KEY);
 
   const selectVenue = useCallback(
     (id: string, initialTab: TabKey = "pints") => {
@@ -859,27 +633,9 @@ export default function PubMap({
     void warmVenueDetail(id);
   }, []);
 
-  // ?sel= is only read into the seed at mount, so a CLIENT navigation to
-  // /map?sel=<id> while the map is already mounted (e.g. "See on map" from a
-  // card, or back/forward) used to be ignored. Sync it: when the param changes
-  // to a venue that isn't the current selection, select it. The URL is the
-  // source of truth only in that direction — closing the sheet locally does
-  // not rewrite the param, matching the other seeded params' behaviour.
+  // ?sel= client-nav sync — verbatim in components/map/pubmap/useSelParamSync.ts.
   const selParam = searchParams?.get("sel") ?? "";
-  const selectedVenueIdRef = useRef(selectedVenueId);
-  useEffect(() => {
-    selectedVenueIdRef.current = selectedVenueId;
-  }, [selectedVenueId]);
-  useEffect(() => {
-    if (!selParam) return;
-    // Microtask defer keeps the state updates out of the effect's synchronous
-    // body (house lint rule against cascading renders). The ref comparison
-    // (not a dep) means only URL changes fire this — local selection changes
-    // never re-run it, and an already-matching selection is a no-op.
-    queueMicrotask(() => {
-      if (selParam !== selectedVenueIdRef.current) selectVenue(selParam);
-    });
-  }, [selParam, selectVenue]);
+  useSelParamSync({ selParam, selectedVenueId, selectVenue });
 
   const logNearbyCandidates = useMemo(
     () => buildLogNearbyCandidates(filteredVenues, undefined, userLocation),
@@ -1040,40 +796,9 @@ export default function PubMap({
     setFallbackVisible: setLogIntentFallbackVisible,
   });
 
-  // Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
-  // the selected venue. The effect only adds/removes a DOM listener — the handler
-  // calls setState, which is allowed (react-hooks/set-state-in-effect forbids
-  // setState in the effect BODY, not in listeners it registers).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const typing =
-        target?.tagName === "INPUT" ||
-        target?.tagName === "TEXTAREA" ||
-        target?.isContentEditable === true;
-      if (event.key === "/" && !typing) {
-        const search = document.getElementById("mapSearchInput") as HTMLInputElement | null;
-        if (search) {
-          event.preventDefault();
-          search.focus();
-        }
-      } else if (event.key === "Escape") {
-        // Topmost first: planner (higher z on mobile) then venue detail.
-        if (planningOpen) {
-          closePlanning();
-          return;
-        }
-        setSelectedVenueId((current) => {
-          if (!current) return current;
-          closeComposer();
-          return "";
-        });
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeComposer, closePlanning, planningOpen]);
+  // Keyboard shortcuts: "/" focuses search, Esc clears selection / closes the
+  // planner (see components/map/pubmap/useMapKeyboardShortcuts.ts).
+  useMapKeyboardShortcuts({ planningOpen, closePlanning, closeComposer, setSelectedVenueId });
 
   const toggleBuiltStop = useCallback((id: string) => {
     setBuiltIds((current) =>
@@ -1374,107 +1099,37 @@ export default function PubMap({
           />
         ) : null}
         {logIntentFallbackVisible ? (
-          <div className="logIntentFallback" role="status" aria-live="polite">
-            <div>
-              <strong>Pick a pub to log a Pint Drop</strong>
-              <p className="description">
-                {userLocation
-                  ? "Nearest pubs to you first. Choose one, search, or tap the map — then we\u2019ll open the Pint Drop composer."
-                  : "We won\u2019t guess which pub you\u2019re in. Choose one below, search, or tap the map — then we\u2019ll open the Pint Drop composer."}
-              </p>
-            </div>
-            {logNearbyCandidates.length > 0 ? (
-              /* U6e — only claim "nearby" when we actually have a location fix;
-                 without one the list is just the filtered map order. */
-              <ul
-                className="logIntentNearbyList"
-                aria-label={userLocation ? "Nearby pubs to log" : "Pubs to log"}
-              >
-                {logNearbyCandidates.map((candidate) => {
-                  const dist =
-                    typeof candidate.distanceKm === "number" &&
-                    Number.isFinite(candidate.distanceKm)
-                      ? formatLogNearbyDistance(candidate.distanceKm)
-                      : "";
-                  return (
-                    <li key={candidate.id}>
-                      <button
-                        type="button"
-                        className="logIntentNearbyBtn"
-                        onClick={() => pickLogNearbyVenue(candidate.id)}
-                        onPointerEnter={() => prefetchVenueDetail(candidate.id)}
-                        onTouchStart={() => prefetchVenueDetail(candidate.id)}
-                      >
-                        <span>{candidate.name}</span>
-                        <span className="logIntentNearbyMeta">
-                          {dist ? <span className="logIntentNearbyDist">{dist}</span> : null}
-                          <span>{candidate.priceLabel}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-            <div className="logIntentActions">
-              <button type="button" className="addStopBtn" onClick={focusMapSearch}>
-                Search pubs
-              </button>
-              {filteredVenueCount === 0 ? (
-                <button type="button" className="addStopBtn" onClick={resetLogIntentFilters}>
-                  Show all pubs
-                </button>
-              ) : null}
-            </div>
-          </div>
+          <LogIntentFallback
+            candidates={logNearbyCandidates}
+            hasUserLocation={Boolean(userLocation)}
+            filteredVenueCount={filteredVenueCount}
+            onPickVenue={pickLogNearbyVenue}
+            onPrefetchVenue={prefetchVenueDetail}
+            onFocusSearch={focusMapSearch}
+            onResetFilters={resetLogIntentFilters}
+          />
         ) : null}
         <ActiveRoundChip refreshKey={activeRoundStartedCode} />
         {routeMappedActive ? (
-          <div className="mappedRouteChip" role="status" aria-live="polite">
-            <RouteIcon size={16} aria-hidden="true" />
-            <div>
-              <strong>{route.length} stops mapped</strong>
-              <span>
-                <Footprints size={12} aria-hidden="true" />
-                {routeForMapLegs.totalKm.toFixed(1)} km, {routeForMapLegs.totalMinutes} min walk
-              </span>
-            </div>
-            <button type="button" onClick={openPlanning}>
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={checkLastTrainAtRouteEnd}
-              aria-label="Check last train at final stop"
-              title="Last train"
-            >
-              <TrainFront size={14} aria-hidden="true" />
-            </button>
-            <button type="button" onClick={hideMappedRoute} aria-label="Hide mapped crawl">
-              <X size={14} aria-hidden="true" />
-            </button>
-          </div>
+          <MappedRouteChip
+            stopCount={route.length}
+            totalKm={routeForMapLegs.totalKm}
+            totalMinutes={routeForMapLegs.totalMinutes}
+            onEdit={openPlanning}
+            onCheckLastTrain={checkLastTrainAtRouteEnd}
+            onHide={hideMappedRoute}
+          />
         ) : null}
         {/* G3: Place story deep-link chip — corridor title + one-line copy when
             `?band=` resolves. Distinct dismiss key from curated onboarding;
             suppresses that overlay while visible. */}
         {showBandChip && activeBand ? (
-          <div className="bandOnboardingChip" role="status" aria-live="polite">
-            <div>
-              <strong>{activeBand.title}</strong>
-              <span>{truncateBandCopy(activeBand.copy)}</span>
-            </div>
-            <button type="button" onClick={dismissBandChip}>
-              Walk this story
-            </button>
-            <button
-              type="button"
-              onClick={dismissBandChip}
-              aria-label="Dismiss Place story intro"
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          </div>
+          <BandOnboardingChip
+            title={activeBand.title}
+            copy={activeBand.copy}
+            onWalkStory={dismissBandChip}
+            onDismiss={dismissBandChip}
+          />
         ) : null}
         {/* Wave J declutter: Prices control owns the key on all viewports
             (pin colours + popover). Static mid-map legend removed. */}
@@ -1485,61 +1140,11 @@ export default function PubMap({
             onboarding (control rail is hidden on small screens) and never blocks
             the map — the backdrop and the link both close it. */}
         {showOnboarding ? (
-          <div
-            className="mapOnboarding"
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="onboardingTitle"
-          >
-            <button
-              type="button"
-              className="mapOnboardingScrim"
-              aria-label="Dismiss and explore the map"
-              onClick={dismissOnboarding}
-            />
-            <div className="mapOnboardingCard">
-              <button
-                type="button"
-                className="mapOnboardingClose"
-                onClick={dismissOnboarding}
-                aria-label="Close"
-              >
-                <X size={16} />
-              </button>
-              <p className="eyebrow">New here?</p>
-              <h2 id="onboardingTitle">Start with a story</h2>
-              <p className="mapOnboardingLead">
-                Curated crawls — one generation&rsquo;s pubs, handed to the next. Pick one to drop it
-                on the map, or explore on your own.
-              </p>
-              <div className="mapOnboardingList">
-                {onboardingCrawls.map((crawl) => (
-                  <button
-                    key={crawl.id}
-                    type="button"
-                    className="mapOnboardingCrawl"
-                    aria-label={`Load the ${crawl.name} crawl — ${crawl.venueIds.length} stops`}
-                    onClick={() => loadCuratedCrawl(crawl)}
-                  >
-                    <span className="mapOnboardingCrawlHead">
-                      <strong>{crawl.name}</strong>
-                      <span className="mapOnboardingCount">
-                        {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
-                      </span>
-                    </span>
-                    <span className="mapOnboardingBlurb">{crawl.blurb}</span>
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="mapOnboardingDismiss"
-                onClick={dismissOnboarding}
-              >
-                Dismiss / explore the map
-              </button>
-            </div>
-          </div>
+          <MapOnboardingOverlay
+            crawls={onboardingCrawls}
+            onLoadCrawl={loadCuratedCrawl}
+            onDismiss={dismissOnboarding}
+          />
         ) : null}
       </section>
 
