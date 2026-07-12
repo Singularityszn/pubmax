@@ -317,6 +317,7 @@ export function buildSportFixtureRows(args) {
 
 function main() {
   const observedAt = new Date().toISOString();
+  const allowEmpty = process.argv.includes("--allow-empty");
 
   let attrs;
   try {
@@ -336,6 +337,20 @@ function main() {
     );
     process.exitCode = 1;
     return;
+  }
+
+  if (SPORT_FIXTURES.length === 0) {
+    if (!allowEmpty) {
+      console.error(
+        `sportFixtures: aborting — SPORT_FIXTURES seed is empty. ` +
+          `This is likely a mistake (fixture array accidentally cleared). ` +
+          `To allow wholesale replacement with zero fixtures, pass --allow-empty flag. ` +
+          `Example: node scripts/whatson/sportFixtures.mjs --allow-empty`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    console.warn(`sportFixtures: proceeding with empty fixture seed (--allow-empty passed)`);
   }
 
   const { rows, diagnostics } = buildSportFixtureRowsWithDiagnostics({

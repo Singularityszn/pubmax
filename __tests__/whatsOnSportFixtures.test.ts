@@ -270,3 +270,32 @@ describe("SPORT_FIXTURES", () => {
     }
   });
 });
+
+describe("empty seed abort guard", () => {
+  const observedAt = "2026-07-12T00:00:00.000Z";
+
+  it("generates zero rows when SPORT_FIXTURES is empty and a fixture/pub pair produces no output", () => {
+    const rows = buildSportFixtureRows({
+      attributeRows: [ARKLES],
+      fixtures: [], // empty fixture seed
+      observedAt,
+    });
+    expect(rows).toHaveLength(0);
+  });
+
+  it("never silently emits empty output for a completely cleared fixture seed — expected=0 bypasses the fail-closed guard", () => {
+    // This test documents the bug: if SPORT_FIXTURES becomes empty, the
+    // fail-closed check `if (expected > 0 && rows.length < expected * 0.5)`
+    // evaluates expected=0 and skips the guard entirely. The main() function
+    // must catch this BEFORE reaching that guard.
+    const { rows, diagnostics } = buildSportFixtureRowsWithDiagnostics({
+      attributeRows: [ARKLES],
+      fixtures: [], // empty fixture seed
+      observedAt,
+    });
+    expect(rows).toHaveLength(0);
+    expect(diagnostics.droppedFixtures).toHaveLength(0);
+    expect(diagnostics.droppedAttributeRows).toHaveLength(0);
+    // This output would silently nuke a baseline if main() didn't guard against it.
+  });
+});
