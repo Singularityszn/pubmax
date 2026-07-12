@@ -60,6 +60,7 @@ import {
   withBoundedHoverDetailCache, hoverImageUrlFor, hoverPriceLine,
 } from "@/components/map/canvas/hoverCard";
 import { assembleScene } from "@/components/map/canvas/buildScene";
+import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
@@ -956,6 +957,11 @@ export default function PubMapCanvas({
     wireHoverPrefetch(map, { onVenuePrefetchRef });
     wirePubHover(map, { hoverCapableRef, setHoveredVenue });
     wireCursor(map);
+    // --- M5: donut cluster markers (bounded-count DOM-marker exception —
+    // see donutClusters.ts). Syncs off the map's own render/moveend/
+    // sourcedata events, so it adds no second RAF loop; click reuses the
+    // same cluster-expansion-zoom behaviour as the plain circle layer.
+    const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic);
     // --- Idle orbit + dash animation: one RAF loop, no React re-renders.
     // User input (incl. the nav control) pushes holdUntil forward; the orbit
     // resumes after ORBIT_RESUME_MS of stillness. Reduced motion disables both.
@@ -1049,6 +1055,7 @@ export default function PubMapCanvas({
       for (const eventName of interactionEvents) {
         interactionTarget.removeEventListener(eventName, onInteract);
       }
+      donutSync.destroy();
       map.remove();
       mapRef.current = null;
       publishMapReady(false);
