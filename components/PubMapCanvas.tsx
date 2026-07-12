@@ -51,7 +51,7 @@ import {
 } from "@/components/map/canvas/geojson";
 import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
-  TONIGHT_OPPORTUNITY_LAYERS, opportunityForFeature,
+  TONIGHT_OPPORTUNITY_LAYERS,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
@@ -59,6 +59,10 @@ import {
   withBoundedHoverDetailCache, hoverImageUrlFor, hoverPriceLine,
 } from "@/components/map/canvas/hoverCard";
 import { assembleScene } from "@/components/map/canvas/buildScene";
+import {
+  wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
+} from "@/components/map/canvas/interactions";
+import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 
 
 type PubMapCanvasProps = {
@@ -426,17 +430,24 @@ export default function PubMapCanvas({
   const themeRef = useRef<"dark" | "light">("dark");
   const hoverCapableRef = useRef(false);
 
-  // Cinematic camera move that suspends the orbit for its duration + resume gap.
-  const cinematic = useCallback((options: maplibregl.EaseToOptions) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const duration = reducedRef.current ? 0 : (options.duration ?? 1000);
-    holdUntilRef.current = Math.max(
-      holdUntilRef.current,
-      performance.now() + duration + ORBIT_RESUME_MS,
-    );
-    map.easeTo({ ...options, duration });
-  }, []);
+  // Live route mirror so the camera helpers (and the Recenter control) read the
+  // latest ordered stops from a ref without needing a fresh closure.
+  const routeRef = useRef(route);
+  useEffect(() => {
+    routeRef.current = route;
+  }, [route]);
+
+  // Camera helpers (cinematic + fit*) — extracted to useMapCamera; empty-dep
+  // callbacks over live refs (see the hook for why the deps must stay empty).
+  const { cinematic, fitRoute, fitCityBounds, fitQueryVenues } = useMapCamera({
+    mapRef,
+    holdUntilRef,
+    reducedRef,
+    mapViewRef,
+    maxBoundsRef,
+    routeRef,
+    venuesRef,
+  })
 
   const selectLandmark = useCallback((landmark: Landmark | null) => {
     setActiveLandmark(landmark);
@@ -918,150 +929,25 @@ export default function PubMapCanvas({
       contextLostTimer = undefined;
     });
 
-    // --- Click + cursor wiring.
+    // --- Click + cursor wiring (see components/map/canvas/interactions.ts).
     // Pub-first hit testing: a single map click queries pubs/route stops before
     // landmarks/POIs so dense central London taps open a pub sheet, not a
-    // landmark card that happened to sit under the same finger.
-    const PUB_FIRST_LAYERS = [
-      "pubs-point",
-      "route-stops",
-      "tonight-point",
-      "clusters",
-      "landmarks-icon",
-      "pois-dot",
-      "pois-transport-major",
-      "pois-transport-minor",
-    ] as const;
-
-    map.on("click", (event) => {
-      const features = map.queryRenderedFeatures(event.point, {
-        layers: PUB_FIRST_LAYERS.filter((id) => Boolean(map.getLayer(id))),
-      });
-      if (!features.length) return;
-
-      const byLayer = new Map<string, (typeof features)[number]>();
-      for (const feature of features) {
-        const layerId = feature.layer?.id;
-        if (typeof layerId === "string" && !byLayer.has(layerId)) {
-          byLayer.set(layerId, feature);
-        }
-      }
-
-      const pubHit = byLayer.get("pubs-point");
-      if (pubHit) {
-        const id = pubHit.properties?.id;
-        if (typeof id !== "string") return;
-        selectLandmark(null);
-        setHoveredVenue(null);
-        setActivePoi(null);
-        onVenueClickRef.current(id);
-        return;
-      }
-
-      const stopHit = byLayer.get("route-stops");
-      if (stopHit) {
-        const id = stopHit.properties?.id;
-        if (typeof id !== "string") return;
-        selectLandmark(null);
-        setActivePoi(null);
-        onRouteStopClickRef.current(id);
-        return;
-      }
-
-      const clusterHit = byLayer.get("clusters");
-      if (clusterHit) {
-        const clusterId = clusterHit.properties?.cluster_id;
-        const source = map.getSource("pubs") as maplibregl.GeoJSONSource;
-        if (clusterId == null || !source) return;
-        source.getClusterExpansionZoom(clusterId).then((zoom) => {
-          const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
-          cinematic({ center: [lng, lat], zoom, duration: 700 });
-        });
-        return;
-      }
-
-      const tonightHit = byLayer.get("tonight-point");
-      if (tonightHit) {
-        const opportunity = opportunityForFeature(
-          tonightHit.properties as GeoJSON.GeoJsonProperties | undefined,
-          tonightOpportunitiesRef.current,
-        );
-        if (!opportunity) return;
-        selectLandmark(null);
-        setHoveredVenue(null);
-        setActivePoi(null);
-        onTonightOpportunityClickRef.current?.(opportunity);
-        return;
-      }
-
-      const landmarkHit = byLayer.get("landmarks-icon");
-      if (landmarkHit) {
-        const id = landmarkHit.properties?.id;
-        const landmark = cityLandmarksRef.current.find((item) => item.id === id);
-        if (!landmark) return;
-        setActivePoi(null);
-        selectLandmark(landmark);
-        cinematic({
-          center: landmark.coordinates,
-          zoom: Math.max(map.getZoom(), 13),
-          pitch: 55,
-          duration: 1100,
-        });
-        return;
-      }
-
-      for (const layer of ["pois-dot", "pois-transport-major", "pois-transport-minor"] as const) {
-        const poiHit = byLayer.get(layer);
-        if (!poiHit) continue;
-        const name = poiHit.properties?.name;
-        const category = poiHit.properties?.category;
-        if (typeof name !== "string" || typeof category !== "string") return;
-        selectLandmark(null);
-        setActivePoi({ name, category: category as PoiCategory });
-        return;
-      }
+    // landmark card that happened to sit under the same finger. Listeners are
+    // torn down by map.remove() in constructCleanup exactly as before.
+    wireClickRouting(map, {
+      selectLandmark,
+      setHoveredVenue,
+      setActivePoi,
+      onVenueClickRef,
+      onRouteStopClickRef,
+      onTonightOpportunityClickRef,
+      cityLandmarksRef,
+      tonightOpportunitiesRef,
+      cinematic,
     });
-
-    // Press-start / hover intent warms venue detail so the sheet opens warm.
-    // Also wire route-stops — those pins are the same venue ids.
-    const prefetchFromEvent = (event: {
-      features?: Array<{ properties?: Record<string, unknown> | null }> | undefined;
-    }) => {
-      const id = event.features?.[0]?.properties?.id;
-      if (typeof id !== "string") return;
-      onVenuePrefetchRef.current?.(id);
-    };
-    for (const layer of ["pubs-point", "route-stops"] as const) {
-      map.on("mouseenter", layer, prefetchFromEvent);
-      map.on("mousedown", layer, prefetchFromEvent);
-      map.on("touchstart", layer, prefetchFromEvent);
-    }
-
-    const onPubHover = (event: maplibregl.MapLayerMouseEvent) => {
-      if (!hoverCapableRef.current) return;
-      const props = event.features?.[0]?.properties;
-      const id = props?.id;
-      const name = props?.name;
-      if (typeof id !== "string" || typeof name !== "string") return;
-      setHoveredVenue({ id, name, x: event.point.x, y: event.point.y });
-    };
-    map.on("mouseenter", "pubs-point", onPubHover);
-    map.on("mousemove", "pubs-point", onPubHover);
-    map.on("mouseleave", "pubs-point", () => setHoveredVenue(null));
-    for (const layer of [
-      "pubs-point",
-      "clusters",
-      "route-stops",
-      "tonight-point",
-      "landmarks-icon",
-      "pois-dot",
-      "pois-transport-major",
-      "pois-transport-minor",
-    ]) {
-      map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
-      map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
-    }
-
+    wireHoverPrefetch(map, { onVenuePrefetchRef });
+    wirePubHover(map, { hoverCapableRef, setHoveredVenue });
+    wireCursor(map);
     // --- Idle orbit + dash animation: one RAF loop, no React re-renders.
     // User input (incl. the nav control) pushes holdUntil forward; the orbit
     // resumes after ORBIT_RESUME_MS of stillness. Reduced motion disables both.
@@ -1312,54 +1198,6 @@ export default function PubMapCanvas({
     });
   }, [route, selectedVenueId, mapReady, applyToMap]);
 
-  // Shared fit logic: the route effect and the Recenter control both call this
-  // so the framing behaviour stays identical. Reads the live route from a ref
-  // so the button never needs a fresh closure.
-  const routeRef = useRef(route);
-  useEffect(() => {
-    routeRef.current = route;
-  }, [route]);
-  const fitRoute = useCallback(() => {
-    const map = mapRef.current;
-    const current = routeRef.current;
-    if (!map || current.length < 2) return;
-    const bounds = new maplibregl.LngLatBounds();
-    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
-    holdUntilRef.current = Math.max(
-      holdUntilRef.current,
-      performance.now() + 900 + ORBIT_RESUME_MS,
-    );
-    const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    map.fitBounds(bounds, {
-      padding: isPhone
-        ? { top: 160, right: 28, bottom: 200, left: 28 }
-        : 90,
-      maxZoom: 15,
-      duration: reducedRef.current ? 0 : 800,
-    });
-  }, []);
-
-  // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
-  const fitCityBounds = useCallback(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    holdUntilRef.current = Math.max(
-      holdUntilRef.current,
-      performance.now() + 900 + ORBIT_RESUME_MS,
-    );
-    const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    const view = mapViewRef.current;
-    map.fitBounds(maxBoundsRef.current, {
-      padding: isPhone
-        ? { top: 184, right: 24, bottom: 190, left: 24 }
-        : 90,
-      maxZoom: 11,
-      duration: reducedRef.current ? 0 : 800,
-      pitch: view.pitch,
-      bearing: view.bearing,
-    });
-  }, []);
-
   // Clean city arrival: frame the city's maxBounds once after style/load.
   // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
   // see shouldFitCityBoundsOnArrival. Ref guards against effect re-runs.
@@ -1376,28 +1214,6 @@ export default function PubMapCanvas({
     fitCityBounds();
   }, [mapReady, fitCityOnArrival, fitCityBounds]);
 
-  // Borough browse arrival: frame the filtered venue set once (query owns the
-  // camera). Skip if the user already tapped a pin — don't fight selectedVenue
-  // fly-to. Padding mirrors fitRoute; maxZoom ~13 keeps outer boroughs readable.
-  const fitQueryVenues = useCallback(() => {
-    const map = mapRef.current;
-    const current = venuesRef.current;
-    if (!map || current.length === 0) return;
-    const bounds = new maplibregl.LngLatBounds();
-    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
-    holdUntilRef.current = Math.max(
-      holdUntilRef.current,
-      performance.now() + 900 + ORBIT_RESUME_MS,
-    );
-    const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    map.fitBounds(bounds, {
-      padding: isPhone
-        ? { top: 160, right: 28, bottom: 200, left: 28 }
-        : 90,
-      maxZoom: 13,
-      duration: reducedRef.current ? 0 : 800,
-    });
-  }, []);
   useEffect(() => {
     if (!mapReady || !fitQueryOnArrival) return;
     if (didFitQueryOnArrivalRef.current) return;
