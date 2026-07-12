@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Venue } from "@/lib/venues";
 
@@ -23,8 +23,18 @@ export function usePresence(venue: Venue) {
     setPresenceState("idle");
   }
 
+  // Live venue id for the stale-response guard below: a check-in resolving
+  // after the viewer has switched pubs must never flip the NEW panel to "here".
+  // Updated in an effect (never during render — react-hooks/refs) which is
+  // early enough: the fetch below can only resolve after effects have run.
+  const currentVenueIdRef = useRef(venue.id);
+  useEffect(() => {
+    currentVenueIdRef.current = venue.id;
+  }, [venue.id]);
+
   async function markPresenceHere() {
     if (presenceState === "sending" || presenceState === "here") return;
+    const requestVenueId = venue.id;
     const handle =
       typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? "").trim();
     if (!handle) {
@@ -38,10 +48,15 @@ export function usePresence(venue: Venue) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, venueId: venue.id }),
       });
+      // Stale-response guard: the pub changed while this request was in
+      // flight — the adjust-during-render reset already put the new venue on
+      // "idle", so drop this response rather than stamping the wrong pub.
+      if (currentVenueIdRef.current !== requestVenueId) return;
       // Presence is best-effort: a non-ok response still lands the viewer back on
       // an actionable state rather than a spinner. A 200 confirms "you're here".
       setPresenceState(res.ok ? "here" : "idle");
     } catch {
+      if (currentVenueIdRef.current !== requestVenueId) return;
       setPresenceState("idle");
     }
   }

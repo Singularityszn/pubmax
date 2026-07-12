@@ -8,6 +8,11 @@ export function downloadIcs(filename: string, contents: string): void {
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  // Defer cleanup to the next tick: revoking the blob URL synchronously after
+  // click() aborts the download in Firefox and some Edge builds, which start
+  // fetching the blob asynchronously.
+  setTimeout(() => {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, 0);
 }
