@@ -449,6 +449,17 @@ export function buildPubs(ctx: SceneCtx) {
       // -1: clusters render up to AND INCLUDING clusterMaxZoom, so this
       // must sit one below the pin layers' minzoom or both draw at 12.x.
       clusterMaxZoom: PIN_UNCLUSTER_ZOOM - 1,
+      // M5 — per-cluster price-band mix for the donut markers
+      // (components/map/canvas/donutClusters.ts). b0..b3 mirror
+      // priceBucket() in geojson.ts (≤£5.50 / >£5.50–≤£7 / >£7 / no price —
+      // the same order + colours as the legend/pin fill), accumulated by
+      // supercluster itself so no client-side aggregation pass is needed.
+      clusterProperties: {
+        b0: ["+", ["case", ["==", ["get", "bucket"], 0], 1, 0]],
+        b1: ["+", ["case", ["==", ["get", "bucket"], 1], 1, 0]],
+        b2: ["+", ["case", ["==", ["get", "bucket"], 2], 1, 0]],
+        b3: ["+", ["case", ["==", ["get", "bucket"], 3], 1, 0]],
+      },
     });
   }
   // Scraped-pub halo: warm brass ring so Young's / Nicholson's / gazetteer
