@@ -2,6 +2,9 @@
   "mcpServers": {
     "citymcp-london": {
       "url": "https://citymcp.com/london/mcp"
+    },
+    "supabase": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=iankajxliutqogqkmvdg"
     }
   }
 }
