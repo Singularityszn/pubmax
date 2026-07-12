@@ -123,7 +123,12 @@ export default function ThamesHero() {
         quality={78}
       />
       <div className="thamesHeroScrim" aria-hidden="true" />
-      <p className="thamesHeroHint">Tap a drink shape to open that kind of night</p>
+      <p className="thamesHeroHint">
+        {/* Copy is pointer-aware via CSS: touch devices see "Tap", mice see
+            "Choose" — desktop never says "tap" when there's no tapping. */}
+        <span className="thamesHeroHintTouch">Tap a drink shape to open that kind of night</span>
+        <span className="thamesHeroHintPointer">Choose a drink shape to open that kind of night</span>
+      </p>
       <ul className="thamesHeroPins">
         {HERO_PUBS.map((pub, i) => {
           const href = heroPubHref(pub.query, preferredCity);

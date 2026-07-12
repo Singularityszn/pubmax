@@ -638,15 +638,18 @@ export default function FeedPage() {
   }
 
   const isEmpty = status === "error" || (status === "ready" && filtered.length === 0);
-  // The Friends lane is empty *because the viewer follows nobody* (or is
-  // anonymous), not because the bar is quiet — show a follow-people prompt with a
-  // route to /discover instead of the generic "no pints" copy. Guarded on the
-  // following set having loaded, so we don't flash it before the fetch resolves.
+  // The Friends lane gets its own prompt only when the *reason* it's empty is
+  // that the viewer follows nobody (or is anonymous) — a route to /discover
+  // fixes that. If they already follow people who just haven't posted, that's
+  // a quiet feed, not a missing follow graph, so it falls through to the
+  // generic isEmpty copy below instead of wrongly telling them to go find
+  // people to follow. Guarded on the following set having loaded, so we don't
+  // flash it before the fetch resolves.
   const friendsEmpty =
     filter === "friends" &&
     status === "ready" &&
     followingHandles !== null &&
-    (followingHandles.size === 0 || filtered.length === 0);
+    followingHandles.size === 0;
 
   return (
     <main className="feedShell">

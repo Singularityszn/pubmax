@@ -190,7 +190,10 @@ export default function LandingPage() {
   const hasPreferredCity = preferredCity != null;
   const mapHref = preferredCityMapHref();
   const primaryCtaHref = hasPreferredCity ? mapHref : "/choose-city";
-  const primaryCtaLabel = hasPreferredCity ? "Open your map" : "Choose your city";
+  // Wave C2: one clear primary CTA regardless of city state — "Find pubs
+  // near me" reads as an invitation either way; the href still branches to
+  // /choose-city first when there's no preferred city yet.
+  const primaryCtaLabel = "Find pubs near me";
   // Wave K2 — mirror the tab bar: prefetch /map + slim payloads on intent
   // (pointerDown fires before navigation on phones; enter/focus cover desktop).
   const warmMap = useCallback(() => warmMapRoute(router, mapHref), [router, mapHref]);
@@ -242,7 +245,7 @@ export default function LandingPage() {
                 PUBMAXXING
               </h1>
               <p className="heroTagline lpSerif">
-                Pubs for every kind of night.
+                Know the price before you order…
               </p>
               <p className="heroLede">
                 Real pint prices, drink-shaped pins, and crawls that welcome

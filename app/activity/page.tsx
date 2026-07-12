@@ -144,7 +144,7 @@ export default function ActivityPage(): React.JSX.Element {
         ) : failed ? (
           <EmptyState
             title="Couldn't load your activity"
-            body="Something went wrong reaching the server. Try again in a moment."
+            body="Couldn't reach the server. Try again in a moment."
             role="alert"
           />
         ) : items.length === 0 ? (

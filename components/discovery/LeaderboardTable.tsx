@@ -22,11 +22,11 @@ type LeaderboardTableProps = {
 };
 
 const LEADERBOARD_HONESTY =
-  "Cheapest on record in the dataset — not live tonight. Open a pub for sourced or community freshness.";
+  "Cheapest we have on record — not necessarily tonight's price. Open a pub to see what's sourced or freshly reported.";
 
 export default function LeaderboardTable({
   entries,
-  caption = "Cheapest pints in London, cheapest first. Dataset prices on record, not a live tonight feed.",
+  caption = "Cheapest pints in London, cheapest first. Prices on record, not a live tonight feed.",
 }: LeaderboardTableProps) {
   if (entries.length === 0) {
     return (

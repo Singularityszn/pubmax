@@ -39,7 +39,7 @@ function errorResponse(error: RoundWriteError): Response {
     forbidden: { status: 403, message: "You're not in this Round." },
     // A store failure is a degraded dependency (503, fail-soft), not a bug (500)
     // — the house contract every other write route uses (see pint-drops).
-    error: { status: 503, message: "Something went wrong. Try again." },
+    error: { status: 503, message: "Couldn't save that. Try again." },
   };
   const { status, message } = map[error];
   return jsonNoStore({ error: message }, { status });

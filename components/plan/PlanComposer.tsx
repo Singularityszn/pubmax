@@ -159,7 +159,7 @@ export default function PlanComposer() {
       </fieldset>
 
       {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
-      <button className="planComposer__submit" type="submit" disabled={submitting}>{submitting ? "Sorting…" : "Make it a Plan"}</button>
+      <button className="planComposer__submit" type="submit" disabled={submitting}>{submitting ? "Locking it in…" : "Lock it in"}</button>
       <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
     </form>
   );

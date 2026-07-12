@@ -80,7 +80,7 @@ export default function MapToolbar({
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search pubs or area…"
+            placeholder="Search pubs"
             aria-label="Search pubs by name, area, borough or drink"
           />
           {query ? (

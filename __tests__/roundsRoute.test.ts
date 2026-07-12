@@ -202,7 +202,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     joinOverride.fn = async () => ({ ok: false, error: "error" as const });
     const res = await action(round.code, { action: "join", handle: "ale" });
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "Something went wrong. Try again." });
+    expect(await res.json()).toEqual({ error: "Couldn't save that. Try again." });
   });
 
   it("close by the creator, then addStop is 409 (closed)", async () => {

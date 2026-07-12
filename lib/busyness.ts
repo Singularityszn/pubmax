@@ -26,7 +26,37 @@ export type BusynessEstimate = {
 type LocalClock = { weekday: number; minutes: number };
 
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+const GROUP_SIZE_WORDS = [
+  "One",
+  "Two",
+  "Three",
+  "Four",
+  "Five",
+  "Six",
+  "Seven",
+  "Eight",
+  "Nine",
+  "Ten",
+  "Eleven",
+  "Twelve",
+];
 const REPORT_FRESHNESS_MS = 90 * 60 * 1_000;
+
+// "Four of you" reads honest and specific; past a dozen, spell it as a
+// numeral rather than reaching for words nobody says out loud.
+function groupSizeWords(groupSize: number): string {
+  const word = GROUP_SIZE_WORDS[groupSize - 1];
+  return `${word ?? groupSize} of you`;
+}
 
 function localClock(now: Date, timeZone: string): LocalClock {
   const formatter = new Intl.DateTimeFormat("en-GB", {
@@ -128,7 +158,7 @@ export function estimateBusyness(input: {
     isOpen,
     reportCount: 0,
     generatedAt: now.toISOString(),
-    explanation: "Estimated from the day and time; live crowd data is unavailable.",
+    explanation: "That's the usual pattern for this hour — we're not watching the door.",
   };
 }
 
@@ -138,6 +168,9 @@ export function canGroupGetIn(input: {
   groupSize: number;
   level: BusynessLevel;
   hasBookingLink: boolean;
+  /** Drives the day-name in the "likely" reason copy. Defaults to now/London. */
+  now?: Date;
+  timeZone?: string;
 }): { fit: GroupFit; label: string; reason: string } {
   const groupSize = Math.max(1, Math.min(30, Math.round(input.groupSize) || 1));
   if (input.hasBookingLink && groupSize >= 6 && ["busy", "rammed"].includes(input.level)) {
@@ -161,10 +194,12 @@ export function canGroupGetIn(input: {
       reason: "Entry is uncertain; the venue has not confirmed space.",
     };
   }
+  const dayName =
+    WEEKDAY_NAMES[localClock(input.now ?? new Date(), input.timeZone ?? "Europe/London").weekday];
   return {
     fit: "likely",
     label: "Likely workable",
-    reason: "The estimate looks workable, but entry is never guaranteed.",
+    reason: `${groupSizeWords(groupSize)} should get in fine — but no promises on a ${dayName}. If it matters, book.`,
   };
 }
 

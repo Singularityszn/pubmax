@@ -44,6 +44,7 @@ export async function GET(
       groupSize,
       level: busyness.level,
       hasBookingLink: booking.available,
+      timeZone: "Europe/London",
     }),
   };
 
