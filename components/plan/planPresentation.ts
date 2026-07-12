@@ -34,3 +34,19 @@ export function stopsFromConcierge(
     return venueId && venueName ? [{ venueId, venueName }] : [];
   });
 }
+
+// C3 — the concierge "Sort it" button posts a free-text query that can land on
+// either /api/concierge response shape: ranked venues (mood queries) or
+// grounded What's-On listings (occasion templates whose text names a kind —
+// "pub quiz tonight", "screening live sport" — see lib/concierge/whatsOn.ts's
+// detectWhatsOnIntent). lib/conciergeAskClient's answerFromBody already
+// normalises both shapes into one card list; this just threads those cards
+// through the same venueId/venueName stop shape as stopsFromConcierge, honestly
+// dropping any card whose venueId never resolved (never invents a stop).
+export function stopsFromAnswerCards(
+  cards: ReadonlyArray<{ venueId: string; title: string }>,
+): Array<{ venueId: string; venueName: string }> {
+  return stopsFromConcierge(
+    cards.map((card) => ({ id: card.venueId, name: card.title })),
+  );
+}

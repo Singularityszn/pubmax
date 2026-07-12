@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 
 import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
 import { CREW_NAME_MAX } from "@/lib/crew";
+import { answerFromBody } from "@/lib/conciergeAskClient";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
-import { stopsFromConcierge } from "@/components/plan/planPresentation";
+import { stopsFromAnswerCards } from "@/components/plan/planPresentation";
 
 type DraftStop = { key: number; venueId: string; venueName: string };
 type VenueOption = { id: string; name: string; address?: string };
@@ -64,14 +65,25 @@ export default function PlanComposer() {
       const response = await fetch("/api/concierge", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query: conciergeQuery, limit: 3, narrated: true }),
+        // weighTonightEvents (C3): a soft, opt-in signal the ranking path uses
+        // to gently favour venues with a real tonight event matching the
+        // occasion (e.g. live music for a "lively" leaving-do) — never a hard
+        // filter, and a no-op for any other /api/concierge caller that omits
+        // it. An occasion template whose text names a kind (quiz/sport/deal)
+        // instead answers from grounded What's-On listings — both shapes are
+        // handled below via the shared normaliser (answerFromBody).
+        body: JSON.stringify({ query: conciergeQuery, limit: 3, narrated: true, weighTonightEvents: true }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error || "The concierge could not sort this one.");
-      const suggested = stopsFromConcierge(Array.isArray(body?.venues) ? body.venues : []);
+      const answer = answerFromBody(body);
+      if (answer.status === "error") throw new Error(answer.message);
+      const suggested = stopsFromAnswerCards(answer.cards);
       if (!suggested.length) throw new Error("No grounded venues matched that request. Try a nearby area or a broader mood.");
       setStops(suggested.map((stop, index) => ({ key: index + 1, ...stop })));
-      setConciergeNote(typeof body.narration === "string" ? body.narration : "Grounded picks added. Change the order if you like.");
+      setConciergeNote(
+        typeof body.narration === "string" ? body.narration : answer.message,
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The concierge could not sort this one.");
     } finally {

@@ -1,3 +1,6 @@
+import type { WhatsOnKind } from "@/lib/whatsOn";
+import { WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
+
 export const CONCIERGE_MOODS = [
   "balanced",
   "quiet",
@@ -59,6 +62,26 @@ export type RankedConciergeVenue = {
 type RankingOptions = {
   limit?: number;
   context?: ConciergeContext;
+  /**
+   * C3 — soft, grounded planner weighting: a venue with a REAL tonight
+   * What's-On row whose kind matches the requested occasion mood gets a
+   * gentle score bump (never a hard filter, never invented — a venue absent
+   * from the map, or with no matching kind, just scores as it always did).
+   * Optional and purely additive: omitted entirely (every caller before C3),
+   * ranking is byte-for-byte unchanged.
+   */
+  tonightEventKindsByVenue?: ReadonlyMap<string, ReadonlySet<WhatsOnKind>>;
+};
+
+// Which tonight What's-On kind a mood is grounded evidence for, when present.
+// Deliberately narrow — only moods with an unambiguous kind mapping get a
+// bonus, so this never becomes a second, opaque scoring system layered on
+// amenityScore. Moods with no honest mapping (garden, cocktails, heritage,
+// …) are left alone.
+const MOOD_TONIGHT_KIND: Partial<Record<ConciergeMood, WhatsOnKind>> = {
+  sports: "sport",
+  lively: "music",
+  food: "deal",
 };
 
 function normalise(value: string): string {
@@ -97,6 +120,7 @@ function scoreOne(
   venue: ConciergeVenue,
   intent: ConciergeIntent,
   context: ConciergeContext,
+  tonightEventKindsByVenue?: ReadonlyMap<string, ReadonlySet<WhatsOnKind>>,
 ): RankedConciergeVenue {
   let score = venue.canonical ? 1 : 0;
   const reasons: string[] = [];
@@ -159,6 +183,22 @@ function scoreOne(
     score += Number(venue.amenities.liveMusic) * 3 + Number(venue.amenities.cocktails) * 2;
   }
 
+  // C3 tonight-event soft weight: a real matching-kind row tonight is
+  // grounded evidence beyond the static amenity flag, so it earns its own
+  // small, transparent bump — one bonus per venue even if several requested
+  // moods would each match (no stacking).
+  const tonightKinds = tonightEventKindsByVenue?.get(venue.id);
+  if (tonightKinds) {
+    for (const mood of intent.mood) {
+      const wantedKind = MOOD_TONIGHT_KIND[mood];
+      if (wantedKind && tonightKinds.has(wantedKind)) {
+        score += 6;
+        reasons.push(`${WHATS_ON_KIND_META[wantedKind].badgeLabel} tonight`);
+        break;
+      }
+    }
+  }
+
   return { venue, score: Number(score.toFixed(4)), reasons: [...new Set(reasons)].slice(0, 3) };
 }
 
@@ -175,7 +215,7 @@ export function rankConciergeVenues(
     ? organic.filter((venue) => normalise(`${venue.area} ${venue.searchText ?? ""}`).includes(requestedArea))
     : organic;
   return eligible
-    .map((venue) => scoreOne(venue, intent, options.context ?? {}))
+    .map((venue) => scoreOne(venue, intent, options.context ?? {}, options.tonightEventKindsByVenue))
     .sort((left, right) => right.score - left.score || left.venue.id.localeCompare(right.venue.id, "en-GB"))
     .slice(0, limit);
 }
