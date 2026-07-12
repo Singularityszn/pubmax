@@ -38,6 +38,14 @@ export function shouldShowBandOnboardingChip(input: {
  * Curated crawl onboarding. When the band deep-link chip is showing, curated
  * onboarding is suppressed so the deep link feels intentional (G3 priority).
  * Cities with zero curated crawls never show the overlay.
+ *
+ * GateZ regression fix: the flagship Tonight lane (W1's primary "what's on"
+ * surface) must win first paint over the "Start with a story" card — a
+ * first-run visitor with live tonight rows should see them immediately, not
+ * have them occluded by the onboarding overlay. So when the lane has loaded
+ * rows to show, onboarding stays suppressed until the visitor dismisses or
+ * interacts with the lane (tracked by the caller via `tonightLaneHasRows`,
+ * which should go false again once the lane is dismissed/interacted with).
  */
 export function shouldShowCuratedOnboarding(input: {
   loaded: boolean;
@@ -50,9 +58,13 @@ export function shouldShowCuratedOnboarding(input: {
   showBandChip: boolean;
   /** When 0 / omitted-as-empty, skip onboarding (no crawls to offer). */
   curatedCrawlCount?: number;
+  /** Tonight lane has rows ready to show and hasn't been dismissed/interacted
+   * with yet — the lane wins first paint, so onboarding waits. */
+  tonightLaneHasRows?: boolean;
 }): boolean {
   if (input.showBandChip) return false;
   if ((input.curatedCrawlCount ?? 0) <= 0) return false;
+  if (input.tonightLaneHasRows) return false;
   return (
     input.loaded &&
     !input.onboardingDismissed &&

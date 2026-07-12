@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { CITIES } from "@/lib/cities";
 import { BASE_TABS, DEFAULT_TAB, tabsForCity } from "@/lib/venueInspectorTabs";
 
 describe("venueInspectorTabs", () => {
@@ -29,5 +30,16 @@ describe("venueInspectorTabs", () => {
     expect(manchesterRide.key).toBe("getting-home");
     expect(typeof londonRide.label).toBe("string");
     expect(typeof manchesterRide.label).toBe("string");
+  });
+
+  it("never renders two tabs with the same short label, for any city", () => {
+    for (const cityId of Object.keys(CITIES) as (keyof typeof CITIES)[]) {
+      const tabs = tabsForCity(cityId);
+      const shortLabels = tabs.map((t) => t.shortLabel);
+      const unique = new Set(shortLabels);
+      expect(unique.size, `duplicate shortLabel for city "${cityId}": ${shortLabels.join(", ")}`).toBe(
+        shortLabels.length,
+      );
+    }
   });
 });

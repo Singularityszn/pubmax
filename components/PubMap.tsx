@@ -970,8 +970,14 @@ export default function PubMap({
       dismissedBandIds.has(activeBandId) || readBandChipDismissed(activeBandId),
   });
   // §4.5: show the "Start with a story" onboarding overlay only on a clean first
-  // paint — never while the band deep-link chip is showing (G3 priority), and
-  // never when this city has no curated crawls to offer.
+  // paint — never while the band deep-link chip is showing (G3 priority), never
+  // when this city has no curated crawls to offer, and never while the Tonight
+  // lane (W1's PRIMARY what's-on spine) has live rows to show — the flagship
+  // surface wins first paint over the story upsell so it's never occluded
+  // (GateZ regression). Once the lane has no rows (quiet night / non-London),
+  // onboarding is free to show as before.
+  const tonightLaneHasRows =
+    isLondon && whatsOnTonight.status === "ready" && whatsOnTonight.rows.length > 0;
   const showOnboarding = shouldShowCuratedOnboarding({
     loaded,
     onboardingDismissed,
@@ -982,6 +988,7 @@ export default function PubMap({
     selectedVenueId,
     showBandChip,
     curatedCrawlCount: cityCuratedCrawls.length,
+    tonightLaneHasRows,
   });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
