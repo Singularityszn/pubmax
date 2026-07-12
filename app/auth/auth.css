@@ -85,6 +85,140 @@
   }
 }
 
+/* ── Compact nav sign-in (UX defect fix) ─────────────────────────────────
+   In the top navigation the two full "Continue with …" buttons only fit next
+   to a full link row on very wide screens. Below that they crowded the nav
+   links into overlapping fragments (1440px on /borough, /pubs, /discover) or
+   overflowed the landing top bar off-screen at 390px. Nav hosts now render
+   SignInButton with `compact`: a single "Sign in" disclosure (44px target)
+   opens the two fully-labelled provider buttons in a token-styled popover.
+   The inline pair never returns in a nav host — even huge viewports keep the
+   bar inside a bounded pill, so two ~210px buttons never genuinely fit. */
+.authUserNav {
+  position: relative;
+  flex-wrap: nowrap;
+}
+
+.authUserNav .authProviders {
+  display: none;
+}
+
+.authCompact {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.authCompactTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  /* 44px touch target at every width. */
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.authCompactTrigger:hover {
+  border-color: var(--brass);
+}
+
+.authCompactTrigger:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.authCompactTrigger[aria-expanded="true"] {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+}
+
+/* Tablet band only: the eight-link row is at its densest, so the trigger
+   drops to an icon-only 44px disc (its aria-label keeps the accessible name)
+   and the labels get the room back. Phones (≤640px) are excluded on purpose:
+   SiteNav hides .authUser entirely there (the bottom tab bar owns nav) and
+   the landing top bar has room for the labelled pill. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .authUserNav .authCompactLabel {
+    display: none;
+  }
+
+  .authUserNav .authCompactTrigger {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+}
+
+/* Popover with the two full provider buttons — anchored to the trigger's
+   right edge so it never pushes the bar wider or clips off-screen. */
+.authMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-modal, 60);
+  display: grid;
+  gap: 0.4rem;
+  min-width: 15.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: var(--panel-raised);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
+}
+
+@keyframes authMenuRise {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .authMenu {
+    animation: authMenuRise 0.18s ease-out;
+  }
+}
+
+/* Inside the popover there is always room for the full labels; each row is a
+   full-width 44px target regardless of the viewport-driven swaps above. */
+.authMenu .authSignIn {
+  width: 100%;
+  min-height: 44px;
+  justify-content: flex-start;
+}
+
+/* A rare OAuth-call error in the compact host renders as a small anchored
+   note instead of stretching the (nowrap) nav row. */
+.authUserNav .authError {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  max-width: 16rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--brick) 35%, var(--line));
+  border-radius: 0.6rem;
+  background: var(--panel-raised);
+}
+
 .authSignIn:hover {
   border-color: var(--brass);
 }

@@ -14,7 +14,8 @@
 // the redirect — that failure is EXPECTED and is not a bug in this code.
 // ──────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { LogIn } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import "@/app/auth/auth.css";
@@ -65,10 +66,48 @@ function initials(name: string): string {
   return (first + last).toUpperCase() || "?";
 }
 
-export default function SignInButton(): React.JSX.Element | null {
+export default function SignInButton({
+  compact = false,
+}: {
+  /**
+   * Nav-host mode (SiteNav + landing top bar). The two full "Continue with …"
+   * provider buttons only fit alongside a full link row on very wide screens —
+   * below that they crowded the nav links into unreadable fragments (1440px)
+   * or overflowed the bar at 390px. Compact hosts render a single "Sign in"
+   * disclosure that opens the labelled provider buttons in a small popover;
+   * the inline pair returns only where it genuinely fits (auth.css ≥1680px).
+   * Standalone hosts (signed-out empty states) keep the full pair as before.
+   */
+  compact?: boolean;
+}): React.JSX.Element | null {
   const { user, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut } = useAuth();
   const [busy, setBusy] = useState<"google" | "microsoft" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  // Light-dismiss for the compact popover: outside pointer-down or Escape.
+  // Listeners only exist while the menu is open, so this costs nothing when
+  // closed and never runs for the non-compact (standalone) variant.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const root = rootRef.current;
+      if (root && event.target instanceof Node && !root.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   const onSignInGoogle = useCallback(async () => {
     setBusy("google");
@@ -139,43 +178,103 @@ export default function SignInButton(): React.JSX.Element | null {
     );
   }
 
+  const providers = (
+    <div className="authProviders">
+      <button
+        type="button"
+        className="authSignIn"
+        onClick={onSignInGoogle}
+        disabled={busy !== null}
+        aria-label="Continue with Google"
+      >
+        <GoogleMark />
+        {/* Full label on room-to-spare widths; a short label takes over at
+            narrow viewports (see auth.css) so two provider buttons never
+            crowd/clip the nav at 390px. aria-label is what screen readers
+            announce regardless of which label is visually shown. */}
+        <span className="authSignInLabelFull" aria-hidden="true">
+          Continue with Google
+        </span>
+        <span className="authSignInLabelShort" aria-hidden="true">
+          Google
+        </span>
+      </button>
+      <button
+        type="button"
+        className="authSignIn"
+        onClick={onSignInMicrosoft}
+        disabled={busy !== null}
+        aria-label="Continue with Microsoft"
+      >
+        <MicrosoftMark />
+        <span className="authSignInLabelFull" aria-hidden="true">
+          Continue with Microsoft
+        </span>
+        <span className="authSignInLabelShort" aria-hidden="true">
+          Microsoft
+        </span>
+      </button>
+    </div>
+  );
+
+  if (!compact) {
+    return (
+      <div className="authUser">
+        {providers}
+        {error ? (
+          <span className="authError" role="alert">
+            {error}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
+  // Compact nav host: the inline pair above stays in the DOM (auth.css shows
+  // it only at ≥1680px); everywhere else this single disclosure is the whole
+  // sign-in footprint, so the nav links never get crowded or clipped.
   return (
-    <div className="authUser">
-      <div className="authProviders">
+    <div className="authUser authUserNav" ref={rootRef}>
+      {providers}
+      <div className="authCompact">
         <button
           type="button"
-          className="authSignIn"
-          onClick={onSignInGoogle}
-          disabled={busy !== null}
-          aria-label="Continue with Google"
+          className="authCompactTrigger"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-expanded={menuOpen}
+          aria-controls={menuId}
+          aria-haspopup="true"
+          aria-label="Sign in"
         >
-          <GoogleMark />
-          {/* Full label on room-to-spare widths; a short label takes over at
-              narrow viewports (see auth.css) so two provider buttons never
-              crowd/clip the nav at 390px. aria-label is what screen readers
-              announce regardless of which label is visually shown. */}
-          <span className="authSignInLabelFull" aria-hidden="true">
-            Continue with Google
-          </span>
-          <span className="authSignInLabelShort" aria-hidden="true">
-            Google
+          <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+          {/* Visually hidden on the densest tablet band (auth.css ≤900px);
+              the aria-label above keeps the accessible name either way. */}
+          <span className="authCompactLabel" aria-hidden="true">
+            Sign in
           </span>
         </button>
-        <button
-          type="button"
-          className="authSignIn"
-          onClick={onSignInMicrosoft}
-          disabled={busy !== null}
-          aria-label="Continue with Microsoft"
-        >
-          <MicrosoftMark />
-          <span className="authSignInLabelFull" aria-hidden="true">
-            Continue with Microsoft
-          </span>
-          <span className="authSignInLabelShort" aria-hidden="true">
-            Microsoft
-          </span>
-        </button>
+        {menuOpen ? (
+          <div className="authMenu" id={menuId} aria-label="Sign in options">
+            <button
+              type="button"
+              className="authSignIn"
+              onClick={onSignInGoogle}
+              disabled={busy !== null}
+            >
+              <GoogleMark />
+              Continue with Google
+            </button>
+            <button
+              type="button"
+              className="authSignIn"
+              onClick={onSignInMicrosoft}
+              disabled={busy !== null}
+            >
+              <MicrosoftMark />
+              Continue with Microsoft
+            </button>
+          </div>
+        ) : null}
       </div>
       {error ? (
         <span className="authError" role="alert">
