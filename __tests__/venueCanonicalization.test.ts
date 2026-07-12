@@ -206,6 +206,23 @@ describe("canonicalizeDataset — safety guards", () => {
     expect(stats.venueIdentitiesAfter).toBe(1);
     expect(out).toEqual(rows);
   });
+
+  it("does NOT transitively collapse an A-B-C chain when the endpoints exceed 100 m", () => {
+    // A-B (~89 m) and B-C (~89 m) individually satisfy the merge predicate, but
+    // A-C (~178 m) does not — single-link clustering must not chain all three
+    // into one merged identity via B; C must stay a distinct venue.
+    const a = makeRow({ pub_name: "The Anchor", latitude: 51.5, longitude: -0.1 });
+    const b = makeRow({ pub_name: "The Anchor", latitude: 51.5008, longitude: -0.1 });
+    const c = makeRow({ pub_name: "The Anchor", latitude: 51.5016, longitude: -0.1 });
+    const cId = stableVenueIdFromKey(venueGroupingKey(c));
+
+    const { aliases, stats } = canonicalizeDataset([a, b, c]);
+
+    // At most the A-B pair merges; C is never folded into that cluster.
+    expect(stats.duplicateClusters).toBeLessThanOrEqual(1);
+    expect(Object.keys(aliases)).not.toContain(cId);
+    expect(Object.values(aliases)).not.toContain(cId);
+  });
 });
 
 // scripts/lib/venueCanonicalization.mjs's venueGroupingKey/stableVenueIdFromKey

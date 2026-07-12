@@ -60,8 +60,30 @@ async function main() {
 
   // Cumulative alias map: never forget a dedup that was applied on an earlier
   // (full-dataset) run just because this run sees an already-canonical file.
+  //
+  // A prior run's target can itself become a loser in a later run (new source
+  // coverage flips which record wins compareCanonical) — naively spreading
+  // both maps (`{ ...prev, ...current }`) can then create a cycle, e.g. prior
+  // `{ a: b }` plus current `{ b: a }`. Rebase every prior target through this
+  // run's aliases so it always points at the CURRENT winner, and drop any
+  // mapping that rebases to a self-map (a cycle already recorded historically,
+  // or one this run just introduced) rather than persist it.
   const prev = await readJsonOr(ALIASES_PATH, { aliases: {} });
-  const mergedAliases = { ...(prev.aliases ?? {}), ...aliases };
+  const mergedAliases = { ...aliases };
+  for (const [from, to] of Object.entries(prev.aliases ?? {})) {
+    if (Object.prototype.hasOwnProperty.call(mergedAliases, from)) continue; // this run wins
+    let target = to;
+    const seen = new Set([from]);
+    while (
+      Object.prototype.hasOwnProperty.call(aliases, target) &&
+      !seen.has(target)
+    ) {
+      seen.add(target);
+      target = aliases[target];
+    }
+    if (target === from) continue; // rebases to a cycle/self-map — drop, never persist
+    mergedAliases[from] = target;
+  }
 
   const aliasDoc = {
     version: 1,

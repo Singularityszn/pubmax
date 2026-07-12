@@ -107,6 +107,7 @@ export function haversineMeters(aLat, aLng, bLat, bLng) {
 // Two records may be the same physical pub only when they are geographically
 // close AND their postcodes don't actively conflict.
 function looksSamePub(a, b, maxMergeMeters) {
+  if (![a.lat, a.lng, b.lat, b.lng].every(Number.isFinite)) return false;
   if (haversineMeters(a.lat, a.lng, b.lat, b.lng) > maxMergeMeters) return false;
   const pa = postcodeOutward(a.address);
   const pb = postcodeOutward(b.address);
@@ -200,7 +201,7 @@ export function canonicalizeDataset(rows, options = {}) {
         grew = false;
         for (let j = 0; j < list.length; j += 1) {
           if (used[j]) continue;
-          if (cluster.some((c) => looksSamePub(c, list[j], maxMergeMeters))) {
+          if (cluster.every((c) => looksSamePub(c, list[j], maxMergeMeters))) {
             cluster.push(list[j]);
             used[j] = true;
             grew = true;
