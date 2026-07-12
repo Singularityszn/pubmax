@@ -100,6 +100,48 @@ for (const viewport of VIEWPORTS) {
         await shot(page, `map-log-${theme}-${viewport.name}`);
       });
 
+      test(`tonight (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/tonight");
+        expect(response?.status()).toBe(200);
+        // Deterministic: the tonight screen mounts with this testid once it
+        // has rendered real content (or the honest empty/thin state) — never
+        // the loading/error shell.
+        await page.getByTestId("tonight-screen").waitFor({ state: "visible", timeout: 15000 });
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `tonight-${theme}-${viewport.name}`, true);
+      });
+
+      test(`plan (${theme}, ${viewport.name})`, async ({ page }) => {
+        await setTheme(page, theme);
+        const response = await page.goto("/plan");
+        expect(response?.status()).toBe(200);
+        // Deterministic: the plan builder's h1 guards against shooting a
+        // loading/error shell.
+        await page
+          .getByRole("heading", { level: 1, name: "Put the night in order." })
+          .waitFor({ state: "visible", timeout: 15000 });
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await shot(page, `plan-${theme}-${viewport.name}`, true);
+      });
+
+      test(`venue sheet desktop (${theme}, ${viewport.name})`, async ({ page }) => {
+        test.skip(viewport.width < 1024, "desktop inspector only");
+        await setTheme(page, theme);
+        const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+        expect(response?.status()).toBe(200);
+        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
+        // Deterministic: wait for the selected venue's inspector content (the
+        // desktop docked panel) instead of a fixed sleep.
+        const inspector = page.locator(".venueInspector");
+        await inspector.waitFor({ state: "visible", timeout: 15000 });
+        await inspector
+          .getByText("Arnos Arms")
+          .first()
+          .waitFor({ state: "visible", timeout: 15000 });
+        await shot(page, `venue-desktop-${theme}-${viewport.name}`);
+      });
+
       test(`feed (${theme}, ${viewport.name})`, async ({ page }) => {
         await setTheme(page, theme);
         const response = await page.goto("/feed");
