@@ -144,12 +144,6 @@
       "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/hope-and-anchor/book",
       "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
     },
-    "venue-1ffe6u": {
-      "source": "greene-king.co.uk",
-      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/lord-raglan/menu",
-      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/lord-raglan/book",
-      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
-    },
     "venue-r2rhk7": {
       "source": "greene-king.co.uk",
       "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/lucas-arms/menu",
@@ -212,12 +206,6 @@
       "source": "greene-king.co.uk",
       "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/menu",
       "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/book",
-      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
-    },
-    "venue-10jw1vr": {
-      "source": "greene-king.co.uk",
-      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/george-southwark/menu",
-      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/george-southwark/book",
       "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
     },
     "venue-eltcmh": {
@@ -827,25 +815,6 @@
         }
       ]
     },
-    "venue-10zhewm": {
-      "source": "nicholsonspubs.co.uk",
-      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon/foodmenu",
-      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon/bookings",
-      "categoryTiles": [
-        {
-          "id": "food-1",
-          "label": "Food",
-          "hint": "Opens the Nicholson's food menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon/foodmenu"
-        },
-        {
-          "id": "drinks-1",
-          "label": "Drinks",
-          "hint": "Opens the Nicholson's drinks menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon/drinks"
-        }
-      ]
-    },
     "venue-1x76bur": {
       "source": "nicholsonspubs.co.uk",
       "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/theflyinghorseoxfordstreetlondon/foodmenu",
@@ -919,25 +888,6 @@
           "label": "Drinks",
           "hint": "Opens the Nicholson's drinks menu",
           "href": "https://www.nicholsonspubs.co.uk/restaurants/london/themarquisofgranbywestminsterlondon/drinks"
-        }
-      ]
-    },
-    "venue-1r5qszr": {
-      "source": "nicholsonspubs.co.uk",
-      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/themudlarklondonbridge/foodmenu",
-      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/themudlarklondonbridge/bookings",
-      "categoryTiles": [
-        {
-          "id": "food-1",
-          "label": "Food",
-          "hint": "Opens the Nicholson's food menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/themudlarklondonbridge/foodmenu"
-        },
-        {
-          "id": "drinks-1",
-          "label": "Drinks",
-          "hint": "Opens the Nicholson's drinks menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/themudlarklondonbridge/drinks"
         }
       ]
     },
@@ -1109,63 +1059,6 @@
           "label": "Drinks",
           "hint": "Opens the Nicholson's drinks menu",
           "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhitelioncoventgardenlondon/drinks"
-        }
-      ]
-    },
-    "venue-1q5c8ff": {
-      "source": "nicholsonspubs.co.uk",
-      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhiteswanlondon/foodmenu",
-      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhiteswanlondon/bookings",
-      "categoryTiles": [
-        {
-          "id": "food-1",
-          "label": "Food",
-          "hint": "Opens the Nicholson's food menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhiteswanlondon/foodmenu"
-        },
-        {
-          "id": "drinks-1",
-          "label": "Drinks",
-          "hint": "Opens the Nicholson's drinks menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhiteswanlondon/drinks"
-        }
-      ]
-    },
-    "venue-g5zwb8": {
-      "source": "nicholsonspubs.co.uk",
-      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thewoodinsshadesbishopsgatelondon/foodmenu",
-      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thewoodinsshadesbishopsgatelondon/bookings",
-      "categoryTiles": [
-        {
-          "id": "food-1",
-          "label": "Food",
-          "hint": "Opens the Nicholson's food menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewoodinsshadesbishopsgatelondon/foodmenu"
-        },
-        {
-          "id": "drinks-1",
-          "label": "Drinks",
-          "hint": "Opens the Nicholson's drinks menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewoodinsshadesbishopsgatelondon/drinks"
-        }
-      ]
-    },
-    "venue-19g8xwk": {
-      "source": "nicholsonspubs.co.uk",
-      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/theyorkislingtonlondon/foodmenu",
-      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/theyorkislingtonlondon/bookings",
-      "categoryTiles": [
-        {
-          "id": "food-1",
-          "label": "Food",
-          "hint": "Opens the Nicholson's food menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/theyorkislingtonlondon/foodmenu"
-        },
-        {
-          "id": "drinks-1",
-          "label": "Drinks",
-          "hint": "Opens the Nicholson's drinks menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/theyorkislingtonlondon/drinks"
         }
       ]
     },
@@ -1421,18 +1314,6 @@
         }
       ]
     },
-    "venue-3nj2os": {
-      "source": "youngs.co.uk",
-      "menuUrl": "https://www.leatherbottlepub.co.uk",
-      "categoryTiles": [
-        {
-          "id": "garden-1",
-          "label": "Pub site",
-          "hint": "Young's beer garden pub — opens the official pub website",
-          "href": "https://www.leatherbottlepub.co.uk"
-        }
-      ]
-    },
     "venue-18v1yz": {
       "source": "youngs.co.uk",
       "menuUrl": "https://www.thewaterfrontlondon.co.uk",
@@ -1569,6 +1450,125 @@
           "label": "Pub site",
           "hint": "Young's beer garden pub — opens the official pub website",
           "href": "https://www.theconstitutioncamden.co.uk"
+        }
+      ]
+    },
+    "venue-1qwm0di": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/lord-raglan/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/lord-raglan/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-txfgkc": {
+      "source": "nicholsonspubs.co.uk",
+      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon/foodmenu",
+      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon/bookings",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food",
+          "hint": "Opens the Nicholson's food menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon/foodmenu"
+        },
+        {
+          "id": "drinks-1",
+          "label": "Drinks",
+          "hint": "Opens the Nicholson's drinks menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thefalconclaphamjunctionlondon/drinks"
+        }
+      ]
+    },
+    "venue-1bb3t97": {
+      "source": "nicholsonspubs.co.uk",
+      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/themudlarklondonbridge/foodmenu",
+      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/themudlarklondonbridge/bookings",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food",
+          "hint": "Opens the Nicholson's food menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/themudlarklondonbridge/foodmenu"
+        },
+        {
+          "id": "drinks-1",
+          "label": "Drinks",
+          "hint": "Opens the Nicholson's drinks menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/themudlarklondonbridge/drinks"
+        }
+      ]
+    },
+    "venue-1tmuwrp": {
+      "source": "nicholsonspubs.co.uk",
+      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/theyorkislingtonlondon/foodmenu",
+      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/theyorkislingtonlondon/bookings",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food",
+          "hint": "Opens the Nicholson's food menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/theyorkislingtonlondon/foodmenu"
+        },
+        {
+          "id": "drinks-1",
+          "label": "Drinks",
+          "hint": "Opens the Nicholson's drinks menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/theyorkislingtonlondon/drinks"
+        }
+      ]
+    },
+    "venue-2xghrm": {
+      "source": "nicholsonspubs.co.uk",
+      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thewoodinsshadesbishopsgatelondon/foodmenu",
+      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thewoodinsshadesbishopsgatelondon/bookings",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food",
+          "hint": "Opens the Nicholson's food menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewoodinsshadesbishopsgatelondon/foodmenu"
+        },
+        {
+          "id": "drinks-1",
+          "label": "Drinks",
+          "hint": "Opens the Nicholson's drinks menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewoodinsshadesbishopsgatelondon/drinks"
+        }
+      ]
+    },
+    "venue-gvz1hf": {
+      "source": "nicholsonspubs.co.uk",
+      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhiteswanlondon/foodmenu",
+      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhiteswanlondon/bookings",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food",
+          "hint": "Opens the Nicholson's food menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhiteswanlondon/foodmenu"
+        },
+        {
+          "id": "drinks-1",
+          "label": "Drinks",
+          "hint": "Opens the Nicholson's drinks menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/thewhiteswanlondon/drinks"
+        }
+      ]
+    },
+    "venue-16ze6b1": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/george-southwark/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/george-southwark/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-194uq0b": {
+      "source": "youngs.co.uk",
+      "menuUrl": "https://www.leatherbottlepub.co.uk",
+      "categoryTiles": [
+        {
+          "id": "garden-1",
+          "label": "Pub site",
+          "hint": "Young's beer garden pub — opens the official pub website",
+          "href": "https://www.leatherbottlepub.co.uk"
         }
       ]
     }

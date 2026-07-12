@@ -39,7 +39,7 @@ export const CURATED_CUISINE_BY_VENUE_ID: Readonly<Record<string, readonly strin
   "venue-xiesdn": ["gastropub"], // The Dog & Duck
   "venue-phqazo": ["gastropub"], // The Coach & Horses
   "venue-15i2wst": ["roast", "gastropub"], // Golden Lion (Soho)
-  "venue-1gs68ga": ["roast", "pie"], // The George (Borough)
+  "venue-16ze6b1": ["roast", "pie"], // The George (Borough)
   "venue-2e3otf": ["gastropub"], // The Barrowboy & Banker
   "venue-ral8ik": ["burger"], // Honest Burger Tower Hill
   "venue-140rjwt": ["tapas"], // Tapas Brindisa London Bridge

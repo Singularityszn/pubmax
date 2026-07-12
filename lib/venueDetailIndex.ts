@@ -3,6 +3,7 @@ import path from "path";
 
 import { listEnabledCities } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
@@ -180,8 +181,11 @@ async function getCitySlimPinIndex(): Promise<Map<string, Venue>> {
   return index;
 }
 
-export async function getVenueDetail(id: string): Promise<Venue | null> {
-  if (!isVenueDetailId(id)) return null;
+export async function getVenueDetail(requestedId: string): Promise<Venue | null> {
+  if (!isVenueDetailId(requestedId)) return null;
+  // Resolve a merged duplicate id (D1) to its canonical id up front, so detail
+  // lookups by a losing id return the surviving venue and cache under one key.
+  const id = await resolveCanonicalVenueId(requestedId);
   if (cachedDetails.has(id)) return cachedDetails.get(id) ?? null;
 
   const artifactVenue = await readVenueFromArtifact(id);
