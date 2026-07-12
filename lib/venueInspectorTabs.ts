@@ -9,9 +9,11 @@ export type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-
 
 export const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
   { key: "overview", label: "Pub", shortLabel: "Pub" },
-  // "Pint" is the narrow-width form — one syllable shorter than "Drops" so the
-  // whole strip (5-6 tabs) fits at 390px without clipping.
-  { key: "pints", label: "Drops", shortLabel: "Pint" },
+  // "Pints" is the narrow-width form — shorter than "Drops" so the whole strip
+  // (5-6 tabs) fits at 390px without clipping. Plural form avoids colliding
+  // with London's getting-home tab, whose short label is "Pint" (from "Last
+  // Pint" via lastRideTabLabel) — see lib/lastRide.ts.
+  { key: "pints", label: "Drops", shortLabel: "Pints" },
   { key: "menu", label: "Menu", shortLabel: "Menu" },
   { key: "story", label: "Lore", shortLabel: "Lore" },
   { key: "ask", label: "Ask", shortLabel: "Ask" },

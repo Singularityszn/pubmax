@@ -89,4 +89,17 @@ describe("shouldShowCuratedOnboarding priority vs band chip", () => {
     expect(shouldShowCuratedOnboarding({ ...clean, selectedVenueId: "v1" })).toBe(false);
     expect(shouldShowCuratedOnboarding({ ...clean, loaded: false })).toBe(false);
   });
+
+  it("suppresses curated onboarding while the Tonight lane has live rows (GateZ: flagship surface wins first paint)", () => {
+    expect(
+      shouldShowCuratedOnboarding({ ...clean, tonightLaneHasRows: true }),
+    ).toBe(false);
+  });
+
+  it("still shows curated onboarding when the Tonight lane is empty/absent", () => {
+    expect(
+      shouldShowCuratedOnboarding({ ...clean, tonightLaneHasRows: false }),
+    ).toBe(true);
+    expect(shouldShowCuratedOnboarding(clean)).toBe(true);
+  });
 });
