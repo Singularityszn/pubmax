@@ -79,6 +79,31 @@ export function mixHex(hexA: string, hexB: string, t: number): string {
   return `#${[r, g, bch].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
+// M6 (interim, pre-6.x-bump) — two-stop `fill-extrusion-color` massing
+// gradient for `buildings-3d` (components/map/canvas/buildScene.ts): squat
+// buildings sit at a darkened variant of the theme's massing base, tall ones
+// settle back to the base tone unchanged, so "keep each theme's current
+// overall tone" holds at the top of the gradient and only the low end reads
+// darker. Darkens toward `inkDeep` specifically (not `ink`) because `ink`
+// flips brightness between themes — cream/bright in dark mode, near-black in
+// light mode — while `inkDeep` is the one token that reads as a near-black
+// "ink" pigment in BOTH themes (see its own doc comment on BasemapTasteTokens).
+// Pure + unit-tested; height source matches buildSkyAndBuildings' own
+// fill-extrusion-height coalesce so both paint properties key off the same
+// per-building height value.
+export function buildingMassingColorExpr(base: string, inkDeep: string): unknown {
+  const darkStop = mixHex(base, inkDeep, 0.55);
+  return [
+    "interpolate",
+    ["linear"],
+    ["coalesce", ["get", "render_height"], ["get", "height"], 14],
+    0,
+    darkStop,
+    60,
+    base,
+  ];
+}
+
 function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown): void {
   if (!map.getLayer(layerId)) return;
   try {

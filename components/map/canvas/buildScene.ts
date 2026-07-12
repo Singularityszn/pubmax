@@ -3,6 +3,7 @@ import {
   applyBasemapTaste,
   applySelectionMute,
   clusterCircleColorExpr,
+  buildingMassingColorExpr,
 } from "@/lib/mapBasemapTaste";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
@@ -130,10 +131,21 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
         paint: {
           // M4: warmed emissive massing in dark mode (dusk-lamp gray, not the
           // old cool blue-gray) — token-derived, matches buildPalette's 2-D
-          // building fill so the skyline reads as one warm material.
-          "fill-extrusion-color": dark
-            ? tokens.buildingEmissive
-            : withAlpha(tokens.line, 0.95),
+          // building fill so the skyline reads as one warm material. M6
+          // (interim, pre-6.x-bump): buildingMassingColorExpr turns that flat
+          // base into a two-stop height gradient — squat buildings darken
+          // toward inkDeep, tall ones settle back to the same base tone as
+          // before, so the overall look is unchanged at the top of the
+          // gradient (see buildingMassingColorExpr's own doc comment for why
+          // inkDeep and not the theme-flipping `ink`). The light-theme base
+          // switches from an alpha-blended tokens.line to the plain hex
+          // tokens.line so mixHex (hex-only) can derive its dark stop; the
+          // dropped local alpha (0.95) is folded into fill-extrusion-opacity
+          // below (0.58 → 0.551) so the overall wash is unchanged.
+          "fill-extrusion-color": buildingMassingColorExpr(
+            dark ? tokens.buildingEmissive : tokens.line,
+            tokens.inkDeep,
+          ) as maplibregl.ExpressionSpecification,
           "fill-extrusion-height": [
             "interpolate",
             ["linear"],
@@ -144,7 +156,7 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
             ["*", ["coalesce", ["get", "render_height"], ["get", "height"], 14], 1.08],
           ],
           "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-          "fill-extrusion-opacity": dark ? 0.9 : 0.58,
+          "fill-extrusion-opacity": dark ? 0.9 : 0.551,
         },
       },
       firstSymbolId,
