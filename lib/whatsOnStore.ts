@@ -17,6 +17,7 @@ import {
 } from "@/lib/whatsOn";
 import { fetchThingsToDo, type ThingsToDoResult } from "@/lib/citymcp/client";
 import rawQuizLondon from "../public/data/whats_on/quiz_london.json";
+import rawDealsLondon from "../public/data/whats_on/deals_london.json";
 import rawWhatsOnLatest from "../public/data/whats_on/latest.json";
 
 // Parse a bundled file with `now` fixed to the file's own generatedAt, so a row
@@ -32,9 +33,10 @@ function generatedAtOf(raw: unknown): number {
 // are deliberately NOT loaded here — they carry no startsAt.)
 export function loadBaselineWhatsOn(): WhatsOnRow[] {
   const quiz = parseWhatsOnRows(rawQuizLondon, generatedAtOf(rawQuizLondon));
+  const deals = parseWhatsOnRows(rawDealsLondon, generatedAtOf(rawDealsLondon));
   const latest = parseWhatsOnRows(rawWhatsOnLatest, generatedAtOf(rawWhatsOnLatest));
   const byKey = new Map<string, WhatsOnRow>();
-  for (const row of [...quiz, ...latest]) {
+  for (const row of [...quiz, ...deals, ...latest]) {
     const key = dedupeKey(row);
     const existing = byKey.get(key);
     if (!existing || Date.parse(row.observedAt) > Date.parse(existing.observedAt)) {

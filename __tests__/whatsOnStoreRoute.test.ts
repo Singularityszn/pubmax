@@ -48,10 +48,23 @@ describe("loadBaselineWhatsOn", () => {
   it("loads + validates the bundled quiz_london.json baseline", () => {
     const rows = loadBaselineWhatsOn();
     expect(rows.length).toBeGreaterThan(0);
+    const quizRows = rows.filter((r) => r.kind === "quiz");
+    expect(quizRows.length).toBeGreaterThan(0);
     for (const r of rows) {
-      expect(r.kind).toBe("quiz");
       expect(r.source.url).toMatch(/^https?:\/\//);
       expect(r.title.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("loads + validates the bundled deals_london.json baseline", () => {
+    const rows = loadBaselineWhatsOn();
+    const dealRows = rows.filter((r) => r.kind === "deal");
+    expect(dealRows.length).toBeGreaterThan(0);
+    for (const r of dealRows) {
+      expect(r.confidence).toBe("listed");
+      expect(r.source.label).toMatch(/Wetherspoon/);
+      expect(r.source.url).toMatch(/^https?:\/\//);
+      expect(r.endsAt).toBeDefined();
     }
   });
 });
