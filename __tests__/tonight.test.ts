@@ -4,8 +4,11 @@ import type { TonightOpportunity } from "@/lib/tonight";
 import {
   coverageLabel,
   deriveKindFacets,
+  eventChipsForVenue,
   filterByKind,
   kindSlug,
+  matchOpportunitiesToVenue,
+  opportunityMatchesVenue,
   provenanceLabel,
   walkLabel,
   walkMinutes,
@@ -108,5 +111,62 @@ describe("walkMinutes / walkLabel", () => {
 
   it("clamps a co-located venue to at least 1 minute", () => {
     expect(walkMinutes(origin, origin)).toBe(1);
+  });
+});
+
+describe("opportunityMatchesVenue", () => {
+  const venue = {
+    id: "v1",
+    name: "The Blue Posts",
+    latitude: 51.5133,
+    longitude: -0.1349,
+  };
+
+  it("matches on a tolerant name comparison (case/the/&/punctuation)", () => {
+    expect(
+      opportunityMatchesVenue(op({ place: { name: "blue posts" } }), venue),
+    ).toBe(true);
+    expect(
+      opportunityMatchesVenue(op({ place: { name: "The Blue Posts Soho" } }), venue),
+    ).toBe(true);
+  });
+
+  it("matches on coordinate proximity when names differ", () => {
+    const near = op({
+      place: { name: "Upstairs Room", location: { lat: 51.5134, lng: -0.135 } },
+    });
+    expect(opportunityMatchesVenue(near, venue)).toBe(true);
+  });
+
+  it("does not match a distant, differently-named place", () => {
+    const far = op({
+      place: { name: "Somewhere Else", location: { lat: 51.6, lng: -0.3 } },
+    });
+    expect(opportunityMatchesVenue(far, venue)).toBe(false);
+    expect(opportunityMatchesVenue(op({ place: { name: "No Coords Bar" } }), venue)).toBe(
+      false,
+    );
+  });
+});
+
+describe("matchOpportunitiesToVenue / eventChipsForVenue", () => {
+  const venue = { id: "v1", name: "Red Lion", latitude: 51.5, longitude: -0.12 };
+
+  it("keeps only matching opportunities and dedups chips by kind", () => {
+    const ops = [
+      op({ kind: "gig", place: { name: "Red Lion" } }),
+      op({ kind: "gig", place: { name: "Red Lion" } }), // dup kind
+      op({ kind: "quiz" as unknown as string, place: { name: "Red Lion" } }),
+      op({ kind: "comedy", place: { name: "Far Tavern", location: { lat: 52, lng: 1 } } }),
+    ];
+    const matched = matchOpportunitiesToVenue(ops, venue);
+    expect(matched).toHaveLength(3); // the far comedy is excluded
+    const chips = eventChipsForVenue(matched);
+    expect(chips.map((c) => c.kind)).toEqual(["gig", "quiz"]);
+    expect(chips[0]).toEqual({ kind: "gig", label: "Gig" });
+  });
+
+  it("returns [] chips when nothing matches", () => {
+    expect(eventChipsForVenue([])).toEqual([]);
   });
 });

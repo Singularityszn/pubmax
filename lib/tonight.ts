@@ -121,3 +121,83 @@ export function walkLabel(minutes: number | null): string | null {
   if (minutes == null || !Number.isFinite(minutes)) return null;
   return `~${minutes} min walk`;
 }
+
+// ── Venue ↔ opportunity matching (Wave A · A1 sheet chips) ──────────────────
+
+/** Normalise a venue/place name for tolerant comparison. */
+function normaliseName(raw: string | undefined | null): string {
+  if (!raw) return "";
+  return raw
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\b(the|ye olde|ye|olde)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+// Two venues within this straight-line distance are treated as the same place
+// when an opportunity carries coordinates (upstream place ids don't align with
+// our venue ids, so proximity is the reliable join).
+const VENUE_MATCH_KM = 0.12;
+
+export type VenueRef = {
+  id?: string;
+  name: string;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+/** True when an opportunity plausibly refers to the given venue. */
+export function opportunityMatchesVenue(
+  op: TonightOpportunity,
+  venue: VenueRef,
+): boolean {
+  const opName = normaliseName(op.place?.name);
+  const venueName = normaliseName(venue.name);
+  if (opName && venueName && (opName.includes(venueName) || venueName.includes(opName))) {
+    return true;
+  }
+  const loc = op.place?.location;
+  if (
+    loc &&
+    Number.isFinite(loc.lat) &&
+    Number.isFinite(loc.lng) &&
+    typeof venue.latitude === "number" &&
+    typeof venue.longitude === "number" &&
+    Number.isFinite(venue.latitude) &&
+    Number.isFinite(venue.longitude)
+  ) {
+    return (
+      haversineKm([loc.lng, loc.lat], [venue.longitude, venue.latitude]) <=
+      VENUE_MATCH_KM
+    );
+  }
+  return false;
+}
+
+/** Opportunities plausibly happening at this venue tonight. */
+export function matchOpportunitiesToVenue(
+  ops: TonightOpportunity[],
+  venue: VenueRef,
+): TonightOpportunity[] {
+  return ops.filter((op) => opportunityMatchesVenue(op, venue));
+}
+
+export type EventChip = { kind: string; label: string };
+
+/**
+ * De-duplicated event chips for a venue's matched opportunities — one chip per
+ * distinct kind, in first-seen order, so the sheet header stays uncluttered
+ * even when a venue has several listings of the same kind tonight.
+ */
+export function eventChipsForVenue(ops: TonightOpportunity[]): EventChip[] {
+  const seen = new Set<string>();
+  const chips: EventChip[] = [];
+  for (const op of ops) {
+    const kind = kindSlug(op);
+    if (seen.has(kind)) continue;
+    seen.add(kind);
+    chips.push({ kind, label: labelForKind(kind) ?? "Other" });
+  }
+  return chips;
+}
