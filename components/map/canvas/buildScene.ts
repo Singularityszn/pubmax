@@ -80,6 +80,8 @@ export function applySceneTaste(ctx: SceneCtx) {
       brass: tokens.brass,
       river: tokens.river,
       riverBright: tokens.riverBright,
+      buildingEmissive: tokens.buildingEmissive,
+      parkTint: tokens.parkTint,
     },
     dark,
   );
@@ -87,10 +89,16 @@ export function applySceneTaste(ctx: SceneCtx) {
 
 export function buildSkyAndBuildings(ctx: SceneCtx) {
   const { map, tokens, dark, addLayerOnce } = ctx;
-  // --- Sky + fog: horizon depth in both moods.
+  // --- Sky + fog: M4 signature dusk/night gradient — deep indigo zenith
+  // fading to a warm brass horizon band in dark mode (setSky); light mode
+  // keeps its existing quiet pale-sky → paper fade (skyZenith/skyHorizon
+  // resolve to riverBright/paper there — see globals.css). Both themes
+  // driven purely by tokens, re-applied on every style.load + theme switch
+  // (same call site as applyBasemapTaste, before M2's selection-mute
+  // snapshot in applySelectionState — see assembleScene ordering).
   map.setSky({
-    "sky-color": dark ? tokens.inkDeep : tokens.riverBright,
-    "horizon-color": dark ? withAlpha(tokens.brass, 0.45) : tokens.paper,
+    "sky-color": tokens.skyZenith,
+    "horizon-color": dark ? withAlpha(tokens.skyHorizon, 0.55) : tokens.skyHorizon,
     "fog-color": dark ? tokens.inkDeep : tokens.paper,
     "sky-horizon-blend": 0.7,
     "horizon-fog-blend": 0.6,
@@ -120,8 +128,11 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
         "source-layer": "building",
         minzoom: 12.5,
         paint: {
+          // M4: warmed emissive massing in dark mode (dusk-lamp gray, not the
+          // old cool blue-gray) — token-derived, matches buildPalette's 2-D
+          // building fill so the skyline reads as one warm material.
           "fill-extrusion-color": dark
-            ? "#7a8496"
+            ? tokens.buildingEmissive
             : withAlpha(tokens.line, 0.95),
           "fill-extrusion-height": [
             "interpolate",

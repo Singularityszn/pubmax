@@ -93,6 +93,13 @@ export type Tokens = {
   brassBright: string;
   river: string;
   riverBright: string;
+  // M4 — dusk/night signature look + light-theme hierarchy audit. Sky gradient
+  // (setSky zenith/horizon), warmed 3-D building emissive tint, and a park
+  // green kept deliberately distinct from --pint (see theme.css / globals.css).
+  skyZenith: string;
+  skyHorizon: string;
+  buildingEmissive: string;
+  parkTint: string;
   // Drink-category accents (E5). ADDITIVE — resolves the live `--cat-*` vars
   // (lib/categoryColors.ts) into the map's token object so a future
   // pin-by-category paint tints a pin by a venue's dominant drink family from
@@ -133,6 +140,10 @@ export function readTokens(): Tokens {
     brassBright: token("--brass-bright", "#d3a44a"),
     river: token("--river", "#2f6f8f"),
     riverBright: token("--river-bright", "#4f9ec4"),
+    skyZenith: token("--map-sky-zenith", "#0f1c16"),
+    skyHorizon: token("--map-sky-horizon", "#b0813a"),
+    buildingEmissive: token("--map-building-emissive", "#8f7d6b"),
+    parkTint: token("--map-park-tint", "#7ea052"),
   };
 }
 

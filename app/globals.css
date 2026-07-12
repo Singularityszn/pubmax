@@ -36,6 +36,14 @@
      components can reference var(--night-amber) safely in both themes. */
   --night-amber: var(--brass);
 
+  /* M4 map-only tokens — dusk/night signature look + light-theme hierarchy.
+     Overridden for dark in theme.css. Never read raw hex in map code; always
+     through readTokens()/BasemapTasteTokens. */
+  --map-sky-zenith: var(--river-bright); /* light: unchanged pale-sky look */
+  --map-sky-horizon: var(--paper); /* light: unchanged soft horizon fade */
+  --map-building-emissive: var(--amber); /* light: existing amber-tinted massing */
+  --map-park-tint: #7ea052; /* light: olive-sage foliage, distinct from --pint teal */
+
   /* — Colour, semantic roles: alias the palette above by job, not hue, so new
        components reach for "what this means" rather than re-picking a raw
        colour. These are pure aliases — change the palette above, everything

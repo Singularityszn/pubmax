@@ -6,7 +6,9 @@ import {
   buildPalette,
   clusterCircleColorExpr,
   isBasemapSelectionMuteLayer,
+  mixHex,
   SELECTION_MUTE_OPACITY,
+  withAlpha,
 } from "@/lib/mapBasemapTaste";
 
 const tokens = {
@@ -21,6 +23,8 @@ const tokens = {
   brass: "#b0813a",
   river: "#2f6f8f",
   riverBright: "#4f9ec4",
+  buildingEmissive: "#d99f45",
+  parkTint: "#7ea052",
 };
 
 const darkTokens = {
@@ -36,6 +40,8 @@ const darkTokens = {
   brass: "#ff6b7a",
   river: "#64b5ff",
   riverBright: "#7dd3fc",
+  buildingEmissive: "#8f7d6b",
+  parkTint: "#3f5c38",
 };
 
 describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
@@ -48,9 +54,39 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     // Streets must stay luminous against night land.
     expect(dark.road).toContain("255, 244, 232"); // cream ink rgb
     expect(dark.roadMajor).toContain("255, 194, 71"); // amber
-    // Buildings: cool mid-gray massing — readable on near-black land (not brass).
-    expect(dark.building).toBe("#6e778a");
-    expect(dark.building).not.toContain("255, 107, 122"); // brass coral
+    // Buildings: M4 warmed emissive massing — readable on near-black land,
+    // still desaturated (never a literal brass/coral wash).
+    expect(dark.building).toBe(darkTokens.buildingEmissive);
+    expect(dark.building).not.toBe(darkTokens.brass);
+    expect(dark.building).not.toContain("255, 107, 122"); // old brass coral
+  });
+
+  it("M4 — park tint is never the pint UI semantic, in either theme", () => {
+    const dark = buildPalette(darkTokens, true);
+    const light = buildPalette(tokens, false);
+    // Old formula was withAlpha(pint, …) — assert park no longer matches it.
+    expect(dark.park).not.toBe(withAlpha(darkTokens.pint, 0.32));
+    expect(light.park).not.toBe(withAlpha(tokens.pint, 0.26));
+    // Sanity: park is actually derived from parkTint, not left unpainted.
+    expect(dark.park).toContain("63, 92, 56"); // darkTokens.parkTint rgb
+    expect(light.park).toContain("126, 160, 82"); // tokens.parkTint rgb
+  });
+
+  it("M4 — light water is a calmer translucent wash, not the loud opaque cyan", () => {
+    const light = buildPalette(tokens, false);
+    // Old behaviour painted the fully-opaque riverBright cyan directly.
+    expect(light.water).not.toBe(tokens.riverBright);
+    expect(light.water).toMatch(/^rgba\(/);
+    expect(light.water).toContain("47, 111, 143"); // tokens.river rgb
+  });
+
+  it("M4 — light roads read brighter than land, with a major/minor tier", () => {
+    const light = buildPalette(tokens, false);
+    // Neither tier is the old flat brass/coral wash.
+    expect(light.road).not.toContain("176, 129, 58"); // old brass rgb
+    expect(light.roadMajor).not.toContain("176, 129, 58");
+    // Major tier is a distinct, warmer step from the near-white minor tier.
+    expect(light.road).not.toBe(light.roadMajor);
   });
 
   it("applies land/water/road/building paints when layers exist", () => {
@@ -181,6 +217,26 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     expect(serialized).toContain("47, 143, 91"); // pint rgb
     expect(serialized).toContain("217, 159, 69"); // amber
     expect(serialized).toContain("176, 129, 58"); // brass
+  });
+});
+
+describe("mixHex (M4 token-derivation primitive)", () => {
+  it("returns hexA unchanged at t=0 and hexB at t=1", () => {
+    expect(mixHex("#ffffff", "#f2a71b", 0)).toBe("#ffffff");
+    expect(mixHex("#ffffff", "#f2a71b", 1)).toBe("#f2a71b");
+  });
+
+  it("blends channel-wise at a mid ratio", () => {
+    expect(mixHex("#000000", "#ffffff", 0.5)).toBe("#808080");
+  });
+
+  it("clamps out-of-range ratios instead of extrapolating", () => {
+    expect(mixHex("#000000", "#ffffff", 2)).toBe("#ffffff");
+    expect(mixHex("#000000", "#ffffff", -1)).toBe("#000000");
+  });
+
+  it("falls back to hexA for malformed input rather than throwing", () => {
+    expect(mixHex("not-a-color", "#ffffff", 0.5)).toBe("not-a-color");
   });
 });
 
