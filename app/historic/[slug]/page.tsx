@@ -1,0 +1,198 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowUpRight, ExternalLink, MessageSquare } from "lucide-react";
+
+import SiteNav from "@/components/nav/SiteNav";
+import ShareBar from "@/components/share/ShareBar";
+import { slugifyBorough } from "@/lib/boroughs";
+import {
+  getHistoricPubBySlug,
+  loadHistoricPubs,
+  type HistoricPub,
+} from "@/lib/historic";
+import type { HeritageFact } from "@/lib/heritage";
+import { citationLabel, listedBadge } from "@/lib/historicFilter";
+
+import "./historic-detail.css";
+
+// Per-pub heritage DETAIL page: /historic/[slug]. The canonical, shareable,
+// SEO-first surface for one notable London pub — the FULL cited heritage story.
+//
+// Provenance-honest by construction: every fact is rendered verbatim with its
+// source named and a citation link derived strictly from the record's own
+// sourceRef. Nothing is invented; the metadata description is the pub's own hook,
+// not a fabricated claim. A parallel agent owns the colocated opengraph-image, so
+// this file only writes honest metadata — it never references the OG asset.
+//
+// Next 15/16 dynamic route params are async: `params` is a Promise we await.
+// generateStaticParams pre-renders one static page per slug for clean SEO.
+
+type PageProps = { params: Promise<{ slug: string }> };
+
+// A short, honest label for a fact's source enum. "seed" facts are on record
+// without an external host, so they read as "On record" rather than a brand.
+function sourceLabel(source: HeritageFact["source"]): string {
+  switch (source) {
+    case "wikipedia":
+      return "Wikipedia";
+    case "wikidata":
+      return "Wikidata";
+    case "osm":
+      return "OpenStreetMap";
+    case "seed":
+    default:
+      return "On record";
+  }
+}
+
+// Trim + collapse the hook into a clean meta description, capped for SEO. Never
+// invents copy — an empty hook falls back to a neutral, honest sentence.
+function metaDescription(pub: HistoricPub): string {
+  const hook = pub.hook?.replace(/\s+/g, " ").trim() ?? "";
+  const base =
+    hook || `${pub.name}, a notable London pub — cited from Wikipedia and Wikidata.`;
+  return base.length > 155 ? `${base.slice(0, 154).trimEnd()}…` : base;
+}
+
+// Pre-render every notable pub as its own static page (SEO surface).
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  const pubs = await loadHistoricPubs();
+  return pubs.map((pub) => ({ slug: pub.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const pub = getHistoricPubBySlug(slug, await loadHistoricPubs());
+
+  if (!pub) {
+    return {
+      title: "Historic pub — PUBMAXXING",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = `${pub.name} — historic London pub | PUBMAXXING`;
+  const description = metaDescription(pub);
+  const canonical = `/historic/${pub.slug}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "article",
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
+
+export default async function HistoricDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+  const pub = getHistoricPubBySlug(slug, await loadHistoricPubs());
+  if (!pub) notFound();
+
+  const grade = listedBadge(pub.listed);
+  const boroughSlug = pub.borough ? slugifyBorough(pub.borough) : null;
+  const mapHref = pub.venueId ? `/map?sel=${pub.venueId}` : null;
+  const canonical = `/historic/${pub.slug}`;
+  const shareText = pub.hook?.trim() || `${pub.name} — a historic London pub.`;
+
+  return (
+    <main className="hdPage">
+      <SiteNav active="historic" />
+
+      <p className="hdBack">
+        <Link href="/historic" className="hdBackLink">
+          &larr; All historic pubs
+        </Link>
+      </p>
+
+      <header className="hdHead">
+        {pub.era || grade ? (
+          <div className="hdMeta">
+            {pub.era ? <span className="hdEra">{pub.era}</span> : null}
+            {grade ? <span className="hdGrade">{grade}</span> : null}
+          </div>
+        ) : null}
+
+        <h1 className="hdTitle">{pub.name}</h1>
+
+        {pub.borough ? (
+          <p className="hdBorough">
+            {boroughSlug ? (
+              <Link href={`/borough/${boroughSlug}`} className="hdBoroughLink">
+                {pub.borough}
+              </Link>
+            ) : (
+              pub.borough
+            )}
+          </p>
+        ) : null}
+
+        {pub.hook ? <p className="hdHook">{pub.hook}</p> : null}
+      </header>
+
+      <section className="hdStory" aria-labelledby="hdStoryHeading">
+        <h2 id="hdStoryHeading" className="hdStoryHeading">
+          The record
+        </h2>
+
+        {pub.facts.length === 0 ? (
+          <p className="hdEmpty" role="status">
+            No fuller story on record — every claim here is cited, and we
+            won&rsquo;t invent one to fill the gap.
+          </p>
+        ) : (
+          <ol className="hdFacts">
+            {pub.facts.map((fact, i) => (
+              <li key={`${fact.source}-${i}`} className="hdFact">
+                <p className="hdFactText">{fact.fact}</p>
+                <div className="hdFactProvenance">
+                  <span className="hdSource">{sourceLabel(fact.source)}</span>
+                  {fact.sourceRef ? (
+                    <a
+                      className="hdCite"
+                      href={fact.sourceRef}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {citationLabel(fact.sourceRef)}
+                      <ExternalLink size={12} aria-hidden="true" />
+                    </a>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <section className="hdActions" aria-label="Explore this pub">
+        {mapHref ? (
+          <div className="hdActionRow">
+            <Link className="hdAction hdActionPrimary pressable" href={mapHref}>
+              See on map
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+            <Link className="hdAction pressable" href={mapHref}>
+              <MessageSquare size={14} aria-hidden="true" />
+              Ask the Landlord
+            </Link>
+          </div>
+        ) : null}
+
+        <ShareBar url={canonical} title={pub.name} text={shareText} />
+      </section>
+
+      <footer className="hdProvenance">
+        Cited from Wikipedia and Wikidata &mdash; never invented.
+      </footer>
+    </main>
+  );
+}

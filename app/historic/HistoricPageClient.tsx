@@ -216,6 +216,13 @@ export default function HistoricPageClient({
                     </div>
 
                     <div className="historicActions">
+                      <Link
+                        className="historicMapLink pressable"
+                        href={`/historic/${pub.slug}`}
+                      >
+                        Read the story
+                        <ArrowUpRight size={14} aria-hidden="true" />
+                      </Link>
                       {pub.venueId ? (
                         <Link
                           className="historicMapLink pressable"
