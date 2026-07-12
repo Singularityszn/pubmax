@@ -60,6 +60,7 @@ import {
   withBoundedHoverDetailCache, hoverImageUrlFor, hoverPriceLine,
 } from "@/components/map/canvas/hoverCard";
 import { assembleScene } from "@/components/map/canvas/buildScene";
+import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
@@ -395,6 +396,10 @@ export default function PubMapCanvas({
   const selectedIdRef = useRef(selectedVenueId);
   // buildScene reads this on every (re)build so a theme swap keeps the toggles.
   const poiHiddenRef = useRef(poiHidden);
+  // M2 — pre-mute paint originals for the POI-at-initiation selection mute
+  // (layerId::prop → value). Owned here so it survives buildScene rebuilds; a
+  // theme setStyle wipes the live layers, so buildScene clears + re-applies it.
+  const selectionMuteStoreRef = useRef<Map<string, unknown>>(new Map());
 
   // Style-load gate. Every source/layer mutation (setData, setFilter,
   // setPaintProperty, setLayoutProperty) throws "Style is not done loading" if
@@ -779,6 +784,7 @@ export default function PubMapCanvas({
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
         selectedId: selectedIdRef.current,
+        selectionMuteStore: selectionMuteStoreRef.current,
       });
 
       // --- Tile-paint gate (D2). buildScene runs on `style.load`, which fires
@@ -1219,6 +1225,13 @@ export default function PubMapCanvas({
           pubIconOpacityExpr(selectedIdRef.current),
         );
       }
+      // M2 POI-at-initiation gating — while a venue is selected the selected pub
+      // must dominate: heavy-mute the POI/landmark/transport app layers AND the
+      // basemap-baked transit roundels / street / POI labels. Deselect restores
+      // the exact originals so the city overview reads unchanged. Opacity-only
+      // via paint transitions (MapLibre's default 300ms ease) — no new RAF, no
+      // React re-render, and it composes with the POI/tube visibility toggles.
+      applySelectionMute(map, Boolean(selectedIdRef.current), selectionMuteStoreRef.current);
     });
   }, [route, selectedVenueId, mapReady, applyToMap]);
 
