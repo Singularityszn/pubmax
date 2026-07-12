@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { getHistoricPubBySlug, loadHistoricPubs } from "@/lib/historic";
+import { listedBadge } from "@/lib/historicFilter";
 
 // Per-pub Historic Pubs OG share card (Next `opengraph-image` convention).
 // Renders the cited heritage of a single pub as a collectible "field-guide
@@ -97,7 +98,8 @@ export default async function Image({
   const chips: string[] = [];
   const era = clampText(pub?.era, 20);
   if (era) chips.push(era);
-  if (pub?.listed) chips.push(`Grade ${clampText(pub.listed, 6)}`);
+  const grade = listedBadge(pub?.listed ?? null);
+  if (grade) chips.push(grade);
   const borough = clampText(pub?.borough, 28);
   if (borough) chips.push(borough);
 

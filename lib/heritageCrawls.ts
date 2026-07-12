@@ -13,6 +13,10 @@
 
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { loadHistoricPubs, type HistoricPub } from "@/lib/historic";
+// One shared era→year parser for every heritage surface. eraStartYear maps a
+// year to itself, "Nth century" to its opening year ((N-1)*100), and null /
+// unparseable eras to +Infinity (so undated pubs sort last) — see lib/historicFilter.
+import { eraStartYear } from "@/lib/historicFilter";
 
 // A stop only qualifies if it can actually be routed: it needs a real venueId
 // AND real coordinates. Narrow to that shape once, up front.
@@ -33,26 +37,6 @@ function isRoutable(pub: HistoricPub): pub is RoutablePub {
 const MIN_STOPS = 3;
 // Keep each themed route to a walkable, scannable length (~6-8 stops).
 const MAX_STOPS = 8;
-
-/**
- * Parse a cited `era` string into a sortable year for "oldest first" ordering.
- * - A literal 4-digit year ("1520", "1875") → that year.
- * - "Nth century" → the FIRST year of that century (17th century → 1601), a
- *   deterministic lower bound so a century sorts before the years it contains.
- * Returns null when nothing parseable is present. Exported for the unit test.
- */
-export function eraToYear(era: string | null | undefined): number | null {
-  if (!era) return null;
-  const text = era.toLowerCase();
-  const century = text.match(/(\d{1,2})(?:st|nd|rd|th)?\s+century/);
-  if (century) {
-    const n = Number(century[1]);
-    if (Number.isFinite(n) && n >= 1 && n <= 21) return (n - 1) * 100 + 1;
-  }
-  const year = text.match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
-  if (year) return Number(year[1]);
-  return null;
-}
 
 // Keywords that mark a pub as a riverside / waterside tavern. Matched
 // case-insensitively against the hook and every cited fact.
@@ -106,8 +90,8 @@ export function buildHeritageCrawls(pubs: HistoricPub[]): CuratedCrawl[] {
 
   // 1) London's Oldest Pubs — parseable era, earliest first.
   const oldest = routable
-    .map((pub) => ({ pub, year: eraToYear(pub.era) }))
-    .filter((entry): entry is { pub: RoutablePub; year: number } => entry.year !== null)
+    .map((pub) => ({ pub, year: eraStartYear(pub.era) }))
+    .filter((entry): entry is { pub: RoutablePub; year: number } => Number.isFinite(entry.year))
     .sort((a, b) => a.year - b.year || bySlug(a.pub, b.pub))
     .map((entry) => entry.pub);
   const oldestCrawl = makeCrawl(
@@ -137,12 +121,15 @@ export function buildHeritageCrawls(pubs: HistoricPub[]): CuratedCrawl[] {
     .sort((a, b) => {
       const gradeDelta = GRADE_RANK[a.listed as string] - GRADE_RANK[b.listed as string];
       if (gradeDelta !== 0) return gradeDelta;
-      const ay = eraToYear(a.era);
-      const by = eraToYear(b.era);
-      // Both dated → oldest first; a dated pub sorts before an undated one.
-      if (ay !== null && by !== null && ay !== by) return ay - by;
-      if (ay !== null && by === null) return -1;
-      if (ay === null && by !== null) return 1;
+      const ay = eraStartYear(a.era);
+      const by = eraStartYear(b.era);
+      // eraStartYear returns +Infinity for an undated pub, so "dated" is the
+      // finite case. Both dated → oldest first; a dated pub sorts before undated.
+      const aDated = Number.isFinite(ay);
+      const bDated = Number.isFinite(by);
+      if (aDated && bDated && ay !== by) return ay - by;
+      if (aDated && !bDated) return -1;
+      if (!aDated && bDated) return 1;
       return bySlug(a, b);
     });
   const listedCrawl = makeCrawl(

@@ -1096,9 +1096,9 @@ html[data-legacy="1"] .venueTabPanel::before {
    The facts a pub carries on record, surfaced at the top of the Lore tab the
    instant it opens so the story reads passively — no need to interrogate the
    Landlord. Provenance rides every fact: a source chip (Wikipedia / Wikidata /
-   OSM / "on record" for our own seed) plus a citation link when the record has
-   one. Matches the sheet's card idiom + the /historic source chips; tokens only,
-   so it reads cleanly in both themes. */
+   OpenStreetMap / "On record" for our own seed) plus a citation link when the
+   record has one. Matches the sheet's card idiom + the /historic source chips;
+   tokens only, so it reads cleanly in both themes. */
 .venueTabPanel .heritageOnRecord {
   margin: 0 0 14px;
 }
@@ -1115,7 +1115,7 @@ html[data-legacy="1"] .venueTabPanel::before {
 .venueTabPanel .heritageFact {
   padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   box-shadow: var(--shadow-sm);
 }

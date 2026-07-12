@@ -1,24 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  heritageSourceLabel,
-  sanitizeHeritageFacts,
-} from "@/components/map/VenueInspector";
+import { sanitizeHeritageFacts } from "@/components/map/VenueInspector";
+import { heritageSourceLabel } from "@/lib/historicFilter";
 
 describe("heritageSourceLabel", () => {
   it("names each public source honestly", () => {
     expect(heritageSourceLabel("wikipedia")).toBe("Wikipedia");
     expect(heritageSourceLabel("wikidata")).toBe("Wikidata");
-    expect(heritageSourceLabel("osm")).toBe("OSM");
+    expect(heritageSourceLabel("osm")).toBe("OpenStreetMap");
   });
 
-  it("labels our own seed curation as the generic 'on record'", () => {
-    expect(heritageSourceLabel("seed")).toBe("on record");
+  it("labels our own seed curation as the generic 'On record'", () => {
+    expect(heritageSourceLabel("seed")).toBe("On record");
   });
 
-  it("degrades an unknown source to 'on record' rather than leaking a raw token", () => {
-    expect(heritageSourceLabel("mystery")).toBe("on record");
-    expect(heritageSourceLabel("")).toBe("on record");
+  it("degrades an unknown source to 'On record' rather than leaking a raw token", () => {
+    expect(heritageSourceLabel("mystery")).toBe("On record");
+    expect(heritageSourceLabel("")).toBe("On record");
   });
 });
 

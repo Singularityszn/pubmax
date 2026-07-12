@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildHeritageCrawls, eraToYear } from "@/lib/heritageCrawls";
+import { buildHeritageCrawls } from "@/lib/heritageCrawls";
 import type { HistoricPub } from "@/lib/historic";
 
 // Minimal HistoricPub factory — every field the builder reads, sane defaults.
@@ -143,12 +143,5 @@ describe("buildHeritageCrawls", () => {
   });
 });
 
-describe("eraToYear", () => {
-  it("parses literal years and centuries deterministically", () => {
-    expect(eraToYear("1520")).toBe(1520);
-    expect(eraToYear("17th century")).toBe(1601);
-    expect(eraToYear("18th century")).toBe(1701);
-    expect(eraToYear(null)).toBeNull();
-    expect(eraToYear("no date here")).toBeNull();
-  });
-});
+// The era→year parsing that ordered the crawls above now lives in the shared
+// eraStartYear helper (lib/historicFilter), covered by __tests__/historicFilter.test.ts.

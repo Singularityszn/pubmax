@@ -144,15 +144,14 @@ export function extractEra(text) {
 }
 
 // Extract an English Heritage listing grade from cited fact text: I, II* or II.
-// NOTE ON THE REGEX: the brief's literal /Grade\s+(I|II\*|II)\b/ can never
-// capture "II*" — the trailing \b sits between "*" and a space (two non-word
-// chars), so it fails and the engine backtracks to the plain "II" branch,
-// silently downgrading every Grade II* pub to "II". Provenance-honesty is a hard
-// rule here, and a Grade II* pub is materially rarer/older than a Grade II one,
-// so we use a boundary that consumes an optional star and only rejects a
-// trailing letter. Same grade set, faithful to intent.
+// NOTE ON THE REGEX: the alternation is ordered longest-first (II* before II
+// before I) so a Grade II* pub captures the star rather than backtracking to a
+// bare "II" — provenance-honesty is a hard rule, and a Grade II* pub is
+// materially rarer/older than a Grade II one. The trailing (?![I\w]) rejects a
+// following I or word char, so a stray "Grade III" (not a real English Heritage
+// grade) matches nothing rather than being mis-read as "II" or "I".
 export function extractListed(text) {
-  const m = String(text ?? "").match(/Grade\s+(I{1,3}\*?)(?![A-Za-z])/);
+  const m = String(text ?? "").match(/Grade\s+(II\*|II|I)(?![I\w])/);
   return m ? m[1] : null;
 }
 

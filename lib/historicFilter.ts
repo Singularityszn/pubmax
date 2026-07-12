@@ -64,6 +64,27 @@ export function listedBadge(listed: string | null): string | null {
   return listed ? `Grade ${listed}` : null;
 }
 
+// Canonical human label for a heritage fact's `source`, shared by every heritage
+// surface (the map venue sheet + /historic) so the chip reads identically
+// everywhere. Named public sources get their real brand; our own seed curation
+// and any unrecognised token degrade to the honest generic "On record" rather
+// than leaking a raw source value. A pure string→string map — safe in both
+// client and server components. Needs a different case somewhere? Use CSS
+// text-transform, not a divergent copy of this function.
+export function heritageSourceLabel(source: string): string {
+  switch (source) {
+    case "wikipedia":
+      return "Wikipedia";
+    case "wikidata":
+      return "Wikidata";
+    case "osm":
+      return "OpenStreetMap";
+    case "seed":
+    default:
+      return "On record";
+  }
+}
+
 // The citation for a pub's hook. Prefer the sourceRef of the first fact whose
 // text *is* the hook (the hook is lifted verbatim from a cited fact); fall back
 // to the first wikipedia fact with a ref, then to any fact with a ref. Returns

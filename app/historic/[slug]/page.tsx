@@ -11,8 +11,7 @@ import {
   loadHistoricPubs,
   type HistoricPub,
 } from "@/lib/historic";
-import type { HeritageFact } from "@/lib/heritage";
-import { citationLabel, listedBadge } from "@/lib/historicFilter";
+import { citationLabel, heritageSourceLabel, listedBadge } from "@/lib/historicFilter";
 
 import "./historic-detail.css";
 
@@ -29,22 +28,6 @@ import "./historic-detail.css";
 // generateStaticParams pre-renders one static page per slug for clean SEO.
 
 type PageProps = { params: Promise<{ slug: string }> };
-
-// A short, honest label for a fact's source enum. "seed" facts are on record
-// without an external host, so they read as "On record" rather than a brand.
-function sourceLabel(source: HeritageFact["source"]): string {
-  switch (source) {
-    case "wikipedia":
-      return "Wikipedia";
-    case "wikidata":
-      return "Wikidata";
-    case "osm":
-      return "OpenStreetMap";
-    case "seed":
-    default:
-      return "On record";
-  }
-}
 
 // Trim + collapse the hook into a clean meta description, capped for SEO. Never
 // invents copy — an empty hook falls back to a neutral, honest sentence.
@@ -154,7 +137,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
               <li key={`${fact.source}-${i}`} className="hdFact">
                 <p className="hdFactText">{fact.fact}</p>
                 <div className="hdFactProvenance">
-                  <span className="hdSource">{sourceLabel(fact.source)}</span>
+                  <span className="hdSource">{heritageSourceLabel(fact.source)}</span>
                   {fact.sourceRef ? (
                     <a
                       className="hdCite"
