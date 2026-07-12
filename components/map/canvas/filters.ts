@@ -142,7 +142,14 @@ export function pinEntranceLocalT(
 // feature's own `entranceSeed` property, so one setPaintProperty /
 // setLayoutProperty call per RAF frame animates every pin's ramp without a
 // giant per-id match table or feature-state bookkeeping.
-function pinEntranceLocalTExpr(
+//
+// `entranceSeed` is always set by pubsToGeoJSON (hashEntranceSeed), but a
+// feature reaching this layer without it (a defensive guard — e.g. a future
+// data path that forgets the property) must not NaN the whole ramp: `/` and
+// `-` on a missing (`null`) get would poison every downstream arithmetic op.
+// `coalesce` to 0 — the same "no stagger delay" value seed 0 already
+// produces — so the pin still ramps in on schedule instead of freezing.
+export function pinEntranceLocalTExpr(
   elapsedMs: number,
   buckets: number,
   staggerMs: number,
@@ -150,7 +157,7 @@ function pinEntranceLocalTExpr(
 ): maplibregl.ExpressionSpecification {
   const delay: maplibregl.ExpressionSpecification = [
     "*",
-    ["/", ["get", "entranceSeed"], Math.max(1, buckets)],
+    ["/", ["coalesce", ["get", "entranceSeed"], 0], Math.max(1, buckets)],
     staggerMs,
   ];
   const raw: maplibregl.ExpressionSpecification = [
