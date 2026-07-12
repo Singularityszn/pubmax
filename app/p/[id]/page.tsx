@@ -127,11 +127,14 @@ export default async function PintDropPermalink({ params, searchParams }: PagePr
 
   if (!drop) return <NotOnTheWall />;
 
-  return <MemoryCard drop={drop} id={id} />;
+  // Per-request CSP nonce (set by proxy.ts) for the inline copy-link script.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
+  return <MemoryCard drop={drop} id={id} nonce={nonce} />;
 }
 
 // ── The collectible pint memory card ─────────────────────────────────────────
-function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
+function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?: string }) {
   const price = formatGbp(drop.priceGbp);
   const date = formatDate(drop.createdAt);
   const headline = drop.drink || "A pint worth remembering";
@@ -230,6 +233,7 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
           component file per the build constraints); progressive-enhancement only,
           the button is inert if JS is off. */}
       <script
+        nonce={nonce}
         dangerouslySetInnerHTML={{
           __html: `(function(){var btn=document.querySelector('[data-copy-link]');if(!btn)return;btn.addEventListener('click',function(){var idle=btn.querySelector('[data-copy-idle]');var done=btn.querySelector('[data-copy-done]');function flash(){if(idle)idle.hidden=true;if(done)done.hidden=false;setTimeout(function(){if(idle)idle.hidden=false;if(done)done.hidden=true;},2000);}try{navigator.clipboard.writeText(window.location.href).then(flash,flash);}catch(e){flash();}});})();`,
         }}

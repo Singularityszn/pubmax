@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -111,6 +112,9 @@ export default async function CrawlStoryPage({ params }: PageProps) {
   const { slug } = await params;
   const story = await getCrawlStoryBySlug(slug);
   if (!story) notFound();
+
+  // Per-request CSP nonce (set by proxy.ts) for the inline copy-link script.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   const total = story.totalGbp;
   const pricedStops = story.stops.filter((stop) => typeof stop.priceGbp === "number").length;
@@ -243,6 +247,7 @@ export default async function CrawlStoryPage({ params }: PageProps) {
       </article>
 
       <script
+        nonce={nonce}
         dangerouslySetInnerHTML={{
           __html:
             "(function(){var b=document.getElementById('storyCopyBtn');if(!b)return;" +

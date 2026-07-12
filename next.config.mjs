@@ -12,76 +12,20 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 // timestamp default needs zero extra scripts or package.json changes.
 const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 
-// Content-Security-Policy. Every directive below maps to a real app dependency
-// so everything else is locked down to 'self':
-//   - script-src: NO production 'unsafe-eval', NO wildcard/CDN script origins.
-//     Local `next dev` gets a dev-only 'unsafe-eval' allowance because React
-//     development tooling uses eval for call-stack reconstruction; production
-//     builds never receive it.
-//     Our own
-//     no-flash theme script is an EXTERNAL file (public/theme-init.js), so it is
-//     covered by 'self' with no per-build hash — see app/layout.tsx.
-//     'unsafe-inline' here is required ONLY by Next.js 16's own App-Router RSC
-//     streaming scripts (the per-page `self.__next_f.push(...)` bootstrap +
-//     hydration payload). Those are inline, and their content — hence their
-//     sha256 — differs per page AND per build, so they can't be statically
-//     hashed; `'strict-dynamic'` doesn't cover them (it also breaks the async
-//     external chunks) and `experimental.sri` only adds integrity to external
-//     <script src>, leaving the inline payload unhashed. The ONLY way to drop
-//     'unsafe-inline' without breaking hydration is a per-request nonce applied
-//     via middleware — which forces dynamic rendering (killing this app's static
-//     generation) and lives outside next.config.mjs. When a nonce/middleware
-//     layer is added, replace 'unsafe-inline' with 'nonce-<value>' here.
-//     NB: browsers ignore 'unsafe-inline' whenever a nonce or hash is also
-//     present, so this is not a lever for silencing hash mismatches.
-//   - style-src: 'unsafe-inline' is required — MapLibre GL injects inline styles
-//     at runtime (canvas controls, marker positioning).
-//   - img-src: data:/blob: (canvas + og), Wikimedia (landmark photos), Supabase
-//     (Pint Drop pint photos in Storage).
-//   - font-src / connect-src: openfreemap tiles+glyphs+sprites, Supabase
-//     auth/rest/storage. TfL is server-only (/api/last-train) so it's NOT listed.
-//     connect-src ALSO lists the CARTO basemap hosts: when OpenFreeMap is slow or
-//     down, PubMapCanvas swaps to CARTO's keyless styles (FALLBACK_STYLES). CARTO
-//     serves the style.json entrypoint from basemaps.cartocdn.com and everything
-//     the style references — sprite, glyphs, TileJSON + vector tiles — from
-//     tiles.basemaps.cartocdn.com. MapLibre fetches ALL of these via fetch(), so
-//     both hosts must be in connect-src or the fallback is CSP-blocked and users
-//     hit the "Map tiles unavailable" screen on any transient OpenFreeMap blip.
-//     connect-src ALSO explicitly lists `wss://*.supabase.co`: the `https://` entry
-//     covers the REST/auth/storage fetch() calls, but Supabase Realtime
-//     (lib/realtime.ts) opens a WEBSOCKET to wss://<project-ref>.supabase.co/realtime/...,
-//     and browsers treat `wss:` as a distinct scheme from `https:` for CSP
-//     connect-src matching — an `https://*.supabase.co` entry does NOT authorize
-//     a `wss://` connection. Without this, the socket is silently blocked and
-//     lib/realtime.ts falls back to polling. Scoped to the Supabase wildcard only
-//     (no blanket `wss:`).
-//   - worker-src/child-src blob:: MapLibre spins up its tile workers from blobs.
-//     worker-src 'self' ALSO covers the offline service worker (public/sw.js,
-//     issue #32); its fetch/caching targets (self + tiles.openfreemap.org) are
-//     already in connect-src, so no CSP loosening was needed for offline mode.
-const scriptSrc =
-  process.env.NODE_ENV === "development"
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    : "script-src 'self' 'unsafe-inline'";
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  scriptSrc,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud https://www.jdwetherspoon.com https://live.staticflickr.com https://whatpub-new.s3.eu-west-1.amazonaws.com https://media-cdn.tripadvisor.com https://images.squarespace-cdn.com https://images.cdn.inapub.co.uk https://www.greeneking.co.uk https://encrypted-tbn0.gstatic.com https://static.wixstatic.com",
-  "font-src 'self' data: https://tiles.openfreemap.org",
-  "connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co",
-  "worker-src 'self' blob:",
-  "child-src blob:",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join("; ");
+// Content-Security-Policy is NO LONGER served from here. It moved to proxy.ts
+// (Next.js 16's renamed `middleware` convention) so it can be built PER-REQUEST
+// with a fresh nonce — that is the only way to drop `script-src 'unsafe-inline'`
+// while still allowing Next's inline RSC bootstrap/hydration scripts (their
+// sha256 differs per page and per build, so they can't be statically hashed).
+// See proxy.ts for the full policy + the per-directive rationale (img-src
+// allowlist, connect-src tiles/supabase/wss, style-src 'unsafe-inline' for
+// MapLibre, worker/child blob:, etc.). All the OTHER security headers below
+// (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer) stay here on
+// `/:path*`; only the CSP moved. Trade-off: the per-request nonce forces
+// dynamic rendering for every route (no static generation / ISR / PPR).
 
 // Baseline security headers on every response.
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "DENY" },
