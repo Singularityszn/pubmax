@@ -4,6 +4,13 @@ import { GET } from "@/app/api/citymcp/things-to-do/route";
 import { resetThingsToDoCache } from "@/lib/citymcp/client";
 
 const realFetch = global.fetch;
+// The route now rate-limits per IP (S2) before anything else. Vercel's vitest
+// run sets NODE_ENV=production with real Supabase env vars, which would send
+// the limiter down its durable (network) path here; deleting the two env vars
+// for the test keeps it on the deterministic in-memory path (same technique
+// as __tests__/lastTrainRoute.test.ts).
+const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
+const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function sseFrame(payload: unknown): string {
   return `event: message\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -12,10 +19,16 @@ function sseFrame(payload: unknown): string {
 beforeEach(() => {
   vi.restoreAllMocks();
   resetThingsToDoCache();
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
 
 afterEach(() => {
   global.fetch = realFetch;
+  if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+  else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+  if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  else process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
 });
 
 describe("GET /api/citymcp/things-to-do", () => {

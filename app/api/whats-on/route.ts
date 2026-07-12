@@ -4,8 +4,12 @@
 // data + a fail-soft CityMCP live layer, so it never needs prod-only guards and
 // never 500s: unknown params are dropped (not 400), and any failure lands as
 // 200 + { rows: [], error }. On success: 200 + { rows, asOf }.
+//
+// S2: per-IP rate limited (own key, isWhatsOnLimited) — the fail-soft "never
+// 500" contract above is unaffected; a 429 is the one allowed exception.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { isWhatsOnLimited } from "@/lib/citymcpRateLimit";
 import { isWhatsOnKind, type WhatsOnKind } from "@/lib/whatsOn";
 import {
   loadWhatsOn,
@@ -45,6 +49,14 @@ export async function handleWhatsOnRequest(
   request: Request,
   deps: LoadWhatsOnDeps = {},
 ): Promise<Response> {
+  // Own key/budget (lib/citymcpRateLimit.ts): whats-on is partly served from
+  // bundled data, so it must not share (and prematurely exhaust) the CityMCP
+  // proxy surface's budget. A 429 here is an allowed exception to the "never
+  // 500" fail-soft contract described above — upstream failures still 200.
+  if (await isWhatsOnLimited(request)) {
+    return jsonNoStore({ rows: [], error: "Too many requests, slow down." }, { status: 429 });
+  }
+
   try {
     const params = new URL(request.url).searchParams;
     const load: LoadWhatsOnParams = {};
