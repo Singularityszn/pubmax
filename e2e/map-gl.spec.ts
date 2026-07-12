@@ -288,9 +288,12 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
 
   failTiles = true;
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
-  await zoomIn.click();
-  await zoomIn.click();
-  await zoomIn.click();
+  // Mobile CSS deliberately hides MapLibre's built-in control group. Invoke
+  // its real button handler in place so this outage test can force fresh tile
+  // requests without weakening the phone chrome contract.
+  await zoomIn.evaluate((button: HTMLButtonElement) => button.click());
+  await zoomIn.evaluate((button: HTMLButtonElement) => button.click());
+  await zoomIn.evaluate((button: HTMLButtonElement) => button.click());
   await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
 
   const notice = page.locator(".mapSoftRetry");

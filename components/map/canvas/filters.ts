@@ -1,4 +1,4 @@
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { iconId } from "@/lib/mapIcons";
 import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";

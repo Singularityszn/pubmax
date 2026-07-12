@@ -1,9 +1,8 @@
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import {
   applyBasemapTaste,
   applySelectionMute,
   clusterCircleColorExpr,
-  buildingMassingColorExpr,
 } from "@/lib/mapBasemapTaste";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
@@ -283,6 +282,11 @@ export function tameFillExtrusionLayers(map: maplibregl.Map): void {
       // Style may lock the prop; continue to height flatten.
     }
     try {
+      map.setPaintProperty(layer.id, "fill-extrusion-vertical-gradient", true);
+    } catch {
+      // MapLibre 6 supports this natively; keep the rest best-effort for unusual styles.
+    }
+    try {
       // Flatten hard at inspector zoom regardless of the style's original
       // height expression — property reads still work on OpenMapTiles building
       // layers; missing props coalesce to a short stub then collapse to 0.
@@ -344,20 +348,20 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
         "source-layer": "building",
         minzoom: 12.5,
         paint: {
-          // M4/M6 massing colour still applies — just much quieter. Opacity is
-          // the hard anti-Lego ceiling (BUILDING_EXTRUSION_OPACITY); height
-          // collapses fully by BUILDING_EXTRUSION_FLAT_ZOOM so landmark fly-ins
-          // read as flat streets + POI icons.
-          "fill-extrusion-color": buildingMassingColorExpr(
-            dark ? tokens.buildingEmissive : tokens.line,
-            tokens.inkDeep,
-          ) as maplibregl.ExpressionSpecification,
+          // Keep each theme's established massing tone. MapLibre 6 owns the
+          // height shading through fill-extrusion-vertical-gradient below.
+          "fill-extrusion-color": dark ? tokens.buildingEmissive : tokens.line,
           "fill-extrusion-height": buildingExtrusionHeightExpr([
             "*",
             ["coalesce", ["get", "render_height"], ["get", "height"], 14],
             1.08,
           ]),
           "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+          // M6: fake-AO massing — MapLibre shades each extrusion face by height
+          // so building bases read subtly darker than their tops, giving the
+          // skyline weight without any real light source. Cheap depth cue that
+          // makes the City/Canary Wharf clusters feel solid on pitched zoom.
+          "fill-extrusion-vertical-gradient": true,
           "fill-extrusion-opacity": BUILDING_EXTRUSION_OPACITY,
         },
       },

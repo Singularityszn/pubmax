@@ -1,4 +1,5 @@
-import maplibregl, { type GeoJSONFeature } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { GeoJSONFeature } from "maplibre-gl";
 import { buildDonutMarkerSvg, donutTotal, type DonutCounts } from "@/lib/donutClusterGeometry";
 import { readTokens } from "./tokens";
 import { CLUSTER_MAX_ZOOM } from "./buildScene";

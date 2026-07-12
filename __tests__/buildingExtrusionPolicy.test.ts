@@ -25,7 +25,7 @@ describe("building extrusion anti-Lego policy", () => {
     expect(expr[expr.length - 1]).toBe(0);
   });
 
-  it("tames every fill-extrusion layer's opacity and height", () => {
+  it("tames every fill-extrusion layer with native vertical shading, opacity and height", () => {
     const paint = new Map<string, unknown>();
     const map = {
       getStyle: () => ({
@@ -46,7 +46,10 @@ describe("building extrusion anti-Lego policy", () => {
     expect(paint.get("buildings-3d::fill-extrusion-opacity")).toBe(
       BUILDING_EXTRUSION_OPACITY,
     );
+    expect(paint.get("building-3d::fill-extrusion-vertical-gradient")).toBe(true);
+    expect(paint.get("buildings-3d::fill-extrusion-vertical-gradient")).toBe(true);
     expect(paint.has("road::fill-extrusion-opacity")).toBe(false);
+    expect(paint.has("road::fill-extrusion-vertical-gradient")).toBe(false);
     const height = paint.get("building-3d::fill-extrusion-height") as unknown[];
     expect(height[0]).toBe("interpolate");
     expect(height[height.length - 1]).toBe(0);
