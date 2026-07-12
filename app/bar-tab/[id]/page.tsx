@@ -105,16 +105,20 @@ export default async function BarTabPage({ params }: PageProps) {
   const { id } = await params;
   const venue = await getVenue(id);
   if (!venue) return <NotInTheTab />;
+  // Everything below reads/links off the canonical venue id (D1) so a merged
+  // alias URL and the surviving canonical URL share the same drops/ratings —
+  // never the raw route param, which may be a losing duplicate id.
+  const canonicalId = venue.id;
 
   // The SAME public read the feed uses — visibility already applied server-side
   // (issue #29). No viewer is passed, so this is the anonymous public surface:
   // friends/legacy drops are excluded, anonymous drops carry the safe label.
-  const drops = await pintDropStoreFor().listVisible(id);
+  const drops = await pintDropStoreFor().listVisible(canonicalId);
   // Normalise through the feed's normaliser so tiles carry resolved photo URLs,
   // captions, and the safe (possibly-anonymised) handle straight from the DTO.
   const barTab = buildBarTab((drops as PintDropDTO[]).map(normalizePintDrop));
 
-  const shareUrl = `/bar-tab/${encodeURIComponent(id)}`;
+  const shareUrl = `/bar-tab/${encodeURIComponent(canonicalId)}`;
 
   return (
     <main className="barTabPage">
@@ -141,10 +145,10 @@ export default async function BarTabPage({ params }: PageProps) {
         </div>
 
         <div className="barTabHeadActions">
-          <Link className="barTabMapLink" href={venueMapUrl(id)}>
+          <Link className="barTabMapLink" href={venueMapUrl(canonicalId)}>
             Open on the map
           </Link>
-          <Link className="barTabLedgerLink" href={`/ledger/${encodeURIComponent(id)}`}>
+          <Link className="barTabLedgerLink" href={`/ledger/${encodeURIComponent(canonicalId)}`}>
             Read the ledger
           </Link>
           <ShareBar
@@ -157,7 +161,7 @@ export default async function BarTabPage({ params }: PageProps) {
         {/* Pub rating (E3): community stars (shown past the 10-vote floor) +
             the viewer's own half-star vote. A client sliver; the rest of the
             page stays a server render. */}
-        <VenueRatingPanel venueId={id} venueName={venue.name} />
+        <VenueRatingPanel venueId={canonicalId} venueName={venue.name} />
       </header>
 
       {barTab.tileCount === 0 ? (
@@ -166,7 +170,7 @@ export default async function BarTabPage({ params }: PageProps) {
           eyebrow="Quiet at the bar"
           title="No pints on the tab yet."
           body="Be the first to drop one here — snap your pint, log the price, pass down a story."
-          action={<Link href={`${venueMapUrl(id)}&log=1`}>Drop a pint here</Link>}
+          action={<Link href={`${venueMapUrl(canonicalId)}&log=1`}>Drop a pint here</Link>}
         />
       ) : (
         <ul className="barTabGrid" aria-label={`Recent pints at ${venue.name}`}>
