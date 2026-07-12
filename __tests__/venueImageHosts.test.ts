@@ -25,4 +25,14 @@ describe("allowedVenueImageHosts", () => {
     // adding a dataset must never replace the existing coverage.
     expect(hosts.size).toBeGreaterThan(10);
   });
+
+  it("excludes third-party pub website/booking/pub_url hosts from pint_prices_app_dataset.json", () => {
+    const hosts = allowedVenueImageHosts();
+    // These are non-photo fields on the same dataset row (Delicio,
+    // Bexleyheath) — the allowlist must only pick up the `image_url` field,
+    // not every https URL in the file, or it becomes an SSRF allowlist for
+    // ~hundreds of arbitrary pub websites.
+    expect(hosts.has("www.deliciobexleyheath.co.uk")).toBe(false);
+    expect(hosts.has("www.pint-prices.com")).toBe(false);
+  });
 });
