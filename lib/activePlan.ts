@@ -254,6 +254,10 @@ export function markNightModeActiveFired(id: string): boolean {
     try {
       if (window.sessionStorage.getItem(key) === "1") return false;
       window.sessionStorage.setItem(key, "1");
+      // Always sync to in-memory fallback on successful write; if storage fails
+      // later (or fails next time due to becoming restricted), the fallback will
+      // have the entry and prevent refiring the same event.
+      nightActiveMemory.add(id);
       return true;
     } catch {
       // fall through to in-memory dedupe

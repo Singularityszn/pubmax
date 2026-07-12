@@ -94,6 +94,19 @@ describe("buildMusicResidencyRows", () => {
     expect(rows).toHaveLength(0);
   });
 
+  it("drops a residency with empty or missing title/detail", () => {
+    const rows = buildMusicResidencyRows({
+      residencies: [
+        { ...MUSIC_RESIDENCIES[0], title: "" },
+        { ...MUSIC_RESIDENCIES[0], title: undefined as unknown as string },
+        { ...MUSIC_RESIDENCIES[0], detail: "" },
+        { ...MUSIC_RESIDENCIES[0], detail: undefined as unknown as string },
+      ],
+      observedAt,
+    });
+    expect(rows).toHaveLength(0);
+  });
+
   it("every residency produces a distinct, non-colliding row (dedupeKey / dedupeRows)", () => {
     const rows = buildMusicResidencyRows({ residencies: MUSIC_RESIDENCIES, observedAt });
     const keys = new Set(rows.map((r) => dedupeKey(r as WhatsOnRow)));

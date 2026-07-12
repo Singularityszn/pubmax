@@ -232,6 +232,11 @@ export function buildMusicResidencyRows({ residencies, observedAt }) {
     if (!startsAt) continue;
     if (typeof res.placeName !== "string" || res.placeName.length === 0) continue;
     if (typeof res.id !== "string" || res.id.length === 0) continue;
+    // Validate title and detail at row build time (B1 contract requires both;
+    // empty title would pass here but get silently dropped later by isValidWhatsOnRow,
+    // so catch it now and count it toward the abort guard).
+    if (typeof res.title !== "string" || res.title.length === 0) continue;
+    if (typeof res.detail !== "string" || res.detail.length === 0) continue;
 
     rows.push({
       id: `music-${res.id}`,
