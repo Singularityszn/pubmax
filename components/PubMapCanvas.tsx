@@ -533,6 +533,25 @@ export default function PubMapCanvas({
     if (!containerRef.current || mapRef.current) return;
 
     themeRef.current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+
+    // R3 — .maplibreMap's CSS background (app/globals.css) is a flat
+    // `var(--ink-deep)`, matched to dark mode only. It shows through in the
+    // window before the canvas has painted anything: initial construct
+    // (pre style.load), and every theme swap (setStyle drops the old style's
+    // painted frame, and the new style's own "background" layer repaint —
+    // applySceneTaste in buildScene.ts — only lands once style.load fires).
+    // In dark theme ink-deep IS the right colour so that gap is invisible;
+    // in light theme it renders a dark-navy field instead of the warm
+    // paper tone, which reads as a broken/un-tiled basemap. An inline style
+    // (higher specificity than the class rule, no globals.css edit needed)
+    // keeps the container itself theme-correct through that gap — belt to
+    // the D2 tile-paint gate's suspenders, not a replacement for it.
+    const paintContainerBase = (theme: "light" | "dark") => {
+      if (containerRef.current) {
+        containerRef.current.style.background = theme === "dark" ? "var(--ink-deep)" : "var(--paper)";
+      }
+    };
+    paintContainerBase(themeRef.current);
     hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
@@ -1161,6 +1180,11 @@ export default function PubMapCanvas({
       const next = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
       if (next === themeRef.current) return;
       themeRef.current = next;
+      // R3 — re-paint the container's own base colour immediately, ahead of
+      // the new style's style.load (see paintContainerBase above) so a
+      // dark→light swap never leaves the old dark-navy ink-deep showing
+      // through while the new style is mid-fetch.
+      paintContainerBase(next);
       // diff: false forces a full style swap: old layers are always dropped
       // and style.load always fires, so buildScene deterministically rebuilds
       // every layer with the new theme's tokens (a successful diff would keep
