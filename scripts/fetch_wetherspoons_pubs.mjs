@@ -6,8 +6,9 @@
  * (always returns the same ~10 pubs). Firecrawl scrapes return real pages.
  *
  * Output:
- *   data/wetherspoons/pubs.json (+ geojson, taxonomies)
- *   public/data/wetherspoons/pubs.json (+ geojson)
+ *   public/data/wetherspoons/pubs.json (single committed source — the app
+ *     fetches this path at runtime) + pubs.geojson (kept in both locations)
+ *   data/wetherspoons/ (facilities/region/pub_status taxonomies, raw dump)
  *
  * Requires FIRECRAWL_API_KEY in the environment (see .env / .env.example).
  * Does NOT invent food/drink prices — the website does not publish them.
@@ -173,7 +174,9 @@ function main() {
     pubs: slim,
   };
 
-  writeFileSync(join(OUT, "pubs.json"), JSON.stringify(payload, null, 2));
+  // pubs.json has a single committed home: public/data/wetherspoons/ (the
+  // path the app fetches at runtime). data/wetherspoons/ keeps the other
+  // build-only artifacts below, but no longer carries a duplicate copy.
   writeFileSync(join(PUBLIC_OUT, "pubs.json"), JSON.stringify(payload, null, 2));
   writeFileSync(
     join(OUT, "facilities.json"),
@@ -230,7 +233,7 @@ function main() {
   writeFileSync(join(OUT, "pubs.geojson"), JSON.stringify(geo));
   writeFileSync(join(PUBLIC_OUT, "pubs.geojson"), JSON.stringify(geo));
 
-  console.log(`Wrote ${slim.length} pubs → data/wetherspoons/ + public/data/wetherspoons/`);
+  console.log(`Wrote ${slim.length} pubs → public/data/wetherspoons/ (+ taxonomies in data/wetherspoons/)`);
   if (existsSync(join(OUT, "pubs_raw.json"))) {
     console.log("(Leaving existing pubs_raw.json untouched — refresh does not rewrite the 12MB dump.)");
   }
