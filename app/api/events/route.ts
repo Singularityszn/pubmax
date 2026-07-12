@@ -12,8 +12,16 @@
 // Vercel's log drain captures, which is enough to prove the metric spine works
 // end-to-end. Always fail-soft: malformed input returns 204, never a 4xx that
 // would tempt the client to retry.
+//
+// This is a public, unauthenticated endpoint, so it also carries its own
+// abuse guards: a per-hashed-IP rate limit (isEventsRateLimited) and a
+// server-side DNT check, both below. Neither ever stores or logs the raw IP —
+// see lib/eventsRateLimit.ts — so the "no identifier is stored" guarantee
+// above still holds; the hash exists only for the lifetime of the counter
+// check.
 
 import { sanitizeEvent } from "@/lib/analyticsEvents";
+import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 
 export const runtime = "nodejs";
 
@@ -29,6 +37,19 @@ function noContent(): Response {
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    // Server-side Do Not Track: the client beacon (lib/analytics.ts) already
+    // checks navigator.doNotTrack before sending, but a direct POST (curl,
+    // a script, a replay) bypasses a client-only check. Honor the header
+    // itself so DNT is enforced at the trust boundary, not just in the UI.
+    if (req.headers.get("dnt") === "1") return noContent();
+
+    // Every bad-input path below returns 204, never 4xx/429 — same fail-soft
+    // convention as the rest of this route. A 429 would (a) hand an attacker
+    // a signal to back off and retry slower rather than just stop, and (b)
+    // the client fire-and-forgets the beacon anyway, so there's no one home
+    // to read a status code.
+    if (await isEventsRateLimited(req)) return noContent();
+
     const raw = await req.text();
     if (raw.length > MAX_BODY_BYTES) return noContent();
 
