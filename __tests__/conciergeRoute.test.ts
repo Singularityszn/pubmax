@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
 
-import { contextFrom, POST } from "@/app/api/concierge/route";
+import { contextFrom } from "@/lib/concierge/context";
+import { POST } from "@/app/api/concierge/route";
 
 beforeEach(() => {
   delete process.env.OPENROUTER_API_KEY;
