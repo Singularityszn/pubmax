@@ -19,6 +19,7 @@ import { fetchThingsToDo, type ThingsToDoResult } from "@/lib/citymcp/client";
 import rawQuizLondon from "../public/data/whats_on/quiz_london.json";
 import rawDealsLondon from "../public/data/whats_on/deals_london.json";
 import rawSportFixtures from "../public/data/whats_on/sport_fixtures.json";
+import rawMusicLondon from "../public/data/whats_on/music_london.json";
 import rawWhatsOnLatest from "../public/data/whats_on/latest.json";
 
 // Parse a bundled file with `now` fixed to the file's own generatedAt, so a row
@@ -33,14 +34,17 @@ function generatedAtOf(raw: unknown): number {
 // (Attribute sidecars like sport_attributes.json are a different contract and
 // are deliberately NOT loaded here — they carry no startsAt. sport_fixtures.json
 // IS loaded: it derives startsAt rows from sport_attributes.json x a fixture
-// calendar — see scripts/whatson/sportFixtures.mjs.)
+// calendar — see scripts/whatson/sportFixtures.mjs. music_london.json is a
+// small, hand-verified set of weekly residency-night rows — see
+// scripts/whatson/musicRefresh.mjs.)
 export function loadBaselineWhatsOn(): WhatsOnRow[] {
   const quiz = parseWhatsOnRows(rawQuizLondon, generatedAtOf(rawQuizLondon));
   const deals = parseWhatsOnRows(rawDealsLondon, generatedAtOf(rawDealsLondon));
   const sportFixtures = parseWhatsOnRows(rawSportFixtures, generatedAtOf(rawSportFixtures));
+  const music = parseWhatsOnRows(rawMusicLondon, generatedAtOf(rawMusicLondon));
   const latest = parseWhatsOnRows(rawWhatsOnLatest, generatedAtOf(rawWhatsOnLatest));
   const byKey = new Map<string, WhatsOnRow>();
-  for (const row of [...quiz, ...deals, ...sportFixtures, ...latest]) {
+  for (const row of [...quiz, ...deals, ...sportFixtures, ...music, ...latest]) {
     const key = dedupeKey(row);
     const existing = byKey.get(key);
     if (!existing || Date.parse(row.observedAt) > Date.parse(existing.observedAt)) {

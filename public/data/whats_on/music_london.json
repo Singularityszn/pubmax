@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-07-12T14:50:55.561Z",
+  "kind": "music",
+  "region": "greater-london",
+  "sources": [
+    {
+      "label": "Skehan's — Live Music",
+      "url": "https://skehans.com/whats-on/",
+      "firstParty": true,
+      "notes": "Skehan's own weekly live-music programme (checked 2026-07-12): Monday Jam Sessions 20:30, Tuesday Trad Session 19:00, Wednesday South London Jam 20:00, The Big Saturday Night Gig 21:00, Sunday Night Folk Sessions 19:00. Friday alternates Karaoke/Rock'n'Roll — not included (ambiguous which runs on a given week)."
+    },
+    {
+      "label": "The Ivy House — What's On",
+      "url": "https://www.ivyhousenunhead.com/whats-on",
+      "firstParty": true,
+      "notes": "The Ivy House's own 'Jazz + Roasts Sundays' — recurring Sunday 16:00 live jazz session, checked 2026-07-12."
+    }
+  ],
+  "rows": [
+    {"id":"music-ivyhouse-sunday-jazz","placeName":"The Ivy House","kind":"music","startsAt":"2026-07-12T16:00:00+01:00","title":"Jazz + Roasts Sundays","detail":"Live jazz band on the community pub's stage, paired with Sunday roasts. Free entry; booking recommended for food.","source":{"label":"The Ivy House — What's On","url":"https://www.ivyhousenunhead.com/whats-on"},"observedAt":"2026-07-12T14:50:55.561Z","confidence":"listed"},
+    {"id":"music-skehans-monday-jam","placeName":"Skehan's","kind":"music","startsAt":"2026-07-13T20:30:00+01:00","title":"Monday Jam Sessions","detail":"An inclusive jam session open to all patrons — bring your own instrument and join in, or just come to listen.","source":{"label":"Skehan's — Live Music","url":"https://skehans.com/whats-on/"},"observedAt":"2026-07-12T14:50:55.561Z","confidence":"listed"},
+    {"id":"music-skehans-saturday-gig","placeName":"Skehan's","kind":"music","startsAt":"2026-07-18T21:00:00+01:00","title":"The Big Saturday Night Gig","detail":"Live music from Skehan's regular roster of musicians, into the night.","source":{"label":"Skehan's — Live Music","url":"https://skehans.com/whats-on/"},"observedAt":"2026-07-12T14:50:55.561Z","confidence":"listed"},
+    {"id":"music-skehans-sunday-folk","placeName":"Skehan's","kind":"music","startsAt":"2026-07-12T19:00:00+01:00","title":"Sunday Night Folk Sessions","detail":"Live folk music session.","source":{"label":"Skehan's — Live Music","url":"https://skehans.com/whats-on/"},"observedAt":"2026-07-12T14:50:55.561Z","confidence":"listed"},
+    {"id":"music-skehans-tuesday-trad","placeName":"Skehan's","kind":"music","startsAt":"2026-07-14T19:00:00+01:00","title":"Irish/English Trad Session","detail":"Traditional Irish and English music session, alternating performers every Tuesday.","source":{"label":"Skehan's — Live Music","url":"https://skehans.com/whats-on/"},"observedAt":"2026-07-12T14:50:55.561Z","confidence":"listed"},
+    {"id":"music-skehans-wednesday-jam","placeName":"Skehan's","kind":"music","startsAt":"2026-07-15T20:00:00+01:00","title":"South London Jam","detail":"An eclectic mix of musicians getting together for a live jam.","source":{"label":"Skehan's — Live Music","url":"https://skehans.com/whats-on/"},"observedAt":"2026-07-12T14:50:55.561Z","confidence":"listed"}
+  ]
+}
