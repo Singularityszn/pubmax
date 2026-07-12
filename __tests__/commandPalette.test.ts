@@ -88,9 +88,44 @@ describe("real command registry", () => {
   });
 
   it("every navigation command points at an absolute in-app path", () => {
+    // Record paths navigated to by each command.
+    const recordedPaths: Record<string, string> = {};
+
     for (const command of commands) {
       // Sanity: no dead relative hrefs slipped into the registry.
       expect(command.label.length).toBeGreaterThan(0);
+
+      // Execute navigation commands and record the paths via a recording context.
+      if (command.group === "Navigate" || (command.group === "Actions" && command.id !== "action-toggle-theme")) {
+        const recordingContext = {
+          navigate: (href: string) => {
+            recordedPaths[command.id] = href;
+          },
+          close: () => {},
+          toggleTheme: () => {},
+        };
+        command.run(recordingContext);
+      }
     }
+
+    // Verify all recorded paths are absolute (start with "/") in-app routes.
+    for (const path of Object.values(recordedPaths)) {
+      expect(path).toMatch(/^\//);
+    }
+
+    // Verify the expected navigation commands recorded the expected paths.
+    expect(recordedPaths["nav-map"]).toBe("/map");
+    expect(recordedPaths["nav-pubs"]).toBe("/pubs");
+    expect(recordedPaths["nav-feed"]).toBe("/feed");
+    expect(recordedPaths["nav-discover"]).toBe("/discover");
+    expect(recordedPaths["nav-borough"]).toBe("/borough");
+    expect(recordedPaths["nav-crawls"]).toBe("/crawls");
+    expect(recordedPaths["nav-rounds"]).toBe("/rounds");
+    expect(recordedPaths["nav-messages"]).toBe("/messages");
+    expect(recordedPaths["nav-activity"]).toBe("/activity");
+    expect(recordedPaths["nav-profile"]).toBe("/u/you");
+    expect(recordedPaths["action-pint-drop"]).toBe("/map?log=1");
+    expect(recordedPaths["action-start-plan"]).toBe("/plan");
+    expect(recordedPaths["action-build-crawl"]).toBe("/map");
   });
 });
