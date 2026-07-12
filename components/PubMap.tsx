@@ -40,6 +40,9 @@ import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
+import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
+import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
+import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -827,17 +830,9 @@ export default function PubMap({
     Promise.resolve().then(() => setTonightOverlayVisible(true));
   }, [tonightStatus, tonightDismissed]);
 
-  // Refresh-safety net: mirror the hand-built stops to localStorage. This effect
-  // ONLY writes storage (no setState — react-hooks/set-state-in-effect is an
-  // error here). The explicit Clear action removes the key via clearBuilt.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (builtIds.length) {
-      window.localStorage.setItem(BUILT_STORAGE_KEY, JSON.stringify(builtIds));
-    } else {
-      window.localStorage.removeItem(BUILT_STORAGE_KEY);
-    }
-  }, [builtIds]);
+  // Refresh-safety net: mirror hand-built stops to localStorage (see
+  // components/map/pubmap/useBuiltIdsPersistence.ts).
+  useBuiltIdsPersistence(builtIds, BUILT_STORAGE_KEY);
 
   const selectVenue = useCallback(
     (id: string, initialTab: TabKey = "pints") => {
@@ -859,27 +854,9 @@ export default function PubMap({
     void warmVenueDetail(id);
   }, []);
 
-  // ?sel= is only read into the seed at mount, so a CLIENT navigation to
-  // /map?sel=<id> while the map is already mounted (e.g. "See on map" from a
-  // card, or back/forward) used to be ignored. Sync it: when the param changes
-  // to a venue that isn't the current selection, select it. The URL is the
-  // source of truth only in that direction — closing the sheet locally does
-  // not rewrite the param, matching the other seeded params' behaviour.
+  // ?sel= client-nav sync — verbatim in components/map/pubmap/useSelParamSync.ts.
   const selParam = searchParams?.get("sel") ?? "";
-  const selectedVenueIdRef = useRef(selectedVenueId);
-  useEffect(() => {
-    selectedVenueIdRef.current = selectedVenueId;
-  }, [selectedVenueId]);
-  useEffect(() => {
-    if (!selParam) return;
-    // Microtask defer keeps the state updates out of the effect's synchronous
-    // body (house lint rule against cascading renders). The ref comparison
-    // (not a dep) means only URL changes fire this — local selection changes
-    // never re-run it, and an already-matching selection is a no-op.
-    queueMicrotask(() => {
-      if (selParam !== selectedVenueIdRef.current) selectVenue(selParam);
-    });
-  }, [selParam, selectVenue]);
+  useSelParamSync({ selParam, selectedVenueId, selectVenue });
 
   const logNearbyCandidates = useMemo(
     () => buildLogNearbyCandidates(filteredVenues, undefined, userLocation),
@@ -1040,40 +1017,9 @@ export default function PubMap({
     setFallbackVisible: setLogIntentFallbackVisible,
   });
 
-  // Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
-  // the selected venue. The effect only adds/removes a DOM listener — the handler
-  // calls setState, which is allowed (react-hooks/set-state-in-effect forbids
-  // setState in the effect BODY, not in listeners it registers).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const typing =
-        target?.tagName === "INPUT" ||
-        target?.tagName === "TEXTAREA" ||
-        target?.isContentEditable === true;
-      if (event.key === "/" && !typing) {
-        const search = document.getElementById("mapSearchInput") as HTMLInputElement | null;
-        if (search) {
-          event.preventDefault();
-          search.focus();
-        }
-      } else if (event.key === "Escape") {
-        // Topmost first: planner (higher z on mobile) then venue detail.
-        if (planningOpen) {
-          closePlanning();
-          return;
-        }
-        setSelectedVenueId((current) => {
-          if (!current) return current;
-          closeComposer();
-          return "";
-        });
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeComposer, closePlanning, planningOpen]);
+  // Keyboard shortcuts: "/" focuses search, Esc clears selection / closes the
+  // planner (see components/map/pubmap/useMapKeyboardShortcuts.ts).
+  useMapKeyboardShortcuts({ planningOpen, closePlanning, closeComposer, setSelectedVenueId });
 
   const toggleBuiltStop = useCallback((id: string) => {
     setBuiltIds((current) =>
