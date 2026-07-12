@@ -52,15 +52,30 @@
   pointer-events: none;
 }
 
-/* N3 desktop inspector photo header — taller, edge-to-edge under title. */
+/* R4 — the sheet header's "No photo yet" fallback used to inherit the same
+   16:9 aspect ratio (and, on desktop, the 180-220px min/max height) as a
+   real photo, so on photo-less pubs it alone ate most of the first
+   viewport and pushed the Golden Thread price block below the fold.
+   Collapse it to a slim fixed-height banner at every width; the real-photo
+   path (.venueImage__img) is untouched. Specificity (0,2,0) beats
+   .venueBaselinePhoto's aspect-ratio (0,1,0) in venueSheet.css regardless
+   of stylesheet load order. */
+.venueImage--header.venueImage--empty {
+  aspect-ratio: auto;
+  min-height: 0;
+  height: 56px;
+  padding: 0 1rem;
+}
+
+/* N3 desktop inspector photo header — taller, edge-to-edge under title.
+   Real-photo path only; the empty fallback stays slim (rule above). */
 @media (min-width: 960px) {
   .venueInspector .venueImage--header {
     border-radius: 0 0 14px 14px;
     margin: 0 0 0.75rem;
   }
 
-  .venueInspector .venueImage--header .venueImage__img,
-  .venueInspector .venueImage--header.venueImage--empty {
+  .venueInspector .venueImage--header .venueImage__img {
     min-height: 180px;
     max-height: 220px;
     object-fit: cover;
