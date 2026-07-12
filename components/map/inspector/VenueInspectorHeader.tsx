@@ -3,11 +3,14 @@ import { Waves } from "lucide-react";
 import type { Venue } from "@/lib/venues";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import VenueTonightChips from "@/components/map/VenueTonightChips";
+import VenueImage from "@/components/media/VenueImage";
 
 type TabDef = { key: TabKey; label: string; shortLabel: string };
 
 type VenueInspectorHeaderProps = {
   venue: Venue;
+  /** Most recent community Pint Drop photo for this venue (E3′ fallback source). */
+  communityPhotoUrl?: string | null;
   TABS: TabDef[];
   tab: TabKey;
   tabRefs: React.MutableRefObject<Record<TabKey, HTMLButtonElement | null>>;
@@ -20,6 +23,7 @@ type VenueInspectorHeaderProps = {
 
 export default function VenueInspectorHeader({
   venue,
+  communityPhotoUrl,
   TABS,
   tab,
   tabRefs,
@@ -49,6 +53,21 @@ export default function VenueInspectorHeader({
         <span>Venue Detail</span>
       </div>
       <h3>{venue.name}</h3>
+
+      {/* E3′ — shared provenance-labelled venue photo header: chain (scraped)
+          photo first, honest community Pint Drop fallback, gradient
+          placeholder for photo-less pubs. Additive/self-contained so it does
+          not touch the tab strip or grab-zone layout N3 owns below. */}
+      <VenueImage
+        className="venueImage--header venueBaselinePhoto"
+        sources={[
+          { url: venue.imageUrl, provenance: "chain" },
+          { url: communityPhotoUrl, provenance: "community" },
+        ]}
+        alt={`${venue.name} exterior or bar photo`}
+        width={720}
+        height={420}
+      />
 
       {/* What's on at this venue tonight (A1) — pure sheet DOM, fail-soft. */}
       <VenueTonightChips
