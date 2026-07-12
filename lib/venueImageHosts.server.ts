@@ -16,6 +16,12 @@ import path from "node:path";
 const DATA_FILES = [
   "public/data/venue_menu_enrichment.json",
   "public/data/pubmaxxing_seed_snapshot.json",
+  // Venue photos (venue.imageUrl, the /pubs card fallback) come from THIS
+  // dataset — largely Google Places photos on lh3.googleusercontent.com. It
+  // was missing here, so the proxy answered 400 to its own app-issued photo
+  // URLs (8x console errors on /pubs). Same committed-dataset trust boundary
+  // as the other two files.
+  "public/data/pint_prices_app_dataset.json",
 ];
 
 let cached: Set<string> | null = null;
