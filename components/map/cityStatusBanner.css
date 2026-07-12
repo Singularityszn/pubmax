@@ -3,9 +3,13 @@
 
 .cityStatusBanner {
   position: absolute;
-  /* Sits under the map toolbar row (search + drink lens + city switcher).
-     Below the CitySwitcher dropdown (z-index 560) so city picks stay tappable. */
-  top: 132px;
+  /* Sits under the map toolbar row (search + drink lens + city switcher) AND
+     below .citySuggestBanner when both show at once. D7: anchor to
+     --map-top-clearance rather than a bare magic number — the old fixed
+     132px predated the toolbar's current top offset and left this banner
+     overlapping the search input. Below the CitySwitcher dropdown
+     (z-index 560) so city picks stay tappable. */
+  top: calc(var(--map-top-clearance, 0px) + 116px);
   left: 50%;
   z-index: var(--z-map-banner);
   display: flex;
@@ -115,7 +119,7 @@ a.cityStatusBannerLink:hover {
 /* A4 — expandable "Tonight in London" signals sheet, additive to the pill above. */
 .cityStatusSignalSheet {
   position: absolute;
-  top: 132px; /* mirrors .cityStatusBanner's top; sheet renders as a sibling below the pill */
+  top: calc(var(--map-top-clearance, 0px) + 116px); /* mirrors .cityStatusBanner's top; sheet renders as a sibling below the pill */
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-map-banner);

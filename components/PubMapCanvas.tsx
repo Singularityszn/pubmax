@@ -2693,17 +2693,21 @@ export default function PubMapCanvas({
           <MapPinned size={14} aria-hidden />
           {cityDisplayName}
         </button>
-        <button
-          type="button"
-          className="mapRecenterBtn"
-          onClick={fitRoute}
-          disabled={!canRecenter}
-          aria-label={canRecenter ? "Recenter route" : "No route to recenter"}
-          title={canRecenter ? "Recenter route" : "No route"}
-        >
-          <Crosshair size={14} aria-hidden />
-          {canRecenter ? "Recenter" : "No route"}
-        </button>
+        {/* D7: only render once there's a route to recenter — a disabled
+            "No route" ghost chip sitting in the camera-controls stack reads
+            as a stuck/broken control when the map is routeless. */}
+        {canRecenter ? (
+          <button
+            type="button"
+            className="mapRecenterBtn"
+            onClick={fitRoute}
+            aria-label="Recenter route"
+            title="Recenter route"
+          >
+            <Crosshair size={14} aria-hidden />
+            Recenter
+          </button>
+        ) : null}
       </div>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>
