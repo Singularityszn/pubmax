@@ -35,6 +35,9 @@ import CityStatusBanner from "@/components/map/CityStatusBanner";
 import TonightOverlayChip from "@/components/map/TonightOverlayChip";
 import { useCrawlJourneys } from "@/components/map/useCrawlJourneys";
 import { useTonightOpportunities } from "@/components/map/useTonightOpportunities";
+import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
+import TonightLane from "@/components/map/TonightLane";
+import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
@@ -333,6 +336,9 @@ export default function PubMap({
   useLiveDrops(pintDrops.refreshAllDrops);
   const { opportunities: tonightOpportunities, status: tonightStatus } =
     useTonightOpportunities(isLondon);
+  // W1: PRIMARY What's-On spine — venueId-joined pub events on tonight. Feeds
+  // the pin badges (summary) and the Tonight lane (rows).
+  const whatsOnTonight = useWhatsOnTonight(isLondon);
 
   // Mobile bottom-sheet drag (GH #17) — state + pointer handlers live in
   // useSheetDrag. Two instances: venue (right) and planner (left). A fling
@@ -830,9 +836,12 @@ export default function PubMap({
   // the explicit Add/Remove button in VenueInspector (which calls toggleBuiltStop).
   const handleVenueClick = useCallback(
     (id: string) => {
+      // W1: a pin carrying a What's-On badge was tapped → badge_tap (the typed
+      // rail's map-badge signal). Silent for pins without a tonight badge.
+      if (whatsOnTonight.summary.has(id)) trackEvent("badge_tap");
       selectVenue(id);
     },
-    [selectVenue],
+    [selectVenue, whatsOnTonight.summary],
   );
 
   // Load a named curated crawl into Build mode. URL-sync makes it shareable.
@@ -1041,6 +1050,7 @@ export default function PubMap({
           venueSignals={venueSignals}
           favoritePint={favoritePint}
           drinkCategory={filters.drinkCategory || null}
+          whatsOnByVenue={whatsOnTonight.summary}
           activeBandId={activeBandId}
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}
@@ -1096,6 +1106,13 @@ export default function PubMap({
             active={tonightOverlayVisible}
             onToggle={() => setTonightOverlayVisible((visible) => !visible)}
             onDismiss={dismissTonightOverlay}
+          />
+        ) : null}
+        {isLondon ? (
+          <TonightLane
+            rows={whatsOnTonight.rows}
+            asOf={whatsOnTonight.asOf}
+            onSelectVenue={(id) => selectVenue(id)}
           />
         ) : null}
         {logIntentFallbackVisible ? (

@@ -1,14 +1,16 @@
 "use client";
 
-// Venue-sheet "on tonight" chips (Wave A · A1). Under the venue title we surface
-// what's on at THIS venue tonight — one glyph-led chip per event kind — so a
-// viewer sees "there's a gig and a comedy night here" the instant they tap a
-// pin, without leaving the sheet.
+// Venue-sheet "on tonight" chips (Wave A · A1 — reconciled to the W1 primary
+// spine). Under the venue title we surface what's on at THIS venue tonight —
+// one glyph-led chip per kind — so a viewer sees "there's a quiz and live sport
+// here" the instant they tap a pin, without leaving the sheet.
 //
-// Data: the same grounded CityMCP `things_to_do` tonight window the /tonight
-// screen and the Discover lane use. Upstream place ids don't align with our
-// venue ids, so opportunities are joined to the venue by tolerant name match OR
-// coordinate proximity (see lib/tonight.matchOpportunitiesToVenue).
+// Spine reconciliation (W1): the data source is now the PRIMARY What's-On spine
+// (/api/whats-on — venueId-joined quiz/sport/deal/music pub events), NOT the
+// CityMCP things-to-do city-events layer. Rows join to the venue by their OWN
+// resolved `venueId` (exact match — no haversine), which is both cleaner and
+// truer than the old name/coord match. The CityMCP things-to-do layer remains a
+// secondary city-events surface (Discover lane / /tonight screen).
 //
 // Pure sheet DOM — no map-canvas involvement (respects the F1 freeze). Fail-
 // soft: any fetch failure or no-match renders nothing; provenance ("checked
@@ -19,53 +21,42 @@
 
 import { useEffect, useState } from "react";
 import {
-  Drama,
-  Mic,
+  CalendarClock,
   Music,
-  PartyPopper,
-  Palette,
-  ShoppingBag,
-  Sparkles,
-  Store,
-  Ticket,
-  Users,
-  Utensils,
+  Tag,
+  Tv,
   type LucideIcon,
 } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
-import {
-  eventChipsForVenue,
-  matchOpportunitiesToVenue,
-  provenanceLabel,
-  type EventChip,
-  type TonightOpportunity,
-  type VenueRef,
-} from "@/lib/tonight";
+import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
+import type { VenueRef } from "@/lib/tonight";
 
-type ApiResponse = {
-  asOf?: string | null;
-  opportunities?: TonightOpportunity[];
+type ApiResponse = { asOf?: string | null; rows?: unknown };
+
+const KIND_ICON: Record<WhatsOnKind, LucideIcon> = {
+  quiz: CalendarClock,
+  sport: Tv,
+  deal: Tag,
+  music: Music,
 };
 
-const KIND_ICON: Record<string, LucideIcon> = {
-  gig: Music,
-  comedy: Mic,
-  theatre: Drama,
-  exhibition: Palette,
-  popup: Store,
-  food_drink: Utensils,
-  market: ShoppingBag,
-  family: Users,
-  talk: Mic,
-  nightlife: PartyPopper,
-  free_event: Ticket,
-  other: Sparkles,
-};
+// Distinct kinds present at this venue tonight, in hero-priority order.
+function kindsForVenue(rows: WhatsOnRow[], venueId: string | undefined): WhatsOnKind[] {
+  if (!venueId) return [];
+  const seen = new Set<WhatsOnKind>();
+  for (const row of rows) {
+    if (row.venueId === venueId) seen.add(row.kind);
+  }
+  return (Object.keys(WHATS_ON_KIND_META) as WhatsOnKind[])
+    .sort((a, b) => WHATS_ON_KIND_META[a].priority - WHATS_ON_KIND_META[b].priority)
+    .filter((k) => seen.has(k));
+}
 
 export default function VenueTonightChips(props: VenueRef): React.JSX.Element | null {
-  const { id, name, latitude, longitude } = props;
-  const [chips, setChips] = useState<EventChip[]>([]);
+  const { id } = props;
+  const [kinds, setKinds] = useState<WhatsOnKind[]>([]);
   const [asOf, setAsOf] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,63 +64,51 @@ export default function VenueTonightChips(props: VenueRef): React.JSX.Element | 
     // Reset when the inspected venue changes so a stale match never lingers.
     void Promise.resolve().then(() => {
       if (!controller.signal.aborted) {
-        setChips([]);
+        setKinds([]);
         setAsOf(null);
       }
     });
     (async () => {
       try {
-        const res = await fetch(
-          "/api/citymcp/things-to-do?window=tonight&limit=20",
-          { signal: controller.signal, headers: { accept: "application/json" } },
-        );
+        const res = await fetch("/api/whats-on?window=tonight&limit=60", {
+          signal: controller.signal,
+          headers: { accept: "application/json" },
+        });
         if (!res.ok) return;
         const body = (await res.json()) as ApiResponse;
-        const ops = Array.isArray(body.opportunities) ? body.opportunities : [];
-        const matched = matchOpportunitiesToVenue(ops, {
-          id,
-          name,
-          latitude,
-          longitude,
-        });
-        const derived = eventChipsForVenue(matched);
+        const rows = Array.isArray(body.rows)
+          ? body.rows.filter((r): r is WhatsOnRow => isValidWhatsOnRow(r))
+          : [];
+        const derived = kindsForVenue(rows, id);
         if (derived.length === 0) return;
         void Promise.resolve().then(() => {
           if (controller.signal.aborted) return;
-          setChips(derived);
+          setKinds(derived);
           setAsOf(body.asOf ?? null);
-          // D0: this venue surfaced ≥1 event chip. One signal per kind shown.
-          for (const chip of derived) {
-            trackEvent("event_chip_view", { kind: chip.kind });
-          }
+          // One signal per kind shown at this venue.
+          for (const kind of derived) trackEvent("event_chip_view", { kind });
         });
       } catch {
         /* fail-soft: no chips */
       }
     })();
     return () => controller.abort();
-  }, [id, name, latitude, longitude]);
+  }, [id]);
 
-  if (chips.length === 0) return null;
+  if (kinds.length === 0) return null;
 
   return (
     <div className="venueTonightChips" aria-label="On tonight at this venue">
-      {chips.map((chip) => {
-        const Icon = KIND_ICON[chip.kind] ?? Sparkles;
+      {kinds.map((kind) => {
+        const Icon = KIND_ICON[kind];
         return (
-          <span
-            key={chip.kind}
-            className="venueTonightChip"
-            data-kind={chip.kind}
-          >
+          <span key={kind} className="venueTonightChip" data-kind={kind}>
             <Icon size={12} aria-hidden="true" />
-            {chip.label}
+            {WHATS_ON_KIND_META[kind].badgeLabel}
           </span>
         );
       })}
-      <span className="venueTonightChecked">
-        {provenanceLabel(asOf).toLowerCase()}
-      </span>
+      <span className="venueTonightChecked">{checkedLabel(asOf).toLowerCase()}</span>
     </div>
   );
 }

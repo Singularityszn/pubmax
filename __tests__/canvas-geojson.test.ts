@@ -8,6 +8,7 @@ import {
   bandCorridorGeoJSON,
 } from "@/components/map/canvas/geojson";
 import type { VenueSignal } from "@/components/map/canvas/types";
+import { summariseWhatsOnByVenue } from "@/lib/whatsOnBadges";
 import type { Venue } from "@/lib/venues";
 import type { StoryBand } from "@/lib/storyBands";
 import type { Landmark } from "@/lib/landmarks";
@@ -151,5 +152,30 @@ describe("pubsToGeoJSON", () => {
     expect(props?.serves).toBe(true);
     expect(props?.bucket).toBe(priceBucket(6));
     expect(typeof props?.drinkKind).toBe("string");
+  });
+});
+
+describe("pubsToGeoJSON whats-on badge join (W1)", () => {
+  it("stamps hero kind + timed flag on venues with a tonight row, absent otherwise", () => {
+    const a = makeVenue({ id: "with-quiz" });
+    const b = makeVenue({ id: "no-events" });
+    const summary = summariseWhatsOnByVenue([
+      {
+        id: "r1",
+        venueId: "with-quiz",
+        placeName: a.name,
+        kind: "quiz",
+        startsAt: "2026-07-12T19:00:00.000Z",
+        title: "Quiz night",
+        source: { label: "Org", url: "https://example.com" },
+        observedAt: "2026-07-12T09:00:00.000Z",
+        confidence: "listed",
+      },
+    ]);
+    const fc = pubsToGeoJSON([a, b], new Map(), null, null, summary);
+    const [pa, pb] = fc.features.map((f) => f.properties);
+    expect(pa?.whatsOn).toBe("quiz");
+    expect(pa?.whatsOnTimed).toBe(true);
+    expect(pb?.whatsOn).toBeUndefined();
   });
 });

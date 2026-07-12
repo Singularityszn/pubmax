@@ -1,0 +1,205 @@
+// Client-safe presentation logic for the W1 Tonight surface: the whats-on PIN
+// BADGE join (venueId → glyph summary) and the Tonight LANE card derivation.
+// Pure and Node/React-free so both the map/lane components and vitest can
+// exercise it directly.
+//
+// Spine reconciliation (recorded cycle decision): the venueId-joined What's-On
+// spine (/api/whats-on — quiz/sport/deal/music) is PRIMARY here. The CityMCP
+// things-to-do layer stays a secondary city-events lane and is NOT consumed by
+// this module. Badges join on the row's own `venueId` — never haversine.
+//
+// Owner decision 4 (2026-07-12 grill): quiz = timed hero; sport = untimed
+// "Screens live sport" attribute badge; deal + music are timed. Hero-kind
+// priority for a venue with several rows: quiz > sport > deal > music.
+
+import { WHATS_ON_KINDS, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+
+export type WhatsOnKindMeta = {
+  kind: WhatsOnKind;
+  /** Short chip label ("Quiz"). */
+  label: string;
+  /** Fuller badge/summary phrase ("Quiz night"). */
+  badgeLabel: string;
+  /** Whether a start time is meaningful to surface for this kind. */
+  timed: boolean;
+  /** Hero-selection priority — LOWER wins when a venue has several kinds. */
+  priority: number;
+};
+
+export const WHATS_ON_KIND_META: Record<WhatsOnKind, WhatsOnKindMeta> = {
+  quiz: { kind: "quiz", label: "Quiz", badgeLabel: "Quiz night", timed: true, priority: 0 },
+  sport: {
+    kind: "sport",
+    label: "Sport",
+    badgeLabel: "Screens live sport",
+    timed: false,
+    priority: 1,
+  },
+  deal: { kind: "deal", label: "Deal", badgeLabel: "Deal on", timed: true, priority: 2 },
+  music: { kind: "music", label: "Live music", badgeLabel: "Live music", timed: true, priority: 3 },
+};
+
+/** Ordered kinds by hero priority — used for stable, priority-sorted output. */
+const KINDS_BY_PRIORITY: WhatsOnKind[] = [...WHATS_ON_KINDS].sort(
+  (a, b) => WHATS_ON_KIND_META[a].priority - WHATS_ON_KIND_META[b].priority,
+);
+
+export type VenueWhatsOnSummary = {
+  venueId: string;
+  /** Highest-priority kind present at this venue tonight. */
+  heroKind: WhatsOnKind;
+  /** Distinct kinds present, hero-priority sorted. */
+  kinds: WhatsOnKind[];
+  /** Whether the HERO kind carries a meaningful start time. */
+  timed: boolean;
+  /** Total rows folded into this summary. */
+  count: number;
+};
+
+/**
+ * Join whats-on rows to venues by their OWN `venueId` (never haversine). Rows
+ * lacking a resolved venueId are dropped from the badge join — an unplaced row
+ * can still ride the lane, but it cannot badge a pin it can't be pinned to.
+ * Returns one summary per venue with a hero kind + the full kind set.
+ */
+export function summariseWhatsOnByVenue(
+  rows: readonly WhatsOnRow[],
+): Map<string, VenueWhatsOnSummary> {
+  const kindsByVenue = new Map<string, { kinds: Set<WhatsOnKind>; count: number }>();
+  for (const row of rows) {
+    if (typeof row.venueId !== "string" || row.venueId.length === 0) continue;
+    const entry = kindsByVenue.get(row.venueId) ?? { kinds: new Set<WhatsOnKind>(), count: 0 };
+    entry.kinds.add(row.kind);
+    entry.count += 1;
+    kindsByVenue.set(row.venueId, entry);
+  }
+
+  const out = new Map<string, VenueWhatsOnSummary>();
+  for (const [venueId, { kinds, count }] of kindsByVenue) {
+    const ordered = KINDS_BY_PRIORITY.filter((k) => kinds.has(k));
+    const heroKind = ordered[0];
+    out.set(venueId, {
+      venueId,
+      heroKind,
+      kinds: ordered,
+      timed: WHATS_ON_KIND_META[heroKind].timed,
+      count,
+    });
+  }
+  return out;
+}
+
+// ── Tonight lane cards ──────────────────────────────────────────────────────
+
+export type WhatsOnLaneCard = {
+  id: string;
+  venueId?: string;
+  kind: WhatsOnKind;
+  kindLabel: string;
+  badgeLabel: string;
+  title: string;
+  placeName: string;
+  /** London start-time label for timed kinds; null for untimed (sport). */
+  timeLabel: string | null;
+  priceGbp?: number;
+  sourceLabel: string;
+  sourceUrl: string;
+  observedAt: string;
+  confidence: WhatsOnRow["confidence"];
+};
+
+/** London wall-clock time label ("8:00 pm") for an ISO instant, or null. */
+export function formatWhatsOnTime(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return null;
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+      .format(new Date(ms))
+      .replace(/\s?([ap])m$/i, (_m, p: string) => ` ${p.toLowerCase()}m`);
+  } catch {
+    return null;
+  }
+}
+
+/** Time label to show on a card: timed kinds get a clock; sport stays untimed. */
+export function laneTimeLabel(row: WhatsOnRow): string | null {
+  if (!WHATS_ON_KIND_META[row.kind].timed) return null;
+  return formatWhatsOnTime(row.startsAt);
+}
+
+/** Rows for the active kind, or all when no kind is selected. */
+export function filterLaneRows(
+  rows: readonly WhatsOnRow[],
+  kind: WhatsOnKind | null,
+): WhatsOnRow[] {
+  if (!kind) return [...rows];
+  return rows.filter((row) => row.kind === kind);
+}
+
+export type WhatsOnKindFacet = { kind: WhatsOnKind; label: string; count: number };
+
+/**
+ * Filter-chip facets for the kinds actually present, hero-priority ordered so
+ * the chip row reflects the real rows rather than a fixed taxonomy.
+ */
+export function laneKindFacets(rows: readonly WhatsOnRow[]): WhatsOnKindFacet[] {
+  const counts = new Map<WhatsOnKind, number>();
+  for (const row of rows) counts.set(row.kind, (counts.get(row.kind) ?? 0) + 1);
+  return KINDS_BY_PRIORITY.filter((k) => counts.has(k)).map((kind) => ({
+    kind,
+    label: WHATS_ON_KIND_META[kind].label,
+    count: counts.get(kind) ?? 0,
+  }));
+}
+
+/**
+ * Derive lane cards from whats-on rows, preserving the incoming order (the
+ * store already sorts by nearness when `near` is supplied) and capping at
+ * `limit` (default 5, per the PRD's "3–5 nearby cards").
+ */
+export function laneCardsFromRows(
+  rows: readonly WhatsOnRow[],
+  opts: { limit?: number } = {},
+): WhatsOnLaneCard[] {
+  const limit = typeof opts.limit === "number" && opts.limit > 0 ? opts.limit : 5;
+  const cards: WhatsOnLaneCard[] = [];
+  for (const row of rows) {
+    const meta = WHATS_ON_KIND_META[row.kind];
+    const card: WhatsOnLaneCard = {
+      id: row.id,
+      kind: row.kind,
+      kindLabel: meta.label,
+      badgeLabel: meta.badgeLabel,
+      title: row.title,
+      placeName: row.placeName,
+      timeLabel: laneTimeLabel(row),
+      sourceLabel: row.source.label,
+      sourceUrl: row.source.url,
+      observedAt: row.observedAt,
+      confidence: row.confidence,
+    };
+    if (typeof row.venueId === "string" && row.venueId.length > 0) card.venueId = row.venueId;
+    if (typeof row.priceGbp === "number") card.priceGbp = row.priceGbp;
+    cards.push(card);
+    if (cards.length >= limit) break;
+  }
+  return cards;
+}
+
+/** Honest "Checked 12 Jul" freshness line from an ISO observedAt / asOf. */
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+export function checkedLabel(iso?: string | null): string {
+  if (!iso) return "Freshness unknown";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Freshness unknown";
+  return `Checked ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
