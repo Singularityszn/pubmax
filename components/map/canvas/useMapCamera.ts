@@ -3,6 +3,7 @@ import type { MutableRefObject } from "react";
 import maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
 import { ORBIT_RESUME_MS } from "./tokens";
+import { LONG_JUMP_CURVE } from "./easing";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
 
@@ -67,12 +68,15 @@ export function useMapCamera(refs: CameraRefs) {
     );
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
     const view = mapViewRef.current;
+    // M3: fit-London / city-switch is a "long jump" — fitBounds animates via
+    // flyTo by default (linear defaults to false), so `curve` shapes its arc.
     map.fitBounds(maxBoundsRef.current, {
       padding: isPhone
         ? { top: 184, right: 24, bottom: 190, left: 24 }
         : 90,
       maxZoom: 11,
       duration: reducedRef.current ? 0 : 800,
+      curve: reducedRef.current ? undefined : LONG_JUMP_CURVE,
       pitch: view.pitch,
       bearing: view.bearing,
     });

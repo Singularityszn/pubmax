@@ -32,6 +32,11 @@ const BENIGN_PATTERNS: RegExp[] = [
   /net::ERR_ABORTED/i, // MapLibre aborting in-flight tile requests on teardown
   /the server responded with a status of 404/i, // tile/sprite 404 on style fallback
   /AbortError/i, // fetch abort on navigation teardown
+  // Vercel Web Analytics (app/layout.tsx <Analytics />, R3) requests
+  // /_vercel/insights/script.js, which only exists on Vercel — `next start`
+  // serves the 404 HTML page and Chromium logs a strict-MIME refusal. Pure
+  // local-serve noise, unrelated to the map scene this spec guards.
+  /_vercel\/insights/i,
 ];
 
 // Errors we must NEVER tolerate regardless of the allow-list above.

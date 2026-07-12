@@ -65,6 +65,7 @@ import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
 import { useMapCamera } from "@/components/map/canvas/useMapCamera";
+import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 
 
 type PubMapCanvasProps = {
@@ -1295,11 +1296,15 @@ export default function PubMapCanvas({
     if (!map || !mapReady || !selectedPresent) return;
     const venue = venuesRef.current.find((item) => item.id === selectedVenueId);
     if (!venue) return;
+    // M3: pub-select lean-in — 35-45deg pitch, ease-out, 600-800ms. Reduced
+    // motion collapses the duration to 0 inside cinematic() (see useMapCamera),
+    // so this always degrades to an instant jump under prefers-reduced-motion.
     cinematic({
       center: [venue.longitude, venue.latitude],
       zoom: Math.max(map.getZoom(), 14),
-      pitch: 50,
-      duration: 1100,
+      pitch: PUB_SELECT_PITCH,
+      duration: PUB_SELECT_DURATION_MS,
+      easing: easeOutCubic,
     });
   }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark]);
 
