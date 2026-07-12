@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
+import { loadBoroughHeritage } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
@@ -145,6 +146,9 @@ export default async function BoroughPage({ params }: PageProps) {
   // card's optional "vs our map" one-liner.
   const ourCheapestPrice =
     pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice ?? null;
+  // Borough-heritage rollup (Wave H): cited historic pubs in this area. null
+  // when the borough has none — the section then renders nothing (no empty box).
+  const heritage = await loadBoroughHeritage(slug);
 
   return (
     <main className="boroughPage">
@@ -292,6 +296,54 @@ export default async function BoroughPage({ params }: PageProps) {
       ) : null}
 
       <BoroughPassportSlice boroughName={name} venueIds={pubs.map((pub) => pub.id)} />
+
+      {heritage ? (
+        <section className="boroughSection" aria-labelledby="boroughHeritageHeading">
+          <h2 id="boroughHeritageHeading" className="boroughSectionTitle">
+            Historic pubs in {name}
+          </h2>
+          <p className="boroughSectionDek">
+            {heritage.count} notable {heritage.count === 1 ? "pub" : "pubs"} on record
+            {heritage.oldest ? (
+              <>
+                {" "}
+                &mdash; oldest is {heritage.oldest.name}
+                {heritage.oldest.era ? <> ({heritage.oldest.era})</> : null}
+              </>
+            ) : null}
+            {heritage.listedCount > 0 ? <> &middot; {heritage.listedCount} listed</> : null}.
+          </p>
+          <p className="boroughHeritageProvenance">Cited from Wikipedia &mdash; never invented.</p>
+          <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
+            {heritage.notable.slice(0, 6).map((pub) => (
+              <li key={pub.slug} className="boroughHeritageCard">
+                {pub.era || pub.listed ? (
+                  <div className="boroughHeritageMeta">
+                    {pub.era ? <span className="boroughHeritageEra">{pub.era}</span> : null}
+                    {pub.listed ? (
+                      <span className="boroughHeritageGrade">Grade {pub.listed}</span>
+                    ) : null}
+                  </div>
+                ) : null}
+                <h3 className="boroughHeritageName">{pub.name}</h3>
+                {pub.hook ? <p className="boroughHeritageHook">{pub.hook}</p> : null}
+                {pub.venueId ? (
+                  <Link
+                    className="boroughHeritageMapLink"
+                    href={`/map?sel=${pub.venueId}`}
+                    aria-label={`See ${pub.name} on the map`}
+                  >
+                    See on map &rarr;
+                  </Link>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <p className="boroughHeritageFoot">
+            <Link href="/historic">See all historic pubs &rarr;</Link>
+          </p>
+        </section>
+      ) : null}
 
       <p className="boroughFootnote">
         Every pint has a story. <Link href="/borough">See every borough →</Link>
