@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import PlanCrew from "@/components/plan/PlanCrew";
+import SiteNav from "@/components/nav/SiteNav";
 import PlanSummary from "@/components/plan/PlanSummary";
 import { shareCopyForPlan } from "@/components/plan/planPresentation";
 import ShareBar from "@/components/share/ShareBar";
@@ -39,8 +40,12 @@ export default async function PlanPage({ params }: Props) {
 
   return (
     <main className="planPage">
+      {/* Standard site navigation — a shared plan link is many people's first
+          screen; it must route onward, not dead-end on a wordmark. SiteNav
+          carries the brand, so the masthead keeps just the plan actions. */}
+      <SiteNav />
       <header className="planPage__masthead">
-        <Link href="/" className="planPage__brand">PUBMAXXING</Link>
+        <span>Your plan</span>
         <Link href="/plan">Make another plan</Link>
       </header>
       <section className="planPage__hero">

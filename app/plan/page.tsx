@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import PlanComposer from "@/components/plan/PlanComposer";
+import SiteNav from "@/components/nav/SiteNav";
 
 import "./plan.css";
 
@@ -13,8 +13,12 @@ export const metadata: Metadata = {
 export default function NewPlanPage() {
   return (
     <main className="planPage planPage--composer">
+      {/* Standard site navigation — /plan is a shared-link surface and must
+          never be a dead end (the old masthead was a wordmark only). SiteNav
+          carries the brand, so the masthead keeps just the context line. */}
+      <SiteNav />
       <header className="planPage__masthead">
-        <Link href="/" className="planPage__brand">PUBMAXXING</Link>
+        <span>Sort my night</span>
         <span>London · Tonight</span>
       </header>
       <section className="planPage__intro">

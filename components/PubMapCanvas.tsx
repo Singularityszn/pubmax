@@ -14,33 +14,19 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { applyBasemapTaste, clusterCircleColorExpr } from "@/lib/mapBasemapTaste";
 import { landmarks as londonLandmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
 import {
-  bandAnchors,
   bandMemberPubs,
   STORY_BANDS as LONDON_STORY_BANDS,
   type StoryBand,
 } from "@/lib/storyBands";
-import { offsetIndexForLine } from "@/lib/tubeOffsets";
-import { priceForBeer } from "@/lib/beers";
 import {
   loadPoisFromPath,
   LONDON_POIS_PATH,
   POI_CATEGORY_META,
   TRANSPORT_CATEGORIES,
-  type Poi,
   type PoiCategory,
 } from "@/lib/pois";
-import {
-  MAP_ICON_SPECS,
-  drinkPinIconKey,
-  drinkPinKindFromCategories,
-  iconId,
-  rasterize,
-  type IconTokens,
-} from "@/lib/mapIcons";
-import { drinkAccentForVenue } from "@/lib/scrapedPubs";
 import {
   defaultPoiHidden,
   defaultPoiHiddenForViewport,
@@ -48,28 +34,39 @@ import {
   isTransitNetworkVisible,
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
-import {
-  CATEGORY_COLORS,
-  categoryVar,
-  type DrinkCategory,
-} from "@/lib/categoryColors";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
-import { formatFreshness, formatObservedAt, formatPrice, type Venue } from "@/lib/venues";
-import { proxiedVenueImageUrl } from "@/lib/venueImages";
-import type { PricedVenue } from "@/lib/priceUpdates";
+import { formatPrice, type Venue } from "@/lib/venues";
+import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
+import {
+  MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, LONDON_BOUNDS,
+  ORBIT_DEG_PER_SEC, ORBIT_RESUME_MS, DASH_SEQ,
+  GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
+  readTokens,
+} from "@/components/map/canvas/tokens";
+import {
+  pubsToGeoJSON, poisToGeoJSON, routeToLine, routeToStops,
+  bandCorridorGeoJSON, landmarksToGeoJSON,
+} from "@/components/map/canvas/geojson";
+import {
+  AMBIENT_CATEGORIES, poiFilter, transportFilter,
+  TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
+} from "@/components/map/canvas/filters";
+import {
+  HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
+  HOVER_CARD_MIN_TOP_PX, HOVER_CARD_X_OFFSET_PX, HOVER_CARD_Y_OFFSET_PX,
+  withBoundedHoverDetailCache, hoverImageUrlFor, hoverPriceLine,
+} from "@/components/map/canvas/hoverCard";
+import { assembleScene } from "@/components/map/canvas/buildScene";
+import { applySelectionMute } from "@/lib/mapBasemapTaste";
+import {
+  wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
+} from "@/components/map/canvas/interactions";
+import { useMapCamera } from "@/components/map/canvas/useMapCamera";
+import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 
-type VenueSignal = {
-  hasPintDrops: boolean;
-  latestContributorPrice: number | null;
-  /** Display-only demo price for pin colour when cheapestPrice is null. */
-  latestDemoPrice?: number | null;
-};
-type HoveredVenue = { id: string; name: string; x: number; y: number };
-type VenueDetailResponse = { venue?: Venue | null };
-type FailedHoverImage = { venueId: string; url: string };
 
 type PubMapCanvasProps = {
   venues: Venue[];
@@ -167,49 +164,7 @@ type PubMapCanvasProps = {
   fitQueryOnArrival?: boolean;
 };
 
-// OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
-// data (free for commercial use, unlike CARTO's basemaps), and OpenMapTiles
-// schema: a `building` source-layer with `render_height` for our 3-D extrusion.
-// "liberty" is a rich, colourful consumer-map look (land-use tints, POI labels,
-// road hierarchy); "dark" matches our candle-lit night mode.
-const MAP_STYLES = {
-  dark: "https://tiles.openfreemap.org/styles/dark",
-  light: "https://tiles.openfreemap.org/styles/liberty",
-} as const;
 
-// If OpenFreeMap (community-run) is slow or down, fall back to CARTO's keyless
-// vector styles — same OpenMapTiles-ish `building` source-layer so 3-D buildings
-// and buildScene keep working. Last resort after this is the WebGL notice.
-const FALLBACK_STYLES = {
-  dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-  light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-} as const;
-const STYLE_LOAD_TIMEOUT_MS = 8000;
-
-// Slightly wider opening London zoom (outer-London P0) so outer boroughs read
-// at first glance while drink icons still appear soon after a nudge in.
-const LONDON_VIEW = {
-  center: [-0.12, 51.52] as [number, number],
-  zoom: 10.7,
-  pitch: 42,
-  bearing: -12,
-};
-const LONDON_BOUNDS: [[number, number], [number, number]] = [
-  [-0.55, 51.28],
-  [0.35, 51.72],
-];
-
-// Single source of truth for the cluster/uncluster boundary: the zoom at which
-// individual pins take over. The unclustered per-pub layers use it directly as
-// their `minzoom` floor; the pubs source clusters strictly BELOW it
-// (clusterMaxZoom = PIN_UNCLUSTER_ZOOM - 1, because MapLibre renders clusters
-// up to AND INCLUDING clusterMaxZoom — an equal value would draw cluster discs
-// and singleton pins together across the 12.x band). Isolated pubs sit outside
-// any cluster radius, so without the minzoom floor they paint as individual
-// pins at every zoom in BOTH themes ("pin soup" at city zoom); the dark
-// basemap just masked it. One constant, one clean handoff: below it, clusters
-// only; at/above it, clusters dissolve and pins appear together.
-const PIN_UNCLUSTER_ZOOM = 12;
 // Hard ceiling on the tile-paint gate: if the map never reaches `idle` (the
 // ambient orbit nudges the camera every frame, which on a slow tile connection
 // can starve the idle event indefinitely), reveal the pins anyway — a
@@ -228,462 +183,7 @@ const PUB_PIN_LAYERS = [
   "cluster-count",
 ] as const;
 
-const ORBIT_DEG_PER_SEC = 0.7; // gentle drift — a full turn in ~8.5 minutes
-const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
-const HOVER_DETAIL_CACHE_LIMIT = 24;
-const HOVER_CARD_VIEWPORT_GUTTER_PX = 16;
-const HOVER_CARD_WIDTH_PX = 292;
-const HOVER_CARD_HEIGHT_PX = 138;
-const HOVER_CARD_MIN_TOP_PX = 84;
-const HOVER_CARD_X_OFFSET_PX = 18;
-const HOVER_CARD_Y_OFFSET_PX = -30;
 
-// Classic "marching ants" dash cycle for the brass route line.
-const DASH_SEQ: number[][] = [
-  [0, 4, 3],
-  [0.5, 4, 2.5],
-  [1, 4, 2],
-  [1.5, 4, 1.5],
-  [2, 4, 1],
-  [2.5, 4, 0.5],
-  [3, 4, 0],
-  [0, 0.5, 3, 3.5],
-  [0, 1, 3, 3],
-  [0, 1.5, 3, 2.5],
-  [0, 2, 3, 2],
-  [0, 2.5, 3, 1.5],
-  [0, 3, 3, 1],
-  [0, 3.5, 3, 0.5],
-];
-
-type Tokens = {
-  ink: string;
-  inkDeep: string;
-  paper: string;
-  panelRaised: string;
-  line: string;
-  muted: string;
-  pint: string;
-  amber: string;
-  brick: string;
-  brass: string;
-  brassBright: string;
-  river: string;
-  riverBright: string;
-  // Drink-category accents (E5). ADDITIVE — resolves the live `--cat-*` vars
-  // (lib/categoryColors.ts) into the map's token object so a future
-  // pin-by-category paint tints a pin by a venue's dominant drink family from
-  // the SAME light/dark/legacy source the venue-sheet swatches use. Not wired
-  // into any live paint yet: the Venue model carries no honest dominant category
-  // (see the ready-to-apply patch in components/map/mapColor.css), and the
-  // honesty rule is never to colour a pin by a guessed category.
-  cat: Record<DrinkCategory, string>;
-};
-
-// Every map colour derives from the app's theme tokens so both modes
-// (candle-lit night / positron day guidebook) flip from one system.
-function readTokens(): Tokens {
-  const styles = getComputedStyle(document.documentElement);
-  const token = (name: string, fallback: string) =>
-    styles.getPropertyValue(name).trim() || fallback;
-  // Additive `--cat-*` read: one entry per drink family, resolved from the live
-  // computed vars (with the canonical light hex as a fallback) so map consumers
-  // never re-hardcode a category palette.
-  const cat = Object.fromEntries(
-    (Object.keys(CATEGORY_COLORS) as DrinkCategory[]).map((c) => [
-      c,
-      token(categoryVar(c), CATEGORY_COLORS[c].light),
-    ]),
-  ) as Record<DrinkCategory, string>;
-  return {
-    cat,
-    ink: token("--ink", "#1b2620"),
-    inkDeep: token("--ink-deep", "#0f1c16"),
-    paper: token("--paper", "#f4efe4"),
-    panelRaised: token("--panel-raised", "#ffffff"),
-    line: token("--line", "#ddd5c4"),
-    muted: token("--muted", "#6b726a"),
-    pint: token("--pint", "#2f8f5b"),
-    amber: token("--amber", "#d99f45"),
-    brick: token("--brick", "#d16353"),
-    brass: token("--brass", "#b0813a"),
-    brassBright: token("--brass-bright", "#d3a44a"),
-    river: token("--river", "#2f6f8f"),
-    riverBright: token("--river-bright", "#4f9ec4"),
-  };
-}
-
-function withAlpha(hex: string, alpha: number): string {
-  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!match) return hex;
-  const n = parseInt(match[1], 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-}
-
-function priceBucket(price: number | null): number {
-  if (price === null) return 3;
-  if (price <= 5.5) return 0;
-  if (price <= 7) return 1;
-  return 2;
-}
-
-function withBoundedHoverDetailCache(
-  details: Map<string, Venue | null>,
-  id: string,
-  venue: Venue | null,
-): Map<string, Venue | null> {
-  const next = new Map(details);
-  next.delete(id);
-  next.set(id, venue);
-  while (next.size > HOVER_DETAIL_CACHE_LIMIT) {
-    const oldestId = next.keys().next().value;
-    if (oldestId === undefined) break;
-    next.delete(oldestId);
-  }
-  return next;
-}
-
-function hoverImageUrlFor(
-  hoverDetail: Venue | null | undefined,
-  failedImage: FailedHoverImage | null,
-  hoveredVenueId: string | null,
-): string {
-  const src = proxiedVenueImageUrl(hoverDetail?.imageUrl ?? "");
-  if (failedImage?.venueId === hoveredVenueId && failedImage.url === src) return "";
-  return src;
-}
-
-type HoverPriceLine = {
-  price: number | null;
-  provenance: string;
-};
-
-// Compact honesty line for the map hover card. Price and provenance share one
-// precedence stack (community → sourced → baseline) so a baseline API detail
-// fetch never pairs with a Community/Sourced label.
-function hoverPriceLine(
-  mapVenue: Venue | undefined,
-  signal: VenueSignal | undefined,
-  hoverDetail: Venue | null | undefined,
-): HoverPriceLine {
-  const communityPrice =
-    signal?.latestContributorPrice ?? mapVenue?.latestContributorPrice ?? null;
-  if (communityPrice !== null && communityPrice !== undefined) {
-    const fresh = formatFreshness(mapVenue?.latestContributorAt);
-    return {
-      price: communityPrice,
-      provenance: fresh ? `Community · ${fresh}` : "Community · tap for detail",
-    };
-  }
-  const sourced = (mapVenue as PricedVenue | undefined)?.sourcedPrice ?? null;
-  if (sourced) {
-    const observed = formatObservedAt(sourced.observedAt);
-    // mergePriceUpdates already wrote the sourced amount onto cheapestPrice.
-    const price =
-      mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
-    return {
-      price: price ?? null,
-      provenance: observed ? `Sourced · ${observed}` : "Sourced · tap for detail",
-    };
-  }
-  const baseline =
-    mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
-  if (baseline !== null && baseline !== undefined) {
-    return { price: baseline, provenance: "Baseline · tap for detail" };
-  }
-  return { price: null, provenance: "Tap for detail" };
-}
-
-function pubsToGeoJSON(
-  venues: Venue[],
-  venueSignals: Map<string, VenueSignal>,
-  favoritePint: string | null,
-  drinkCategory: string | null = null,
-): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: venues.map((venue) => {
-      const signals = venueSignals.get(venue.id);
-      // Beer favorite-pint path only: re-price + dim non-servers. Non-beer
-      // drink/brand lenses filter via filterVenues — never invent brand prices.
-      const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
-      const serves = !favoritePint || beerPrice !== null;
-      // Contributor price wins; then slim-index cheapestPrice; then an honest
-      // demo seed price so city packs with null cheapestPrice still colour pins.
-      // Demo never merges into venue.cheapestPrice (mergeVenueDrops ignores it).
-      const price = favoritePint
-        ? beerPrice
-        : signals?.latestContributorPrice ??
-          venue.cheapestPrice ??
-          signals?.latestDemoPrice ??
-          null;
-      const bucket = priceBucket(price);
-      // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
-      // Without a lens, fall back to venue hint categories.
-      const lens = drinkCategory?.trim().toLowerCase() ?? "";
-      const hintCategories = venue.filterHints?.drinkCategories;
-      const accentCategories =
-        hintCategories && hintCategories.length > 0
-          ? hintCategories
-          : [drinkAccentForVenue(venue.id)];
-      const drinkKind =
-        lens === "beer"
-          ? "pint"
-          : lens && lens !== "other"
-            ? drinkPinKindFromCategories(
-                [lens],
-                lens === "cocktail" ||
-                  Boolean(venue.amenities.cocktails) ||
-                  Boolean(venue.filterHints?.amenities.cocktails),
-              )
-            : drinkPinKindFromCategories(
-                accentCategories,
-                Boolean(venue.amenities.cocktails) ||
-                  Boolean(venue.filterHints?.amenities.cocktails),
-              );
-      const scraped = Boolean(
-        venue.filterHints?.scraped ||
-          venue.sourceDatasets?.some((source) =>
-            /london_chain|greene.?king|nicholson|youngs/i.test(source),
-          ),
-      );
-      return {
-        type: "Feature" as const,
-        properties: {
-          id: venue.id,
-          name: venue.name,
-          bucket,
-          story: venue.hasStory,
-          drops: Boolean(signals?.hasPintDrops),
-          serves,
-          drinkKind,
-          scraped,
-          icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
-        },
-        geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
-      };
-    }),
-  };
-}
-
-// POIs → GeoJSON, one feature per point. category drives which layer/symbol it
-// renders on; rank (1 = major interchange, 2 = minor) drives the zoom-depth
-// reveal so the network reads wide and detail fills in as you zoom.
-function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: pois.map((poi) => ({
-      type: "Feature" as const,
-      properties: {
-        id: poi.id,
-        name: poi.name,
-        category: poi.category,
-        rank: poi.rank ?? 2,
-        // Ambient dot colour baked per-feature from the category palette so the
-        // dot layer stays data-driven as new categories are added.
-        color: POI_CATEGORY_META[poi.category].color,
-      },
-      geometry: { type: "Point" as const, coordinates: poi.coordinates },
-    })),
-  };
-}
-
-// Ambient categories render as soft coloured dots; transport (TRANSPORT_CATEGORIES)
-// render as their real TfL / National Rail symbol on separate layers.
-const AMBIENT_CATEGORIES: readonly PoiCategory[] = [
-  "park",
-  "garden",
-  "market",
-  "historic",
-  "viewpoint",
-  "sight",
-];
-
-// A MapLibre filter keeping only the not-hidden categories within a given group
-// (the transport symbols and the ambient dots live on different layers).
-function poiFilter(
-  hidden: Record<PoiCategory, boolean>,
-  group: readonly PoiCategory[],
-): maplibregl.FilterSpecification {
-  const visible = group.filter((category) => !hidden[category]);
-  return ["in", ["get", "category"], ["literal", visible]];
-}
-
-// Transport filter, split by rank so majors (the skeleton) and minors (revealed
-// deeper) can sit on separate zoom-gated layers while both honour the toggles.
-function transportFilter(
-  hidden: Record<PoiCategory, boolean>,
-  majorOnly: boolean,
-): maplibregl.FilterSpecification {
-  const visible = TRANSPORT_CATEGORIES.filter((category) => !hidden[category]);
-  const inCategory: maplibregl.ExpressionSpecification = [
-    "in",
-    ["get", "category"],
-    ["literal", visible],
-  ];
-  const rankTest: maplibregl.ExpressionSpecification = majorOnly
-    ? ["==", ["coalesce", ["get", "rank"], 2], 1]
-    : ["!=", ["coalesce", ["get", "rank"], 2], 1];
-  return ["all", inCategory, rankTest];
-}
-
-// icon-image match for a transport feature → its TfL symbol id (lib/mapIcons).
-const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
-  "match",
-  ["get", "category"],
-  "tube",
-  iconId("tfl", "underground"),
-  "rail",
-  iconId("tfl", "rail"),
-  "bus",
-  iconId("tfl", "bus"),
-  "river",
-  iconId("tfl", "river"),
-  iconId("tfl", "underground"),
-];
-const TONIGHT_OPPORTUNITY_LAYERS = [
-  "tonight-halo",
-  "tonight-point",
-  "tonight-label",
-] as const;
-
-function normaliseFeatureString(value: unknown): string {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function opportunityForFeature(
-  props: GeoJSON.GeoJsonProperties | undefined,
-  opportunities: readonly ThingsToDoOpportunity[],
-): ThingsToDoOpportunity | undefined {
-  const title = normaliseFeatureString(props?.title);
-  const placeName = normaliseFeatureString(props?.placeName);
-  return opportunities.find((op) => {
-    const opTitle = normaliseFeatureString(op.title);
-    const opPlaceName = normaliseFeatureString(op.place?.name);
-    if (title && placeName) return opTitle === title && opPlaceName === placeName;
-    if (title) return opTitle === title;
-    return Boolean(placeName && opPlaceName === placeName);
-  });
-}
-
-// Issue #16 — parallel coloured tube lines. The known sub-surface fan lines
-// (Metropolitan / Circle / H&C / District) run four-abreast through shared
-// central corridors; we fan them apart with a per-line `line-offset` so they
-// read side-by-side like the real tube map instead of one overlapping stroke.
-//
-// Offset math: offsetIndexForLine(line) gives a symmetric index (…-1.5, -0.5,
-// 0.5, 1.5) for the fan lines and 0 for everything else. We turn that index into
-// a MapLibre `match` expression, then multiply by a zoom-scaled pixel step so
-// the lines CONVERGE at low zoom (network reads as one line) and FAN OUT from
-// ~zoom 12 (the corridor separates). Documented ceiling: the source geometry is
-// per-line from independent OSM ways and rarely shares vertices, so we offset
-// the whole line by its fan index rather than per-shared-segment — the accepted
-// ceiling in issue #16.
-const FAN_LINES = ["Metropolitan", "Circle", "Hammersmith & City", "District"] as const;
-
-// A `["match", ["get","line"], name, index, …, 0]` expression: each fan line to
-// its offset index, all others to 0. Built once (module const) from the pure
-// offsetIndexForLine so the map and the unit-tested logic never drift.
-const TUBE_OFFSET_INDEX_EXPR: maplibregl.ExpressionSpecification = [
-  "match",
-  ["get", "line"],
-  ...FAN_LINES.flatMap((line) => [line, offsetIndexForLine(line)] as [string, number]).flat(),
-  0,
-] as unknown as maplibregl.ExpressionSpecification;
-
-// The signed pixel offset for a line at the current zoom: offsetIndex × a
-// zoom-interpolated per-index step. At/below zoom 11 the step is 0 (lines
-// converge); it grows to a full fan by zoom 14. `line-offset` is in pixels and
-// perpendicular to the line, so a symmetric index set fans the group evenly.
-const TUBE_LINE_OFFSET_EXPR: maplibregl.ExpressionSpecification = [
-  "*",
-  TUBE_OFFSET_INDEX_EXPR,
-  ["interpolate", ["linear"], ["zoom"], 11, 0, 12, 1.4, 14, 3.2, 16, 4.5],
-] as unknown as maplibregl.ExpressionSpecification;
-
-function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features:
-      route.length > 1
-        ? [
-            {
-              type: "Feature" as const,
-              properties: {},
-              geometry: {
-                type: "LineString" as const,
-                coordinates: route.map((venue) => [venue.longitude, venue.latitude]),
-              },
-            },
-          ]
-        : [],
-  };
-}
-
-function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: route.map((venue, index) => ({
-      type: "Feature" as const,
-      properties: { id: venue.id, label: String(index + 1) },
-      geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
-    })),
-  };
-}
-
-// Issue #15 story bands — the tinted corridor through a band's anchor landmarks.
-// A simple polyline joining the anchors in order: the map draws it as a soft,
-// low-opacity token-tinted stroke UNDER the pins so it hints at the walk without
-// fighting the price-colour fill. Empty when the band resolves to <2 anchors.
-function bandCorridorGeoJSON(
-  band: StoryBand | undefined,
-  catalog: readonly Landmark[],
-): GeoJSON.FeatureCollection {
-  if (!band) return { type: "FeatureCollection", features: [] };
-  const anchors = bandAnchors(band, catalog);
-  if (anchors.length < 2) return { type: "FeatureCollection", features: [] };
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: anchors.map((lm) => lm.coordinates),
-        },
-      },
-    ],
-  };
-}
-
-function landmarksToGeoJSON(catalog: readonly Landmark[]): GeoJSON.FeatureCollection {
-  // Each landmark carries its own pictogram id (lib/mapIcons, ns "lm") so the
-  // symbol layer draws a recognisable silhouette per feature.
-  return {
-    type: "FeatureCollection",
-    features: catalog.map((landmark) => ({
-      type: "Feature",
-      properties: {
-        id: landmark.id,
-        name: landmark.name,
-        icon: iconId("lm", landmark.icon),
-      },
-      geometry: { type: "Point", coordinates: landmark.coordinates },
-    })),
-  };
-}
-
-// Register every designed marker image (landmark pictograms + TfL symbols) with
-// the map, re-tinting from the live theme tokens. Called from buildScene on the
-// first load and after each theme-driven setStyle (which wipes prior images).
-function registerMapIcons(map: maplibregl.Map, tokens: IconTokens) {
-  for (const spec of MAP_ICON_SPECS) {
-    const id = iconId(spec.ns, spec.key);
-    if (map.hasImage(id)) map.removeImage(id);
-    map.addImage(id, rasterize(spec, tokens), { pixelRatio: 2 });
-  }
-}
 
 export default function PubMapCanvas({
   venues,
@@ -897,6 +397,10 @@ export default function PubMapCanvas({
   const selectedIdRef = useRef(selectedVenueId);
   // buildScene reads this on every (re)build so a theme swap keeps the toggles.
   const poiHiddenRef = useRef(poiHidden);
+  // M2 — pre-mute paint originals for the POI-at-initiation selection mute
+  // (layerId::prop → value). Owned here so it survives buildScene rebuilds; a
+  // theme setStyle wipes the live layers, so buildScene clears + re-applies it.
+  const selectionMuteStoreRef = useRef<Map<string, unknown>>(new Map());
 
   // Style-load gate. Every source/layer mutation (setData, setFilter,
   // setPaintProperty, setLayoutProperty) throws "Style is not done loading" if
@@ -933,17 +437,24 @@ export default function PubMapCanvas({
   const themeRef = useRef<"dark" | "light">("dark");
   const hoverCapableRef = useRef(false);
 
-  // Cinematic camera move that suspends the orbit for its duration + resume gap.
-  const cinematic = useCallback((options: maplibregl.EaseToOptions) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const duration = reducedRef.current ? 0 : (options.duration ?? 1000);
-    holdUntilRef.current = Math.max(
-      holdUntilRef.current,
-      performance.now() + duration + ORBIT_RESUME_MS,
-    );
-    map.easeTo({ ...options, duration });
-  }, []);
+  // Live route mirror so the camera helpers (and the Recenter control) read the
+  // latest ordered stops from a ref without needing a fresh closure.
+  const routeRef = useRef(route);
+  useEffect(() => {
+    routeRef.current = route;
+  }, [route]);
+
+  // Camera helpers (cinematic + fit*) — extracted to useMapCamera; empty-dep
+  // callbacks over live refs (see the hook for why the deps must stay empty).
+  const { cinematic, fitRoute, fitCityBounds, fitQueryVenues } = useMapCamera({
+    mapRef,
+    holdUntilRef,
+    reducedRef,
+    mapViewRef,
+    maxBoundsRef,
+    routeRef,
+    venuesRef,
+  })
 
   const selectLandmark = useCallback((landmark: Landmark | null) => {
     setActiveLandmark(landmark);
@@ -1188,14 +699,9 @@ export default function PubMapCanvas({
     // Rebuilds the whole scene from theme tokens. Runs on first load and after
     // every theme-driven setStyle (style.load fires for both).
     //
-    // This is a long, linear scene assembler: it declares each MapLibre
-    // source/layer once, in order, so the whole 3-D map reads top-to-bottom in
-    // one place. Its cyclomatic complexity (37) is above the 35 budget, but the
-    // branches are all independent `getSource`/`getLayer` "add once" guards over
-    // shared closure state (`map`, `tokens`, `dark`, `addLayerOnce`). Splitting
-    // them into helpers would thread that state through several signatures and
-    // fracture the single readable pass without reducing real risk, so this is
-    // the one intentionally tolerated lint warning for the app.
+    // buildSceneBody delegates the full source/layer assembly to assembleScene
+    // (components/map/canvas/buildScene.ts); the wrapper keeps only the D2
+    // tile-paint gate and the pendingUpdatesRef flush, which own component state.
     // Fallback timer for the tile-paint gate (see buildSceneBody); lives at
     // construct scope so a theme-swap rebuild replaces the previous timer and
     // teardown can clear it.
@@ -1232,30 +738,9 @@ export default function PubMapCanvas({
       }
     };
 
-    // eslint-disable-next-line complexity
     const buildSceneBody = () => {
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
-
-      // Wave J1 — warm paper/river/brass washes on the stock basemap before we
-      // add pub layers, so Liberty/Positron stop reading as generic grey GIS.
-      applyBasemapTaste(
-        map,
-        {
-          paper: tokens.paper,
-          panelRaised: tokens.panelRaised,
-          ink: tokens.ink,
-          inkDeep: tokens.inkDeep,
-          line: tokens.line,
-          muted: tokens.muted,
-          pint: tokens.pint,
-          amber: tokens.amber,
-          brass: tokens.brass,
-          river: tokens.river,
-          riverBright: tokens.riverBright,
-        },
-        dark,
-      );
 
       // buildScene re-runs on every style.load. After a genuine setStyle swap
       // the old style's layers are gone (getLayer → undefined) so everything
@@ -1276,490 +761,31 @@ export default function PubMapCanvas({
       // closest served weight.
       const textFont = [usingFallback ? "Montserrat Medium" : "Noto Sans Bold"];
 
-      // --- Sky + fog: horizon depth in both moods.
-      map.setSky({
-        "sky-color": dark ? tokens.inkDeep : tokens.riverBright,
-        "horizon-color": dark ? withAlpha(tokens.brass, 0.45) : tokens.paper,
-        "fog-color": dark ? tokens.inkDeep : tokens.paper,
-        "sky-horizon-blend": 0.7,
-        "horizon-fog-blend": 0.6,
-        "fog-ground-blend": 0.4,
-        "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 8, 0.7, 12, 0.2],
-      });
-
-      // --- 3-D buildings, extruded from the basemap's own building layer so
-      // the City and Canary Wharf read as skyline when you fly in. If the style
-      // already ships its own extrusion (OpenFreeMap Liberty has `building-3d`),
-      // use that rather than stacking a second layer on top of it.
-      const styleLayers = map.getStyle().layers;
-      const firstSymbolId = styleLayers.find((layer) => layer.type === "symbol")?.id;
-      const hasExtrusion = styleLayers.some((layer) => layer.type === "fill-extrusion");
-      const buildingLayer = styleLayers.find(
-        (layer) =>
-          layer.type === "fill" &&
-          "source-layer" in layer &&
-          layer["source-layer"] === "building",
-      );
-      if (!hasExtrusion && buildingLayer && "source" in buildingLayer) {
-        addLayerOnce(
-          {
-            id: "buildings-3d",
-            type: "fill-extrusion",
-            source: buildingLayer.source as string,
-            "source-layer": "building",
-            minzoom: 12.5,
-            paint: {
-              "fill-extrusion-color": dark
-                ? "#7a8496"
-                : withAlpha(tokens.line, 0.95),
-              "fill-extrusion-height": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                12.5,
-                0,
-                14,
-                ["*", ["coalesce", ["get", "render_height"], ["get", "height"], 14], 1.08],
-              ],
-              "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-              "fill-extrusion-opacity": dark ? 0.9 : 0.58,
-            },
-          },
-          firstSymbolId,
-        );
-      }
-
-      // --- Transit lines (London TfL by default). Non-London cities pass
-      // transitLinesPath=null so we skip the source entirely (no 404).
-      if (transitLinesPath) {
-        if (!map.getSource("tube-lines")) {
-          map.addSource("tube-lines", {
-            type: "geojson",
-            data: transitLinesPath,
-            attribution: "Rail lines © TfL / OpenStreetMap contributors (ODbL)",
-          });
-        }
-        const tubeVisibility: "none" | "visible" = isTransitNetworkVisible(
-          poiHiddenRef.current,
-        )
-          ? "visible"
-          : "none";
-        addLayerOnce({
-          id: "tube-lines-casing",
-          type: "line",
-          source: "tube-lines",
-          minzoom: 9.5,
-          layout: { "line-cap": "round", "line-join": "round", visibility: tubeVisibility },
-          paint: {
-            "line-color": dark ? "rgba(9,15,12,0.6)" : "rgba(255,255,255,0.8)",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 2.4, 13, 5.5, 16, 9],
-            "line-opacity": 0.75,
-            // Fan the sub-surface lines apart (issue #16); centred for all others.
-            "line-offset": TUBE_LINE_OFFSET_EXPR,
-          },
-        });
-        addLayerOnce({
-          id: "tube-lines-color",
-          type: "line",
-          source: "tube-lines",
-          minzoom: 9.5,
-          layout: { "line-cap": "round", "line-join": "round", visibility: tubeVisibility },
-          paint: {
-            "line-color": [
-              "case",
-              ["==", ["get", "color"], "#000000"],
-              dark ? "#c9c9c9" : "#000000",
-              ["get", "color"],
-            ],
-            "line-width": ["interpolate", ["linear"], ["zoom"], 9.5, 1.1, 13, 3, 16, 5],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 9.5, 0.7, 13, 0.95],
-            // Same fan offset as the casing so colour + casing move together.
-            "line-offset": TUBE_LINE_OFFSET_EXPR,
-          },
-        });
-        // Line names ride along the route once you zoom in — neutral, high-contrast
-        // text (not the line colour, which is unreadable for yellow/pink lines) so
-        // the network stays legible over the busy base.
-        addLayerOnce({
-          id: "tube-lines-label",
-          type: "symbol",
-          source: "tube-lines",
-          minzoom: 13,
-          layout: {
-            "symbol-placement": "line",
-            "symbol-spacing": 420,
-            "text-field": ["get", "line"],
-            "text-font": textFont,
-            "text-size": 9.5,
-            "text-letter-spacing": 0.02,
-            visibility: tubeVisibility,
-          },
-          paint: {
-            // Dark night land needs cream `--ink` labels, not dark `--paper`.
-            "text-color": dark ? tokens.ink : tokens.inkDeep,
-            "text-halo-color": dark ? "rgba(9,8,6,0.92)" : "rgba(255,255,255,0.95)",
-            "text-halo-width": 1.7,
-          },
-        });
-      }
-
-      // --- Designed marker images: landmark pictograms + TfL symbols, re-tinted
-      // from the live theme tokens (a setStyle wipes them, so re-register here).
-      const iconTokens: IconTokens = {
-        ink: tokens.ink,
-        paper: dark ? tokens.inkDeep : tokens.paper,
-        brass: tokens.brass,
-        brassBright: tokens.brassBright,
-        river: tokens.river,
-        riverBright: tokens.riverBright,
-        pint: tokens.pint,
-        amber: tokens.amber,
-        brick: tokens.brick,
-        muted: tokens.muted,
-      };
-      registerMapIcons(map, iconTokens);
-
-      // --- Landmarks + history layer. Empty cityLandmarks skips the layer so
-      // London markers never appear over Manchester (and vice versa).
-      if (showLandmarks) {
-        if (!map.getSource("landmarks")) {
-          map.addSource("landmarks", {
-            type: "geojson",
-            data: landmarksGeoJSONRef.current,
-          });
-        } else {
-          (map.getSource("landmarks") as maplibregl.GeoJSONSource).setData(
-            landmarksGeoJSONRef.current,
-          );
-        }
-        addLayerOnce({
-          id: "landmarks-icon",
-          type: "symbol",
-          source: "landmarks",
-          layout: {
-            "icon-image": ["get", "icon"],
-            "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.5, 13, 0.82, 16, 1],
-            "icon-allow-overlap": true,
-            "text-field": ["get", "name"],
-            "text-font": textFont,
-            "text-size": 10.5,
-            "text-letter-spacing": 0.04,
-            "text-offset": [0, 1.4],
-            "text-anchor": "top",
-            "text-optional": true,
-          },
-          paint: {
-            "text-color": tokens.ink,
-            "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-            "text-halo-width": 1.3,
-          },
-          minzoom: 9.5,
-        });
-      }
-
-      // --- Points of interest. Transport (tube/rail/bus/river) render as their
-      // real TfL / National Rail symbols on two zoom-gated layers: major
-      // interchanges form the skeleton from a wide zoom, minor stops fade in as
-      // you go deeper — a transit map revealing detail. Parks/sights stay soft
-      // dots. All honour the category toggles (kept across theme rebuilds).
-      // Non-London cities keep an empty source (poisPath=null → no fetch).
-      if (!map.getSource("pois")) {
-        map.addSource("pois", { type: "geojson", data: poisDataRef.current });
-      }
-      addLayerOnce({
-        id: "pois-transport-major",
-        type: "symbol",
-        source: "pois",
-        minzoom: 9.5,
-        filter: transportFilter(poiHiddenRef.current, true),
-        layout: {
-          "icon-image": TRANSPORT_ICON_MATCH,
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 9.5, 0.4, 13, 0.62, 16, 0.78],
-          "icon-allow-overlap": true,
-        },
-      });
-      addLayerOnce({
-        id: "pois-transport-minor",
-        type: "symbol",
-        source: "pois",
-        minzoom: 12.4,
-        filter: transportFilter(poiHiddenRef.current, false),
-        layout: {
-          "icon-image": TRANSPORT_ICON_MATCH,
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 12.4, 0.42, 16, 0.66],
-          "icon-allow-overlap": false,
-        },
-        paint: {
-          "icon-opacity": ["interpolate", ["linear"], ["zoom"], 12.4, 0, 13.1, 1],
-        },
-      });
-      addLayerOnce({
-        id: "pois-transport-label",
-        type: "symbol",
-        source: "pois",
-        minzoom: 13,
-        filter: poiFilter(poiHiddenRef.current, TRANSPORT_CATEGORIES),
-        layout: {
-          "text-field": ["get", "name"],
-          "text-font": textFont,
-          "text-size": 10,
-          "text-offset": [0, 1.1],
-          "text-anchor": "top",
-          "text-optional": true,
-        },
-        paint: {
-          "text-color": tokens.ink,
-          "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-          "text-halo-width": 1.2,
-        },
-      });
-      addLayerOnce({
-        id: "pois-dot",
-        type: "circle",
-        source: "pois",
-        minzoom: 11,
-        filter: poiFilter(poiHiddenRef.current, AMBIENT_CATEGORIES),
-        paint: {
-          "circle-color": ["coalesce", ["get", "color"], tokens.muted],
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 3, 15, 6],
-          "circle-opacity": 0.85,
-          "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
-          "circle-stroke-width": 1.2,
-        },
-      });
-      addLayerOnce({
-        id: "pois-label",
-        type: "symbol",
-        source: "pois",
-        minzoom: 12.5,
-        filter: poiFilter(poiHiddenRef.current, AMBIENT_CATEGORIES),
-        layout: {
-          "text-field": ["get", "name"],
-          "text-font": textFont,
-          "text-size": 10,
-          "text-offset": [0, 0.9],
-          "text-anchor": "top",
-          "text-optional": true,
-        },
-        paint: {
-          "text-color": tokens.ink,
-          "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-          "text-halo-width": 1.2,
-        },
-      });
-
-      // --- Crawl route: solid brass underlay + animated brass dash on top.
-      if (!map.getSource("route-line")) {
-        map.addSource("route-line", { type: "geojson", data: routeLineRef.current });
-      }
-      addLayerOnce({
-        id: "route-line",
-        type: "line",
-        source: "route-line",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: {
-          "line-color": tokens.brass,
-          "line-width": 4,
-          "line-opacity": 0.3,
-        },
-      });
-      addLayerOnce({
-        id: "route-line-dash",
-        type: "line",
-        source: "route-line",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: {
-          "line-color": tokens.brassBright,
-          "line-width": 2.5,
-          "line-opacity": 0.9,
-          "line-dasharray": DASH_SEQ[0],
-        },
-      });
-
-      // --- Story-band corridor (issue #15): a subtle token-tinted line threading
-      // the active band's anchor landmarks. Low opacity + a soft blur so it reads
-      // as a hint of the walk, never competing with the price-fill pins above it.
-      // Sits under the pubs. The colour is the band's token, resolved on the React
-      // side and stashed in a ref so a theme rebuild re-reads it.
-      if (!map.getSource("band-corridor")) {
-        map.addSource("band-corridor", { type: "geojson", data: bandCorridorRef.current });
-      }
-      addLayerOnce({
-        id: "band-corridor",
-        type: "line",
-        source: "band-corridor",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: {
-          "line-color": bandColorRef.current,
-          "line-width": ["interpolate", ["linear"], ["zoom"], 10, 6, 13, 16, 16, 30],
-          "line-opacity": dark ? 0.16 : 0.14,
-          "line-blur": 3,
-        },
-      });
-
-      // --- Pubs: clustered GeoJSON source + designed data-driven layers.
-      // clusterRadius / clusterMaxZoom are create-time only (MapLibre does not
-      // update them via setData). Theme setStyle clears sources, so rebuilds
-      // pick up these values on the next addSource.
-      if (!map.getSource("pubs")) {
-        map.addSource("pubs", {
-          type: "geojson",
-          data: pubsDataRef.current,
-          cluster: true,
-          // Tighter clusters + earlier uncluster so drink silhouettes (pint /
-          // wine / cocktail / spirits) dominate sooner — MAP_MARKERS_PLAN.
-          clusterRadius: 22,
-          // -1: clusters render up to AND INCLUDING clusterMaxZoom, so this
-          // must sit one below the pin layers' minzoom or both draw at 12.x.
-          clusterMaxZoom: PIN_UNCLUSTER_ZOOM - 1,
-        });
-      }
-      // Scraped-pub halo: warm brass ring so Young's / Nicholson's / gazetteer
-      // pins read as "from our scrapes" without fighting the drink fill.
-      addLayerOnce({
-        id: "pubs-scraped-halo",
-        type: "circle",
-        source: "pubs",
-        minzoom: PIN_UNCLUSTER_ZOOM,
-        filter: ["all", ["!", ["has", "point_count"]], ["get", "scraped"]],
-        paint: {
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 13],
-          "circle-stroke-color": tokens.brass,
-          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.4, 15, 2.2],
-          "circle-stroke-opacity": dark ? 0.75 : 0.7,
-          "circle-blur": 0.12,
-        },
-      });
-      // Pint-Drops ring: a river-toned glow + a crisp outline so community
-      // activity reads at a glance without muddying the price fill under it.
-      addLayerOnce({
-        id: "pubs-drops-halo",
-        type: "circle",
-        source: "pubs",
-        minzoom: PIN_UNCLUSTER_ZOOM,
-        filter: ["all", ["!", ["has", "point_count"]], ["get", "drops"]],
-        paint: {
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 15, 12],
-          "circle-stroke-color": tokens.riverBright,
-          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1, 15, 1.6],
-          "circle-stroke-opacity": 0.7,
-          "circle-blur": 0.15,
-        },
-      });
-      // Story-band member halo (issue #15): while a band is active, its member
-      // pubs get a token-tinted ring so they read as "part of this walk" — an
-      // EMPHASIS only. The price fill under it (pubs-point) is untouched, so the
-      // band never fights the price-colour system. Filter is set from a ref so
-      // it survives theme rebuilds; empty id list = nothing drawn.
-      addLayerOnce({
-        id: "band-members-halo",
-        type: "circle",
-        source: "pubs",
-        minzoom: PIN_UNCLUSTER_ZOOM,
-        filter: [
-          "all",
-          ["!", ["has", "point_count"]],
-          ["in", ["get", "id"], ["literal", bandMemberIdsRef.current]],
-        ],
-        paint: {
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8.5, 15, 14],
-          "circle-stroke-color": bandColorRef.current,
-          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.6, 15, 2.4],
-          "circle-stroke-opacity": dark ? 0.85 : 0.8,
-          "circle-blur": 0.1,
-        },
-      });
-      addLayerOnce({
-        id: "pubs-point",
-        type: "symbol",
-        source: "pubs",
-        minzoom: PIN_UNCLUSTER_ZOOM,
-        filter: ["!", ["has", "point_count"]],
-        layout: {
-          "icon-image": ["get", "icon"],
-          "icon-size": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            10,
-            ["case", ["get", "story"], 0.7, 0.62],
-            15,
-            ["case", ["get", "story"], 1.05, 0.95],
-          ],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-          "icon-padding": 2,
-        },
-        paint: {
-          "icon-opacity": ["case", ["get", "serves"], 0.98, 0.22],
-        },
-      });
-      // Selected pin: a confident double brass ring — a soft outer wash plus a
-      // bright inner edge — that lifts the choice above every other pin.
-      addLayerOnce({
-        id: "pubs-selected-glow",
-        type: "circle",
-        source: "pubs",
-        minzoom: PIN_UNCLUSTER_ZOOM,
-        filter: ["==", ["get", "id"], selectedIdRef.current],
-        paint: {
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 15],
-          "circle-stroke-color": tokens.brass,
-          "circle-stroke-width": 3.2,
-          "circle-stroke-opacity": 0.35,
-          "circle-blur": 0.22,
-        },
-      });
-      addLayerOnce({
-        id: "pubs-selected",
-        type: "circle",
-        source: "pubs",
-        minzoom: PIN_UNCLUSTER_ZOOM,
-        filter: ["==", ["get", "id"], selectedIdRef.current],
-        paint: {
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 11],
-          "circle-stroke-color": tokens.brassBright,
-          "circle-stroke-width": 2.2,
-          "circle-stroke-opacity": 0.98,
-        },
-      });
-      addLayerOnce({
-        id: "clusters",
-        type: "circle",
-        source: "pubs",
-        filter: ["has", "point_count"],
-        paint: {
-          // Wave J1 — pint → amber → brass by density (not ink-black discs).
-          "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
-          "circle-stroke-color": tokens.panelRaised,
-          "circle-stroke-width": ["step", ["get", "point_count"], 1.25, 40, 1.5, 100, 1.75],
-          "circle-stroke-opacity": 0.95,
-          "circle-radius": ["step", ["get", "point_count"], 9, 25, 12, 100, 16],
-          "circle-blur": ["step", ["get", "point_count"], 0.02, 40, 0.05, 100, 0.08],
-          "circle-opacity": 0.94,
-        },
-      });
-      addLayerOnce({
-        id: "cluster-count",
-        type: "symbol",
-        source: "pubs",
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": ["get", "point_count_abbreviated"],
-          "text-font": textFont,
-          "text-size": ["step", ["get", "point_count"], 9, 25, 10, 100, 11],
-          "text-letter-spacing": 0.02,
-        },
-        paint: {
-          "text-color": dark ? tokens.ink : tokens.inkDeep,
-          "text-halo-color": withAlpha(tokens.panelRaised, 0.75),
-          "text-halo-width": 1,
-        },
+      // Assemble every source/layer in load-bearing paint order (see
+      // components/map/canvas/buildScene.ts). The D2 tile-paint gate and the
+      // pendingUpdatesRef flush below stay component-owned (they touch a
+      // construct-scope timer and component refs).
+      assembleScene({
+        map,
+        tokens,
+        dark,
+        textFont,
+        addLayerOnce,
+        poiHidden: poiHiddenRef.current,
+        transitLinesPath,
+        showLandmarks,
+        landmarksGeoJSON: landmarksGeoJSONRef.current,
+        poisData: poisDataRef.current,
+        routeLine: routeLineRef.current,
+        routeStops: routeStopsRef.current,
+        bandCorridor: bandCorridorRef.current,
+        bandColor: bandColorRef.current,
+        bandMemberIds: bandMemberIdsRef.current,
+        pubsData: pubsDataRef.current,
+        tonightData: tonightDataRef.current,
+        tonightVisible: tonightOverlayVisibleRef.current,
+        selectedId: selectedIdRef.current,
+        selectionMuteStore: selectionMuteStoreRef.current,
       });
 
       // --- Tile-paint gate (D2). buildScene runs on `style.load`, which fires
@@ -1793,102 +819,6 @@ export default function PubMapCanvas({
         // so only the latest reveal pair is live.
         clearTimeout(pinRevealTimer);
         pinRevealTimer = setTimeout(revealPins, PIN_REVEAL_TIMEOUT_MS);
-      }
-
-      // --- Route stops (numbered) above everything.
-      if (!map.getSource("route-stops")) {
-        map.addSource("route-stops", { type: "geojson", data: routeStopsRef.current });
-      }
-      addLayerOnce({
-        id: "route-stops",
-        type: "circle",
-        source: "route-stops",
-        paint: {
-          "circle-color": tokens.inkDeep,
-          "circle-radius": 13,
-          "circle-stroke-color": tokens.brassBright,
-          "circle-stroke-width": 2.5,
-        },
-      });
-      addLayerOnce({
-        id: "route-stops-label",
-        type: "symbol",
-        source: "route-stops",
-        layout: {
-          "text-field": ["get", "label"],
-          "text-font": textFont,
-          "text-size": 13,
-          "text-allow-overlap": true,
-        },
-        // Stops are always dark-filled, so the label is the light-side token.
-        paint: { "text-color": dark ? tokens.ink : tokens.paper },
-      });
-
-      // --- CityMCP "tonight" opportunities: amber/moon pins above route stops,
-      // with visibility controlled by parent overlay state and data reseeded via ref.
-      try {
-        const tonightVisibility: "visible" | "none" = tonightOverlayVisibleRef.current
-          ? "visible"
-          : "none";
-        if (!map.getSource("tonight-opportunities")) {
-          map.addSource("tonight-opportunities", {
-            type: "geojson",
-            data: tonightDataRef.current,
-          });
-        }
-        addLayerOnce({
-          id: "tonight-halo",
-          type: "circle",
-          source: "tonight-opportunities",
-          minzoom: 10.5,
-          layout: { visibility: tonightVisibility },
-          paint: {
-            "circle-color": withAlpha(tokens.amber, dark ? 0.24 : 0.2),
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10.5, 9, 15, 17],
-            "circle-stroke-color": withAlpha(tokens.riverBright, dark ? 0.7 : 0.55),
-            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10.5, 1.1, 15, 2],
-            "circle-stroke-opacity": 0.8,
-            "circle-blur": 0.35,
-          },
-        });
-        addLayerOnce({
-          id: "tonight-point",
-          type: "circle",
-          source: "tonight-opportunities",
-          minzoom: 10.5,
-          layout: { visibility: tonightVisibility },
-          paint: {
-            "circle-color": tokens.amber,
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10.5, 4.2, 15, 6.6],
-            "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
-            "circle-stroke-width": 1.4,
-            "circle-opacity": 0.96,
-          },
-        });
-        addLayerOnce({
-          id: "tonight-label",
-          type: "symbol",
-          source: "tonight-opportunities",
-          minzoom: 13,
-          layout: {
-            "text-field": ["get", "title"],
-            "text-font": textFont,
-            "text-size": ["interpolate", ["linear"], ["zoom"], 13, 9, 16, 10.5],
-            "text-offset": [0, 0.95],
-            "text-anchor": "top",
-            "text-optional": true,
-            "text-allow-overlap": false,
-            "text-ignore-placement": false,
-            visibility: tonightVisibility,
-          },
-          paint: {
-            "text-color": dark ? tokens.ink : tokens.inkDeep,
-            "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-            "text-halo-width": 1.25,
-          },
-        });
-      } catch {
-        // CityMCP pins are an additive overlay; a style hiccup must not break the pub map.
       }
 
       // Flush any mutations that arrived while the style was mid-load (initial
@@ -2007,150 +937,25 @@ export default function PubMapCanvas({
       contextLostTimer = undefined;
     });
 
-    // --- Click + cursor wiring.
+    // --- Click + cursor wiring (see components/map/canvas/interactions.ts).
     // Pub-first hit testing: a single map click queries pubs/route stops before
     // landmarks/POIs so dense central London taps open a pub sheet, not a
-    // landmark card that happened to sit under the same finger.
-    const PUB_FIRST_LAYERS = [
-      "pubs-point",
-      "route-stops",
-      "tonight-point",
-      "clusters",
-      "landmarks-icon",
-      "pois-dot",
-      "pois-transport-major",
-      "pois-transport-minor",
-    ] as const;
-
-    map.on("click", (event) => {
-      const features = map.queryRenderedFeatures(event.point, {
-        layers: PUB_FIRST_LAYERS.filter((id) => Boolean(map.getLayer(id))),
-      });
-      if (!features.length) return;
-
-      const byLayer = new Map<string, (typeof features)[number]>();
-      for (const feature of features) {
-        const layerId = feature.layer?.id;
-        if (typeof layerId === "string" && !byLayer.has(layerId)) {
-          byLayer.set(layerId, feature);
-        }
-      }
-
-      const pubHit = byLayer.get("pubs-point");
-      if (pubHit) {
-        const id = pubHit.properties?.id;
-        if (typeof id !== "string") return;
-        selectLandmark(null);
-        setHoveredVenue(null);
-        setActivePoi(null);
-        onVenueClickRef.current(id);
-        return;
-      }
-
-      const stopHit = byLayer.get("route-stops");
-      if (stopHit) {
-        const id = stopHit.properties?.id;
-        if (typeof id !== "string") return;
-        selectLandmark(null);
-        setActivePoi(null);
-        onRouteStopClickRef.current(id);
-        return;
-      }
-
-      const clusterHit = byLayer.get("clusters");
-      if (clusterHit) {
-        const clusterId = clusterHit.properties?.cluster_id;
-        const source = map.getSource("pubs") as maplibregl.GeoJSONSource;
-        if (clusterId == null || !source) return;
-        source.getClusterExpansionZoom(clusterId).then((zoom) => {
-          const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
-          cinematic({ center: [lng, lat], zoom, duration: 700 });
-        });
-        return;
-      }
-
-      const tonightHit = byLayer.get("tonight-point");
-      if (tonightHit) {
-        const opportunity = opportunityForFeature(
-          tonightHit.properties as GeoJSON.GeoJsonProperties | undefined,
-          tonightOpportunitiesRef.current,
-        );
-        if (!opportunity) return;
-        selectLandmark(null);
-        setHoveredVenue(null);
-        setActivePoi(null);
-        onTonightOpportunityClickRef.current?.(opportunity);
-        return;
-      }
-
-      const landmarkHit = byLayer.get("landmarks-icon");
-      if (landmarkHit) {
-        const id = landmarkHit.properties?.id;
-        const landmark = cityLandmarksRef.current.find((item) => item.id === id);
-        if (!landmark) return;
-        setActivePoi(null);
-        selectLandmark(landmark);
-        cinematic({
-          center: landmark.coordinates,
-          zoom: Math.max(map.getZoom(), 13),
-          pitch: 55,
-          duration: 1100,
-        });
-        return;
-      }
-
-      for (const layer of ["pois-dot", "pois-transport-major", "pois-transport-minor"] as const) {
-        const poiHit = byLayer.get(layer);
-        if (!poiHit) continue;
-        const name = poiHit.properties?.name;
-        const category = poiHit.properties?.category;
-        if (typeof name !== "string" || typeof category !== "string") return;
-        selectLandmark(null);
-        setActivePoi({ name, category: category as PoiCategory });
-        return;
-      }
+    // landmark card that happened to sit under the same finger. Listeners are
+    // torn down by map.remove() in constructCleanup exactly as before.
+    wireClickRouting(map, {
+      selectLandmark,
+      setHoveredVenue,
+      setActivePoi,
+      onVenueClickRef,
+      onRouteStopClickRef,
+      onTonightOpportunityClickRef,
+      cityLandmarksRef,
+      tonightOpportunitiesRef,
+      cinematic,
     });
-
-    // Press-start / hover intent warms venue detail so the sheet opens warm.
-    // Also wire route-stops — those pins are the same venue ids.
-    const prefetchFromEvent = (event: {
-      features?: Array<{ properties?: Record<string, unknown> | null }> | undefined;
-    }) => {
-      const id = event.features?.[0]?.properties?.id;
-      if (typeof id !== "string") return;
-      onVenuePrefetchRef.current?.(id);
-    };
-    for (const layer of ["pubs-point", "route-stops"] as const) {
-      map.on("mouseenter", layer, prefetchFromEvent);
-      map.on("mousedown", layer, prefetchFromEvent);
-      map.on("touchstart", layer, prefetchFromEvent);
-    }
-
-    const onPubHover = (event: maplibregl.MapLayerMouseEvent) => {
-      if (!hoverCapableRef.current) return;
-      const props = event.features?.[0]?.properties;
-      const id = props?.id;
-      const name = props?.name;
-      if (typeof id !== "string" || typeof name !== "string") return;
-      setHoveredVenue({ id, name, x: event.point.x, y: event.point.y });
-    };
-    map.on("mouseenter", "pubs-point", onPubHover);
-    map.on("mousemove", "pubs-point", onPubHover);
-    map.on("mouseleave", "pubs-point", () => setHoveredVenue(null));
-    for (const layer of [
-      "pubs-point",
-      "clusters",
-      "route-stops",
-      "tonight-point",
-      "landmarks-icon",
-      "pois-dot",
-      "pois-transport-major",
-      "pois-transport-minor",
-    ]) {
-      map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
-      map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
-    }
-
+    wireHoverPrefetch(map, { onVenuePrefetchRef });
+    wirePubHover(map, { hoverCapableRef, setHoveredVenue });
+    wireCursor(map);
     // --- Idle orbit + dash animation: one RAF loop, no React re-renders.
     // User input (incl. the nav control) pushes holdUntil forward; the orbit
     // resumes after ORBIT_RESUME_MS of stillness. Reduced motion disables both.
@@ -2198,6 +1003,15 @@ export default function PubMapCanvas({
         dashAt = now;
         dashStep = (dashStep + 1) % DASH_SEQ.length;
         map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[dashStep]);
+      }
+      // M1 selection spotlight — breathing pulse on the selected pub's glow
+      // ring, reusing THIS RAF loop (no second one). Gated by the same
+      // reduced-motion / hidden / blurred guard above, so reduced-motion gets
+      // a static ring (the dim-opacity spotlight still applies, unaffected).
+      if (selectedIdRef.current && map.getLayer("pubs-selected-glow")) {
+        const pulse = glowPulsePaint(now);
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", pulse.opacity);
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", pulse.width);
       }
     };
     rafId = requestAnimationFrame(frame);
@@ -2394,60 +1208,33 @@ export default function PubMapCanvas({
       ];
       if (map.getLayer("pubs-selected-glow")) {
         map.setFilter("pubs-selected-glow", selectedFilter);
+        // Reset to the static baseline on every selection change; the RAF
+        // loop takes over from here again next frame if a venue is selected,
+        // and a deselect leaves the ring at this baseline (not mid-pulse).
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", GLOW_BASE_STROKE_WIDTH);
       }
       if (map.getLayer("pubs-selected")) {
         map.setFilter("pubs-selected", selectedFilter);
       }
+      // M1 selection spotlight — dim every non-selected pub pin; the selected
+      // pin stays fully opaque. Deselect restores the plain serves-based dim.
+      if (map.getLayer("pubs-point")) {
+        map.setPaintProperty(
+          "pubs-point",
+          "icon-opacity",
+          pubIconOpacityExpr(selectedIdRef.current),
+        );
+      }
+      // M2 POI-at-initiation gating — while a venue is selected the selected pub
+      // must dominate: heavy-mute the POI/landmark/transport app layers AND the
+      // basemap-baked transit roundels / street / POI labels. Deselect restores
+      // the exact originals so the city overview reads unchanged. Opacity-only
+      // via paint transitions (MapLibre's default 300ms ease) — no new RAF, no
+      // React re-render, and it composes with the POI/tube visibility toggles.
+      applySelectionMute(map, Boolean(selectedIdRef.current), selectionMuteStoreRef.current);
     });
   }, [route, selectedVenueId, mapReady, applyToMap]);
-
-  // Shared fit logic: the route effect and the Recenter control both call this
-  // so the framing behaviour stays identical. Reads the live route from a ref
-  // so the button never needs a fresh closure.
-  const routeRef = useRef(route);
-  useEffect(() => {
-    routeRef.current = route;
-  }, [route]);
-  const fitRoute = useCallback(() => {
-    const map = mapRef.current;
-    const current = routeRef.current;
-    if (!map || current.length < 2) return;
-    const bounds = new maplibregl.LngLatBounds();
-    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
-    holdUntilRef.current = Math.max(
-      holdUntilRef.current,
-      performance.now() + 900 + ORBIT_RESUME_MS,
-    );
-    const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    map.fitBounds(bounds, {
-      padding: isPhone
-        ? { top: 160, right: 28, bottom: 200, left: 28 }
-        : 90,
-      maxZoom: 15,
-      duration: reducedRef.current ? 0 : 800,
-    });
-  }, []);
-
-  // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
-  const fitCityBounds = useCallback(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    holdUntilRef.current = Math.max(
-      holdUntilRef.current,
-      performance.now() + 900 + ORBIT_RESUME_MS,
-    );
-    const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    const view = mapViewRef.current;
-    map.fitBounds(maxBoundsRef.current, {
-      padding: isPhone
-        ? { top: 184, right: 24, bottom: 190, left: 24 }
-        : 90,
-      maxZoom: 11,
-      duration: reducedRef.current ? 0 : 800,
-      pitch: view.pitch,
-      bearing: view.bearing,
-    });
-  }, []);
 
   // Clean city arrival: frame the city's maxBounds once after style/load.
   // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
@@ -2465,28 +1252,6 @@ export default function PubMapCanvas({
     fitCityBounds();
   }, [mapReady, fitCityOnArrival, fitCityBounds]);
 
-  // Borough browse arrival: frame the filtered venue set once (query owns the
-  // camera). Skip if the user already tapped a pin — don't fight selectedVenue
-  // fly-to. Padding mirrors fitRoute; maxZoom ~13 keeps outer boroughs readable.
-  const fitQueryVenues = useCallback(() => {
-    const map = mapRef.current;
-    const current = venuesRef.current;
-    if (!map || current.length === 0) return;
-    const bounds = new maplibregl.LngLatBounds();
-    current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
-    holdUntilRef.current = Math.max(
-      holdUntilRef.current,
-      performance.now() + 900 + ORBIT_RESUME_MS,
-    );
-    const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    map.fitBounds(bounds, {
-      padding: isPhone
-        ? { top: 160, right: 28, bottom: 200, left: 28 }
-        : 90,
-      maxZoom: 13,
-      duration: reducedRef.current ? 0 : 800,
-    });
-  }, []);
   useEffect(() => {
     if (!mapReady || !fitQueryOnArrival) return;
     if (didFitQueryOnArrivalRef.current) return;
@@ -2531,11 +1296,15 @@ export default function PubMapCanvas({
     if (!map || !mapReady || !selectedPresent) return;
     const venue = venuesRef.current.find((item) => item.id === selectedVenueId);
     if (!venue) return;
+    // M3: pub-select lean-in — 35-45deg pitch, ease-out, 600-800ms. Reduced
+    // motion collapses the duration to 0 inside cinematic() (see useMapCamera),
+    // so this always degrades to an instant jump under prefers-reduced-motion.
     cinematic({
       center: [venue.longitude, venue.latitude],
       zoom: Math.max(map.getZoom(), 14),
-      pitch: 50,
-      duration: 1100,
+      pitch: PUB_SELECT_PITCH,
+      duration: PUB_SELECT_DURATION_MS,
+      easing: easeOutCubic,
     });
   }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark]);
 

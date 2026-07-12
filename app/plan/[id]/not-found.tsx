@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import EmptyState from "@/components/EmptyState";
+import SiteNav from "@/components/nav/SiteNav";
 
 import "../plan.css";
 
@@ -19,8 +20,12 @@ export const metadata: Metadata = {
 export default function PlanNotFound(): React.JSX.Element {
   return (
     <main className="planPage planPage--composer">
+      {/* Standard site navigation — a shared plan link is many people's first
+          screen; it must route onward, not dead-end on a wordmark. SiteNav
+          carries the brand, so the masthead keeps just the context line. */}
+      <SiteNav />
       <header className="planPage__masthead">
-        <Link href="/" className="planPage__brand">PUBMAXXING</Link>
+        <span>Plan</span>
         <span>London · Tonight</span>
       </header>
 

@@ -48,10 +48,34 @@ describe("loadBaselineWhatsOn", () => {
   it("loads + validates the bundled quiz_london.json baseline", () => {
     const rows = loadBaselineWhatsOn();
     expect(rows.length).toBeGreaterThan(0);
-    for (const r of rows) {
-      expect(r.kind).toBe("quiz");
+    const quizRows = rows.filter((r) => r.kind === "quiz");
+    expect(quizRows.length).toBeGreaterThan(0);
+    for (const r of quizRows) {
       expect(r.source.url).toMatch(/^https?:\/\//);
       expect(r.title.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("loads + validates the bundled deals_london.json baseline", () => {
+    const rows = loadBaselineWhatsOn();
+    const dealRows = rows.filter((r) => r.kind === "deal");
+    expect(dealRows.length).toBeGreaterThan(0);
+    for (const r of dealRows) {
+      expect(r.confidence).toBe("listed");
+      expect(r.source.label).toMatch(/Wetherspoon/);
+      expect(r.source.url).toMatch(/^https?:\/\//);
+      expect(r.endsAt).toBeDefined();
+    }
+  });
+
+  it("loads + validates the bundled sport_fixtures.json derived rows", () => {
+    const rows = loadBaselineWhatsOn();
+    const sportRows = rows.filter((r) => r.kind === "sport");
+    expect(sportRows.length).toBeGreaterThan(0);
+    for (const r of sportRows) {
+      expect(r.confidence).toBe("derived");
+      expect(r.source.label).toBe("Greene King");
+      expect(r.source.url).toMatch(/^https?:\/\//);
     }
   });
 });
@@ -81,6 +105,34 @@ describe("mergeWhatsOn precedence", () => {
   it("unions non-colliding rows", () => {
     const merged = mergeWhatsOn([makeRow({ id: "a" })], [makeRow({ id: "b", kind: "music" })]);
     expect(merged).toHaveLength(2);
+  });
+
+  it("a derived row never beats a listed/confirmed row at the same (place, kind, startsAt) key", () => {
+    // Same regardless of which side (baseline/live) each confidence lands on,
+    // and regardless of which one is "fresher" by observedAt — derived:0 must
+    // lose the collision outright (CONFIDENCE_RANK), not just on a tie-break.
+    const derivedNewer = makeRow({
+      id: "derived",
+      confidence: "derived",
+      title: "derived",
+      observedAt: "2026-07-11T19:59:00.000Z",
+    });
+    const listedOlder = makeRow({
+      id: "listed",
+      confidence: "listed",
+      title: "listed",
+      observedAt: "2026-07-11T10:00:00.000Z",
+    });
+    expect(mergeWhatsOn([listedOlder], [derivedNewer])[0].title).toBe("listed");
+    expect(mergeWhatsOn([derivedNewer], [listedOlder])[0].title).toBe("listed");
+
+    const confirmedOlder = makeRow({
+      id: "confirmed",
+      confidence: "confirmed",
+      title: "confirmed",
+      observedAt: "2026-07-11T10:00:00.000Z",
+    });
+    expect(mergeWhatsOn([confirmedOlder], [derivedNewer])[0].title).toBe("confirmed");
   });
 });
 
@@ -116,6 +168,31 @@ describe("loadWhatsOn orchestration", () => {
     );
     expect(nearSorted.rows).toHaveLength(1);
     expect(nearSorted.rows[0].id).toBe("near");
+  });
+
+  it("drops rows more than 24h in the past on the DEFAULT (no window) query path", async () => {
+    // NOW = 2026-07-11T20:00:00.000Z.
+    const baseline = [
+      makeRow({ id: "just-past", startsAt: "2026-07-10T22:00:00+01:00" }), // 2026-07-10T21:00:00Z, 23h before NOW
+      makeRow({ id: "long-past", startsAt: "2026-07-09T20:30:00+01:00" }), // well over 24h before NOW
+      makeRow({ id: "future", startsAt: "2026-07-12T19:30:00+01:00" }),
+    ];
+    const { rows } = await loadWhatsOn(
+      {},
+      { now: NOW, loadBaseline: () => baseline, fetchLive: async () => [] },
+    );
+    expect(rows.map((r) => r.id).sort()).toEqual(["future", "just-past"]);
+  });
+
+  it("does NOT apply the 24h staleness drop when a window is requested (tonight already scopes it)", async () => {
+    const baseline = [makeRow({ id: "quiz-out", kind: "quiz", startsAt: "2026-07-10T19:30:00+01:00" })];
+    const { rows } = await loadWhatsOn(
+      { window: "tonight" },
+      { now: NOW, loadBaseline: () => baseline, fetchLive: async () => [] },
+    );
+    // Excluded by filterTonight's own window logic, not by dropStale — this
+    // just documents that the two mechanisms don't double up.
+    expect(rows.map((r) => r.id)).toEqual([]);
   });
 
   it("fails soft to baseline when the live fetch throws", async () => {

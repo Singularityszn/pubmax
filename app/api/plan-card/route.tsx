@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 
+import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { planStore } from "@/lib/planStore";
 
 export const runtime = "nodejs";
@@ -10,6 +11,9 @@ function clamp(raw: string, max: number): string {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const limited = await ogCardRateLimitedResponse(request, "og-plan-card");
+  if (limited) return limited;
+
   const id = new URL(request.url).searchParams.get("id") ?? "";
   const state = id ? await planStore().get(id) : null;
   if (!state) return new Response("Plan not found", { status: 404 });

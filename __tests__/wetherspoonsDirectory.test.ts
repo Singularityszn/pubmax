@@ -20,10 +20,11 @@ function load<T>(relPath: string): T {
   return JSON.parse(readFileSync(join(ROOT, relPath), "utf8")) as T;
 }
 
-const DIRECTORY_PATHS = [
-  "data/wetherspoons/pubs.json",
-  "public/data/wetherspoons/pubs.json",
-] as const;
+// pubs.json has a single committed home: public/data/wetherspoons/ (the path
+// the app fetches at runtime). pubs.geojson is still written to both
+// data/wetherspoons/ and public/data/wetherspoons/ by the refresh script, so
+// that pair is still checked for byte-identity.
+const DIRECTORY_PATHS = ["public/data/wetherspoons/pubs.json"] as const;
 
 const GEOJSON_PATHS = [
   "data/wetherspoons/pubs.geojson",
@@ -31,11 +32,7 @@ const GEOJSON_PATHS = [
 ] as const;
 
 describe("Wetherspoons directory dataset", () => {
-  it("data/ and public/data/ copies are byte-identical", () => {
-    const [a, b] = DIRECTORY_PATHS.map((p) =>
-      readFileSync(join(ROOT, p), "utf8"),
-    );
-    expect(a).toBe(b);
+  it("data/ and public/data/ geojson copies are byte-identical", () => {
     const [ga, gb] = GEOJSON_PATHS.map((p) =>
       readFileSync(join(ROOT, p), "utf8"),
     );

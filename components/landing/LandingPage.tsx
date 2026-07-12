@@ -224,7 +224,10 @@ export default function LandingPage() {
             <Link href="/feed">Feed</Link>
             <Link href="/crawls">Crawls</Link>
             <ThemeToggle />
-            <SignInButton />
+            {/* Compact host: one "Sign in" disclosure instead of two full
+                provider buttons, so the sticky top bar never overflows at
+                390px (auth.css shows the inline pair again at ≥1680px). */}
+            <SignInButton compact />
             <Link
               href={primaryCtaHref}
               className="btn btnPrimary topbarCta"

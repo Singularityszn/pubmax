@@ -43,6 +43,7 @@ import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
+import VenueTonightChips from "@/components/map/VenueTonightChips";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 import { menuHubTiles } from "@/lib/menuHub";
@@ -398,6 +399,14 @@ export default function VenueInspector({
         <span>Venue Detail</span>
       </div>
       <h3>{venue.name}</h3>
+
+      {/* What's on at this venue tonight (A1) — pure sheet DOM, fail-soft. */}
+      <VenueTonightChips
+        id={venue.id}
+        name={venue.name}
+        latitude={venue.latitude}
+        longitude={venue.longitude}
+      />
 
       <div className="venueTabs" role="tablist" aria-label="Venue detail sections">
         {TABS.map(({ key, label, shortLabel }) => {

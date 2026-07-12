@@ -38,6 +38,7 @@ type NavKey =
   | "map"
   | "pubs"
   | "drop"
+  | "tonight"
   | "feed"
   | "discover"
   | "crawls"
@@ -60,6 +61,7 @@ type NavLink = {
 const LINKS: NavLink[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"], accent: "beer" },
   { key: "pubs", href: "/pubs", label: "Pubs", match: ["/pubs"], accent: "whisky" },
+  { key: "tonight", href: "/tonight", label: "Tonight", match: ["/tonight"], accent: "other" },
   // Desktop carries the same five core concepts as the mobile tab bar (C1);
   // Pint Drop opens the composer on the preferred city's map. match is a
   // never-matching sentinel: /map belongs to the Map link, so this one never
@@ -218,7 +220,10 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
             Same ambient island shape as the bell; shows on mobile too. */}
         <MessagesLink />
         <ThemeToggle />
-        <SignInButton />
+        {/* Compact host: a single "Sign in" disclosure below the width where
+            the two full provider buttons genuinely fit (auth.css ≥1680px), so
+            they can never crowd the link row into clipped fragments. */}
+        <SignInButton compact />
       </div>
     </nav>
   );

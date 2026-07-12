@@ -25,6 +25,12 @@ type PaintMap = {
   getStyle: () => { layers?: Array<{ id: string; type?: string }> };
 };
 
+/** Superset of PaintMap that can also read a layer's current paint value —
+ *  needed by the selection-mute machinery to snapshot originals before muting. */
+type MuteMap = PaintMap & {
+  getPaintProperty: (layerId: string, name: string) => unknown;
+};
+
 type TastePalette = {
   land: string;
   landSoft: string;
@@ -320,6 +326,117 @@ export function applyBasemapTaste(
   const palette = buildPalette(tokens, dark);
   paintKnownLayers(map, palette, dark);
   paintDiscoveredLayers(map, palette, tokens, dark);
+}
+
+// ── M2 · POI-at-initiation gating ──────────────────────────────────────────
+// The owner rule: points of interest belong to the INITIAL city overview only.
+// Once a venue is selected the selected pub must dominate, so we heavy-mute the
+// label furniture that otherwise drowns it — both our own app layers AND the
+// basemap-baked symbol layers (which can't be toggled off, only repainted).
+//
+// Mute is opacity-only (never visibility), so it composes cleanly with the POI
+// category toggles and the tube-network visibility switch: a hidden layer stays
+// hidden, a shown one just fades. Originals are snapshotted into a caller-owned
+// store before the first mute and set back verbatim on restore, so repeated
+// select/deselect cycles are exactly idempotent (an unset prop snapshots as
+// `undefined` and restores via setPaintProperty(…, undefined) → style default).
+
+/** Heavy-mute opacity for POI/transit/street furniture while a venue is
+ *  selected — PRD's "10-15%" band. A faint ghost of context, never a competitor
+ *  for the selected pub. */
+export const SELECTION_MUTE_OPACITY = 0.12;
+
+// Our own scene layers carry these prefixes; the basemap classifier skips them
+// so it only ever matches genuinely baked (stock-style) symbol layers.
+const APP_LAYER_PREFIXES = [
+  "pubs-",
+  "pois-",
+  "route-",
+  "tube-lines",
+  "tonight-",
+  "landmarks",
+  "cluster",
+  "buildings-",
+  "band-",
+];
+
+// Baked symbol layers whose text/icons are transit roundels, POI labels, or
+// street-name labels/shields — the exact furniture the owner rule wants gone on
+// selection. Deliberately excludes place labels (city/neighbourhood names —
+// legit overview context) and water/waterway labels, and never touches road
+// GEOMETRY (those are `line` layers, not `symbol`).
+const BASEMAP_MUTE_ID_RE =
+  /transit|subway|railway|rail_|station|airport|aeroway|poi|road|street|highway|motorway|junction|shield/;
+
+/** Pure classifier (unit-tested): is this a basemap-baked symbol layer that the
+ *  selection mute should touch? */
+export function isBasemapSelectionMuteLayer(id: string, type?: string): boolean {
+  if (type !== "symbol") return false;
+  const s = id.toLowerCase();
+  if (APP_LAYER_PREFIXES.some((p) => s.startsWith(p))) return false;
+  return BASEMAP_MUTE_ID_RE.test(s);
+}
+
+type MuteTarget = { id: string; props: readonly string[] };
+
+/** Our own app layers (PRD part a): POI dots/labels, transport symbols, tube
+ *  network, and landmarks — all fade on selection, restore on deselect. Each
+ *  lists the opacity paint props valid for its layer type. */
+const APP_SELECTION_MUTE_TARGETS: readonly MuteTarget[] = [
+  { id: "landmarks-icon", props: ["icon-opacity", "text-opacity"] },
+  { id: "pois-transport-major", props: ["icon-opacity"] },
+  { id: "pois-transport-minor", props: ["icon-opacity"] },
+  { id: "pois-transport-label", props: ["text-opacity"] },
+  { id: "pois-dot", props: ["circle-opacity", "circle-stroke-opacity"] },
+  { id: "pois-label", props: ["text-opacity"] },
+  { id: "tube-lines-casing", props: ["line-opacity"] },
+  { id: "tube-lines-color", props: ["line-opacity"] },
+  { id: "tube-lines-label", props: ["text-opacity"] },
+];
+
+const BASEMAP_MUTE_PROPS = ["text-opacity", "icon-opacity"] as const;
+
+/**
+ * Fade (muted=true) or restore (muted=false) every POI/transit/street label
+ * layer — both the baked basemap symbols (PRD part b) and our own app layers
+ * (part a) — via paint-property opacity. MapLibre's default 300ms paint
+ * transition eases the change; no new RAF loop, no React re-render.
+ *
+ * `store` is caller-owned (a ref) and holds the pre-mute originals keyed by
+ * `layerId::prop`. Snapshotted once (guarded by store.has) so a re-mute never
+ * captures an already-muted value; restore replays every entry verbatim and
+ * clears the store. A style reload wipes the live layers, so the caller must
+ * clear the store and re-mute after style.load (see applySelectionState) —
+ * exactly the applyBasemapTaste re-apply pattern.
+ */
+export function applySelectionMute(
+  map: MuteMap,
+  muted: boolean,
+  store: Map<string, unknown>,
+  opacity: number = SELECTION_MUTE_OPACITY,
+): void {
+  if (muted) {
+    const basemapTargets: MuteTarget[] = (map.getStyle().layers ?? [])
+      .filter((layer) => isBasemapSelectionMuteLayer(layer.id, layer.type))
+      .map((layer) => ({ id: layer.id, props: BASEMAP_MUTE_PROPS }));
+    for (const { id, props } of [...basemapTargets, ...APP_SELECTION_MUTE_TARGETS]) {
+      if (!map.getLayer(id)) continue;
+      for (const prop of props) {
+        const key = `${id}::${prop}`;
+        if (!store.has(key)) store.set(key, map.getPaintProperty(id, prop));
+        tryPaint(map, id, prop, opacity);
+      }
+    }
+    return;
+  }
+  // Restore: replay every snapshot verbatim, then clear.
+  for (const [key, value] of store) {
+    const sep = key.lastIndexOf("::");
+    const id = key.slice(0, sep);
+    const prop = key.slice(sep + 2);
+    if (map.getLayer(id)) tryPaint(map, id, prop, value);
+  }
+  store.clear();
 }
 
 /** Cluster fill by point_count — pint (cheap density) → amber → brass. */

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   __resetPriceConfirms,
@@ -10,9 +10,27 @@ import {
 // its process-memory backend. These pin the honest-tally contract the durable
 // backend must also satisfy: distinct-actor counting, per-actor de-dup, the
 // price envelope, and fail-soft empties on bad input.
+//
+// Vercel's CI presets real SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY, which would
+// otherwise flip priceConfirmStore() over to the durable Supabase backend mid-
+// suite — hitting a live, cross-run-persistent table these "memory backend"
+// assertions never intend to exercise. Neutralize them like
+// importNotesRoute.test.ts / planCardRoute.test.ts do.
+const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
+const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 describe("priceConfirmStore (memory backend)", () => {
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
   afterEach(() => {
     __resetPriceConfirms();
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
   });
 
   it("counts distinct actors and de-dupes a repeat tap", async () => {

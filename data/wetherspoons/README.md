@@ -8,11 +8,14 @@ Scraped via **Firecrawl** from the official WP REST API:
 
 | File | Purpose |
 |------|---------|
-| `pubs.json` | Normalised directory (824 pubs): name, address, lat/lng, phone, hours, facilities, booking/hotel links |
 | `pubs.geojson` | Same pins as a FeatureCollection for map overlays |
 | `facilities.json` / `region.json` / `pub_status.json` | Taxonomy lookups |
 
-Published copies also live under `public/data/wetherspoons/` for the app.
+`pubs.json` (normalised directory, 824 pubs: name, address, lat/lng, phone,
+hours, facilities, booking/hotel links) has a single committed home:
+`public/data/wetherspoons/pubs.json` — that's the path the app fetches at
+runtime, so there is no duplicate copy here. `pubs.geojson` is still published
+to both locations for the map overlay.
 
 ## Provenance (non-negotiable)
 
