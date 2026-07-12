@@ -1,8 +1,8 @@
 /* Flagship "Historic Pubs" discovery surface (/historic).
    Shares the app's visual language — light type, brass accents, raised panels —
    as a filterable card index. Self-contained: depends only on the globally
-   loaded design tokens (--paper/--panel-raised/--ink/--line/--brass/--river/
-   --radius*/--shadow from globals.css + theme.css). No hardcoded hex.
+   loaded design tokens (paper, panel-raised, ink, line, brass, river, radius
+   and shadow scales from globals.css + theme.css). No hardcoded hex.
    Mobile-first (390px), 44px tap targets, both themes, reduced-motion safe.
    Bottom padding clears the mobile tab bar + safe-area (cf. tonight.css). */
 
