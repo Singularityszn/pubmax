@@ -16,7 +16,7 @@ export const ANALYTICS_EVENTS = {
   // of ~10 named events keeps working under the D0 beacon).
   badge_tap: [],
   lane_card_tap: [],
-  lane_to_plan: [],
+  lane_to_plan: ["source", "stops"],
   cmdk_open: [],
   night_mode_active: [],
   drop_logged: [],

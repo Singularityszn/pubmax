@@ -67,3 +67,45 @@ export function trackEvent(
     /* analytics must never break a flow */
   }
 }
+
+// ---------------------------------------------------------------------------
+// lane_to_plan provenance (R3)
+//
+// `lane_to_plan` must only count plan creations that genuinely started on a
+// What's-On / Tonight lane surface — otherwise it is indistinguishable from
+// `plan_created` and reports conversions that never involved a lane. Lane
+// surfaces link to the composer with `?src=<lane source>` (W1 Tonight-surface
+// work adds `?src=tonight-lane`); anything else yields null and the event
+// stays silent. Honest zero > invented signal.
+
+/**
+ * Exact allowlist of canonical `src` tokens that count as a lane surface for
+ * `lane_to_plan`. EXACT matching only — never prefix matching — so a crafted
+ * link like `/plan?src=whats-on-jane.doe@example.com` can never push raw
+ * query text (potential PII / free text) into telemetry. Grow this set as
+ * lane surfaces ship (W1 Tonight lane, What's-On verticals).
+ */
+const LANE_SOURCES = new Set([
+  "tonight-lane",
+  "whats-on-quiz",
+  "whats-on-sport",
+  "whats-on-deal",
+  "whats-on-music",
+]);
+
+/**
+ * Extract lane provenance from a location search string (e.g.
+ * "?src=tonight-lane"). Returns the matched canonical token only when the
+ * `src` value is EXACTLY one of the allowlisted lane sources; null otherwise
+ * (missing, empty, unknown, or prefix-extended src → no event). Raw query
+ * text is never forwarded into telemetry.
+ */
+export function laneSourceFromSearch(search: string): string | null {
+  let src: string | null;
+  try {
+    src = new URLSearchParams(search).get("src");
+  } catch {
+    return null;
+  }
+  return src !== null && LANE_SOURCES.has(src) ? src : null;
+}

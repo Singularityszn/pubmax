@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { stopsFromConcierge } from "@/components/plan/planPresentation";
 
@@ -99,6 +100,15 @@ export default function PlanComposer() {
       const body = await response.json();
       if (!response.ok || !body?.plan?.plan?.id) {
         throw new Error(body?.error || "The plan could not be created.");
+      }
+      // lane_to_plan only counts creations with lane provenance (?src=…, set
+      // by lane surfaces such as the W1 Tonight lane). window.location is read
+      // at submit time — not via useSearchParams — so this client component
+      // needs no Suspense boundary on the server-rendered /plan page. Without
+      // a known src the event stays silent: honest zero > invented signal.
+      const laneSource = laneSourceFromSearch(window.location.search);
+      if (laneSource) {
+        trackEvent("lane_to_plan", { source: laneSource, stops: completeStops.length });
       }
       if (body.memberToken) {
         sessionStorage.setItem(`pubmax-plan-member:${body.plan.plan.id}`, body.memberToken);
