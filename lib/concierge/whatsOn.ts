@@ -39,7 +39,8 @@ const KIND_TERMS: Record<WhatsOnKind, RegExp> = {
 const WHATS_ON_PHRASE = /\b(?:what'?s on|whats on|anything on|on tonight|things to do|what is on)\b/i;
 
 // Words that follow "near"/"in"/"around" but are NOT areas.
-const NON_AREA = /^(?:me|here|us|mine|my area|there|now|tonight|today)$/i;
+const NON_AREA =
+  /^(?:me|here|us|mine|my area|there|now|tonight|today|the\s+\S+|a\s+\S+|an\s+\S+)$/i;
 
 function detectKind(text: string): WhatsOnKind | undefined {
   return WHATS_ON_KINDS.find((kind) => KIND_TERMS[kind].test(text));

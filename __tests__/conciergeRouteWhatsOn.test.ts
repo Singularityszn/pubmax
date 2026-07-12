@@ -81,4 +81,26 @@ describe("POST /api/concierge — What's-On intents", () => {
     expect(body.mode).toBeUndefined();
     expect(body.venues).toBeDefined();
   });
+
+  it("does not misdetect a generic noun phrase as an area (no false refusal)", async () => {
+    const res = await post({ query: "quiz in the pub tonight" }, "198.51.100.63");
+    const body = await res.json();
+    expect(body.mode).toBe("whats-on");
+    // No area was captured, so both rows (unfiltered by area) match.
+    expect(body.count).toBe(2);
+  });
+
+  it("returns 503 with a contract-complete body when the store fails", async () => {
+    const { loadWhatsOn } = await import("@/lib/whatsOnStore");
+    vi.mocked(loadWhatsOn).mockRejectedValueOnce(new Error("store unavailable"));
+    const res = await post({ query: "quiz in Soho tonight" }, "198.51.100.64");
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.mode).toBe("whats-on");
+    expect(body.count).toBe(0);
+    expect(body.listings).toEqual([]);
+    expect(typeof body.asOf).toBe("string");
+    expect(() => new Date(body.asOf).toISOString()).not.toThrow();
+    expect(body.message).toMatch(/couldn't load/i);
+  });
 });

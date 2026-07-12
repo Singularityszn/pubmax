@@ -101,16 +101,22 @@ export async function POST(request: Request): Promise<Response> {
       const answer = buildWhatsOnAnswer(whatsOnQuery, matched);
       return jsonNoStore({ ...answer, asOf });
     } catch {
-      // Even the grounding source is unavailable — refuse rather than invent.
-      return jsonNoStore({
-        mode: "whats-on",
-        kind: whatsOnQuery.kind ?? null,
-        window: whatsOnQuery.window ?? null,
-        area: whatsOnQuery.area ?? null,
-        count: 0,
-        listings: [],
-        message: "I couldn't load the verified What's-On data just now, so I won't make anything up.",
-      });
+      // Even the grounding source is unavailable — refuse rather than invent,
+      // and signal a degraded dependency (503) so monitoring can distinguish
+      // "no matches" from "What's-On storage is down."
+      return jsonNoStore(
+        {
+          mode: "whats-on",
+          kind: whatsOnQuery.kind ?? null,
+          window: whatsOnQuery.window ?? null,
+          area: whatsOnQuery.area ?? null,
+          count: 0,
+          listings: [],
+          message: "I couldn't load the verified What's-On data just now, so I won't make anything up.",
+          asOf: new Date().toISOString(),
+        },
+        { status: 503 },
+      );
     }
   }
 

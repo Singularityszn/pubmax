@@ -55,6 +55,12 @@ describe("detectWhatsOnIntent", () => {
     expect(detectWhatsOnIntent("what's on near here")?.area).toBeUndefined();
   });
 
+  it("does not treat a generic noun phrase as an area", () => {
+    expect(detectWhatsOnIntent("what's on in the pub tonight")?.area).toBeUndefined();
+    expect(detectWhatsOnIntent("quiz in the area")?.area).toBeUndefined();
+    expect(detectWhatsOnIntent("live music in a bar")?.area).toBeUndefined();
+  });
+
   it("returns null for a plain venue-mood query", () => {
     expect(detectWhatsOnIntent("Garden near Soho for 4, not pricey")).toBeNull();
     expect(detectWhatsOnIntent("somewhere quiet in Bank")).toBeNull();
