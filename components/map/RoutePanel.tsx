@@ -1,54 +1,21 @@
 "use client";
 
-import {
-  Anchor,
-  BadgePoundSterling,
-  Beer,
-  BookOpen,
-  Check,
-  Footprints,
-  Landmark,
-  Link2,
-  MapPin,
-  PlusCircle,
-  Route,
-  Trophy,
-  ArrowUpDown,
-  CalendarPlus,
-  Navigation,
-  TrainFront,
-} from "lucide-react";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { crawlSummary, formatPrice, type Filters, type Venue } from "@/lib/venues";
-import { loadPoisFromPath, LONDON_POIS_PATH, type Poi } from "@/lib/pois";
+import { crawlSummary, type Filters, type Venue } from "@/lib/venues";
+import { LONDON_POIS_PATH } from "@/lib/pois";
 import {
   buildRouteLegs,
-  formatLeg,
-  formatRouteTotal,
-  poisOnRoute,
   type RoutePace,
 } from "@/lib/routeLegs";
 import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
 import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
 import SaveCrawlStory from "@/components/crawl/SaveCrawlStory";
-import RoundStarter from "@/components/round/RoundStarter";
 import {
-  ALT_CRAWL_STYLES,
-  altStyleLabels,
   altStyleStopNoun,
   type AltCrawlStyle,
 } from "@/lib/crawlUrl";
 import { buildCrawlIcs, icsFilename } from "@/lib/icsExport";
-import {
-  acknowledgeCrawlCompletion,
-  isComplete,
-  markCrawlComplete,
-  readCrawl,
-  startCrawl,
-  type CrawlProgressEntry,
-} from "@/lib/crawlCompletion";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
@@ -57,10 +24,16 @@ import {
   curatedCrawlsForCity,
 } from "@/lib/cityCuratedCrawls";
 import { cityAwareMapPath, crawlShareMapHref } from "@/lib/curatedCrawls";
+import { downloadIcs } from "@/lib/routePanelIcs";
+import RouteHeader from "@/components/map/route/RouteHeader";
+import RouteMetrics from "@/components/map/route/RouteMetrics";
+import RouteActions from "@/components/map/route/RouteActions";
+import RouteList from "@/components/map/route/RouteList";
+import CrawlProgressSection from "@/components/map/route/CrawlProgressSection";
+import VenuePicker from "@/components/map/route/VenuePicker";
+import { useRoutePois } from "@/components/map/route/useRoutePois";
+import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
 import "@/components/map/routePanel.css";
-
-// ponytail: cap the keyboard picker render; search narrows the rest.
-const PICKER_LIMIT = 40;
 
 type VenueSignals = Map<
   string,
@@ -104,20 +77,6 @@ type RoutePanelProps = {
   journeyLoading?: boolean;
   journeyTotalMinutes?: number | null;
 };
-
-// Trigger a client-side .ics download via a blob URL. Kept tiny + SSR-guarded.
-function downloadIcs(filename: string, contents: string): void {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
-  const blob = new Blob([contents], { type: "text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
 
 export default function RoutePanel({
   mode,
@@ -164,35 +123,7 @@ export default function RoutePanel({
   // POIs within ~250m of a leg. Loaded independently of the map canvas — a
   // second, cheap client fetch of the same bundled dataset — so RoutePanel
   // doesn't need PubMapCanvas's internal POI state lifted out.
-  const [pois, setPois] = useState<Poi[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    loadPoisFromPath(poisPath)
-      .then((loaded) => {
-        if (!cancelled) setPois(loaded);
-      })
-      .catch(() => {
-        // "On the way" is a nicety — a fetch failure just leaves it empty.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [poisPath]);
-  const onTheWayByLeg = useMemo(
-    () => poisOnRoute(legSummary.legs, pois),
-    [legSummary.legs, pois],
-  );
-
-  const [copied, setCopied] = useState(false);
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ponytail: clipboard denied (permissions/insecure origin) — no-op, no crash.
-    }
-  }
+  const onTheWayByLeg = useRoutePois(legSummary, poisPath);
 
   // Alt-style copy: a "coffee stop" / "food stop" / "mocktail stop" instead of
   // the default "pint stop". A single source (lib/crawlUrl) keeps label + noun
@@ -207,65 +138,15 @@ export default function RoutePanel({
   const placeStoryBandId = crawlId
     ? curatedCrawlByIdForCity(cityId, crawlId)?.placeStoryBandId
     : undefined;
-  const [crawlProgress, setCrawlProgress] = useState<CrawlProgressEntry | null>(null);
-  // Wave G2: one-shot celebration after 100% — claimed via acknowledgeCrawlCompletion.
-  const [showCelebration, setShowCelebration] = useState(false);
+  const {
+    crawlProgress,
+    showCelebration,
+    setShowCelebration,
+    crawlDone,
+    handleStartCrawl,
+    handleMarkComplete,
+  } = useCrawlProgress(progressKey, route, placeStoryBandId);
 
-  function applyCompletionAck(entry: CrawlProgressEntry | null) {
-    setCrawlProgress(entry);
-    if (!progressKey || !isComplete(entry)) {
-      setShowCelebration(false);
-      return;
-    }
-    const ack = acknowledgeCrawlCompletion(progressKey, { placeStoryBandId });
-    setShowCelebration(ack.celebrate);
-  }
-
-  useEffect(() => {
-    let active = true;
-    async function hydrate() {
-      const entry = progressKey && route.length >= 2 ? readCrawl(progressKey) : null;
-      if (!active) return;
-      setCrawlProgress(entry);
-      // Remount with an already-complete crawl: credit quest if needed, but only
-      // celebrate when the one-shot flag is still unset.
-      if (progressKey && isComplete(entry)) {
-        const ack = acknowledgeCrawlCompletion(progressKey, { placeStoryBandId });
-        if (active) setShowCelebration(ack.celebrate);
-      } else if (active) {
-        setShowCelebration(false);
-      }
-    }
-    void hydrate();
-    return () => {
-      active = false;
-    };
-  }, [progressKey, route.length, placeStoryBandId]);
-
-  function handleStartCrawl() {
-    if (!progressKey || route.length < 2) return;
-    const entry = startCrawl(
-      progressKey,
-      route.map((v) => v.id),
-    );
-    setCrawlProgress(entry);
-    setShowCelebration(false);
-  }
-
-  function handleMarkComplete() {
-    if (!progressKey) return;
-    // Ensure there's an entry to complete (start if the walker skipped "Start").
-    if (!readCrawl(progressKey)) {
-      startCrawl(
-        progressKey,
-        route.map((v) => v.id),
-      );
-    }
-    const entry = markCrawlComplete(progressKey);
-    applyCompletionAck(entry);
-  }
-
-  const crawlDone = isComplete(crawlProgress);
   const lastStopId = route.length > 0 ? route[route.length - 1]!.id : "";
   const dropHrefCity =
     cityIdFromVenueId(lastStopId) ?? cityId;
@@ -283,21 +164,6 @@ export default function RoutePanel({
     cityId,
     crawls: curatedCrawlsForCity(cityId),
   });
-  const [shareCopied, setShareCopied] = useState(false);
-
-  async function copyShareLink() {
-    const absolute =
-      typeof window !== "undefined"
-        ? `${window.location.origin}${shareMapHref}`
-        : shareMapHref;
-    try {
-      await navigator.clipboard.writeText(absolute);
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2000);
-    } catch {
-      // Clipboard denied — still offer the openable link below.
-    }
-  }
 
   function addToCalendar() {
     const crawl = {
@@ -312,287 +178,60 @@ export default function RoutePanel({
 
   return (
     <aside className="routePanel">
-      <div className="routeHeader">
-        <div>
-          <p className="eyebrow">{mode === "build" ? "Your Plan" : "Suggested Plan"}</p>
-          <h2>
-            {mode === "build"
-              ? crawlName || "Hand-built plan"
-              : `${styleLabels[crawlStyle]} plan`}
-          </h2>
-          {crawlBlurb ? (
-            <p className="description muted" style={{ margin: "4px 0 0" }}>
-              {crawlBlurb}
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          className="shareBtn"
-          onClick={copyLink}
-          aria-label="Copy a shareable link to this crawl"
-        >
-          {copied ? <Check size={14} /> : <Link2 size={14} />}
-          {copied ? "Copied!" : "Copy link"}
-        </button>
-        <Route size={24} />
-      </div>
+      <RouteHeader
+        mode={mode}
+        crawlStyle={crawlStyle}
+        crawlName={crawlName}
+        crawlBlurb={crawlBlurb}
+        altStyle={altStyle}
+        onAltStyleChange={onAltStyleChange}
+      />
 
-      <div
-        className="altStylePicker"
-        role="radiogroup"
-        aria-label="Crawl style"
-        data-testid="alt-style-picker"
-      >
-        {ALT_CRAWL_STYLES.map((style) => (
-          <button
-            key={style}
-            type="button"
-            role="radio"
-            aria-checked={altStyle === style}
-            className={altStyle === style ? "altStyleBtn active" : "altStyleBtn"}
-            onClick={() => onAltStyleChange(style)}
-          >
-            {altStyleLabels[style]}
-          </button>
-        ))}
-      </div>
+      <RouteMetrics
+        summaryTotal={summary.total}
+        summaryDistance={summary.distance}
+        legSummary={legSummary}
+        pace={pace}
+        journeyTotalMinutes={journeyTotalMinutes}
+        journeyLoading={journeyLoading}
+        routeLength={route.length}
+        stopNoun={stopNoun}
+        routeHeritageCount={routeHeritageCount}
+        routeWaterCount={routeWaterCount}
+        routeWriterCount={routeWriterCount}
+      />
 
-      <div className="routeMetrics">
-        <div>
-          <BadgePoundSterling size={17} />
-          <span>{formatPrice(summary.total)}</span>
-          <small>estimated round</small>
-        </div>
-        <div
-          title="Haversine (straight-line) distance between stops. Walking distance will be longer."
-        >
-          <MapPin size={17} />
-          <span>{summary.distance.toFixed(1)} km</span>
-          <small>straight-line, between stops</small>
-        </div>
-        {legSummary.legs.length > 0 ? (
-          <div
-            title="Estimated at 4.8 km/h (walking) or 9 km/h (running), over the same straight-line distance. Real pavement time will be longer."
-          >
-            <Footprints size={17} />
-            <span>{legSummary.totalMinutes} min</span>
-            <small>{pace === "run" ? "running, straight-line" : "walking, straight-line"}</small>
-          </div>
-        ) : null}
-        {typeof journeyTotalMinutes === "number" ? (
-          <div title="Live TfL itinerary between stops via CityMCP London (leave-now).">
-            <TrainFront size={17} />
-            <span>{Math.round(journeyTotalMinutes)} min</span>
-            <small>TfL between stops</small>
-          </div>
-        ) : journeyLoading ? (
-          <div>
-            <TrainFront size={17} />
-            <span>…</span>
-            <small>TfL loading</small>
-          </div>
-        ) : null}
-        <div>
-          <Trophy size={17} />
-          <span>{route.length}</span>
-          <small>{route.length === 1 ? stopNoun : `${stopNoun}s`}</small>
-        </div>
-        <div>
-          <Landmark size={17} />
-          <span>{routeHeritageCount}</span>
-          <small>story pubs</small>
-        </div>
-        <div>
-          <Anchor size={17} />
-          <span>{routeWaterCount}</span>
-          <small>by water</small>
-        </div>
-        <div>
-          <BookOpen size={17} />
-          <span>{routeWriterCount}</span>
-          <small>writer picks</small>
-        </div>
-      </div>
-
-      {route.length === 0 ? (
-        <p className="emptyRoute">
-          {mode === "build"
-            ? "No stops yet. Tap pubs on the map or use the Add stops list below."
-            : "No suggested route matches these filters. Reset filters or widen the route window."}
-        </p>
-      ) : null}
-
-      {mode === "build" && route.length >= 2 && onReverseRoute ? (
-        <button
-          type="button"
-          className="addStopBtn"
-          style={{ marginTop: 0, marginBottom: "12px" }}
-          onClick={onReverseRoute}
-        >
-          <ArrowUpDown size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} /> Reverse
-          route
-        </button>
-      ) : null}
-
-      {legSummary.legs.length > 0 ? (
-        <div className="routePace" role="group" aria-label="Walking or running pace">
-          <button
-            type="button"
-            className={pace === "walk" ? "routePaceBtn active" : "routePaceBtn"}
-            aria-pressed={pace === "walk"}
-            onClick={() => setPace("walk")}
-          >
-            Walk
-          </button>
-          <button
-            type="button"
-            className={pace === "run" ? "routePaceBtn active" : "routePaceBtn"}
-            aria-pressed={pace === "run"}
-            onClick={() => setPace("run")}
-          >
-            Run
-          </button>
-          <span className="routePaceTotal">{formatRouteTotal(legSummary)}</span>
-        </div>
-      ) : null}
-
-      {legSummary.legs.length > 0 && pace === "run" ? (
-        <p className="routeSafetyNote" role="note">
-          Run pace is for getting between stops — drink water, keep to well-lit routes, and
-          never treat running as a reason to drink more.
-        </p>
-      ) : null}
+      <RouteActions
+        mode={mode}
+        route={route}
+        legSummary={legSummary}
+        pace={pace}
+        setPace={setPace}
+        routeMapped={routeMapped}
+        cityDisplayName={cityDisplayName}
+        originDistanceKm={originDistanceKm}
+        onMapRoute={onMapRoute}
+        onHideRoute={onHideRoute}
+        onReverseRoute={onReverseRoute}
+        onCheckLastTrain={onCheckLastTrain}
+        crawlTitle={crawlTitle}
+        onRoundStarted={onRoundStarted}
+        addToCalendar={addToCalendar}
+      />
 
       {route.length >= 2 ? (
-        <div className={routeMapped ? "routeMapPrompt active" : "routeMapPrompt"}>
-          <div>
-            <strong>{routeMapped ? `Mapped on ${cityDisplayName}` : "Map this plan?"}</strong>
-            <span>
-              {legSummary.totalKm.toFixed(1)} km, {legSummary.totalMinutes} min{" "}
-              {pace === "run" ? "run" : "walk"},
-              straight-line.
-            </span>
-            {typeof originDistanceKm === "number" ? (
-              <small>From you: {originDistanceKm.toFixed(1)} km to the first stop.</small>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={routeMapped ? onHideRoute : onMapRoute}
-            aria-pressed={routeMapped}
-          >
-            <Route size={14} aria-hidden="true" />
-            {routeMapped ? "Hide line" : "Map route"}
-          </button>
-        </div>
-      ) : null}
-
-      {route.length >= 2 ? (
-        <div className="planRoundBridge" data-testid="plan-round-bridge">
-          <p className="roundStarterHelper">
-            Invite friends to walk this plan as a Round.
-          </p>
-          <RoundStarter
-            compact
-            defaultTitle={crawlTitle}
-            seedStops={route.map((venue) => ({ id: venue.id, name: venue.name }))}
-            onRoundStarted={onRoundStarted}
-          />
-        </div>
-      ) : null}
-
-      {route.length >= 1 ? (
-        <button
-          type="button"
-          className="addStopBtn calendarBtn"
-          onClick={addToCalendar}
-          data-testid="add-to-calendar"
-        >
-          <CalendarPlus size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
-          Add to calendar (.ics)
-        </button>
-      ) : null}
-
-      {route.length >= 2 && onCheckLastTrain ? (
-        <button
-          type="button"
-          className="addStopBtn trainRouteBtn"
-          onClick={onCheckLastTrain}
-          data-testid="check-last-train"
-        >
-          <TrainFront size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
-          Check last train at final stop
-        </button>
-      ) : null}
-
-      {route.length >= 2 ? (
-        <div className="crawlProgressRow" data-testid="crawl-progress">
-          {!crawlProgress ? (
-            <button type="button" className="addStopBtn" onClick={handleStartCrawl}>
-              <Footprints size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
-              Start this crawl
-            </button>
-          ) : crawlDone ? (
-            <p className="crawlProgressDone" role="status">
-              Crawl complete — {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
-            </p>
-          ) : (
-            <>
-              <p className="crawlProgressStatus" role="status">
-                {paceLabel} · {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
-              </p>
-              <button type="button" className="addStopBtn" onClick={handleMarkComplete}>
-                <Check size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
-                Mark complete
-              </button>
-            </>
-          )}
-          {showCelebration ? (
-            <div
-              className="crawlCelebration"
-              role="status"
-              data-testid="crawl-celebration"
-            >
-              <p className="crawlCelebrationTitle">You walked it</p>
-              <p className="crawlCelebrationCopy">
-                {placeStoryBandId
-                  ? "Place story complete — drop a memory, share the route, or stamp your passport."
-                  : "Crawl complete — drop a memory, share the route, or stamp your passport."}
-              </p>
-              <div className="crawlCelebrationActions">
-                <Link className="crawlCelebrationLink" href={dropHref}>
-                  Drop a pint
-                </Link>
-                <button
-                  type="button"
-                  className="crawlCelebrationLink crawlCelebrationCopyBtn"
-                  onClick={() => void copyShareLink()}
-                  data-testid="crawl-share-copy"
-                >
-                  {shareCopied ? "Link copied" : "Copy link"}
-                </button>
-                <Link
-                  className="crawlCelebrationLink"
-                  href={shareMapHref}
-                  data-testid="crawl-share-open"
-                >
-                  Open shared crawl
-                </Link>
-                <Link className="crawlCelebrationLink" href="/u/you">
-                  View passport
-                </Link>
-              </div>
-              <button
-                type="button"
-                className="crawlCelebrationDismiss"
-                onClick={() => setShowCelebration(false)}
-              >
-                Not now
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <CrawlProgressSection
+          crawlProgress={crawlProgress}
+          crawlDone={crawlDone}
+          showCelebration={showCelebration}
+          setShowCelebration={setShowCelebration}
+          handleStartCrawl={handleStartCrawl}
+          handleMarkComplete={handleMarkComplete}
+          paceLabel={paceLabel}
+          placeStoryBandId={placeStoryBandId}
+          dropHref={dropHref}
+          shareMapHref={shareMapHref}
+        />
       ) : null}
 
       {route.length >= 2 ? (
@@ -612,119 +251,23 @@ export default function RoutePanel({
         />
       ) : null}
 
-      <ol className="routeList">
-        {route.map((venue, index) => {
-          const signal = venueSignals.get(venue.id);
-          const dropCount = signal?.dropCount ?? 0;
-          const leg = legSummary.legs[index];
-          const onTheWay = onTheWayByLeg.get(index) ?? [];
-          return (
-          <li key={venue.id} className={activeVenueId === venue.id ? "active" : ""}>
-            <button
-              type="button"
-              onClick={() => onSelectVenue(venue.id)}
-              aria-current={activeVenueId === venue.id ? "true" : undefined}
-            >
-              <span className="stopNumber">{index + 1}</span>
-              <div>
-                <strong>
-                  {venue.name}
-                  {dropCount > 0 ? (
-                    <span
-                      className="provChip contributor"
-                      style={{ marginLeft: "6px", verticalAlign: "middle" }}
-                      title={`${dropCount} Pint Drop${dropCount === 1 ? "" : "s"} logged here`}
-                    >
-                      <Beer size={11} aria-hidden="true" />
-                      {dropCount}
-                    </span>
-                  ) : null}
-                </strong>
-                <p>
-                  {formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}
-                  · {venue.cheapestPint}
-                </p>
-                <small>
-                  {venue.curation.storyTag ||
-                    venue.primaryBorough ||
-                    venue.visibleBoroughs[0] ||
-                    "London"}
-                </small>
-              </div>
-            </button>
-            <a
-              className="routeStopDirections"
-              href={`https://www.google.com/maps/dir/?api=1&destination=${venue.latitude},${venue.longitude}&travelmode=walking`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Navigation size={12} aria-hidden="true" />
-              <span>Directions</span>
-            </a>
-            {leg ? (
-              <div className="routeLeg" aria-label={`Leg to ${leg.to.name}`}>
-                <Footprints size={13} aria-hidden="true" />
-                <span>{formatLeg(leg)}</span>
-                {onTheWay.length > 0 ? (
-                  <p className="routeLegOnWay">
-                    On the way: {onTheWay.map((m) => m.poi.name).join(", ")}
-                  </p>
-                ) : null}
-                {journeyByToIndex?.get(index) ? (
-                  <p className="routeLegTransit" aria-label="TfL leg">
-                    <TrainFront size={12} aria-hidden="true" />
-                    <span>{journeyByToIndex.get(index)!.summary}</span>
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </li>
-          );
-        })}
-      </ol>
+      <RouteList
+        route={route}
+        activeVenueId={activeVenueId}
+        venueSignals={venueSignals}
+        legSummary={legSummary}
+        onTheWayByLeg={onTheWayByLeg}
+        journeyByToIndex={journeyByToIndex}
+        onSelectVenue={onSelectVenue}
+      />
 
       {mode === "build" ? (
-        <section className="venuePicker">
-          <div className="inspectorTitle">
-            <PlusCircle size={16} />
-            <span>Add stops</span>
-          </div>
-          <p className="description muted">
-            Every filtered pub, keyboard-friendly — the map is optional. Use search and filters to
-            narrow the list.
-          </p>
-          <ul className="venuePickerList">
-            {filteredVenues.slice(0, PICKER_LIMIT).map((venue) => {
-              const inCrawl = builtIds.includes(venue.id);
-              return (
-                <li key={venue.id}>
-                  <button
-                    type="button"
-                    aria-pressed={inCrawl}
-                    onClick={() => {
-                      onSelectVenue(venue.id);
-                      onToggleStop(venue.id);
-                    }}
-                  >
-                    <span>
-                      <strong>{venue.name}</strong>
-                      <small>
-                        {formatPrice(venue.cheapestPrice)} ·{" "}
-                        {venue.primaryBorough || venue.visibleBoroughs[0] || "London"}
-                      </small>
-                    </span>
-                    <span className="pickAction">{inCrawl ? "Remove" : "Add"}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {filteredVenues.length > PICKER_LIMIT ? (
-            <small className="pickerNote">
-              Showing {PICKER_LIMIT} of {filteredVenues.length} — narrow the search to see more.
-            </small>
-          ) : null}
-        </section>
+        <VenuePicker
+          filteredVenues={filteredVenues}
+          builtIds={builtIds}
+          onSelectVenue={onSelectVenue}
+          onToggleStop={onToggleStop}
+        />
       ) : null}
 
       {children}
