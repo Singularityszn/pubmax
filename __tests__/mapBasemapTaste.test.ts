@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   applyBasemapTaste,
   applySelectionMute,
+  buildingMassingColorExpr,
   buildPalette,
   clusterCircleColorExpr,
   isBasemapSelectionMuteLayer,
@@ -237,6 +238,54 @@ describe("mixHex (M4 token-derivation primitive)", () => {
 
   it("falls back to hexA for malformed input rather than throwing", () => {
     expect(mixHex("not-a-color", "#ffffff", 0.5)).toBe("not-a-color");
+  });
+});
+
+describe("buildingMassingColorExpr (M6 interim — two-stop height gradient)", () => {
+  it("returns a height-keyed interpolate expression, low stop darker than base", () => {
+    const expr = buildingMassingColorExpr(darkTokens.buildingEmissive, darkTokens.inkDeep) as [
+      string,
+      unknown,
+      unknown,
+      number,
+      string,
+      number,
+      string,
+    ];
+    expect(expr[0]).toBe("interpolate");
+    expect(expr[3]).toBe(0);
+    expect(expr[5]).toBe(60);
+    // Tall stop is the base tone, unchanged — "keep each theme's current
+    // overall tone" holds at the top of the gradient.
+    expect(expr[6]).toBe(darkTokens.buildingEmissive);
+    // Low stop is a genuinely different (darkened) colour, not the flat base.
+    expect(expr[4]).not.toBe(darkTokens.buildingEmissive);
+    expect(expr[4]).toBe(mixHex(darkTokens.buildingEmissive, darkTokens.inkDeep, 0.55));
+  });
+
+  it("keys off the same render_height/height coalesce as fill-extrusion-height", () => {
+    const expr = buildingMassingColorExpr(tokens.buildingEmissive, tokens.inkDeep) as unknown[];
+    expect(expr[2]).toEqual(["coalesce", ["get", "render_height"], ["get", "height"], 14]);
+  });
+
+  it("both themes' low stop reads darker than their own base (never brighter)", () => {
+    for (const t of [tokens, darkTokens]) {
+      const expr = buildingMassingColorExpr(t.buildingEmissive, t.inkDeep) as [
+        string,
+        unknown,
+        unknown,
+        number,
+        string,
+      ];
+      const lowStop = expr[4];
+      // A crude luminance proxy: sum of RGB channels. Darkened toward inkDeep
+      // (a near-black token in both themes) must never increase luminance.
+      const lumOf = (hex: string) => {
+        const n = parseInt(hex.slice(1), 16);
+        return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255);
+      };
+      expect(lumOf(lowStop)).toBeLessThan(lumOf(t.buildingEmissive));
+    }
   });
 });
 

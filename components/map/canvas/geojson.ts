@@ -6,6 +6,8 @@ import type { Landmark } from "@/lib/landmarks";
 import { bandAnchors, type StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
 import type { VenueSignal } from "./types";
+import { hashEntranceSeed } from "./filters";
+import { PIN_ENTRANCE_BUCKETS } from "./tokens";
 
 export function priceBucket(price: number | null): number {
   if (price === null) return 3;
@@ -79,6 +81,10 @@ export function pubsToGeoJSON(
           drinkKind,
           scraped,
           icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
+          // M7 pin entrance — a stable per-pub stagger bucket (hash of id, not
+          // insertion order/coordinates) so the entrance cascade reads as a
+          // pleasant scatter rather than left-to-right or dataset-order.
+          entranceSeed: hashEntranceSeed(venue.id, PIN_ENTRANCE_BUCKETS),
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
       };
