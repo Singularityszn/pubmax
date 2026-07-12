@@ -76,6 +76,21 @@ export function donutTotal(counts: DonutCounts): number {
   return counts.reduce((sum, n) => sum + Math.max(0, n), 0);
 }
 
+/** Matches supercluster's `getClusterProperties` abbreviation exactly (the
+ *  same formatting MapLibre's `point_count_abbreviated` property carries for
+ *  the legacy `cluster-count` text layer — see
+ *  node_modules/maplibre-gl/dist/maplibre-gl-dev.js), so a cluster's label
+ *  reads identically whether it's rendered as a donut marker or (past
+ *  DONUT_CAP) the plain circle+count GL layers it hands off to:
+ *  count >= 10000 → round to the nearest 1000, e.g. 12345 -> "12k"
+ *  count >= 1000   → round to one decimal of a thousand, e.g. 1500 -> "1.5k"
+ *  otherwise       → the exact count. */
+export function formatDonutCount(total: number): string {
+  if (total >= 10000) return `${Math.round(total / 1000)}k`;
+  if (total >= 1000) return `${Math.round(total / 100) / 10}k`;
+  return String(total);
+}
+
 /** Builds the full marker SVG markup (string in, string out — pure) for a
  *  cluster's price-band mix. Segment stroke-width and overall size scale with
  *  the same step function as the legacy circle-radius expression so donut
@@ -88,7 +103,7 @@ export function buildDonutMarkerSvg(params: DonutMarkerSvgParams): string {
   const size = outerRadius * 2;
   const segments = buildDonutStrokeSegments(params.counts, params.colors, ringRadius);
   const fontSize = Math.max(8, outerRadius * 0.62);
-  const label = total > 999 ? `${Math.round(total / 100) / 10}k` : String(total);
+  const label = formatDonutCount(total);
   const segmentMarkup = segments
     .map(
       (seg) =>

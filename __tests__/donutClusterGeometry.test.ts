@@ -5,6 +5,7 @@ import {
   buildDonutStrokeSegments,
   donutOuterRadius,
   donutTotal,
+  formatDonutCount,
   type DonutCounts,
 } from "@/lib/donutClusterGeometry";
 
@@ -55,6 +56,18 @@ describe("buildDonutStrokeSegments", () => {
   it("omits zero-count buckets entirely (proportional to what actually renders)", () => {
     const segments = buildDonutStrokeSegments([0, 5, 0, 5], COLORS, 10);
     expect(segments.map((s) => s.index)).toEqual([1, 3]);
+  });
+});
+
+describe("formatDonutCount", () => {
+  it("matches supercluster's point_count_abbreviated exactly", () => {
+    expect(formatDonutCount(3)).toBe("3");
+    expect(formatDonutCount(999)).toBe("999");
+    expect(formatDonutCount(1000)).toBe("1k");
+    expect(formatDonutCount(1500)).toBe("1.5k");
+    expect(formatDonutCount(9999)).toBe("10k");
+    expect(formatDonutCount(10000)).toBe("10k");
+    expect(formatDonutCount(12345)).toBe("12k");
   });
 });
 

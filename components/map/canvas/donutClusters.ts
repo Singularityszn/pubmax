@@ -183,11 +183,20 @@ export function createDonutClusterSync(
     }
   };
 
-  const onRender = () => {
+  const throttledSync = () => {
     const now = performance.now();
     if (now - lastRenderAt < RENDER_THROTTLE_MS) return;
     lastRenderAt = now;
     sync();
+  };
+  // `sourcedata` fires for every tile/source on the map, including basemap
+  // tiles that have nothing to do with the `pubs` cluster tree — gate on the
+  // event actually being our source finishing a load, and route through the
+  // same throttle as `render` so a burst of tile loads can't re-run the
+  // querySourceFeatures + marker diff pass more than ~8x/sec.
+  const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
+    if (e.sourceId !== "pubs" || !e.isSourceLoaded) return;
+    throttledSync();
   };
   // A theme/style swap (setStyle) recreates the `pubs` source and its
   // supercluster tree — old marker els carry stale-themed SVG and cluster
@@ -198,16 +207,16 @@ export function createDonutClusterSync(
     donutsActive = false;
   };
 
-  map.on("render", onRender);
+  map.on("render", throttledSync);
   map.on("moveend", sync);
-  map.on("sourcedata", sync);
+  map.on("sourcedata", onSourceData);
   map.on("style.load", onStyleLoad);
 
   return {
     destroy: () => {
-      map.off("render", onRender);
+      map.off("render", throttledSync);
       map.off("moveend", sync);
-      map.off("sourcedata", sync);
+      map.off("sourcedata", onSourceData);
       map.off("style.load", onStyleLoad);
       clearMarkers();
     },
