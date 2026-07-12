@@ -17,6 +17,13 @@ export type BasemapTasteTokens = {
   brass: string;
   river: string;
   riverBright: string;
+  /** M4 — warm 3-D building massing tint (dark: warmed away from cool land;
+   *  light: existing amber-tinted massing). Never brass/coral wash — must
+   *  stay readable as a desaturated warm gray against inkDeep. */
+  buildingEmissive: string;
+  /** M4 — foliage green kept deliberately distinct from `pint` (the "cheap
+   *  pint" positive-semantic neon) so parks never read as pint UI colour. */
+  parkTint: string;
 };
 
 type PaintMap = {
@@ -49,6 +56,29 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
+/** Linear-RGB blend of two hex colours, `t` = weight toward `hexB` (0..1).
+ *  Pure, unit-tested — the token-derivation primitive for M4's light-theme
+ *  road hierarchy (mixing panel-raised white with a warm accent) so no new
+ *  raw hex literals are needed beyond the named CSS tokens. Falls back to
+ *  `hexA` unchanged if either input isn't a plain `#rrggbb`. */
+export function mixHex(hexA: string, hexB: string, t: number): string {
+  const a = /^#([0-9a-f]{6})$/i.exec(hexA.trim());
+  const b = /^#([0-9a-f]{6})$/i.exec(hexB.trim());
+  if (!a || !b) return hexA;
+  const na = parseInt(a[1], 16);
+  const nb = parseInt(b[1], 16);
+  const clamp = Math.min(1, Math.max(0, t));
+  const mix = (shift: number) => {
+    const ca = (na >> shift) & 255;
+    const cb = (nb >> shift) & 255;
+    return Math.round(ca + (cb - ca) * clamp);
+  };
+  const r = mix(16);
+  const g = mix(8);
+  const bch = mix(0);
+  return `#${[r, g, bch].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
 function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown): void {
   if (!map.getLayer(layerId)) return;
   try {
@@ -62,31 +92,41 @@ function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown):
 export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
   if (dark) {
     // Night city (Apple/Google Maps night pattern): deep cool land, buildings
-    // a clear step lighter in cool gray — never brass/coral wash (vanishes into
-    // inkDeep) and never `--line` alone (too close to land at low alpha).
-    // OpenFreeMap dark Liberty uses highway_* ids — keep those bright.
+    // a clear step lighter — M4 warms this massing (buildingEmissive) rather
+    // than the old flat cool gray, but stays desaturated: never brass/coral
+    // wash (vanishes into inkDeep) and never `--line` alone (too close to
+    // land at low alpha). OpenFreeMap dark Liberty uses highway_* ids — keep
+    // those bright. Park uses parkTint (M4), never pint — pint is the "cheap
+    // pint" UI semantic and must not double as foliage.
     return {
       land: tokens.inkDeep || tokens.paper,
       landSoft: withAlpha(tokens.brass, 0.14),
       residential: withAlpha(tokens.brass, 0.12),
-      park: withAlpha(tokens.pint, 0.32),
-      // Cool mid-gray massing — OFM dark ships buildings at rgb(10,10,10)
-      // which vanish into inkDeep; lift well above land so footprints read.
-      building: "#6e778a",
+      park: withAlpha(tokens.parkTint, 0.32),
+      // Warmed massing (M4) — lifted well above land so footprints read, now
+      // with a dusk-lamp warmth instead of the old cool blue-gray.
+      building: tokens.buildingEmissive,
       water: tokens.river,
       road: withAlpha(tokens.ink, 0.88),
       roadMajor: withAlpha(tokens.amber, 0.96),
     };
   }
+  // Light-theme hierarchy audit (M4): calmer water (was the saturated
+  // riverBright cyan, painted opaque — now a translucent wash of the deeper
+  // `river` blue so it reads as calm water, not neon); roads brighter than
+  // land (was a brass/coral wash near-indistinguishable from the warm paper
+  // land — now a near-white minor-road base with a warmer gold major-road
+  // tier, both mixed from panelRaised so they read as paper-map streets);
+  // park uses parkTint, never pint (see dark branch comment).
   return {
     land: tokens.paper,
     landSoft: withAlpha(tokens.amber, 0.14),
     residential: withAlpha(tokens.pint, 0.1),
-    park: withAlpha(tokens.pint, 0.26),
-    building: withAlpha(tokens.amber, 0.22),
-    water: tokens.riverBright,
-    road: withAlpha(tokens.brass, 0.55),
-    roadMajor: withAlpha(tokens.amber, 0.62),
+    park: withAlpha(tokens.parkTint, 0.26),
+    building: withAlpha(tokens.buildingEmissive, 0.22),
+    water: withAlpha(tokens.river, 0.6),
+    road: withAlpha(mixHex(tokens.panelRaised, tokens.amber, 0.08), 0.85),
+    roadMajor: withAlpha(mixHex(tokens.panelRaised, tokens.amber, 0.4), 0.95),
   };
 }
 
