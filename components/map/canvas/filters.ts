@@ -65,6 +65,18 @@ export const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
   iconId("tfl", "river"),
   iconId("tfl", "underground"),
 ];
+// pubs-point `icon-size`, extracted so M7's entrance ramp (PubMapCanvas) can
+// wrap the exact same zoom-driven expression rather than re-declaring it.
+export const PIN_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  10,
+  ["case", ["get", "story"], 0.7, 0.62],
+  15,
+  ["case", ["get", "story"], 1.05, 0.95],
+];
+
 // M1 selection spotlight — pubs-point `icon-opacity`. With no selection, the
 // existing serves-based dim is untouched (0.98 serving / 0.22 filtered-out).
 // With a selection: the selected pub always reads at full opacity (unmissable
@@ -93,6 +105,94 @@ export function glowPulsePaint(now: number): { opacity: number; width: number } 
     opacity: GLOW_PULSE_MIN_OPACITY + (GLOW_PULSE_MAX_OPACITY - GLOW_PULSE_MIN_OPACITY) * wave,
     width: GLOW_PULSE_MIN_WIDTH + (GLOW_PULSE_MAX_WIDTH - GLOW_PULSE_MIN_WIDTH) * wave,
   };
+}
+
+// M7 pin entrance — deterministic FNV-1a-style hash of a pub id into
+// 0..buckets-1, stashed once as `entranceSeed` on the GeoJSON feature
+// (components/map/canvas/geojson.ts) so the stagger is stable across
+// re-renders/theme rebuilds without a second per-frame hash pass. Pure,
+// unit-tested: any string in, a bounded bucket index out.
+export function hashEntranceSeed(id: string, buckets: number): number {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % Math.max(1, buckets);
+}
+
+// Per-feature entrance progress (0..1) at `elapsedMs` since the entrance
+// started: bucket `seed` gets a proportional delay across `staggerMs`, then
+// ramps 0→1 over `rampMs` — the plain-number twin of
+// pinEntranceLocalTExpr below, used by unit tests and by the t=0 synchronous
+// first paint (settleSceneReady) before the RAF loop takes over.
+export function pinEntranceLocalT(
+  elapsedMs: number,
+  seed: number,
+  buckets: number,
+  staggerMs: number,
+  rampMs: number,
+): number {
+  const delay = (seed / Math.max(1, buckets)) * staggerMs;
+  const t = (elapsedMs - delay) / rampMs;
+  return Math.max(0, Math.min(1, t));
+}
+
+// MapLibre-expression twin of pinEntranceLocalT — data-driven off the
+// feature's own `entranceSeed` property, so one setPaintProperty /
+// setLayoutProperty call per RAF frame animates every pin's ramp without a
+// giant per-id match table or feature-state bookkeeping.
+function pinEntranceLocalTExpr(
+  elapsedMs: number,
+  buckets: number,
+  staggerMs: number,
+  rampMs: number,
+): maplibregl.ExpressionSpecification {
+  const delay: maplibregl.ExpressionSpecification = [
+    "*",
+    ["/", ["get", "entranceSeed"], Math.max(1, buckets)],
+    staggerMs,
+  ];
+  const raw: maplibregl.ExpressionSpecification = [
+    "/",
+    ["-", elapsedMs, delay],
+    rampMs,
+  ] as unknown as maplibregl.ExpressionSpecification;
+  return ["max", 0, ["min", 1, raw]] as unknown as maplibregl.ExpressionSpecification;
+}
+
+// pubs-point `icon-size` during the M7 entrance window: every pub ramps in
+// from 0 to its normal PIN_ICON_SIZE_EXPR size — EXCEPT the selected pin
+// (deep-linked `?sel=` or otherwise), which must read at full size
+// immediately; M1's spotlight always wins over the entrance choreography.
+export function pinEntranceIconSizeExpr(
+  elapsedMs: number,
+  selectedId: string,
+  buckets: number,
+  staggerMs: number,
+  rampMs: number,
+): maplibregl.ExpressionSpecification {
+  const localT = pinEntranceLocalTExpr(elapsedMs, buckets, staggerMs, rampMs);
+  const ramped: maplibregl.ExpressionSpecification = ["*", localT, PIN_ICON_SIZE_EXPR];
+  if (!selectedId) return ramped;
+  return ["case", ["==", ["get", "id"], selectedId], PIN_ICON_SIZE_EXPR, ramped];
+}
+
+// pubs-point `icon-opacity` during the M7 entrance window — same guard: the
+// selected pin keeps its normal pubIconOpacityExpr value (1, unmissable),
+// every other pin ramps in against ITS resolved (serves-aware) opacity.
+export function pinEntranceIconOpacityExpr(
+  elapsedMs: number,
+  selectedId: string,
+  buckets: number,
+  staggerMs: number,
+  rampMs: number,
+): maplibregl.ExpressionSpecification {
+  const localT = pinEntranceLocalTExpr(elapsedMs, buckets, staggerMs, rampMs);
+  const baseOpacity = pubIconOpacityExpr(selectedId);
+  const ramped: maplibregl.ExpressionSpecification = ["*", localT, baseOpacity];
+  if (!selectedId) return ramped;
+  return ["case", ["==", ["get", "id"], selectedId], baseOpacity, ramped];
 }
 
 export const TONIGHT_OPPORTUNITY_LAYERS = [

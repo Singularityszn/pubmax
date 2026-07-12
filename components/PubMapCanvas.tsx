@@ -44,6 +44,7 @@ import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, LONDON_BOUNDS,
   ORBIT_DEG_PER_SEC, ORBIT_RESUME_MS, DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
+  PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
   readTokens,
 } from "@/components/map/canvas/tokens";
 import {
@@ -53,6 +54,7 @@ import {
 import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
+  PIN_ICON_SIZE_EXPR, pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
@@ -396,6 +398,13 @@ export default function PubMapCanvas({
     venuesRef.current = venues;
   }, [venues]);
   const selectedIdRef = useRef(selectedVenueId);
+  // M7 pin entrance — set once, right after the first settleSceneReady(), and
+  // driven off the existing orbit/dash/pulse RAF loop below. `active` gates
+  // the per-frame work; `startedAt` anchors elapsed time. Never re-armed by a
+  // theme swap or filter change — see settleSceneReady's own `sceneSettled`
+  // guard, which only ever fires once per mount.
+  const pinEntranceActiveRef = useRef(false);
+  const pinEntranceStartRef = useRef(0);
   // buildScene reads this on every (re)build so a theme swap keeps the toggles.
   const poiHiddenRef = useRef(poiHidden);
   // M2 — pre-mute paint originals for the POI-at-initiation selection mute
@@ -850,6 +859,67 @@ export default function PubMapCanvas({
     let usingFallback = false;
     let sceneSettled = false;
     let hardFailTimer: ReturnType<typeof setTimeout> | undefined;
+
+    // --- M7 pin entrance. Defined here (ahead of the style.load wiring below)
+    // rather than down by the RAF loop: a cached style can fire `style.load`
+    // SYNCHRONOUSLY from the `map.on(...)` call a few lines down (see the
+    // hang-guard comment above), which would call settleSceneReady() —
+    // and therefore startPinEntrance() — before any const declared later in
+    // this function body has initialized. Keeping these three consts above
+    // that registration avoids a "Cannot access before initialization" throw
+    // on the fast/cached-style path.
+    const applyPinEntranceFrame = (elapsedMs: number) => {
+      if (!map.getLayer("pubs-point")) return;
+      const selectedId = selectedIdRef.current;
+      map.setLayoutProperty(
+        "pubs-point",
+        "icon-size",
+        pinEntranceIconSizeExpr(
+          elapsedMs,
+          selectedId,
+          PIN_ENTRANCE_BUCKETS,
+          PIN_ENTRANCE_STAGGER_MS,
+          PIN_ENTRANCE_RAMP_MS,
+        ),
+      );
+      map.setPaintProperty(
+        "pubs-point",
+        "icon-opacity",
+        pinEntranceIconOpacityExpr(
+          elapsedMs,
+          selectedId,
+          PIN_ENTRANCE_BUCKETS,
+          PIN_ENTRANCE_STAGGER_MS,
+          PIN_ENTRANCE_RAMP_MS,
+        ),
+      );
+    };
+    // Restores the static baseline (buildScene's own expressions) and
+    // re-arms the layer's normal 250ms opacity transition (disabled for the
+    // duration of the ramp so the manual per-frame writes above aren't
+    // smoothed/lagged by it — same reasoning as pubs-selected-glow's pulse).
+    const finishPinEntrance = () => {
+      pinEntranceActiveRef.current = false;
+      if (!map.getLayer("pubs-point")) return;
+      map.setPaintProperty("pubs-point", "icon-opacity-transition", {
+        duration: 250,
+        delay: 0,
+      });
+      map.setLayoutProperty("pubs-point", "icon-size", PIN_ICON_SIZE_EXPR);
+      map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
+    };
+    // Fired once, from settleSceneReady's first pin reveal. `sceneSettled`
+    // upstream already guarantees this never re-arms on a filter change,
+    // theme swap, or city switch within the same mount.
+    const startPinEntrance = () => {
+      if (reducedRef.current || !map.getLayer("pubs-point")) return; // no-preference gated
+      pinEntranceActiveRef.current = true;
+      pinEntranceStartRef.current = performance.now();
+      map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
+      // Paint t=0 synchronously so there's no one-frame flash of full-size,
+      // full-opacity pins before the RAF loop's next tick picks up the ramp.
+      applyPinEntranceFrame(0);
+    };
     // settle* helpers close over hangFailTimer; they only run after this const
     // is initialized (and after style.load listeners are wired below).
     const settleSceneReady = () => {
@@ -857,6 +927,7 @@ export default function PubMapCanvas({
       sceneSettled = true;
       clearTimeout(hangFailTimer);
       publishMapReady(true);
+      startPinEntrance();
     };
     const settleSceneError = (error: NonNullable<typeof mapError>) => {
       if (sceneSettled) return;
@@ -991,6 +1062,25 @@ export default function PubMapCanvas({
       rafId = requestAnimationFrame(frame);
       const dt = Math.min(now - last, 100);
       last = now;
+      // M7 pin entrance — progressed ahead of the big early-return below so
+      // it isn't starved by a hidden/blurred tab (a background tab still
+      // ticks rAF, just throttled; the elapsed-time check below simply
+      // finishes instantly once the tab is foregrounded again — no visible
+      // pop since nothing was visible meanwhile). A mid-ramp reduced-motion
+      // toggle also finishes instantly rather than leaving pins stuck
+      // half-visible forever.
+      if (pinEntranceActiveRef.current && map.isStyleLoaded() && map.getLayer("pubs-point")) {
+        if (reducedRef.current) {
+          finishPinEntrance();
+        } else {
+          const elapsed = now - pinEntranceStartRef.current;
+          if (elapsed >= PIN_ENTRANCE_TOTAL_MS) {
+            finishPinEntrance();
+          } else {
+            applyPinEntranceFrame(elapsed);
+          }
+        }
+      }
       // isStyleLoaded() is null-safe and false mid-swap; check it BEFORE
       // getLayer, which throws on the transiently-null style during a theme
       // setStyle({diff:false}) or on teardown.

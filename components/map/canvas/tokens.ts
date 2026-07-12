@@ -61,6 +61,19 @@ export const GLOW_PULSE_MAX_OPACITY = 0.62;
 export const GLOW_PULSE_MIN_WIDTH = 3;
 export const GLOW_PULSE_MAX_WIDTH = 4.6;
 
+// M7 pin entrance — a per-pub icon-size/opacity ramp fired once, right after
+// settleSceneReady()'s first pin reveal, off the SAME RAF loop the M1 pulse
+// uses (no second requestAnimationFrame). Each pub's own ramp is spread out
+// (`entranceSeed`, a hash of its id — see filters.ts pinEntranceLocalT) over
+// PIN_ENTRANCE_STAGGER_MS so the cascade isn't mechanical/left-to-right, then
+// individually ramps in over PIN_ENTRANCE_RAMP_MS. Stagger + ramp sum to the
+// PRD's "~400ms" total. Reduced-motion is a hard skip (see PubMapCanvas) —
+// those users keep today's instant pin paint.
+export const PIN_ENTRANCE_BUCKETS = 14;
+export const PIN_ENTRANCE_STAGGER_MS = 220;
+export const PIN_ENTRANCE_RAMP_MS = 180;
+export const PIN_ENTRANCE_TOTAL_MS = PIN_ENTRANCE_STAGGER_MS + PIN_ENTRANCE_RAMP_MS;
+
 // Classic "marching ants" dash cycle for the brass route line.
 export const DASH_SEQ: number[][] = [
   [0, 4, 3],

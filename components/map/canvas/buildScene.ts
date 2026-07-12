@@ -23,6 +23,7 @@ import {
   TRANSPORT_ICON_MATCH,
   TUBE_LINE_OFFSET_EXPR,
   pubIconOpacityExpr,
+  PIN_ICON_SIZE_EXPR,
 } from "./filters";
 
 // Single source of truth for the cluster/uncluster boundary: the zoom at which
@@ -540,15 +541,10 @@ export function buildPubs(ctx: SceneCtx) {
     filter: ["!", ["has", "point_count"]],
     layout: {
       "icon-image": ["get", "icon"],
-      "icon-size": [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        10,
-        ["case", ["get", "story"], 0.7, 0.62],
-        15,
-        ["case", ["get", "story"], 1.05, 0.95],
-      ],
+      // M7 — the static baseline size. During the once-only entrance ramp
+      // (PubMapCanvas, right after settleSceneReady) this gets temporarily
+      // overridden per-frame by pinEntranceIconSizeExpr, then restored here.
+      "icon-size": PIN_ICON_SIZE_EXPR,
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
       "icon-padding": 2,
