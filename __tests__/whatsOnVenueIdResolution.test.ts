@@ -43,12 +43,14 @@ describe("what's-on venueId resolution (W6)", () => {
     expect(resolutionRate(rows)).toBeGreaterThanOrEqual(0);
   });
 
-  it("music_london.json: rows are honestly left unresolved without address/coords", () => {
+  it("music_london.json: rows are honestly left unresolved while the venues are absent from the canonical dataset", () => {
     const rows = readRows("music_london.json");
     expect(rows.length).toBeGreaterThan(0);
-    // No address/postcode/coords ship with this vertical's source data, so the
-    // resolver's fallback (which requires an independent confirmation) can't
-    // fire — this asserts the honest floor, not a false positive rate.
+    // The seeds now carry hand-verified address+postcode, but none of the five
+    // residency venues exists in pint_prices_app_dataset.json yet, so the
+    // resolver (correctly) has no candidate to confirm — this asserts the
+    // honest floor, not a false positive rate. When the canonical dataset
+    // grows to include these pubs, resolution lights up automatically.
     expect(resolutionRate(rows)).toBeGreaterThanOrEqual(0);
   });
 });

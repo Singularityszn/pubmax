@@ -13,6 +13,8 @@ export declare const TROUBADOUR_SOURCE: MusicSource;
 export type MusicResidencyDef = {
   id: string;
   placeName: string;
+  address?: string;
+  postcode?: string;
   dayName: string;
   startTime: string;
   title: string;

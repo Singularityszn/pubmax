@@ -58,15 +58,17 @@
 // none of these residencies' own pages state how long the set runs — omitted
 // rather than guessed.
 //
-// VENUE MATCHING (W6): rows carry no address/postcode/coordinates (neither
-// residency's own page publishes them), so resolveVenueId's fallback path —
-// which requires an independent postcode-district or <=75m proximity
-// confirmation on top of the normalized-name match — can rarely confirm a
-// match here; it is still run (via loadCanonicalVenueIndex in main()) so a
-// venue whose normalized name happens to be unambiguous in the canonical
-// dataset still resolves, but most rows are expected to stay unresolved
-// until a geocoded match is manually confirmed and added as address/lat/lng
-// above.
+// VENUE MATCHING (W6): each seed entry carries the venue's own published
+// street address + postcode (hand-verified, same first-party standard as
+// the residency slots themselves), passed into resolveVenueId so its
+// conservative fallback (normalized-name match confirmed by postcode
+// district or <=75m proximity) can fire. HONEST CURRENT STATE: none of the
+// five venues below exists in the canonical pint_prices_app_dataset.json
+// (checked 2026-07-12 — zero normalized-name candidates for any of them),
+// so every row currently ships unresolved; the postcodes are carried so
+// resolution lights up automatically the moment the canonical dataset grows
+// to include these pubs, with no generator change needed. `venueId` is only
+// ever set when resolveVenueId returns non-null.
 
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -127,6 +129,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-monday-jam",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Monday",
     startTime: "20:30",
     title: "Monday Jam Sessions",
@@ -137,6 +141,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-tuesday-trad",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Tuesday",
     startTime: "19:00",
     title: "Irish/English Trad Session",
@@ -146,6 +152,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-wednesday-jam",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Wednesday",
     startTime: "20:00",
     title: "South London Jam",
@@ -155,6 +163,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-saturday-gig",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Saturday",
     startTime: "21:00",
     title: "The Big Saturday Night Gig",
@@ -164,6 +174,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-sunday-folk",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Sunday",
     startTime: "19:00",
     title: "Sunday Night Folk Sessions",
@@ -173,6 +185,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "ivyhouse-sunday-jazz",
     placeName: "The Ivy House",
+    address: "40 Stuart Road, Nunhead, London",
+    postcode: "SE15 3BE",
     dayName: "Sunday",
     startTime: "16:00",
     title: "Jazz + Roasts Sundays",
@@ -183,6 +197,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "spiceoflife-monday-jam",
     placeName: "The Spice of Life",
+    address: "6 Moor Street, Cambridge Circus, London",
+    postcode: "W1D 5NA",
     dayName: "Monday",
     startTime: "19:00",
     title: "Dove Jones Connection Blues & Jazz Jam Party",
@@ -193,6 +209,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "spiceoflife-sunday-jazzjam",
     placeName: "The Spice of Life",
+    address: "6 Moor Street, Cambridge Circus, London",
+    postcode: "W1D 5NA",
     dayName: "Sunday",
     startTime: "13:00",
     title: "Jazz Notes Jazz Jam",
@@ -203,6 +221,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "aintnothinbut-monday-bluesjam",
     placeName: "Ain't Nothin' But",
+    address: "20 Kingly Street, Soho, London",
+    postcode: "W1B 5PZ",
     dayName: "Monday",
     startTime: "20:00",
     title: "Monday Night Blues Jam",
@@ -213,6 +233,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "troubadour-sunday-jazz",
     placeName: "Troubadour",
+    address: "263-267 Old Brompton Road, Earls Court, London",
+    postcode: "SW5 9JA",
     dayName: "Sunday",
     startTime: "20:00",
     title: "Jazz Sundays",
@@ -255,7 +277,10 @@ export function buildMusicResidencyRows({ residencies, observedAt, venueIndex = 
       confidence: "listed",
     };
     if (venueIndex) {
-      const resolved = resolveVenueId({ name: res.placeName }, venueIndex);
+      const resolved = resolveVenueId(
+        { name: res.placeName, address: res.address, postcode: res.postcode },
+        venueIndex,
+      );
       if (resolved) row.venueId = resolved;
     }
     rows.push(row);
