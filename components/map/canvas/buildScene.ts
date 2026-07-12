@@ -3,13 +3,21 @@ import { applyBasemapTaste, clusterCircleColorExpr } from "@/lib/mapBasemapTaste
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import type { IconTokens } from "@/lib/mapIcons";
-import { type Tokens, withAlpha, DASH_SEQ, registerMapIcons } from "./tokens";
+import {
+  type Tokens,
+  withAlpha,
+  DASH_SEQ,
+  registerMapIcons,
+  GLOW_BASE_STROKE_OPACITY,
+  GLOW_BASE_STROKE_WIDTH,
+} from "./tokens";
 import {
   AMBIENT_CATEGORIES,
   poiFilter,
   transportFilter,
   TRANSPORT_ICON_MATCH,
   TUBE_LINE_OFFSET_EXPR,
+  pubIconOpacityExpr,
 } from "./filters";
 
 // Single source of truth for the cluster/uncluster boundary: the zoom at which
@@ -504,11 +512,18 @@ export function buildPubs(ctx: SceneCtx) {
       "icon-padding": 2,
     },
     paint: {
-      "icon-opacity": ["case", ["get", "serves"], 0.98, 0.22],
+      // M1 selection spotlight: non-selected pins dim to SELECTION_DIM_OPACITY
+      // once a venue is selected; the selected pin always reads at full
+      // opacity. Eased (not snapped) via icon-opacity-transition.
+      "icon-opacity": pubIconOpacityExpr(selectedId),
+      "icon-opacity-transition": { duration: 250, delay: 0 },
     },
   });
   // Selected pin: a confident double brass ring — a soft outer wash plus a
-  // bright inner edge — that lifts the choice above every other pin.
+  // bright inner edge — that lifts the choice above every other pin. M1 adds
+  // a breathing pulse (stroke-opacity + stroke-width), driven every frame by
+  // the existing RAF loop in PubMapCanvas — paint transitions are disabled
+  // here (duration 0) so the manual per-frame writes aren't smoothed/lagged.
   addLayerOnce({
     id: "pubs-selected-glow",
     type: "circle",
@@ -519,8 +534,10 @@ export function buildPubs(ctx: SceneCtx) {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 15],
       "circle-stroke-color": tokens.brass,
-      "circle-stroke-width": 3.2,
-      "circle-stroke-opacity": 0.35,
+      "circle-stroke-width": GLOW_BASE_STROKE_WIDTH,
+      "circle-stroke-opacity": GLOW_BASE_STROKE_OPACITY,
+      "circle-stroke-width-transition": { duration: 0, delay: 0 },
+      "circle-stroke-opacity-transition": { duration: 0, delay: 0 },
       "circle-blur": 0.22,
     },
   });
