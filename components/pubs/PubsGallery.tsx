@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ExternalLink, MapPinned } from "lucide-react";
 
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
+import VenueImage from "@/components/media/VenueImage";
 import { trackEvent } from "@/lib/analytics";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import {
@@ -46,13 +46,12 @@ function DrinkArt({
       style={{ ["--drink" as string]: `var(--cat-${accent})` }}
     >
       {photoUrl ? (
-        <Image
-          src={photoUrl}
+        <VenueImage
+          className="pubsCardPhoto"
+          sources={[{ url: photoUrl, provenance: "chain" }]}
           alt=""
           fill
-          sizes="(max-width: 640px) 90vw, 280px"
-          className="pubsCardPhoto"
-          unoptimized
+          showProvenance={false}
         />
       ) : null}
       <div className="pubsCardArtWash" aria-hidden="true" />

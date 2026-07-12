@@ -139,8 +139,18 @@
 }
 
 .pubsCardPhoto {
-  object-fit: cover;
+  /* E3′ — VenueImage renders a <figure> wrapper (fill mode); stretch it to
+     the .pubsCardArt tile the same way the raw <img fill> used to. */
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border-radius: 0;
+  background: none;
   opacity: 0.88;
+}
+
+.pubsCardPhoto .venueImage__img {
+  object-fit: cover;
 }
 
 .pubsCardArtWash {

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { MapPin } from "lucide-react";
 
-import VenueImage from "@/components/media/VenueImage";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import {
   COMMUNITY_PRICE_NOTE,
@@ -79,13 +78,6 @@ export default function VenueOverviewTab({
       className="venueTabPanel"
       hidden={tab !== "overview"}
     >
-      <VenueImage
-        className="venueImage--header venueBaselinePhoto"
-        src={venue.imageUrl}
-        alt={`${venue.name} exterior or bar photo`}
-        width={720}
-        height={420}
-      />
       <p className="venueAddress">{venue.address}</p>
       <VenueActionStrip venue={venue} />
       <CityPlaceStrip

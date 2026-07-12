@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { directVenueImageUrl } from "@/lib/venueImages";
+import {
+  directVenueImageUrl,
+  resolveVenueImage,
+  VENUE_IMAGE_PROVENANCE_LABEL,
+} from "@/lib/venueImages";
 
 describe("directVenueImageUrl", () => {
   it("keeps direct http and https venue image URLs", () => {
@@ -21,5 +25,62 @@ describe("directVenueImageUrl", () => {
     expect(directVenueImageUrl("not a url")).toBe("");
     expect(directVenueImageUrl("javascript:alert(1)")).toBe("");
     expect(directVenueImageUrl("")).toBe("");
+  });
+});
+
+// E3′ — one shared source-pick + provenance resolver behind VenueImage
+// (components/media/VenueImage.tsx). These tests exercise the pure logic;
+// the component itself is DOM-only and covered by the Playwright shots.
+describe("resolveVenueImage", () => {
+  it("picks the first source in priority order — chain before community", () => {
+    const resolved = resolveVenueImage([
+      { url: "https://pub.example.com/photo.jpg", provenance: "chain" },
+      { url: "https://storage.supabase.co/pint.jpg", provenance: "community" },
+    ]);
+    expect(resolved).toEqual({
+      url: "/api/image-proxy?src=" + encodeURIComponent("https://pub.example.com/photo.jpg"),
+      provenance: "chain",
+    });
+  });
+
+  it("falls through to the next source when an earlier one is empty/missing", () => {
+    const resolved = resolveVenueImage([
+      { url: null, provenance: "chain" },
+      { url: "https://storage.supabase.co/pint.jpg", provenance: "community" },
+    ]);
+    expect(resolved).toEqual({
+      url: "https://storage.supabase.co/pint.jpg",
+      provenance: "community",
+    });
+  });
+
+  it("falls through to the next source when an earlier one is blocked/invalid", () => {
+    const resolved = resolveVenueImage([
+      { url: "https://images.app.goo.gl/abc", provenance: "chain" },
+      { url: "https://storage.supabase.co/pint.jpg", provenance: "community" },
+    ]);
+    expect(resolved?.provenance).toBe("community");
+  });
+
+  it("passes through an already-proxied chain URL instead of double-proxying it", () => {
+    const alreadyProxied = "/api/image-proxy?src=" + encodeURIComponent("https://pub.example.com/a.jpg");
+    const resolved = resolveVenueImage([{ url: alreadyProxied, provenance: "chain" }]);
+    expect(resolved).toEqual({ url: alreadyProxied, provenance: "chain" });
+  });
+
+  it("returns null when nothing resolves — the honest gradient-fallback case", () => {
+    expect(resolveVenueImage([])).toBeNull();
+    expect(
+      resolveVenueImage([
+        { url: undefined, provenance: "chain" },
+        { url: "", provenance: "community" },
+      ]),
+    ).toBeNull();
+  });
+
+  it("has a distinct, honest label per provenance", () => {
+    expect(VENUE_IMAGE_PROVENANCE_LABEL.chain).not.toBe(VENUE_IMAGE_PROVENANCE_LABEL.community);
+    expect(VENUE_IMAGE_PROVENANCE_LABEL.chain).toMatch(/pub website/i);
+    expect(VENUE_IMAGE_PROVENANCE_LABEL.community).toMatch(/community/i);
   });
 });

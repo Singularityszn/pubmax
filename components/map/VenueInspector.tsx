@@ -80,6 +80,18 @@ export default function VenueInspector({
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
   const TABS = useMemo(() => tabsForCity(cityId), [cityId]);
 
+  // E3′ — the header photo prefers a chain (scraped) photo but falls back to
+  // the most recent community Pint Drop photo for this venue so a pub with no
+  // scraped image still gets an honestly-labelled community shot instead of
+  // the empty gradient.
+  const communityPhotoUrl = useMemo(
+    () =>
+      drops.find((drop) => drop.venuePhotoUrl || drop.pintPhotoUrl)?.venuePhotoUrl ??
+      drops.find((drop) => drop.pintPhotoUrl)?.pintPhotoUrl ??
+      null,
+    [drops],
+  );
+
   const { presenceState, markPresenceHere } = usePresence(venue);
   const { tab, selectTab, onTabKeyDown, tabRefs } = useInspectorTabs(
     initialTab,
@@ -110,6 +122,7 @@ export default function VenueInspector({
     <section className="venueInspector">
       <VenueInspectorHeader
         venue={venue}
+        communityPhotoUrl={communityPhotoUrl}
         TABS={TABS}
         tab={tab}
         selectTab={selectTab}

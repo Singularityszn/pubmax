@@ -1,31 +1,43 @@
 "use client";
 
-// E3′ — one shared proxied venue-image component for sheets, feed, crawls, and
-// hover cards. Always routes remote photos through /api/image-proxy via
-// proxiedVenueImageUrl so CSP img-src stays tight.
+// E3′ — one shared proxied venue-image component for the venue sheet header,
+// feed/gallery/hover-card thumbnails. Always routes chain (scraped) photos
+// through /api/image-proxy via resolveVenueImage so CSP img-src stays tight;
+// community (Pint Drop) photos are already same-origin signed Storage URLs.
+// Honest by construction: `sources` are tried in priority order and the
+// first one that resolves wins, with its provenance labelled on-image — a
+// photo whose provenance is unknown is never rendered, only the gradient
+// fallback.
 
 import Image from "next/image";
 import { useState } from "react";
 
-import { proxiedVenueImageUrl } from "@/lib/venueImages";
+import {
+  resolveVenueImage,
+  VENUE_IMAGE_PROVENANCE_LABEL,
+  type VenueImageSource,
+} from "@/lib/venueImages";
 
 import "./venueImage.css";
 
 type VenueImageProps = {
-  src?: string | null;
+  /** Candidate sources in priority order — first one that resolves wins. */
+  sources: VenueImageSource[];
   alt: string;
   className?: string;
-  /** Optional provenance caption under the image ("Checked …"). */
+  /** Optional extra caption under the image (e.g. "the pint", "at the bar"). */
   caption?: string;
   width?: number;
   height?: number;
   priority?: boolean;
   /** When true, fill the parent (object-fit cover). */
   fill?: boolean;
+  /** Show the on-image provenance label ("Photo: pub website"/"Photo: community"). Default true. */
+  showProvenance?: boolean;
 };
 
 export default function VenueImage({
-  src,
+  sources,
   alt,
   className = "",
   caption,
@@ -33,10 +45,11 @@ export default function VenueImage({
   height = 360,
   priority = false,
   fill = false,
+  showProvenance = true,
 }: VenueImageProps) {
   const [failed, setFailed] = useState(false);
-  const proxied = src ? proxiedVenueImageUrl(src) : "";
-  const show = Boolean(proxied) && !failed;
+  const resolved = resolveVenueImage(sources);
+  const show = Boolean(resolved) && !failed;
 
   if (!show) {
     return (
@@ -50,11 +63,14 @@ export default function VenueImage({
     );
   }
 
+  const src = resolved!.url;
+  const provenanceLabel = VENUE_IMAGE_PROVENANCE_LABEL[resolved!.provenance];
+
   return (
     <figure className={`venueImage ${className}`.trim()}>
       {fill ? (
         <Image
-          src={proxied}
+          src={src}
           alt={alt}
           fill
           sizes="(max-width: 640px) 100vw, 420px"
@@ -65,7 +81,7 @@ export default function VenueImage({
         />
       ) : (
         <Image
-          src={proxied}
+          src={src}
           alt={alt}
           width={width}
           height={height}
@@ -75,6 +91,9 @@ export default function VenueImage({
           onError={() => setFailed(true)}
         />
       )}
+      {showProvenance ? (
+        <span className="venueImage__provenance">{provenanceLabel}</span>
+      ) : null}
       {caption ? <figcaption className="venueImage__caption">{caption}</figcaption> : null}
     </figure>
   );
