@@ -85,11 +85,17 @@ export default function SignInButton({
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
   const menuId = useId();
 
   // Light-dismiss for the compact popover: outside pointer-down or Escape.
   // Listeners only exist while the menu is open, so this costs nothing when
-  // closed and never runs for the non-compact (standalone) variant.
+  // closed and never runs for the non-compact (standalone) variant. Tab/
+  // Shift+Tab are trapped between the two provider buttons while the popover
+  // is open, so keyboard focus can't silently escape into the nav links
+  // behind it (issue #215).
   useEffect(() => {
     if (!menuOpen) return;
     const onPointerDown = (event: PointerEvent) => {
@@ -99,7 +105,23 @@ export default function SignInButton({
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        return;
+      }
+      if (event.key === "Tab") {
+        const focusables = menuRef.current?.querySelectorAll<HTMLElement>("button, [href]");
+        if (!focusables || focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
@@ -107,6 +129,30 @@ export default function SignInButton({
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
+  }, [menuOpen]);
+
+  // Initial focus: move into the popover (first provider button) the moment
+  // it opens, so keyboard/AT users land somewhere useful instead of on an
+  // invisible menu (issue #215).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const first = menuRef.current?.querySelector<HTMLElement>("button, [href]");
+    first?.focus();
+  }, [menuOpen]);
+
+  // Return focus to the trigger whenever the popover closes — but only if
+  // nothing else already claimed focus (e.g. the user clicked a nav link to
+  // dismiss it, which focuses that link and should keep it). Without this,
+  // Escape/outside-dismiss while focus was on a provider button leaves focus
+  // stranded on <body> once the menu unmounts (issue #215).
+  useEffect(() => {
+    if (wasOpenRef.current && !menuOpen) {
+      const active = document.activeElement;
+      if (!active || active === document.body) {
+        triggerRef.current?.focus();
+      }
+    }
+    wasOpenRef.current = menuOpen;
   }, [menuOpen]);
 
   const onSignInGoogle = useCallback(async () => {
@@ -239,6 +285,7 @@ export default function SignInButton({
       <div className="authCompact">
         <button
           type="button"
+          ref={triggerRef}
           className="authCompactTrigger"
           onClick={() => setMenuOpen((open) => !open)}
           aria-expanded={menuOpen}
@@ -254,7 +301,7 @@ export default function SignInButton({
           </span>
         </button>
         {menuOpen ? (
-          <div className="authMenu" id={menuId} aria-label="Sign in options">
+          <div className="authMenu" id={menuId} aria-label="Sign in options" ref={menuRef}>
             <button
               type="button"
               className="authSignIn"
