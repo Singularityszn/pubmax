@@ -140,6 +140,25 @@ describe("GET /api/rounds/[code]", () => {
     const res = await get("ZZZZZZ");
     expect(res.status).toBe(404);
   });
+
+  it("rate-limits valid rounds reads per hashed client IP", async () => {
+    const { round } = await newRound("ken");
+    const responses: Response[] = [];
+    for (let i = 0; i < 121; i++) {
+      responses.push(
+        await GET(
+          new Request(`http://localhost/api/rounds/${round.code}`, {
+            headers: { "x-forwarded-for": "198.51.100.30" },
+          }),
+          ctx(round.code),
+        ),
+      );
+    }
+
+    expect(responses.slice(0, 120).every((res) => res.status === 200)).toBe(true);
+    expect(responses[120].status).toBe(429);
+    expect(await responses[120].json()).toEqual({ error: "Too many requests, slow down." });
+  });
 });
 
 describe("POST /api/rounds/[code] — actions", () => {

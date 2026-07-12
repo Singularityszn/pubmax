@@ -23,6 +23,7 @@ import { gateHandleAction } from "@/lib/profileOwnership";
 import { isValidRoundCode } from "@/lib/rounds";
 import { roundsStore, type RoundWriteError } from "@/lib/roundsStore";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 
@@ -45,10 +46,13 @@ function errorResponse(error: RoundWriteError): Response {
   return jsonNoStore({ error: message }, { status });
 }
 
-export async function GET(_request: Request, ctx: Ctx): Promise<Response> {
+export async function GET(request: Request, ctx: Ctx): Promise<Response> {
   const { code } = await ctx.params;
   if (!isValidRoundCode(code)) {
     return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
+  }
+  if (await isRoundsReadLimited(request)) {
+    return jsonNoStore({ error: "Too many requests, slow down." }, { status: 429 });
   }
   const state = await roundsStore().getByCode(code);
   if (!state) return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
