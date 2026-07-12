@@ -144,7 +144,7 @@ describe("GET /api/rounds/[code]", () => {
   it("rate-limits valid rounds reads per hashed client IP", async () => {
     const { round } = await newRound("ken");
     const responses: Response[] = [];
-    for (let i = 0; i < 31; i++) {
+    for (let i = 0; i < 121; i++) {
       responses.push(
         await GET(
           new Request(`http://localhost/api/rounds/${round.code}`, {
@@ -155,9 +155,9 @@ describe("GET /api/rounds/[code]", () => {
       );
     }
 
-    expect(responses.slice(0, 30).every((res) => res.status === 200)).toBe(true);
-    expect(responses[30].status).toBe(429);
-    expect(await responses[30].json()).toEqual({ error: "Too many requests, slow down." });
+    expect(responses.slice(0, 120).every((res) => res.status === 200)).toBe(true);
+    expect(responses[120].status).toBe(429);
+    expect(await responses[120].json()).toEqual({ error: "Too many requests, slow down." });
   });
 });
 
