@@ -10,6 +10,13 @@ import {
   type ConciergeMood,
 } from "@/lib/concierge/rank";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import {
+  buildWhatsOnAnswer,
+  detectWhatsOnIntent,
+  filterRowsByArea,
+  filterRowsByWeekday,
+} from "@/lib/concierge/whatsOn";
+import { loadWhatsOn } from "@/lib/whatsOnStore";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
@@ -71,6 +78,41 @@ export async function POST(request: Request): Promise<Response> {
   // Dev/tests keep the assist; with Supabase the durable limiter governs.
   const llmAssistAllowed =
     isSupabaseConfigured() || process.env.NODE_ENV !== "production";
+
+  // What's-On intents (W5 / B7): a "quiz tonight / what's on in Soho / where's
+  // showing the football / curry club deals" query is answered from real
+  // What's-On store rows — grounded, with provenance, refusing honestly when no
+  // rows match. Only free-text queries route here; a tap-chip mood intent stays
+  // on the venue-ranking path. Runs no paid model.
+  const whatsOnQuery = query ? detectWhatsOnIntent(query) : null;
+  if (whatsOnQuery) {
+    try {
+      const { rows, asOf } = await loadWhatsOn(
+        {
+          ...(whatsOnQuery.kind ? { kind: whatsOnQuery.kind } : {}),
+          ...(whatsOnQuery.window === "tonight" ? { window: "tonight" as const } : {}),
+        },
+        {},
+      );
+      let matched = whatsOnQuery.area ? filterRowsByArea(rows, whatsOnQuery.area) : rows;
+      if (whatsOnQuery.window === "weekday" && whatsOnQuery.weekday !== undefined) {
+        matched = filterRowsByWeekday(matched, whatsOnQuery.weekday);
+      }
+      const answer = buildWhatsOnAnswer(whatsOnQuery, matched);
+      return jsonNoStore({ ...answer, asOf });
+    } catch {
+      // Even the grounding source is unavailable — refuse rather than invent.
+      return jsonNoStore({
+        mode: "whats-on",
+        kind: whatsOnQuery.kind ?? null,
+        window: whatsOnQuery.window ?? null,
+        area: whatsOnQuery.area ?? null,
+        count: 0,
+        listings: [],
+        message: "I couldn't load the verified What's-On data just now, so I won't make anything up.",
+      });
+    }
+  }
 
   try {
     const parsed = directIntent
