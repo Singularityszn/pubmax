@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
 
-import { handleWhatsOnRequest } from "@/app/api/whats-on/route";
+import { handleWhatsOnRequest } from "@/lib/whatsOnHandler";
 import { loadBaselineWhatsOn, loadWhatsOn, mergeWhatsOn } from "@/lib/whatsOnStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
