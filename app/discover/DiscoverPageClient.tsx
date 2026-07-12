@@ -38,6 +38,7 @@ import {
   cityAwareMapPath,
   curatedCrawlById,
   curatedCrawlMapHref,
+  type CuratedCrawl,
 } from "@/lib/curatedCrawls";
 import { getRoutePack, routePackPrimaryCrawl } from "@/lib/routePacks";
 import "./discover.css";
@@ -180,11 +181,31 @@ function pickDrops(raw: unknown): TonightDrop[] {
   return out;
 }
 
+// Generated heritage crawls → EditorialCard shape. Each card opens the SAME
+// map deep-link the curated crawls use (curatedCrawlMapHref), so the polyline +
+// stops hydrate identically — no parallel map-link format. London-authored, so
+// (like buildEditorial) we omit an explicit city and let the venue-derived city
+// win via DEFAULT_CITY_ID.
+function heritageCrawlCards(crawls: CuratedCrawl[]): EditorialCardData[] {
+  return crawls.map((crawl) => ({
+    id: `heritage-${crawl.id}`,
+    eyebrow: "Historic London",
+    title: crawl.name,
+    dek: crawl.blurb,
+    href: curatedCrawlMapHref(crawl, DEFAULT_CITY_ID),
+    cta: "Walk the heritage route",
+  }));
+}
+
 type DiscoverPageClientProps = {
   rivalry: CityRivalryEntry[];
+  heritageCrawls: CuratedCrawl[];
 };
 
-export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps) {
+export default function DiscoverPageClient({
+  rivalry,
+  heritageCrawls,
+}: DiscoverPageClientProps) {
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     () => readPreferredCity() ?? DEFAULT_CITY_ID,
@@ -213,6 +234,8 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
 
   // Editorial stays London-authored; drink/food chips still follow preferred city.
   const editorial = buildEditorial();
+  // Generated heritage routes render in the additive "Historic London" section.
+  const heritageCards = heritageCrawlCards(heritageCrawls);
   const hungryMapHref = hungryHref(preferredCity);
   const lowNoMapHref = lowNoHref(preferredCity);
   const openMapHref = preferredCityMapHref();
@@ -619,6 +642,26 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
           ))}
         </div>
       </section>
+
+      {heritageCards.length > 0 && (
+        <section className="discoverSection" aria-labelledby="heritage-title">
+          <h2 id="heritage-title" className="discoverSectionTitle">
+            Historic London
+          </h2>
+          <p className="discoverSectionDek">
+            Themed heritage routes built from the pubs&rsquo; cited histories —
+            oldest first, the riverside taverns, and the highly listed classics.
+          </p>
+          <p className="discoverSectionNote">
+            Cited from Wikipedia — never invented.
+          </p>
+          <div className="editorialGrid">
+            {heritageCards.map((card) => (
+              <EditorialCard key={card.id} {...card} />
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
