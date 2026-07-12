@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { sanitizeHeritageFacts } from "@/components/map/VenueInspector";
 import { heritageSourceLabel } from "@/lib/historicFilter";
+import { sanitizeHeritageFacts } from "@/lib/heritageFacts";
 
 describe("heritageSourceLabel", () => {
   it("names each public source honestly", () => {

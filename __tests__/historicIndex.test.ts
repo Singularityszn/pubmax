@@ -4,10 +4,12 @@ import path from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 
+import type { HistoricPub } from "@/lib/historic";
+
 // The generator is a plain .mjs build script (no .d.ts, matching the repo's
 // other scripts/*.mjs); import it with types suppressed rather than shipping a
 // stub declaration. Same pattern as the other .mjs-in-test imports.
-// @ts-ignore -- untyped .mjs module (resolves fine at runtime under vitest)
+// @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 import { buildHistoricIndex, extractEra, extractListed, slugify, generate } from "../scripts/build_historic_index.mjs";
 
 // A tiny, self-contained fixture — deliberately NOT the committed dataset, so
@@ -60,12 +62,14 @@ const EXPECTED_KEYS = [
   "sourced",
 ];
 
-function byName(records: any[], name: string) {
-  return records.find((r) => r.name === name);
+function byName(records: HistoricPub[], name: string): HistoricPub {
+  const found = records.find((r) => r.name === name);
+  if (!found) throw new Error(`no historic record named ${name}`);
+  return found;
 }
 
 describe("buildHistoricIndex — schema + join", () => {
-  const records = buildHistoricIndex({ heritageCache: FIXTURE_CACHE, dataset: FIXTURE_DATASET });
+  const records: HistoricPub[] = buildHistoricIndex({ heritageCache: FIXTURE_CACHE, dataset: FIXTURE_DATASET });
 
   it("emits exactly one record per cache entry", () => {
     expect(records).toHaveLength(Object.keys(FIXTURE_CACHE).length);
@@ -151,7 +155,7 @@ describe("extractListed — grade preserves the star", () => {
 });
 
 describe("slug — deterministic + unique with -2 collision suffix", () => {
-  const records = buildHistoricIndex({ heritageCache: FIXTURE_CACHE, dataset: FIXTURE_DATASET });
+  const records: HistoricPub[] = buildHistoricIndex({ heritageCache: FIXTURE_CACHE, dataset: FIXTURE_DATASET });
 
   it("slugifies names url-safely", () => {
     expect(slugify("The Old Bell")).toBe("the-old-bell");
@@ -164,7 +168,7 @@ describe("slug — deterministic + unique with -2 collision suffix", () => {
     const second = byName(records, "The Bell!").slug;
     expect(new Set([first, second]).size).toBe(2);
     expect([first, second].sort()).toEqual(["the-bell", "the-bell-2"]);
-    const allSlugs = records.map((r: any) => r.slug);
+    const allSlugs = records.map((r) => r.slug);
     expect(new Set(allSlugs).size).toBe(allSlugs.length);
   });
 });
@@ -183,7 +187,7 @@ describe("generate — deterministic + idempotent over a /tmp fixture", () => {
     writeFileSync(datasetPath, JSON.stringify(FIXTURE_DATASET));
 
     const a = await generate({ cachePath, datasetPath, outPath: outA });
-    const b = await generate({ cachePath, datasetPath, outPath: outB });
+    await generate({ cachePath, datasetPath, outPath: outB });
 
     expect(a.total).toBe(Object.keys(FIXTURE_CACHE).length);
     expect(readFileSync(outA, "utf8")).toBe(readFileSync(outB, "utf8"));

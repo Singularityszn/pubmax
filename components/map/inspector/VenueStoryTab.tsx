@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink } from "lucide-react";
 
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { buildVenueClaims } from "@/lib/curation";
+import { heritageSourceLabel } from "@/lib/historicFilter";
+import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
 import type { DropWithPhotos } from "@/components/map/usePintDrops";
 import { bandsForVenue, type StoryBand } from "@/lib/storyBands";
 import { nearestLandmarks, type Landmark } from "@/lib/landmarks";
@@ -44,6 +46,41 @@ export default function VenueStoryTab({
     [venue.latitude, venue.longitude, cityLandmarks],
   );
 
+  // Passive cited heritage (H1): the facts this pub carries "on record", read
+  // straight off GET /api/heritage so the story reads without interrogating the
+  // Landlord. Server-payload only — every fact is validated + de-duped through
+  // the pure sanitiser; nothing here is ever invented. Fail-soft on any error
+  // (never throws, never blocks the tab), and an AbortController both cancels
+  // the in-flight fetch and guards against a stale pub's facts on venue switch.
+  const [heritageFacts, setHeritageFacts] = useState<HeritageFact[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    // Reset first so the previous pub's facts never flash on the new one.
+    void Promise.resolve().then(() => {
+      if (!controller.signal.aborted) setHeritageFacts([]);
+    });
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/heritage?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(
+            venue.name,
+          )}`,
+          { signal: controller.signal, headers: { accept: "application/json" } },
+        );
+        if (!res.ok) return;
+        const body = (await res.json()) as { facts?: unknown };
+        const facts = sanitizeHeritageFacts(body.facts);
+        if (facts.length === 0) return;
+        void Promise.resolve().then(() => {
+          if (!controller.signal.aborted) setHeritageFacts(facts);
+        });
+      } catch {
+        /* fail-soft: nothing on record */
+      }
+    })();
+    return () => controller.abort();
+  }, [venue.id, venue.name]);
+
   return (
     <div
       role="tabpanel"
@@ -52,14 +89,48 @@ export default function VenueStoryTab({
       className="venueTabPanel"
       hidden={tab !== "story"}
     >
+      {/* Passive cited heritage ("On record") — H1. Above the description so the
+          facts a pub carries land the instant the tab opens. Every fact wears
+          its source chip + citation; provenance-honest, server-payload only. */}
+      {heritageFacts.length > 0 ? (
+        <section className="heritageOnRecord" aria-labelledby="on-record-title">
+          <div className="inspectorTitle">
+            <BookOpen size={16} />
+            <span id="on-record-title">On record</span>
+          </div>
+          <ul className="heritageFactList">
+            {heritageFacts.map((fact, index) => (
+              <li key={`${fact.source}-${index}`} className="heritageFact">
+                <p className="heritageFactText">{fact.fact}</p>
+                <div className="heritageFactMeta">
+                  <span className="heritageSourceChip" data-source={fact.source}>
+                    {heritageSourceLabel(fact.source)}
+                  </span>
+                  {fact.sourceRef ? (
+                    <a
+                      className="heritageFactCite"
+                      href={fact.sourceRef}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Source
+                      <ExternalLink size={13} />
+                    </a>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {venue.description ? (
         <p className="description">{venue.description}</p>
-      ) : (
+      ) : heritageFacts.length === 0 ? (
         <p className="description muted">
           No heritage note for {venue.name} yet — log a Pint Drop below with a passed-down story
           to be the first to give this pub some character.
         </p>
-      )}
+      ) : null}
       {claims.length > 0 ? (
         <div className="claimList">
           {claims.map((claim, index) => (
