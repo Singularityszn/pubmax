@@ -68,18 +68,36 @@ const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
 // the root — so with JS disabled, before this effect runs, or in a full-page
 // screenshot where off-screen sections never trip the observer, every .reveal
 // section is fully visible. The reveal is a pure progressive enhancement.
+//
+// `.jsEnhanced` is deliberately only added on the FIRST real `scroll` event,
+// not on mount. A one-shot full-document capture (a headless screenshot tool,
+// print, a share-image generator, or just a slow machine racing the observer)
+// never fires a `scroll` event — `page.screenshot({ fullPage: true })` in
+// particular captures beyond the viewport without ever scrolling the DOM. If
+// `.jsEnhanced` were applied on mount, every `.reveal` section the
+// IntersectionObserver hasn't gotten to yet (i.e. everything below the first
+// viewport) would be captured mid-fade at `opacity: 0` — a permanent void,
+// not a progressive-enhancement flourish. Gating on real scroll means a
+// one-shot capture always renders identically to the no-JS baseline: fully
+// visible.
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = ref.current;
     if (!root) return;
     const targets = root.querySelectorAll<HTMLElement>(".reveal");
-    // Wire the observer up FIRST, then flip the root into the enhanced state,
-    // so the hidden→animate CSS never applies to a section we can't reveal.
     if (!("IntersectionObserver" in window)) {
       targets.forEach((el) => el.classList.add("isVisible"));
       return;
     }
+    const revealInView = () => {
+      targets.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          el.classList.add("isVisible");
+        }
+      });
+    };
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -92,20 +110,25 @@ function useReveal() {
       { rootMargin: "0px 0px -10% 0px", threshold: 0.1 }
     );
     targets.forEach((el) => io.observe(el));
-    root.classList.add("jsEnhanced");
-    // Safety net: anything already in view (or that never trips the observer,
-    // e.g. during a full-page screenshot) is revealed on the next frame so it
-    // can never be captured as a blank band.
-    const raf = requestAnimationFrame(() => {
-      targets.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        if (rect.top < window.innerHeight && rect.bottom > 0) {
-          el.classList.add("isVisible");
-        }
-      });
-    });
+    let enhanced = false;
+    const enableReveal = () => {
+      if (enhanced) return;
+      enhanced = true;
+      // Mark anything already on screen visible FIRST, synchronously, so
+      // flipping .jsEnhanced on can never flash currently-visible content to
+      // hidden before its own IntersectionObserver entry fires.
+      revealInView();
+      root.classList.add("jsEnhanced");
+      window.removeEventListener("scroll", enableReveal);
+    };
+    window.addEventListener("scroll", enableReveal, { passive: true, once: true });
+    // Safety net: anything already in view on first paint still reveals
+    // immediately once real scrolling starts (matches the previous mount-time
+    // behaviour for above-the-fold sections).
+    const raf = requestAnimationFrame(revealInView);
     return () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", enableReveal);
       io.disconnect();
     };
   }, []);

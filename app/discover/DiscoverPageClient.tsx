@@ -305,6 +305,38 @@ export default function DiscoverPageClient({ rivalry }: DiscoverPageClientProps)
     return () => observer.disconnect();
   }, [entries, tonight, thenVsNow]);
 
+  // Arm the [data-reveal] hidden-by-default CSS (discover.css) only once the
+  // page has genuinely scrolled. Below-the-fold sections (the leaderboard,
+  // tonight board, editorial cards) mount well after first paint as their
+  // fetches resolve, so gating the opacity:0 state on mount — rather than on
+  // real scroll — meant a one-shot full-document capture (screenshot tool,
+  // print, share-image) could catch those rows/cards before the observer
+  // ever fired for them, rendering as permanently blank tables/boxes. Real
+  // scrolling users are unaffected: this fires on their very first scroll
+  // pixel, same as before.
+  useEffect(() => {
+    const root = revealRootRef.current;
+    if (!root) return;
+    let armed = false;
+    const armReveal = () => {
+      if (armed) return;
+      armed = true;
+      // Mark anything already on screen visible FIRST, synchronously, so
+      // adding .revealArmed can never flash currently-visible rows to hidden
+      // before their own IntersectionObserver entry fires.
+      root.querySelectorAll<HTMLElement>("[data-reveal]:not(.is-revealed)").forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          el.classList.add("is-revealed");
+        }
+      });
+      root.classList.add("revealArmed");
+      window.removeEventListener("scroll", armReveal);
+    };
+    window.addEventListener("scroll", armReveal, { passive: true, once: true });
+    return () => window.removeEventListener("scroll", armReveal);
+  }, []);
+
   return (
     <main className="discoverPage" ref={revealRootRef}>
       <SiteNav active="discover" />
