@@ -59,87 +59,72 @@
   margin-bottom: 16px;
 }
 
-/* --- route packs (thematic groupings above featured routes) --------------- */
+/* --- route packs (compact jump-nav above the crawl grid) ------------------ */
+/* E4 (Gate-Z): this used to be a dense two-column text index (title + blurb +
+   "Open on map" + "Browse N routes" per pack) stacked above the curated card
+   grid it precedes — duplicate content, since every pack's routes already
+   surface as full cards (thumbnail, price range, badges, CTA) below. Now a
+   slim chip row: click a pack to filter the grid to its routes (?pack=id),
+   full pack blurb still reachable via the chip's title tooltip. */
 
-.routePacks {
+.routePackNav {
   width: 100%;
   margin: 0 0 28px;
   text-align: left;
 }
 
-.routePackList {
+.routePackChipRow {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 14px;
+  gap: 8px;
 }
 
-.routePackCard {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 240px;
-  padding: 10px 0 8px;
-  border-bottom: 1px solid color-mix(in srgb, var(--brass) 35%, transparent);
-  transition: border-color 0.15s ease;
-}
-
-.routePackCard.isActive {
-  border-bottom-color: var(--brass);
-}
-
-.routePackLink {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-decoration: none;
-  color: inherit;
-  transition: color 0.15s ease;
-}
-
-.routePackLink:hover,
-.routePackLink:focus-visible {
-  color: var(--brass);
-}
-
-.routePackLink:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-.routePackBrowse {
-  align-self: flex-start;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-soft);
-  text-decoration: none;
-  min-height: 32px;
+.routePackChip {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
-.routePackBrowse:hover,
-.routePackBrowse:focus-visible {
+.routePackChip:hover,
+.routePackChip:focus-visible {
+  border-color: var(--brass);
   color: var(--brass);
-  text-decoration: underline;
 }
 
-.routePackBrowse:focus-visible {
+.routePackChip:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
-  border-radius: 4px;
 }
 
-.routePackCard.isActive .routePackBrowse {
+.routePackChip.isActive {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
   color: var(--brass);
+}
+
+.routePackChipCount {
+  font-size: 11px;
   font-weight: 700;
+  opacity: 0.7;
 }
 
 .routePackActiveNote {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   font-size: 13px;
   color: var(--ink-soft);
 }
@@ -147,32 +132,6 @@
 .routePackActiveNote a {
   color: var(--brass);
   font-weight: 700;
-}
-
-.routePackTitle {
-  font-family: var(--serif);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.routePackBlurb {
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--ink-soft);
-}
-
-.routePackLink:hover .routePackBlurb,
-.routePackLink:focus-visible .routePackBlurb {
-  color: inherit;
-}
-
-.routePackMeta {
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--brass);
 }
 
 /* --- curated crawls (empty-state grid) ------------------------------------ */
