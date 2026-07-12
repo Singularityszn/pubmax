@@ -22,12 +22,14 @@ export type WetherspoonsPubRecord = {
   slug?: string;
   name?: string;
   postcode?: string;
+  fullAddress?: string;
   latitude?: number | null;
   longitude?: number | null;
 };
 
 export type WhatsOnDealRow = {
   id: string;
+  venueId?: string;
   placeName: string;
   lat?: number;
   lng?: number;
@@ -54,4 +56,5 @@ export declare function buildWetherspoonsDealRows(input: {
   deals: WetherspoonsDealDef[];
   venues: WetherspoonsPubRecord[];
   observedAt: string;
+  venueIndex?: import("./resolveVenueId.d.mts").VenueResolverIndex | null;
 }): WhatsOnDealRow[];

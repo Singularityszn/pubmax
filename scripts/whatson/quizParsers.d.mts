@@ -23,7 +23,7 @@ export type QuizVenueDetail = {
 
 export type WhatsOnQuizRow = {
   id: string;
-  venueId: null;
+  venueId: string | null;
   placeName: string;
   kind: "quiz";
   startsAt: string;
@@ -67,6 +67,7 @@ export declare function buildQuestionOneRows(input: {
   cards: QuizCard[];
   detailsByUrl?: Map<string, QuizVenueDetail>;
   observedAt: string;
+  venueIndex?: import("./resolveVenueId.d.mts").VenueResolverIndex | null;
 }): { rows: WhatsOnQuizRow[]; dropped: QuizDropCounts };
 export declare function parseSpeedQuizzingFindEvents(html: unknown): SpeedQuizzingEvent[];
 export declare function isGreaterLondonLatLng(lat: number, lng: number): boolean;

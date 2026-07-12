@@ -18,6 +18,7 @@ export type SportAttributeRow = {
   id?: string;
   venueId?: string;
   placeName?: string;
+  address?: string;
   lat?: number;
   lng?: number;
   kind?: string;
@@ -56,10 +57,12 @@ export declare function buildSportFixtureRows(input: {
   attributeRows: SportAttributeRow[];
   fixtures: SportFixture[];
   observedAt: string;
+  venueIndex?: import("./resolveVenueId.d.mts").VenueResolverIndex | null;
 }): WhatsOnDerivedSportRow[];
 
 export declare function buildSportFixtureRowsWithDiagnostics(input: {
   attributeRows: SportAttributeRow[];
   fixtures: SportFixture[];
   observedAt: string;
+  venueIndex?: import("./resolveVenueId.d.mts").VenueResolverIndex | null;
 }): { rows: WhatsOnDerivedSportRow[]; diagnostics: SportFixtureDiagnostics };

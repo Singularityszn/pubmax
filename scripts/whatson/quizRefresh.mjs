@@ -43,6 +43,7 @@ import {
   isGreaterLondonLatLng,
   buildQuestionOneRows,
 } from "./quizParsers.mjs";
+import { loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "quiz_london.json");
@@ -153,7 +154,8 @@ async function main() {
   const observedAt = new Date().toISOString();
 
   const { cards, detailsByUrl } = await loadQuestionOne(fromDir);
-  const { rows, dropped } = buildQuestionOneRows({ cards, detailsByUrl, observedAt });
+  const venueIndex = loadCanonicalVenueIndex();
+  const { rows, dropped } = buildQuestionOneRows({ cards, detailsByUrl, observedAt, venueIndex });
   const sq = await loadSpeedQuizzingCoverage(fromDir);
 
   const payload = {

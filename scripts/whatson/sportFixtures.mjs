@@ -63,6 +63,8 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ATTRS_PATH = join(ROOT, "public", "data", "whats_on", "sport_attributes.json");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "sport_fixtures.json");
@@ -247,7 +249,16 @@ function dateOnly(iso) {
 // way, no row for that fixture would carry honest provenance. An individual
 // (fixture, pub) pair is dropped when the attribute row lacks a usable
 // placeName or a valid http(s) source URL.
-export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, observedAt }) {
+// Prefer the attribute row's own venueId (already resolved upstream by
+// scrape_greene_king_sport.mjs); only fall back to resolveVenueId when it's
+// missing, so a row already carrying a confident id is never second-guessed.
+function venueIdForAttrRow(attrRow, placeName, venueIndex) {
+  if (typeof attrRow.venueId === "string" && attrRow.venueId.length > 0) return attrRow.venueId;
+  if (!venueIndex) return null;
+  return resolveVenueId({ name: placeName, address: attrRow.address, lat: attrRow.lat, lng: attrRow.lng }, venueIndex);
+}
+
+export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, observedAt, venueIndex = null }) {
   const rows = [];
   const droppedFixtures = [];
   const droppedAttributeRows = [];
@@ -295,7 +306,8 @@ export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, 
         observedAt,
         confidence: "derived",
       };
-      if (typeof attrRow.venueId === "string" && attrRow.venueId.length > 0) row.venueId = attrRow.venueId;
+      const venueId = venueIdForAttrRow(attrRow, placeName, venueIndex);
+      if (venueId) row.venueId = venueId;
       if (typeof attrRow.lat === "number" && Number.isFinite(attrRow.lat)) row.lat = attrRow.lat;
       if (typeof attrRow.lng === "number" && Number.isFinite(attrRow.lng)) row.lng = attrRow.lng;
       rows.push(row);
@@ -338,10 +350,12 @@ function main() {
     return;
   }
 
+  const venueIndex = loadCanonicalVenueIndex();
   const { rows, diagnostics } = buildSportFixtureRowsWithDiagnostics({
     attributeRows,
     fixtures: SPORT_FIXTURES,
     observedAt,
+    venueIndex,
   });
 
   if (diagnostics.droppedFixtures.length > 0) {

@@ -58,17 +58,24 @@
 // none of these residencies' own pages state how long the set runs — omitted
 // rather than guessed.
 //
-// VENUE MATCHING: rows ship with no venueId and no lat/lng (never invented —
-// neither residency's own page publishes coordinates, and there is no
-// reliable venueGroupingKey cross-reference dataset for either pub the way
-// dealsRefresh.mjs has for Wetherspoons). A later refresh can layer venueId on
-// via lib/whatsOn.ts matchVenueId once a geocoded match is confirmed.
+// VENUE MATCHING (W6): each seed entry carries the venue's own published
+// street address + postcode (hand-verified, same first-party standard as
+// the residency slots themselves), passed into resolveVenueId so its
+// conservative fallback (normalized-name match confirmed by postcode
+// district or <=75m proximity) can fire. HONEST CURRENT STATE: none of the
+// five venues below exists in the canonical pint_prices_app_dataset.json
+// (checked 2026-07-12 — zero normalized-name candidates for any of them),
+// so every row currently ships unresolved; the postcodes are carried so
+// resolution lights up automatically the moment the canonical dataset grows
+// to include these pubs, with no generator change needed. `venueId` is only
+// ever set when resolveVenueId returns non-null.
 
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { nextWeeklyOccurrence } from "./quizParsers.mjs";
+import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "music_london.json");
@@ -122,6 +129,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-monday-jam",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Monday",
     startTime: "20:30",
     title: "Monday Jam Sessions",
@@ -132,6 +141,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-tuesday-trad",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Tuesday",
     startTime: "19:00",
     title: "Irish/English Trad Session",
@@ -141,6 +152,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-wednesday-jam",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Wednesday",
     startTime: "20:00",
     title: "South London Jam",
@@ -150,6 +163,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-saturday-gig",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Saturday",
     startTime: "21:00",
     title: "The Big Saturday Night Gig",
@@ -159,6 +174,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "skehans-sunday-folk",
     placeName: "Skehan's",
+    address: "1 Kitto Road, Telegraph Hill, London",
+    postcode: "SE14 5TW",
     dayName: "Sunday",
     startTime: "19:00",
     title: "Sunday Night Folk Sessions",
@@ -168,6 +185,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "ivyhouse-sunday-jazz",
     placeName: "The Ivy House",
+    address: "40 Stuart Road, Nunhead, London",
+    postcode: "SE15 3BE",
     dayName: "Sunday",
     startTime: "16:00",
     title: "Jazz + Roasts Sundays",
@@ -178,6 +197,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "spiceoflife-monday-jam",
     placeName: "The Spice of Life",
+    address: "6 Moor Street, Cambridge Circus, London",
+    postcode: "W1D 5NA",
     dayName: "Monday",
     startTime: "19:00",
     title: "Dove Jones Connection Blues & Jazz Jam Party",
@@ -188,6 +209,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "spiceoflife-sunday-jazzjam",
     placeName: "The Spice of Life",
+    address: "6 Moor Street, Cambridge Circus, London",
+    postcode: "W1D 5NA",
     dayName: "Sunday",
     startTime: "13:00",
     title: "Jazz Notes Jazz Jam",
@@ -198,6 +221,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "aintnothinbut-monday-bluesjam",
     placeName: "Ain't Nothin' But",
+    address: "20 Kingly Street, Soho, London",
+    postcode: "W1B 5PZ",
     dayName: "Monday",
     startTime: "20:00",
     title: "Monday Night Blues Jam",
@@ -208,6 +233,8 @@ export const MUSIC_RESIDENCIES = [
   {
     id: "troubadour-sunday-jazz",
     placeName: "Troubadour",
+    address: "263-267 Old Brompton Road, Earls Court, London",
+    postcode: "SW5 9JA",
     dayName: "Sunday",
     startTime: "20:00",
     title: "Jazz Sundays",
@@ -225,7 +252,7 @@ export const MUSIC_RESIDENCIES = [
 // first-party published programme, not a per-night confirmation that this
 // exact lineup plays this exact week). A residency whose weekly slot cannot
 // be resolved (malformed day/time) is dropped, never guessed.
-export function buildMusicResidencyRows({ residencies, observedAt }) {
+export function buildMusicResidencyRows({ residencies, observedAt, venueIndex = null }) {
   const rows = [];
   for (const res of residencies ?? []) {
     const startsAt = nextWeeklyOccurrence(res?.dayName, res?.startTime, observedAt);
@@ -238,7 +265,7 @@ export function buildMusicResidencyRows({ residencies, observedAt }) {
     if (typeof res.title !== "string" || res.title.length === 0) continue;
     if (typeof res.detail !== "string" || res.detail.length === 0) continue;
 
-    rows.push({
+    const row = {
       id: `music-${res.id}`,
       placeName: res.placeName,
       kind: "music",
@@ -248,7 +275,15 @@ export function buildMusicResidencyRows({ residencies, observedAt }) {
       source: { ...res.source },
       observedAt,
       confidence: "listed",
-    });
+    };
+    if (venueIndex) {
+      const resolved = resolveVenueId(
+        { name: res.placeName, address: res.address, postcode: res.postcode },
+        venueIndex,
+      );
+      if (resolved) row.venueId = resolved;
+    }
+    rows.push(row);
   }
   rows.sort((a, b) => a.id.localeCompare(b.id));
   return rows;
@@ -261,7 +296,8 @@ export function buildMusicResidencyRows({ residencies, observedAt }) {
 function main() {
   const observedAt = new Date().toISOString();
 
-  const rows = buildMusicResidencyRows({ residencies: MUSIC_RESIDENCIES, observedAt });
+  const venueIndex = loadCanonicalVenueIndex();
+  const rows = buildMusicResidencyRows({ residencies: MUSIC_RESIDENCIES, observedAt, venueIndex });
 
   // Fail closed: never let a silent regression (malformed day/time, dropped
   // entries) collapse the baseline to zero while main() still reports
