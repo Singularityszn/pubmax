@@ -12,7 +12,6 @@ import "@/components/map/logIntentFallback.css";
 import {
   buildCrawlRoute,
   mergeVenueDrops,
-  venueGroupingKey,
   type Filters,
   type Venue,
 } from "@/lib/venues";
@@ -22,7 +21,7 @@ import { nearestVenueIds } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
-import { curatedCrawlsForCity, curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
+import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
 import { landmarksForCity } from "@/lib/cityLandmarks";
 import { storyBandsForCity, bandByIdForCity } from "@/lib/cityStoryBands";
 import RoutePanel from "@/components/map/RoutePanel";
@@ -80,7 +79,18 @@ import {
   shouldShowCuratedOnboarding,
   truncateBandCopy,
 } from "@/lib/bandOnboardingChip";
-import { isDrinkShapeArrival, shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import { shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import {
+  hasCrawlArrivalParams,
+  crawlStopsFromPubIds,
+  filtersForCuratedCrawl,
+  buildMapSeed,
+  detailStatusFor,
+  venueUpdateKey,
+  normaliseTonightVenueLookup,
+  type MapSeed,
+  type VenueDetailStatus,
+} from "@/lib/pubMap";
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -99,17 +109,7 @@ function currentSearch(): string {
   return typeof window === "undefined" ? "" : window.location.search;
 }
 
-// §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
-// link)? If any are present the arrival is intentional and we never onboard.
-// Module-level (pure) so the branch lives off PubMap's complexity budget.
-// `drink=` counts (landing drink-shape taps) but is NOT a planner-open signal.
-function hasCrawlArrivalParams(search: string): boolean {
-  // Intentional deep links (landmark/band/food/log/etc.) must also suppress
-  // curated onboarding — not only crawl planner params (#79 follow-up).
-  return /[?&](pubs|sel|style|mode|q|drink|cocktails|landmark|band|food|max|alt|log|crawl)=/.test(
-    search,
-  );
-}
+// hasCrawlArrivalParams (pure §4.5 deep-link probe) now lives in @/lib/pubMap.
 
 function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
@@ -124,81 +124,8 @@ function isMobileViewport(): boolean {
 // only share/restore source.
 const BUILT_STORAGE_KEY = "pubmax_built_ids";
 
-// Issue #15: normalise a landmark's nearest-pub ids into crawl stops — drop
-// blanks, cap at three. Module-level (pure) so the branch lives outside the
-// PubMap component body and off its complexity budget.
-function crawlStopsFromPubIds(ids: string[]): string[] {
-  return ids.filter(Boolean).slice(0, 3);
-}
-
-// Issue #31: fold a curated crawl's style choices onto the current filters. A
-// mocktail crawl composes with the non-alcoholic filter — the honest, minimal
-// way an alt style touches the actual route. Module-level (pure) so the branch
-// lives off PubMap's complexity budget.
-function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters {
-  return {
-    ...current,
-    crawlStyle: crawl.crawlStyle,
-    requireNonAlcoholic: crawl.altStyle === "mocktail" ? true : current.requireNonAlcoholic,
-  };
-}
-
-/** Resolve a curated crawl from ?crawl= or an exact pubs= stop list match. */
-function resolveSeededCuratedCrawl(
-  cityId: CityId,
-  crawlId: string | undefined,
-  builtIds: string[],
-): CuratedCrawl | null {
-  const byId = curatedCrawlByIdForCity(cityId, crawlId);
-  if (byId) return byId;
-  if (builtIds.length < 2) return null;
-  const cityCrawls = curatedCrawlsForCity(cityId);
-  return (
-    cityCrawls.find(
-      (crawl) =>
-        crawl.venueIds.length === builtIds.length &&
-        crawl.venueIds.every((id, i) => id === builtIds[i]),
-    ) ?? null
-  );
-}
-
-type MapSeed = ReturnType<typeof seedCrawlState> & {
-  activeCrawl: CuratedCrawl | null;
-  routeMapped: boolean;
-};
-
-/**
- * One-shot mount seed from the shareable URL only.
- * Pure module helper so PubMap can lazy-init state without a useMemo that the
- * React Compiler cannot preserve (react-hooks/preserve-manual-memoization).
- * Do NOT resurrect a previous hand-built crawl from localStorage on a clean
- * /map tab click — that bloated the address bar with stale ?pubs=… (PR #79).
- */
-function buildMapSeed(search: string, cityId: CityId = DEFAULT_CITY_ID): MapSeed {
-  const seeded = seedCrawlState(search);
-  // Landing drink-shape taps should land on a clean filtered map.
-  if (isDrinkShapeArrival(search)) {
-    return { ...seeded, activeCrawl: null, routeMapped: false };
-  }
-  // Curated / featured arrival: hydrate the named crawl so the polyline +
-  // blurb show map-first (planner stays closed via shouldOpenPlanningInitially).
-  const activeCrawl = resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
-  if (activeCrawl) {
-    return {
-      ...seeded,
-      filters: filtersForCuratedCrawl(seeded.filters, activeCrawl),
-      altStyle: activeCrawl.altStyle ?? seeded.altStyle,
-      crawlId: activeCrawl.id,
-      activeCrawl,
-      routeMapped: true,
-    };
-  }
-  return {
-    ...seeded,
-    activeCrawl: null,
-    routeMapped: seeded.builtIds.length >= 2,
-  };
-}
+// crawlStopsFromPubIds, filtersForCuratedCrawl, resolveSeededCuratedCrawl,
+// MapSeed and buildMapSeed (all pure) now live in @/lib/pubMap.
 
 // Issue #15: the landmark card's two journey actions, hoisted into their own
 // hook so their branches live off PubMap's complexity budget.
@@ -354,27 +281,13 @@ const DETAIL_WARNING_STYLE: CSSProperties = {
   background: "rgba(209, 99, 83, 0.12)",
 };
 
-type VenueDetailStatus = "idle" | "loading" | "ready" | "unavailable";
+// VenueDetailStatus, detailStatusFor and venueUpdateKey (all pure) now live in
+// @/lib/pubMap.
 
 type UserLocation = {
   lat: number;
   lng: number;
 };
-
-function detailStatusFor(
-  selectedVenueId: string,
-  detailById: Map<string, Venue>,
-  detailStatusById: Map<string, VenueDetailStatus>,
-): VenueDetailStatus {
-  if (!selectedVenueId) return "idle";
-  if (detailById.has(selectedVenueId)) return "ready";
-  return detailStatusById.get(selectedVenueId) ?? "loading";
-}
-
-function venueUpdateKey(venue: Venue): string {
-  const firstPrice = venue.prices[0];
-  return firstPrice ? venueGroupingKey(firstPrice) : venue.id;
-}
 
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
@@ -394,15 +307,7 @@ function readTonightOverlayDismissed(): boolean {
   }
 }
 
-function normaliseTonightVenueLookup(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[’']/g, "")
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
+// normaliseTonightVenueLookup (pure) now lives in @/lib/pubMap.
 
 // G3: per-band session dismiss for the Place story deep-link chip. Distinct from
 // ONBOARDING_DISMISSED_KEY so dismissing one never silences the other.
