@@ -7,6 +7,32 @@
   /* Explicit inherit — the parent .discoverSection provides padding etc. */
 }
 
+/* Section header row: title on the left, a "See all tonight" link to the
+   first-class /tonight screen (A2) on the right. */
+.tonightNearbyHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tonightNearbySeeAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tonightNearbySeeAll:hover {
+    text-decoration: underline;
+  }
+}
+
 /* A horizontal lane (matching the category showcase + editorial lanes below
    it): scroll-snap, momentum scrolling, and an edge-fade mask hinting
    "more →" instead of a grid that wraps and buries later cards. */
