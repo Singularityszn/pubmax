@@ -14,7 +14,7 @@ import {
   supabaseProfileStore,
   type ProfileStore,
 } from "@/lib/profileStore";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { admin, isUniqueViolation, selectStore } from "@/lib/storeBackend";
 
 export type FollowCounts = { followers: number; following: number };
 
@@ -37,20 +37,12 @@ export type FollowStore = {
 
 const TABLE = "follows";
 
-function admin() {
-  return requireSupabaseAdmin();
-}
-
 // A self-follow is nonsense (and rejected by follows_no_self_chk). Normalise both
 // handles and report when they collapse to the same identity so callers can 400.
 export function isSelfFollow(a: string, b: string): boolean {
   const x = normalizeHandle(a);
   const y = normalizeHandle(b);
   return x !== "" && x === y;
-}
-
-function isUniqueViolation(error: { code?: string } | null): boolean {
-  return error?.code === "23505";
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -203,7 +195,7 @@ export const memoryFollowStore: FollowStore = makeMemoryFollowStore(memoryProfil
 
 /** The single backend selection point (mirrors the other stores). */
 export function followStore(): FollowStore {
-  return isSupabaseConfigured() ? supabaseFollowStore : memoryFollowStore;
+  return selectStore(memoryFollowStore, supabaseFollowStore);
 }
 
 /** Test-only: clear the in-memory edge set + handle index between cases. */

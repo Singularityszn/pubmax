@@ -17,7 +17,7 @@
 // hiccup can never break feed rendering (the feed treats "no comments" and "the
 // comments service is down" identically — the story just isn't shown).
 
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
 
 // The only shape a reader ever sees. Deliberately minimal: no actor_hash, no
@@ -144,10 +144,6 @@ export function threadOrder(comments: CommentDTO[]): CommentDTO[] {
     if (c.parentId && !topIds.has(c.parentId)) out.push(c);
   }
   return out;
-}
-
-function admin() {
-  return requireSupabaseAdmin();
 }
 
 // Map a raw DB row to the public DTO — the single choke point that guarantees
@@ -393,7 +389,7 @@ export const memoryCommentsStore: CommentsStore = {
 
 /** The single backend selection point (mirrors the other stores). */
 export function commentsStore(): CommentsStore {
-  return isSupabaseConfigured() ? supabaseCommentsStore : memoryCommentsStore;
+  return selectStore(memoryCommentsStore, supabaseCommentsStore);
 }
 
 /** Test-only: seed a hidden/pending row so tests can assert it's never listed. */
