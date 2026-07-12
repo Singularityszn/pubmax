@@ -1,6 +1,6 @@
 "use client";
 
-import { Footprints, MapPinned, Route as RouteIcon, TrainFront, X } from "lucide-react";
+import { MapPinned, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
@@ -44,6 +44,9 @@ import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
+import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
+import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
+import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -77,7 +80,6 @@ import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
-  truncateBandCopy,
 } from "@/lib/bandOnboardingChip";
 import { shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
 import {
@@ -1153,51 +1155,25 @@ export default function PubMap({
         ) : null}
         <ActiveRoundChip refreshKey={activeRoundStartedCode} />
         {routeMappedActive ? (
-          <div className="mappedRouteChip" role="status" aria-live="polite">
-            <RouteIcon size={16} aria-hidden="true" />
-            <div>
-              <strong>{route.length} stops mapped</strong>
-              <span>
-                <Footprints size={12} aria-hidden="true" />
-                {routeForMapLegs.totalKm.toFixed(1)} km, {routeForMapLegs.totalMinutes} min walk
-              </span>
-            </div>
-            <button type="button" onClick={openPlanning}>
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={checkLastTrainAtRouteEnd}
-              aria-label="Check last train at final stop"
-              title="Last train"
-            >
-              <TrainFront size={14} aria-hidden="true" />
-            </button>
-            <button type="button" onClick={hideMappedRoute} aria-label="Hide mapped crawl">
-              <X size={14} aria-hidden="true" />
-            </button>
-          </div>
+          <MappedRouteChip
+            stopCount={route.length}
+            totalKm={routeForMapLegs.totalKm}
+            totalMinutes={routeForMapLegs.totalMinutes}
+            onEdit={openPlanning}
+            onCheckLastTrain={checkLastTrainAtRouteEnd}
+            onHide={hideMappedRoute}
+          />
         ) : null}
         {/* G3: Place story deep-link chip — corridor title + one-line copy when
             `?band=` resolves. Distinct dismiss key from curated onboarding;
             suppresses that overlay while visible. */}
         {showBandChip && activeBand ? (
-          <div className="bandOnboardingChip" role="status" aria-live="polite">
-            <div>
-              <strong>{activeBand.title}</strong>
-              <span>{truncateBandCopy(activeBand.copy)}</span>
-            </div>
-            <button type="button" onClick={dismissBandChip}>
-              Walk this story
-            </button>
-            <button
-              type="button"
-              onClick={dismissBandChip}
-              aria-label="Dismiss Place story intro"
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          </div>
+          <BandOnboardingChip
+            title={activeBand.title}
+            copy={activeBand.copy}
+            onWalkStory={dismissBandChip}
+            onDismiss={dismissBandChip}
+          />
         ) : null}
         {/* Wave J declutter: Prices control owns the key on all viewports
             (pin colours + popover). Static mid-map legend removed. */}
@@ -1208,61 +1184,11 @@ export default function PubMap({
             onboarding (control rail is hidden on small screens) and never blocks
             the map — the backdrop and the link both close it. */}
         {showOnboarding ? (
-          <div
-            className="mapOnboarding"
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="onboardingTitle"
-          >
-            <button
-              type="button"
-              className="mapOnboardingScrim"
-              aria-label="Dismiss and explore the map"
-              onClick={dismissOnboarding}
-            />
-            <div className="mapOnboardingCard">
-              <button
-                type="button"
-                className="mapOnboardingClose"
-                onClick={dismissOnboarding}
-                aria-label="Close"
-              >
-                <X size={16} />
-              </button>
-              <p className="eyebrow">New here?</p>
-              <h2 id="onboardingTitle">Start with a story</h2>
-              <p className="mapOnboardingLead">
-                Curated crawls — one generation&rsquo;s pubs, handed to the next. Pick one to drop it
-                on the map, or explore on your own.
-              </p>
-              <div className="mapOnboardingList">
-                {onboardingCrawls.map((crawl) => (
-                  <button
-                    key={crawl.id}
-                    type="button"
-                    className="mapOnboardingCrawl"
-                    aria-label={`Load the ${crawl.name} crawl — ${crawl.venueIds.length} stops`}
-                    onClick={() => loadCuratedCrawl(crawl)}
-                  >
-                    <span className="mapOnboardingCrawlHead">
-                      <strong>{crawl.name}</strong>
-                      <span className="mapOnboardingCount">
-                        {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
-                      </span>
-                    </span>
-                    <span className="mapOnboardingBlurb">{crawl.blurb}</span>
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="mapOnboardingDismiss"
-                onClick={dismissOnboarding}
-              >
-                Dismiss / explore the map
-              </button>
-            </div>
-          </div>
+          <MapOnboardingOverlay
+            crawls={onboardingCrawls}
+            onLoadCrawl={loadCuratedCrawl}
+            onDismiss={dismissOnboarding}
+          />
         ) : null}
       </section>
 
