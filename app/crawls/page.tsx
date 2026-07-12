@@ -9,12 +9,7 @@ import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { bandById } from "@/lib/storyBands";
-import {
-  getRoutePack,
-  routePackMapHref,
-  routePackPrimaryCrawl,
-  routePacks,
-} from "@/lib/routePacks";
+import { getRoutePack, routePacks } from "@/lib/routePacks";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
@@ -124,42 +119,26 @@ function CrawlsPageInner() {
             drank them first. Pick one, or start your own on the map.
           </p>
 
-          <div className="routePacks" aria-labelledby="routePacksHeading">
+          <nav className="routePackNav" aria-labelledby="routePacksHeading">
             <p className="crawlEyebrow" id="routePacksHeading">
-              Route packs
+              Jump to a route pack
             </p>
-            <ul className="routePackList">
+            <ul className="routePackChipRow">
               {routePacks.map((pack) => {
-                const primary = routePackPrimaryCrawl(pack);
-                const mapHref = routePackMapHref(pack);
                 const browseHref = `/crawls?pack=${encodeURIComponent(pack.id)}`;
                 const isBrowsing = activePackId === pack.id;
                 const n = pack.crawlIds.length;
-                const ariaLabel = primary
-                  ? `Plan ${pack.title} on the map — ${primary.name}`
-                  : `Plan ${pack.title} on the map`;
                 return (
                   <li key={pack.id}>
-                    <div className={isBrowsing ? "routePackCard isActive" : "routePackCard"}>
-                      <Link
-                        href={mapHref}
-                        className="routePackLink"
-                        aria-label={ariaLabel}
-                      >
-                        <span className="routePackTitle">{pack.title}</span>
-                        <span className="routePackBlurb">{pack.blurb}</span>
-                        <span className="routePackMeta">Open on map →</span>
-                      </Link>
-                      {n > 1 ? (
-                        <Link
-                          href={browseHref}
-                          className="routePackBrowse"
-                          aria-current={isBrowsing ? "true" : undefined}
-                        >
-                          Browse {n} routes
-                        </Link>
-                      ) : null}
-                    </div>
+                    <Link
+                      href={browseHref}
+                      className={isBrowsing ? "routePackChip isActive" : "routePackChip"}
+                      aria-current={isBrowsing ? "true" : undefined}
+                      title={pack.blurb}
+                    >
+                      {pack.title}
+                      <span className="routePackChipCount">{n}</span>
+                    </Link>
                   </li>
                 );
               })}
@@ -170,7 +149,7 @@ function CrawlsPageInner() {
                 <Link href="/crawls">Show all crawls</Link>
               </p>
             ) : null}
-          </div>
+          </nav>
 
           <ul className="curatedGrid" aria-label="Curated crawls worth walking">
             {visibleCrawls.map((crawl) => {
