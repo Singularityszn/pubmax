@@ -5,6 +5,7 @@ import {
   assertServerEnv,
   DEV_RATE_LIMIT_SALT,
 } from "@/lib/serverEnv";
+import { requiresSupabaseStore } from "@/lib/supabase";
 
 describe("assertProductionSecrets", () => {
   afterEach(() => {
@@ -142,5 +143,26 @@ describe("assertServerEnv", () => {
     process.env.RATE_LIMIT_SALT = "unique-prod-salt";
 
     expect(() => assertServerEnv()).not.toThrow();
+  });
+});
+
+describe("requiresSupabaseStore", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    delete process.env.PUBMAX_E2E_KEYLESS;
+  });
+
+  it("keeps production-style Playwright keyless writes on the in-memory store", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.PUBMAX_E2E_KEYLESS = "1";
+
+    expect(requiresSupabaseStore()).toBe(false);
+  });
+
+  it("still requires durable storage for normal production runtime", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.PUBMAX_E2E_KEYLESS;
+
+    expect(requiresSupabaseStore()).toBe(true);
   });
 });

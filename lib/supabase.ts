@@ -31,7 +31,11 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function requiresSupabaseStore(): boolean {
-  return process.env.NODE_ENV === "production";
+  // Keep the runtime store guard aligned with lib/serverEnv's startup guard:
+  // Playwright's production-style keyless server deliberately runs with
+  // PUBMAX_E2E_KEYLESS=1 so local/mobile QA can exercise real write paths
+  // against the in-memory stores. Deployed production must never set this.
+  return process.env.NODE_ENV === "production" && process.env.PUBMAX_E2E_KEYLESS !== "1";
 }
 
 export const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET ?? "pint-drops";
