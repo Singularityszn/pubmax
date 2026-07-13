@@ -108,7 +108,7 @@ export default defineConfig({
   webServer: {
     command: SCREENSHOT_RUN
       ? `PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`
-      : `PUBMAX_E2E_KEYLESS=1 npm run build && PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`,
+      : `NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build && NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
     // Production build can take a while cold; give it room in CI.

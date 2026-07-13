@@ -87,23 +87,27 @@
 
 .barTabMapLink,
 .barTabLedgerLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
   color: var(--brass);
   font-weight: 700;
   font-size: 0.9rem;
   text-decoration: none;
-  border-bottom: 1px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 8px);
 }
 
 .barTabMapLink:hover,
 .barTabLedgerLink:hover {
-  border-bottom-color: var(--brass);
+  border-color: var(--brass);
 }
 
 .barTabMapLink:focus-visible,
 .barTabLedgerLink:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
-  border-radius: 2px;
 }
 
 /* The grid — 2 cols on phones, 3 from tablet up. */

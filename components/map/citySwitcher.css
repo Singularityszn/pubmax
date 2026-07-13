@@ -102,8 +102,8 @@
 
 @media (max-width: 640px) {
   .citySwitcherTrigger {
-    min-height: 36px;
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 8px;
     font-size: 0.66rem;
     line-height: 1;

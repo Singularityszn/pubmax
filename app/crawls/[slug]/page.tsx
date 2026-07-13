@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
 import CrawlStoryOwnerControls from "@/components/crawl/CrawlStoryOwnerControls";
 import ShareBar from "@/components/share/ShareBar";
 import { computeChaosScore } from "@/lib/chaosScore";
@@ -113,9 +113,6 @@ export default async function CrawlStoryPage({ params }: PageProps) {
   const story = await getCrawlStoryBySlug(slug);
   if (!story) notFound();
 
-  // Per-request CSP nonce (set by proxy.ts) for the inline copy-link script.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
-
   const total = story.totalGbp;
   const pricedStops = story.stops.filter((stop) => typeof stop.priceGbp === "number").length;
   const stopCount = story.stops.length;
@@ -220,17 +217,7 @@ export default async function CrawlStoryPage({ params }: PageProps) {
           >
             Share the chaos
           </a>
-          {/* Copy-link stays a server-rendered button: it degrades to nothing
-              without JS (progressive enhancement), and a tiny inline script wires
-              up the clipboard on load so we don't need a client component file. */}
-          <button
-            type="button"
-            id="storyCopyBtn"
-            className="storySecondaryBtn"
-            data-label="Copy link"
-          >
-            Copy link
-          </button>
+          <CrawlStoryCopyButton />
         </div>
 
         {/* Author-only edit/delete (story 35). Renders nothing for non-authors. */}
@@ -246,18 +233,6 @@ export default async function CrawlStoryPage({ params }: PageProps) {
         <p className="storyFootnote">Every pint has a story.</p>
       </article>
 
-      <script
-        nonce={nonce}
-        dangerouslySetInnerHTML={{
-          __html:
-            "(function(){var b=document.getElementById('storyCopyBtn');if(!b)return;" +
-            "b.addEventListener('click',function(){if(!navigator.clipboard)return;" +
-            "navigator.clipboard.writeText(location.href).then(function(){" +
-            "var o=b.textContent;b.textContent='Copied!';" +
-            "setTimeout(function(){b.textContent=b.getAttribute('data-label')||o;},2000);" +
-            "}).catch(function(){});});})();",
-        }}
-      />
     </main>
   );
 }

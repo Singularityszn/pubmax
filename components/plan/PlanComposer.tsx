@@ -1,15 +1,157 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
 import { CREW_NAME_MAX } from "@/lib/crew";
+import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
 import type { NightContext } from "@/lib/nightPlanning";
 
 type DraftStop = { key: number; venueId: string; venueName: string };
 type VenueOption = { id: string; name: string; address?: string };
+
+export type NightAreaSelectorGroup = {
+  label: "Ready to plan" | "Not ready yet";
+  disabled: boolean;
+  areas: NightArea[];
+};
+
+export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGroup[] {
+  return [
+    {
+      label: "Ready to plan",
+      disabled: false,
+      areas: NIGHT_AREAS.filter((area) => isNightAreaRouteReady(area, now)),
+    },
+    {
+      label: "Not ready yet",
+      disabled: true,
+      areas: NIGHT_AREAS.filter((area) => !isNightAreaRouteReady(area, now)),
+    },
+  ];
+}
+
+export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
+  return disabled ? `${area.name} — not route-ready` : area.name;
+}
+
+export function nightAreaMapHref(area: NightArea): string {
+  return `/map?q=${encodeURIComponent(area.name)}`;
+}
+
+export function errorMessageFromBody(body: unknown, fallback: string): string {
+  if (!body || typeof body !== "object") return fallback;
+  const error = (body as { error?: unknown }).error;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const structuredError = error as { code?: unknown; message?: unknown };
+    const message = structuredError.message;
+    if (
+      structuredError.code === "NIGHT_AREA_ROUTE_NOT_READY" ||
+      structuredError.code === "DISTRICT_ROUTE_NOT_READY"
+    ) {
+      const payload = body as {
+        nightArea?: { id?: unknown };
+        district?: { id?: unknown };
+      };
+      const areaId = payload.nightArea?.id ?? payload.district?.id;
+      const area = NIGHT_AREAS.find((candidate) => candidate.slug === areaId);
+      const areaName = area?.name ?? "This Night Area";
+      const serverMessage = typeof message === "string" && message.trim()
+        ? message.trim()
+        : "We're still checking this Night Area before planning a Crawl Route.";
+      return `${areaName} is not ready for route planning yet. ${serverMessage} Choose a ready area to continue.`;
+    }
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+}
+
+type NightAreaCoverageTone = "ready" | "review" | "capture" | "discovery" | "paused";
+
+export type NightAreaCoverageSummary = {
+  label: string;
+  detail: string;
+  tone: NightAreaCoverageTone;
+};
+
+const GATE_LABELS: Partial<Record<NightArea["missingEvidence"][number], string>> = {
+  venue_density: "venue density",
+  identity_conflict: "venue identity checks",
+  opening_hours: "opening hours",
+  price_coverage: "price coverage",
+  amenity_coverage: "amenity coverage",
+  transport_anchor: "a transport anchor",
+  route_feasibility: "route feasibility",
+  terminal_get_home: "the route home",
+  terminal_food: "a food ending",
+  stale_review: "a fresh review",
+  unreviewed_source: "reviewed sources",
+};
+
+function formatGateCode(code: NightArea["missingEvidence"][number]): string {
+  return GATE_LABELS[code] ?? code.replaceAll("_", " ");
+}
+
+export function nightAreaCoverageSummary(
+  area: NightArea,
+  now = new Date(),
+): NightAreaCoverageSummary {
+  if (isNightAreaRouteReady(area, now)) {
+    return {
+      label: "Route-ready",
+      detail: "Crawl Routes can be planned here now.",
+      tone: "ready",
+    };
+  }
+
+  const missing = area.missingEvidence.slice(0, 2).map(formatGateCode);
+  const remaining = area.missingEvidence.length - missing.length;
+  const missingEvidenceDetail = missing.length > 0
+    ? `missing ${missing.join(" and ")}${remaining > 0 ? ` + ${remaining} more` : ""}.`
+    : "Coverage is being checked before route planning opens.";
+
+  switch (area.coverageStatus) {
+    case "captured":
+      return { label: "Captured", detail: `Not route-ready yet — ${missingEvidenceDetail}`, tone: "capture" };
+    case "discovered":
+      return { label: "Discovered", detail: "Not route-ready yet — evidence capture has not started.", tone: "discovery" };
+    case "reviewed":
+      return { label: "Reviewed", detail: `Not route-ready yet — ${missingEvidenceDetail}`, tone: "review" };
+    case "paused":
+      return { label: "Paused", detail: "Not route-ready yet — review has expired; route planning stays closed.", tone: "paused" };
+    default:
+      return { label: "Review in progress", detail: `Not route-ready yet — ${missingEvidenceDetail}`, tone: "review" };
+  }
+}
+
+function formatCoverageDate(value: string | null): string | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(timestamp));
+}
+
+/** Keep the evidence window visible anywhere coverage is presented. */
+export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string {
+  const reviewed = formatCoverageDate(area.lastReviewedAt);
+  const expires = formatCoverageDate(area.reviewExpiresAt);
+  if (!reviewed) return "No reviewed snapshot yet.";
+  if (!expires) return `Last checked ${reviewed}.`;
+  const expiry = Date.parse(area.reviewExpiresAt ?? "");
+  if (Number.isFinite(expiry) && expiry <= now.getTime()) {
+    return `Last checked ${reviewed} · review expired ${expires}.`;
+  }
+  return `Last checked ${reviewed} · review through ${expires}.`;
+}
 
 function nextEvening(): string {
   const date = new Date();
@@ -21,6 +163,9 @@ function nextEvening(): string {
 
 export default function PlanComposer() {
   const router = useRouter();
+  const areaGroups = nightAreaSelectorGroups();
+  const readyAreas = areaGroups[0]?.areas ?? [];
+  const areasInProgress = areaGroups[1]?.areas ?? [];
   const [title, setTitle] = useState("Tonight, sorted");
   const [creatorName, setCreatorName] = useState("");
   const [startTime, setStartTime] = useState(nextEvening);
@@ -68,7 +213,7 @@ export default function PlanComposer() {
         body: JSON.stringify({ query: conciergeQuery, ...(nightContext ? { context: nightContext } : {}) }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body?.error || "PubMax could not sort this one.");
+      if (!response.ok) throw new Error(errorMessageFromBody(body, "PubMax could not sort this one."));
       const suggested: Array<{ venueId: string; venueName: string }> = Array.isArray(body.stops) ? body.stops : [];
       if (!suggested.length) throw new Error("No grounded venues matched that request. Try a nearby area or a broader mood.");
       setStops(suggested.map((stop, index) => ({ key: index + 1, ...stop })));
@@ -134,17 +279,57 @@ export default function PlanComposer() {
 
   return (
     <form className="planComposer" onSubmit={submit}>
-      <section className="planComposer__templates" aria-labelledby="plan-templates-title">
-        <h2 id="plan-templates-title">Start from an occasion</h2>
-        <p className="planComposer__templatesLead">
-          One tap fills the title and concierge prompt — still editable.
+      <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
+        <div>
+          <span className="planPage__eyebrow">Describe your night</span>
+          <h2 id="plan-concierge-title">Say what you need. Get three useful stops.</h2>
+        </div>
+        <div className="planComposer__conciergeInput">
+          <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the night</label>
+          <input id="plan-concierge-query" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Quiet-ish in Clapham, 4 of us, not pricey" maxLength={500} />
+          <button type="button" onClick={sortWithConcierge} disabled={sorting || !conciergeQuery.trim()} aria-busy={sorting}>{sorting ? "Planning…" : "Plan my night"}</button>
+        </div>
+        <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
+          {sorting ? "Planning your night — checking route-ready areas and finding grounded stops." : conciergeNote}
         </p>
-        <div className="planComposer__templateRow" role="list">
+        {nightContext ? (
+          <fieldset className="planComposer__context">
+            <legend>What PubMax understood — edit anything</legend>
+            <p id="plan-context-note" className="planComposer__contextNote">Ready areas can be planned now. Other areas stay visible while coverage is checked.</p>
+            <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note" value={nightContext.nightArea ?? ""} onChange={(event) => setNightContext({ ...nightContext, nightArea: event.target.value as NightContext["nightArea"] })}>
+              {areaGroups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.areas.map((area) => (
+                    <option key={area.slug} value={area.slug} disabled={group.disabled}>
+                      {nightAreaOptionLabel(area, group.disabled)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select></label>
+            <label htmlFor="plan-context-time">Time<select id="plan-context-time" value={nightContext.daypart} onChange={(event) => setNightContext({ ...nightContext, daypart: event.target.value as NightContext["daypart"] })}>
+              <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
+            </select></label>
+            <label htmlFor="plan-context-group">Group<select id="plan-context-group" value={nightContext.partyType} onChange={(event) => setNightContext({ ...nightContext, partyType: event.target.value as NightContext["partyType"] })}>
+              <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
+            </select></label>
+            <label htmlFor="plan-context-people">People<input id="plan-context-people" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => setNightContext({ ...nightContext, groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
+            <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" value={nightContext.budget} onChange={(event) => setNightContext({ ...nightContext, budget: event.target.value as NightContext["budget"] })}>
+              <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
+            </select></label>
+          </fieldset>
+        ) : null}
+      </section>
+      <section className="planComposer__templates" aria-labelledby="plan-templates-title">
+        <h2 id="plan-templates-title">Need a starting point?</h2>
+        <p className="planComposer__templatesLead">
+          Optional occasion prompts fill the description — still editable.
+        </p>
+        <div className="planComposer__templateRow">
           {PLAN_TEMPLATES.map((template: PlanTemplate) => (
             <button
               key={template.id}
               type="button"
-              role="listitem"
               className="planComposer__template"
               title={template.blurb}
               onClick={() => {
@@ -158,35 +343,62 @@ export default function PlanComposer() {
           ))}
         </div>
       </section>
-      <section className="planComposer__concierge" aria-labelledby="plan-concierge-title">
-        <div>
-          <span className="planPage__eyebrow">Describe your night</span>
-          <h2 id="plan-concierge-title">Say what you need. Get three useful stops.</h2>
-        </div>
-        <div className="planComposer__conciergeInput">
-          <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the night</label>
-          <input id="plan-concierge-query" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Quiet-ish in Clapham, 4 of us, not pricey" maxLength={500} />
-          <button type="button" onClick={sortWithConcierge} disabled={sorting || !conciergeQuery.trim()}>{sorting ? "Planning…" : "Plan my night"}</button>
-        </div>
-        {conciergeNote ? <p>{conciergeNote}</p> : null}
-        {nightContext ? (
-          <fieldset className="planComposer__context">
-            <legend>What PubMax understood — edit anything</legend>
-            <label>Area<select value={nightContext.nightArea ?? ""} onChange={(event) => setNightContext({ ...nightContext, nightArea: event.target.value as NightContext["nightArea"] })}>
-              <option value="clapham">Clapham</option><option value="victoria">Victoria</option><option value="piccadilly-soho">Piccadilly &amp; Soho</option><option value="canary-wharf">Canary Wharf</option><option value="barnes">Barnes</option><option value="chiswick">Chiswick</option>
-            </select></label>
-            <label>Time<select value={nightContext.daypart} onChange={(event) => setNightContext({ ...nightContext, daypart: event.target.value as NightContext["daypart"] })}>
-              <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
-            </select></label>
-            <label>Group<select value={nightContext.partyType} onChange={(event) => setNightContext({ ...nightContext, partyType: event.target.value as NightContext["partyType"] })}>
-              <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
-            </select></label>
-            <label>People<input type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => setNightContext({ ...nightContext, groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
-            <label>Budget<select value={nightContext.budget} onChange={(event) => setNightContext({ ...nightContext, budget: event.target.value as NightContext["budget"] })}>
-              <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
-            </select></label>
-          </fieldset>
-        ) : null}
+      <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
+        <details>
+          <summary>
+            <span id="plan-coverage-title">Night Area coverage</span>
+            <span className="planComposer__coverageMeta">
+              {readyAreas.length} route-ready · {areasInProgress.length} not route-ready
+            </span>
+          </summary>
+          <p className="planComposer__coverageIntro">
+            Browse the current London capture state. Route-ready means the required evidence gate is complete and still within its review window. Only those areas can produce a Crawl Route; the rest stay visible without implying that a route is ready.
+          </p>
+          <div className="planComposer__coverageGroups">
+            <section aria-labelledby="plan-coverage-ready">
+              <h3 id="plan-coverage-ready">Ready to plan now</h3>
+              <ul>
+                {readyAreas.map((area) => {
+                  const summary = nightAreaCoverageSummary(area);
+                  return (
+                    <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
+                      <div>
+                        <strong>{area.name}</strong>
+                        <small>{summary.detail}</small>
+                        <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
+                      </div>
+                      <div className="planComposer__coverageActions">
+                        <span>{summary.label}</span>
+                        <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+            <section aria-labelledby="plan-coverage-progress">
+              <h3 id="plan-coverage-progress">Capture, review, and queue</h3>
+              <ul>
+                {areasInProgress.map((area) => {
+                  const summary = nightAreaCoverageSummary(area);
+                  return (
+                    <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
+                      <div>
+                        <strong>{area.name}</strong>
+                        <small>{summary.detail}</small>
+                        <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
+                      </div>
+                      <div className="planComposer__coverageActions">
+                        <span>{summary.label}</span>
+                        <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          </div>
+        </details>
       </section>
       <div className="planComposer__field planComposer__field--wide">
         <label htmlFor="plan-title">Name the night</label>

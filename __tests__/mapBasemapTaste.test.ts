@@ -451,6 +451,16 @@ describe("muteOpacityExpr (issue #222 — mute must only ever attenuate)", () =>
     expect(expr[1]).toBe(0); // the pre-mute original, verbatim — never rewritten upward
   });
 
+  it("preserves a zoom-ramp original expression verbatim inside min()", () => {
+    const original = ["interpolate", ["linear"], ["zoom"], 12.4, 0, 13.1, 1];
+
+    expect(muteOpacityExpr(original, SELECTION_MUTE_OPACITY)).toEqual([
+      "min",
+      original,
+      SELECTION_MUTE_OPACITY,
+    ]);
+  });
+
   it("still attenuates a plain original that sits above the mute floor", () => {
     const expr = muteOpacityExpr(0.98, SELECTION_MUTE_OPACITY) as [string, number, number];
     expect(expr[2]).toBe(SELECTION_MUTE_OPACITY);

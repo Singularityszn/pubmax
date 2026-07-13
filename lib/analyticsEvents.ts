@@ -9,6 +9,13 @@
 // the "measurement spine" the other waves draw their success signals from
 // honest and PII-free even as new events are added.
 
+import {
+  COVERAGE_STATUSES,
+  NIGHT_AREA_SLUGS,
+  ROUTE_READY_GATE_CODES,
+  ROUTE_READY_GATE_VERSION,
+} from "@/lib/nightAreas";
+
 /** Allowed prop keys per event. An empty list means the event carries no props. */
 export const ANALYTICS_EVENTS = {
   // R3 cycle metrics rail (carried over from the original Vercel-backed
@@ -42,6 +49,12 @@ export const ANALYTICS_EVENTS = {
   poster_shared: ["surface"],
   streak_increment: ["days"],
   streak_view: ["days"],
+  // London Capture — reviewed catalogue identifiers and gate codes only.
+  district_catalogue_viewed: [],
+  district_viewed: ["district", "coverageStatus", "demandWave"],
+  district_route_blocked: ["district", "coverageStatus", "demandWave", "reason"],
+  district_route_ready_selected: ["district", "coverageStatus", "demandWave"],
+  route_ready_gate_failed: ["district", "coverageStatus", "demandWave", "reason", "gateVersion"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -55,6 +68,20 @@ export type AnalyticsEvent = {
 };
 
 const MAX_STRING_LEN = 40;
+
+const DISTRICT_EVENT_PROP_VALUES = {
+  district: NIGHT_AREA_SLUGS,
+  coverageStatus: COVERAGE_STATUSES,
+  demandWave: [0, 1, 2, 3],
+  reason: ROUTE_READY_GATE_CODES,
+  gateVersion: [ROUTE_READY_GATE_VERSION],
+} as const;
+
+function isAllowedDistrictEventProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
+  if (!name.startsWith("district_") && name !== "route_ready_gate_failed") return true;
+  const allowed = DISTRICT_EVENT_PROP_VALUES[key as keyof typeof DISTRICT_EVENT_PROP_VALUES];
+  return !allowed || (allowed as readonly (string | number | boolean)[]).includes(value);
+}
 
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
@@ -89,7 +116,7 @@ export function sanitizeEvent(
   if (props && typeof props === "object") {
     for (const key of allowedKeys) {
       const value = (props as Record<string, unknown>)[key];
-      if (value !== undefined && isSafeValue(value)) {
+      if (value !== undefined && isSafeValue(value) && isAllowedDistrictEventProp(name, key, value)) {
         out[key] = value;
       }
     }

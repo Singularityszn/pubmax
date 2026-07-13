@@ -15,8 +15,8 @@ describe("venueInspectorTabs", () => {
     );
     const last = tabs[tabs.length - 1];
     expect(last.key).toBe("getting-home");
-    expect(last.label.length).toBeGreaterThan(0);
-    expect(last.shortLabel.length).toBeGreaterThan(0);
+    expect(last.label).toBe("Last train");
+    expect(last.shortLabel).toBe("Train");
   });
 
   it("uses a city-specific last-ride label for the getting-home tab", () => {
@@ -24,12 +24,13 @@ describe("venueInspectorTabs", () => {
     const manchester = tabsForCity("manchester");
     const londonRide = london[london.length - 1];
     const manchesterRide = manchester[manchester.length - 1];
-    // Both cities expose a getting-home tab with a non-empty label; the label is
-    // provider-driven per city (London TfL "last train" vs. Manchester tram).
+    // Both cities expose a getting-home tab; the label is provider-driven per
+    // city, with London's branded "Last Pint" card surfaced as an actionable
+    // "Last train" tab so it does not collide with Pint Drops/Pints.
     expect(londonRide.key).toBe("getting-home");
     expect(manchesterRide.key).toBe("getting-home");
-    expect(typeof londonRide.label).toBe("string");
-    expect(typeof manchesterRide.label).toBe("string");
+    expect(londonRide).toMatchObject({ label: "Last train", shortLabel: "Train" });
+    expect(manchesterRide).toMatchObject({ label: "Last Tram", shortLabel: "Tram" });
   });
 
   it("never renders two tabs with the same short label, for any city", () => {

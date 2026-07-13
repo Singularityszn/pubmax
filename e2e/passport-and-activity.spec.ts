@@ -52,7 +52,7 @@ test.describe("/u/you — first-run passport (fresh context, no localStorage)", 
     );
     await expect(actions.getByRole("link", { name: "Log a pint" })).toHaveAttribute(
       "href",
-      "/map?compose=1",
+      "/map?log=1",
     );
 
     // The stat grid still renders (all-zero first-run page), never a broken gap.
@@ -61,6 +61,52 @@ test.describe("/u/you — first-run passport (fresh context, no localStorage)", 
     // No "Claim this handle" button — "you" is a sentinel, not a real handle to
     // adopt (app/u/[handle]/page.tsx: isYouRoute ? null : ...).
     await expect(page.getByRole("button", { name: /claim this handle/i })).toHaveCount(0);
+
+    expect(errors).toEqual([]);
+  });
+
+  test("mobile first-run passport CTAs stay thumb-sized and within the viewport", async ({
+    page,
+  }) => {
+    const errors = watchPageErrors(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const response = await page.goto("/u/you");
+    expect(response?.status()).toBe(200);
+
+    const passport = page.locator(".pintPassport");
+    await expect(passport).toBeVisible();
+
+    const actions = passport.locator(".passportFirstRunActions");
+    await expect(actions).toBeVisible();
+
+    const result = await page.evaluate(() => {
+      const links = Array.from(
+        document.querySelectorAll<HTMLElement>(".passportFirstRunActions a"),
+      ).map((link) => {
+        const rect = link.getBoundingClientRect();
+        return {
+          height: rect.height,
+          width: rect.width,
+          left: rect.left,
+          right: rect.right,
+        };
+      });
+
+      return {
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        links,
+      };
+    });
+
+    expect(result.overflow).toBeLessThanOrEqual(1);
+    expect(result.links).toHaveLength(2);
+    for (const link of result.links) {
+      expect(link.height).toBeGreaterThanOrEqual(44);
+      expect(link.width).toBeGreaterThan(44);
+      expect(link.left).toBeGreaterThanOrEqual(0);
+      expect(link.right).toBeLessThanOrEqual(390);
+    }
 
     expect(errors).toEqual([]);
   });
@@ -83,7 +129,7 @@ test.describe("notifications — bell + activity feed", () => {
   test("the notification bell renders in the site nav", async ({ page }) => {
     const errors = watchPageErrors(page);
 
-    const response = await page.goto("/feed");
+    const response = await page.goto("/feed", { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
 
     const bell = page.locator(".siteNavBell").first();
@@ -108,28 +154,17 @@ test.describe("notifications — bell + activity feed", () => {
     // stuck forever.
     const empty = page.locator(".emptyState");
     await expect(empty).toBeVisible();
-    await expect(empty.locator(".emptyStateTitle")).toContainText(/claim a handle/i);
-    await expect(empty.locator(".emptyStateAction a")).toHaveAttribute("href", "/map");
+    await expect(empty.locator(".emptyStateTitle")).toContainText(/sign in or claim a handle/i);
+    await expect(empty.locator(".emptyStateBody")).toContainText(/drop a pint to set a handle/i);
+    await expect(empty.locator(".emptyStateAction :is(a, button)")).toHaveCount(0);
 
     expect(errors).toEqual([]);
   });
 
-  // DEFECT (reported, not fixed — out of scope: app/** / components/** aren't
-  // owned by this e2e task): with a `pubmax_handle` ALREADY in localStorage
-  // before first paint, this page throws a React hydration mismatch (minified
-  // error #418). Root cause: both app/activity/page.tsx (readHandle/useState at
-  // lines ~22-24/75) and components/nav/NotificationBell.tsx (same pattern,
-  // lines ~20-23/27) read localStorage via a `useState(lazyInitializer)`, which
-  // React runs on BOTH the SSR pass (window undefined -> "") and the client's
-  // hydration pass (real window -> the real handle) — a genuine server/client
-  // markup mismatch whenever a handle already exists. Confirmed reproducible
-  // 3/3 runs. We still assert the OBSERVABLE contract (never a broken gap; some
-  // handle-scoped surface renders) since React recovers by re-rendering
-  // client-side after the mismatch — but we don't require zero pageerrors here,
-  // unlike every other test in this suite, specifically because of this defect.
-  test("/activity with a claimed (but freshly-followed-by-nobody) handle shows the 'nothing yet' empty state or a populated list — never a broken gap", async ({
+  test("/activity with a claimed handle shows an empty state or populated list without hydration errors", async ({
     page,
   }) => {
+    const errors = watchPageErrors(page);
     // Seed a device handle so the page attempts the authenticated load path,
     // then guard both outcomes (no notifications yet vs some exist) with
     // .count() — an empty inbox for a brand-new demo handle is the expected,
@@ -152,5 +187,7 @@ test.describe("notifications — bell + activity feed", () => {
     } else {
       await expect(emptyNothingYet.first()).toBeVisible();
     }
+
+    expect(errors).toEqual([]);
   });
 });

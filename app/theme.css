@@ -174,8 +174,8 @@ html[data-theme="dark"] .venueInspector h3 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
@@ -204,8 +204,8 @@ html[data-theme="dark"] .venueInspector h3 {
   top: 16px;
   right: 16px;
   z-index: var(--z-float);
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-color: var(--line);
   background: var(--panel-raised);
   box-shadow: var(--shadow);

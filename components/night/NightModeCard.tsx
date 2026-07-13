@@ -33,9 +33,11 @@ import {
 } from "@/lib/activePlan";
 import { trackEvent } from "@/lib/analytics";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
-import type { PlanState } from "@/lib/plan";
+import type { CrawlEnding, PlanState, PlanStopDTO } from "@/lib/plan";
 import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
+import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
+import RouteEndingCard, { type RouteEndingId } from "@/components/night/RouteEndingCard";
 import { useActivePlan } from "@/components/night/useActivePlan";
 import "./nightMode.css";
 
@@ -52,6 +54,32 @@ type LastTrainSlim = {
 // presence enum for a during-the-night "who's here" line.
 const ARRIVED: ReadonlySet<CrewMemberDTO["status"]> = new Set(["here", "on_the_way"]);
 const SWIPE_DISMISS_PX = 72;
+
+function readMemberToken(planId: string): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.sessionStorage.getItem(`pubmax-plan-member:${planId}`) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function recommendedEndingForPlan(
+  plan: PlanState | null,
+  lateFoodCount: number,
+): CrawlEnding {
+  if ((plan?.context?.foodNeeds?.length ?? 0) > 0 && lateFoodCount > 0) return "food";
+  if (plan?.context?.daypart === "get_home") return "get_home";
+  if (plan?.context?.daypart === "late_night" && lateFoodCount > 0) return "food";
+  return "get_home";
+}
+
+export function confirmedEndingForPlan(
+  plan: PlanState | null,
+  confirmedChoice: CrawlEnding | null,
+): CrawlEnding | null {
+  return plan?.ending ?? confirmedChoice;
+}
 
 export default function NightModeCard() {
   const { ref, visible, dismissed } = useActivePlan();
@@ -82,6 +110,10 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   const [plan, setPlan] = useState<PlanState | null>(null);
   const [report, setReport] = useState<PlanGetInReportDTO | null>(null);
   const [coords, setCoords] = useState<VenueCoord[] | null>(null);
+  const [lateFood, setLateFood] = useState<LateFoodTerminal[]>([]);
+  const [chosenEnding, setChosenEnding] = useState<CrawlEnding | null>(null);
+  const [endingSaving, setEndingSaving] = useState(false);
+  const [endingError, setEndingError] = useState("");
   // Store the last-train result tagged with the venue it belongs to, so a result
   // from a previous stop is never rendered against the current one (the tag is
   // checked at read time — cheaper and lint-cleaner than a clear-in-effect).
@@ -126,6 +158,26 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    const area = plan?.context?.nightArea;
+    if (!area) {
+      void Promise.resolve().then(() => setLateFood([]));
+      return;
+    }
+    let active = true;
+    fetch(`/api/late-food?area=${encodeURIComponent(area)}&limit=3`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body: LateFoodApiResponse | null) => {
+        if (active) setLateFood(Array.isArray(body?.terminals) ? body.terminals : []);
+      })
+      .catch(() => {
+        if (active) setLateFood([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [plan?.context?.nightArea]);
 
   const stops = plan?.stops ?? [];
   const cursor = clampStopIndex(stopIndex, stops.length);
@@ -177,6 +229,35 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
     setActivePlanStopIndex(clampStopIndex(cursor + 1, stops.length));
   }, [cursor, stops.length]);
 
+  const chooseEnding = useCallback(async (ending: RouteEndingId) => {
+    if (!plan || endingSaving) return;
+    if (ending === "food") {
+      setChosenEnding("food");
+      setEndingError("Food is a reviewed suggestion list for now. Pick a place, then choose Get home or Keep going to complete the plan.");
+      trackEvent("planned_night_action", { type: "food_preview" });
+      return;
+    }
+    const memberToken = readMemberToken(id);
+    setEndingSaving(true);
+    setEndingError("");
+    try {
+      const response = await fetch(`/api/plans/${id}/actions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberToken, type: "ending", ending }),
+      });
+      const body = response.ok ? (await response.json() as PlanState) : null;
+      if (!response.ok || !body?.plan) throw new Error("Could not save that ending.");
+      setPlan(body);
+      setChosenEnding(ending);
+      trackEvent("planned_night_completed", { ending });
+    } catch {
+      setEndingError("Could not save that ending. Nothing was completed yet — try again when the connection settles.");
+    } finally {
+      setEndingSaving(false);
+    }
+  }, [endingSaving, id, plan]);
+
   // Lightweight swipe-down-to-dismiss on the grabber (Apple sheet idiom) — kept
   // local so we don't couple to the map-only useSheetDrag host.
   const resetDrag = () => {
@@ -208,6 +289,8 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   const currentTrain =
     currentCoord && lastTrain?.venueId === currentCoord.id ? lastTrain.data : null;
   const lastTrainLeaveBy = currentTrain?.decision?.leaveByIso ?? null;
+  const activeEnding = confirmedEndingForPlan(plan, chosenEnding);
+  const recommendedEnding = recommendedEndingForPlan(plan, lateFood.length);
 
   return (
     <section
@@ -271,7 +354,30 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
           </span>
         </button>
       ) : currentStop ? (
-        <p className="nightCard__last">Last stop of the night. Get home safe.</p>
+        <div className="nightCard__ending">
+          <RouteEndingCard
+            className="nightCard__endingCard"
+            title="Last stop. What next?"
+            description="Choose the ending that fits the group. PubMax saves the choice only after you tap."
+            recommendedId={recommendedEnding}
+            onChoose={chooseEnding}
+          />
+          {endingSaving ? (
+            <p className="nightCard__endingStatus" role="status">Saving the ending…</p>
+          ) : null}
+          {endingError ? (
+            <p className="nightCard__endingError" role="alert">{endingError}</p>
+          ) : null}
+          {activeEnding ? (
+            <NightEndingResult
+              ending={activeEnding}
+              currentStop={currentStop}
+              lateFood={lateFood}
+              stationName={currentTrain?.station?.name ?? null}
+              leaveByIso={lastTrainLeaveBy}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       {arrived.length > 0 ? (
@@ -287,6 +393,74 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
         </div>
       ) : null}
     </section>
+  );
+}
+
+function NightEndingResult({
+  ending,
+  currentStop,
+  lateFood,
+  stationName,
+  leaveByIso,
+}: {
+  ending: CrawlEnding;
+  currentStop: PlanStopDTO;
+  lateFood: LateFoodTerminal[];
+  stationName: string | null;
+  leaveByIso: string | null;
+}) {
+  if (ending === "food") {
+    return (
+      <div className="nightCard__endingResult" data-ending="food">
+        <strong>Food nearby</strong>
+        {lateFood.length > 0 ? (
+          <ul className="nightCard__foodList">
+            {lateFood.slice(0, 3).map((terminal) => (
+              <li key={terminal.id}>
+                <span>{terminal.name}</span>
+                <small>
+                  {terminal.category} · {terminal.walkingDetour.minutes} min detour ·{" "}
+                  {terminal.confidence} confidence
+                </small>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>Food options for this Night Area still need review. Check the map before walking.</p>
+        )}
+        <p className="nightCard__endingFineprint">
+          Kitchen hours can change; verify tonight before leaving the last pub.
+        </p>
+      </div>
+    );
+  }
+
+  if (ending === "keep_going") {
+    return (
+      <div className="nightCard__endingResult" data-ending="keep_going">
+        <strong>Keep it feasible</strong>
+        <p>
+          Open the map around {currentStop.venueName} and choose something genuinely nearby.
+          PubMax will not reward extra drinking or volume.
+        </p>
+        <Link
+          className="nightCard__endingLink"
+          href={`/map?venue=${encodeURIComponent(currentStop.venueId)}`}
+        >
+          Find nearby pubs
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="nightCard__endingResult" data-ending="get_home">
+      <strong>Get home safe</strong>
+      <p>
+        {leaveByIso ? "Use the leave-by time above and start moving now." : "Check TfL or your preferred route home before leaving the group."}
+        {stationName ? ` Nearest rail signal: ${stationName}.` : ""}
+      </p>
+    </div>
   );
 }
 

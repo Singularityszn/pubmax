@@ -11,6 +11,12 @@
   pointer-events: none;
 }
 
+/* Keep an open panel above the live Tonight lane so every layer chip remains
+   tappable when the two bottom map surfaces overlap on a phone. */
+.mapLayersControl.isOpen {
+  z-index: var(--z-map-toolbar);
+}
+
 .mapLayersFab,
 .mapLayersPanel {
   pointer-events: auto;
@@ -145,7 +151,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 6px 12px;
   border: 1px solid color-mix(in srgb, var(--line) 72%, var(--brass) 28%);
   border-radius: 999px;

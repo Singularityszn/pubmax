@@ -1,11 +1,13 @@
+import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { cleanText } from "@/lib/textClean";
 
 export const DAYPARTS = ["daytime", "after_work", "evening", "late_night", "get_home"] as const;
 export type Daypart = (typeof DAYPARTS)[number];
-export const NIGHT_AREA_SLUGS = ["clapham", "victoria", "piccadilly-soho", "canary-wharf", "barnes", "chiswick"] as const;
-export type NightAreaSlug = (typeof NIGHT_AREA_SLUGS)[number];
-export type PartyType = "solo" | "friends" | "work";
-export type Budget = "value" | "standard" | "treat";
+export { type NightAreaSlug };
+export const PARTY_TYPES = ["solo", "friends", "work"] as const;
+export type PartyType = (typeof PARTY_TYPES)[number];
+export const BUDGETS = ["value", "standard", "treat"] as const;
+export type Budget = (typeof BUDGETS)[number];
 
 export type NightContext = {
   nightArea: NightAreaSlug | null;
@@ -22,14 +24,9 @@ export type NightContext = {
 export type ContextReason = { field: keyof NightContext; evidence: string; explanation: string };
 export type InferredNightContext = { context: NightContext; confidence: number; reasons: ContextReason[] };
 
-const AREAS: Array<{ slug: NightAreaSlug; labels: string[] }> = [
-  { slug: "clapham", labels: ["clapham"] },
-  { slug: "victoria", labels: ["victoria"] },
-  { slug: "piccadilly-soho", labels: ["piccadilly", "soho"] },
-  { slug: "canary-wharf", labels: ["canary wharf"] },
-  { slug: "barnes", labels: ["barnes"] },
-  { slug: "chiswick", labels: ["chiswick"] },
-];
+const AREA_LABELS = NIGHT_AREAS
+  .flatMap((area) => [area.name, ...area.aliases].map((label) => ({ slug: area.slug, label })))
+  .sort((a, b) => b.label.length - a.label.length);
 
 function londonHour(now: Date): number {
   return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(now));
@@ -49,11 +46,8 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   const query = cleanText(rawQuery, 500);
   const lower = query.toLocaleLowerCase();
   const reasons: ContextReason[] = [];
-  const areaMatch = AREAS.find((area) => area.labels.some((label) => lower.includes(label)));
-  if (areaMatch) {
-    const evidence = areaMatch.labels.find((label) => lower.includes(label)) ?? areaMatch.labels[0];
-    reasons.push({ field: "nightArea", evidence: evidence.replace(/\b\w/g, (letter) => letter.toUpperCase()), explanation: "Matched a pilot Night Area." });
-  }
+  const areaMatch = AREA_LABELS.find(({ label }) => lower.includes(label.toLocaleLowerCase()));
+  if (areaMatch) reasons.push({ field: "nightArea", evidence: areaMatch.label, explanation: "Matched a Night Area." });
 
   let daypart = defaultDaypart(now);
   const daypartMatchers: Array<[Daypart, RegExp, string]> = [
@@ -69,8 +63,12 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
     reasons.push({ field: "daypart", evidence: explicitDaypart[2], explanation: "Matched the requested time of day." });
   }
 
-  const numeric = lower.match(/\b(\d{1,2})\s*(?:of us|people|mates|friends)\b/);
-  const word = Object.entries(NUMBER_WORDS).find(([label]) => new RegExp(`\\b${label}\\s+(?:of us|people|mates|friends)\\b`).test(lower));
+  const numeric =
+    lower.match(/\b(\d{1,2})\s*(?:of us|people|mates|friends)\b/) ??
+    lower.match(/\b(?:for|party of|group of)\s+(\d{1,2})\b/);
+  const word = Object.entries(NUMBER_WORDS).find(([label]) =>
+    new RegExp(`\\b(?:${label}\\s+(?:of us|people|mates|friends)|(?:for|party of|group of)\\s+${label})\\b`).test(lower),
+  );
   const groupSize = numeric ? Number(numeric[1]) : word?.[1] ?? null;
   if (groupSize) reasons.push({ field: "groupSize", evidence: numeric?.[1] ?? (word?.[0].replace(/^./, (c) => c.toUpperCase()) ?? ""), explanation: "Matched the stated group size." });
 
@@ -92,12 +90,24 @@ export function isNightAreaSlug(value: unknown): value is NightAreaSlug {
   return typeof value === "string" && (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
 }
 
+export function isDaypart(value: unknown): value is Daypart {
+  return typeof value === "string" && (DAYPARTS as readonly string[]).includes(value);
+}
+
+export function isPartyType(value: unknown): value is PartyType {
+  return typeof value === "string" && (PARTY_TYPES as readonly string[]).includes(value);
+}
+
+export function isBudget(value: unknown): value is Budget {
+  return typeof value === "string" && (BUDGETS as readonly string[]).includes(value);
+}
+
 export function cleanNightContext(value: unknown): NightContext | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  if (!isNightAreaSlug(row.nightArea) || !DAYPARTS.includes(row.daypart as Daypart)) return null;
-  if (!(["solo", "friends", "work"] as unknown[]).includes(row.partyType)) return null;
-  if (!(["value", "standard", "treat"] as unknown[]).includes(row.budget)) return null;
+  if (!isNightAreaSlug(row.nightArea) || !isDaypart(row.daypart)) return null;
+  if (!isPartyType(row.partyType)) return null;
+  if (!isBudget(row.budget)) return null;
   const list = (input: unknown) => Array.isArray(input) ? input.filter((item): item is string => typeof item === "string").slice(0, 8).map((item) => cleanText(item, 40)).filter(Boolean) : [];
   return {
     nightArea: row.nightArea,

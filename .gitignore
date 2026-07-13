@@ -1,6 +1,8 @@
 .next/
 .next-prod/
 .next-isolated/
+.next-e2e/
+.next-mobile-qa/
 node_modules/
 out/
 dist/
@@ -32,6 +34,7 @@ scratch-*.mjs
 .playwright-mcp/
 skills-lock.json
 skill_disabled.md
+skill_del.md
 skill_in_pub.md
 skills_used_global.md
 .data/

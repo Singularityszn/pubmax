@@ -543,3 +543,44 @@ test("mobile feed reveals more cards on scroll without clicking 'Load more' (§2
 
   expect(errors).toEqual([]);
 });
+
+test("mobile feed lane controls keep thumb-sized targets without page overflow", async ({ page }) => {
+  const errors = watchPageErrors(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const response = await page.goto("/feed");
+  expect(response?.status()).toBe(200);
+  await expect(page.locator(".feedTitle")).toBeVisible();
+
+  const result = await page.evaluate(() => {
+    const rail = document.querySelector<HTMLElement>(".feedFilters");
+    const chips = Array.from(document.querySelectorAll<HTMLElement>(".feedFilterChip"))
+      .filter((el) => el.offsetParent !== null)
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          height: rect.height,
+          width: rect.width,
+          left: rect.left,
+          right: rect.right,
+        };
+      });
+
+    return {
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      railScrollsInternally: rail ? rail.scrollWidth > rail.clientWidth : false,
+      chips,
+    };
+  });
+
+  expect(result.overflow).toBeLessThanOrEqual(1);
+  expect(result.railScrollsInternally).toBe(true);
+  expect(result.chips.length).toBeGreaterThanOrEqual(5);
+  for (const chip of result.chips) {
+    expect(chip.height).toBeGreaterThanOrEqual(44);
+    expect(chip.width).toBeGreaterThan(44);
+  }
+
+  expect(errors).toEqual([]);
+});

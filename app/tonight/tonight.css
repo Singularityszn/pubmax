@@ -34,7 +34,9 @@
 .tonightShare {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
+  min-height: 44px;
   padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -108,7 +110,10 @@
 .tonightChip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;

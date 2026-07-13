@@ -129,7 +129,10 @@ export default function MapLayersControl({
   const storiesActive = Boolean(activeBandId);
 
   return (
-    <div className="mapLayersControl" ref={rootRef}>
+    <div
+      className={open ? "mapLayersControl isOpen" : "mapLayersControl"}
+      ref={rootRef}
+    >
       <button
         type="button"
         className={

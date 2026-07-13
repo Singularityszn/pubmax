@@ -804,6 +804,7 @@ html[data-legacy="1"] .venueTabPanel::before {
 .venueTabPanel .placeStoryWalk {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--ink);
@@ -821,6 +822,7 @@ html[data-legacy="1"] .venueTabPanel::before {
 .venueTabPanel .placeStoryCrawl {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--brass);
@@ -835,6 +837,7 @@ html[data-legacy="1"] .venueTabPanel::before {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--brass);
@@ -922,7 +925,8 @@ html[data-legacy="1"] .venueTabPanel::before {
   }
 
   .venueTab {
-    min-height: 36px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 7px 10px;
     font-size: 0.8rem;
     /* Tighter tracking (not just a smaller size) buys back a couple of px per
@@ -1176,6 +1180,11 @@ html[data-legacy="1"] .venueTabPanel::before {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+.venueTabPanel .landlordSuggest button,
+.venueTabPanel .citationChip {
+  min-height: 44px;
 }
 
 .venueTabPanel .heritageFollowUp {

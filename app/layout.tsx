@@ -163,6 +163,7 @@ export default async function RootLayout({
         <script
           type="speculationrules"
           nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               prerender: [

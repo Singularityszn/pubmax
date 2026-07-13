@@ -41,7 +41,9 @@ import {
   type CuratedCrawl,
 } from "@/lib/curatedCrawls";
 import { getRoutePack, routePackPrimaryCrawl } from "@/lib/routePacks";
+import NightAreaCoverage from "@/components/night/NightAreaCoverage";
 import "./discover.css";
+import "@/components/night/nightAreaCoverage.css";
 
 /** Discover Hungry chips → map with food filter + cuisine hint in the query. */
 function hungryCuisineHref(tag: string, cityId: CityId): string {
@@ -384,6 +386,8 @@ export default function DiscoverPageClient({
           </Link>
         </nav>
       </header>
+
+      <NightAreaCoverage />
 
       <section className="discoverSection" aria-labelledby="explore-title">
         <h2 id="explore-title" className="discoverSectionTitle">

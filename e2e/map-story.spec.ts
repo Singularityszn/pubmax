@@ -15,6 +15,14 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+});
+
 async function dismissOnboardingIfPresent(page: Page): Promise<void> {
   const dismiss = page.getByRole("button", { name: "Dismiss / explore the map" });
   if ((await dismiss.count()) > 0) {
@@ -97,8 +105,8 @@ test.describe("map / story bands (#15)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Venue sheet tabs (components/map/VenueInspector.tsx). Six tabs (Overview,
-// Drops, Drinks, Story, Ask, Last train) behind role="tablist"/role="tab", with
+// Venue sheet tabs (components/map/VenueInspector.tsx). Six tabs (Pub,
+// Drops, Menu, Lore, Ask, Last train) behind role="tablist"/role="tab", with
 // roving-tabindex arrow-key navigation per the APG tabs pattern. Deep-link
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
 // never depends on a canvas pin click.
@@ -114,7 +122,7 @@ test.describe("map / venue sheet tabs", () => {
     const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
     await expect(tablist).toBeVisible();
 
-    const expectedTabs = ["Overview", "Drops", "Drinks", "Story", "Ask", "Last train"];
+    const expectedTabs = ["Pub", "Drops", "Menu", "Lore", "Ask", "Last train"];
     const tabs = tablist.getByRole("tab");
     await expect(tabs).toHaveCount(6);
     for (const label of expectedTabs) {
@@ -133,9 +141,9 @@ test.describe("map / venue sheet tabs", () => {
     // Switch to every other tab by click; assert its panel becomes visible and
     // the others are hidden (aria-selected flips, hidden attr flips).
     for (const [label, panelId] of [
-      ["Overview", "venuePanel-overview"],
-      ["Drinks", "venuePanel-menu"],
-      ["Story", "venuePanel-story"],
+      ["Pub", "venuePanel-overview"],
+      ["Menu", "venuePanel-menu"],
+      ["Lore", "venuePanel-story"],
       ["Ask", "venuePanel-ask"],
       ["Last train", "venuePanel-getting-home"],
     ] as const) {
@@ -156,10 +164,10 @@ test.describe("map / venue sheet tabs", () => {
     await expect(pintsTab).toHaveAttribute("aria-selected", "true");
     await pintsTab.focus();
 
-    // ArrowRight from Drops (index 1) moves to Drinks (index 2) and moves focus
+    // ArrowRight from Drops (index 1) moves to Menu (index 2) and moves focus
     // with it (roving tabindex — VenueInspector's selectTab calls .focus()).
     await page.keyboard.press("ArrowRight");
-    const menuTab = tablist.getByRole("tab", { name: "Drinks", exact: true });
+    const menuTab = tablist.getByRole("tab", { name: "Menu", exact: true });
     await expect(menuTab).toHaveAttribute("aria-selected", "true");
     await expect(menuTab).toBeFocused();
     await expect(page.locator("#venuePanel-menu")).toBeVisible();
@@ -169,9 +177,9 @@ test.describe("map / venue sheet tabs", () => {
     await expect(pintsTab).toHaveAttribute("aria-selected", "true");
     await expect(pintsTab).toBeFocused();
 
-    // Wrap-around: ArrowLeft from the first tab (Overview) wraps to the last
+    // Wrap-around: ArrowLeft from the first tab (Pub) wraps to the last
     // (Last train).
-    const overviewTab = tablist.getByRole("tab", { name: "Overview", exact: true });
+    const overviewTab = tablist.getByRole("tab", { name: "Pub", exact: true });
     await overviewTab.click();
     await page.keyboard.press("ArrowLeft");
     const gettingHomeTab = tablist.getByRole("tab", { name: "Last train", exact: true });
@@ -182,7 +190,7 @@ test.describe("map / venue sheet tabs", () => {
     page,
   }) => {
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-    const overviewTab = page.getByRole("tab", { name: "Overview", exact: true });
+    const overviewTab = page.getByRole("tab", { name: "Pub", exact: true });
     await overviewTab.click();
     const overviewPanel = page.locator("#venuePanel-overview");
     await expect(overviewPanel).toBeVisible();
@@ -195,7 +203,7 @@ test.describe("map / venue sheet tabs", () => {
     if (blockCount > 0) {
       await expect(contributorBlock.locator("strong")).toBeVisible();
       await expect(contributorBlock.locator(".communityPriceNote")).toContainText(
-        /community-updated/i,
+        /community-updated|not a live tonight feed/i,
       );
     } else {
       // Absent gracefully: the Overview panel still renders a coherent surface

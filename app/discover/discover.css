@@ -708,8 +708,8 @@
   align-items: center;
   gap: 5px;
   width: fit-content;
-  min-height: 32px;
-  padding: 7px 11px;
+  min-height: 44px;
+  padding: 0 14px;
   border: 1px solid var(--brass);
   border-radius: 999px;
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));

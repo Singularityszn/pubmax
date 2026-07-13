@@ -1567,7 +1567,8 @@
 .feedPermalink {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 44px;
+  padding: 0 4px;
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--brass);

@@ -26,4 +26,20 @@ describe("inferNightContext", () => {
     expect(result.context).toMatchObject({ nightArea: "barnes", daypart: "daytime", partyType: "solo" });
     expect(result.context).not.toHaveProperty("homeArea");
   });
+
+  it.each([
+    ["Quiet in Clapham for 4, not pricey", 4],
+    ["A party of five in Soho", 5],
+    ["A group of 6 near Victoria", 6],
+  ])("recognises compact group-size phrasing: %s", (query, groupSize) => {
+    expect(inferNightContext(query).context.groupSize).toBe(groupSize);
+  });
+
+  it("recognises reviewed expansion aliases without treating them as route-ready", () => {
+    const result = inferNightContext("A quiet evening near Camden Town");
+    expect(result.context.nightArea).toBe("camden");
+    expect(result.reasons).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "nightArea", evidence: "Camden Town" }),
+    ]));
+  });
 });

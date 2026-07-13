@@ -54,10 +54,11 @@
   position: absolute;
   top: var(--space-3);
   right: var(--space-3);
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
@@ -124,6 +125,7 @@
   font: inherit;
   font-weight: 650;
   font-size: var(--text-sm);
+  min-height: 44px;
   line-height: 1;
   border-radius: var(--radius-pill);
   cursor: pointer;

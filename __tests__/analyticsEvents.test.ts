@@ -55,6 +55,33 @@ describe("sanitizeEvent", () => {
     });
   });
 
+  it("allows district telemetry only from the reviewed catalogue and gate enums", () => {
+    expect(sanitizeEvent("district_route_blocked", {
+      district: "barnes",
+      coverageStatus: "reviewed",
+      demandWave: 0,
+      reason: "opening_hours",
+      coordinates: "51.474,-0.239",
+      note: "free text is never telemetry",
+    })).toEqual({
+      name: "district_route_blocked",
+      props: {
+        district: "barnes",
+        coverageStatus: "reviewed",
+        demandWave: 0,
+        reason: "opening_hours",
+      },
+    });
+
+    expect(sanitizeEvent("route_ready_gate_failed", {
+      district: "not-a-district",
+      coverageStatus: "available",
+      demandWave: 99,
+      reason: "a custom reviewer note",
+      gateVersion: 2,
+    })?.props).toEqual({});
+  });
+
   it("every registered event's prop list is an array (registry shape)", () => {
     for (const keys of Object.values(ANALYTICS_EVENTS)) {
       expect(Array.isArray(keys)).toBe(true);

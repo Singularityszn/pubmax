@@ -47,7 +47,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
+  min-height: 44px;
   padding: 0 11px;
   border: 1px solid var(--brass);
   border-radius: 999px;
@@ -74,8 +74,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  min-width: 30px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 999px;

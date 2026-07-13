@@ -167,13 +167,13 @@
   .mapToolbarRow {
     width: 100%;
     gap: 4px;
-    min-height: 36px;
+    min-height: 44px;
   }
 
   .mapToolbarSearch {
     min-width: 0;
     flex: 1 1 auto;
-    min-height: 36px;
+    min-height: 44px;
     padding: 2px 8px;
     overflow-x: auto;
     overflow-y: hidden;
@@ -182,6 +182,7 @@
   .mapToolbarSearch input {
     min-width: 0;
     width: 100%;
+    min-height: 44px;
     font-size: 0.74rem;
   }
 
@@ -226,8 +227,8 @@
   }
 
   .drinkShapeChip {
-    min-height: 36px;
-    padding: 4px 9px 4px 6px;
+    min-height: 44px;
+    padding: 4px 10px 4px 8px;
   }
 
   /* Sheet / onboarding / detail collision. Planner peek/half leave the

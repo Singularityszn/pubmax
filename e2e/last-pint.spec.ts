@@ -18,6 +18,14 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+});
+
 function stableVenueIdFromKey(key: string): string {
   let hash = 2166136261;
   for (let i = 0; i < key.length; i += 1) {

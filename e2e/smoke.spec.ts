@@ -11,6 +11,14 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
+async function dismissMapFirstRunTour(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+}
+
 test("landing / serves, shows hero + Demo honesty label + a working /map CTA", async ({
   page,
 }) => {
@@ -190,6 +198,7 @@ test("nav does not overflow at 390px — sign-in button never clips (GH #18)", a
 
 test("mobile map toolbar controls stay inside the search card at 390px", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await dismissMapFirstRunTour(page);
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
@@ -201,7 +210,7 @@ test("mobile map toolbar controls stay inside the search card at 390px", async (
   expect(toolbarBox).not.toBeNull();
   if (!toolbarBox) return;
 
-  for (const selector of [".mapToolbarSearch", ".favoritePintPicker", ".planBtn"]) {
+  for (const selector of [".mapToolbarSearch", ".mapToolbarDrinksBtn", ".planBtn"]) {
     const control = page.locator(selector).first();
     await expect(control).toBeVisible();
     const box = await control.boundingBox();
@@ -209,6 +218,20 @@ test("mobile map toolbar controls stay inside the search card at 390px", async (
     if (!box) continue;
     expect(box.x, `${selector} left edge`).toBeGreaterThanOrEqual(toolbarBox.x - 1);
     expect(box.x + box.width, `${selector} right edge`).toBeLessThanOrEqual(
+      toolbarBox.x + toolbarBox.width + 1,
+    );
+  }
+
+  await page.getByRole("button", { name: "Show drink filters" }).click();
+  const favoritePicker = page.locator(".mapToolbarDrinksLens .favoritePintPicker").first();
+  await expect(favoritePicker).toBeVisible();
+  const pickerBox = await favoritePicker.boundingBox();
+  expect(pickerBox, "expanded mobile drink picker has a box").not.toBeNull();
+  if (pickerBox) {
+    expect(pickerBox.x, "expanded drink picker left edge").toBeGreaterThanOrEqual(
+      toolbarBox.x - 1,
+    );
+    expect(pickerBox.x + pickerBox.width, "expanded drink picker right edge").toBeLessThanOrEqual(
       toolbarBox.x + toolbarBox.width + 1,
     );
   }
@@ -249,6 +272,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   // iPhone-class width — the same viewport the nav-overflow test above uses,
   // and the width the drag bottom-sheet gesture is scoped to (≤640px).
   await page.setViewportSize({ width: 390, height: 844 });
+  await dismissMapFirstRunTour(page);
 
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
@@ -265,7 +289,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   // The grab handle (the drag affordance itself) is visible and — even
   // without simulating a real pointer-drag — present in the DOM as the
   // documented gesture surface (components/map/VenueInspector.tsx).
-  await expect(page.locator(".venueSheetGrab")).toBeVisible();
+  await expect(sheet.locator(".venueSheetGrab").first()).toBeVisible();
 
   // The sheet stays fully usable with no gesture at all: the close button and
   // tabs are reachable and functional (a11y contract from the spec).
@@ -275,18 +299,29 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
 
   const mobileNav = page.locator(".mobileTabBar");
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
+  const goldenThreadPrice = page.locator(".vpsPriceValue").first();
   await expect(mobileNav).toBeVisible();
   await expect(tablist).toBeVisible();
+  await expect(goldenThreadPrice).toHaveText("£5.50");
 
-  const [navBox, closeBox, tabsBox, horizontalOverflow] = await Promise.all([
+  const [navBox, closeBox, tabsBox, horizontalOverflow, goldenThreadPriceStyle] = await Promise.all([
     mobileNav.boundingBox(),
     page.locator(".drawerClose").boundingBox(),
     tablist.boundingBox(),
     page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+    goldenThreadPrice.evaluate((node) => {
+      const style = window.getComputedStyle(node);
+      return {
+        fontFamily: style.fontFamily,
+        letterSpacing: style.letterSpacing,
+      };
+    }),
   ]);
   expect(navBox).not.toBeNull();
   expect(closeBox).not.toBeNull();
   expect(tabsBox).not.toBeNull();
+  expect(goldenThreadPriceStyle.fontFamily).toContain("Inter");
+  expect(goldenThreadPriceStyle.letterSpacing).not.toBe("normal");
   expect(horizontalOverflow).toBeLessThanOrEqual(1);
   expect(navBox!.x).toBeGreaterThanOrEqual(0);
   expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(390);
@@ -295,6 +330,36 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
 
   await page.locator(".drawerClose").click();
   await expect(sheet).not.toHaveClass(/open/);
+});
+
+test("mobile venue sheet sticky actions switch to Train and Drop without desktop tabs", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+  });
+
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+  expect(response?.status()).toBe(200);
+
+  const sheet = page.locator(".mapDrawer.right");
+  await expect(sheet).toHaveClass(/open/);
+
+  const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
+  await expect(stickyActions).toBeVisible();
+
+  await stickyActions.getByRole("button", { name: "Check last train" }).click();
+  const gettingHomeTab = page.getByRole("tab", { name: "Last train", exact: true });
+  await expect(gettingHomeTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
+
+  await stickyActions.getByRole("button", { name: /log a pint drop/i }).click();
+  const dropsTab = page.getByRole("tab", { name: "Drops", exact: true });
+  await expect(dropsTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#venuePanel-pints")).toBeVisible();
+  await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Post Pint Drop" })).toBeVisible();
 });
 
 test("theme toggle flips html[data-theme], persists to localStorage, survives reload", async ({

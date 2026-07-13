@@ -10,9 +10,7 @@ export type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-
 export const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
   { key: "overview", label: "Pub", shortLabel: "Pub" },
   // "Pints" is the narrow-width form — shorter than "Drops" so the whole strip
-  // (5-6 tabs) fits at 390px without clipping. Plural form avoids colliding
-  // with London's getting-home tab, whose short label is "Pint" (from "Last
-  // Pint" via lastRideTabLabel) — see lib/lastRide.ts.
+  // (5-6 tabs) fits at 390px without clipping.
   { key: "pints", label: "Drops", shortLabel: "Pints" },
   { key: "menu", label: "Menu", shortLabel: "Menu" },
   { key: "story", label: "Lore", shortLabel: "Lore" },
@@ -20,10 +18,15 @@ export const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
 ];
 
 export function tabsForCity(cityId: CityId): { key: TabKey; label: string; shortLabel: string }[] {
-  const ride = lastRideTabLabel(getCity(cityId).lastRideLabel);
+  const city = getCity(cityId);
+  // London's card is branded "Last Pint", but a venue tab labelled only "Pint"
+  // collides with Pint Drops/Pints. The tab is an action surface, so name the
+  // transport mode; the Last Pint card keeps the branded copy inside the panel.
+  const rideLabel = city.lastRideLabel === "Last Pint" ? "Last train" : city.lastRideLabel;
+  const ride = lastRideTabLabel(rideLabel);
   return [
     ...BASE_TABS,
-    { key: "getting-home", label: ride, shortLabel: ride },
+    { key: "getting-home", label: rideLabel, shortLabel: ride },
   ];
 }
 
