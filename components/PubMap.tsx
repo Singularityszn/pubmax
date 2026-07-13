@@ -52,6 +52,8 @@ import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
 import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
+import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
+import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -546,9 +548,22 @@ export default function PubMap({
     totalMinutes: journeyTotalMinutes,
   } = useCrawlJourneys(route, isLondon);
   const routeMappedActive = routeMapped && route.length >= 2;
+  // C2 — a plan that's "on tonight" (lib/activePlan) draws on the map through
+  // the SAME route paint the crawl planner uses. useActivePlanRoute carries the
+  // live plan's stops; planStopsToRouteVenues resolves them (ordered, deduped,
+  // real pins only) against the live venue index. Honest-empty: no active plan,
+  // or none of its stops on the map, → [] → no overlay.
+  const activePlanStops = useActivePlanRoute();
+  const activePlanRoute = useMemo(
+    () => planStopsToRouteVenues(activePlanStops, venueById),
+    [activePlanStops, venueById],
+  );
+  // An explicitly mapped crawl always wins (it's the user's direct action);
+  // otherwise the ambient active plan fills the same `route` prop → route-line +
+  // numbered route-stops, framed by the existing routeKey→fitRoute effect.
   const routeForMap = useMemo(
-    () => (routeMappedActive ? route : EMPTY_ROUTE),
-    [routeMappedActive, route],
+    () => (routeMappedActive ? route : activePlanRoute),
+    [routeMappedActive, route, activePlanRoute],
   );
   const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
   const distanceFromUserKm = useMemo(() => {
