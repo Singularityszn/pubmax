@@ -35,30 +35,42 @@ html:not([data-theme="dark"]) {
 html[data-theme="dark"] {
   color-scheme: dark;
 
-  /* Deeper ink paper — Night Out street base (not warm charcoal-brown). */
+  /* Apple-neutral dark surfaces (owner decision, cycle-trust-tonight): kill the
+     M4 sage/green tint on DOM chrome and run a TRUE-NEUTRAL elevation ladder —
+     each surface step is ≥ ~8 sRGB units/channel lighter than the one below
+     (paper 0a → panel 14 → panel-raised 1c → panel-overlay 24), so depth reads
+     by luminance, not hue. Brass/amber is the ONLY vivid accent; every other
+     accent is demoted below. The map keeps its M4 dusk identity via the
+     dedicated --map-* tokens (sky/buildings/parks), which are untouched.
+     --ink stays as-is on purpose: the map reads it for label ink and it is
+     already an effectively neutral near-white. */
   --ink: #eef3ef;
-  --ink-soft: #c5d0c9;
-  --muted: #8fa399;
-  --line: #24302b;
-  --line-soft: #1a2420;
-  --paper: #070b0a;
-  --panel: #0e1613;
-  --panel-raised: #141c19;
-  --ink-deep: #040606;
+  --ink-soft: #c9c9ce;
+  --muted: #9a9aa0;
+  --line: #2c2c30;
+  --line-soft: #202024;
+  --paper: #0a0a0b;
+  --panel: #141416;
+  --panel-raised: #1c1c1f;
+  --panel-overlay: #242427; /* NEW 4th step — menus / popovers / toasts */
+  --ink-deep: #060607; /* deepest well — neutral near-black (was cyan-ish #040606) */
 
-  --pint: #3dff9a; /* neon-go / cheap / positive */
-  --amber: #f0a01a; /* mid price + route energy */
-  --brick: #ff6b7a; /* expensive / destructive — keeps coral job */
+  /* Accent demotion: brass/amber carry ALL saturated weight at full chroma;
+     every other accent drops to a low-chroma tint so it can't bloom on
+     near-black while staying legible for its semantic job. */
+  --pint: #5fb389; /* cheap / positive — muted go-green (was neon #3dff9a) */
+  --amber: #f0a01a; /* mid price + route energy — FULL chroma, kept */
+  --brick: #d47a82; /* dear / destructive — muted rose-red (was #ff6b7a) */
   /* Amber owns Plan CTA / accent in dark (coral stays on --brick for dear). */
   --brass: #f0a01a;
   --brass-bright: #ffb328;
   --night-amber: #f0a01a;
-  --river: #64b5ff;
-  --river-bright: #7dd3fc;
-  --spritz: #ffd166;
-  --neon: #5cff99;
-  --grape: #a78bfa; /* available but unused for glow — no purple mesh */
-  --pink: #ff7ac8;
+  --river: #7aa6cc; /* info / by-water — muted steel blue (was #64b5ff) */
+  --river-bright: #9ac0da; /* muted light blue (was #7dd3fc) */
+  --spritz: #d8c48f; /* muted gold (was #ffd166) */
+  --neon: #78bd97; /* muted green (was #5cff99) */
+  --grape: #9b90c0; /* muted violet (was #a78bfa) — no purple mesh */
+  --pink: #cf8bb6; /* muted pink (was #ff7ac8) */
 
   /* P1 chrome cleanup — Apple-neutral near-black DOM-chrome surfaces.
      --paper/--panel/--panel-raised/--line above carry a deliberate sage/green
@@ -86,11 +98,14 @@ html[data-theme="dark"] {
   --map-building-emissive: #8f7d6b;
   --map-park-tint: #3f5c38;
 
-  /* Night bloom: amber street-light lift, never purple. */
-  --shadow: 0 18px 44px rgba(0, 0, 0, 0.6), 0 0 28px rgba(240, 160, 26, 0.1);
-  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 14px rgba(240, 160, 26, 0.08);
-  --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(240, 160, 26, 0.16);
-  --gradient-party: linear-gradient(135deg, var(--paper) 0%, #0e1613 48%, #0a1210 100%);
+  /* Apple-neutral elevation language (replaces amber street-light bloom): a
+     top-inset hairline catches light on the card's top edge, a 1px dark ring
+     contains it against near-black, and a soft NEUTRAL drop gives depth — all
+     achromatic, no amber glow. Token NAMES kept; consumers unchanged. */
+  --shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
+  --shadow-inset-press: inset 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  --gradient-party: linear-gradient(135deg, var(--paper) 0%, var(--panel) 48%, var(--ink-deep) 100%);
 
   /* Map chrome on night basemap — black lift, not lavender paper shadows.
      Also set on .appShell below: that node redefines the same vars for light. */
