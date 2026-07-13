@@ -19,6 +19,7 @@
   --paper: #fff1e6; /* candle peach — warmer than flat cream */
   --panel: #fffaf6;
   --panel-raised: #ffffff;
+  --panel-overlay: #ffffff; /* light default for the dark elevation ladder's 4th step (theme.css) */
   --ink-deep: #16122a;
 
   --pint: #18a76d; /* cheap pint / positive — Field Guide semantic */
