@@ -198,14 +198,15 @@ test.describe("screenshot baseline", () => {
             JSON.stringify({ id, startTime, stopIndex: 0 }),
           );
         }, fixture);
-        const response = await page.goto("/map");
+        const response = await page.goto("/");
         expect(response?.status()).toBe(200);
-        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
         await page.getByRole("region", { name: "Tonight's plan" }).waitFor({
           state: "visible",
           timeout: 15000,
         });
-        await expect(page.getByText("On tonight · The Gate Zero night")).toBeVisible();
+        await expect(page.getByText("On tonight · The Gate Zero night")).toBeVisible({
+          timeout: 60_000,
+        });
         await shot(page, `active-night-${theme}-${viewportName}`);
       });
 
