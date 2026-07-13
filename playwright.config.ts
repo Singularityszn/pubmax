@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 // serves a production build on a fixed port (kept off 3000 so it won't collide
 // with a hand-run `next dev`). Assertions are WebGL-agnostic so headless boxes
 // with no GPU don't false-fail — see e2e/smoke.spec.ts.
-const PORT = 3100;
+const PORT = Number(process.env.PW_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 
@@ -107,7 +107,7 @@ export default defineConfig({
   ],
   webServer: {
     command: SCREENSHOT_RUN
-      ? `npm run dev -- --port ${PORT}`
+      ? `PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`
       : `PUBMAX_E2E_KEYLESS=1 npm run build && PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,

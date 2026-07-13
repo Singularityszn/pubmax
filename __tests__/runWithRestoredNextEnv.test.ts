@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -19,6 +19,8 @@ function initialiseGit(cwd: string): void {
   execFileSync("git", ["config", "user.email", "gate0@example.test"], { cwd });
   execFileSync("git", ["config", "user.name", "Gate Zero"], { cwd });
   writeFileSync(join(cwd, "tracked.txt"), "baseline\n", "utf8");
+  mkdirSync(join(cwd, "docs", "screenshots"), { recursive: true });
+  writeFileSync(join(cwd, "docs", "screenshots", "baseline.txt"), "baseline\n", "utf8");
   execFileSync("git", ["add", "."], { cwd });
   execFileSync("git", ["commit", "-qm", "baseline"], { cwd });
 }
@@ -69,6 +71,45 @@ describe("run-with-restored-next-env", () => {
     initialiseGit(cwd);
     writeFileSync(join(cwd, "tracked.txt"), "owner WIP\n", "utf8");
     const result = spawnSync(process.execPath, [wrapper, process.execPath, "-e", "require('fs').appendFileSync('tracked.txt', 'build mutation\\n')"], { cwd });
+    expect(result.status).toBe(1);
+    expect(result.stderr.toString()).toContain("changed tracked files");
+  });
+
+  it("allows declared tracked outputs", () => {
+    const cwd = workspace();
+    initialiseGit(cwd);
+    const result = spawnSync(
+      process.execPath,
+      [
+        wrapper,
+        process.execPath,
+        "-e",
+        "require('fs').appendFileSync('docs/screenshots/baseline.txt', 'new capture\\n')",
+      ],
+      {
+        cwd,
+        env: { ...process.env, PUBMAX_TRACKED_OUTPUTS: "docs/screenshots" },
+      },
+    );
+    expect(result.status).toBe(0);
+  });
+
+  it("still rejects unrelated mutations when tracked outputs are declared", () => {
+    const cwd = workspace();
+    initialiseGit(cwd);
+    const result = spawnSync(
+      process.execPath,
+      [
+        wrapper,
+        process.execPath,
+        "-e",
+        "const fs=require('fs'); fs.appendFileSync('docs/screenshots/baseline.txt', 'new capture\\n'); fs.appendFileSync('tracked.txt', 'unrelated\\n')",
+      ],
+      {
+        cwd,
+        env: { ...process.env, PUBMAX_TRACKED_OUTPUTS: "docs/screenshots, docs/screenshots/extra" },
+      },
+    );
     expect(result.status).toBe(1);
     expect(result.stderr.toString()).toContain("changed tracked files");
   });

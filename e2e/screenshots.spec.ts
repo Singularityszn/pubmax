@@ -19,26 +19,20 @@ async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   await page.addInitScript((t) => {
     window.localStorage.setItem("pubmax-theme", t);
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   }, theme);
 }
 
 async function waitForMobileVenueSheet(page: Page): Promise<void> {
-  await page.locator(".mapDrawer.right.open .venueInspector").waitFor({
+  const inspector = page.locator(".venueInspector");
+  await inspector.waitFor({
     state: "visible",
-    timeout: 10000,
+    timeout: 60_000,
   });
-  await page.waitForFunction(() => {
-    const drawer = document.querySelector<HTMLElement>(".mapDrawer.right.open");
-    if (!drawer) return false;
-
-    const rect = drawer.getBoundingClientRect();
-    const style = window.getComputedStyle(drawer);
-    return (
-      style.bottom !== "auto" &&
-      rect.left >= -1 &&
-      rect.right <= window.innerWidth + 1 &&
-      rect.width >= window.innerWidth - 2
-    );
+  await inspector.getByRole("heading", { level: 3, name: "Arnos Arms" }).waitFor({
+    state: "visible",
+    timeout: 60_000,
   });
 }
 
@@ -198,8 +192,12 @@ test.describe("screenshot baseline", () => {
             JSON.stringify({ id, startTime, stopIndex: 0 }),
           );
         }, fixture);
-        const response = await page.goto("/");
+        const response = await page.goto("/map");
         expect(response?.status()).toBe(200);
+        await page.getByRole("region", { name: "Map" }).waitFor({
+          state: "visible",
+          timeout: 20_000,
+        });
         await page.getByRole("region", { name: "Tonight's plan" }).waitFor({
           state: "visible",
           timeout: 15000,

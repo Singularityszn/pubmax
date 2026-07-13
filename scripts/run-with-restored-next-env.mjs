@@ -21,9 +21,28 @@ const executable = process.platform === "win32" && command === "npm" ? "npm.cmd"
 const requestedDistDir = process.env.NEXT_DIST_DIR?.trim();
 const ownsDistDir = !requestedDistDir;
 const distDir = requestedDistDir || `.next-isolated/${process.pid}-${randomUUID()}`;
+const trackedOutputs = (process.env.PUBMAX_TRACKED_OUTPUTS ?? "")
+  .split(",")
+  .map((value) => value.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+for (const output of trackedOutputs) {
+  if (
+    output.startsWith("/") ||
+    output.split("/").includes("..") ||
+    !/^[A-Za-z0-9._/-]+$/.test(output)
+  ) {
+    console.error(`Invalid PUBMAX_TRACKED_OUTPUTS path: ${output}`);
+    process.exit(2);
+  }
+}
 
 function trackedDiff() {
-  const git = spawnSync("git", ["diff", "--binary", "--no-ext-diff", "HEAD", "--"], {
+  const exclusions = trackedOutputs.flatMap((output) => [
+    `:(exclude,top)${output}`,
+    `:(exclude,top)${output}/**`,
+  ]);
+  const git = spawnSync("git", ["diff", "--binary", "--no-ext-diff", "HEAD", "--", ".", ...exclusions], {
     cwd: process.cwd(), encoding: "buffer", maxBuffer: 50 * 1024 * 1024,
   });
   return git.status === 0 ? git.stdout : null;
