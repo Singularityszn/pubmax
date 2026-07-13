@@ -39,7 +39,14 @@ async function waitForMobileVenueSheet(page: Page): Promise<void> {
 async function shot(page: Page, basename: string): Promise<void> {
   // Gate-Z compares the configured acceptance viewport. Full-document captures
   // are both noisy (dynamic feeds) and prone to hanging on scroll animations.
-  const png = await page.screenshot({ animations: "disabled", fullPage: false });
+  // Playwright's `animations: "disabled"` fast-forwards finite animations and
+  // can itself stall on the landing page's mixed view/CSS transitions. Freeze
+  // motion explicitly, then take an ordinary viewport capture.
+  await page.addStyleTag({
+    content:
+      "*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}",
+  });
+  const png = await page.screenshot({ fullPage: false });
   await Promise.all([mkdir(DOCS_DIR, { recursive: true }), mkdir(OUT_DIR, { recursive: true })]);
   await Promise.all([
     writeFile(`${DOCS_DIR}/${basename}.png`, png),
