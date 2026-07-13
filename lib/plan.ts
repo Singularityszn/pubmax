@@ -1,5 +1,6 @@
 import type { CrewMemberDTO } from "@/lib/crew";
 import { cleanText } from "@/lib/textClean";
+import type { NightContext } from "@/lib/nightPlanning";
 
 export const PLAN_TITLE_MAX = 80;
 export const PLAN_STOP_MAX = 8;
@@ -11,7 +12,23 @@ export type PlanDTO = {
   title: string;
   startTime: string;
   createdAt: string;
+  /** Defaults to draft for legacy Plan records created before Planned Night lifecycle metadata. */
+  status?: PlannedNightStatus;
 };
+
+export const PLANNED_NIGHT_STATUSES = ["draft", "ready", "active", "ending", "completed", "abandoned"] as const;
+export type PlannedNightStatus = (typeof PLANNED_NIGHT_STATUSES)[number];
+export type CrawlEnding = "food" | "get_home" | "keep_going";
+export type PlanActionDTO = { id: string; type: "arrived" | "skipped" | "swapped" | "ending"; stopPosition: number | null; ending: CrawlEnding | null; createdAt: string };
+
+const PLAN_TRANSITIONS: Record<PlannedNightStatus, readonly PlannedNightStatus[]> = {
+  draft: ["ready", "abandoned"], ready: ["draft", "active", "abandoned"], active: ["ending", "completed", "abandoned"],
+  ending: ["active", "completed", "abandoned"], completed: [], abandoned: [],
+};
+
+export function canTransitionPlannedNight(from: PlannedNightStatus, to: PlannedNightStatus): boolean {
+  return from === to || PLAN_TRANSITIONS[from].includes(to);
+}
 
 export type PlanStopDTO = {
   venueId: string;
@@ -23,6 +40,9 @@ export type PlanState = {
   plan: PlanDTO;
   stops: PlanStopDTO[];
   crew: CrewMemberDTO[];
+  context?: NightContext | null;
+  actions?: PlanActionDTO[];
+  ending?: CrawlEnding | null;
 };
 
 export type CreatePlanInput = {

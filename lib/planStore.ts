@@ -1,23 +1,28 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
-import { cleanCreatePlan, isPlanId, type CreatePlanInput, type PlanDTO, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import { canTransitionPlannedNight, cleanCreatePlan, isPlanId, PLANNED_NIGHT_STATUSES, type CrawlEnding, type CreatePlanInput, type PlanActionDTO, type PlanDTO, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
 const MEMBERS = "plan_crew_members";
+const ACTIONS = "plan_actions";
 
 export type PlanWriteError = "invalid" | "not_found" | "full" | "forbidden" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string } | { ok: false; error: PlanWriteError };
 export type PlanPresenceResult = { ok: true; plan: PlanState } | { ok: false; error: PlanWriteError };
+export type PlanUpdateResult = PlanPresenceResult;
 
 export type PlanStore = {
   create(input: CreatePlanInput): Promise<PlanCreateResult>;
   get(id: string): Promise<PlanState | null>;
   join(id: string, name: unknown): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
+  update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext }): Promise<PlanUpdateResult>;
+  addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding }): Promise<PlanUpdateResult>;
 };
 
 function mintToken(): string {
@@ -35,6 +40,7 @@ function planFromRow(row: Record<string, unknown>): PlanDTO {
     title: String(row.title ?? ""),
     startTime: String(row.start_time),
     createdAt: String(row.created_at),
+    status: (row.status as PlannedNightStatus) ?? "draft",
   };
 }
 
@@ -85,18 +91,22 @@ export const supabasePlanStore: PlanStore = {
     try {
       const admin = requireSupabaseAdmin();
       const { data: planRow, error } = await admin.from(PLANS)
-        .select("id,title,start_time,created_at").eq("id", id).maybeSingle();
+        .select("id,title,start_time,created_at,status,night_context,ending").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!planRow) return null;
-      const [{ data: stopRows, error: stopsError }, { data: memberRows, error: membersError }] = await Promise.all([
+      const [{ data: stopRows, error: stopsError }, { data: memberRows, error: membersError }, { data: actionRows, error: actionsError }] = await Promise.all([
         admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position"),
         admin.from(MEMBERS).select("id,name,status,joined_at,updated_at").eq("plan_id", id).order("joined_at"),
+        admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
       ]);
-      if (stopsError || membersError) throw new Error(stopsError?.message ?? membersError?.message);
+      if (stopsError || membersError || actionsError) throw new Error(stopsError?.message ?? membersError?.message ?? actionsError?.message);
       return {
         plan: planFromRow(planRow as Record<string, unknown>),
         stops: (stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>)),
         crew: (memberRows ?? []).map((row) => memberFromRow(row as Record<string, unknown>)),
+        context: (planRow as Record<string, unknown>).night_context as NightContext | null ?? null,
+        actions: (actionRows ?? []).map((row) => ({ id: String(row.id), type: row.type as PlanActionDTO["type"], stopPosition: row.stop_position as number | null, ending: row.ending as CrawlEnding | null, createdAt: String(row.created_at) })),
+        ending: (planRow as Record<string, unknown>).ending as CrawlEnding | null ?? null,
       };
     } catch (error) {
       console.error("[plans] read failed:", error instanceof Error ? error.message : error);
@@ -147,10 +157,41 @@ export const supabasePlanStore: PlanStore = {
       return { ok: false, error: "error" };
     }
   },
+  async update(id, rawToken, update) {
+    if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
+    const admin = requireSupabaseAdmin();
+    const [{ data: creator }, current] = await Promise.all([
+      admin.from(MEMBERS).select("id,token_hash").eq("plan_id", id).order("joined_at").limit(1).maybeSingle(),
+      this.get(id),
+    ]);
+    if (!creator || creator.token_hash !== tokenHash(rawToken)) return { ok: false, error: "forbidden" };
+    if (!current) return { ok: false, error: "not_found" };
+    if (update.status && !canTransitionPlannedNight(current.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
+    const values: Record<string, unknown> = {};
+    if (update.status && PLANNED_NIGHT_STATUSES.includes(update.status)) values.status = update.status;
+    if (update.context) values.night_context = update.context;
+    const { error } = await admin.from(PLANS).update(values).eq("id", id);
+    if (error) return { ok: false, error: "error" };
+    const plan = await this.get(id);
+    return plan ? { ok: true, plan } : { ok: false, error: "not_found" };
+  },
+  async addAction(id, rawToken, action) {
+    if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
+    const admin = requireSupabaseAdmin();
+    const { data: member } = await admin.from(MEMBERS).select("id").eq("plan_id", id).eq("token_hash", tokenHash(rawToken)).maybeSingle();
+    if (!member) return { ok: false, error: "forbidden" };
+    const createdAt = new Date().toISOString();
+    const { error } = await admin.from(ACTIONS).insert({ id: randomUUID(), plan_id: id, actor_member_id: member.id, type: action.type, stop_position: action.stopPosition ?? null, ending: action.ending ?? null, created_at: createdAt });
+    if (error) return { ok: false, error: "error" };
+    if (action.type === "ending") await admin.from(PLANS).update({ status: "completed", ending: action.ending }).eq("id", id);
+    else await admin.from(PLANS).update({ status: "active" }).eq("id", id).in("status", ["draft", "ready"]);
+    const plan = await this.get(id);
+    return plan ? { ok: true, plan } : { ok: false, error: "not_found" };
+  },
 };
 
 type MemoryMember = CrewMemberDTO & { tokenHash: string };
-type MemoryPlan = { plan: PlanDTO; stops: PlanStopDTO[]; crew: MemoryMember[] };
+type MemoryPlan = { plan: PlanDTO; stops: PlanStopDTO[]; crew: MemoryMember[]; context: NightContext | null; actions: PlanActionDTO[]; ending: CrawlEnding | null };
 type PlanMemoryState = { plans: Map<string, MemoryPlan>; sequence: number };
 const planMemoryGlobal = globalThis as typeof globalThis & {
   __pubmaxPlanMemory?: PlanMemoryState;
@@ -173,6 +214,9 @@ function publicState(value: MemoryPlan): PlanState {
       updatedAt: member.updatedAt,
     }))
       .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt)),
+    context: value.context ? structuredClone(value.context) : null,
+    actions: value.actions.map((action) => ({ ...action })),
+    ending: value.ending,
   };
 }
 
@@ -189,12 +233,15 @@ export const memoryPlanStore: PlanStore = {
     const memberToken = mintToken();
     const createdAt = stamp();
     const plan: MemoryPlan = {
-      plan: { id, title: clean.title, startTime: clean.startTime, createdAt },
+      plan: { id, title: clean.title, startTime: clean.startTime, createdAt, status: "draft" },
       stops: clean.stops.map((stop, position) => ({ ...stop, position })),
       crew: [{
         id: randomUUID(), name: clean.creatorName, status: "in", joinedAt: createdAt,
         updatedAt: createdAt, tokenHash: tokenHash(memberToken),
       }],
+      context: null,
+      actions: [],
+      ending: null,
     };
     memoryPlans.set(id, plan);
     return { ok: true, plan: publicState(plan), memberToken };
@@ -225,6 +272,26 @@ export const memoryPlanStore: PlanStore = {
     if (!member) return { ok: false, error: "forbidden" };
     member.status = rawStatus;
     member.updatedAt = stamp();
+    return { ok: true, plan: publicState(plan) };
+  },
+  async update(id, rawToken, update) {
+    if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
+    const plan = memoryPlans.get(id);
+    if (!plan) return { ok: false, error: "not_found" };
+    if (plan.crew[0]?.tokenHash !== tokenHash(rawToken)) return { ok: false, error: "forbidden" };
+    if (update.status && !canTransitionPlannedNight(plan.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
+    if (update.status) plan.plan.status = update.status;
+    if (update.context) plan.context = structuredClone(update.context);
+    return { ok: true, plan: publicState(plan) };
+  },
+  async addAction(id, rawToken, action) {
+    if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
+    const plan = memoryPlans.get(id);
+    if (!plan) return { ok: false, error: "not_found" };
+    if (!plan.crew.some((candidate) => candidate.tokenHash === tokenHash(rawToken))) return { ok: false, error: "forbidden" };
+    plan.actions.push({ id: randomUUID(), type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp() });
+    if (action.type === "ending") { plan.plan.status = "completed"; plan.ending = action.ending ?? null; }
+    else if (plan.plan.status === "draft" || plan.plan.status === "ready") plan.plan.status = "active";
     return { ok: true, plan: publicState(plan) };
   },
 };

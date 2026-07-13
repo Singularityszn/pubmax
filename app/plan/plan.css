@@ -337,6 +337,11 @@
 .planComposer__conciergeInput button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--plan-accent); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 .planComposer__conciergeInput button:disabled { opacity: 0.58; cursor: wait; }
 .planComposer__concierge > p { margin: 12px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
+.planComposer__context { margin: 18px 0 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.planComposer__context legend { width: 100%; margin-bottom: 2px; }
+.planComposer__context label { display: flex; align-items: center; gap: 6px; min-height: 42px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+.planComposer__context select, .planComposer__context input { min-width: 0; width: auto; min-height: 34px; padding: 4px; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 760; }
+.planComposer__context input { width: 54px; }
 .planComposer__srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .planComposer__field { display: grid; gap: 8px; }
 .planComposer__field--wide { grid-column: 1 / -1; }

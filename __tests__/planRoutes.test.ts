@@ -11,7 +11,8 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 });
 
 import { POST as CREATE } from "@/app/api/plans/route";
-import { GET } from "@/app/api/plans/[id]/route";
+import { GET, PATCH } from "@/app/api/plans/[id]/route";
+import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as PRESENCE } from "@/app/api/plans/[id]/presence/route";
 import { __resetMemoryPlans } from "@/lib/planStore";
@@ -102,5 +103,32 @@ describe("Plan public HTTP contract", () => {
     expect(response.status).toBe(200);
     const state = await response.json() as PlanState;
     expect(state.crew[0]).toMatchObject({ name: "Karan", status: "here" });
+  });
+
+  it("lets the creator update Night Context and advance the Planned Night lifecycle", async () => {
+    const { body } = await createPlan();
+    const response = await PATCH(new Request(`${URL}/${body.plan.plan.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ memberToken: body.memberToken, status: "ready", context: { nightArea: "clapham", daypart: "after_work", partyType: "friends", groupSize: 4, budget: "value" } }),
+    }), ctx(body.plan.plan.id));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ plan: { status: "ready" }, context: { nightArea: "clapham", daypart: "after_work", groupSize: 4 } });
+  });
+
+  it("records explicit stop actions and completion without drink tracking", async () => {
+    const { body } = await createPlan();
+    const response = await ACTION(new Request(`${URL}/${body.plan.plan.id}/actions`, {
+      method: "POST",
+      body: JSON.stringify({ memberToken: body.memberToken, type: "arrived", stopPosition: 0 }),
+    }), ctx(body.plan.plan.id));
+    expect(response.status).toBe(201);
+    const state = await response.json();
+    expect(state.actions).toEqual([expect.objectContaining({ type: "arrived", stopPosition: 0 })]);
+
+    const ending = await ACTION(new Request(`${URL}/${body.plan.plan.id}/actions`, {
+      method: "POST",
+      body: JSON.stringify({ memberToken: body.memberToken, type: "ending", ending: "get_home" }),
+    }), ctx(body.plan.plan.id));
+    expect(await ending.json()).toMatchObject({ plan: { status: "completed" }, ending: "get_home" });
   });
 });

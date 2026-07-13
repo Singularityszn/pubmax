@@ -95,3 +95,27 @@ _Avoid_: Image URL (when referring to the persisted record), blob
 **Hidden Pint Drop**:
 A Pint Drop removed from public reads after a report or moderation decision, while still retained for review.
 _Avoid_: Deleted post, banned review
+
+**Night Area**:
+A curated public destination district used to plan a night, such as Clapham or Chiswick. Distinct from a user's private Home Area.
+_Avoid_: Home Area, borough, neighbourhood when referring to the curated product boundary
+
+**Daypart**:
+The time-sensitive planning mode that changes recommendation weighting without changing Night Area geography: Daytime, After Work, Evening, Late Night, or Get Home.
+_Avoid_: Session, opening period
+
+**Night Context**:
+The visible, editable set of inferred planning needs: Night Area, Daypart, party type, group size, budget, atmosphere, food, accessibility, and transport constraints.
+_Avoid_: Hidden profile, prompt metadata
+
+**Planned Night**:
+A Crawl Route with a lifecycle from draft through completion, including explicit Crawl Stop actions and a Crawl Ending.
+_Avoid_: Session, trip
+
+**Crawl Ending**:
+The user's explicit choice after a Crawl Route: Food, Get Home, or Keep Going.
+_Avoid_: Conversion, exit state
+
+**Pub Pal**:
+An optional character presentation and structured memory layer over the shared planning engine. It may change tone and narration but never recommendation quality, safety, facts, or prices.
+_Avoid_: Pet, independent recommender, drinking buddy

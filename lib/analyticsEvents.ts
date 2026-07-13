@@ -27,6 +27,13 @@ export const ANALYTICS_EVENTS = {
   concierge_result_tap: [],
   tour_complete: ["completed"],
   plan_created: ["count"],
+  night_description_submitted: ["area", "daypart"],
+  planned_night_status_changed: ["status"],
+  planned_night_action: ["type"],
+  planned_night_completed: ["ending"],
+  pub_pal_adopted: ["pal"],
+  pub_pal_memory_changed: ["action", "category"],
+  guest_plan_participated: ["action"],
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],

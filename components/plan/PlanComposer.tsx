@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
 import { CREW_NAME_MAX } from "@/lib/crew";
-import { answerFromBody } from "@/lib/conciergeAskClient";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
-import { stopsFromAnswerCards } from "@/components/plan/planPresentation";
+import type { NightContext } from "@/lib/nightPlanning";
 
 type DraftStop = { key: number; venueId: string; venueName: string };
 type VenueOption = { id: string; name: string; address?: string };
@@ -32,6 +31,7 @@ export default function PlanComposer() {
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [conciergeQuery, setConciergeQuery] = useState("");
   const [conciergeNote, setConciergeNote] = useState("");
+  const [nightContext, setNightContext] = useState<NightContext | null>(null);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -62,28 +62,19 @@ export default function PlanComposer() {
     setSorting(true);
     setError("");
     try {
-      const response = await fetch("/api/concierge", {
+      const response = await fetch("/api/plans/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        // weighTonightEvents (C3): a soft, opt-in signal the ranking path uses
-        // to gently favour venues with a real tonight event matching the
-        // occasion (e.g. live music for a "lively" leaving-do) — never a hard
-        // filter, and a no-op for any other /api/concierge caller that omits
-        // it. An occasion template whose text names a kind (quiz/sport/deal)
-        // instead answers from grounded What's-On listings — both shapes are
-        // handled below via the shared normaliser (answerFromBody).
-        body: JSON.stringify({ query: conciergeQuery, limit: 3, narrated: true, weighTonightEvents: true }),
+        body: JSON.stringify({ query: conciergeQuery, ...(nightContext ? { context: nightContext } : {}) }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body?.error || "The concierge could not sort this one.");
-      const answer = answerFromBody(body);
-      if (answer.status === "error") throw new Error(answer.message);
-      const suggested = stopsFromAnswerCards(answer.cards);
+      if (!response.ok) throw new Error(body?.error || "PubMax could not sort this one.");
+      const suggested: Array<{ venueId: string; venueName: string }> = Array.isArray(body.stops) ? body.stops : [];
       if (!suggested.length) throw new Error("No grounded venues matched that request. Try a nearby area or a broader mood.");
       setStops(suggested.map((stop, index) => ({ key: index + 1, ...stop })));
-      setConciergeNote(
-        typeof body.narration === "string" ? body.narration : answer.message,
-      );
+      setNightContext(body.inferredContext);
+      setConciergeNote("Three grounded stops, shaped by the editable context below.");
+      trackEvent("night_description_submitted", { area: body.inferredContext.nightArea, daypart: body.inferredContext.daypart });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The concierge could not sort this one.");
     } finally {
@@ -125,6 +116,13 @@ export default function PlanComposer() {
       }
       if (body.memberToken) {
         sessionStorage.setItem(`pubmax-plan-member:${body.plan.plan.id}`, body.memberToken);
+        if (nightContext) {
+          const metadataResponse = await fetch(`/api/plans/${body.plan.plan.id}`, {
+            method: "PATCH", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ memberToken: body.memberToken, status: "ready", context: nightContext }),
+          });
+          if (!metadataResponse.ok) throw new Error("The route was created, but its Night Context could not be saved. Please try again.");
+        }
       }
       router.push(`/plan/${body.plan.plan.id}`);
     } catch (caught) {
@@ -162,15 +160,33 @@ export default function PlanComposer() {
       </section>
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title">
         <div>
-          <span className="planPage__eyebrow">PUBMAXXER concierge</span>
-          <h2 id="plan-concierge-title">Tell it the mood. It picks the pubs.</h2>
+          <span className="planPage__eyebrow">Describe your night</span>
+          <h2 id="plan-concierge-title">Say what you need. Get three useful stops.</h2>
         </div>
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the night</label>
-          <input id="plan-concierge-query" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Quiet-ish near Bank, 4 of us, not pricey" maxLength={500} />
-          <button type="button" onClick={sortWithConcierge} disabled={sorting || !conciergeQuery.trim()}>{sorting ? "Sorting…" : "Sort it"}</button>
+          <input id="plan-concierge-query" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Quiet-ish in Clapham, 4 of us, not pricey" maxLength={500} />
+          <button type="button" onClick={sortWithConcierge} disabled={sorting || !conciergeQuery.trim()}>{sorting ? "Planning…" : "Plan my night"}</button>
         </div>
         {conciergeNote ? <p>{conciergeNote}</p> : null}
+        {nightContext ? (
+          <fieldset className="planComposer__context">
+            <legend>What PubMax understood — edit anything</legend>
+            <label>Area<select value={nightContext.nightArea ?? ""} onChange={(event) => setNightContext({ ...nightContext, nightArea: event.target.value as NightContext["nightArea"] })}>
+              <option value="clapham">Clapham</option><option value="victoria">Victoria</option><option value="piccadilly-soho">Piccadilly &amp; Soho</option><option value="canary-wharf">Canary Wharf</option><option value="barnes">Barnes</option><option value="chiswick">Chiswick</option>
+            </select></label>
+            <label>Time<select value={nightContext.daypart} onChange={(event) => setNightContext({ ...nightContext, daypart: event.target.value as NightContext["daypart"] })}>
+              <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
+            </select></label>
+            <label>Group<select value={nightContext.partyType} onChange={(event) => setNightContext({ ...nightContext, partyType: event.target.value as NightContext["partyType"] })}>
+              <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
+            </select></label>
+            <label>People<input type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => setNightContext({ ...nightContext, groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
+            <label>Budget<select value={nightContext.budget} onChange={(event) => setNightContext({ ...nightContext, budget: event.target.value as NightContext["budget"] })}>
+              <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
+            </select></label>
+          </fieldset>
+        ) : null}
       </section>
       <div className="planComposer__field planComposer__field--wide">
         <label htmlFor="plan-title">Name the night</label>
