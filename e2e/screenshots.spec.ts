@@ -16,6 +16,7 @@ const DOCS_DIR = process.env.SHOTS_DOCS_DIR ?? "docs/screenshots";
 const OUT_DIR = process.env.SHOTS_OUT_DIR ?? "e2e/screenshots";
 
 async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript((t) => {
     window.localStorage.setItem("pubmax-theme", t);
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -39,13 +40,9 @@ async function waitForMobileVenueSheet(page: Page): Promise<void> {
 async function shot(page: Page, basename: string): Promise<void> {
   // Gate-Z compares the configured acceptance viewport. Full-document captures
   // are both noisy (dynamic feeds) and prone to hanging on scroll animations.
-  // Playwright's `animations: "disabled"` fast-forwards finite animations and
-  // can itself stall on the landing page's mixed view/CSS transitions. Freeze
-  // motion explicitly, then take an ordinary viewport capture.
-  await page.addStyleTag({
-    content:
-      "*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}",
-  });
+  // setTheme emulates reduced motion before navigation so the app's own final-
+  // state rules remain authoritative; `animation: none` would hide elements
+  // whose visible opacity normally comes from a forwards-filled animation.
   const png = await page.screenshot({ fullPage: false });
   await Promise.all([mkdir(DOCS_DIR, { recursive: true }), mkdir(OUT_DIR, { recursive: true })]);
   await Promise.all([
