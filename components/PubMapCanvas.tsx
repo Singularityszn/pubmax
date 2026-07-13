@@ -448,6 +448,41 @@ export default function PubMapCanvas({
     [],
   );
 
+  // Route sources (route-line + route-stops) get a MORE PERMISSIVE readiness gate
+  // than applyToMap. `isStyleLoaded()` also waits on basemap tiles/sprite, which
+  // can stay in flight for seconds AFTER `style.load` — and updating an existing
+  // GeoJSON source with setData is safe in that window (it touches source data,
+  // not style structure). The crawl route survives the stricter gate only because
+  // the user keeps mutating stops (each edit re-fires the write, and by a later
+  // one the tiles have loaded). The active-plan route is set ONCE and never
+  // re-triggered, so a single write that landed mid-tiles got queued for a
+  // `style.load` that may never come again — and the overlay silently never
+  // painted. Gate on `style._loaded` (the exact flag MapLibre's _checkLoaded
+  // throws on, and the same one buildScene's stale-event guard uses) so a
+  // set-once route paints as soon as the style is structurally ready; queue for
+  // the next style.load only while the style itself is still swapping (buildScene
+  // re-seeds these sources from the refs on that load, so nothing is lost).
+  const applyRouteData = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const run = (m: maplibregl.Map) => {
+      (m.getSource("route-line") as maplibregl.GeoJSONSource | undefined)?.setData(
+        routeLineRef.current,
+      );
+      (m.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
+        routeStopsRef.current,
+      );
+    };
+    const styleLoaded = (map.style as unknown as { _loaded?: boolean } | undefined)?._loaded;
+    if (styleLoaded && map.getSource("route-stops")) {
+      run(map);
+    } else {
+      // Style still swapping: the imminent style.load re-seeds these sources from
+      // the refs AND flushes this fn — either path draws the latest route.
+      pendingUpdatesRef.current.set("route:data", run);
+    }
+  }, []);
+
   // Orbit state: the loop only drifts the bearing when now > holdUntil, so any
   // interaction or programmatic camera move simply pushes the hold forward —
   // the orbit never fights an easeTo.
@@ -1359,13 +1394,10 @@ export default function PubMapCanvas({
     routeStopsRef.current = routeToStops(route);
     selectedIdRef.current = selectedVenueId;
     if (!mapReady) return;
-    applyToMap("route:data+selection", (map) => {
-      (map.getSource("route-line") as maplibregl.GeoJSONSource | undefined)?.setData(
-        routeLineRef.current,
-      );
-      (map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
-        routeStopsRef.current,
-      );
+    // Route source data via the permissive gate (see applyRouteData) so a
+    // set-once plan route paints even while basemap tiles are still loading.
+    applyRouteData();
+    applyToMap("selection", (map) => {
       const selectedFilter: maplibregl.FilterSpecification = [
         "==",
         ["get", "id"],
@@ -1399,7 +1431,7 @@ export default function PubMapCanvas({
       // React re-render, and it composes with the POI/tube visibility toggles.
       applySelectionMute(map, Boolean(selectedIdRef.current), selectionMuteStoreRef.current);
     });
-  }, [route, selectedVenueId, mapReady, applyToMap]);
+  }, [route, selectedVenueId, mapReady, applyToMap, applyRouteData]);
 
   // Clean city arrival: frame the city's maxBounds once after style/load.
   // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
@@ -1613,7 +1645,7 @@ export default function PubMapCanvas({
   const cityDisplayName = getCity(cityId).displayName;
 
   return (
-    <div className="mapCanvasWrap">
+    <div className="mapCanvasWrap" data-route-stops={route.length}>
       <div ref={containerRef} className="maplibreMap" />
       {/* Camera fit for the active city — not a city switcher (toolbar owns that). */}
       <div className="mapCameraControls" aria-label="Map camera controls">
