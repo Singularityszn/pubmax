@@ -13,11 +13,31 @@ describe("assertProductionSecrets", () => {
     delete process.env.RATE_LIMIT_SALT;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.NEXT_PHASE;
+    delete process.env.PUBMAX_E2E_KEYLESS;
   });
 
   it("is a no-op outside production", () => {
     vi.stubEnv("NODE_ENV", "test");
     expect(() => assertProductionSecrets()).not.toThrow();
+  });
+
+  it.each([
+    ["the Next production build phase", "phase-production-build", undefined],
+    ["explicit keyless E2E mode", undefined, "1"],
+  ])("skips secret checks during %s", (_label, nextPhase, e2eKeyless) => {
+    vi.stubEnv("NODE_ENV", "production");
+    if (nextPhase) process.env.NEXT_PHASE = nextPhase;
+    if (e2eKeyless) process.env.PUBMAX_E2E_KEYLESS = e2eKeyless;
+
+    expect(() => assertProductionSecrets()).not.toThrow();
+  });
+
+  it("does not accept a truthy-looking value for keyless E2E mode", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.PUBMAX_E2E_KEYLESS = "true";
+
+    expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
   });
 
   it("throws when ADMIN_TOKEN is unset in production", () => {
@@ -68,12 +88,32 @@ describe("assertServerEnv", () => {
     delete process.env.RATE_LIMIT_SALT;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.NEXT_PHASE;
+    delete process.env.PUBMAX_E2E_KEYLESS;
   });
 
   it("is a no-op outside production", () => {
     vi.stubEnv("NODE_ENV", "development");
     delete process.env.SUPABASE_URL;
     expect(() => assertServerEnv()).not.toThrow();
+  });
+
+  it.each([
+    ["the Next production build phase", "phase-production-build", undefined],
+    ["explicit keyless E2E mode", undefined, "1"],
+  ])("allows keyless operation during %s", (_label, nextPhase, e2eKeyless) => {
+    vi.stubEnv("NODE_ENV", "production");
+    if (nextPhase) process.env.NEXT_PHASE = nextPhase;
+    if (e2eKeyless) process.env.PUBMAX_E2E_KEYLESS = e2eKeyless;
+
+    expect(() => assertServerEnv()).not.toThrow();
+  });
+
+  it("still rejects keyless production requests outside the build phase", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.NEXT_PHASE = "phase-production-server";
+
+    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
   });
 
   it("throws when Supabase is missing in production", () => {

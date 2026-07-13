@@ -16,12 +16,32 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 /** Dev default for RATE_LIMIT_SALT — must not be used in production. */
 export const DEV_RATE_LIMIT_SALT = "pubmax-rate-limit";
 
+const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
+
+/**
+ * Next evaluates route modules while compiling a production build, before a
+ * server exists to receive requests. Environment assertions at that point
+ * would make a keyless build impossible even though runtime handlers remain
+ * guarded.
+ *
+ * PUBMAX_E2E_KEYLESS=1 is a deliberately exact, test-only escape hatch for
+ * Playwright's local `next start` server. It must never be configured on a
+ * deployed application: doing so opts that process into ephemeral stores.
+ */
+function shouldSkipProductionEnvAssertions(): boolean {
+  return (
+    process.env.NEXT_PHASE === NEXT_PRODUCTION_BUILD_PHASE ||
+    process.env.PUBMAX_E2E_KEYLESS === "1"
+  );
+}
+
 /**
  * In production, throw a clear FATAL error when moderation or rate-limit
  * secrets are missing or still at dev defaults. Safe to call more than once.
  */
 export function assertProductionSecrets(): void {
   if (process.env.NODE_ENV !== "production") return;
+  if (shouldSkipProductionEnvAssertions()) return;
 
   const adminToken = process.env.ADMIN_TOKEN?.trim();
   if (!adminToken) {
@@ -50,6 +70,7 @@ export function assertProductionSecrets(): void {
  */
 export function assertServerEnv(): void {
   if (process.env.NODE_ENV !== "production") return;
+  if (shouldSkipProductionEnvAssertions()) return;
   if (isSupabaseConfigured()) {
     assertProductionSecrets();
     return;

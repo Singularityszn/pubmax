@@ -1,5 +1,6 @@
 .next/
 .next-prod/
+.next-isolated/
 node_modules/
 out/
 dist/
