@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
+import { CalendarClock, Music, Tag, Tv, type LucideIcon } from "lucide-react";
 
 // Type-only import of the wire contract — the API and this component share one
 // source of truth (lib/planGetIn) so the shapes cannot drift. Erased at build,
 // so no server code reaches the client bundle.
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
+import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import { checkedLabel } from "@/lib/whatsOnBadges";
+import { stopEventChips, type StopEventChip } from "@/lib/planWhatsOn";
 
 type RouteStop = { venueId: string; venueName: string; position: number };
 
@@ -15,9 +19,35 @@ type GetInReport = PlanGetInReportDTO;
 
 type FetchState = "loading" | "ready" | "unavailable";
 
-export default function PlanRoute({ planId, stops }: { planId: string; stops: RouteStop[] }) {
+// Same glyph vocabulary as the venue-sheet W1 "on tonight" chips
+// (components/map/VenueTonightChips.tsx) so a stop event reads as the same
+// signal wherever it appears — redeclared locally rather than imported since
+// that module is a held map-lane surface.
+const KIND_ICON: Record<WhatsOnKind, LucideIcon> = {
+  quiz: CalendarClock,
+  sport: Tv,
+  deal: Tag,
+  music: Music,
+};
+
+const CONFIDENCE_LABEL: Record<StopEventChip["confidence"], string> = {
+  confirmed: "Confirmed",
+  listed: "Listed",
+  derived: "Inferred",
+};
+
+export default function PlanRoute({
+  planId,
+  startTime,
+  stops,
+}: {
+  planId: string;
+  startTime: string;
+  stops: RouteStop[];
+}) {
   const [report, setReport] = useState<GetInReport | null>(null);
   const [state, setState] = useState<FetchState>("loading");
+  const [events, setEvents] = useState<Map<string, StopEventChip>>(new Map());
 
   useEffect(() => {
     let active = true;
@@ -35,6 +65,32 @@ export default function PlanRoute({ planId, stops }: { planId: string; stops: Ro
       active = false;
     };
   }, [planId]);
+
+  // On-tonight event chips (C3): honest, grounded from the primary What's-On
+  // spine — the same venueId-exact join the venue sheet's W1 badges use. Fail
+  // soft: any fetch failure or no-match simply renders no chips.
+  const venueKey = stops.map((stop) => stop.venueId).join(",");
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch("/api/whats-on?window=tonight&limit=60", {
+          signal: controller.signal,
+          headers: { accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const body = (await res.json()) as { rows?: unknown };
+        const rows = Array.isArray(body.rows)
+          ? body.rows.filter((row): row is WhatsOnRow => isValidWhatsOnRow(row))
+          : [];
+        const chips = stopEventChips(rows, venueKey ? venueKey.split(",") : [], startTime);
+        if (!controller.signal.aborted) setEvents(chips);
+      } catch {
+        /* fail-soft: no chips */
+      }
+    })();
+    return () => controller.abort();
+  }, [venueKey, startTime]);
 
   const signals = new Map((report?.stops ?? []).map((stop) => [stop.venueId, stop]));
   const groupSize = report?.groupSize ?? 0;
@@ -54,6 +110,7 @@ export default function PlanRoute({ planId, stops }: { planId: string; stops: Ro
               <span className="planSummary__marker">{index + 1}</span>
               <div className="planRoute__body">
                 <strong>{stop.venueName}</strong>
+                <StopEventBadge event={events.get(stop.venueId)} />
                 <Link href={`/map?venue=${encodeURIComponent(stop.venueId)}`}>Open on the map</Link>
                 <StopGetIn state={state} signal={signal} />
               </div>
@@ -62,6 +119,26 @@ export default function PlanRoute({ planId, stops }: { planId: string; stops: Ro
         })}
       </ol>
     </div>
+  );
+}
+
+function StopEventBadge({ event }: { event: StopEventChip | undefined }) {
+  if (!event) return null;
+  const Icon = KIND_ICON[event.kind];
+  const provenance = `${CONFIDENCE_LABEL[event.confidence]} · ${event.sourceLabel} · ${checkedLabel(event.observedAt).toLowerCase()}`;
+  return (
+    <span className="planRoute__event" data-kind={event.kind} title={provenance}>
+      <Icon size={12} aria-hidden="true" />
+      {event.label}
+      <a
+        className="planRoute__eventSource"
+        href={event.sourceUrl}
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        source
+      </a>
+    </span>
   );
 }
 

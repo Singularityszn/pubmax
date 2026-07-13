@@ -16,6 +16,7 @@ import {
   filterRowsByArea,
   filterRowsByWeekday,
 } from "@/lib/concierge/whatsOn";
+import type { WhatsOnKind } from "@/lib/whatsOn";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
@@ -26,6 +27,21 @@ if (process.env.NODE_ENV === "production") assertProductionSecrets();
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 const MAX_QUERY_LENGTH = 500;
+
+// C3 — build the venueId → tonight-kinds map the soft planner weight reads.
+// Isolated from POST so an outage here is a plain try/catch at the call site,
+// not extra branching inside the route's already-large handler.
+async function tonightEventKindsByVenueMap(): Promise<Map<string, Set<WhatsOnKind>>> {
+  const { rows } = await loadWhatsOn({ window: "tonight" }, {});
+  const byVenue = new Map<string, Set<WhatsOnKind>>();
+  for (const row of rows) {
+    if (!row.venueId) continue;
+    const kinds = byVenue.get(row.venueId) ?? new Set<WhatsOnKind>();
+    kinds.add(row.kind);
+    byVenue.set(row.venueId, kinds);
+  }
+  return byVenue;
+}
 
 function providedIntent(value: unknown): ConciergeIntent | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -125,9 +141,21 @@ export async function POST(request: Request): Promise<Response> {
       ? { intent: directIntent, source: "provided" as const }
       : await parseConciergeIntent(query, { skipModel: !llmAssistAllowed });
     const venues = await loadConciergeVenues(cityId);
+
+    // C3 — soft, opt-in planner weighting: only PlanComposer's "Sort it" sets
+    // this today (weighTonightEvents: true). Every other caller (e.g. the
+    // map's concierge-ask) omits it, so this whole block is a no-op for them —
+    // rankConciergeVenues falls back to its pre-C3 behaviour unchanged. A
+    // What's-On outage here must never break venue ranking, so it fails soft
+    // to "no weighting" rather than surfacing an error.
+    const tonightEventKindsByVenue = record.weighTonightEvents === true
+      ? await tonightEventKindsByVenueMap().catch(() => undefined)
+      : undefined;
+
     const ranked = rankConciergeVenues(venues, parsed.intent, {
       limit: typeof record.limit === "number" ? record.limit : 3,
       context: contextFrom(record.context),
+      ...(tonightEventKindsByVenue ? { tonightEventKindsByVenue } : {}),
     });
     const results = ranked.map(({ venue, score, reasons }) => ({
       id: venue.id,

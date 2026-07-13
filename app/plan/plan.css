@@ -142,6 +142,42 @@
   letter-spacing: 0.01em;
 }
 .planRoute__body { display: grid; gap: 6px; min-width: 0; }
+
+/* ── On-tonight event chips (C3) ───────────────────────────────────────────
+   Mirrors the venue-sheet W1 "on tonight" chip system (venueSheet.css
+   .venueTonightChip) so a real quiz/sport/deal/music row reads as the same
+   honest, provenance-first signal wherever it surfaces. --brass is the app's
+   shared "on tonight" accent token (app/theme.css), read here, not redefined.
+   Honest empty: a stop with no matching tonight row renders nothing. */
+.planRoute__event {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: default;
+}
+.planRoute__event svg { color: var(--brass); flex-shrink: 0; }
+.planRoute__eventSource {
+  margin-left: 2px;
+  padding-left: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 0.68rem;
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+.planRoute__eventSource:hover,
+.planRoute__eventSource:focus-visible { color: var(--plan-accent-strong); text-decoration: underline; }
 .planRoute__signal {
   --fit-accent: var(--muted);
   display: flex;

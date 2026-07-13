@@ -13,6 +13,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
       </div>
       <PlanRoute
         planId={planId}
+        startTime={state.plan.startTime}
         stops={view.stops.map((stop) => ({
           venueId: stop.venueId,
           venueName: stop.venueName,
