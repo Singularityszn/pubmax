@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 
 import {
   canonicalizeDataset,
+  clusterHasPostcodeConflict,
   hasOperatorSuffix,
+  mergeAliasMaps,
   normalizeVenueIdentityName,
   postcodeOutward,
   stableVenueIdFromKey,
@@ -222,6 +224,85 @@ describe("canonicalizeDataset — safety guards", () => {
     expect(stats.duplicateClusters).toBeLessThanOrEqual(1);
     expect(Object.keys(aliases)).not.toContain(cId);
     expect(Object.values(aliases)).not.toContain(cId);
+  });
+});
+
+describe("canonicalizeDataset — idempotency", () => {
+  it("running canonicalization on its own output is a no-op (zero new clusters/aliases)", () => {
+    const first = canonicalizeDataset([ROCHESTER_SEED, ROCHESTER_SPOONS]);
+    expect(first.stats.duplicateClusters).toBe(1);
+
+    const second = canonicalizeDataset(first.rows);
+    expect(second.aliases).toEqual({});
+    expect(second.stats.duplicateClusters).toBe(0);
+    expect(second.stats.mergedRecords).toBe(0);
+    expect(second.rows).toEqual(first.rows);
+  });
+});
+
+describe("compareCanonical — address-completeness tiebreak", () => {
+  it("prefers the record with a postcode as canonical when suffix/rows/sources/parens all tie", () => {
+    const noPostcode = makeRow({
+      pub_name: "The George",
+      address: "1 High Street, England",
+      latitude: 51.5,
+      longitude: -0.1,
+    });
+    const withPostcode = makeRow({
+      pub_name: "The George",
+      address: "1 High Street, London E1 1AA",
+      latitude: 51.500001,
+      longitude: -0.1,
+    });
+    const noPostcodeId = stableVenueIdFromKey(venueGroupingKey(noPostcode));
+    const withPostcodeId = stableVenueIdFromKey(venueGroupingKey(withPostcode));
+
+    const { aliases, rows } = canonicalizeDataset([noPostcode, withPostcode]);
+
+    expect(aliases).toEqual({ [noPostcodeId]: withPostcodeId });
+    expect(rows.every((r) => r.address === "1 High Street, London E1 1AA")).toBe(true);
+  });
+});
+
+describe("clusterHasPostcodeConflict", () => {
+  it("flags a cluster whose members carry two different outward codes", () => {
+    const a = { address: "1 High St, London N16 0NY" };
+    const b = { address: "1 High St, London SW1A 1AA" };
+    expect(clusterHasPostcodeConflict([a, b])).toBe(true);
+  });
+
+  it("does not flag a cluster where only one member (or none) carries a postcode", () => {
+    const a = { address: "1 High St, England" };
+    const b = { address: "1 High St, London N16 0NY" };
+    expect(clusterHasPostcodeConflict([a, b])).toBe(false);
+    expect(clusterHasPostcodeConflict([{ address: "no postcode here" }])).toBe(false);
+  });
+});
+
+describe("mergeAliasMaps — alias-prune with cycle detection", () => {
+  it("carries forward a prior alias untouched by this run", () => {
+    expect(mergeAliasMaps({ x: "y" }, { a: "b" })).toEqual({ x: "y", a: "b" });
+  });
+
+  it("rebases a prior alias through this run's new winner (multi-hop chain)", () => {
+    // Prior run recorded b -> a; this run separately merges a -> c (a new,
+    // richer record won). "b" must resolve through to the CURRENT canonical
+    // id "c", not the now-stale "a".
+    const merged = mergeAliasMaps({ b: "a" }, { a: "c" });
+    expect(merged).toEqual({ a: "c", b: "c" });
+  });
+
+  it("drops a mapping that rebases into a cycle rather than persist it", () => {
+    // Prior: a -> b. This run: b -> a (canonical choice flipped). Naively
+    // spreading both maps would leave a live cycle (a -> b -> a); the prior
+    // mapping must be dropped instead of poisoning alias resolution.
+    const merged = mergeAliasMaps({ a: "b" }, { b: "a" });
+    expect(merged).toEqual({ b: "a" });
+  });
+
+  it("this run's mapping always wins over a conflicting prior mapping for the same id", () => {
+    const merged = mergeAliasMaps({ x: "stale" }, { x: "fresh" });
+    expect(merged).toEqual({ x: "fresh" });
   });
 });
 
