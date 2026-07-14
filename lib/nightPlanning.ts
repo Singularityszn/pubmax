@@ -102,19 +102,55 @@ export function isBudget(value: unknown): value is Budget {
   return typeof value === "string" && (BUDGETS as readonly string[]).includes(value);
 }
 
+function cleanContextList(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .slice(0, 8)
+    .map((item) => cleanText(item, 40))
+    .filter(Boolean);
+}
+
+export function cleanNightContextPatch(value: unknown): Partial<NightContext> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const atmosphere = cleanContextList(row.atmosphere);
+  const foodNeeds = cleanContextList(row.foodNeeds);
+  const accessibility = cleanContextList(row.accessibility);
+  const transportConstraints = cleanContextList(row.transportConstraints);
+
+  return {
+    ...(row.nightArea === null || isNightAreaSlug(row.nightArea) ? { nightArea: row.nightArea } : {}),
+    ...(isDaypart(row.daypart) ? { daypart: row.daypart } : {}),
+    ...(isPartyType(row.partyType) ? { partyType: row.partyType } : {}),
+    ...(row.groupSize === null
+      ? { groupSize: null }
+      : typeof row.groupSize === "number" && row.groupSize >= 1 && row.groupSize <= 30
+        ? { groupSize: Math.floor(row.groupSize) }
+        : {}),
+    ...(isBudget(row.budget) ? { budget: row.budget } : {}),
+    ...(atmosphere ? { atmosphere } : {}),
+    ...(foodNeeds ? { foodNeeds } : {}),
+    ...(accessibility ? { accessibility } : {}),
+    ...(transportConstraints ? { transportConstraints } : {}),
+  };
+}
+
 export function cleanNightContext(value: unknown): NightContext | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
   if (!isNightAreaSlug(row.nightArea) || !isDaypart(row.daypart)) return null;
   if (!isPartyType(row.partyType)) return null;
   if (!isBudget(row.budget)) return null;
-  const list = (input: unknown) => Array.isArray(input) ? input.filter((item): item is string => typeof item === "string").slice(0, 8).map((item) => cleanText(item, 40)).filter(Boolean) : [];
   return {
     nightArea: row.nightArea,
     daypart: row.daypart as Daypart,
     partyType: row.partyType as PartyType,
     groupSize: typeof row.groupSize === "number" && row.groupSize >= 1 && row.groupSize <= 30 ? Math.floor(row.groupSize) : null,
     budget: row.budget as Budget,
-    atmosphere: list(row.atmosphere), foodNeeds: list(row.foodNeeds), accessibility: list(row.accessibility), transportConstraints: list(row.transportConstraints),
+    atmosphere: cleanContextList(row.atmosphere) ?? [],
+    foodNeeds: cleanContextList(row.foodNeeds) ?? [],
+    accessibility: cleanContextList(row.accessibility) ?? [],
+    transportConstraints: cleanContextList(row.transportConstraints) ?? [],
   };
 }

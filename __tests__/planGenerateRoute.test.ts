@@ -30,6 +30,36 @@ describe("POST /api/plans/generate", () => {
     expect(response.status).toBe(400);
   });
 
+  it("retains partial list-based context corrections", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "An evening in Clapham",
+        context: {
+          atmosphere: ["historic"],
+          foodNeeds: ["kebab"],
+          accessibility: ["step-free"],
+          transportConstraints: ["tube"],
+        },
+      }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.inferredContext).toMatchObject({
+      atmosphere: ["historic"],
+      foodNeeds: ["kebab"],
+      accessibility: ["step-free"],
+      transportConstraints: ["tube"],
+    });
+    expect(body.contextEffects).toEqual(expect.arrayContaining(["atmosphere", "foodNeeds"]));
+    expect(body.missingContextEvidence).toEqual(expect.arrayContaining([
+      "venue_accessibility",
+      "per_venue_transport",
+      "food_terminal_specificity",
+    ]));
+  });
+
   it("fails closed with reviewed missing-evidence codes for a non-route-ready Night Area", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",

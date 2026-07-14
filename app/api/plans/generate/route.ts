@@ -2,7 +2,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage } from "@/lib/nightAreas";
-import { cleanNightContext, inferNightContext, isBudget, isDaypart, isNightAreaSlug, isPartyType, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -18,16 +18,8 @@ function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: numb
 function mergeContext(inferred: NightContext, raw: unknown): NightContext {
   const complete = cleanNightContext(raw);
   if (complete) return complete;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return inferred;
-  const value = raw as Partial<NightContext>;
-	return {
-		...inferred,
-		...(isNightAreaSlug(value.nightArea) ? { nightArea: value.nightArea } : {}),
-		...(isDaypart(value.daypart) ? { daypart: value.daypart } : {}),
-		...(typeof value.groupSize === "number" && value.groupSize >= 1 && value.groupSize <= 30 ? { groupSize: Math.floor(value.groupSize) } : {}),
-		...(isPartyType(value.partyType) ? { partyType: value.partyType } : {}),
-		...(isBudget(value.budget) ? { budget: value.budget } : {}),
-	};
+  const patch = cleanNightContextPatch(raw);
+  return patch ? { ...inferred, ...patch } : inferred;
 }
 
 function scoreVenueForContext(
