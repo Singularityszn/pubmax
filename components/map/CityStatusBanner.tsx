@@ -57,20 +57,34 @@ type CityStatusBannerProps = {
 const DISMISS_KEY = "pubmax:cityStatusDismiss:v1";
 
 function readDismissed(): boolean {
-  if (typeof window === "undefined" || !window.sessionStorage) return false;
+  if (typeof window === "undefined") return false;
   try {
-    return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+    return window.localStorage.getItem(DISMISS_KEY) === "1";
   } catch {
-    return false;
+    try {
+      return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+    } catch {
+      return false;
+    }
   }
 }
 
 function writeDismissed(): void {
-  if (typeof window === "undefined" || !window.sessionStorage) return;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DISMISS_KEY, "1");
+  } catch {
+    try {
+      window.sessionStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      // ignore
+    }
+    return;
+  }
   try {
     window.sessionStorage.setItem(DISMISS_KEY, "1");
   } catch {
-    // ignore
+    // Best-effort mirror; localStorage is the durable source.
   }
 }
 

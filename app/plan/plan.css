@@ -406,6 +406,7 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
 
 @media (max-width: 760px) {
   .planPage__grid { grid-template-columns: 1fr; }
+  .planPage__side { order: -1; }
   .planPage__hero { margin-top: 50px; }
   .planPage__intro h1,
   .planPage__hero h1 { font-size: clamp(3rem, 16vw, 5rem); }

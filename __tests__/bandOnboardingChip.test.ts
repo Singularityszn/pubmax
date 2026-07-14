@@ -96,6 +96,12 @@ describe("shouldShowCuratedOnboarding priority vs band chip", () => {
     ).toBe(false);
   });
 
+  it("suppresses curated onboarding while the Tonight lane first fetch is pending", () => {
+    expect(
+      shouldShowCuratedOnboarding({ ...clean, tonightLanePending: true }),
+    ).toBe(false);
+  });
+
   it("still shows curated onboarding when the Tonight lane is empty/absent", () => {
     expect(
       shouldShowCuratedOnboarding({ ...clean, tonightLaneHasRows: false }),
