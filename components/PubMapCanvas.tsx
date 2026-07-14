@@ -56,6 +56,7 @@ import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
   PIN_ICON_SIZE_EXPR, pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
+  selectedPinIconSizeExpr,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
@@ -69,7 +70,8 @@ import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
 import { useMapCamera } from "@/components/map/canvas/useMapCamera";
-import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
+import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
+import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 
 
 type PubMapCanvasProps = {
@@ -975,7 +977,7 @@ export default function PubMapCanvas({
         duration: 250,
         delay: 0,
       });
-      map.setLayoutProperty("pubs-point", "icon-size", PIN_ICON_SIZE_EXPR);
+      map.setLayoutProperty("pubs-point", "icon-size", selectedPinIconSizeExpr(selectedIdRef.current));
       map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
     };
     // Fired once per mount, at the FIRST moment pins are actually visible:
@@ -1409,7 +1411,12 @@ export default function PubMapCanvas({
         // loop takes over from here again next frame if a venue is selected,
         // and a deselect leaves the ring at this baseline (not mid-pulse).
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
-        map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", GLOW_BASE_STROKE_WIDTH);
+        // Slightly fatter ring while selected so the pinpoint reads under the sheet.
+        map.setPaintProperty(
+          "pubs-selected-glow",
+          "circle-stroke-width",
+          selectedIdRef.current ? GLOW_BASE_STROKE_WIDTH + 1.2 : GLOW_BASE_STROKE_WIDTH,
+        );
       }
       if (map.getLayer("pubs-selected")) {
         map.setFilter("pubs-selected", selectedFilter);
@@ -1417,6 +1424,11 @@ export default function PubMapCanvas({
       // M1 selection spotlight — dim every non-selected pub pin; the selected
       // pin stays fully opaque. Deselect restores the plain serves-based dim.
       if (map.getLayer("pubs-point")) {
+        map.setLayoutProperty(
+          "pubs-point",
+          "icon-size",
+          selectedPinIconSizeExpr(selectedIdRef.current),
+        );
         map.setPaintProperty(
           "pubs-point",
           "icon-opacity",
@@ -1469,8 +1481,10 @@ export default function PubMapCanvas({
   const routeKey = route.map((venue) => venue.id).join(">");
   useEffect(() => {
     if (!mapReady) return;
+    // An active selection owns the camera — don't let route framing yank out.
+    if (selectedVenueId) return;
     fitRoute();
-  }, [routeKey, mapReady, fitRoute]);
+  }, [routeKey, mapReady, fitRoute, selectedVenueId]);
 
   // Cinematic fly-to on venue selection (after the route framing above).
   // `selectedPresent` closes the ?sel= deep-link race: on first load the
@@ -1493,15 +1507,17 @@ export default function PubMapCanvas({
     if (!map || !mapReady || !selectedPresent) return;
     const venue = venuesRef.current.find((item) => item.id === selectedVenueId);
     if (!venue) return;
-    // M3: pub-select lean-in — 35-45deg pitch, ease-out, 600-800ms. Reduced
-    // motion collapses the duration to 0 inside cinematic() (see useMapCamera),
-    // so this always degrades to an instant jump under prefers-reduced-motion.
+    // Mobile: offset the camera so the pin sits in the visible band above the
+    // half-sheet (not under it); soften pitch so 3D buildings don't bury it.
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
+    const offset = isPhone ? mobileSelectCameraOffset(window.innerHeight, "half") : undefined;
     cinematic({
       center: [venue.longitude, venue.latitude],
       zoom: Math.max(map.getZoom(), 14),
-      pitch: PUB_SELECT_PITCH,
+      pitch: isPhone ? PUB_SELECT_PITCH_MOBILE : PUB_SELECT_PITCH,
       duration: PUB_SELECT_DURATION_MS,
       easing: easeOutCubic,
+      ...(offset ? { offset } : {}),
     });
   }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark]);
 
