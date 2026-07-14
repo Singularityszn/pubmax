@@ -242,6 +242,10 @@ export default function PubMap({
   // `loaded` means the slim map index has settled. The full price dataset is no
   // longer fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
+  // Pair settlement with its city. On a client-side city switch there is one
+  // render before the loading effect clears old pins; this prevents that prior
+  // city's index from producing a transient, dishonest search result.
+  const [loadedCityId, setLoadedCityId] = useState<CityId | null>(null);
   // Wave K2 — WebGL style + scene ready. Keep loading chrome until both slim
   // pins and the basemap have arrived (warmup can make slim arrive first).
   // Canvas owns hang recovery (reportMapError lifts this via onMapReady).
@@ -425,6 +429,7 @@ export default function PubMap({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setLoaded(false);
+      setLoadedCityId(null);
       setSlimPins([]);
     });
     loadSlimVenuesForCity(cityId)
@@ -439,7 +444,10 @@ export default function PubMap({
         // state instead of falling back to the full 6 MB client payload.
       })
       .finally(() => {
-        if (!cancelled) setLoaded(true);
+        if (!cancelled) {
+          setLoadedCityId(cityId);
+          setLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -1120,6 +1128,9 @@ export default function PubMap({
           onTogglePlanning={togglePlanning}
           filters={filters}
           onFiltersChange={setFilters}
+          searchSettled={loaded && loadedCityId === cityId}
+          filteredVenueCount={filteredVenues.length}
+          searchableVenueCount={venues.length}
           cityId={cityId}
         />
         <CitySuggestBanner cityId={cityId} />

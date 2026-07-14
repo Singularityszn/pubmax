@@ -23,6 +23,84 @@
   justify-content: flex-start;
 }
 
+.mapToolbarSearchStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  box-sizing: border-box;
+  padding: 4px 2px 4px 8px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.mapToolbarSearchStatusCopy {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapToolbarSearchRecovery {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--brass) 58%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mapToolbarSearchRecovery:hover,
+.mapToolbarSearchRecovery:focus-visible {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.mapToolbarSearchRecovery:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* The status occupies one compact row below the toolbar controls. Move nearby
+   top chrome down by the same slot at every viewport, so desktop and mobile
+   banners cannot sit underneath it. */
+.mapStage:has(.mapToolbarSearchStatus) .citySuggestBanner,
+.mapStage:has(.mapToolbarSearchStatus) .mapCameraControls {
+  top: calc(var(--map-top-clearance) + 110px);
+}
+
+.mapStage:has(.mapToolbarSearchStatus) .cityStatusBanner,
+.mapStage:has(.mapToolbarSearchStatus) .cityStatusSignalSheet {
+  top: calc(var(--map-top-clearance) + 166px);
+}
+
+/* Without a status banner, the city suggestion still owns the +110px row.
+   Camera controls yield one slot lower instead of covering its actions. */
+.mapStage:has(.mapToolbarSearchStatus):has(.citySuggestBanner)
+  .mapCameraControls {
+  top: calc(var(--map-top-clearance) + 180px);
+}
+
+.mapStage:has(.mapToolbarSearchStatus):has(.cityStatusBanner)
+  .mapCameraControls {
+  top: calc(var(--map-top-clearance) + 218px);
+}
+
 /* Wave J declutter — Drinks is secondary/outline; Plan tonight stays primary. */
 .mapToolbarDrinksBtn {
   display: inline-flex;
@@ -177,6 +255,11 @@
     padding: 2px 8px;
     overflow-x: auto;
     overflow-y: hidden;
+  }
+
+  .mapToolbarSearchStatus {
+    padding-left: 4px;
+    padding-right: 0;
   }
 
   .mapToolbarSearch input {
