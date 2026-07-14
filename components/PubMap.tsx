@@ -32,7 +32,6 @@ import MapToolbar from "@/components/map/MapToolbar";
 import MapPriceControl from "@/components/map/MapPriceControl";
 import CitySuggestBanner from "@/components/map/CitySuggestBanner";
 import CityStatusBanner from "@/components/map/CityStatusBanner";
-import TonightOverlayChip from "@/components/map/TonightOverlayChip";
 import { useCrawlJourneys } from "@/components/map/useCrawlJourneys";
 import { useTonightOpportunities } from "@/components/map/useTonightOpportunities";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
@@ -1169,14 +1168,6 @@ export default function PubMap({
         />
         <CitySuggestBanner cityId={cityId} />
         {isLondon ? <CityStatusBanner cityId={cityId} /> : null}
-        {isLondon && tonightStatus === "ready" && !tonightDismissed ? (
-          <TonightOverlayChip
-            count={tonightOpportunities.length}
-            active={tonightOverlayVisible}
-            onToggle={() => setTonightOverlayVisible((visible) => !visible)}
-            onDismiss={dismissTonightOverlay}
-          />
-        ) : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its
             sibling CSS lifts the lane above the collapsed pill (no collision). */}
@@ -1189,6 +1180,16 @@ export default function PubMap({
             open={tonightLaneOpen}
             onOpenChange={setTonightLaneOpen}
             onSelectVenue={(id) => selectVenue(id)}
+            overlayCount={
+              tonightStatus === "ready" && !tonightDismissed
+                ? tonightOpportunities.length
+                : 0
+            }
+            overlayActive={tonightOverlayVisible}
+            onToggleOverlay={() =>
+              setTonightOverlayVisible((visible) => !visible)
+            }
+            onDismissOverlay={dismissTonightOverlay}
           />
         ) : null}
         {logIntentFallbackVisible ? (
