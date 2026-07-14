@@ -13,10 +13,18 @@ describe("assertProductionSecrets", () => {
     delete process.env.RATE_LIMIT_SALT;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.VERCEL_ENV;
   });
 
   it("is a no-op outside production", () => {
     vi.stubEnv("NODE_ENV", "test");
+    expect(() => assertProductionSecrets()).not.toThrow();
+  });
+
+  it("is a no-op on Vercel Preview even when NODE_ENV is production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    delete process.env.ADMIN_TOKEN;
     expect(() => assertProductionSecrets()).not.toThrow();
   });
 
@@ -59,6 +67,14 @@ describe("assertProductionSecrets", () => {
 
     expect(() => assertProductionSecrets()).not.toThrow();
   });
+
+  it("enforces secrets when VERCEL_ENV=production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    delete process.env.ADMIN_TOKEN;
+    process.env.RATE_LIMIT_SALT = "prod-salt";
+    expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
+  });
 });
 
 describe("assertServerEnv", () => {
@@ -68,11 +84,20 @@ describe("assertServerEnv", () => {
     delete process.env.RATE_LIMIT_SALT;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.VERCEL_ENV;
   });
 
   it("is a no-op outside production", () => {
     vi.stubEnv("NODE_ENV", "development");
     delete process.env.SUPABASE_URL;
+    expect(() => assertServerEnv()).not.toThrow();
+  });
+
+  it("is a no-op on Vercel Preview without Supabase", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     expect(() => assertServerEnv()).not.toThrow();
   });
 
