@@ -11,6 +11,7 @@ import {
   GLOW_PULSE_MIN_WIDTH,
   GLOW_PULSE_MAX_WIDTH,
 } from "./tokens";
+import { SELECTED_PIN_SIZE_SCALE } from "./easing";
 
 // Ambient categories render as soft coloured dots; transport (TRANSPORT_CATEGORIES)
 // render as their real TfL / National Rail symbol on separate layers.
@@ -76,6 +77,22 @@ export const PIN_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
   15,
   ["case", ["get", "story"], 1.05, 0.95],
 ];
+
+/**
+ * pubs-point `icon-size` with the selected pin scaled up so it reads as the
+ * pinpoint among neighbours. Deselect restores PIN_ICON_SIZE_EXPR.
+ */
+export function selectedPinIconSizeExpr(
+  selectedId: string,
+): maplibregl.ExpressionSpecification {
+  if (!selectedId) return PIN_ICON_SIZE_EXPR;
+  return [
+    "case",
+    ["==", ["get", "id"], selectedId],
+    ["*", PIN_ICON_SIZE_EXPR, SELECTED_PIN_SIZE_SCALE],
+    PIN_ICON_SIZE_EXPR,
+  ];
+}
 
 // M1 selection spotlight — pubs-point `icon-opacity`. With no selection, the
 // existing serves-based dim is untouched (0.98 serving / 0.22 filtered-out).
@@ -182,7 +199,12 @@ export function pinEntranceIconSizeExpr(
   const localT = pinEntranceLocalTExpr(elapsedMs, buckets, staggerMs, rampMs);
   const ramped: maplibregl.ExpressionSpecification = ["*", localT, PIN_ICON_SIZE_EXPR];
   if (!selectedId) return ramped;
-  return ["case", ["==", ["get", "id"], selectedId], PIN_ICON_SIZE_EXPR, ramped];
+  const selectedSize: maplibregl.ExpressionSpecification = [
+    "*",
+    PIN_ICON_SIZE_EXPR,
+    SELECTED_PIN_SIZE_SCALE,
+  ];
+  return ["case", ["==", ["get", "id"], selectedId], selectedSize, ramped];
 }
 
 // pubs-point `icon-opacity` during the M7 entrance window — same guard: the

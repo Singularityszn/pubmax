@@ -53,7 +53,7 @@ describe("shouldFitCityBoundsOnArrival", () => {
     expect(shouldFitCityBoundsOnArrival("?band=subcrawl")).toBe(true);
   });
 
-  it("skips drink, crawl, pubs, borough-browse, and mapped-route arrivals", () => {
+  it("skips drink, crawl, pubs, borough-browse, mapped-route, and ?sel= arrivals", () => {
     expect(shouldFitCityBoundsOnArrival("?drink=wine")).toBe(false);
     expect(shouldFitCityBoundsOnArrival("?cocktails=1")).toBe(false);
     expect(shouldFitCityBoundsOnArrival("?crawl=victorian-soho")).toBe(false);
@@ -62,6 +62,8 @@ describe("shouldFitCityBoundsOnArrival", () => {
     expect(shouldFitCityBoundsOnArrival("?q=Barnet")).toBe(false);
     expect(shouldFitCityBoundsOnArrival("?q=Barnet&mode=suggest")).toBe(false);
     expect(shouldFitCityBoundsOnArrival("", true)).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("?sel=venue-doggetts")).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("?sel=")).toBe(false);
   });
 });
 

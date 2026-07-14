@@ -39,6 +39,7 @@ export function shouldFitCityBoundsOnArrival(
   hasMappedRoute = false,
 ): boolean {
   if (hasMappedRoute) return false;
+  if (/[?&]sel=/.test(search)) return false;
   if (isDrinkShapeArrival(search)) return false;
   if (isCuratedCrawlArrival(search)) return false;
   if (isBoroughBrowseArrival(search)) return false;
