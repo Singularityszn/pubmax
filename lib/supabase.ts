@@ -31,6 +31,16 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function requiresSupabaseStore(): boolean {
+  // Keep the runtime store guard aligned with lib/serverEnv's startup guard:
+  // Playwright's production-style keyless server deliberately runs with
+  // PUBMAX_E2E_KEYLESS=1 so local/mobile QA can exercise real write paths
+  // against the in-memory stores. Deployed production must never set this.
+  if (process.env.PUBMAX_E2E_KEYLESS === "1") return false;
+  // Mirror lib/serverEnv.isDeployedProduction: Preview on Vercel has
+  // NODE_ENV=production but must keep the memory fallback when secrets are absent.
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv === "production") return true;
+  if (vercelEnv === "preview" || vercelEnv === "development") return false;
   return process.env.NODE_ENV === "production";
 }
 

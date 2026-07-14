@@ -10,18 +10,56 @@
 // (app/api/pint-drops/route.ts), it turns a misconfigured prod deploy into an
 // immediate, loud FATAL at import time — the route never comes up half-broken —
 // while staying a no-op in dev/test so the memory store keeps working.
+//
+// Vercel caveat: Preview and Production both set NODE_ENV=production. Preview
+// often lacks Production-scoped secrets (SUPABASE_*, ADMIN_TOKEN, …). Guarding
+// on NODE_ENV alone therefore kills every Preview build during
+// "Collecting page data". We key off VERCEL_ENV when present so only the
+// Production target enforces durable-store + secret requirements.
 
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 /** Dev default for RATE_LIMIT_SALT — must not be used in production. */
 export const DEV_RATE_LIMIT_SALT = "pubmax-rate-limit";
 
+const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
+
+/**
+ * Next evaluates route modules while compiling a production build, before a
+ * server exists to receive requests. Environment assertions at that point
+ * would make a keyless build impossible even though runtime handlers remain
+ * guarded.
+ *
+ * PUBMAX_E2E_KEYLESS=1 is a deliberately exact, test-only escape hatch for
+ * Playwright's local `next start` server. It must never be configured on a
+ * deployed application: doing so opts that process into ephemeral stores.
+ */
+function shouldSkipProductionEnvAssertions(): boolean {
+  return (
+    process.env.NEXT_PHASE === NEXT_PRODUCTION_BUILD_PHASE ||
+    process.env.PUBMAX_E2E_KEYLESS === "1"
+  );
+}
+
+/**
+ * True when this process must refuse the in-memory store / missing secrets.
+ * On Vercel, only `VERCEL_ENV=production` counts — Preview builds share
+ * NODE_ENV=production but typically omit Production-only env vars.
+ */
+export function isDeployedProduction(): boolean {
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv === "production") return true;
+  if (vercelEnv === "preview" || vercelEnv === "development") return false;
+  return process.env.NODE_ENV === "production";
+}
+
 /**
  * In production, throw a clear FATAL error when moderation or rate-limit
  * secrets are missing or still at dev defaults. Safe to call more than once.
  */
 export function assertProductionSecrets(): void {
-  if (process.env.NODE_ENV !== "production") return;
+  if (!isDeployedProduction()) return;
+  if (shouldSkipProductionEnvAssertions()) return;
 
   const adminToken = process.env.ADMIN_TOKEN?.trim();
   if (!adminToken) {
@@ -49,7 +87,8 @@ export function assertProductionSecrets(): void {
  * exactly one place. Safe to call more than once — it only ever reads env.
  */
 export function assertServerEnv(): void {
-  if (process.env.NODE_ENV !== "production") return;
+  if (!isDeployedProduction()) return;
+  if (shouldSkipProductionEnvAssertions()) return;
   if (isSupabaseConfigured()) {
     assertProductionSecrets();
     return;
