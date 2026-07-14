@@ -31,6 +31,12 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function requiresSupabaseStore(): boolean {
+  // Mirror lib/serverEnv.isDeployedProduction — Preview on Vercel has
+  // NODE_ENV=production but must keep the memory-store fallback when
+  // Production-only Supabase secrets are absent.
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv === "production") return true;
+  if (vercelEnv === "preview" || vercelEnv === "development") return false;
   return process.env.NODE_ENV === "production";
 }
 
