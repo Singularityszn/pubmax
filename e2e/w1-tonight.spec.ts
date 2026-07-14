@@ -96,11 +96,22 @@ for (const viewport of VIEWPORTS) {
         const response = await page.goto("/map");
         expect(response?.status()).toBe(200);
         await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 30000 });
-        await page.locator(".tonightLane").waitFor({ state: "visible", timeout: 15000 });
+        const chip = page.getByTestId("tonight-lane-chip");
+        await chip.waitFor({ state: "visible", timeout: 15000 });
+        await chip.click();
+        const lane = page.getByTestId("tonight-lane");
+        await lane.waitFor({ state: "visible" });
         await page.waitForTimeout(2500); // let tiles + pins paint
         await page.screenshot({
           path: `${DOCS_DIR}/w1-tonight-lane-${theme}-${viewport.name}.png`,
         });
+        await page.getByRole("button", { name: "Collapse on tonight" }).click();
+        await expect(chip).toBeVisible();
+        await expect(lane).toHaveCount(0);
+        await chip.click();
+        await lane.locator(".tonightLaneCardTap").first().click();
+        await expect(page.locator(".appShell")).toHaveClass(/detail-open/);
+        await expect(lane).toHaveCount(0);
       });
 
       test(`venue sheet with whats-on chips (${theme}, ${viewport.name})`, async ({ page }) => {

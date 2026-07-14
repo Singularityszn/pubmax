@@ -11,7 +11,11 @@ export function easeOutCubic(t: number): number {
 
 // Pub-select cinematic lean-in: 35-45deg pitch, 600-800ms, ease-out.
 export const PUB_SELECT_PITCH = 40;
+/** Soften pitch on phones so 3D buildings + the sheet don't bury the pin. */
+export const PUB_SELECT_PITCH_MOBILE = 22;
 export const PUB_SELECT_DURATION_MS = 700;
+/** Selected pin reads larger than neighbours (MapLibre icon-size multiplier). */
+export const SELECTED_PIN_SIZE_SCALE = 1.28;
 
 // Long jumps (city switch, fit-London) fly with a pronounced arc — curve 1.42
 // per the map-beauty PRD, applied to MapLibre's fitBounds/flyTo `curve` option.

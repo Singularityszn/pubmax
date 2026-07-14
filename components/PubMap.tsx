@@ -37,6 +37,7 @@ import { useCrawlJourneys } from "@/components/map/useCrawlJourneys";
 import { useTonightOpportunities } from "@/components/map/useTonightOpportunities";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import TonightLane from "@/components/map/TonightLane";
+import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import MapConciergeAsk from "@/components/map/MapConciergeAsk";
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
@@ -309,6 +310,9 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locationRequestStatus, setLocationRequestStatus] =
+    useState<LocationRequestStatus>("idle");
+  const venueLocationRequestedRef = useRef(false);
   // The curated crawl whose blurb is shown under the route title. Seeded from
   // ?crawl= / matching pubs= on curated arrival; cleared when the user mutates stops.
   const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(seed.activeCrawl);
@@ -331,6 +335,8 @@ export default function PubMap({
   const [tonightDismissed, setTonightDismissed] = useState<boolean>(
     readTonightOverlayDismissed,
   );
+  // W2: the live-events lane is map-first — a compact top chip until requested.
+  const [tonightLaneOpen, setTonightLaneOpen] = useState(false);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
@@ -648,6 +654,7 @@ export default function PubMap({
     (id: string, initialTab: TabKey = "pints") => {
       if (!id) return;
       prefetchVenue(id);
+      setTonightLaneOpen(false);
       if (isMobileViewport()) closePlanning();
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
@@ -915,6 +922,31 @@ export default function PubMap({
   // "Pubs near me": ask for location, build a crawl from the nearest matching
   // venues. Event handler (not an effect) so setState here is fine. Degrades
   // gracefully — feature-detect geolocation, catch denial, never throws.
+  const requestVenueLocation = useCallback(() => {
+    if (venueLocationRequestedRef.current) return;
+    venueLocationRequestedRef.current = true;
+
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationRequestStatus("unavailable");
+      return;
+    }
+
+    setLocationRequestStatus("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationRequestStatus("idle");
+      },
+      () => {
+        setLocationRequestStatus("unavailable");
+      },
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
+    );
+  }, []);
+
   const startNearbyCrawl = useCallback(() => {
     setNearbyError(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -1154,6 +1186,8 @@ export default function PubMap({
             rows={whatsOnTonight.rows}
             asOf={whatsOnTonight.asOf}
             status={whatsOnTonight.status}
+            open={tonightLaneOpen}
+            onOpenChange={setTonightLaneOpen}
             onSelectVenue={(id) => selectVenue(id)}
           />
         ) : null}
@@ -1407,6 +1441,9 @@ export default function PubMap({
               cityStoryBands={cityStoryBands}
               cityCuratedCrawls={cityCuratedCrawls}
               cityId={cityId}
+              userLocation={userLocation}
+              locationRequestStatus={locationRequestStatus}
+              onRequestLocation={requestVenueLocation}
             />
           </>
         ) : null}

@@ -1,9 +1,6 @@
-/* F3 concierge-as-map-home. Bottom-anchored, sitting in the same map-home lane
-   as the W1 Tonight lane but never overlapping it: the collapsed pill takes the
-   lowest slot (just above the tab bar) and the Tonight lane is bumped up by the
-   sibling rule below. When the ask panel is open the Tonight lane is hidden so
-   the two never fight. Hidden entirely while a venue sheet or the planner is
-   open. Both themes via design tokens; 44px targets; mobile-first. */
+/* F3 concierge-as-map-home. Bottom-anchored below W2's top Tonight chip. When
+   either panel opens, the other surface yields so they never fight. Hidden
+   entirely while a venue sheet or planner is open. */
 .mapConciergeAsk {
   position: absolute;
   left: 0;
@@ -20,9 +17,9 @@
   pointer-events: auto;
 }
 
-/* Lift the Tonight lane above the collapsed concierge pill so both read in one
-   clean stack. When the ask panel is open, the lane steps aside entirely. */
-.mapConciergeAsk--collapsed ~ .tonightLane {
+/* Only the expanded Tonight sheet needs to clear the bottom concierge pill;
+   its collapsed chip now lives under the map toolbar. */
+.mapConciergeAsk--collapsed ~ .tonightLane--open {
   bottom: calc(84px + env(safe-area-inset-bottom, 0px) + 52px);
 }
 
