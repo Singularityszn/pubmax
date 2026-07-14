@@ -266,4 +266,33 @@ test.describe("camera-first Spill composer", () => {
 
     expect(errors).toEqual([]);
   });
+
+  test("mobile Pint Drop selection returns to the visible picker when the venue closes", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+
+    const response = await page.goto("/map?log=1");
+    expect(response?.status()).toBe(200);
+
+    const fallback = page.locator(".logIntentFallback");
+    await expect(fallback).toBeVisible({ timeout: 10_000 });
+    await fallback.getByRole("button").first().click();
+
+    const sheet = page.locator(".mapDrawer.right");
+    await expect(sheet).toHaveClass(/open/);
+    await expect(page.locator("form.dropComposer")).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole("button", { name: "Close pub detail" }).click();
+
+    await expect(page).toHaveURL(/\/map\?log=1$/);
+    await expect(sheet).not.toHaveClass(/open/);
+    await expect(fallback).toBeVisible();
+    await expect(fallback).toContainText("Pick a pub to log a Pint Drop");
+  });
 });

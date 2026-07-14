@@ -137,6 +137,10 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveClass(/sheet-half/);
 
+  const closeButton = page.getByRole("button", { name: "Close pub detail" });
+  await expectTapTarget(closeButton, "venue sheet close button");
+  await expect(closeButton.locator("svg")).toHaveAttribute("width", "16");
+
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
   await expectNoPageHorizontalOverflow(page);

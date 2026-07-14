@@ -82,8 +82,8 @@ a.cityStatusBannerLink:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 26px;
-  min-width: 26px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 999px;

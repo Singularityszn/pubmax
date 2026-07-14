@@ -350,6 +350,7 @@ export default function PubMap({
   const dismissSheet = useCallback(() => {
     setSelectedVenueId("");
     closeComposer();
+    if (hasMapLogIntent(currentSearch())) setLogIntentFallbackVisible(true);
   }, [closeComposer, setSelectedVenueId]);
   const {
     sheetSnap,
@@ -1362,10 +1363,7 @@ export default function PubMap({
           <button
             type="button"
             className="drawerClose"
-            onClick={() => {
-              setSelectedVenueId("");
-              closeComposer();
-            }}
+            onClick={dismissSheet}
             aria-label="Close pub detail"
           >
             <X size={16} />

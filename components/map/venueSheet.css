@@ -411,6 +411,13 @@
     );
   }
 
+  /* A full sheet is translated down by 8vh; its scrollport therefore extends
+     that far below the physical viewport. Offset the sticky command bar by the
+     same amount so short tab panels cannot strand actions below the fold. */
+  .mapDrawer.right.sheet-full .venueSheetStickyBar {
+    bottom: calc(8vh + 8px);
+  }
+
   .venueSheetStickyPrimary,
   .venueSheetStickyGhost {
     display: inline-flex;

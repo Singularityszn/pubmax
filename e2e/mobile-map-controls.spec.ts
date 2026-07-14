@@ -113,3 +113,37 @@ test("mobile map controls: drink filters, city switcher, and layers are tappable
 
   expect(errors).toEqual([]);
 });
+
+test("mobile CityStatusBanner dismiss keeps a full hit target around its small glyph", async ({
+  page,
+}) => {
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: "2026-07-14T20:00:00.000Z",
+        signals: [
+          {
+            headline: "Weaver Line suspension",
+            kind: "transport",
+            severity: "notable",
+          },
+        ],
+        tubeLines: [],
+        weather: null,
+      }),
+    }),
+  );
+
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
+
+  const dismiss = page.getByRole("button", { name: "Dismiss city status" });
+  await expectTapTarget(dismiss, "city status dismiss button");
+  await expect(dismiss.locator("svg")).toHaveAttribute("width", "12");
+
+  await dismiss.click();
+  await expect(dismiss).toHaveCount(0);
+});
