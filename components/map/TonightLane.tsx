@@ -16,7 +16,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CalendarClock, MapPin, Tv, X } from "lucide-react";
+import { CalendarClock, MapPin, MoonStar, Tv, X } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
@@ -37,6 +37,11 @@ type TonightLaneProps = {
   onSelectVenue: (venueId: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Secondary CityMCP opportunity-pin overlay, folded into this top chrome. */
+  overlayCount?: number;
+  overlayActive?: boolean;
+  onToggleOverlay?: () => void;
+  onDismissOverlay?: () => void;
 };
 
 export default function TonightLane({
@@ -46,10 +51,15 @@ export default function TonightLane({
   onSelectVenue,
   open,
   onOpenChange,
+  overlayCount = 0,
+  overlayActive = false,
+  onToggleOverlay,
+  onDismissOverlay,
 }: TonightLaneProps) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
+  const toggleOverlay = overlayCount > 0 ? onToggleOverlay : undefined;
 
   const changeOpen = (nextOpen: boolean) => {
     if (open === undefined) setInternalOpen(nextOpen);
@@ -64,7 +74,7 @@ export default function TonightLane({
 
   // Honest outage state: the PRIMARY spine failed — say so quietly instead of
   // pretending it's a quiet night. Badges are simply absent in this state.
-  if (status === "error") {
+  if (status === "error" && !toggleOverlay) {
     return (
       <section
         className="tonightLane tonightLane--error"
@@ -82,7 +92,7 @@ export default function TonightLane({
     );
   }
 
-  if (rows.length === 0) return null;
+  if (rows.length === 0 && !toggleOverlay) return null;
 
   if (!isOpen) {
     return (
@@ -90,18 +100,39 @@ export default function TonightLane({
         className="tonightLane tonightLane--collapsed"
         aria-label="On tonight near you"
       >
-        <button
-          type="button"
-          className="tonightLaneCollapsed pressable"
-          data-testid="tonight-lane-chip"
-          aria-expanded={false}
-          onClick={() => changeOpen(true)}
-        >
-          <span className="tonightLaneCollapsedTitle">
-            On tonight <span aria-hidden="true">·</span> {rows.length}
-          </span>
-          <span className="tonightLaneCollapsedChecked">{checkedLabel(asOf)}</span>
-        </button>
+        <div className="tonightLaneCollapsed">
+          {rows.length > 0 ? (
+            <button
+              type="button"
+              className="tonightLaneCollapsedMain pressable"
+              data-testid="tonight-lane-chip"
+              aria-expanded={false}
+              onClick={() => changeOpen(true)}
+            >
+              <span className="tonightLaneCollapsedTitle">
+                On tonight <span aria-hidden="true">·</span> {rows.length}
+              </span>
+              <span className="tonightLaneCollapsedChecked">{checkedLabel(asOf)}</span>
+            </button>
+          ) : (
+            <span className="tonightLaneCollapsedMain" role="status">
+              <span className="tonightLaneCollapsedTitle">Tonight nearby</span>
+              {status === "error" ? (
+                <span className="tonightLaneCollapsedChecked">Listings unavailable</span>
+              ) : null}
+            </span>
+          )}
+          {toggleOverlay ? (
+            <TonightOverlayToggle
+              count={overlayCount}
+              active={overlayActive}
+              onToggle={toggleOverlay}
+            />
+          ) : null}
+          {toggleOverlay && overlayActive && onDismissOverlay ? (
+            <TonightOverlayDismiss onDismiss={onDismissOverlay} />
+          ) : null}
+        </div>
       </section>
     );
   }
@@ -117,14 +148,28 @@ export default function TonightLane({
             <h2 className="tonightLaneTitle">On tonight</h2>
             <span className="tonightLaneChecked">{checkedLabel(asOf)}</span>
           </div>
-          <button
-            type="button"
-            className="tonightLaneClose pressable"
-            aria-label="Collapse on tonight"
-            onClick={() => changeOpen(false)}
-          >
-            <X size={17} aria-hidden="true" />
-          </button>
+          <div className="tonightLaneTitleActions">
+            {toggleOverlay ? (
+              <>
+                <TonightOverlayToggle
+                  count={overlayCount}
+                  active={overlayActive}
+                  onToggle={toggleOverlay}
+                />
+                {overlayActive && onDismissOverlay ? (
+                  <TonightOverlayDismiss onDismiss={onDismissOverlay} />
+                ) : null}
+              </>
+            ) : null}
+            <button
+              type="button"
+              className="tonightLaneClose pressable"
+              aria-label="Collapse on tonight"
+              onClick={() => changeOpen(false)}
+            >
+              <X size={17} aria-hidden="true" />
+            </button>
+          </div>
         </div>
         {facets.length > 1 ? (
           <div
@@ -199,6 +244,47 @@ export default function TonightLane({
         })}
       </ul>
     </section>
+  );
+}
+
+function TonightOverlayDismiss({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <button
+      type="button"
+      className="tonightLaneOverlayDismiss pressable"
+      aria-label="Dismiss tonight map pins"
+      onClick={onDismiss}
+    >
+      <X size={15} aria-hidden="true" />
+    </button>
+  );
+}
+
+function TonightOverlayToggle({
+  count,
+  active,
+  onToggle,
+}: {
+  count: number;
+  active: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="tonightLaneOverlayToggle pressable"
+      data-testid="tonight-overlay-toggle"
+      data-active={active}
+      aria-label={active ? "Hide tonight on map" : "Show tonight on map"}
+      aria-pressed={active}
+      onClick={onToggle}
+    >
+      <MoonStar size={15} aria-hidden="true" />
+      <span>Pins</span>
+      <span className="tonightLaneOverlayCount" aria-hidden="true">
+        {count}
+      </span>
+    </button>
   );
 }
 

@@ -20,10 +20,9 @@ body:has(.appShell.planning-open) .tonightLane {
 .tonightLaneCollapsed {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
   min-height: 44px;
-  max-width: min(360px, calc(100vw - 124px));
-  padding: 0 15px;
+  max-width: min(360px, calc(100vw - 24px));
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--brass) 52%, var(--line));
   border-radius: 999px;
   background:
@@ -37,8 +36,26 @@ body:has(.appShell.planning-open) .tonightLane {
   color: var(--ink);
   backdrop-filter: blur(12px) saturate(1.08);
   -webkit-backdrop-filter: blur(12px) saturate(1.08);
+}
+
+.tonightLaneCollapsedMain {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 15px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.tonightLaneCollapsedMain[role="status"] {
+  cursor: default;
 }
 
 .tonightLaneCollapsedTitle {
@@ -128,10 +145,60 @@ body:has(.appShell.planning-open) .tonightLane {
 .tonightLaneTitleMeta {
   display: inline-flex;
   align-items: baseline;
+  flex: 1 1 auto;
   min-width: 0;
   gap: 10px;
 }
 
+.tonightLaneTitleActions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.tonightLaneOverlayToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 5px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tonightLaneCollapsed .tonightLaneOverlayToggle {
+  align-self: stretch;
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--brass) 7%, transparent);
+}
+
+.tonightLaneOverlayToggle[data-active="true"] {
+  background: color-mix(in srgb, var(--amber) 20%, var(--panel-raised));
+  color: color-mix(in srgb, var(--amber) 58%, var(--ink));
+}
+
+.tonightLaneOverlayCount {
+  min-width: 15px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 0.6rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.tonightLaneOverlayDismiss,
 .tonightLaneClose {
   display: grid;
   flex: 0 0 auto;
@@ -145,6 +212,16 @@ body:has(.appShell.planning-open) .tonightLane {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+}
+
+.tonightLaneOverlayDismiss {
+  margin: 0;
+}
+
+.tonightLaneCollapsed .tonightLaneOverlayDismiss {
+  align-self: stretch;
+  border-left: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-radius: 0;
 }
 
 .tonightLaneTitle {
@@ -350,7 +427,7 @@ body:has(.appShell.planning-open) .tonightLane {
 }
 
 .tonightLaneCollapsed:hover,
-.tonightLaneCollapsed:focus-visible {
+.tonightLaneCollapsed:has(:focus-visible) {
   border-color: var(--brass);
   background:
     linear-gradient(
@@ -361,18 +438,45 @@ body:has(.appShell.planning-open) .tonightLane {
     var(--panel-raised);
 }
 
+.tonightLaneOverlayToggle:hover,
+.tonightLaneOverlayDismiss:hover,
 .tonightLaneClose:hover {
   color: var(--ink);
   background: color-mix(in srgb, var(--brass) 10%, transparent);
 }
 
-.tonightLaneCollapsed:focus-visible,
+.tonightLaneCollapsedMain:focus-visible,
+.tonightLaneOverlayToggle:focus-visible,
+.tonightLaneOverlayDismiss:focus-visible,
 .tonightLaneClose:focus-visible,
 .tonightLaneChip:focus-visible,
 .tonightLaneCardTap:focus-visible,
 .tonightLanePlan:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+.tonightLaneCollapsedMain:focus-visible,
+.tonightLaneCollapsed .tonightLaneOverlayToggle:focus-visible {
+  outline-offset: -3px;
+}
+
+@media (max-width: 420px) {
+  .tonightLaneCollapsedChecked {
+    display: none;
+  }
+
+  .tonightLaneTitleRow {
+    gap: 6px;
+  }
+
+  .tonightLaneTitleMeta {
+    gap: 6px;
+  }
+
+  .tonightLaneChecked {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
