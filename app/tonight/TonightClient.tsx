@@ -20,10 +20,7 @@ import {
 } from "lucide-react";
 
 import SiteNav from "@/components/nav/SiteNav";
-import {
-  loadWhatsOnTonight,
-  type WhatsOnTonightStatus,
-} from "@/components/map/useWhatsOnTonight";
+import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
@@ -57,25 +54,9 @@ function coverageLabel(count: number): string {
 }
 
 export default function TonightClient() {
-  const [rows, setRows] = useState<WhatsOnRow[]>([]);
-  const [asOf, setAsOf] = useState<string | null>(null);
-  const [status, setStatus] = useState<WhatsOnTonightStatus>("idle");
+  const { rows, asOf, status } = useWhatsOnTonight(true);
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void loadWhatsOnTonight({ signal: controller.signal }).then((result) => {
-      if (controller.signal.aborted) return;
-      void Promise.resolve().then(() => {
-        if (controller.signal.aborted) return;
-        setRows(result.rows);
-        setAsOf(result.asOf);
-        setStatus(result.status);
-      });
-    });
-    return () => controller.abort();
-  }, []);
 
   useEffect(() => {
     trackEvent("tonight_screen_view");
