@@ -1,11 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// First-class /tonight screen E2E (Wave A · A2). WebGL-AGNOSTIC and
-// tolerant of a quiet upstream: the screen is a pure DOM surface fed by the
-// CityMCP `things_to_do` proxy, which fail-softs to an empty list. So we always
-// assert the screen mounts with its heading + provenance, and only exercise the
-// filter → tap-into-venue flow WHEN the upstream actually returned rows.
-// House style mirrors e2e/accessible-filters.spec.ts.
+// First-class /tonight screen E2E. WebGL-agnostic. Fed by the PRIMARY What's-On
+// spine (/api/whats-on) — same source as the map Tonight lane. Tolerant of a
+// quiet upstream: always assert mount + heading; only exercise filter → map
+// deep-link when rows actually returned.
 
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -71,6 +69,6 @@ test("filtering by kind narrows the list and rows tap into a venue", async ({
   const mapLink = page.locator(".tonightRowLink[href^='/map']").first();
   if ((await mapLink.count()) > 0) {
     const href = await mapLink.getAttribute("href");
-    expect(href).toMatch(/^\/map/);
+    expect(href).toMatch(/^\/map\?sel=/);
   }
 });

@@ -53,6 +53,12 @@ describe("shouldFitCityBoundsOnArrival", () => {
     expect(shouldFitCityBoundsOnArrival("?band=subcrawl")).toBe(true);
   });
 
+  it("skips city bounds when a selected venue is present", () => {
+    expect(shouldFitCityBoundsOnArrival("?sel=foo")).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("?mode=suggest&sel=foo")).toBe(false);
+    expect(shouldFitCityBoundsOnArrival("?sel=")).toBe(false);
+  });
+
   it("skips drink, crawl, pubs, borough-browse, and mapped-route arrivals", () => {
     expect(shouldFitCityBoundsOnArrival("?drink=wine")).toBe(false);
     expect(shouldFitCityBoundsOnArrival("?cocktails=1")).toBe(false);

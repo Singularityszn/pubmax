@@ -993,6 +993,7 @@ export default function PubMap({
   // onboarding is free to show as before.
   const tonightLaneHasRows =
     isLondon && whatsOnTonight.status === "ready" && whatsOnTonight.rows.length > 0;
+  const tonightLanePending = isLondon && whatsOnTonight.status === "idle";
   const showOnboarding = shouldShowCuratedOnboarding({
     loaded,
     onboardingDismissed,
@@ -1004,6 +1005,7 @@ export default function PubMap({
     showBandChip,
     curatedCrawlCount: cityCuratedCrawls.length,
     tonightLaneHasRows,
+    tonightLanePending,
   });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);

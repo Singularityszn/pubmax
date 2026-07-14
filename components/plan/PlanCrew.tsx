@@ -131,16 +131,6 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
         <div><p className="planPage__eyebrow">The crew</p><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
         <span>{crew.length}</span>
       </div>
-      {crew.length ? (
-        <ul className="planCrew__list">
-          {crew.map((member, index) => (
-            <li key={member.id} style={{ "--i": index } as CSSProperties}>
-              <span>{member.name}</span>
-              <small data-status={member.status}>{STATUS_LABELS[member.status]}</small>
-            </li>
-          ))}
-        </ul>
-      ) : <p className="planCrew__empty">Be the first name on the night.</p>}
 
       {!memberToken ? (
         <form className="planCrew__join" onSubmit={join}>
@@ -163,6 +153,17 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
           ))}
         </div>
       )}
+
+      {crew.length ? (
+        <ul className="planCrew__list">
+          {crew.map((member, index) => (
+            <li key={member.id} style={{ "--i": index } as CSSProperties}>
+              <span>{member.name}</span>
+              <small data-status={member.status}>{STATUS_LABELS[member.status]}</small>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="planCrew__empty">Be the first name on the night.</p>}
       {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
     </section>
   );
