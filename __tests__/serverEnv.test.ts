@@ -16,6 +16,7 @@ describe("assertProductionSecrets", () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.NEXT_PHASE;
     delete process.env.PUBMAX_E2E_KEYLESS;
+    delete process.env.VERCEL_ENV;
   });
 
   it("is a no-op outside production", () => {
@@ -41,6 +42,12 @@ describe("assertProductionSecrets", () => {
     expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
   });
 
+  it("is a no-op on Vercel Preview even when NODE_ENV is production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    delete process.env.ADMIN_TOKEN;
+    expect(() => assertProductionSecrets()).not.toThrow();
+  });
   it("throws when ADMIN_TOKEN is unset in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.ADMIN_TOKEN;
@@ -80,6 +87,14 @@ describe("assertProductionSecrets", () => {
 
     expect(() => assertProductionSecrets()).not.toThrow();
   });
+
+  it("enforces secrets when VERCEL_ENV=production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    delete process.env.ADMIN_TOKEN;
+    process.env.RATE_LIMIT_SALT = "prod-salt";
+    expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
+  });
 });
 
 describe("assertServerEnv", () => {
@@ -91,6 +106,7 @@ describe("assertServerEnv", () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.NEXT_PHASE;
     delete process.env.PUBMAX_E2E_KEYLESS;
+    delete process.env.VERCEL_ENV;
   });
 
   it("is a no-op outside production", () => {
@@ -117,6 +133,13 @@ describe("assertServerEnv", () => {
     expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
   });
 
+  it("is a no-op on Vercel Preview without Supabase", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    expect(() => assertServerEnv()).not.toThrow();
+  });
   it("throws when Supabase is missing in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.SUPABASE_URL;
