@@ -26,7 +26,11 @@ const RENDER_THROTTLE_MS = 120;
 
 const BUCKET_COLOR_KEYS = ["pint", "amber", "brick", "muted"] as const;
 
-function readCounts(props: GeoJSON.GeoJsonProperties): DonutCounts {
+// Exported for unit tests — coerces the supercluster's accumulated b0..b3
+// per-bucket props into a DonutCounts tuple, guarding a missing / non-numeric /
+// non-finite prop down to 0 so a malformed cluster property can never NaN the
+// donut geometry.
+export function readCounts(props: GeoJSON.GeoJsonProperties): DonutCounts {
   const at = (key: string) => {
     const v = props?.[key];
     const n = typeof v === "number" ? v : Number(v ?? 0);
@@ -35,7 +39,9 @@ function readCounts(props: GeoJSON.GeoJsonProperties): DonutCounts {
   return [at("b0"), at("b1"), at("b2"), at("b3")];
 }
 
-function countsEqual(a: DonutCounts, b: DonutCounts): boolean {
+// Exported for unit tests — the SVG-rebuild perf guard: markers only re-render
+// their donut when this returns false, so position-only updates stay cheap.
+export function countsEqual(a: DonutCounts, b: DonutCounts): boolean {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
 }
 

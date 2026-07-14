@@ -292,6 +292,12 @@ export function lookupCuratedVenue(
 export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
   const first = prices[0];
   const explicit = lookupCuratedVenue(first.pub_name, first.address ?? "");
+  const wikipediaRow = prices.find((row) =>
+    String(row.source_datasets ?? "").includes("wikipedia_london_list"),
+  );
+  const wikipediaUrl =
+    wikipediaRow?.comment?.match(/https:\/\/en\.wikipedia\.org\/wiki\/\S+/)?.[0] ??
+    wikipediaRow?.comment?.replace(/^Wikipedia:\s*/i, "").trim();
   const haystack = [
     first.pub_name,
     first.address,
@@ -308,11 +314,14 @@ export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
   // weak hint that still needs a human or a visitor Pint Drop → anecdote, never sourced.
   const hasExplicitHeritage =
     typeof explicit.heritageEra === "string" || typeof explicit.heritageNote === "string";
+  const hasWikipediaList = Boolean(wikipediaRow && wikipediaUrl);
   const inferredHeritage =
-    !hasExplicitHeritage && heritageTerms.some((term) => haystack.includes(term));
+    !hasExplicitHeritage &&
+    !hasWikipediaList &&
+    heritageTerms.some((term) => haystack.includes(term));
 
   const provenance: Provenance | undefined =
-    explicit.writerPick || hasExplicitHeritage || explicit.sourceUrl
+    explicit.writerPick || hasExplicitHeritage || explicit.sourceUrl || hasWikipediaList
       ? "sourced"
       : inferredHeritage
         ? "anecdote"
@@ -322,12 +331,18 @@ export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
     ...explicit,
     nearWater,
     provenance,
-    heritageEra: explicit.heritageEra ?? (inferredHeritage ? "Historic (unverified)" : undefined),
+    heritageEra:
+      explicit.heritageEra ??
+      (hasWikipediaList ? "Wikipedia" : inferredHeritage ? "Historic (unverified)" : undefined),
     heritageNote:
       explicit.heritageNote ??
-      (inferredHeritage
-        ? "The venue's own description hints at period features. Unverified — a sourced note or a visitor Pint Drop can confirm it."
-        : undefined),
+      (hasWikipediaList
+        ? wikipediaRow?.description || "Listed on Wikipedia's List of pubs in London."
+        : inferredHeritage
+          ? "The venue's own description hints at period features. Unverified — a sourced note or a visitor Pint Drop can confirm it."
+          : undefined),
+    sourceLabel: explicit.sourceLabel ?? (hasWikipediaList ? "Wikipedia" : undefined),
+    sourceUrl: explicit.sourceUrl ?? (hasWikipediaList ? wikipediaUrl : undefined),
   };
 }
 

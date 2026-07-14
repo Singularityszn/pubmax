@@ -387,10 +387,17 @@ function buildCurationHints(prices) {
     .toLowerCase();
   const inferredHeritage =
     explicit.hasHeritage !== true && HERITAGE_TERMS.some((term) => haystack.includes(term));
+  // Wikipedia "List of pubs in London" venues carry a sourced heritage note in
+  // curation (getVenueCuration). Mirror that here so the build-time slim
+  // `hasStory` flag matches the runtime heritage filter — otherwise the map's
+  // heritage lens under-counts the Wikipedia-listed pubs.
+  const wikipediaListed = prices.some((price) =>
+    String(price.source_datasets ?? "").includes("wikipedia_london_list"),
+  );
 
   return {
     nearWater: explicit.nearWater ?? WATER_TERMS.some((term) => haystack.includes(term)),
-    hasStory: explicit.hasHeritage === true || inferredHeritage,
+    hasStory: explicit.hasHeritage === true || inferredHeritage || wikipediaListed,
   };
 }
 
