@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanPalDraft, DEFAULT_PAL_DRAFT, PAL_UNLOCKS, SIGNAL_FAMILIES } from "@/lib/pubPal";
+import { cleanPalDraft, DEFAULT_PAL_DRAFT, PAL_SPECIES, PAL_UNLOCKS, SIGNAL_FAMILIES } from "@/lib/pubPal";
 
 describe("Pub Pal domain", () => {
   it("requires an adult attestation and a name", () => {
@@ -15,5 +15,10 @@ describe("Pub Pal domain", () => {
   it("defines six Signal families and cosmetic-only unlock categories", () => {
     expect(SIGNAL_FAMILIES).toEqual(["beer", "gin", "rum", "whisky", "brandy", "vodka"]);
     expect(PAL_UNLOCKS.every(unlock => !["ranking", "alcohol", "drink_count"].includes(unlock.category))).toBe(true);
+  });
+
+  it("offers a compact eight-form companion collection", () => {
+    expect(PAL_SPECIES).toHaveLength(8);
+    expect(new Set(PAL_SPECIES).size).toBe(8);
   });
 });

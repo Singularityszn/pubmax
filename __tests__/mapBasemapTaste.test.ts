@@ -54,12 +54,14 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     expect(dark.land).toBe(darkTokens.inkDeep);
     expect(dark.land).not.toBe(darkTokens.ink);
     expect(light.land).toBe(tokens.paper);
-    // Streets must stay luminous against night land.
+    // Streets remain legible without turning the whole basemap into white
+    // linework; major roads retain the warmer transport hierarchy.
     expect(dark.road).toContain("255, 244, 232"); // cream ink rgb
-    expect(dark.roadMajor).toContain("255, 194, 71"); // amber
+    expect(dark.roadMajor).toContain("255, 244, 232"); // brighter neutral hierarchy
     // Buildings: M4 warmed emissive massing — readable on near-black land,
     // still desaturated (never a literal brass/coral wash).
-    expect(dark.building).toBe(darkTokens.buildingEmissive);
+    expect(dark.building).not.toBe(darkTokens.inkDeep);
+    expect(dark.building).not.toBe(darkTokens.buildingEmissive);
     expect(dark.building).not.toBe(darkTokens.brass);
     expect(dark.building).not.toContain("255, 107, 122"); // old brass coral
   });
@@ -144,7 +146,7 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     ).toBe(0.92);
     expect(
       paints.find(([id, prop]) => id === "building" && prop === "fill-outline-color")?.[2],
-    ).toBe("#9aa3b5");
+    ).toBe("rgba(154,163,181,0.28)");
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
     ).toBe(true);

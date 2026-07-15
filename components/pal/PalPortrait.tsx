@@ -1,16 +1,26 @@
-import { Bird, Cat, Dog, type LucideIcon } from "lucide-react";
+import { Bird, Bot, Cat, Dog, Rabbit, Squirrel, Turtle, type LucideIcon } from "lucide-react";
 import type { PubPalAppearance } from "@/lib/pubPal";
 
 const speciesIcons: Record<PubPalAppearance["species"], LucideIcon> = {
   hound: Dog,
   raven: Bird,
   fox: Cat,
+  cat: Cat,
+  rabbit: Rabbit,
+  turtle: Turtle,
+  squirrel: Squirrel,
+  bot: Bot,
 };
 
 const speciesDescriptions: Record<PubPalAppearance["species"], string> = {
   hound: "an alert cyber hound with an open, loyal expression",
   raven: "an observant holographic raven with a calm profile",
   fox: "a quick cyber fox with bright, curious eyes",
+  cat: "a composed signal cat with a quietly mischievous expression",
+  rabbit: "an alert neon rabbit ready for an unexpected side quest",
+  turtle: "a steady chrome turtle who never rushes a good night",
+  squirrel: "a bright holographic squirrel collecting stories instead of acorns",
+  bot: "a pocket-sized night bot with an expressive screen face",
 };
 
 export default function PalPortrait({

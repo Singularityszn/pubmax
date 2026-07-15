@@ -55,15 +55,16 @@ html[data-theme="dark"] {
   --panel-overlay: #242427; /* NEW 4th step — menus / popovers / toasts */
   --ink-deep: #060607; /* deepest well — neutral near-black (was cyan-ish #040606) */
 
-  /* Accent demotion: brass/amber carry ALL saturated weight at full chroma;
+  /* Accent demotion: coral carries branded actions while amber stays a route
      every other accent drops to a low-chroma tint so it can't bloom on
      near-black while staying legible for its semantic job. */
   --pint: #5fb389; /* cheap / positive — muted go-green (was neon #3dff9a) */
   --amber: #f0a01a; /* mid price + route energy — FULL chroma, kept */
   --brick: #d47a82; /* dear / destructive — muted rose-red (was #ff6b7a) */
-  /* Amber owns Plan CTA / accent in dark (coral stays on --brick for dear). */
-  --brass: #f0a01a;
-  --brass-bright: #ffb328;
+  /* One PUBMAXX identity in both modes: dark mode must not become a different
+     amber brand. Amber remains transport/price semantics, coral owns action. */
+  --brass: #ff5a5f;
+  --brass-bright: #ff7a55;
   --night-amber: #f0a01a;
   --river: #7aa6cc; /* info / by-water — muted steel blue (was #64b5ff) */
   --river-bright: #9ac0da; /* muted light blue (was #7dd3fc) */
@@ -173,14 +174,8 @@ html[data-theme="dark"] .mobileTabList {
     0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
-html[data-theme="dark"] h1,
-html[data-theme="dark"] h2,
-html[data-theme="dark"] h3,
-html[data-theme="dark"] .inspectorTitle,
-html[data-theme="dark"] .venueInspector h3 {
-  letter-spacing: -0.02em;
-  font-weight: 700;
-}
+/* Typography is theme-invariant. Dark mode changes contrast, never scale or
+   weight; this prevents the same viewport reading larger at night. */
 
 /* Theme toggle. Base = the inline/nav variant: a quiet brass-hover icon button
    that reads cleanly in a nav in BOTH themes. `.floating` lifts it into the

@@ -101,6 +101,11 @@
        rule above (D7) so this always clears the toolbar's own compact
        single-row height — matches .mapCameraControls' mobile +58px offset,
        the same "row after the toolbar" convention used elsewhere. */
-    top: calc(var(--map-top-clearance, 0px) + 58px);
+    top: calc(var(--map-top-clearance, 0px) + 112px);
+    max-width: calc(100vw - 24px);
+    padding-block: 4px;
+    border-color: var(--line);
+    background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   }
+  .citySuggestBannerCopy { font-size: .7rem; }
 }

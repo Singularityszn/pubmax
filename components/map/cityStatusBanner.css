@@ -77,6 +77,7 @@ a.cityStatusBannerLink:hover {
   font-weight: 700;
   color: var(--ink);
 }
+.cityStatusBannerMobileCopy { display: none; }
 
 .cityStatusBannerDismiss {
   display: inline-flex;
@@ -106,12 +107,19 @@ a.cityStatusBannerLink:hover {
        toolbar/search-bar outright. Anchor to --map-top-clearance like the
        desktop rule below (D7), stacked under .citySuggestBanner's own
        (now anchored) +58px slot with room for its ~48px height. */
-    top: calc(var(--map-top-clearance, 0px) + 112px);
-    max-width: min(380px, calc(100vw - 20px));
+    top: calc(var(--map-top-clearance, 0px) + 60px);
+    right: 12px;
+    left: auto;
+    max-width: 132px;
+    min-height: 44px;
+    padding: 0 8px 0 12px;
+    border-color: var(--line);
+    background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
+    transform: none;
   }
-  .cityStatusBannerCopy {
-    font-size: 0.72rem;
-  }
+  .cityStatusBannerCopy { display: none; }
+  .cityStatusBannerMobileCopy { display: inline; overflow: hidden; text-overflow: ellipsis; color: var(--ink); font-size: .72rem; font-weight: 750; white-space: nowrap; }
+  .cityStatusBannerDismiss { display: none; }
 
   /* U5 — at phone widths the banner keeps its own full-width row: while it is
      on screen, the camera chips (London / No route — globals.css puts
@@ -119,9 +127,7 @@ a.cityStatusBannerLink:hover {
      instead of stacking on top of its right edge. Dismissing the banner pops
      the chips back up automatically. F6: bumped from +100px to clear the
      banner's own new +112px anchored top plus its ~48px row height. */
-  .mapStage:has(.cityStatusBanner) .mapCameraControls {
-    top: calc(var(--map-top-clearance) + 164px);
-  }
+  .mapStage:has(.cityStatusBanner) .mapCameraControls { top: calc(var(--map-top-clearance) + 112px); }
 }
 
 /* A4 — expandable "Tonight in London" signals sheet, additive to the pill above. */
@@ -222,7 +228,14 @@ a.cityStatusBannerLink:hover {
 @media (max-width: 640px) {
   .cityStatusSignalSheet {
     /* F6: mirrors .cityStatusBanner's own (now anchored) mobile top above. */
-    top: calc(var(--map-top-clearance, 0px) + 112px);
-    width: min(320px, calc(100vw - 20px));
+    position: fixed;
+    top: auto;
+    right: 10px;
+    bottom: calc(var(--mobile-tab-clearance, 58px) + 22px);
+    left: 10px;
+    width: auto;
+    max-height: min(58dvh, 430px);
+    margin: 0;
+    transform: none;
   }
 }

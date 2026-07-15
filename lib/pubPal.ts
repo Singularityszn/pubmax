@@ -1,6 +1,19 @@
 import { cleanText } from "@/lib/textClean";
 
-export const PAL_SPECIES = ["hound", "raven", "fox"] as const;
+/**
+ * Eight original Pub Pal forms. The breadth mirrors the useful part of the
+ * Codex pet picker (a small, memorable cast) without copying its artwork.
+ */
+export const PAL_SPECIES = [
+  "hound",
+  "raven",
+  "fox",
+  "cat",
+  "rabbit",
+  "turtle",
+  "squirrel",
+  "bot",
+] as const;
 export const SIGNAL_FAMILIES = ["beer", "gin", "rum", "whisky", "brandy", "vodka"] as const;
 export const PAL_VOICES = ["ember", "velvet", "signal"] as const;
 export type PubPalSpecies = (typeof PAL_SPECIES)[number];

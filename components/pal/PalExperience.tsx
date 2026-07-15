@@ -37,9 +37,20 @@ const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
 
 const speciesCopy = {
-  hound: { title: "Hound", note: "Loyal, energetic and ready to move." },
-  raven: { title: "Raven", note: "Observant, dry and good with details." },
-  fox: { title: "Fox", note: "Curious, quick and pleasantly unpredictable." },
+  hound: { title: "Hound", note: "Loyal · energetic" },
+  raven: { title: "Raven", note: "Observant · dry" },
+  fox: { title: "Fox", note: "Curious · quick" },
+  cat: { title: "Cat", note: "Calm · mischievous" },
+  rabbit: { title: "Rabbit", note: "Alert · spontaneous" },
+  turtle: { title: "Turtle", note: "Steady · thoughtful" },
+  squirrel: { title: "Squirrel", note: "Social · excitable" },
+  bot: { title: "Night bot", note: "Precise · expressive" },
+} as const;
+
+const nameIdeas = {
+  "Gen Z": ["Miso", "Nova", "Pixel", "Chilli"],
+  "Gen X": ["Ripley", "Bowie", "Gizmo", "Trinity"],
+  Classic: ["Mabel", "Teddy", "Bonnie", "Arthur"],
 } as const;
 
 const voiceCopy = {
@@ -436,14 +447,22 @@ export default function PalExperience() {
               <p className="palEyebrow">Form</p>
               <h1>Who finds you?</h1>
               <p>Each Pal has the same planning intelligence. Choose the presence you want beside you.</p>
-              <div className="palChoiceList">{PAL_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
+              <div className="palChoiceList palSpeciesGrid">{PAL_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
             </div>
           )}
           {step === 2 && (
             <div className="palStep">
               <p className="palEyebrow">Identity</p>
               <h1>Call it something yours.</h1>
-              <label className="palField"><span>Name</span><input value={draft.name} maxLength={32} autoComplete="off" placeholder="Morrow" onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /><small>Up to 32 characters. You can change this before creating your Pal.</small></label>
+              <label className="palField"><span>Name</span><input value={draft.name} maxLength={32} autoComplete="off" placeholder="Anything feels right" onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /><small>This is yours. Change it whenever you want.</small></label>
+              <div className="palNameIdeas" aria-label="Name inspiration">
+                {Object.entries(nameIdeas).map(([generation, names]) => (
+                  <div key={generation}>
+                    <span>{generation}</span>
+                    <div>{names.map((name) => <button key={name} type="button" onClick={() => setDraft((current) => ({ ...current, name }))}>{name}</button>)}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {step === 3 && (

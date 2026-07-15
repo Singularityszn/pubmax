@@ -4,6 +4,11 @@ export const palSpecies = v.union(
   v.literal("hound"),
   v.literal("raven"),
   v.literal("fox"),
+  v.literal("cat"),
+  v.literal("rabbit"),
+  v.literal("turtle"),
+  v.literal("squirrel"),
+  v.literal("bot"),
 );
 
 export const signalFamily = v.union(

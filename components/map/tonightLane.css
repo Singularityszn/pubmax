@@ -128,6 +128,17 @@ body:has(.appShell.planning-open) .tonightLane {
   top: calc(var(--map-top-clearance, 0px) + 168px);
 }
 
+@media (max-width: 640px) {
+  /* Tonight and TfL are peers in one compact live rail. They no longer stack
+     into three full-width banners above the map. */
+  .mapStage:has(.cityStatusBanner) .tonightLane--collapsed,
+  .mapStage:has(.cityStatusBanner) .tonightLane--error {
+    top: calc(var(--map-top-clearance, 0px) + 60px);
+  }
+  .tonightLaneCollapsed { max-width: calc(100vw - 158px); border-color: var(--line); background: color-mix(in srgb, var(--panel-raised) 94%, transparent); }
+  .tonightLaneCollapsedChecked { display: none; }
+}
+
 .tonightLaneHead {
   display: flex;
   flex-direction: column;

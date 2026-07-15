@@ -255,7 +255,7 @@
 @media (max-width: 700px) {
   .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 8px 6px 12px; gap: 8px; border-radius: 17px; }.lpWordmark { font-size: 12px; }.lpMark { width: 32px; height: 32px; }
   .lpHero { padding: 106px 18px 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
-  .lpHero h1 { font-size: clamp(48px, 15vw, 66px); line-height: .92; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
+  .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
   .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 430px; border-radius: 22px; }.thamesHeroPinMeta { display: none; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
   .lpSignalSection, .lpProofSection { width: calc(100% - 36px); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }

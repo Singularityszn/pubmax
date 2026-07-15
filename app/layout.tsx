@@ -74,13 +74,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: "PUBMAXX — Make tonight worth remembering",
     description:
-      "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
+      "Real prices, live plans and unexpected places—built for better nights with your people.",
     url: "https://pubmaxxing.com",
     siteName: "PUBMAXX",
     type: "website",
     images: [
       {
-        url: "/og.png",
+        url: "/og.png?v=20260715-coral",
         width: 1200,
         height: 630,
         alt: "PUBMAXX nightlife map and planner",
@@ -91,8 +91,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "PUBMAXX — Make tonight worth remembering",
     description:
-      "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
-    images: ["/og.png"],
+      "Real prices, live plans and unexpected places—built for better nights with your people.",
+    images: ["/og.png?v=20260715-coral"],
   },
   icons: {
     icon: [

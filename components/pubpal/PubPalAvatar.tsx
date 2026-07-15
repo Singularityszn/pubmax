@@ -1,7 +1,16 @@
 import type { PubPalAppearance, PubPalSpecies, SignalFamily } from "@/lib/pubPal";
 import "./pubPal.css";
 
-const faces: Record<PubPalSpecies, string> = { hound: "◢ ᴥ ◣", raven: "◆ V ◆", fox: "◁ ᴥ ▷" };
+const faces: Record<PubPalSpecies, string> = {
+  hound: "◢ ᴥ ◣",
+  raven: "◆ V ◆",
+  fox: "◁ ᴥ ▷",
+  cat: "⌃ ᴥ ⌃",
+  rabbit: "⌇ ᴥ ⌇",
+  turtle: "◉ ᴗ ◉",
+  squirrel: "◔ ᴥ ◔",
+  bot: "›_‹",
+};
 
 export function PubPalAvatar({ appearance, name, compact = false }: { appearance: PubPalAppearance; name: string; compact?: boolean }) {
   return (
