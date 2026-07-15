@@ -1,4 +1,4 @@
-/* PUBMAXXING mobile tab bar.
+/* PUBMAXX mobile tab bar.
    Colour comes from the shared tokens (globals.css / theme.css) so it flips
    light/dark for free and reads correctly over both the paper landing and the
    dark map shell. Fixed to the bottom on phones only; display:none above 640px
@@ -15,7 +15,7 @@
   display: none;
 }
 
-/* Drop's calm idle presence — a slow, low-amplitude glow bloom, never a fast
+/* Moment's calm idle presence — a slow, low-amplitude glow bloom, never a fast
    high-contrast pulse. Kept top-level (not nested) so it stays readable
    alongside the other keyframes in this file. */
 @keyframes mobileTabDropGlow {
@@ -195,7 +195,7 @@
     color: var(--brass);
   }
 
-  /* Drop: primary centre action — compact circle, never "current page". */
+  /* Moment: primary centre action — compact circle, never "current page". */
   .mobileTabPrimary {
     color: var(--ink-soft);
     gap: 2px;

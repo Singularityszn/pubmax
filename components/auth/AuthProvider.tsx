@@ -32,6 +32,7 @@ import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
+import { emitIdentityHandleChanged, IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
 
 const HANDLE_KEY = "pubmax_handle";
 const SYNCED_USER_KEY = "pubmax_identity_synced_user";
@@ -85,6 +86,7 @@ function writeDeviceHandle(handle: string): void {
   } catch {
     // storage disabled — server link still proceeds
   }
+  emitIdentityHandleChanged(handle);
 }
 
 /** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
@@ -144,9 +146,35 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [claimPreview, setClaimPreview] = useState<ClaimPreview | null>(null);
   const [claimBusy, setClaimBusy] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [canonicalHandle, setCanonicalHandle] = useState<string | null>(null);
   const configured = isAuthConfigured();
   // Guard overlapping sync runs (getSession + SIGNED_IN can both fire).
   const syncInFlight = useRef<string | null>(null);
+
+  useEffect(() => {
+    const user = session?.user ?? null;
+    let active = true;
+    const onChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ handle?: unknown }>).detail;
+      if (typeof detail?.handle === "string") setCanonicalHandle(normalizeHandle(detail.handle));
+    };
+    window.addEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
+    async function loadCanonicalHandle() {
+      if (!user) {
+        if (active) setCanonicalHandle(null);
+        return;
+      }
+      const response = await authedFetch("/api/identity/handle/current").catch(() => null);
+      if (!active || !response?.ok) return;
+      const body = await response.json() as { handle?: string | null };
+      setCanonicalHandle(body.handle ? normalizeHandle(body.handle) : handleFromUser(user));
+    }
+    void loadCanonicalHandle();
+    return () => {
+      active = false;
+      window.removeEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
+    };
+  }, [session?.user]);
 
   const openClaim = useCallback((preview: ClaimPreview) => {
     setClaimError(null);
@@ -386,9 +414,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       signInWithGoogle,
       signInWithMicrosoft,
       signOut,
-      handle: handleFromUser(user),
+      handle: canonicalHandle ?? handleFromUser(user),
     };
-  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut]);
+  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut, canonicalHandle]);
 
   return (
     <AuthContext.Provider value={value}>

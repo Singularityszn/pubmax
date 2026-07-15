@@ -60,36 +60,36 @@ const dataMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxxing.com"),
   title: {
-    default: "PUBMAXXING — Every pint has a story",
-    template: "%s | PUBMAXXING",
+    default: "PUBMAXX — Make tonight worth remembering",
+    template: "%s | PUBMAXX",
   },
   description:
-    "Every pint has a story. PUBMAXXING is a price-aware, story-led London pub-crawl planner — real pint prices, heritage pubs, and community Pint Drops.",
+    "PUBMAXX is a price-aware nightlife map for real pint prices, live plans, side quests, and stories worth remembering.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "PubMax",
+    title: "PUBMAXX",
     statusBarStyle: "black-translucent",
   },
   openGraph: {
-    title: "PUBMAXXING — Every pint has a story",
+    title: "PUBMAXX — Make tonight worth remembering",
     description:
       "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
     url: "https://pubmaxxing.com",
-    siteName: "PUBMAXXING",
+    siteName: "PUBMAXX",
     type: "website",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "PUBMAXXING — London pub crawl planner",
+        alt: "PUBMAXX nightlife map and planner",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "PUBMAXXING — Every pint has a story",
+    title: "PUBMAXX — Make tonight worth remembering",
     description:
       "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
     images: ["/og.png"],

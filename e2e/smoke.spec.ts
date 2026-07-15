@@ -28,7 +28,7 @@ test("landing / serves, shows hero + Demo honesty label + a working /map CTA", a
   expect(response?.status()).toBe(200);
 
   // Hero headline (stable id in components/landing/LandingPage.tsx).
-  await expect(page.locator("#hero-title")).toContainText("Bring back");
+  await expect(page.locator("#hero-title")).toContainText("Make tonight");
 
   // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
   // provenance vocabulary — see lib/provenanceLabels.ts).
@@ -139,7 +139,7 @@ test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /pubs with a drink/i })).toBeVisible();
   await expect(page.locator(".pubsCard").first()).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Pubs" }),
+    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Stories" }),
   ).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -155,7 +155,7 @@ test("/u/[handle] renders a public profile for any handle without crashing", asy
   expect(response?.status()).toBe(200);
   // Dynamic route: the scaffold always mounts even for an unknown handle
   // (friendly empty state), so assert the site nav is present.
-  await expect(page.getByRole("link", { name: "Home", exact: true }).first()).toBeVisible();
+  await expect(page.getByLabel("Open PUBMAXX landing page").first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 

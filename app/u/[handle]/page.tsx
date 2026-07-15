@@ -10,6 +10,7 @@ import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
+import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
 import SiteNav from "@/components/nav/SiteNav";
 import type { FollowCounts } from "@/lib/followStore";
@@ -119,6 +120,19 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   // Feeds the Pint Passport's "story posts" stat. Starts at 0 so the first paint
   // matches the zeroed passport, then fills in after the fetch.
   const [storyCount, setStoryCount] = useState(0);
+
+  useEffect(() => {
+    if (!routeHandle || isYouRoute) return;
+    const controller = new AbortController();
+    async function resolveAlias() {
+      const response = await fetch(`/api/identity/handle/resolve?handle=${encodeURIComponent(routeHandle)}`, { signal: controller.signal }).catch(() => null);
+      if (!response?.ok || controller.signal.aborted) return;
+      const resolution = await response.json() as { currentHandle?: string; redirect?: boolean };
+      if (resolution.redirect && resolution.currentHandle) router.replace(`/u/${encodeURIComponent(resolution.currentHandle)}`);
+    }
+    void resolveAlias();
+    return () => controller.abort();
+  }, [isYouRoute, routeHandle, router]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -381,6 +395,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
           </div>
         ) : (
           <>
+            {isYouRoute || isOwnProfile ? <PubmaxxAccountHub /> : null}
             {/* L4: own profile / anonymous /u/you → passport is the first visual
                 block (hero). Other people's profiles keep Header → Passport. */}
             {passportIsOwn ? (

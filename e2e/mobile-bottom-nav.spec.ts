@@ -55,10 +55,10 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByTestId("tonight-screen")).toBeVisible();
   });
 
-  test("Pint Drop tab routes to /map?log=1 and opens the drop intent surface", async ({ page }) => {
+  test("Moment tab routes to /map?log=1 and opens the capture surface", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "Pint Drop", exact: true }).click();
+    await primaryNav(page).getByRole("link", { name: "Moment", exact: true }).click();
 
     await expect(page).toHaveURL(/\/map\?log=1$/);
     const composer = page.getByRole("form", { name: "Pint Drop composer" });
@@ -75,11 +75,11 @@ test.describe("mobile bottom-tab navigation", () => {
     }
   });
 
-  test("Pint stories tab routes to /discover and exposes the story headline", async ({ page }) => {
+  test("Stories tab routes to /discover and exposes the story headline", async ({ page }) => {
     await page.goto("/map");
 
     await primaryNav(page)
-      .getByRole("link", { name: "Pint stories", exact: true })
+      .getByRole("link", { name: "Stories", exact: true })
       .click();
 
     await expect(page).toHaveURL(/\/discover$/);
@@ -88,14 +88,12 @@ test.describe("mobile bottom-tab navigation", () => {
     ).toBeVisible();
   });
 
-  test("Pal tab routes to /pal and exposes the companion home", async ({ page }) => {
+  test("You tab routes to the owned profile surface", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "Pal", exact: true }).click();
+    await primaryNav(page).getByRole("link", { name: "You", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/pal$/);
-    await expect(
-      page.getByRole("heading", { name: "A little signal that becomes yours.", exact: true }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/u\/you$/);
+    await expect(page.getByRole("navigation", { name: "Site navigation" })).toBeVisible();
   });
 });

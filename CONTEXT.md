@@ -1,8 +1,42 @@
-# PubMaxing
+# PUBMAXX
 
-PubMaxing helps people discover pubs and plan pub crawls using pint prices, location, and venue context.
+PUBMAXX helps people discover pubs and plan pub crawls using pint prices, location, and venue context.
 
 ## Language
+
+### Brand Language
+
+**PUBMAXX**:
+The canonical name of the brand, product, and cultural movement. The double `xx` is inseparable from the name in every form.
+_Avoid_: PubMax, Pub Max, PubMaxing
+
+**Pubmaxxing**:
+The activity of intentionally discovering and experiencing a night out through PUBMAXX.
+_Avoid_: Pubmaxing, pub crawling when referring to the broader culture
+
+**Pubmaxxer**:
+A person who participates in Pubmaxxing and belongs to the PUBMAXX community.
+_Avoid_: Pubmaxer, customer, drinker when referring to community identity
+
+**PUBMAXX User ID**:
+The immutable account-owned identity behind a Pubmaxxer's public handle. Ownership, moderation, authorship, and consent attach to this ID even when the handle changes.
+_Avoid_: Device handle, email address as public identity, mutable handle as database ownership key
+
+**PUBMAXX Handle**:
+The unique, case-insensitive `@name` a Pubmaxxer chooses for discovery and public links. It may change under the rename policy while the PUBMAXX User ID remains stable.
+_Avoid_: Unverified contributor handle, social-provider username as canonical identity
+
+**PUBMAXX Promise**:
+The belief that drinking can be part of intentional social exploration: creating moments, making friends, collecting memories, and following side quests through the world. A great experience is measured by the life around the drink, never by alcohol quantity.
+_Avoid_: Consumption challenge, drinking competition, alcohol quantity as achievement
+
+**PUBMAXX Stance**:
+Pro-experience, pro-connection, and pro-choice without pressure or excess. PUBMAXX celebrates intentional adult drinking while neither claiming alcohol is harmless nor treating consumption as the purpose of the experience.
+_Avoid_: Pro-excess messaging, alcohol-is-harmless claims, moralising about a person's choice to drink or abstain
+
+**PUBMAXX Worldview**:
+Playfully anti-capitalist and operationally pro-joy. PUBMAXX responds to rising costs, repetitive routines, and a life reduced to work and consumption with affordable exploration, humour, friendship, and memorable real-world experiences.
+_Avoid_: Partisan manifesto, luxury nightlife gatekeeping, despair without a joyful action
 
 **Venue**:
 A place a user may visit during a crawl, such as a pub, bar, or restaurant-bar.
@@ -111,6 +145,26 @@ _Avoid_: Hidden profile, prompt metadata
 **Planned Night**:
 A Crawl Route with a lifecycle from draft through completion, including explicit Crawl Stop actions and a Crawl Ending.
 _Avoid_: Session, trip
+
+**Night Memory**:
+A private, user-owned record of a lived Pubmaxxing experience, including the people, places, drinks, events, images, and moments its participants choose to preserve. It remains private unless its owner deliberately shares it.
+_Avoid_: Automatic public post, tracking history, Pal Memory
+
+**Night Story**:
+The deliberately published social expression of a Night Memory and the primary social object in PUBMAXX. A host shapes the narrative, while every contributor controls publication of their own Night Moments, tags, and likeness.
+_Avoid_: Night Memory, automatic activity feed, unreviewed archive
+
+**Night Moment**:
+A single shareable part of a Night Story, such as a photo, drink, event, venue, quote, person, or Side Quest. Night Moments belong to the wider story even when shared independently.
+_Avoid_: Generic post, unrelated content, complete Night Memory
+
+**Pint Drop**:
+A price-verified drink Night Moment that contributes an observed price and provenance to the map. A Pint Drop is one kind of Night Moment, not the name for every social post.
+_Avoid_: Generic post, alcohol-quantity counter, unverified live price
+
+**Connected Social Account**:
+An optional X, Instagram, or TikTok profile a Pubmaxxer links for display and user-initiated sharing. It proves control of that external account at connection time, not the person's identity, age, or trustworthiness.
+_Avoid_: Verified person, imported friend graph, automatic cross-posting
 
 **Crawl Ending**:
 The user's explicit choice after a Crawl Route: Food, Get Home, or Keep Going.

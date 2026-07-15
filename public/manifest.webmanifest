@@ -1,7 +1,7 @@
 {
-  "name": "PUBMAXXING",
-  "short_name": "PubMax",
-  "description": "Every pint has a story. Price-aware London pub-crawl planner.",
+  "name": "PUBMAXX",
+  "short_name": "PUBMAXX",
+  "description": "Price-aware nightlife map, planner, and stories worth remembering.",
   "start_url": "/map",
   "scope": "/",
   "display": "standalone",

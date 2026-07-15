@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { readPintDropDraft, writePintDropDraft } from "@/lib/pintDropDraft";
+import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
@@ -52,6 +53,7 @@ export function useVenueDraft({
         setDropForm(draft.form);
         setVisibility(draft.visibility);
         setVibeTags(draft.vibeTags);
+        trackEvent("draft_recovered", { kind: "pint-drop", surface: "map" });
       }
       setDraftReadyVenueId(venueId);
     }

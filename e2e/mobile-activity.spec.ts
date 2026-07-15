@@ -63,7 +63,7 @@ test.describe("mobile Activity", () => {
     await expectTappable(page.getByRole("link", { name: "Browse the feed" }), "Browse the feed CTA");
 
     const siteNav = page.getByRole("navigation", { name: "Site navigation" });
-    await expectTappable(siteNav.getByLabel("Open PUBMAXXING landing page"), "mobile site wordmark");
+    await expectTappable(siteNav.getByLabel("Open PUBMAXX landing page"), "mobile site wordmark");
     await expectTappable(siteNav.getByLabel(/^Activity/), "Activity bell");
     await expectTappable(siteNav.getByLabel(/^Messages/), "Messages bell");
     await expectTappable(siteNav.getByRole("button", { name: /switch to/i }), "theme toggle");
@@ -71,7 +71,7 @@ test.describe("mobile Activity", () => {
     const primaryNav = page.getByRole("navigation", { name: "Primary" });
     await expect(primaryNav).toBeVisible();
     await expectTappable(primaryNav.getByRole("link", { name: "Map", exact: true }), "bottom Map tab");
-    await expectTappable(primaryNav.getByRole("link", { name: "Pint Drop", exact: true }), "bottom Pint Drop tab");
+    await expectTappable(primaryNav.getByRole("link", { name: "Moment", exact: true }), "bottom Moment tab");
     await expectTappable(primaryNav.getByRole("link", { name: "You", exact: true }), "bottom You tab");
 
     await expectNoHorizontalOverflow(page);

@@ -165,7 +165,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
             </Link>
             <Link className="hdAction pressable" href={mapHref}>
               <MessageSquare size={14} aria-hidden="true" />
-              Ask the Landlord
+              Ask your Pub Pal
             </Link>
           </div>
         ) : null}

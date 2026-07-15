@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -9,6 +9,7 @@ import { CREW_NAME_MAX } from "@/lib/crew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
 import type { NightContext } from "@/lib/nightPlanning";
+import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
 
 type DraftStop = { key: number; venueId: string; venueName: string };
 type VenueOption = { id: string; name: string; address?: string };
@@ -161,20 +162,20 @@ function nextEvening(): string {
   return local.toISOString().slice(0, 16);
 }
 
-export default function PlanComposer() {
+function PlanComposerForm({ recoveredDraft }: { recoveredDraft: ReturnType<typeof parsePlanDraft> }) {
   const router = useRouter();
   const areaGroups = nightAreaSelectorGroups();
   const readyAreas = areaGroups[0]?.areas ?? [];
   const areasInProgress = areaGroups[1]?.areas ?? [];
-  const [title, setTitle] = useState("Tonight, sorted");
-  const [creatorName, setCreatorName] = useState("");
-  const [startTime, setStartTime] = useState(nextEvening);
-  const [stops, setStops] = useState<DraftStop[]>([
+  const [title, setTitle] = useState(recoveredDraft?.title ?? "Tonight, sorted");
+  const [creatorName, setCreatorName] = useState(recoveredDraft?.creatorName ?? "");
+  const [startTime, setStartTime] = useState(recoveredDraft?.startTime ?? nextEvening);
+  const [stops, setStops] = useState<DraftStop[]>(recoveredDraft?.stops ?? [
     { key: 1, venueId: "", venueName: "" },
     { key: 2, venueId: "", venueName: "" },
   ]);
   const [venues, setVenues] = useState<VenueOption[]>([]);
-  const [conciergeQuery, setConciergeQuery] = useState("");
+  const [conciergeQuery, setConciergeQuery] = useState(recoveredDraft?.conciergeQuery ?? "");
   const [conciergeNote, setConciergeNote] = useState("");
   const [nightContext, setNightContext] = useState<NightContext | null>(null);
   const [sorting, setSorting] = useState(false);
@@ -195,6 +196,24 @@ export default function PlanComposer() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
+  }, [recoveredDraft]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+        title,
+        creatorName,
+        startTime,
+        conciergeQuery,
+        stops,
+      }));
+    } catch {
+      // Storage can be unavailable in private mode; planning still works in-memory.
+    }
+  }, [title, creatorName, startTime, conciergeQuery, stops]);
+
   function chooseVenue(key: number, venueName: string) {
     const match = venues.find((venue) => venue.name.toLocaleLowerCase() === venueName.trim().toLocaleLowerCase());
     setStops((current) => current.map((stop) => stop.key === key
@@ -213,7 +232,7 @@ export default function PlanComposer() {
         body: JSON.stringify({ query: conciergeQuery, ...(nightContext ? { context: nightContext } : {}) }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(errorMessageFromBody(body, "PubMax could not sort this one."));
+      if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
       const suggested: Array<{ venueId: string; venueName: string }> = Array.isArray(body.stops) ? body.stops : [];
       if (!suggested.length) throw new Error("No grounded venues matched that request. Try a nearby area or a broader mood.");
       setStops(suggested.map((stop, index) => ({ key: index + 1, ...stop })));
@@ -259,6 +278,7 @@ export default function PlanComposer() {
       if (laneSource) {
         trackEvent("lane_to_plan", { source: laneSource, stops: completeStops.length });
       }
+      trackEvent("plan_created", { count: completeStops.length });
       if (body.memberToken) {
         sessionStorage.setItem(`pubmax-plan-member:${body.plan.plan.id}`, body.memberToken);
         if (nightContext) {
@@ -269,6 +289,7 @@ export default function PlanComposer() {
           if (!metadataResponse.ok) throw new Error("The route was created, but its Night Context could not be saved. Please try again.");
         }
       }
+      try { sessionStorage.removeItem(PLAN_DRAFT_KEY); } catch { /* best effort */ }
       router.push(`/plan/${body.plan.plan.id}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
@@ -294,7 +315,7 @@ export default function PlanComposer() {
         </p>
         {nightContext ? (
           <fieldset className="planComposer__context">
-            <legend>What PubMax understood — edit anything</legend>
+            <legend>What PUBMAXX understood. Edit anything.</legend>
             <p id="plan-context-note" className="planComposer__contextNote">Ready areas can be planned now. Other areas stay visible while coverage is checked.</p>
             <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note" value={nightContext.nightArea ?? ""} onChange={(event) => setNightContext({ ...nightContext, nightArea: event.target.value as NightContext["nightArea"] })}>
               {areaGroups.map((group) => (
@@ -438,4 +459,17 @@ export default function PlanComposer() {
       <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
     </form>
   );
+}
+
+export default function PlanComposer() {
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const recoveredDraft = useMemo(() => {
+    if (!hydrated) return null;
+    try { return parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY)); } catch { return null; }
+  }, [hydrated]);
+  return <PlanComposerForm key={hydrated ? "hydrated" : "server"} recoveredDraft={recoveredDraft} />;
 }

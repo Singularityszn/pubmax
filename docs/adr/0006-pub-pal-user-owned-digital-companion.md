@@ -21,4 +21,4 @@ Progression unlocks only cosmetics, animation, home objects, reactions, and city
 - Pal creation requires an authenticated account and an 18+ attestation without storing a full birth date.
 - Users control creative identity and privacy, but cannot disable factuality, moderation, legal, or safety constraints.
 - Voice credentials stay server-side; provider audio and transcript retention is disabled where available.
-- Night Signals remain cinematic brand guides, separate from the persistent Pub Pal.
+- Futuristic brand expression lives in the interface, map, motion, and Pub Pal. Humanoid Night Signals are not part of the production experience.

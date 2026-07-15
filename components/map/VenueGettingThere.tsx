@@ -55,7 +55,7 @@ export default function VenueGettingThere({
           {locationStatusMessage}
         </span>
         <p className="venueGettingThere__privacy">
-          PubMax won&rsquo;t save it. An approximate point is sent to CityMCP for
+          PUBMAXX won&rsquo;t save it. An approximate point is sent to CityMCP for
           routes. You can open the venue in Maps without sharing your location.
         </p>
         <button
@@ -149,7 +149,7 @@ export default function VenueGettingThere({
         </button>
       ) : null}
       <p className="venueGettingThere__privacy">
-        PubMax doesn&rsquo;t save this location. CityMCP receives an approximate
+        PUBMAXX doesn&rsquo;t save this location. CityMCP receives an approximate
         point for each route. Forget clears it from this page, but cannot undo
         an already sent request or browser permission. Maps shares it with Google
         only when opened.

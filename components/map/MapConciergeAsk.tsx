@@ -106,7 +106,7 @@ export default function MapConciergeAsk({
           aria-expanded={false}
         >
           <Sparkles size={16} aria-hidden="true" />
-          <span>Ask the landlord</span>
+          <span>Ask your Pub Pal</span>
         </button>
       </div>
     );
@@ -117,12 +117,12 @@ export default function MapConciergeAsk({
       <section
         className="mapConciergeAskPanel"
         role="dialog"
-        aria-label="Ask the landlord"
+        aria-label="Ask your Pub Pal"
       >
         <header className="mapConciergeAskHead">
           <span className="mapConciergeAskEyebrow">
             <MessageCircleQuestion size={14} aria-hidden="true" />
-            Ask the landlord
+            Ask your Pub Pal
           </span>
           <button
             type="button"

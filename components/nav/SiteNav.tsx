@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home } from "lucide-react";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
@@ -14,6 +13,7 @@ import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
+import { PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
 
 import "./siteNav.css";
 
@@ -59,28 +59,32 @@ type NavLink = {
 // Consumer nav only. Staff moderation lives at /admin (URL + token) and is
 // intentionally absent from every public nav so demos never look like an
 // admin console.
-const LINKS: NavLink[] = [
-  { key: "map", href: "/map", label: "Map", match: ["/map"], accent: "beer" },
-  { key: "pubs", href: "/pubs", label: "Pubs", match: ["/pubs"], accent: "whisky" },
-  { key: "tonight", href: "/tonight", label: "Tonight", match: ["/tonight"], accent: "other" },
-  { key: "historic", href: "/historic", label: "Historic", match: ["/historic"], accent: "wine" },
-  // Desktop carries the same five core concepts as the mobile tab bar (C1);
-  // Pint Drop opens the composer on the preferred city's map. match is a
-  // never-matching sentinel: /map belongs to the Map link, so this one never
-  // shows as active.
-  { key: "drop", href: "/map?log=1", label: "Pint Drop", match: ["/__never__"], accent: "shot" },
-  { key: "feed", href: "/feed", label: "Feed", match: ["/feed"], accent: "cocktail" },
-  { key: "discover", href: "/discover", label: "Pint stories", match: ["/discover"], accent: "gin" },
-  { key: "borough", href: "/borough", label: "Boroughs", match: ["/borough"], accent: "wine" },
-  { key: "crawls", href: "/crawls", label: "Crawls", match: ["/crawls"], accent: "rum" },
-  { key: "profile", href: "/u/you", label: "You", match: ["/u"], accent: "vodka" },
-];
+const ACCENTS: Record<(typeof PRIMARY_NAV_ITEMS)[number]["key"], NavLink["accent"]> = {
+  map: "beer",
+  tonight: "other",
+  moment: "shot",
+  stories: "gin",
+  you: "vodka",
+};
+
+const LINKS: NavLink[] = PRIMARY_NAV_ITEMS.map((item) => ({
+  ...item,
+  key: item.key === "moment" ? "drop" : item.key === "stories" ? "discover" : item.key === "you" ? "profile" : item.key,
+  accent: ACCENTS[item.key],
+}));
 
 function matchesPath(pathname: string, link: NavLink): boolean {
   return link.match.some((prefix) =>
     // "/" only matches the home route exactly (every path starts with "/").
     prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
+}
+
+function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
+  if (active === "feed" || active === "crawls" || active === "borough") return "discover";
+  if (active === "home") return undefined;
+  if (active === "pubs" || active === "historic") return undefined;
+  return active;
 }
 
 // Gliding active-link indicator (siteNav.css .siteNavIndicator). Links are
@@ -94,6 +98,7 @@ const HIDDEN_INDICATOR: IndicatorRect = { x: 0, width: 0, visible: false };
 
 export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Element {
   const pathname = usePathname() ?? "";
+  const primaryActive = primaryKeyForLegacyActive(active);
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
@@ -120,7 +125,7 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
     active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
   const activeKey = links.find((link) =>
-    active ? active === link.key : matchesPath(pathname, link),
+    primaryActive ? primaryActive === link.key : matchesPath(pathname, link),
   )?.key;
 
   const linkRefs = useRef<Partial<Record<NavKey, HTMLAnchorElement>>>({});
@@ -151,12 +156,9 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
       aria-label="Site navigation"
     >
       {/* Wordmark: the compact-mobile anchor + the desktop home affordance. */}
-      <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXXING landing page">
-        <span className="siteNavBrandFull">PUBMAXXING</span>
-        <span className="siteNavBrandMobile" aria-hidden="true">
-          <Home size={13} strokeWidth={2.25} />
-          <span>Home</span>
-        </span>
+      <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXX landing page">
+        <span className="siteNavBrandFull">PUBMAXX</span>
+        <span className="siteNavBrandMobile" aria-hidden="true">PUBMAXX</span>
       </Link>
 
       {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}

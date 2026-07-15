@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type
 
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
+import { trackEvent } from "@/lib/analytics";
 
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   in: "In",
@@ -94,7 +95,12 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
       sessionStorage.setItem(`pubmax-plan-member:${planId}`, body.memberToken);
       window.dispatchEvent(new Event(tokenEvent));
       rememberStatus("in");
-      setCrew(body.plan?.crew ?? crew);
+      const nextCrew = body.plan?.crew ?? crew;
+      setCrew(nextCrew);
+      trackEvent("crew_committed", {
+        source: "shared-plan",
+        participants: Array.isArray(nextCrew) ? nextCrew.length : 1,
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not join this plan.");
     } finally {

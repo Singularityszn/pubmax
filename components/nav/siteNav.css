@@ -68,10 +68,10 @@
 /* ── Wordmark ──────────────────────────────────────────────────────────── */
 .siteNavBrand {
   flex: 0 0 auto;
-  font-family: var(--font-garamond, var(--serif, Georgia, "Times New Roman", serif));
+  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
   font-size: 1.02rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-weight: 750;
+  letter-spacing: -0.025em;
   color: var(--ink);
   text-decoration: none;
   white-space: nowrap;

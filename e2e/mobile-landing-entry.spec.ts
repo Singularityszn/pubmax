@@ -39,19 +39,15 @@ test.describe("mobile landing entry", () => {
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
 
-    await expect(page.getByRole("heading", { name: "PUBMAXXING", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Make tonight worth remembering.", exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
     await expectTappable(
       page.getByRole("link", { name: "Open the map" }).first(),
       "hero Open the map CTA",
     );
-    await expectTappable(page.getByRole("link", { name: "How it works" }).first(), "hero How it works CTA");
-
-    // The landing page intentionally hides the app bottom tabs, so entry CTAs
-    // must own the mobile conversion path without clipping.
-    await expect(page.getByRole("navigation", { name: "Primary" }).locator("a.topbarCta")).toBeHidden();
-    await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map" })).toBeHidden();
+    await expectTappable(page.getByRole("link", { name: "See tonight" }).first(), "hero See tonight CTA");
+    await expectTappable(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map" }), "bottom Map tab");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
     const pinCount = await visibleHeroPins.count();
@@ -67,9 +63,9 @@ test.describe("mobile landing entry", () => {
   test("routes primary mobile CTAs to the map and secondary exploration", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: "How it works" }).first().click();
-    await expect(page).toHaveURL(/#wedge$/);
-    await expect(page.getByRole("heading", { name: /three questions every good pub answers/i })).toBeVisible();
+    await page.getByRole("link", { name: "See tonight" }).first().click();
+    await expect(page).toHaveURL(/\/tonight$/);
+    await page.goto("/");
     await expectNoHorizontalOverflow(page);
 
     await page.getByRole("link", { name: "Open the map" }).first().click();

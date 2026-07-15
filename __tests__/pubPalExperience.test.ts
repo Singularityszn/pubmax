@@ -15,7 +15,7 @@ describe("Pub Pal first meeting and onboarding", () => {
 
   it("keeps account persistence gated while leaving a character-free route", () => {
     expect(experience).toContain("if (!user) return;");
-    expect(experience).toContain("Use PubMax without a character");
+    expect(experience).toContain("Use PUBMAXX without a Pal");
     expect(experience).toContain("Nothing is saved to an account yet");
   });
 

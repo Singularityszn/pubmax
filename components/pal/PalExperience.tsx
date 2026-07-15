@@ -398,7 +398,7 @@ export default function PalExperience() {
             <p>Choose its form, voice and boundaries. It can help plan the night, but you approve every important action.</p>
             <div className="palMeetingActions">
               <button className="palPrimary" type="button" onClick={() => setMode("onboarding")}>Meet your Pal<ArrowRight size={18} /></button>
-              <Link href="/map">Use PubMax without a character</Link>
+              <Link href="/map">Use PUBMAXX without a Pal</Link>
             </div>
           </div>
         </section>

@@ -53,6 +53,27 @@ describe("sanitizeEvent", () => {
     })?.props).toEqual({ metric: "INP", value: 143, rating: "good" });
   });
 
+  it("keeps the activation and retention funnel free of identity and free text", () => {
+    expect(sanitizeEvent("crew_committed", {
+      source: "plan-link",
+      participants: 3,
+      handle: "night_owl",
+      note: "meet us by the bar",
+    })).toEqual({
+      name: "crew_committed",
+      props: { source: "plan-link", participants: 3 },
+    });
+
+    expect(sanitizeEvent("next_night_committed", {
+      windowDays: 18,
+      source: "crew-reinvite",
+      email: "private@example.com",
+    })).toEqual({
+      name: "next_night_committed",
+      props: { windowDays: 18, source: "crew-reinvite" },
+    });
+  });
+
   it("tolerates missing/invalid props objects", () => {
     expect(sanitizeEvent("tonight_screen_view")).toEqual({
       name: "tonight_screen_view",

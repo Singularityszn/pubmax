@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, CirclePlus, PawPrint, Compass, CalendarClock } from "lucide-react";
+import { Map, CirclePlus, UserRound, Images, CalendarClock } from "lucide-react";
 import { useCallback, useSyncExternalStore, type CSSProperties } from "react";
 import {
   preferredCityMapHref,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { PRIMARY_NAV_ITEMS, type PrimaryNavKey } from "@/components/nav/navigationModel";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -22,6 +23,7 @@ import "./mobileNav.css";
 // clear of react-hooks/set-state-in-effect.
 
 type Tab = {
+  key: PrimaryNavKey;
   href: string;
   label: string;
   Icon: typeof Map;
@@ -36,13 +38,13 @@ const warmedTabs = new Set<string>();
 // Map + Tonight + Discover; Drop stays the centre action; Pal owns the account surface.
 // Map / Drop hrefs follow the preferred city (null → /map).
 function buildTabs(mapHref: string, dropHref: string): Tab[] {
-  return [
-    { href: mapHref, label: "Map", Icon: Map, match: ["/map"] },
-    { href: "/tonight", label: "Tonight", Icon: CalendarClock, match: ["/tonight"] },
-    { href: dropHref, label: "Pint Drop", Icon: CirclePlus, primary: true },
-    { href: "/discover", label: "Pint stories", Icon: Compass, match: ["/discover", "/feed", "/crawls", "/borough"] },
-    { href: "/pal", label: "Pal", Icon: PawPrint, match: ["/pal", "/u"] },
-  ];
+  const icons = { map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
+  return PRIMARY_NAV_ITEMS.map((item) => ({
+    ...item,
+    href: item.key === "map" ? mapHref : item.key === "moment" ? dropHref : item.href,
+    Icon: icons[item.key],
+    primary: item.key === "moment",
+  }));
 }
 
 function isActive(pathname: string, tab: Tab): boolean {
@@ -91,8 +93,6 @@ export default function MobileTabBar() {
   const markDropTap = useCallback((primary?: boolean) => {
     if (primary) markPubmaxTiming("pubmax:drop-tap");
   }, []);
-
-  if (pathname === "/") return null;
 
   return (
     <nav className="mobileTabBar" role="navigation" aria-label="Primary">

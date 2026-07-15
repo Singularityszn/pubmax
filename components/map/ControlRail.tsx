@@ -184,7 +184,7 @@ export default function ControlRail({
           <Beer size={22} />
         </div>
         <div>
-          <p className="eyebrow">PUBMAXXING</p>
+          <p className="eyebrow">PUBMAXX</p>
           <h1>Design the right {cityDisplayName} pub crawl.</h1>
         </div>
       </div>

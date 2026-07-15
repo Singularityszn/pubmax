@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import { trackEvent } from "@/lib/analytics";
+
 import "./share.css";
 
 // A reusable share row — a little pressed-brass stamp strip that sits under a
@@ -50,6 +52,11 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const shareText = text?.trim() || title;
+  const isPlanInvite = /^\/plan\/[^/?#]+/.test(url);
+
+  const trackPlanInvite = useCallback((channel: string) => {
+    if (isPlanInvite) trackEvent("plan_invite_sent", { channel });
+  }, [isPlanInvite]);
 
   const flashCopied = useCallback(() => {
     setCopied(true);
@@ -68,18 +75,20 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
       // Clipboard denied / unavailable — still confirm so the strip never looks
       // broken; the link is right there in the address bar as a fallback.
     }
+    trackPlanInvite("copy");
     flashCopied();
-  }, [url, flashCopied]);
+  }, [url, flashCopied, trackPlanInvite]);
 
   const handleNativeShare = useCallback(async () => {
     const absolute = toAbsoluteUrl(url);
     try {
       await navigator.share({ title, text: shareText, url: absolute });
+      trackPlanInvite("native");
     } catch {
       // The user cancelled the sheet, or share failed — nothing to do; no error
       // state, sharing is a soft action.
     }
-  }, [url, title, shareText]);
+  }, [url, title, shareText, trackPlanInvite]);
 
   // Intent urls are built at click time so the absolute url is always current.
   const openIntent = useCallback(
@@ -109,6 +118,7 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
         href={tweetHref(url)}
         onClick={(event) => {
           event.preventDefault();
+          trackPlanInvite("x");
           openIntent(tweetHref);
         }}
         target="_blank"
@@ -125,6 +135,7 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
         href={whatsappHref(url)}
         onClick={(event) => {
           event.preventDefault();
+          trackPlanInvite("whatsapp");
           openIntent(whatsappHref);
         }}
         target="_blank"

@@ -977,3 +977,19 @@
     flex-direction: column;
   }
 }
+.accountHub {
+  margin: 1rem 0 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--panel);
+}
+.accountHub h2 { margin: .25rem 0 1rem; }
+.accountHubGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.accountHubGrid > * { display: grid; align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
+.accountHubGrid input, .accountHubGrid button { min-height: 44px; border-radius: 12px; }
+.accountHubGrid input { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.accountHubGrid button { padding: .65rem .8rem; border: 0; background: var(--ink); color: var(--paper); font-weight: 700; }
+.accountHubActions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.accountHubMessage { margin-top: .75rem; }
+@media (max-width: 760px) { .accountHubGrid { grid-template-columns: 1fr; } }
