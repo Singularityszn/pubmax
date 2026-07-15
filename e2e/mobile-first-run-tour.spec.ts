@@ -47,4 +47,25 @@ test.describe("mobile first-run tour", () => {
     await expect(nextStepTour).toBeHidden();
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax-tour-v1-done"))).toBe("1");
   });
+
+  test("does not cover the dedicated You or Pub Pal onboarding", async ({ page }) => {
+    await page.goto("/u/you", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("dialog", { name: "PUBMAXXING" })).toHaveCount(0);
+
+    await page.goto("/pal", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("dialog", { name: "PUBMAXXING" })).toHaveCount(0);
+    await page.getByRole("button", { name: /Meet your Pub Pal/i }).click();
+    await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
+
+    const geometry = await page.evaluate(() => {
+      const actions = document.querySelector(".palOnboardingActions")?.getBoundingClientRect();
+      const tabs = document.querySelector('nav[aria-label="Primary"]')?.getBoundingClientRect();
+      return {
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        gap: actions && tabs ? tabs.top - actions.bottom : -1,
+      };
+    });
+    expect(geometry.overflow).toBeLessThanOrEqual(1);
+    expect(geometry.gap).toBeGreaterThanOrEqual(8);
+  });
 });

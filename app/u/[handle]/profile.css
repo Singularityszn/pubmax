@@ -38,6 +38,67 @@
   gap: clamp(24px, 4vw, 40px);
 }
 
+/* The owner route behaves like a social profile: identity first, a stable
+   content switcher second, and account machinery below the content. */
+.profilePage .youIdentityIntro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(16px, 3vw, 28px);
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+}
+
+.profilePage .youIdentityAvatar {
+  width: 92px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--ink-deep), var(--river));
+  color: var(--color-on-inverse);
+  font: 750 1.05rem/1 var(--font-data);
+  letter-spacing: .08em;
+}
+
+.profilePage .youIdentityIntro h1 { margin: .25rem 0 .45rem; font: 700 clamp(1.8rem, 4vw, 3rem)/1 var(--font-display); }
+.profilePage .youIdentityIntro p { margin: 0; color: var(--ink-soft); line-height: 1.5; }
+.profilePage .youIdentityActions { display: grid; gap: 8px; }
+.profilePage .youIdentityActions a,
+.profilePage .profilePalLink {
+  min-height: 44px;
+  padding: 10px 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: .86rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.profilePage .youIdentityActions a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
+
+.profilePage .youProfileTabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block: 1px solid var(--line);
+}
+.profilePage .youProfileTabs a {
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+  font-size: .78rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+.profilePage .youProfileTabs a:first-child { color: var(--ink); box-shadow: inset 0 -2px var(--ink); }
+
 /* Follow/edit action slot rides at the far end of the identity row. */
 .profilePage .profileActions {
   display: flex;
@@ -543,7 +604,8 @@
 
 /* ── Owner actions: edit toggle + claim ──────────────────────────────── */
 .profilePage .profileEditToggle,
-.profilePage .profileClaimBtn {
+.profilePage .profileClaimBtn,
+.profilePage .profilePalLink {
   min-height: 44px;
   padding: 10px 16px;
   border-radius: var(--radius-sm);
@@ -699,24 +761,30 @@
     padding-bottom: calc(var(--mobile-tab-clearance, 104px) + 16px + env(safe-area-inset-bottom, 0px));
   }
 
-  .profilePage .profileIdentity {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-  }
+  .profilePage .profileIdentity { flex-direction: column; gap: 14px; align-items: flex-start; }
+  .profilePage .youProfileIdentity .profileIdentity { flex-direction: row; flex-wrap: wrap; align-items: center; }
+
+  .profilePage .profileAvatar { width: 76px; height: 76px; }
+
+  .profilePage .profileDisplayName { font-size: 1.45rem; }
+
+  .profilePage .youIdentityIntro { grid-template-columns: auto 1fr; }
+  .profilePage .youIdentityAvatar { width: 72px; }
+  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
 
   /* In a stacked column, margin-left:auto would shove the actions to the far
      edge on their own line — reset it so they sit naturally under the name. */
-  .profilePage .profileActions {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
+  .profilePage .profileActions { margin-left: 0; width: 100%; justify-content: flex-start; }
+  .profilePage .youProfileIdentity .profileActions { flex-basis: 100%; }
+  .profilePage .youProfileIdentity .profileActions > * { flex: 1 1 140px; }
 
   /* Two-up stat cards read better than one long column on a phone. */
-  .profilePage .profileStat {
-    flex: 1 1 44%;
-  }
+  .profilePage .youProfileIdentity .profileHeader { padding: 18px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .profilePage .profileStat { flex: 1 1 44%; }
+  .profilePage .youProfileIdentity .profileStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .profilePage .youProfileIdentity .profileStat { padding: 9px 6px; border: 0; background: transparent; text-align: center; }
+  .profilePage .youProfileIdentity .profileStat dt { font-size: .65rem; }
+  .profilePage .youProfileIdentity .profileStat dd { font-size: 1.12rem; }
 }
 
 @media (max-width: 380px) {

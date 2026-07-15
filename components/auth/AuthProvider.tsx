@@ -319,12 +319,20 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
 
     let active = true;
+    // Session restoration is additive; it must never hold the anonymous app or
+    // Pub Pal onboarding behind an infinite loading screen when the provider is
+    // slow, blocked, or temporarily unavailable. A later auth event can still
+    // hydrate the session after this fail-soft boundary.
+    const loadingTimeout = window.setTimeout(() => {
+      if (active) setLoading(false);
+    }, 2500);
 
     // Prime from any persisted session (async → setState is safe here).
     supabase.auth
       .getSession()
       .then(({ data }) => {
         if (!active) return;
+        window.clearTimeout(loadingTimeout);
         setSession(data.session ?? null);
         setLoading(false);
         // Wave L3: refresh identity sync for an already-persisted session.
@@ -332,6 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       })
       .catch(() => {
         if (!active) return;
+        window.clearTimeout(loadingTimeout);
         setLoading(false);
       });
 
@@ -360,6 +369,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
     return () => {
       active = false;
+      window.clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, [closeClaim, syncIdentityAfterSignIn]);

@@ -138,7 +138,7 @@
   text-wrap: balance;
 }
 .lpHeroLede { max-width: 520px; margin: 25px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.6vw, 20px); line-height: 1.55; }
-.lpHeroActions { margin-top: 30px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lpHeroActions { width: min(100%, 680px); margin-top: 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 10px; }
 .lpButton {
   min-height: 50px;
   padding: 0 20px;
@@ -256,7 +256,7 @@
   .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 8px 6px 12px; border-radius: 17px; }.lpWordmark { font-size: 13px; }.lpMark { width: 32px; height: 32px; }
   .lpNavActions .authUserNav { display: none; }
   .lpHero { padding: 106px 18px 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
-  .lpHero h1 { font-size: clamp(48px, 15vw, 66px); line-height: .92; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { align-items: stretch; }.lpHeroActions .lpButton { flex: 1; }
+  .lpHero h1 { font-size: clamp(48px, 15vw, 66px); line-height: .92; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { align-items: stretch; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
   .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 430px; border-radius: 22px; }.thamesHeroPinMeta { display: none; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
   .lpSignalSection, .lpProofSection { width: calc(100% - 36px); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
@@ -267,7 +267,7 @@
 }
 
 @media (max-width: 420px) {
-  .lpHeroActions { flex-direction: column; }.lpHeroActions .lpButton { width: 100%; }
+  .lpHeroActions { grid-template-columns: 1fr; }.lpHeroActions .lpButton { width: 100%; }
   .thamesHeroPhoto { min-height: 390px; }.thamesHeroPin:nth-child(n+4) { display: none; }
   .lpMemoryActions { align-items: stretch; flex-direction: column; }.lpMemoryActions .lpTextLink { justify-content: center; }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
@@ -344,14 +345,17 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   // On the /u/you sentinel route we never offer "Claim this handle" ("you" isn't
   // a real handle to adopt) — the passport's first-run CTA drives the next step.
   const headerActions = isOwnProfile ? (
-    <button
-      type="button"
-      className="profileEditToggle"
-      aria-expanded={editing}
-      onClick={() => setEditing((open) => !open)}
-    >
-      {editing ? "Close editor" : "Edit profile"}
-    </button>
+    <>
+      <button
+        type="button"
+        className="profileEditToggle"
+        aria-expanded={editing}
+        onClick={() => setEditing((open) => !open)}
+      >
+        {editing ? "Close editor" : "Edit profile"}
+      </button>
+      <Link className="profilePalLink" href="/pal">Meet your Pub Pal</Link>
+    </>
   ) : isAnonymous && !isYouRoute ? (
     <button type="button" className="profileClaimBtn" onClick={claimHandle}>
       Claim this handle
@@ -395,35 +399,55 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
           </div>
         ) : (
           <>
-            {isYouRoute || isOwnProfile ? <PubmaxxAccountHub /> : null}
-            {/* L4: own profile / anonymous /u/you → passport is the first visual
-                block (hero). Other people's profiles keep Header → Passport. */}
-            {passportIsOwn ? (
-              <PintPassport
-                handle={routeHandle}
-                displayName={profile.displayName}
-                data={passport}
-                isOwn={passportIsOwn}
-                hero
-              />
+            {isYouRoute && isAnonymous ? (
+              <section className="youIdentityIntro" aria-labelledby="you-title">
+                <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
+                <div>
+                  <p className="profileSectionKicker">Your PUBMAXX identity</p>
+                  <h1 id="you-title">Make the night yours.</h1>
+                  <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
+                </div>
+                <div className="youIdentityActions">
+                  <a href="#account-settings">Claim your @handle</a>
+                  <Link href="/pal">Meet your Pub Pal</Link>
+                </div>
+              </section>
             ) : null}
 
-            {/* Anonymous /u/you: the hero Passport IS the profile block — the
-                header would repeat the same synthesized identity right under it
-                (double profile block) with no actions (headerActions is null on
-                this route). Every real handle keeps the header: it carries the
-                stats row plus Edit / Claim / Follow. */}
             {!(isYouRoute && isAnonymous) ? (
-              <ProfileHeader
-                profile={profile}
-                stats={stats}
-                crawls={storyCount}
-                memories={stats.memoriesPosted}
-                drops={drops}
-                followers={counts.followers}
-                following={counts.following}
-                actions={headerActions}
-              />
+              <div className={isOwnProfile ? "youProfileIdentity" : undefined}>
+                <ProfileHeader
+                  profile={profile}
+                  stats={stats}
+                  crawls={storyCount}
+                  memories={stats.memoriesPosted}
+                  drops={drops}
+                  followers={counts.followers}
+                  following={counts.following}
+                  actions={headerActions}
+                />
+              </div>
+            ) : null}
+
+            {passportIsOwn ? (
+              <div id="passport">
+                <PintPassport
+                  handle={routeHandle}
+                  displayName={profile.displayName}
+                  data={passport}
+                  isOwn={passportIsOwn}
+                  hero
+                />
+              </div>
+            ) : null}
+
+            {isYouRoute || isOwnProfile ? (
+              <nav className="youProfileTabs" aria-label="Your profile sections">
+                <a href="#timeline">Moments</a>
+                <a href="#passport">Passport</a>
+                <a href="#saved-pubs">Saved</a>
+                <a href="#account-settings">Settings</a>
+              </nav>
             ) : null}
 
             {!passportIsOwn ? (
@@ -461,7 +485,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               />
             ) : null}
 
-            <section className="profileDropsSection" aria-labelledby="dropsHeading">
+            <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
               <h2 id="dropsHeading" className="profileSectionHeading">
                 Timeline
               </h2>
@@ -486,11 +510,19 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               )}
             </section>
 
-            <SavedPubList
-              ownerHandle={isYouRoute ? myHandle : routeHandle}
-              groups={saved}
-              followedLists={followedLists}
-            />
+            <div id="saved-pubs">
+              <SavedPubList
+                ownerHandle={isYouRoute ? myHandle : routeHandle}
+                groups={saved}
+                followedLists={followedLists}
+              />
+            </div>
+
+            {isYouRoute || isOwnProfile ? (
+              <div id="account-settings">
+                <PubmaxxAccountHub />
+              </div>
+            ) : null}
           </>
         )}
       </main>

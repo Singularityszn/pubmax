@@ -263,16 +263,18 @@
   .palMeetingActions .palPrimary { width: 100%; }
   .palMeetingActions > a:not(.palPrimary) { justify-content: center; }
   .palOnboardingLayout { min-height: auto; display: block; }
-  .palOnboardingPreview { position: relative; top: auto; height: 15.5rem; margin-top: .4rem; }
-  .palOnboardingPreview .palPortrait { width: min(19rem, 78vw); }
-  .palOnboardingPreview .palSpeech { right: 0; bottom: 0; width: 62%; }
-  .palOnboardingPanel { padding: 1.8rem 0 0; }
+  .palOnboardingPreview { position: relative; top: auto; height: auto; min-height: 12rem; margin-top: .4rem; padding-bottom: .25rem; }
+  .palOnboardingPreview .palPortrait { width: min(16rem, 68vw); }
+  .palOnboardingPreview .palSpeech { position: relative; right: auto; bottom: auto; width: 100%; margin-top: -2.2rem; }
+  .palOnboardingPanel { padding: 1.25rem 0 0; }
   .palStep h1 { font-size: clamp(2.8rem, 13vw, 4.1rem); }
   .palChoiceGridThree { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .palChoice { min-height: 4.4rem; }
   .palRange { grid-template-columns: 5.2rem 1fr; }
   .palReview { grid-template-columns: 1fr; }
-  .palOnboardingActions { position: sticky; bottom: calc(4.7rem + env(safe-area-inset-bottom)); z-index: 6; margin: 1.5rem -1rem 0; padding: .8rem 1rem; background: rgba(5, 3, 21, .88); backdrop-filter: blur(1.1rem); }
+  .palOnboardingActions { position: relative; bottom: auto; z-index: 2; margin: 1.25rem -1rem 0; padding: .7rem 1rem; background: rgba(5, 3, 21, .92); backdrop-filter: blur(1.1rem); }
+  .palOnboardingActions > button:not(.palPrimary) { display: none; }
+  .palOnboardingActions .palPrimary { width: 100%; }
   .palHomeHero { min-height: auto; padding-top: 1.5rem; }
   .palHomeCopy h1 { font-size: clamp(4rem, 20vw, 6rem); }
   .palHomeCopy .palPrimary { width: 100%; }

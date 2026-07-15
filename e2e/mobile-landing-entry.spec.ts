@@ -46,7 +46,8 @@ test.describe("mobile landing entry", () => {
       page.getByRole("link", { name: "Open the map" }).first(),
       "hero Open the map CTA",
     );
-    await expectTappable(page.getByRole("link", { name: "See tonight" }).first(), "hero See tonight CTA");
+    await expectTappable(page.getByRole("link", { name: "How it works" }).first(), "hero How it works CTA");
+    await expectTappable(page.getByRole("link", { name: "Meet your Pub Pal" }).first(), "hero Pub Pal CTA");
     await expectTappable(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map" }), "bottom Map tab");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
@@ -63,10 +64,14 @@ test.describe("mobile landing entry", () => {
   test("routes primary mobile CTAs to the map and secondary exploration", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: "See tonight" }).first().click();
-    await expect(page).toHaveURL(/\/tonight$/);
+    await page.getByRole("link", { name: "How it works" }).first().click();
+    await expect(page).toHaveURL(/\/#wedge$/);
     await page.goto("/");
     await expectNoHorizontalOverflow(page);
+
+    await page.getByRole("link", { name: "Meet your Pub Pal" }).first().click();
+    await expect(page).toHaveURL(/\/pal$/);
+    await page.goto("/");
 
     await page.getByRole("link", { name: "Open the map" }).first().click();
     await expect(page).toHaveURL(/\/(choose-city|map)/);

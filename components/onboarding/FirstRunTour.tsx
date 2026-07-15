@@ -109,10 +109,11 @@ export default function FirstRunTour(): React.JSX.Element | null {
     void Promise.resolve().then(() => setMounted(true));
   }, []);
 
-  // Pub Pal has its own account/18+ onboarding sequence. Stacking the generic
-  // first-run map tour over it creates two competing dialogs and obscures the
-  // consent boundary, so the general tour waits until the user leaves /pal.
-  const active = mounted && !seen && pathname !== "/pal";
+  // Pub Pal and You have their own focused onboarding. Stacking the generic
+  // map tour over either surface obscures consent, identity controls, and the
+  // mobile tab bar, so the general tour waits until the user leaves them.
+  const hasDedicatedOnboarding = pathname === "/pal" || pathname.startsWith("/u/");
+  const active = mounted && !seen && !hasDedicatedOnboarding;
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.
