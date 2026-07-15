@@ -1,4 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Plan completion has both durable and keyless backends. Pin this unit test to
+// the keyless seam so Vercel credentials cannot turn it into a live database
+// integration test during `npm run ci`.
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return {
+    ...actual,
+    isSupabaseConfigured: () => false,
+  };
+});
+
 import { completePlan, getPlanCompletion } from "@/lib/planCompletion";
 
 describe("Plan Completion", () => {
