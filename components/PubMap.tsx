@@ -87,7 +87,7 @@ import {
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
 } from "@/lib/bandOnboardingChip";
-import { shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import { shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
 import {
   hasCrawlArrivalParams,
   filtersForCuratedCrawl,
@@ -1143,11 +1143,8 @@ export default function PubMap({
           onMapErrored={setMapCanvasErrored}
           mapView={city.mapView}
           maxBounds={cityBounds}
-          fitCityOnArrival={shouldFitCityBoundsOnArrival(
-            arrivalSearch,
-            seed.routeMapped,
-          )}
           fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
+          userLocation={userLocation}
           poisPath={city.poisPath}
           transitLinesPath={city.transitLinesPath}
           cityLandmarks={cityLandmarks}
@@ -1183,7 +1180,7 @@ export default function PubMap({
           searchableVenueCount={venues.length}
           cityId={cityId}
         />
-        <CitySuggestBanner cityId={cityId} />
+        <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} />
         {isLondon ? <CityStatusBanner cityId={cityId} /> : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its

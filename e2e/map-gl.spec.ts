@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import sharp from "sharp";
 
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
 // Chromium with SwiftShader (a software GL implementation) so a real WebGL2
@@ -53,6 +54,43 @@ test("/map renders the MapLibre canvas with real size and never falls back", asy
   await page.waitForTimeout(18_000);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(canvas).toBeVisible();
+});
+
+test("/map stays visually stable while the viewer is idle", async ({ page }) => {
+  test.setTimeout(45_000);
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
+
+  // Wait out the one-shot pin entrance. After that, an untouched map must not
+  // keep rotating/repainting beneath the user.
+  await page.waitForTimeout(3_500);
+  const first = await page.locator(".maplibreMap").screenshot();
+  await page.waitForTimeout(1_200);
+  const second = await page.locator(".maplibreMap").screenshot();
+  const [a, b] = await Promise.all([
+    sharp(first).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
+    sharp(second).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
+  ]);
+  let changed = 0;
+  const pixels = a.info.width * a.info.height;
+  for (let index = 0; index < a.data.length; index += 3) {
+    const delta =
+      Math.abs(a.data[index] - b.data[index]) +
+      Math.abs(a.data[index + 1] - b.data[index + 1]) +
+      Math.abs(a.data[index + 2] - b.data[index + 2]);
+    if (delta > 24) changed += 1;
+  }
+  expect(changed / pixels).toBeLessThan(0.02);
+});
+
+test("/map reuses granted location to frame nearby pubs", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 51.513, longitude: -0.125 });
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Showing pubs near you")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".mapUserLocationMarker")).toBeVisible();
 });
 
 // Issue #35 — optimistic-pins perf guard. The map paints pins from the ~116 KB

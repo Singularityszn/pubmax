@@ -42,7 +42,7 @@ import { formatPrice, type Venue } from "@/lib/venues";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, LONDON_BOUNDS,
-  ORBIT_DEG_PER_SEC, ORBIT_RESUME_MS, DASH_SEQ,
+  DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
   readTokens,
@@ -55,7 +55,7 @@ import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
-  PIN_ICON_SIZE_EXPR, pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
+  pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr,
 } from "@/components/map/canvas/filters";
 import {
@@ -72,6 +72,7 @@ import {
 import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
+import { nearbyVenuesForMap } from "@/lib/nearby";
 
 
 type PubMapCanvasProps = {
@@ -136,11 +137,6 @@ type PubMapCanvasProps = {
    */
   maxBounds?: [[number, number], [number, number]];
   /**
-   * Clean city arrival (no drink/crawl/pubs/route intent): fit city bounds once
-   * after style/load so Bristol/Oxford/etc. land framed, not on a default zoom.
-   */
-  fitCityOnArrival?: boolean;
-  /**
    * Optional POI JSON path from CityConfig.poisPath. `null` skips the London
    * POI fetch so non-London cities do not 404 on `/data/london_pois.json`.
    * Omit / undefined keeps the London default for back-compat.
@@ -174,13 +170,13 @@ type PubMapCanvasProps = {
    * style/load so outer-London places land framed, not on the city default.
    */
   fitQueryOnArrival?: boolean;
+  /** Precise location retained only in memory after explicit permission. */
+  userLocation?: { lat: number; lng: number } | null;
 };
 
 
-// Hard ceiling on the tile-paint gate: if the map never reaches `idle` (the
-// ambient orbit nudges the camera every frame, which on a slow tile connection
-// can starve the idle event indefinitely), reveal the pins anyway — a
-// briefly-bare basemap beats a permanently pinless map.
+// Hard ceiling on the tile-paint gate: slow or incomplete community tiles must
+// never leave the pub layer hidden indefinitely.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
 // Every pub-source layer, gated together so pin paint can be withheld until the
 // basemap has actually painted (see the tile-paint gate in buildSceneBody).
@@ -219,7 +215,6 @@ export default function PubMapCanvas({
   onMapErrored,
   mapView = LONDON_VIEW,
   maxBounds = LONDON_BOUNDS,
-  fitCityOnArrival = false,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
   cityLandmarks = londonLandmarks,
@@ -229,6 +224,7 @@ export default function PubMapCanvas({
   tonightOverlayVisible = false,
   onTonightOpportunityClick,
   fitQueryOnArrival = false,
+  userLocation = null,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
@@ -244,6 +240,13 @@ export default function PubMapCanvas({
   const landmarksGeoJSON = useMemo(
     () => landmarksToGeoJSON(cityLandmarks),
     [cityLandmarks],
+  );
+  const nearbyMapVenues = useMemo(
+    () =>
+      userLocation
+        ? nearbyVenuesForMap(userLocation.lat, userLocation.lng, venues)
+        : [],
+    [userLocation, venues],
   );
   // Refs for camera/bounds + landmark seed so the MapLibre mount effect does not
   // tear down on parent re-renders that only change object identity.
@@ -485,10 +488,6 @@ export default function PubMapCanvas({
     }
   }, []);
 
-  // Orbit state: the loop only drifts the bearing when now > holdUntil, so any
-  // interaction or programmatic camera move simply pushes the hold forward —
-  // the orbit never fights an easeTo.
-  const holdUntilRef = useRef(0);
   const reducedRef = useRef(false);
   const blurredRef = useRef(false);
   const themeRef = useRef<"dark" | "light">("dark");
@@ -503,9 +502,8 @@ export default function PubMapCanvas({
 
   // Camera helpers (cinematic + fit*) — extracted to useMapCamera; empty-dep
   // callbacks over live refs (see the hook for why the deps must stay empty).
-  const { cinematic, fitRoute, fitCityBounds, fitQueryVenues } = useMapCamera({
+  const { cinematic, fitRoute, fitCityBounds, fitQueryVenues, fitNearby } = useMapCamera({
     mapRef,
-    holdUntilRef,
     reducedRef,
     mapViewRef,
     maxBoundsRef,
@@ -1117,35 +1115,15 @@ export default function PubMapCanvas({
     // sourcedata events, so it adds no second RAF loop; click reuses the
     // same cluster-expansion-zoom behaviour as the plain circle layer.
     const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic);
-    // --- Idle orbit + dash animation: one RAF loop, no React re-renders.
-    // User input (incl. the nav control) pushes holdUntil forward; the orbit
-    // resumes after ORBIT_RESUME_MS of stillness. Reduced motion disables both.
-    holdUntilRef.current = performance.now() + 2500; // let the first paint settle
-    const onInteract = () => {
-      holdUntilRef.current = Math.max(
-        holdUntilRef.current,
-        performance.now() + ORBIT_RESUME_MS,
-      );
-    };
-    const interactionTarget = map.getContainer();
-    const interactionEvents: (keyof HTMLElementEventMap)[] = [
-      "pointerdown",
-      "wheel",
-      "touchstart",
-      "keydown",
-    ];
-    for (const eventName of interactionEvents) {
-      interactionTarget.addEventListener(eventName, onInteract, { passive: true });
-    }
-
+    // One RAF loop for motivated feedback only: pin entrance, route direction,
+    // and the selected-pin pulse. The old perpetual camera orbit changed the
+    // whole canvas every frame while idle, forcing tile churn that read as
+    // flicker and fought the user's spatial memory.
     let rafId = 0;
-    let last = performance.now();
     let dashStep = 0;
     let dashAt = 0;
     const frame = (now: number) => {
       rafId = requestAnimationFrame(frame);
-      const dt = Math.min(now - last, 100);
-      last = now;
       // M7 pin entrance — progressed ahead of the big early-return below so
       // it isn't starved by a hidden/blurred tab (a background tab still
       // ticks rAF, just throttled; the elapsed-time check below simply
@@ -1191,9 +1169,6 @@ export default function PubMapCanvas({
         !map.getLayer("pubs-point")
       )
         return;
-      if (now >= holdUntilRef.current) {
-        map.setBearing(map.getBearing() - (ORBIT_DEG_PER_SEC * dt) / 1000);
-      }
       if (now - dashAt > 90 && map.getLayer("route-line-dash")) {
         dashAt = now;
         dashStep = (dashStep + 1) % DASH_SEQ.length;
@@ -1246,9 +1221,6 @@ export default function PubMapCanvas({
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
-      for (const eventName of interactionEvents) {
-        interactionTarget.removeEventListener(eventName, onInteract);
-      }
       donutSync.destroy();
       map.remove();
       mapRef.current = null;
@@ -1445,21 +1417,10 @@ export default function PubMapCanvas({
     });
   }, [route, selectedVenueId, mapReady, applyToMap, applyRouteData]);
 
-  // Clean city arrival: frame the city's maxBounds once after style/load.
-  // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
-  // see shouldFitCityBoundsOnArrival. Ref guards against effect re-runs.
-  const didFitOnArrivalRef = useRef(false);
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {
-    didFitOnArrivalRef.current = false;
     didFitQueryOnArrivalRef.current = false;
   }, [cityId]);
-  useEffect(() => {
-    if (!mapReady || !fitCityOnArrival) return;
-    if (didFitOnArrivalRef.current) return;
-    didFitOnArrivalRef.current = true;
-    fitCityBounds();
-  }, [mapReady, fitCityOnArrival, fitCityBounds]);
 
   useEffect(() => {
     if (!mapReady || !fitQueryOnArrival) return;
@@ -1470,6 +1431,35 @@ export default function PubMapCanvas({
     didFitQueryOnArrivalRef.current = true;
     fitQueryVenues();
   }, [mapReady, fitQueryOnArrival, venues.length, selectedVenueId, fitQueryVenues]);
+
+  // A granted location is a temporary map aid, not a persisted Home Area.
+  // Frame the local pub cloud once, then leave the camera entirely under the
+  // user's control. Active routes own their own framing and take precedence.
+  const didFitUserLocationRef = useRef("");
+  useEffect(() => {
+    if (!mapReady || !userLocation || route.length >= 2 || nearbyMapVenues.length === 0) return;
+    const key = `${userLocation.lat.toFixed(5)},${userLocation.lng.toFixed(5)}`;
+    if (didFitUserLocationRef.current === key) return;
+    didFitUserLocationRef.current = key;
+    fitNearby(userLocation, nearbyMapVenues);
+  }, [mapReady, userLocation, route.length, nearbyMapVenues, fitNearby]);
+
+  // DOM marker survives basemap style swaps and stays crisp above clustered
+  // symbols. Its pulse is CSS-only and reduced-motion aware.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !userLocation) return;
+    const element = document.createElement("div");
+    element.className = "mapUserLocationMarker";
+    element.setAttribute("role", "img");
+    element.setAttribute("aria-label", "Your approximate location");
+    const marker = new maplibregl.Marker({ element, anchor: "center" })
+      .setLngLat([userLocation.lng, userLocation.lat])
+      .addTo(map);
+    return () => {
+      marker.remove();
+    };
+  }, [mapReady, userLocation]);
 
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere

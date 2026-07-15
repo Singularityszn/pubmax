@@ -43,8 +43,6 @@ export const LONDON_BOUNDS: [[number, number], [number, number]] = [
   [0.35, 51.72],
 ];
 
-export const ORBIT_DEG_PER_SEC = 0.7; // gentle drift — a full turn in ~8.5 minutes
-export const ORBIT_RESUME_MS = 4500; // stillness before the orbit resumes
 
 // M1 selection spotlight — non-selected pub pins ease down to this opacity so
 // the selected pin reads as unmissable at any zoom. Filtered-out pins (the

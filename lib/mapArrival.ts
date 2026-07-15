@@ -27,29 +27,6 @@ export function isBoroughBrowseArrival(search: string): boolean {
 }
 
 /**
- * Whether a clean city map arrival should call `fitCityBounds()` once.
- *
- * Skips when the URL carries drink / crawl / pubs / borough-browse intent, or
- * selected-venue intent, or when a mapped route is already seeded — those
- * arrivals own the camera
- * (filter framing, query-venue fit, or `fitRoute`), and fighting them feels
- * broken.
- */
-export function shouldFitCityBoundsOnArrival(
-  search: string,
-  hasMappedRoute = false,
-): boolean {
-  if (hasMappedRoute) return false;
-  if (/[?&]sel=/.test(search)) return false;
-  if (isDrinkShapeArrival(search)) return false;
-  if (isCuratedCrawlArrival(search)) return false;
-  if (isBoroughBrowseArrival(search)) return false;
-  // Bare `?pubs=` without mode=build still seeds stops — leave the camera alone.
-  if (/[?&]pubs=/.test(search)) return false;
-  return true;
-}
-
-/**
  * Borough browse (`?q=`): fit the filtered venue set once after load.
  * Query-venue framing owns the camera — not city bounds.
  */
