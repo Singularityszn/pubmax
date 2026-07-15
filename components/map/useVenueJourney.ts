@@ -3,12 +3,13 @@
 // Selected venue → viewer travel summary. Walking is instant and city-agnostic;
 // TfL is London-only, abortable, and fail-soft.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { formatJourneySummary } from "@/lib/formatJourney";
 import { walkLabel as formatWalkLabel, walkMinutes as estimateWalkMinutes } from "@/lib/tonight";
 import {
   optimalJourney,
+  privacyRoundedJourneyPoint,
   type JourneyPoint,
   type VenueJourney,
   type VenueJourneyLeg,
@@ -22,6 +23,7 @@ export type VenueJourneyResult = {
   journeys: VenueJourney[];
   status: VenueJourneyStatus;
   bestSummary: string | null;
+  retry: () => void;
 };
 
 type FetchState = {
@@ -105,7 +107,9 @@ function requestKey(
   ) {
     return "";
   }
-  return `${user.lat},${user.lng}:${venue.lat},${venue.lng}`;
+  const roundedUser = privacyRoundedJourneyPoint(user);
+  const roundedVenue = privacyRoundedJourneyPoint(venue);
+  return `${roundedUser.lat},${roundedUser.lng}:${roundedVenue.lat},${roundedVenue.lng}`;
 }
 
 export function useVenueJourney(
@@ -124,6 +128,8 @@ export function useVenueJourney(
   const estimatedLabel = formatWalkLabel(estimatedMinutes);
   const key = requestKey(user, venue, enabled);
   const [fetchState, setFetchState] = useState<FetchState>(INITIAL_STATE);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const retry = useCallback(() => setRetryAttempt((attempt) => attempt + 1), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -152,17 +158,27 @@ export function useVenueJourney(
       }),
     );
 
-    const params = new URLSearchParams({
-      fromLat: String(userLat),
-      fromLng: String(userLng),
-      toLat: String(venueLat),
-      toLng: String(venueLng),
-      limit: "3",
-    });
+    const roundedUser = privacyRoundedJourneyPoint({ lat: userLat, lng: userLng });
+    const roundedVenue = privacyRoundedJourneyPoint({ lat: venueLat, lng: venueLng });
 
-    void fetch(`/api/citymcp/journey?${params}`, {
+    // Viewer coordinates are private request data: keep them out of URLs,
+    // browser history, proxy logs, and shared CDN caches. Public venue-to-venue
+    // crawl requests continue to use the cacheable GET contract.
+    void fetch("/api/citymcp/journey", {
+      method: "POST",
       signal: controller.signal,
-      headers: { accept: "application/json" },
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fromLat: roundedUser.lat,
+        fromLng: roundedUser.lng,
+        toLat: roundedVenue.lat,
+        toLng: roundedVenue.lng,
+        limit: 3,
+      }),
     })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Journey request failed (${response.status})`);
@@ -194,7 +210,7 @@ export function useVenueJourney(
       });
 
     return () => controller.abort();
-  }, [key, userLat, userLng, venueLat, venueLng]);
+  }, [key, retryAttempt, userLat, userLng, venueLat, venueLng]);
 
   const currentState =
     key.length === 0
@@ -210,5 +226,6 @@ export function useVenueJourney(
     journeys: currentState.journeys,
     status: currentState.status,
     bestSummary: best ? formatJourneySummary(best) : null,
+    retry,
   };
 }

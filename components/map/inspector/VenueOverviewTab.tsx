@@ -43,6 +43,7 @@ export default function VenueOverviewTab({
   userLocation,
   locationRequestStatus,
   onRequestLocation,
+  onClearLocation,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -56,6 +57,7 @@ export default function VenueOverviewTab({
   userLocation: JourneyPoint | null;
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
+  onClearLocation: () => void;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -95,6 +97,7 @@ export default function VenueOverviewTab({
         londonTransit={cityId === "london"}
         locationRequestStatus={locationRequestStatus}
         onRequestLocation={onRequestLocation}
+        onClearLocation={onClearLocation}
       />
       <VenueActionStrip venue={venue} />
       <CityPlaceStrip
