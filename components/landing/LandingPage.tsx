@@ -33,6 +33,7 @@ import {
 } from "@/lib/surfaceAccent";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import "./landing.css";
+import NightSignals from "./NightSignals";
 
 function PintDropStripLoading() {
   return (
@@ -302,6 +303,8 @@ export default function LandingPage() {
             </figure>
           </div>
         </section>
+
+        <NightSignals />
 
         {/* ── City chooser (interaction section; not a card dashboard) ── */}
         <div id="cities" className="reveal">

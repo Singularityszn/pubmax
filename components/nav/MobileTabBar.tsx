@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, CirclePlus, User, Compass, CalendarClock } from "lucide-react";
+import { Map, CirclePlus, PawPrint, Compass, CalendarClock } from "lucide-react";
 import { useCallback, useSyncExternalStore, type CSSProperties } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -39,13 +39,13 @@ const warmedTabs = new Set<string>();
 // marks the tab active for any profile route in either case.
 // Map + Tonight + Discover; Drop stays the centre action; You for profile.
 // Map / Drop hrefs follow the preferred city (null → /map).
-function buildTabs(profileHref: string, mapHref: string, dropHref: string): Tab[] {
+function buildTabs(_profileHref: string, mapHref: string, dropHref: string): Tab[] {
   return [
     { href: mapHref, label: "Map", Icon: Map, match: ["/map"] },
     { href: "/tonight", label: "Tonight", Icon: CalendarClock, match: ["/tonight"] },
     { href: dropHref, label: "Pint Drop", Icon: CirclePlus, primary: true },
     { href: "/discover", label: "Pint stories", Icon: Compass, match: ["/discover", "/feed", "/crawls", "/borough"] },
-    { href: profileHref, label: "You", Icon: User, match: ["/u"] },
+    { href: "/pal", label: "Pal", Icon: PawPrint, match: ["/pal", "/u"] },
   ];
 }
 

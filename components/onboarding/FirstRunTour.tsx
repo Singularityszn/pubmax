@@ -20,6 +20,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { usePathname } from "next/navigation";
 
 import {
   getTourSeenServerSnapshot,
@@ -83,6 +84,7 @@ function prefersReducedMotion(): boolean {
 }
 
 export default function FirstRunTour(): React.JSX.Element | null {
+  const pathname = usePathname() ?? "";
   const seen = useSyncExternalStore(
     subscribeTour,
     getTourSeenSnapshot,
@@ -107,7 +109,10 @@ export default function FirstRunTour(): React.JSX.Element | null {
     void Promise.resolve().then(() => setMounted(true));
   }, []);
 
-  const active = mounted && !seen;
+  // Pub Pal has its own account/18+ onboarding sequence. Stacking the generic
+  // first-run map tour over it creates two competing dialogs and obscures the
+  // consent boundary, so the general tour waits until the user leaves /pal.
+  const active = mounted && !seen && pathname !== "/pal";
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.

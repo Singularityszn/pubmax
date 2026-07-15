@@ -10,6 +10,7 @@ import OfflineReady from "@/components/OfflineReady";
 import FirstRunTour from "@/components/onboarding/FirstRunTour";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
+import PubPalSummon from "@/components/pubpal/PubPalSummon";
 
 // Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
@@ -201,7 +202,8 @@ export default async function RootLayout({
             {/* Night Mode (Wave E2) — the "during the night" surface. A
                 persistent bottom card that appears across every screen while a
                 plan is on tonight; renders nothing otherwise. */}
-            <NightModeCard />
+          <NightModeCard />
+          <PubPalSummon />
             {/* One-time first-run onboarding tour — renders nothing on the
                 server / for returning users (gated on hasSeenTour). */}
             <FirstRunTour />

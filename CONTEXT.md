@@ -117,5 +117,17 @@ The user's explicit choice after a Crawl Route: Food, Get Home, or Keep Going.
 _Avoid_: Conversion, exit state
 
 **Pub Pal**:
-An optional character presentation and structured memory layer over the shared planning engine. It may change tone and narration but never recommendation quality, safety, facts, or prices.
-_Avoid_: Pet, independent recommender, drinking buddy
+A user-owned digital companion that combines a customizable cyber familiar, planning assistance, optional voice, confirmed structured memory, and cosmetic nightlife-mastery progression. Every Pub Pal uses the same factual, recommendation, price, moderation, and safety engine.
+_Avoid_: Independent recommender, drinking-pressure mechanic, source-of-truth narrator
+
+**Night Signal**:
+One of six cinematic adult holographic guides—Beer, Gin, Rum, Whisky, Brandy, or Vodka—that establishes a visual alcohol world. Selecting one changes atmosphere and cosmetics; it becomes a planning preference only after explicit confirmation.
+_Avoid_: Drink filter, real person, Pub Pal
+
+**Pal Memory**:
+A typed preference, correction, or completed-night outcome that the user has explicitly approved. Raw voice audio, transcripts, and generated character prose are never Pal Memory.
+_Avoid_: Chat history, inferred profile, hidden memory
+
+**Nightlife Mastery**:
+Cosmetic progression earned through planning, discovery, verified contribution, heritage learning, crew coordination, and completed-night capture. Alcohol quantity never contributes.
+_Avoid_: Drinking streak, consumption score, recommendation tier
