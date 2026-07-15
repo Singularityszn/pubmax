@@ -38,7 +38,7 @@ test.describe("mobile bottom-tab navigation", () => {
   });
 
   test("Map tab routes to /map and exposes the map search control", async ({ page }) => {
-    await page.goto("/pubs");
+    await page.goto("/tonight");
 
     await primaryNav(page).getByRole("link", { name: "Map", exact: true }).click();
 
@@ -46,15 +46,13 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByLabel("Search pubs by name, area, borough or drink")).toBeVisible();
   });
 
-  test("Pubs tab routes to /pubs and exposes the pubs heading", async ({ page }) => {
+  test("Tonight tab routes to /tonight and exposes the tonight screen", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "Pubs", exact: true }).click();
+    await primaryNav(page).getByRole("link", { name: "Tonight", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/pubs$/);
-    await expect(
-      page.getByRole("heading", { name: "Pubs with a drink on every card", exact: true }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/tonight$/);
+    await expect(page.getByTestId("tonight-screen")).toBeVisible();
   });
 
   test("Pint Drop tab routes to /map?log=1 and opens the drop intent surface", async ({ page }) => {
@@ -90,15 +88,14 @@ test.describe("mobile bottom-tab navigation", () => {
     ).toBeVisible();
   });
 
-  test("You tab routes to /u/you and exposes the profile heading", async ({ page }) => {
+  test("Pal tab routes to /pal and exposes the companion home", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "You", exact: true }).click();
+    await primaryNav(page).getByRole("link", { name: "Pal", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/u\/you$/);
-    // The anonymous profile can fall back to its error-state header when the
-    // optional Pint Drops API is unavailable; the route's own heading remains
-    // stable in both states.
-    await expect(page.getByRole("heading", { name: "You", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/pal$/);
+    await expect(
+      page.getByRole("heading", { name: "A little signal that becomes yours.", exact: true }),
+    ).toBeVisible();
   });
 });

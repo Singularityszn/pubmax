@@ -73,7 +73,7 @@ export const NIGHT_SIGNALS: NightSignal[] = [
     mood: "Something less obvious",
     description: "Louder flavour, later rooms and a route that is willing to leave the predictable streets.",
     accent: "#c97852",
-    mapHref: "/map?drink=rum&style=hiddenGems",
+    mapHref: "/map?drink=rum&style=writerTrail",
     accessibleDescription: "Choose an adventurous rum-led night.",
     asset: asset("rum-navigator"),
   },

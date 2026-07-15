@@ -560,12 +560,14 @@ export default function PubMap({
     [builtIds, venueById],
   );
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
+  const routeMappedActive = routeMapped && route.length >= 2;
+  // A suggested route exists behind the clean map, but its TfL legs are only
+  // useful once the planner is open or the viewer explicitly maps it.
   const {
     byToIndex: journeyByToIndex,
     loading: journeyLoading,
     totalMinutes: journeyTotalMinutes,
-  } = useCrawlJourneys(route, isLondon);
-  const routeMappedActive = routeMapped && route.length >= 2;
+  } = useCrawlJourneys(route, isLondon && (planningOpen || routeMappedActive));
   // C2 — a plan that's "on tonight" (lib/activePlan) draws on the map through
   // the SAME route paint the crawl planner uses. useActivePlanRoute carries the
   // live plan's stops; planStopsToRouteVenues resolves them (ordered, deduped,

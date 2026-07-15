@@ -187,17 +187,15 @@ test("a failed listings request can be retried", async ({ page }) => {
   expect(requests).toBe(2);
 });
 
-test("mobile keeps Pubs as a root tab and reaches Tonight from Pint stories", async ({
+test("mobile keeps Tonight as a root tab", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/discover");
 
   const primaryNav = page.getByRole("navigation", { name: "Primary" });
-  await expect(primaryNav.getByRole("link", { name: "Pubs" })).toBeVisible();
-  await expect(primaryNav.getByRole("link", { name: "Tonight" })).toHaveCount(0);
-
-  await page.getByRole("link", { name: "What’s on tonight →" }).click();
+  await expect(primaryNav.getByRole("link", { name: "Tonight" })).toBeVisible();
+  await primaryNav.getByRole("link", { name: "Tonight" }).click();
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
 });
