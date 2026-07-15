@@ -1,25 +1,30 @@
 import { describe, expect, it } from "vitest";
 
-import { PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
+import { MOMENT_NAV_ACTION, PRIMARY_NAV_ITEMS, momentHref, safeMomentReturnTo } from "@/components/nav/navigationModel";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps the same five user jobs in the same order across viewports", () => {
+  it("keeps four destinations and models Moment separately", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
       "Map",
       "Tonight",
-      "Moment",
       "Stories",
       "You",
     ]);
+    expect(MOMENT_NAV_ACTION).toMatchObject({ label: "Moment", href: "/moment" });
   });
 
   it("keeps capture separate from the map and sends Stories to the social feed", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ href }) => href)).toEqual([
       "/map",
       "/tonight",
-      "/moment",
       "/feed",
       "/u/you",
     ]);
+  });
+
+  it("accepts only safe Moment return destinations", () => {
+    expect(momentHref("/feed")).toBe("/moment?returnTo=%2Ffeed");
+    expect(safeMomentReturnTo("https://example.com/steal")).toBe("/map");
+    expect(safeMomentReturnTo("/u/you?tab=moments")).toBe("/u/you");
   });
 });

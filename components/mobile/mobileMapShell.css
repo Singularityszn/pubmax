@@ -1,0 +1,165 @@
+@media (min-width: 641px) {
+  .mobileMapChrome,
+  .mobileSheetPortal { display: none; }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --mobile-map-top: calc(env(safe-area-inset-top, 0px) + 8px);
+    --mobile-map-bar-h: 52px;
+    --mobile-map-rail-h: 52px;
+    --mobile-map-dock-clearance: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  }
+
+  .mobileMapChrome {
+    position: fixed;
+    top: var(--mobile-map-top);
+    left: 10px;
+    right: 10px;
+    z-index: var(--z-map-toolbar);
+    display: grid;
+    gap: 6px;
+    pointer-events: none;
+  }
+
+  /* The coordinator is the only mobile map chrome owner. Desktop keeps the
+     mature controls while mobile removes their independently-positioned rows. */
+  .appShell > .siteNavBarFloating,
+  .appShell .mapStage > .mapToolbar,
+  .appShell .mapStage > .citySuggestBanner,
+  .appShell .mapStage > .cityStatusBanner,
+  .appShell .mapStage > .cityStatusSignalSheet,
+  .appShell .mapStage > .mapConciergeAsk,
+  .appShell .mapStage > .tonightLane,
+  .appShell .mapStage > .mapPriceControl,
+  .appShell .mapStage .mapLayersControl,
+  .appShell .mapStage .mapCameraControls {
+    display: none !important;
+  }
+
+  .mobileMapTopbar {
+    min-height: var(--mobile-map-bar-h);
+    display: grid;
+    grid-template-columns: minmax(82px, 1fr) minmax(0, 58px) 44px 44px 44px;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 5px 4px 12px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--color-surface-raised) 94%, transparent);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(14px) saturate(135%);
+    pointer-events: auto;
+  }
+
+  .mobileMapBrand { min-width: 0; overflow: hidden; color: var(--color-text); font-size: .7rem; text-decoration: none; }
+  .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
+  .mobileMapCity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: 7px; font-size: .72rem; font-weight: 700; color: var(--color-text-soft); }
+  .mobileMapTopbar > button { border: 0; background: transparent; }
+  .mobileMapPalButton { color: var(--color-accent); }
+
+  .mobileMapSearchRow {
+    pointer-events: auto;
+    padding: 8px;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .mobileMapRail {
+    display: flex;
+    gap: 6px;
+    min-height: var(--mobile-map-rail-h);
+    overflow-x: auto;
+    padding: 4px 2px;
+    scrollbar-width: none;
+    pointer-events: auto;
+    scroll-snap-type: x proximity;
+  }
+  .mobileMapRail::-webkit-scrollbar { display: none; }
+  .mobileMapRail > button { min-height: 44px; scroll-snap-align: start; box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent); }
+  .mobileMapRail > button[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-accent); }
+  .mobileMapChipCount { min-width: 1.2rem; height: 1.2rem; display: grid; place-items: center; border-radius: 999px; background: var(--color-accent); color: var(--color-on-accent); font-family: var(--font-data); font-size: .68rem; }
+
+  .mobileSheetPortal { position: fixed; inset: 0; z-index: var(--z-overlay-top); }
+  .mobileSheetScrim { position: absolute; inset: 0; width: 100%; border: 0; background: color-mix(in srgb, var(--ink-deep) 32%, transparent); }
+  .mobileSharedSheet.mapDrawer {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    will-change: transform;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+  .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { transform: translateY(78dvh); }
+  .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { transform: translateY(45dvh); }
+  .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { transform: translateY(8dvh); }
+  .mobileSharedSheetHeader { position: relative; min-height: 64px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 12px 4px; touch-action: none; }
+  .mobileSharedSheetHeader h2 { grid-column: 2; margin: 0; text-align: center; font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: var(--tracking-tight); }
+  .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
+  .mobileSharedSheetClose { grid-column: 3; }
+  .mobileSharedSheetBody { flex: 1; min-height: 0; overflow: hidden; padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .mobileSharedSheetBody.isScrollable { overflow-y: auto; overscroll-behavior: contain; }
+
+  .mobileMapFilters { display: grid; gap: 18px; }
+  .mobileMapFilters .drinkShapeChips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .mobileMapFilters .drinkShapeChip { min-height: 52px; width: 100%; justify-content: center; }
+  .mobileMapFilters .favoritePintPicker { display: grid !important; grid-template-columns: 1fr; }
+  .mobileMapFilters .favoritePintControl { min-height: 44px; width: 100%; justify-content: space-between; }
+  .mobilePriceChoices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; border: 0; }
+  .mobilePriceChoices legend { grid-column: 1 / -1; margin-bottom: 4px; color: var(--color-text-soft); font-size: var(--text-sm); font-weight: 700; }
+  .mobilePriceChoices button { min-height: 44px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-sm); }
+  .mobilePriceChoices button.isActive { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface)); color: var(--color-accent); }
+
+  .mobileSheetPortal .tonightLane,
+  .mobileSheetPortal .mapLayersControl,
+  .mobileSheetPortal .mapLayersPanel {
+    position: static;
+    display: block;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    transform: none;
+  }
+  .mobileSheetPortal .tonightLane { inset: auto; box-shadow: none; }
+  .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; }
+
+  .mobileTflGroups { display: grid; gap: 16px; }
+  .mobileTflGroups section { min-width: 0; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
+  .mobileTflGroups h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: var(--text-md); }
+  .mobileTflGroups ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .mobileTflGroups li { min-width: 0; display: grid; gap: 3px; padding-block: 8px; border-top: 1px solid var(--color-border); overflow-wrap: anywhere; }
+  .mobileTflGroups li:first-child { border-top: 0; }
+  .mobileTflGroups p { margin: 0; color: var(--color-text-soft); }
+  .mobileTflGroups span { color: var(--color-text-muted); font-size: var(--text-xs); }
+  .mobileSheetEmpty, .mobileSheetSkeleton { min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; }
+  .mobileSheetEmpty p { margin: 0; color: var(--color-text-soft); }
+
+  .mobilePalSummon { min-height: 260px; display: grid; place-items: center; align-content: center; gap: 10px; text-align: center; }
+  .mobilePalSummon > svg { color: var(--color-accent); }
+  .mobilePalSummon h3, .mobilePalSummon p { margin: 0; }
+  .mobilePalSummon p { max-width: 32ch; color: var(--color-text-soft); }
+  .mobilePalSummon a { min-height: 44px; display: inline-flex; align-items: center; padding: 0 18px; border-radius: var(--radius); background: var(--color-accent); color: var(--color-on-accent); font-weight: 800; text-decoration: none; }
+  .mobilePalSummon small { display: flex; align-items: center; gap: 6px; max-width: 34ch; color: var(--color-text-muted); }
+}
+
+@media (max-width: 640px) and (prefers-reduced-transparency: reduce) {
+  .mobileMapTopbar { background: var(--color-surface-raised); backdrop-filter: none; }
+}
+
+@media (max-width: 640px) and (prefers-contrast: more) {
+  .mobileMapTopbar, .mobileMapRail > button, .mobileSharedSheet.mapDrawer { border-width: 2px; }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+  .mobileSharedSheet.mapDrawer { transition: opacity 160ms ease !important; transform: translateY(45vh); }
+}

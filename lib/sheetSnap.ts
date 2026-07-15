@@ -13,7 +13,7 @@
 // resolver doesn't need to know actual pixel heights of viewport or sheet —
 // callers convert to px against their own measured viewport height.
 export const SHEET_SNAP_FRACTIONS = {
-  peek: 0.14,
+  peek: 0.22,
   half: 0.55,
   full: 0.92,
 } as const;

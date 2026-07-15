@@ -16,7 +16,7 @@ describe("SHEET_SNAP_TRANSLATE_FRACTIONS", () => {
   it("is 1 − revealed fraction for every snap (CSS vh source of truth)", () => {
     expect(SHEET_SNAP_TRANSLATE_FRACTIONS.full).toBeCloseTo(0.08);
     expect(SHEET_SNAP_TRANSLATE_FRACTIONS.half).toBeCloseTo(0.45);
-    expect(SHEET_SNAP_TRANSLATE_FRACTIONS.peek).toBeCloseTo(0.86);
+    expect(SHEET_SNAP_TRANSLATE_FRACTIONS.peek).toBeCloseTo(0.78);
     for (const snap of SHEET_SNAP_ORDER) {
       expect(SHEET_SNAP_TRANSLATE_FRACTIONS[snap]).toBeCloseTo(
         1 - SHEET_SNAP_FRACTIONS[snap],

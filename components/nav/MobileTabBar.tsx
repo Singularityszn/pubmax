@@ -10,7 +10,7 @@ import {
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
-import { PRIMARY_NAV_ITEMS, type PrimaryNavKey } from "@/components/nav/navigationModel";
+import { MOMENT_NAV_ACTION, PRIMARY_NAV_ITEMS, momentHref, type PrimaryNavKey } from "@/components/nav/navigationModel";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -23,7 +23,7 @@ import "./mobileNav.css";
 // clear of react-hooks/set-state-in-effect.
 
 type Tab = {
-  key: PrimaryNavKey;
+  key: PrimaryNavKey | typeof MOMENT_NAV_ACTION.key;
   href: string;
   label: string;
   Icon: typeof Map;
@@ -36,14 +36,18 @@ type Tab = {
 const warmedTabs = new Set<string>();
 
 // Map follows the preferred city (null → /map); every other route is canonical.
-function buildTabs(mapHref: string): Tab[] {
+function buildTabs(mapHref: string, pathname: string): Tab[] {
   const icons = { map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
-  return PRIMARY_NAV_ITEMS.map((item) => ({
+  const destinations = PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
     href: item.key === "map" ? mapHref : item.href,
     Icon: icons[item.key],
-    primary: item.key === "moment",
   }));
+  return [
+    ...destinations.slice(0, 2),
+    { ...MOMENT_NAV_ACTION, href: momentHref(pathname), match: [], Icon: icons.moment, primary: true },
+    ...destinations.slice(2),
+  ];
 }
 
 function isActive(pathname: string, tab: Tab): boolean {
@@ -66,7 +70,7 @@ export default function MobileTabBar() {
     preferredCityMapHref,
     () => "/map",
   );
-  const tabs = buildTabs(mapHref);
+  const tabs = buildTabs(mapHref, pathname);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the five tabs own) hides it via CSS rather than pinning it
   // to a wrong tab.

@@ -67,7 +67,7 @@ type NavLink = {
 // admin console.
 const LINKS: NavLink[] = PRIMARY_NAV_ITEMS.map((item) => ({
   ...item,
-  key: item.key === "moment" ? "drop" : item.key === "stories" ? "discover" : item.key === "you" ? "profile" : item.key,
+  key: item.key === "stories" ? "discover" : item.key === "you" ? "profile" : item.key,
 }));
 
 function matchesPath(pathname: string, link: NavLink): boolean {

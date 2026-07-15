@@ -68,6 +68,8 @@ type MapLayersControlProps = {
   storyBands?: StoryBand[];
   /** City id for transit-aware aria/title/hint copy. Defaults to london. */
   cityId?: CityId;
+  embedded?: boolean;
+  onRequestClose?: () => void;
 };
 
 export default function MapLayersControl({
@@ -77,18 +79,24 @@ export default function MapLayersControl({
   onBandChange,
   storyBands = STORY_BANDS,
   cityId = DEFAULT_CITY_ID,
+  embedded = false,
+  onRequestClose,
 }: MapLayersControlProps) {
   // Deep-link `?band=` opens Layers without an effect: bandForcesOpen until the
   // user dismisses for that band id (Wave J removed mid-map band picker).
   const [manualOpen, setManualOpen] = useState(false);
   const [closedForBandId, setClosedForBandId] = useState<string | null>(null);
   const bandForcesOpen = Boolean(activeBandId) && closedForBandId !== activeBandId;
-  const open = manualOpen || bandForcesOpen;
+  const open = embedded || manualOpen || bandForcesOpen;
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const layersCopy = mapLayersCopy(cityId);
 
   function closePanel() {
+    if (embedded) {
+      onRequestClose?.();
+      return;
+    }
     setManualOpen(false);
     if (activeBandId) setClosedForBandId(activeBandId);
   }
@@ -133,7 +141,7 @@ export default function MapLayersControl({
       className={open ? "mapLayersControl isOpen" : "mapLayersControl"}
       ref={rootRef}
     >
-      <button
+      {!embedded ? <button
         type="button"
         className={
           open || storiesActive ? "mapLayersFab isActive" : "mapLayersFab"
@@ -146,25 +154,25 @@ export default function MapLayersControl({
       >
         <Layers size={18} aria-hidden="true" />
         <span>Layers</span>
-      </button>
+      </button> : null}
 
       {open ? (
         <div
           id={panelId}
           className="mapLayersPanel"
-          role="dialog"
+          role={embedded ? "group" : "dialog"}
           aria-label="Map layers"
         >
           <div className="mapLayersPanelHead">
             <strong>Map layers</strong>
-            <button
+            {!embedded ? <button
               type="button"
               className="mapLayersClose"
               aria-label="Close layers"
               onClick={closePanel}
             >
               <X size={16} aria-hidden="true" />
-            </button>
+            </button> : null}
           </div>
 
           <p className="mapLayersHint">{layersCopy.hint}</p>

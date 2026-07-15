@@ -76,31 +76,6 @@
   outline-offset: 2px;
 }
 
-/* The status occupies one compact row below the toolbar controls. Move nearby
-   top chrome down by the same slot at every viewport, so desktop and mobile
-   banners cannot sit underneath it. */
-.mapStage:has(.mapToolbarSearchStatus) .citySuggestBanner,
-.mapStage:has(.mapToolbarSearchStatus) .mapCameraControls {
-  top: calc(var(--map-top-clearance) + 110px);
-}
-
-.mapStage:has(.mapToolbarSearchStatus) .cityStatusBanner,
-.mapStage:has(.mapToolbarSearchStatus) .cityStatusSignalSheet {
-  top: calc(var(--map-top-clearance) + 166px);
-}
-
-/* Without a status banner, the city suggestion still owns the +110px row.
-   Camera controls yield one slot lower instead of covering its actions. */
-.mapStage:has(.mapToolbarSearchStatus):has(.citySuggestBanner)
-  .mapCameraControls {
-  top: calc(var(--map-top-clearance) + 180px);
-}
-
-.mapStage:has(.mapToolbarSearchStatus):has(.cityStatusBanner)
-  .mapCameraControls {
-  top: calc(var(--map-top-clearance) + 218px);
-}
-
 /* Wave J declutter — Drinks is secondary/outline; Plan tonight stays primary. */
 .mapToolbarDrinksBtn {
   display: inline-flex;

@@ -73,6 +73,7 @@ import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearbyVenuesForMap } from "@/lib/nearby";
+import type { MapViewportSnapshot } from "@/lib/mobileShell";
 
 
 type PubMapCanvasProps = {
@@ -172,6 +173,10 @@ type PubMapCanvasProps = {
   fitQueryOnArrival?: boolean;
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
+  poiHidden?: Record<PoiCategory, boolean>;
+  onPoiHiddenChange?: (next: Record<PoiCategory, boolean>) => void;
+  hideLayersControl?: boolean;
+  onViewportChange?: (viewport: MapViewportSnapshot) => void;
 };
 
 
@@ -225,6 +230,10 @@ export default function PubMapCanvas({
   onTonightOpportunityClick,
   fitQueryOnArrival = false,
   userLocation = null,
+  poiHidden: controlledPoiHidden,
+  onPoiHiddenChange,
+  hideLayersControl = false,
+  onViewportChange,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
@@ -244,7 +253,11 @@ export default function PubMapCanvas({
   const nearbyMapVenues = useMemo(
     () =>
       userLocation
-        ? nearbyVenuesForMap(userLocation.lat, userLocation.lng, venues)
+        ? nearbyVenuesForMap(userLocation.lat, userLocation.lng, venues, {
+            radiusKm: 2.5,
+            minCount: 20,
+            maxCount: 20,
+          })
         : [],
     [userLocation, venues],
   );
@@ -321,9 +334,14 @@ export default function PubMapCanvas({
   // all-hidden, while mobile first paint stays clean (all categories off).
   // Only rewrite defaults when the viewport band actually changes — never on
   // every mount tick (a fresh object would re-filter layers and look like flicker).
-  const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(
+  const [internalPoiHidden, setInternalPoiHidden] = useState<Record<PoiCategory, boolean>>(
     defaultPoiHiddenForViewport,
   );
+  const poiHidden = controlledPoiHidden ?? internalPoiHidden;
+  const setPoiHidden = useCallback((next: Record<PoiCategory, boolean>) => {
+    if (onPoiHiddenChange) onPoiHiddenChange(next);
+    else setInternalPoiHidden(next);
+  }, [onPoiHiddenChange]);
   const poiViewportMobileRef = useRef<boolean | null>(null);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
@@ -338,7 +356,7 @@ export default function PubMapCanvas({
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
-  }, []);
+  }, [setPoiHidden]);
   // Open when a band is already active (e.g. `?band=` deep link). Layers owns
   // the corridor picker UI; canvas only paints the active corridor.
   const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
@@ -348,6 +366,7 @@ export default function PubMapCanvas({
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
   const onTonightOpportunityClickRef = useRef(onTonightOpportunityClick);
+  const onViewportChangeRef = useRef(onViewportChange);
   const cityLandmarksRef = useRef(cityLandmarks);
   const tonightOpportunitiesRef = useRef(tonightOpportunities);
   const tonightOverlayVisibleRef = useRef(tonightOverlayVisible);
@@ -363,6 +382,7 @@ export default function PubMapCanvas({
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
     onTonightOpportunityClickRef.current = onTonightOpportunityClick;
+    onViewportChangeRef.current = onViewportChange;
     cityLandmarksRef.current = cityLandmarks;
   }, [
     onVenueClick,
@@ -370,6 +390,7 @@ export default function PubMapCanvas({
     onVenuePrefetch,
     onLandmarkSelect,
     onTonightOpportunityClick,
+    onViewportChange,
     cityLandmarks,
   ]);
 
@@ -520,11 +541,8 @@ export default function PubMapCanvas({
     if (!initialLandmarkId || !mapReady) return;
     const landmark = landmarkById(initialLandmarkId);
     if (!landmark) return;
-    const map = mapRef.current;
-    if (map) {
-      map.easeTo({ center: landmark.coordinates, zoom: 15, duration: 800 });
-    }
-  }, [initialLandmarkId, mapReady, landmarkById]);
+    cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 });
+  }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
 
   useEffect(() => {
     if (!hoveredVenueId) return;
@@ -759,6 +777,15 @@ export default function PubMapCanvas({
     }
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     mapRef.current = map;
+    map.on("moveend", () => {
+      const center = map.getCenter();
+      onViewportChangeRef.current?.({
+        center: [center.lng, center.lat],
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      });
+    });
 
     // The upstream OpenFreeMap styles reference sprite images we never render
     // at our zoom/layers (liberty's "wood-pattern"), and MapLibre warns on
@@ -1839,14 +1866,16 @@ export default function PubMapCanvas({
       {/* Wave J declutter: one Layers control on all viewports (Airbnb-clean).
           Desktop mid-map POI strip + Place stories stack removed — same content
           lives in the Layers popover. Do not rebuild #63 structure. */}
-      <MapLayersControl
-        poiHidden={poiHidden}
-        onPoiHiddenChange={setPoiHidden}
-        activeBandId={activeBandId}
-        onBandChange={onBandChange}
-        storyBands={cityStoryBands}
-        cityId={cityId}
-      />
+      {!hideLayersControl ? (
+        <MapLayersControl
+          poiHidden={poiHidden}
+          onPoiHiddenChange={setPoiHidden}
+          activeBandId={activeBandId}
+          onBandChange={onBandChange}
+          storyBands={cityStoryBands}
+          cityId={cityId}
+        />
+      ) : null}
       {activePoi ? (
         <div className="poiLabelCard" role="status">
           <span

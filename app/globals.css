@@ -4216,7 +4216,7 @@ button:disabled {
 
   .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
-    transform: translateY(86vh) !important;
+    transform: translateY(78vh) !important;
   }
 
   .mapDrawer.left.open.sheet-full:not(.sheet-dragging),

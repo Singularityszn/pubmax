@@ -29,12 +29,12 @@
   bottom: calc(84px + env(safe-area-inset-bottom, 0px) + 52px);
 }
 
-body:has(.mapConciergeAsk--open) .tonightLane {
+.mapConciergeAsk--open ~ .tonightLane {
   display: none;
 }
 
-body:has(.appShell.detail-open) .mapConciergeAsk,
-body:has(.appShell.planning-open) .mapConciergeAsk {
+.appShell.detail-open .mapConciergeAsk,
+.appShell.planning-open .mapConciergeAsk {
   display: none;
 }
 
