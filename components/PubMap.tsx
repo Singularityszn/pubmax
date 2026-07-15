@@ -309,9 +309,13 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  // Purpose-limited copy used only after the viewer explicitly asks for travel
+  // times. A location granted for "Pubs near me" must not silently become a
+  // precise journey request for every venue they inspect.
+  const [venueJourneyLocation, setVenueJourneyLocation] =
+    useState<UserLocation | null>(null);
   const [locationRequestStatus, setLocationRequestStatus] =
     useState<LocationRequestStatus>("idle");
-  const venueLocationRequestedRef = useRef(false);
   // The curated crawl whose blurb is shown under the route title. Seeded from
   // ?crawl= / matching pubs= on curated arrival; cleared when the user mutates stops.
   const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(seed.activeCrawl);
@@ -922,9 +926,6 @@ export default function PubMap({
   // venues. Event handler (not an effect) so setState here is fine. Degrades
   // gracefully — feature-detect geolocation, catch denial, never throws.
   const requestVenueLocation = useCallback(() => {
-    if (venueLocationRequestedRef.current) return;
-    venueLocationRequestedRef.current = true;
-
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setLocationRequestStatus("unavailable");
       return;
@@ -933,7 +934,7 @@ export default function PubMap({
     setLocationRequestStatus("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setUserLocation({
+        setVenueJourneyLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
@@ -944,6 +945,11 @@ export default function PubMap({
       },
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
     );
+  }, []);
+
+  const clearVenueLocation = useCallback(() => {
+    setVenueJourneyLocation(null);
+    setLocationRequestStatus("idle");
   }, []);
 
   const startNearbyCrawl = useCallback(() => {
@@ -1442,9 +1448,10 @@ export default function PubMap({
               cityStoryBands={cityStoryBands}
               cityCuratedCrawls={cityCuratedCrawls}
               cityId={cityId}
-              userLocation={userLocation}
+              userLocation={venueJourneyLocation}
               locationRequestStatus={locationRequestStatus}
               onRequestLocation={requestVenueLocation}
+              onClearLocation={clearVenueLocation}
             />
           </>
         ) : null}

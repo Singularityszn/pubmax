@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { GET } from "@/app/api/citymcp/journey/route";
+import { GET, POST } from "@/app/api/citymcp/journey/route";
 import { resetJourneyCache } from "@/lib/citymcp/client";
 
 const realFetch = global.fetch;
@@ -117,6 +117,7 @@ describe("GET /api/citymcp/journey", () => {
 
     const res = await GET(new Request(journeyUrl("limit=2")));
     expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toMatch(/^public,/);
     const body = await res.json();
     expect(body.from).toBe("51.51200,-0.10400");
     expect(body.to).toBe("51.51000,-0.12100");
@@ -175,5 +176,68 @@ describe("GET /api/citymcp/journey", () => {
     expect(body.journeys).toEqual([]);
     expect(body.asOf).toBeNull();
     expect(body.error).toBeTruthy();
+  });
+});
+
+describe("POST /api/citymcp/journey", () => {
+  it("keeps viewer coordinates out of URLs, response echoes, and shared caches", async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            structuredContent: {
+              journeys: [
+                { durationMinutes: 14, legs: [{ mode: "walking" }, { mode: "bus" }] },
+              ],
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const request = new Request("http://localhost/api/citymcp/journey", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        fromLat: Number(FROM_LAT),
+        fromLng: Number(FROM_LNG),
+        toLat: Number(TO_LAT),
+        toLng: Number(TO_LNG),
+        limit: 3,
+      }),
+    });
+    expect(request.url).not.toContain(FROM_LAT);
+    expect(request.url).not.toContain(FROM_LNG);
+
+    const res = await POST(request);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const body = await res.json();
+    expect(body.from).toBeUndefined();
+    expect(body.to).toBeUndefined();
+    expect(body.journeys).toHaveLength(1);
+
+    const [, init] = (global.fetch as unknown as { mock: { calls: [string, RequestInit][] } })
+      .mock.calls[0]!;
+    const upstream = JSON.parse(String(init.body));
+    expect(upstream.params.arguments).toEqual({
+      from: "51.51200,-0.10400",
+      to: "51.51000,-0.12100",
+    });
+  });
+
+  it("rejects malformed JSON without caching it", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/citymcp/journey", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "not-json",
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(res.headers.get("cache-control")).toBe("no-store");
   });
 });

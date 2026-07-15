@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   optimalJourney,
+  privacyRoundedJourneyPoint,
   venueDirectionsUrl,
   type VenueJourney,
 } from "@/lib/venueJourney";
@@ -47,14 +48,33 @@ describe("venueDirectionsUrl", () => {
       venueDirectionsUrl(venue, { lat: 51.5074, lng: -0.1278 }),
     );
 
-    expect(url.searchParams.get("origin")).toBe("51.5074,-0.1278");
-    expect(url.searchParams.get("destination")).toBe("51.5133,-0.1349");
+    expect(url.searchParams.get("origin")).toBe("51.507,-0.128");
+    expect(url.searchParams.get("destination")).toBe("51.513,-0.135");
     expect(url.searchParams.get("travelmode")).toBe("transit");
   });
 
   it("still creates a destination link when origin is unknown", () => {
     const url = new URL(venueDirectionsUrl(venue, null));
     expect(url.searchParams.has("origin")).toBe(false);
-    expect(url.searchParams.get("destination")).toBe("51.5133,-0.1349");
+    expect(url.searchParams.get("destination")).toBe("51.513,-0.135");
+  });
+});
+
+describe("privacyRoundedJourneyPoint", () => {
+  it("reduces device coordinates to routing-level precision", () => {
+    expect(
+      privacyRoundedJourneyPoint({ lat: 51.50741234, lng: -0.12785678 }),
+    ).toEqual({ lat: 51.507, lng: -0.128 });
+  });
+
+  it("uses reduced precision in external directions links", () => {
+    const url = new URL(
+      venueDirectionsUrl(
+        { lat: 51.51331234, lng: -0.13495678 },
+        { lat: 51.50741234, lng: -0.12785678 },
+      ),
+    );
+    expect(url.searchParams.get("origin")).toBe("51.507,-0.128");
+    expect(url.searchParams.get("destination")).toBe("51.513,-0.135");
   });
 });
