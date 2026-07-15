@@ -102,10 +102,13 @@
        single-row height — matches .mapCameraControls' mobile +58px offset,
        the same "row after the toolbar" convention used elsewhere. */
     top: calc(var(--map-top-clearance, 0px) + 112px);
-    max-width: calc(100vw - 24px);
+    right: 12px;
+    left: auto;
+    max-width: 150px;
     padding-block: 4px;
     border-color: var(--line);
     background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   }
-  .citySuggestBannerCopy { font-size: .7rem; }
+  .citySuggestBannerCopy { display: none; }
+  .citySuggestBanner { transform: none; }
 }

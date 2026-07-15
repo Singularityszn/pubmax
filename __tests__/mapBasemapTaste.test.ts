@@ -56,8 +56,8 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     expect(light.land).toBe(tokens.paper);
     // Streets remain legible without turning the whole basemap into white
     // linework; major roads retain the warmer transport hierarchy.
-    expect(dark.road).toContain("255, 244, 232"); // cream ink rgb
-    expect(dark.roadMajor).toContain("255, 244, 232"); // brighter neutral hierarchy
+    expect(dark.road).toContain("65, 58, 52"); // neutral line rgb
+    expect(dark.roadMajor).not.toContain("240, 160, 26"); // never amber road soup
     // Buildings: M4 warmed emissive massing — readable on near-black land,
     // still desaturated (never a literal brass/coral wash).
     expect(dark.building).not.toBe(darkTokens.inkDeep);

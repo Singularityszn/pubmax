@@ -132,8 +132,8 @@ export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePa
       // with a dusk-lamp warmth instead of the old cool blue-gray.
       building: mixHex(tokens.buildingEmissive, tokens.inkDeep, 0.42),
       water: withAlpha(tokens.river, 0.58),
-      road: withAlpha(tokens.ink, 0.42),
-      roadMajor: withAlpha(tokens.ink, 0.6),
+      road: withAlpha(tokens.line, 0.72),
+      roadMajor: withAlpha(mixHex(tokens.line, tokens.ink, 0.26), 0.82),
     };
   }
   // Light-theme hierarchy audit (M4): calmer water (was the saturated
