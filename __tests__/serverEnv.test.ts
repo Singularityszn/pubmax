@@ -21,6 +21,7 @@ describe("assertProductionSecrets", () => {
 
   it("is a no-op outside production", () => {
     vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("VERCEL_ENV", "development");
     expect(() => assertProductionSecrets()).not.toThrow();
   });
 

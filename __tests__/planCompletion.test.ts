@@ -11,6 +11,12 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   };
 });
 
+// Route modules assert durable production configuration at import time. This
+// suite deliberately exercises the keyless memory backend, so keep the runtime
+// deployment guard outside the unit-test seam even when Vercel runs Vitest with
+// VERCEL_ENV=production during a production build.
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+
 import { POST as CREATE } from "@/app/api/plans/route";
 import { GET as GET_PLAN } from "@/app/api/plans/[id]/route";
 import { GET as GET_COMPLETION, POST as COMPLETE } from "@/app/api/plans/[id]/complete/route";
