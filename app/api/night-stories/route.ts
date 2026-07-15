@@ -1,6 +1,13 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { createNightStory } from "@/lib/nightMemoryStore";
+import { createNightStory, listNightStories } from "@/lib/nightMemoryStore";
+
+export async function GET(request: Request): Promise<Response> {
+  const ownerId = await callerUserId(request);
+  return ownerId
+    ? jsonNoStore({ stories: await listNightStories(ownerId) })
+    : jsonNoStore({ error: "Sign in to view Night Stories." }, { status: 401 });
+}
 
 export async function POST(request: Request): Promise<Response> {
   const ownerId = await callerUserId(request);

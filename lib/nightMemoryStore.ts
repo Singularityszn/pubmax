@@ -222,6 +222,25 @@ export async function addNightMoment(
   return error || !data ? null : momentFromRow(data as Record<string, unknown>);
 }
 
+export async function listNightMoments(
+  ownerId: string,
+  memoryId: string,
+): Promise<NightMoment[]> {
+  const memory = await getMemory(memoryId);
+  if (!memory || memory.ownerId !== ownerId) return [];
+  if (!isSupabaseConfigured()) {
+    return [...moments.values()]
+      .filter((moment) => moment.memoryId === memoryId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  const { data, error } = await requireSupabaseAdmin()
+    .from("night_moments")
+    .select("*")
+    .eq("memory_id", memoryId)
+    .order("created_at", { ascending: false });
+  return error ? [] : (data ?? []).map((row) => momentFromRow(row as Record<string, unknown>));
+}
+
 async function getMoment(momentId: string): Promise<NightMoment | null> {
   if (!isSupabaseConfigured()) return moments.get(momentId) ?? null;
   const { data, error } = await requireSupabaseAdmin()
@@ -292,6 +311,20 @@ export async function createNightStory(ownerId: string, raw: unknown): Promise<N
     return null;
   }
   return story;
+}
+
+export async function listNightStories(ownerId: string): Promise<NightStory[]> {
+  if (!isSupabaseConfigured()) {
+    return [...stories.values()]
+      .filter((story) => story.hostEditorId === ownerId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+  const { data, error } = await requireSupabaseAdmin()
+    .from("night_stories")
+    .select("*")
+    .eq("host_editor_id", ownerId)
+    .order("updated_at", { ascending: false });
+  return error ? [] : (data ?? []).map((row) => storyFromRow(row as Record<string, unknown>));
 }
 
 async function getContributors(storyId: string): Promise<StoryContributor[]> {

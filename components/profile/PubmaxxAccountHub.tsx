@@ -8,9 +8,9 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import { emitIdentityHandleChanged } from "@/lib/identityClient";
+import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
 
 type Connection = { provider: "x" | "instagram" | "tiktok"; username?: string; status: string };
-type Memory = { id: string; title: string; createdAt: string };
 
 export default function PubmaxxAccountHub() {
   const { user, loading } = useAuth();
@@ -18,9 +18,7 @@ export default function PubmaxxAccountHub() {
   const [handle, setHandle] = useState("");
   const [currentHandle, setCurrentHandle] = useState<string | null>(null);
   const [instagramUrl, setInstagramUrl] = useState("");
-  const [memoryTitle, setMemoryTitle] = useState("");
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [memories, setMemories] = useState<Memory[]>([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -28,12 +26,10 @@ export default function PubmaxxAccountHub() {
     const controller = new AbortController();
     void Promise.all([
       authedFetch("/api/social-connections", { signal: controller.signal }),
-      authedFetch("/api/night-memories", { signal: controller.signal }),
       authedFetch("/api/identity/handle/current", { signal: controller.signal }),
-    ]).then(async ([social, memory, identity]) => {
+    ]).then(async ([social, identity]) => {
       if (controller.signal.aborted) return;
       if (social.ok) setConnections(((await social.json()) as { connections?: Connection[] }).connections ?? []);
-      if (memory.ok) setMemories(((await memory.json()) as { memories?: Memory[] }).memories ?? []);
       if (identity.ok) {
         const owned = ((await identity.json()) as { handle?: string | null }).handle ?? null;
         setCurrentHandle(owned);
@@ -86,17 +82,6 @@ export default function PubmaxxAccountHub() {
     setInstagramUrl("");
   }
 
-  async function createMemory(event: FormEvent) {
-    event.preventDefault();
-    const response = await authedFetch("/api/night-memories", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: memoryTitle }),
-    });
-    const body = await response.json().catch(() => ({})) as { memory?: Memory; error?: string };
-    if (!response.ok || !body.memory) return setMessage(body.error ?? "Could not create that Memory.");
-    setMemories((current) => [body.memory!, ...current]);
-    setMemoryTitle("");
-  }
-
   if (loading) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
   if (!user) return <section className="accountHub"><p className="profileSectionKicker">Your PUBMAXX</p><h2>Own your nights.</h2><p>Sign in to claim a handle, connect profiles, and keep private Night Memories.</p><SignInButton /></section>;
 
@@ -106,8 +91,8 @@ export default function PubmaxxAccountHub() {
       <div className="accountHubGrid">
         <form onSubmit={claim}><h3>{currentHandle ? "Your @handle" : "Claim your @handle"}</h3><input value={handle} onChange={(event) => setHandle(event.target.value)} pattern="[A-Za-z0-9_]{3,30}" placeholder="night_owl" required /><button type="submit">{currentHandle ? "Rename handle" : "Claim handle"}</button>{currentHandle ? <small>Renames are limited to once every 30 days. Old links keep working.</small> : null}</form>
         <div><h3>Connected accounts</h3><div className="accountHubActions">{(["x", "tiktok", "instagram"] as const).map((provider) => <button type="button" key={provider} onClick={() => void connectOAuth(provider)}>Connect {provider === "x" ? "X" : provider[0].toUpperCase() + provider.slice(1)}</button>)}</div><form onSubmit={connectInstagram}><input type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Personal Instagram URL" required /><button type="submit">Add personal link</button></form><small>{connections.length} connected</small></div>
-        <form onSubmit={createMemory}><h3>Start a private Night Memory</h3><input value={memoryTitle} onChange={(event) => setMemoryTitle(event.target.value)} maxLength={120} placeholder="Friday side quest" required /><button type="submit">Create Memory</button><small>{memories.length} private {memories.length === 1 ? "Memory" : "Memories"}</small></form>
       </div>
+      <NightMemoryStudio userId={user.id} />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
     </section>
   );

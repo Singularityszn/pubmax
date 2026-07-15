@@ -12,8 +12,8 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 import { GET as LIST_MEMORIES, POST as CREATE_MEMORY } from "@/app/api/night-memories/route";
-import { POST as ADD_MEMORY_MOMENT } from "@/app/api/night-memories/[id]/moments/route";
-import { POST as CREATE_STORY } from "@/app/api/night-stories/route";
+import { GET as LIST_MOMENTS, POST as ADD_MEMORY_MOMENT } from "@/app/api/night-memories/[id]/moments/route";
+import { GET as LIST_STORIES, POST as CREATE_STORY } from "@/app/api/night-stories/route";
 import { GET as GET_STORY } from "@/app/api/night-stories/[id]/route";
 import { POST as PROPOSE } from "@/app/api/night-stories/[id]/publish-proposals/route";
 import { POST as CONFIRM } from "@/app/api/night-stories/[id]/publish-confirmations/route";
@@ -48,6 +48,11 @@ describe("Night Memory HTTP contract", () => {
     const { moment } = await momentResponse.json();
     const storyResponse = await CREATE_STORY(auth("/api/night-stories", { memoryId: memory.id, title: "Friday orbit" }));
     const { story } = await storyResponse.json();
+
+    const listedMoments = await LIST_MOMENTS(auth(`/api/night-memories/${memory.id}/moments`), ctx(memory.id));
+    expect((await listedMoments.json()).moments).toEqual([expect.objectContaining({ id: moment.id, visibility: "private" })]);
+    const listedStories = await LIST_STORIES(auth("/api/night-stories"));
+    expect((await listedStories.json()).stories).toEqual([expect.objectContaining({ id: story.id, status: "draft" })]);
 
     expect((await GET_STORY(new Request(`http://localhost/api/night-stories/${story.id}`), ctx(story.id))).status).toBe(404);
     const proposalResponse = await PROPOSE(auth(`/api/night-stories/${story.id}/publish-proposals`, { momentIds: [moment.id], visibility: "public" }), ctx(story.id));

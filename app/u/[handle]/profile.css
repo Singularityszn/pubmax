@@ -985,7 +985,7 @@
   background: var(--panel);
 }
 .accountHub h2 { margin: .25rem 0 1rem; }
-.accountHubGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.accountHubGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 .accountHubGrid > * { display: grid; align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
 .accountHubGrid input, .accountHubGrid button { min-height: 44px; border-radius: 12px; }
 .accountHubGrid input { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
@@ -993,3 +993,34 @@
 .accountHubActions { display: flex; flex-wrap: wrap; gap: .4rem; }
 .accountHubMessage { margin-top: .75rem; }
 @media (max-width: 760px) { .accountHubGrid { grid-template-columns: 1fr; } }
+
+.memoryStudio {
+  margin-top: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+.memoryStudioHeader { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.memoryStudioHeader h3 { margin: .2rem 0 0; font-size: clamp(1.2rem, 2vw, 1.6rem); }
+.memoryStudioHeader > p { max-width: 34rem; margin: 0; color: var(--muted); }
+.memoryStudioFlow { display: grid; grid-template-columns: .8fr 1.15fr 1fr; gap: .75rem; }
+.memoryStudioFlow form { position: relative; display: grid; align-content: start; gap: .7rem; padding: 1rem; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--panel-raised); }
+.memoryStudioFlow h4 { margin: 0; padding-right: 2.5rem; font-size: 1rem; }
+.memoryStudioStep { position: absolute; top: .85rem; right: .9rem; display: grid; width: 2rem; height: 2rem; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font-family: var(--font-data); font-size: .75rem; }
+.memoryStudioFlow label { display: grid; gap: .35rem; color: var(--ink-soft); font-size: .82rem; font-weight: 700; }
+.memoryStudioFlow label small { color: var(--muted); font-weight: 500; }
+.memoryStudioFlow input, .memoryStudioFlow select, .memoryStudioFlow textarea { width: 100%; min-height: 44px; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
+.memoryStudioFlow textarea { resize: vertical; }
+.memoryStudioFlow button { min-height: 44px; padding: .65rem .8rem; border: 0; border-radius: 12px; background: var(--ink); color: var(--paper); font-weight: 750; }
+.memoryStudioFlow button:disabled { cursor: not-allowed; opacity: .55; }
+.memoryStudioShelf { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; }
+.memoryStudioShelf > div { display: flex; align-items: baseline; gap: .4rem; padding: .55rem .75rem; border: 1px solid var(--line-soft); border-radius: 12px; }
+.memoryStudioShelf strong { font-family: var(--font-data); }
+.memoryStudioShelf span { color: var(--muted); font-size: .8rem; }
+.memoryStoryList { display: grid; gap: .35rem; margin: .75rem 0 0; padding: 0; list-style: none; }
+.memoryStoryList li { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-bottom: 1px solid var(--line-soft); }
+.memoryStoryList small { color: var(--muted); }
+@media (max-width: 900px) { .memoryStudioFlow { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .memoryStudioHeader { align-items: start; flex-direction: column; }
+  .memoryStudioFlow form { border-radius: 16px; }
+}

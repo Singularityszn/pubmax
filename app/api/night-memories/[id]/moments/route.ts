@@ -1,8 +1,15 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { addNightMoment } from "@/lib/nightMemoryStore";
+import { addNightMoment, listNightMoments } from "@/lib/nightMemoryStore";
 
 type Context = { params: Promise<{ id: string }> };
+
+export async function GET(request: Request, context: Context): Promise<Response> {
+  const ownerId = await callerUserId(request);
+  if (!ownerId) return jsonNoStore({ error: "Sign in to view Night Moments." }, { status: 401 });
+  const { id } = await context.params;
+  return jsonNoStore({ moments: await listNightMoments(ownerId, id) });
+}
 
 export async function POST(request: Request, context: Context): Promise<Response> {
   const ownerId = await callerUserId(request);
