@@ -11,6 +11,12 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+  });
+});
+
 test("the /tonight screen mounts with an honest header and provenance", async ({
   page,
 }) => {
@@ -25,6 +31,9 @@ test("the /tonight screen mounts with an honest header and provenance", async ({
 
   // The screen resolves to exactly one of: list, empty, error status. Wait for
   // the loading status to clear into one of those terminal states.
+  await expect(page.getByText("Reading tonight’s listings…")).toHaveCount(0, {
+    timeout: 10_000,
+  });
   await expect(page.locator(".tonightStatus, .tonightList")).toHaveCount(1, {
     timeout: 10_000,
   });
@@ -118,7 +127,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
             startsAt: "2026-07-15T20:00:00.000Z",
             title: "Quiz night",
             source: { label: "Pub listing", url: "https://example.com/quiz" },
-            observedAt: "2026-07-15T18:00:00.000Z",
+            observedAt: "2026-07-14T18:00:00.000Z",
             confidence: "listed",
             lat: 51.51,
             lng: -0.13,
@@ -158,7 +167,11 @@ test("a failed listings request can be retried", async ({ page }) => {
   await page.route("**/api/whats-on?**", async (route) => {
     requests += 1;
     if (requests === 1) {
-      await route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ rows: [], error: "Store unavailable" }),
+      });
       return;
     }
     await route.fulfill({
@@ -172,4 +185,19 @@ test("a failed listings request can be retried", async ({ page }) => {
   await page.getByRole("button", { name: "Retry listings" }).click();
   await expect(page.getByText(/Nothing confirmed in London tonight yet/)).toBeVisible();
   expect(requests).toBe(2);
+});
+
+test("mobile keeps Pubs as a root tab and reaches Tonight from Pint stories", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/discover");
+
+  const primaryNav = page.getByRole("navigation", { name: "Primary" });
+  await expect(primaryNav.getByRole("link", { name: "Pubs" })).toBeVisible();
+  await expect(primaryNav.getByRole("link", { name: "Tonight" })).toHaveCount(0);
+
+  await page.getByRole("link", { name: "What’s on tonight →" }).click();
+  await expect(page).toHaveURL(/\/tonight$/);
+  await expect(page.getByTestId("tonight-screen")).toBeVisible();
 });

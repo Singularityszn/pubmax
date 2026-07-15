@@ -372,10 +372,13 @@ export default function DiscoverPageClient({
           kind of round — beer, wine, gin, vodka, rum, cocktails, shots, and the
           soft drinks that keep the night moving.
         </p>
-        {/* Hub rule (docs/MOBILE_FLOW_SPEC.md §1): Feed and Crawls have no tab
+        {/* Hub rule (docs/MOBILE_FLOW_SPEC.md §1): Tonight, Feed, and Crawls have no tab
             of their own on mobile, so this page is their hub — every surface
             reachable in ≤2 taps from a tab. */}
         <nav className="discoverHubRow" aria-label="More stories">
+          <Link href="/tonight" className="discoverHubLink">
+            What&rsquo;s on tonight →
+          </Link>
           <Link href="/feed" className="discoverHubLink">
             Tonight&apos;s pint stories →
           </Link>

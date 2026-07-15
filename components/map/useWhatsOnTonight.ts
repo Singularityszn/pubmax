@@ -73,6 +73,9 @@ export async function loadWhatsOnTonight(
     });
     if (!res.ok) return { rows: [], asOf: null, status: "error" };
     const body = (await res.json()) as ApiResponse;
+    if (typeof body.error === "string" && body.error.trim().length > 0) {
+      return { rows: [], asOf: body.asOf ?? null, status: "error" };
+    }
     const rows = Array.isArray(body.rows)
       ? body.rows.filter((r): r is WhatsOnRow => isValidWhatsOnRow(r))
       : [];
