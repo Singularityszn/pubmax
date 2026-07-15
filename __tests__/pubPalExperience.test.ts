@@ -10,7 +10,7 @@ describe("Pub Pal first meeting and onboarding", () => {
   it("offers all three Pal forms and an eight-part flow", () => {
     expect(experience).toContain("PAL_SPECIES.map");
     expect(experience).toContain("step + 1} of 8");
-    expect(experience).toContain("Meet your Pal");
+    expect(experience).toContain("Meet your Pub Pal");
   });
 
   it("keeps account persistence gated while leaving a character-free route", () => {
