@@ -1080,7 +1080,16 @@ export default function PubMap({
         (showOnboarding ? " onboarding-open" : "")
       }
     >
-      <SiteNav active="map" />
+      <SiteNav
+        active="map"
+        mobileMapUtility={
+          <MapPriceControl
+            placement="header"
+            filters={filters}
+            onFiltersChange={setFilters}
+          />
+        }
+      />
 
       {/* Full-bleed map is the base layer; every panel slides in over it. */}
       <section className="mapStage">
@@ -1233,9 +1242,14 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {/* Wave J declutter: Prices control owns the key on all viewports
-            (pin colours + popover). Static mid-map legend removed. */}
-        <MapPriceControl filters={filters} onFiltersChange={setFilters} />
+        {/* Desktop retains the expanded price filter. On phones the compact key
+            lives beside the PUBMAXXING wordmark so the bottom action lane can
+            breathe above primary navigation. */}
+        <MapPriceControl
+          placement="map"
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
             offers curated crawls on a clean first paint. It's the mobile

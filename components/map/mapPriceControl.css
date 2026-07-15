@@ -37,6 +37,9 @@
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1.15;
+  cursor: pointer;
+  pointer-events: auto;
+  font-family: inherit;
 }
 
 .mapPriceLegend span {
@@ -44,6 +47,10 @@
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+}
+
+.mapPriceLegend .mapPriceLegendCompact {
+  display: none;
 }
 
 .mapPriceFab {
@@ -214,9 +221,54 @@
 }
 
 @media (max-width: 640px) {
-  .mapPriceControl {
-    left: 10px;
-    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 18px));
+  .mapPriceControl--map {
+    display: none;
+  }
+
+  .mapPriceControl--header {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    width: 100%;
+    max-width: 88px;
+    pointer-events: auto;
+  }
+
+  .mapPriceControl--header .mapPriceLegend {
+    width: 100%;
+    min-height: 44px;
+    max-width: none;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 5px;
+    border-radius: 12px;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--panel) 72%, var(--panel-raised));
+    font-size: 0.58rem;
+  }
+
+  .mapPriceControl--header .mapPriceLegend > span {
+    gap: 2px;
+  }
+
+  .mapPriceControl--header .mapPriceLegendFull {
+    display: none;
+  }
+
+  .mapPriceControl--header .mapPriceLegendCompact {
+    display: inline;
+  }
+
+  .mapPriceControl--header .mapPricePanel {
+    position: fixed;
+    top: calc(70px + env(safe-area-inset-top, 0px));
+    right: var(--map-chrome-inset, 10px);
+    left: var(--map-chrome-inset, 10px);
+    bottom: auto;
+    width: auto;
+    max-height: min(40vh, 320px);
+    overflow: auto;
   }
 
   .mapPricePanel {
@@ -225,6 +277,17 @@
       calc(100vh - var(--map-top-clearance, 80px) - var(--mobile-tab-clearance, 72px) - 120px)
     );
     overflow: auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .mapPriceControl--header {
+    max-width: 78px;
+  }
+
+  .mapPriceControl--header .mapPriceLegend {
+    gap: 3px;
+    padding-inline: 3px;
   }
 }
 

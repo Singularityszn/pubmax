@@ -4292,7 +4292,7 @@ button:disabled {
     );
     --map-overlay-top: calc(var(--map-top-clearance) + 46px);
     /* Stack FABs clearly above the compact tab bar; chips one row higher. */
-    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 18px);
+    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 28px);
     --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);
   }
 

@@ -26,6 +26,7 @@ const PRICE_LEGEND = [
 type MapPriceControlProps = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
+  placement?: "map" | "header";
 };
 
 function activeLabel(maxPrice: number): string {
@@ -38,6 +39,7 @@ function activeLabel(maxPrice: number): string {
 export default function MapPriceControl({
   filters,
   onFiltersChange,
+  placement = "map",
 }: MapPriceControlProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -69,35 +71,48 @@ export default function MapPriceControl({
   }, [open]);
 
   return (
-    <div className="mapPriceControl" ref={rootRef}>
-      {/* Always-visible colour key — plan: small bottom-left price legend. */}
-      <div
-        className="mapPriceLegend"
-        role="list"
-        aria-label="Pint price colour key"
-      >
-        {PRICE_LEGEND.map((row) => (
-          <span key={row.label} role="listitem">
-            <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
-            {row.label}
-          </span>
-        ))}
-      </div>
-
+    <div
+      className={
+        placement === "header"
+          ? "mapPriceControl mapPriceControl--header"
+          : "mapPriceControl mapPriceControl--map"
+      }
+      ref={rootRef}
+    >
       <button
         type="button"
-        className={open || filtered ? "mapPriceFab isActive" : "mapPriceFab"}
+        className="mapPriceLegend"
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={
-          open ? "Close pint price filter" : "Filter pubs by pint price"
-        }
-        title="Filter by pint price"
+        aria-label={open ? "Close pint price filter" : "Pint price key and filters"}
+        title="Pint price key and filters"
         onClick={() => setOpen((value) => !value)}
       >
-        <Coins size={16} aria-hidden="true" />
-        <span>{activeLabel(filters.maxPrice)}</span>
+        {PRICE_LEGEND.map((row) => (
+          <span key={row.label}>
+            <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
+            <span className="mapPriceLegendFull">{row.label}</span>
+            <span className="mapPriceLegendCompact" aria-hidden="true">
+              {row.tone === "green" ? "£" : row.tone === "amber" ? "££" : "£££"}
+            </span>
+          </span>
+        ))}
       </button>
+
+      {placement === "map" ? (
+        <button
+          type="button"
+          className={open || filtered ? "mapPriceFab isActive" : "mapPriceFab"}
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-label={open ? "Close pint price filter" : "Filter pubs by pint price"}
+          title="Filter by pint price"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <Coins size={16} aria-hidden="true" />
+          <span>{activeLabel(filters.maxPrice)}</span>
+        </button>
+      ) : null}
 
       {open ? (
         <div

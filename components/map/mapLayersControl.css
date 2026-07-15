@@ -208,10 +208,9 @@
   }
 
   .mapLayersPanel {
-    /* U6d — lift the panel's bottom edge clear of the price legend pill
-       (mapPriceControl.css, bottom-left) instead of hovering 10px over the
-       FAB where the two visually collide at 390px. */
-    bottom: calc(100% + 44px);
+    /* The price key now lives in the top bar, so the panel can originate from
+       the Layers control instead of floating above a removed bottom stack. */
+    bottom: calc(100% + 10px);
     max-height: min(
       40vh,
       calc(100vh - var(--map-top-clearance, 80px) - var(--mobile-tab-clearance, 72px) - 152px)

@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -97,7 +104,13 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
 type IndicatorRect = { x: number; width: number; visible: boolean };
 const HIDDEN_INDICATOR: IndicatorRect = { x: 0, width: 0, visible: false };
 
-export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Element {
+export default function SiteNav({
+  active,
+  mobileMapUtility,
+}: {
+  active?: NavKey;
+  mobileMapUtility?: ReactNode;
+}): React.JSX.Element {
   const pathname = usePathname() ?? "";
   const primaryActive = primaryKeyForLegacyActive(active);
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
@@ -160,6 +173,10 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
       <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXX landing page">
         <PubmaxxWordmark />
       </Link>
+
+      {isMap && mobileMapUtility ? (
+        <div className="siteNavMapUtility">{mobileMapUtility}</div>
+      ) : null}
 
       {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}
       <ul className="siteNavLinks">

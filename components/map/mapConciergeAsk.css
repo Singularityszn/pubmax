@@ -13,6 +13,12 @@
   pointer-events: none;
 }
 
+@media (max-width: 640px) {
+  .mapConciergeAsk {
+    bottom: calc(var(--mobile-tab-clearance, 72px) + 28px);
+  }
+}
+
 .mapConciergeAsk > * {
   pointer-events: auto;
 }
