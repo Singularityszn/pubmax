@@ -21,6 +21,32 @@ export type PubPalSpecies = (typeof PAL_SPECIES)[number];
 export type SignalFamily = (typeof SIGNAL_FAMILIES)[number];
 export type PubPalVoiceId = (typeof PAL_VOICES)[number];
 
+export const PAL_ANIMATION_STATES = [
+  "idle",
+  "noticing",
+  "listening",
+  "thinking",
+  "speaking",
+  "celebrating",
+  "sleeping",
+  "error",
+] as const;
+export type PalAnimationState = (typeof PAL_ANIMATION_STATES)[number];
+
+export type PalVisualManifest = {
+  species: PubPalSpecies;
+  format: "layered-svg";
+  silhouette: string;
+  signatureProp: string;
+  supportedStates: readonly PalAnimationState[];
+};
+
+export const PAL_VISUAL_MANIFEST: Record<"hound" | "raven" | "fox", PalVisualManifest> = {
+  hound: { species: "hound", format: "layered-svg", silhouette: "floppy-eared signal hound", signatureProp: "signal collar", supportedStates: PAL_ANIMATION_STATES },
+  raven: { species: "raven", format: "layered-svg", silhouette: "long-beaked observant raven", signatureProp: "lore lens", supportedStates: PAL_ANIMATION_STATES },
+  fox: { species: "fox", format: "layered-svg", silhouette: "sharp-eared quick fox", signatureProp: "route compass", supportedStates: PAL_ANIMATION_STATES },
+};
+
 export type PubPalPersonality = {
   playfulness: number;
   energy: number;
@@ -107,6 +133,22 @@ export type PubPalDraft = {
   voice: PubPalVoice;
 };
 
+export type PalOnboardingPrivacy = {
+  proposeMemories: boolean;
+  visible: boolean;
+  muted: boolean;
+};
+
+export type PalOnboardingDraftV1 = {
+  version: 1;
+  savedAt: string;
+  step: 0 | 1 | 2 | 3 | 4;
+  draft: PubPalDraft;
+  privacy: PalOnboardingPrivacy;
+};
+
+export const PAL_ONBOARDING_DRAFT_KEY = "pubmaxx.pub-pal-onboarding.v1";
+
 export const DEFAULT_PAL_DRAFT: PubPalDraft = {
   adultConfirmed: false,
   name: "",
@@ -114,6 +156,59 @@ export const DEFAULT_PAL_DRAFT: PubPalDraft = {
   personality: { playfulness: 62, energy: 54, storytelling: 58, relationship: "sidekick" },
   voice: { id: "ember", pace: 50, warmth: 64, energy: 52 },
 };
+
+export function readPalOnboardingDraft(): PalOnboardingDraftV1 | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(PAL_ONBOARDING_DRAFT_KEY) ?? "null") as Partial<PalOnboardingDraftV1> | null;
+    if (!raw || raw.version !== 1 || !raw.draft || !raw.privacy) return null;
+    const draft = raw.draft as PubPalDraft;
+    if (
+      typeof draft.adultConfirmed !== "boolean" ||
+      typeof draft.name !== "string" || draft.name.length > 32 ||
+      !PAL_SPECIES.includes(draft.appearance?.species) ||
+      !SIGNAL_FAMILIES.includes(draft.appearance?.signalAffinity) ||
+      !["hologram", "chrome", "glass"].includes(draft.appearance?.material) ||
+      !["none", "collar", "monocle", "signal-ring"].includes(draft.appearance?.accessory) ||
+      !PAL_VOICES.includes(draft.voice?.id) ||
+      !["guide", "sidekick", "confidant"].includes(draft.personality?.relationship)
+    ) return null;
+    const step = Number.isInteger(raw.step) && Number(raw.step) >= 0 && Number(raw.step) <= 4
+      ? raw.step as PalOnboardingDraftV1["step"]
+      : 0;
+    return {
+      version: 1,
+      savedAt: typeof raw.savedAt === "string" ? raw.savedAt : new Date(0).toISOString(),
+      step,
+      draft,
+      privacy: {
+        proposeMemories: raw.privacy.proposeMemories === true,
+        visible: raw.privacy.visible !== false,
+        muted: raw.privacy.muted === true,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writePalOnboardingDraft(value: Omit<PalOnboardingDraftV1, "version" | "savedAt">): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PAL_ONBOARDING_DRAFT_KEY, JSON.stringify({
+      ...value,
+      version: 1,
+      savedAt: new Date().toISOString(),
+    } satisfies PalOnboardingDraftV1));
+  } catch {
+    // Best-effort recovery in private/quota-constrained browsers.
+  }
+}
+
+export function clearPalOnboardingDraft(): void {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(PAL_ONBOARDING_DRAFT_KEY); } catch { /* best effort */ }
+}
 
 export function cleanPalDraft(value: unknown): PubPalDraft | null {
   if (!value || typeof value !== "object") return null;

@@ -7,9 +7,10 @@ const portrait = readFileSync(join(process.cwd(), "components/pal/PalPortrait.ts
 const css = readFileSync(join(process.cwd(), "app/pal/pal.css"), "utf8");
 
 describe("Pub Pal first meeting and onboarding", () => {
-  it("offers all three Pal forms and an eight-part flow", () => {
+  it("offers all three Pal forms and a five-part resumable flow", () => {
     expect(experience).toContain("PAL_ONBOARDING_SPECIES.map");
-    expect(experience).toContain("step + 1} of 8");
+    expect(experience).toContain("step + 1} of 5");
+    expect(experience).toContain("writePalOnboardingDraft");
     expect(experience).toContain("Meet your Pub Pal");
   });
 
@@ -32,6 +33,9 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(css).toContain("prefers-reduced-motion: reduce");
     expect(css).toContain("prefers-reduced-transparency: reduce");
     expect(css).toContain("prefers-contrast: more");
+    expect(portrait).toContain("palRigHound");
+    expect(portrait).toContain("palRigRaven");
+    expect(portrait).toContain("palRigFox");
   });
 
   it("keeps controls thumb-sized and avoids unstable viewport height", () => {

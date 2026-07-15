@@ -20,10 +20,15 @@ import SignInButton from "@/components/auth/SignInButton";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   DEFAULT_PAL_DRAFT,
+  clearPalOnboardingDraft,
   PAL_UNLOCKS,
   PAL_ONBOARDING_SPECIES,
   PAL_VOICES,
   SIGNAL_FAMILIES,
+  readPalOnboardingDraft,
+  writePalOnboardingDraft,
+  type PalAnimationState,
+  type PalOnboardingPrivacy,
   type PubPal,
   type PubPalAppearance,
   type PubPalDraft,
@@ -88,11 +93,7 @@ const relationshipCopy: Record<PubPalPersonality["relationship"], string> = {
   confidant: "Confidant",
 };
 
-type PrivacyState = {
-  proposeMemories: boolean;
-  visible: boolean;
-  muted: boolean;
-};
+type PrivacyState = PalOnboardingPrivacy;
 
 const DEFAULT_PRIVACY: PrivacyState = {
   proposeMemories: false,
@@ -103,13 +104,10 @@ const DEFAULT_PRIVACY: PrivacyState = {
 function previewSpeech(step: number, draft: PubPalDraft): string {
   switch (step) {
     case 0: return "I am for adults planning a night out.";
-    case 1: return `A ${draft.appearance.species}. Good choice.`;
-    case 2: return draft.name.trim() ? `${draft.name.trim()}. I like it.` : "Give me a name when it feels right.";
-    case 3: return `${materialCopy[draft.appearance.material]} tuned to ${signalCopy[draft.appearance.signalAffinity].toLowerCase()}.`;
-    case 4: return `I will be your ${relationshipCopy[draft.personality.relationship].toLowerCase()}.`;
-    case 5: return `${voiceCopy[draft.voice.id]}.`;
-    case 6: return "Nothing becomes memory unless you approve it.";
-    default: return "These are your choices. You can still go back.";
+    case 1: return draft.name.trim() ? `${draft.name.trim()}. I like it.` : `A ${draft.appearance.species}. Give me a name.`;
+    case 2: return `${materialCopy[draft.appearance.material]} tuned to ${signalCopy[draft.appearance.signalAffinity].toLowerCase()}.`;
+    case 3: return `${voiceCopy[draft.voice.id]}. Your ${relationshipCopy[draft.personality.relationship].toLowerCase()}.`;
+    default: return "Nothing becomes memory unless you approve it.";
   }
 }
 
@@ -177,15 +175,26 @@ function RangeControl({
 
 export default function PalExperience() {
   const { user, loading, configured } = useAuth();
-  const [mode, setMode] = useState<"meeting" | "onboarding" | "home">("meeting");
-  const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<PubPalDraft>(DEFAULT_PAL_DRAFT);
-  const [privacy, setPrivacy] = useState<PrivacyState>(DEFAULT_PRIVACY);
+  const [restoredOnboarding] = useState(readPalOnboardingDraft);
+  const [mode, setMode] = useState<"meeting" | "onboarding" | "home">(restoredOnboarding ? "onboarding" : "meeting");
+  const [step, setStep] = useState<number>(restoredOnboarding?.step ?? 0);
+  const [draft, setDraft] = useState<PubPalDraft>(restoredOnboarding?.draft ?? DEFAULT_PAL_DRAFT);
+  const [privacy, setPrivacy] = useState<PrivacyState>(restoredOnboarding?.privacy ?? DEFAULT_PRIVACY);
   const [pal, setPal] = useState<PubPal | null>(null);
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [memories, setMemories] = useState<PubPalMemory[]>([]);
+
+  useEffect(() => {
+    if (mode !== "onboarding") return;
+    const timer = window.setTimeout(() => writePalOnboardingDraft({
+      step: Math.max(0, Math.min(4, step)) as 0 | 1 | 2 | 3 | 4,
+      draft,
+      privacy,
+    }), 200);
+    return () => window.clearTimeout(timer);
+  }, [draft, mode, privacy, step]);
 
   useEffect(() => {
     if (!user) {
@@ -288,6 +297,7 @@ export default function PalExperience() {
       localStorage.setItem(`${PRIVACY_KEY}:${user.id}`, JSON.stringify({ proposeMemories: privacy.proposeMemories }));
       setPal(next);
       setMode("home");
+      clearPalOnboardingDraft();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Your Pal could not be created.");
     } finally {
@@ -329,6 +339,7 @@ export default function PalExperience() {
     setPrivacy(DEFAULT_PRIVACY);
     setStep(0);
     setMode("meeting");
+    clearPalOnboardingDraft();
   };
 
   if (loading || !ready) {
@@ -344,7 +355,7 @@ export default function PalExperience() {
         </div>
         <section className="palHomeHero" aria-labelledby="pal-home-title">
           <div className="palHomePortrait">
-            <PalPortrait appearance={pal.appearance} name={pal.name} />
+            <PalPortrait appearance={pal.appearance} name={pal.name} state="idle" />
             <p className="palSpeech">Ready when you are. I will never make a change without showing you first.</p>
           </div>
           <div className="palHomeCopy">
@@ -401,7 +412,7 @@ export default function PalExperience() {
         </div>
         <section className="palMeetingStage" aria-labelledby="pal-meeting-title">
           <div className="palMeetingPortrait">
-            <PalPortrait appearance={draft.appearance} name="Unclaimed Pub Pal" />
+            <PalPortrait appearance={draft.appearance} name="Unclaimed Pub Pal" state="noticing" />
             <p className="palSpeech" aria-live="polite">There you are. What kind of night are we making?</p>
           </div>
           <div className="palMeetingCopy">
@@ -422,13 +433,17 @@ export default function PalExperience() {
     <main className="palExperience palOnboarding">
       <div className="palTopbar">
         <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
-        <span>{step + 1} of 8</span>
+        <span>{step + 1} of 5</span>
         <Link href="/map">Skip Pal</Link>
       </div>
-      <div className="palProgress" aria-hidden="true"><span style={{ width: `${((step + 1) / 8) * 100}%` }} /></div>
+      <div className="palProgress" aria-hidden="true"><span style={{ width: `${((step + 1) / 5) * 100}%` }} /></div>
       <div className="palOnboardingLayout">
         <div className="palOnboardingPreview">
-          <PalPortrait appearance={draft.appearance} name={previewName} />
+          <PalPortrait
+            appearance={draft.appearance}
+            name={previewName}
+            state={(["listening", "noticing", "celebrating", "speaking", "thinking"] as PalAnimationState[])[step] ?? "idle"}
+          />
           <p className="palSpeech" aria-live="polite">{previewSpeech(step, draft)}</p>
         </div>
         <section className="palOnboardingPanel" aria-live="polite">
@@ -445,16 +460,10 @@ export default function PalExperience() {
           )}
           {step === 1 && (
             <div className="palStep">
-              <p className="palEyebrow">Form</p>
+              <p className="palEyebrow">Form and name</p>
               <h1>Who finds you?</h1>
               <p>Each Pal has the same planning intelligence. Choose the presence you want beside you.</p>
               <div className="palChoiceList palSpeciesGrid">{PAL_ONBOARDING_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
-            </div>
-          )}
-          {step === 2 && (
-            <div className="palStep">
-              <p className="palEyebrow">Identity</p>
-              <h1>Call it something yours.</h1>
               <label className="palField"><span>Name</span><input value={draft.name} maxLength={32} autoComplete="off" placeholder="Anything feels right" onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /><small>This is yours. Change it whenever you want.</small></label>
               <div className="palNameIdeas" aria-label="Name inspiration">
                 {Object.entries(nameIdeas).map(([generation, names]) => (
@@ -466,7 +475,7 @@ export default function PalExperience() {
               </div>
             </div>
           )}
-          {step === 3 && (
+          {step === 2 && (
             <div className="palStep">
               <p className="palEyebrow">Appearance</p>
               <h1>Tune the signal.</h1>
@@ -475,7 +484,7 @@ export default function PalExperience() {
               <fieldset><legend>Accessory</legend><div className="palChoiceGrid">{(["none", "collar", "monocle", "signal-ring"] as const).map((accessory) => <ChoiceButton key={accessory} selected={draft.appearance.accessory === accessory} title={accessoryCopy[accessory]} onClick={() => updateAppearance({ accessory })} />)}</div></fieldset>
             </div>
           )}
-          {step === 4 && (
+          {step === 3 && (
             <div className="palStep">
               <p className="palEyebrow">Personality</p>
               <h1>Set the chemistry.</h1>
@@ -483,22 +492,14 @@ export default function PalExperience() {
               <RangeControl label="Temper" low="Dry" high="Playful" value={draft.personality.playfulness} onChange={(playfulness) => updatePersonality({ playfulness })} />
               <RangeControl label="Energy" low="Calm" high="Chaotic" value={draft.personality.energy} onChange={(energy) => updatePersonality({ energy })} />
               <RangeControl label="Conversation" low="Concise" high="Storytelling" value={draft.personality.storytelling} onChange={(storytelling) => updatePersonality({ storytelling })} />
-            </div>
-          )}
-          {step === 5 && (
-            <div className="palStep">
-              <p className="palEyebrow">Voice</p>
-              <h1>Choose how it sounds.</h1>
-              <p>Voice always waits for your action. Text remains available.</p>
+              <fieldset><legend>Voice</legend>
               <div className="palChoiceList">{PAL_VOICES.map((voice) => <ChoiceButton key={voice} selected={draft.voice.id === voice} title={voice[0].toUpperCase() + voice.slice(1)} note={voiceCopy[voice]} onClick={() => setDraft((current) => ({ ...current, voice: { ...current.voice, id: voice } }))} />)}</div>
-              <RangeControl label="Pace" low="Measured" high="Quick" value={draft.voice.pace} onChange={(pace) => setDraft((current) => ({ ...current, voice: { ...current.voice, pace } }))} />
-              <RangeControl label="Warmth" low="Cool" high="Warm" value={draft.voice.warmth} onChange={(warmth) => setDraft((current) => ({ ...current, voice: { ...current.voice, warmth } }))} />
-              <RangeControl label="Delivery" low="Quiet" high="Electric" value={draft.voice.energy} onChange={(energy) => setDraft((current) => ({ ...current, voice: { ...current.voice, energy } }))} />
+              </fieldset>
             </div>
           )}
-          {step === 6 && (
+          {step === 4 && (
             <div className="palStep">
-              <p className="palEyebrow">Memory</p>
+              <p className="palEyebrow">Privacy and review</p>
               <h1>You decide what stays.</h1>
               <p>Audio and transcripts are not memories. Pub Pal can only propose short, structured facts for your approval.</p>
               <label className="palToggleRow">
@@ -506,12 +507,6 @@ export default function PalExperience() {
                 <span><strong>Allow memory proposals</strong><small>{privacy.proposeMemories ? "Show each suggested fact for approval" : "Never suggest facts to remember"}</small></span>
               </label>
               <div className="palPrivacyFacts"><ShieldCheck /><p>You can inspect, correct and delete every approved memory. Safety and factuality controls cannot be disabled.</p></div>
-            </div>
-          )}
-          {step === 7 && (
-            <div className="palStep">
-              <p className="palEyebrow">Review</p>
-              <h1>Make the introduction.</h1>
               <div className="palReview">
                 <div><span>Name</span><strong>{draft.name.trim() || "Name required"}</strong></div>
                 <div><span>Form</span><strong>{speciesCopy[draft.appearance.species].title}, {materialCopy[draft.appearance.material]}</strong></div>
@@ -526,8 +521,8 @@ export default function PalExperience() {
           )}
           <div className="palOnboardingActions">
             <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}>Back</button>
-            {step < 7 ? (
-              <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 2 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
+            {step < 4 ? (
+              <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
             ) : user ? (
               <Button className="palPrimary" size="large" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={18} /></Button>
             ) : (

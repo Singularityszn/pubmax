@@ -145,136 +145,43 @@
 .palPortrait-chrome .palPortraitCore { background: linear-gradient(135deg, rgba(251, 251, 254, .25), color-mix(in srgb, var(--signal) 10%, transparent) 46%, rgba(251, 251, 254, .06)); }
 .palPortrait-glass .palPortraitCore { background: linear-gradient(155deg, rgba(251, 251, 254, .12), transparent 42%, color-mix(in srgb, var(--signal) 18%, transparent)); backdrop-filter: blur(.35rem); }
 
-/* Original three-species Pub Pal rig. Built from CSS primitives so the first
-   meeting never waits for a heavy character bundle; a future Rive rig can
-   occupy this same core without changing the accessible portrait contract. */
-.palCharacter {
-  position: relative;
-  z-index: 1;
-  width: 76%;
-  height: 82%;
-  display: block;
-  filter: drop-shadow(0 .8rem 1rem color-mix(in srgb, var(--pal-accent) 14%, transparent));
-}
-.palCharacterHead {
-  position: absolute;
-  z-index: 2;
-  inset: 15% 10% 8%;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--signal) 70%, white 12%);
-  border-radius: 45% 55% 48% 52% / 40% 42% 58% 60%;
-  background:
-    radial-gradient(circle at 32% 36%, color-mix(in srgb, white 19%, transparent), transparent 10%),
-    linear-gradient(145deg, color-mix(in srgb, var(--signal) 30%, transparent), color-mix(in srgb, var(--ink-deep) 72%, transparent));
-  box-shadow:
-    inset .8rem .65rem 1.4rem color-mix(in srgb, white 8%, transparent),
-    inset -.85rem -1rem 1.4rem color-mix(in srgb, var(--ink-deep) 55%, transparent);
-}
-.palCharacterEar {
-  position: absolute;
-  z-index: 1;
-  top: 5%;
-  width: 32%;
-  height: 42%;
-  border: 1px solid color-mix(in srgb, var(--signal) 58%, transparent);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--signal) 28%, transparent), color-mix(in srgb, var(--ink-deep) 58%, transparent));
-}
-.palCharacterEarLeft { left: 9%; transform: rotate(-18deg); }
-.palCharacterEarRight { right: 9%; transform: rotate(18deg); }
-.palCharacterEye {
-  position: absolute;
-  z-index: 3;
-  top: 38%;
-  width: 24%;
-  height: 13%;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--signal) 68%, white 8%);
-  border-radius: 60% 35% 62% 38%;
-  background: color-mix(in srgb, var(--ink-deep) 82%, var(--signal));
-  box-shadow: 0 0 .55rem color-mix(in srgb, var(--pal-accent) 32%, transparent);
-}
-.palCharacterEyeLeft { left: 17%; transform: rotate(4deg); }
-.palCharacterEyeRight { right: 17%; transform: scaleX(-1) rotate(4deg); }
-.palCharacterPupil {
-  position: absolute;
-  top: 16%;
-  left: 42%;
-  width: 22%;
-  height: 70%;
-  border-radius: 50%;
-  background: color-mix(in srgb, white 84%, var(--signal));
-  box-shadow: 0 0 .5rem color-mix(in srgb, var(--pal-accent) 58%, transparent);
-}
-.palCharacterBrow {
-  position: absolute;
-  z-index: 4;
-  top: 31%;
-  width: 25%;
-  height: 2px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--signal) 72%, white 10%);
-}
-.palCharacterBrowLeft { left: 16%; transform: rotate(8deg); }
-.palCharacterBrowRight { right: 16%; transform: rotate(-8deg); }
-.palCharacterMuzzle {
-  position: absolute;
-  z-index: 4;
-  left: 28%;
-  bottom: 12%;
-  width: 44%;
-  height: 31%;
-  border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
-  border-radius: 48% 52% 42% 58%;
-  background: color-mix(in srgb, white 8%, transparent);
-}
-.palCharacterMuzzle::before {
-  content: "";
-  position: absolute;
-  top: 20%;
-  left: 38%;
-  width: 24%;
-  height: 17%;
-  border-radius: 55% 45% 62% 38%;
-  background: color-mix(in srgb, var(--ink-deep) 78%, var(--signal));
-}
-.palCharacterMouth {
-  position: absolute;
-  left: 28%;
-  bottom: 21%;
-  width: 44%;
-  height: 10%;
-  border-bottom: 1px solid color-mix(in srgb, var(--signal) 62%, white 10%);
-  border-radius: 50%;
-}
-.palCharacterCheek { position: absolute; z-index: 3; top: 56%; width: 12%; height: 8%; border-radius: 50%; background: color-mix(in srgb, var(--signal) 20%, transparent); filter: blur(.15rem); }
-.palCharacterCheekLeft { left: 13%; }
-.palCharacterCheekRight { right: 13%; }
-.palCharacterNeck { position: absolute; z-index: 0; left: 31%; bottom: -2%; width: 38%; height: 28%; border: 1px solid color-mix(in srgb, var(--signal) 32%, transparent); border-radius: 40%; background: linear-gradient(to bottom, color-mix(in srgb, var(--signal) 14%, transparent), transparent); }
-.palCharacterBeak { display: none; }
+/* Original layered SVG rigs: silhouette, face, material, and signature prop
+   remain separate groups so emotional state motion never deforms the whole
+   character into a generic orb. */
+.palRig { width: 92%; height: 92%; overflow: visible; filter: drop-shadow(0 .8rem 1.1rem color-mix(in srgb, var(--ink-deep) 30%, transparent)); }
+.palRigShadow { fill: color-mix(in srgb, var(--ink-deep) 48%, transparent); filter: blur(5px); }
+.palRigBack { fill: color-mix(in srgb, var(--signal) 28%, var(--ink-deep)); stroke: color-mix(in srgb, var(--signal) 58%, white 8%); stroke-width: 2; }
+.palRigBody { fill: color-mix(in srgb, var(--signal) 17%, var(--ink-deep)); stroke: color-mix(in srgb, var(--signal) 52%, white 5%); stroke-width: 2; }
+.palRigHead { fill: color-mix(in srgb, var(--signal) 28%, var(--ink-deep)); stroke: color-mix(in srgb, var(--signal) 72%, white 8%); stroke-width: 2.2; stroke-linejoin: round; }
+.palRigHighlight { fill: color-mix(in srgb, white 20%, transparent); stroke: none; }
+.palRigEye { fill: color-mix(in srgb, var(--signal) 8%, var(--ink-deep)); stroke: color-mix(in srgb, var(--signal) 82%, white 10%); stroke-width: 2; transform-box: fill-box; transform-origin: center; }
+.palRigPupil { fill: color-mix(in srgb, white 90%, var(--signal)); filter: drop-shadow(0 0 5px var(--signal)); transform-box: fill-box; transform-origin: center; }
+.palRigMuzzle { fill: color-mix(in srgb, white 11%, transparent); stroke: color-mix(in srgb, var(--signal) 34%, transparent); stroke-width: 2; }
+.palRigNose { fill: color-mix(in srgb, var(--ink-deep) 82%, var(--signal)); }
+.palRigMouth { fill: none; stroke: color-mix(in srgb, white 72%, var(--signal)); stroke-width: 3; stroke-linecap: round; transform-box: fill-box; transform-origin: center; }
+.palRigBeak { fill: color-mix(in srgb, var(--signal) 24%, var(--ink-deep)); stroke: color-mix(in srgb, var(--signal) 66%, white 6%); stroke-width: 2; stroke-linejoin: round; transform-box: fill-box; transform-origin: left center; }
+.palRigProp { fill: color-mix(in srgb, var(--signal) 26%, var(--ink-deep)); stroke: color-mix(in srgb, var(--signal) 78%, white 12%); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 7px color-mix(in srgb, var(--signal) 55%, transparent)); }
+.palRigCompass, .palRigLens { fill: color-mix(in srgb, var(--panel-raised) 56%, transparent); }
+.palPortrait-chrome .palRigHead, .palPortrait-chrome .palRigBody { fill: color-mix(in srgb, white 22%, var(--signal)); }
+.palPortrait-glass .palRigHead, .palPortrait-glass .palRigBody { fill: color-mix(in srgb, var(--signal) 14%, transparent); }
 
-.palCharacter-hound .palCharacterEar { border-radius: 70% 34% 76% 26%; }
-.palCharacter-hound .palCharacterEarLeft { transform: rotate(-28deg) skewY(-8deg); }
-.palCharacter-hound .palCharacterEarRight { transform: rotate(28deg) scaleX(-1) skewY(-8deg); }
-
-.palCharacter-fox .palCharacterEar { top: 1%; width: 31%; height: 48%; clip-path: polygon(50% 0, 100% 100%, 0 88%); }
-.palCharacter-fox .palCharacterEarLeft { left: 8%; transform: rotate(-8deg); }
-.palCharacter-fox .palCharacterEarRight { right: 8%; transform: rotate(8deg); }
-.palCharacter-fox .palCharacterHead { border-radius: 48% 52% 60% 40% / 38% 40% 60% 62%; }
-.palCharacter-fox .palCharacterMuzzle { left: 34%; width: 32%; height: 34%; border-radius: 50% 50% 70% 30%; }
-
-.palCharacter-raven .palCharacterEar,
-.palCharacter-raven .palCharacterMuzzle,
-.palCharacter-raven .palCharacterCheek { display: none; }
-.palCharacter-raven .palCharacterHead { inset: 10% 12% 7%; border-radius: 52% 48% 60% 40% / 38% 42% 58% 62%; transform: rotate(-3deg); }
-.palCharacter-raven .palCharacterBeak { position: absolute; z-index: 5; top: 51%; left: 46%; display: block; width: 42%; height: 21%; clip-path: polygon(0 0, 100% 47%, 4% 100%); background: linear-gradient(160deg, color-mix(in srgb, var(--signal) 45%, white 4%), color-mix(in srgb, var(--ink-deep) 84%, var(--signal))); }
-.palCharacter-raven .palCharacterEyeLeft { left: 19%; width: 28%; }
-.palCharacter-raven .palCharacterEyeRight { display: none; }
-.palCharacter-raven .palCharacterBrowLeft { left: 18%; width: 29%; }
-.palCharacter-raven .palCharacterBrowRight { display: none; }
+.palPortrait[data-pal-state="noticing"] .palRigHead { transform: translateY(-3px) rotate(-2deg); transform-origin: center; }
+.palPortrait[data-pal-state="listening"] .palRigProp { filter: drop-shadow(0 0 14px var(--signal)); }
+.palPortrait[data-pal-state="thinking"] .palRigPupilLeft { transform: translate(-4px, -2px); }
+.palPortrait[data-pal-state="thinking"] .palRigPupilRight { transform: translate(-4px, -2px); }
+.palPortrait[data-pal-state="sleeping"] .palRigEye { transform: scaleY(.12); }
+.palPortrait[data-pal-state="sleeping"] .palRigPupil { opacity: 0; }
+.palPortrait[data-pal-state="error"] .palPortraitScan { opacity: .85; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .palCharacterPupil { animation: palLook var(--duration-pal-gaze) var(--ease-in-out-strong) infinite; }
-  .palCharacterHead { animation: palHeadTilt var(--duration-pal-idle) var(--ease-in-out-strong) infinite; }
+  .palPortrait[data-pal-state="idle"] .palRigHead { animation: palRigIdle 4.8s var(--ease-in-out-strong) infinite; transform-origin: center; }
+  .palPortrait[data-pal-state="noticing"] .palRigBack { animation: palRigNotice 1.4s var(--ease-out-strong) infinite; transform-origin: center; }
+  .palPortrait[data-pal-state="listening"] .palPortraitOrbitB { animation: palRigListen 1.8s ease-in-out infinite; }
+  .palPortrait[data-pal-state="thinking"] .palPortraitOrbitA { animation-duration: 4.2s; }
+  .palPortrait[data-pal-state="speaking"] .palRigMouth, .palPortrait[data-pal-state="speaking"] .palRigBeak { animation: palRigSpeak .46s ease-in-out infinite alternate; }
+  .palPortrait[data-pal-state="celebrating"] .palRig { animation: palRigCelebrate .8s var(--ease-out-strong) infinite alternate; transform-origin: center bottom; }
+  .palPortrait[data-pal-state="sleeping"] .palRig { animation: palRigSleep 5s ease-in-out infinite; }
+  .palPortrait[data-pal-state="error"] .palRig { animation: palRigError .32s steps(2, end) 3; }
 }
 
 .palProgress { width: min(84rem, 100%); height: 1px; margin: .5rem auto 0; background: var(--pal-line); }
@@ -382,6 +289,13 @@
 @keyframes palSignal { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
 @keyframes palLook { 0%, 36%, 100% { transform: translateX(0); } 42%, 58% { transform: translateX(-55%); } 64%, 82% { transform: translateX(35%); } }
 @keyframes palHeadTilt { 0%, 42%, 100% { translate: 0 0; rotate: 0deg; } 48%, 64% { translate: 0 -.15rem; rotate: -1.8deg; } 72%, 86% { rotate: 1.2deg; } }
+@keyframes palRigIdle { 50% { transform: translateY(-4px) rotate(1deg); } }
+@keyframes palRigNotice { 40% { transform: rotate(-3deg); } 70% { transform: rotate(3deg); } }
+@keyframes palRigListen { 50% { opacity: 1; scale: 1.06; } }
+@keyframes palRigSpeak { to { transform: scaleY(1.6); } }
+@keyframes palRigCelebrate { to { transform: translateY(-10px) rotate(3deg) scale(1.025); } }
+@keyframes palRigSleep { 50% { transform: translateY(4px) scale(.99); } }
+@keyframes palRigError { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
 @media (prefers-reduced-motion: no-preference) {
   .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }

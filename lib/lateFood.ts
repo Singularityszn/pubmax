@@ -83,7 +83,7 @@ export type LateFoodApiResponse = LateFoodApiSuccessResponse | LateFoodApiErrorR
 
 const STATIC_PROVENANCE: LateFoodProvenance = {
   kind: "editorial",
-  source: "PubMax London Capture static curation",
+  source: "PUBMAXX London Capture static curation",
   reviewedAt: "2026-07-13",
 };
 

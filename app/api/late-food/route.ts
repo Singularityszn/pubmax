@@ -23,7 +23,7 @@ function parseTags(raw: string | null): string[] {
 
 // GET /api/late-food?near=clapham&at=late_night&tags=kebab,halal&limit=6
 //
-// Keyless curated crawl endings. These are food terminals rather than PubMax
+// Keyless curated crawl endings. These are food terminals rather than PUBMAXX
 // Venue Dataset rows, so they are never fed into pint-price route generation.
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;

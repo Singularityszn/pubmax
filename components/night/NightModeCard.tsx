@@ -436,7 +436,7 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
           <RouteEndingCard
             className="nightCard__endingCard"
             title="Last stop. What next?"
-            description="Choose the ending that fits the group. PubMax saves the choice only after you tap."
+            description="Choose the ending that fits the group. PUBMAXX saves the choice only after you tap."
             recommendedId={recommendedEnding}
             onChoose={chooseEnding}
           />
@@ -558,7 +558,7 @@ function NightEndingResult({
         <strong>Keep it feasible</strong>
         <p>
           Open the map around {currentStop.venueName} and choose something genuinely nearby.
-          PubMax will not reward extra drinking or volume.
+          PUBMAXX will not reward extra drinking or volume.
         </p>
         <Link
           className="nightCard__endingLink"

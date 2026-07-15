@@ -10,13 +10,13 @@ web
 
 ## Users
 
-Friends planning a night out in London — typically 2–6 people deciding where to go for pints tonight. They open PubMax on a phone at a kitchen table or on the pavement outside the first stop, with one shared goal: lock a crawl that feels good, cheap enough, and easy to walk.
+Friends planning a night out in London — typically 2–6 people deciding where to go for pints tonight. They open PUBMAXX on a phone at a kitchen table or on the pavement outside the first stop, with one shared goal: lock a crawl that feels good, cheap enough, and easy to walk.
 
 Primary job: turn “where shall we go?” into a concrete **Plan** of **Stops** at real **Venues**, with **Friends** invited and a **Route** they can follow.
 
 ## Product Purpose
 
-PubMax (PUBMAXXING) helps people discover pubs and plan pub crawls using pint prices, location, and venue context. Success is a group that leaves the app with a tonight plan they trust — ordered stops, prices they can see, and friends who know when to show up — not a saved wishlist of venues they never visit.
+PUBMAXX (PUBMAXXING) helps people discover pubs and plan pub crawls using pint prices, location, and venue context. Success is a group that leaves the app with a tonight plan they trust — ordered stops, prices they can see, and friends who know when to show up — not a saved wishlist of venues they never visit.
 
 ## Positioning
 

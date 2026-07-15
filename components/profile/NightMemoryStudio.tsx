@@ -6,32 +6,17 @@ import { FormEvent, useEffect, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { NightMomentKind } from "@/lib/nightMemory";
+import {
+  readMemoryStudioDraft,
+  writeMemoryStudioDraft,
+  type MemoryStudioDraft,
+} from "@/lib/socialDrafts";
 
 type Memory = { id: string; title: string; createdAt: string };
 type Moment = { id: string; kind: NightMomentKind; caption: string; venueId: string | null; createdAt: string };
 type Story = { id: string; memoryId: string; title: string; summary: string; status: "draft" | "published"; visibility: string };
 
-type StudioDraft = {
-  memoryTitle: string;
-  selectedMemoryId: string;
-  momentKind: Exclude<NightMomentKind, "photo" | "pint_drop">;
-  momentCaption: string;
-  venueId: string;
-  storyTitle: string;
-  storySummary: string;
-};
-
-const EMPTY_DRAFT: StudioDraft = {
-  memoryTitle: "",
-  selectedMemoryId: "",
-  momentKind: "side_quest",
-  momentCaption: "",
-  venueId: "",
-  storyTitle: "",
-  storySummary: "",
-};
-
-const MOMENT_LABELS: Record<StudioDraft["momentKind"], string> = {
+const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
   event: "Event",
   venue: "Place",
   quote: "Quote",
@@ -39,22 +24,8 @@ const MOMENT_LABELS: Record<StudioDraft["momentKind"], string> = {
   side_quest: "Side quest",
 };
 
-function draftKey(userId: string): string {
-  return `pubmaxx:memory-studio:v1:${userId}`;
-}
-
-function readDraft(userId: string): StudioDraft {
-  if (typeof window === "undefined") return EMPTY_DRAFT;
-  try {
-    const value = JSON.parse(sessionStorage.getItem(draftKey(userId)) ?? "null") as Partial<StudioDraft> | null;
-    return value ? { ...EMPTY_DRAFT, ...value } : EMPTY_DRAFT;
-  } catch {
-    return EMPTY_DRAFT;
-  }
-}
-
 export default function NightMemoryStudio({ userId }: { userId: string }) {
-  const [draft, setDraft] = useState<StudioDraft>(() => readDraft(userId));
+  const [draft, setDraft] = useState<MemoryStudioDraft>(() => readMemoryStudioDraft(userId));
   const [memories, setMemories] = useState<Memory[]>([]);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -89,7 +60,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   }, []);
 
   useEffect(() => {
-    try { sessionStorage.setItem(draftKey(userId), JSON.stringify(draft)); } catch { /* refresh recovery is best effort */ }
+    writeMemoryStudioDraft(userId, draft);
   }, [draft, userId]);
 
   useEffect(() => {
@@ -108,7 +79,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     return () => controller.abort();
   }, [draft.selectedMemoryId]);
 
-  function update(patch: Partial<StudioDraft>) {
+  function update(patch: Partial<MemoryStudioDraft>) {
     setDraft((current) => ({ ...current, ...patch }));
   }
 
@@ -191,7 +162,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           <span className="memoryStudioStep">2</span>
           <h4>Add a Moment</h4>
           <label><span>Memory</span><select value={draft.selectedMemoryId} onChange={(event) => update({ selectedMemoryId: event.target.value })} required><option value="">Choose a Memory</option>{memories.map((memory) => <option value={memory.id} key={memory.id}>{memory.title}</option>)}</select></label>
-          <label><span>Kind</span><select value={draft.momentKind} onChange={(event) => update({ momentKind: event.target.value as StudioDraft["momentKind"] })}>{Object.entries(MOMENT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+          <label><span>Kind</span><select value={draft.momentKind} onChange={(event) => update({ momentKind: event.target.value as MemoryStudioDraft["momentKind"] })}>{Object.entries(MOMENT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
           <label><span>What happened?</span><textarea value={draft.momentCaption} onChange={(event) => update({ momentCaption: event.target.value })} maxLength={500} rows={3} placeholder="We followed the music and found a tiny basement set." required /></label>
           <label><span>Venue reference <small>optional</small></span><input value={draft.venueId} onChange={(event) => update({ venueId: event.target.value })} maxLength={80} placeholder="Venue ID or map reference" /></label>
           <button type="submit" disabled={saving || !draft.selectedMemoryId}>Save private Moment</button>

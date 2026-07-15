@@ -32,16 +32,16 @@ for (const scenario of [
     expect((actionsBox?.x ?? -1) + (actionsBox?.width ?? 0)).toBeLessThanOrEqual(
       viewport.width,
     );
-    await expect(page.locator(".palCharacter-hound")).toBeVisible();
-    await expect(page.locator(".palCharacterHead")).toHaveCSS("animation-name", "none");
+    await expect(page.locator(".palRigHound")).toBeVisible();
+    await expect(page.locator(".palRigHead")).toHaveCSS("animation-name", "none");
     expect(await page.evaluate(() => document.body.scrollWidth)).toBe(viewport.width);
 
     await page.getByRole("checkbox", { name: /I confirm I am 18 or over/ }).check();
     await page.getByRole("button", { name: /Continue/ }).click();
     await page.getByRole("button", { name: /Raven/ }).click();
-    await expect(page.locator(".palCharacter-raven")).toBeVisible();
+    await expect(page.locator(".palRigRaven")).toBeVisible();
     await page.getByRole("button", { name: /Fox/ }).click();
-    await expect(page.locator(".palCharacter-fox")).toBeVisible();
+    await expect(page.locator(".palRigFox")).toBeVisible();
   });
 }
 
@@ -55,7 +55,7 @@ for (const viewport of [
     await page.goto("/pal");
 
     await expect(page.getByRole("heading", { name: "A little signal that becomes yours." })).toBeVisible();
-    await expect(page.locator(".palCharacter-hound")).toBeVisible();
+    await expect(page.locator(".palRigHound")).toBeVisible();
     expect(await page.evaluate(() => document.body.scrollWidth)).toBe(viewport.width);
   });
 }
