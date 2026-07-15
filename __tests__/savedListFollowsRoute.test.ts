@@ -3,7 +3,11 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
-  return { ...actual, isSupabaseConfigured: () => false };
+  return {
+    ...actual,
+    isSupabaseConfigured: () => false,
+    requiresSupabaseStore: () => false,
+  };
 });
 
 import { GET, POST } from "@/app/api/saved-pubs/list-follows/route";
