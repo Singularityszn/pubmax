@@ -4,6 +4,7 @@ import type { GenericMutationCtx } from "convex/server";
 import type { DataModel } from "./model";
 import { internalMutation } from "./model";
 import { migrationEntity, migrationStatus, shadowResult } from "./validators";
+import { canTransitionMigration } from "../lib/convex/migrationTransitions";
 
 export const beginBatch = internalMutation({
   args: {
@@ -43,6 +44,9 @@ export const updateBatch = internalMutation({
   handler: async (ctx, args) => {
     const batch = await ctx.db.get(args.batchId);
     if (!batch) throw new Error("Migration batch not found");
+    if (!canTransitionMigration(batch.status, args.status)) {
+      throw new Error(`Invalid migration transition: ${batch.status} -> ${args.status}`);
+    }
     if (
       args.importedCount < batch.importedCount ||
       args.matchedCount < batch.matchedCount ||

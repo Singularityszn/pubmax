@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { isDeployedProduction } from "@/lib/deploymentEnv";
 
 // Server-only Supabase admin client. Returns null when env is absent so every
 // caller degrades to the in-memory store / static cache instead of crashing.
@@ -36,12 +37,7 @@ export function requiresSupabaseStore(): boolean {
   // PUBMAX_E2E_KEYLESS=1 so local/mobile QA can exercise real write paths
   // against the in-memory stores. Deployed production must never set this.
   if (process.env.PUBMAX_E2E_KEYLESS === "1") return false;
-  // Mirror lib/serverEnv.isDeployedProduction: Preview on Vercel has
-  // NODE_ENV=production but must keep the memory fallback when secrets are absent.
-  const vercelEnv = process.env.VERCEL_ENV;
-  if (vercelEnv === "production") return true;
-  if (vercelEnv === "preview" || vercelEnv === "development") return false;
-  return process.env.NODE_ENV === "production";
+  return isDeployedProduction();
 }
 
 export const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET ?? "pint-drops";

@@ -11,6 +11,7 @@ import {
   LockKeyhole,
   Mic,
   ShieldCheck,
+  Trash2,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import SignInButton from "@/components/auth/SignInButton";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   DEFAULT_PAL_DRAFT,
+  PAL_UNLOCKS,
   PAL_SPECIES,
   PAL_VOICES,
   SIGNAL_FAMILIES,
@@ -26,8 +28,10 @@ import {
   type PubPalAppearance,
   type PubPalDraft,
   type PubPalPersonality,
+  type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import PubPalVoice from "@/components/pubpal/PubPalVoice";
 
 const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
@@ -79,7 +83,7 @@ type PrivacyState = {
 };
 
 const DEFAULT_PRIVACY: PrivacyState = {
-  proposeMemories: true,
+  proposeMemories: false,
   visible: true,
   muted: false,
 };
@@ -169,6 +173,7 @@ export default function PalExperience() {
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [memories, setMemories] = useState<PubPalMemory[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -192,6 +197,26 @@ export default function PalExperience() {
           });
           setPrivacy((current) => ({ ...current, visible: !next.hidden, muted: next.muted }));
           setMode("home");
+          const storedPrivacy = localStorage.getItem(`${PRIVACY_KEY}:${user.id}`);
+          if (storedPrivacy) {
+            try {
+              const parsed = JSON.parse(storedPrivacy) as { proposeMemories?: unknown };
+              setPrivacy((current) => ({
+                ...current,
+                proposeMemories: parsed.proposeMemories === true,
+                visible: !next.hidden,
+                muted: next.muted,
+              }));
+            } catch {
+              // Invalid local consent fails closed: proposals remain disabled.
+            }
+          }
+          void authedFetch("/api/pub-pal/memories")
+            .then(async (memoryResponse) => {
+              const memoryBody = await memoryResponse.json().catch(() => ({})) as { memories?: PubPalMemory[] };
+              if (memoryResponse.ok) setMemories(memoryBody.memories ?? []);
+            })
+            .catch(() => {});
         }
         setReady(true);
       })
@@ -280,6 +305,20 @@ export default function PalExperience() {
     }
   };
 
+  const removePal = async () => {
+    if (!pal || !window.confirm(`Delete ${pal.name} and every confirmed memory?`)) return;
+    const response = await authedFetch("/api/pub-pal", { method: "DELETE" });
+    if (!response.ok) return;
+    localStorage.removeItem(STORAGE_KEY);
+    if (user) localStorage.removeItem(`${PRIVACY_KEY}:${user.id}`);
+    setMemories([]);
+    setPal(null);
+    setDraft(DEFAULT_PAL_DRAFT);
+    setPrivacy(DEFAULT_PRIVACY);
+    setStep(0);
+    setMode("meeting");
+  };
+
   if (loading || !ready) {
     return <main className="palExperience"><div className="palLoading" role="status">Waking your Pub Pal</div></main>;
   }
@@ -301,6 +340,7 @@ export default function PalExperience() {
             <h1 id="pal-home-title">{pal.name}</h1>
             <p>A {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
             <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
+            <PubPalVoice />
           </div>
         </section>
         <section className="palControls" aria-labelledby="pal-controls-title">
@@ -322,6 +362,18 @@ export default function PalExperience() {
               <ShieldCheck />
               <span><strong>Memory by approval</strong><small>No conversation is saved as memory automatically</small></span>
             </div>
+            <div className="palControlReadOnly">
+              <ShieldCheck />
+              <span><strong>{memories.length} approved {memories.length === 1 ? "memory" : "memories"}</strong><small>{memories.length ? "Inspect and remove them from your memory controls" : "Nothing has been saved"}</small></span>
+            </div>
+            <div className="palUnlockSummary" aria-label="Pub Pal progression">
+              <strong>{pal.masteryPoints} mastery points</strong>
+              <ul>{PAL_UNLOCKS.map((unlock) => <li key={unlock.id} className={pal.masteryPoints >= unlock.pointsRequired ? "isUnlocked" : ""}>{unlock.label}<span>{unlock.pointsRequired}</span></li>)}</ul>
+            </div>
+            <button className="palDanger" type="button" onClick={() => void removePal()}>
+              <Trash2 />
+              <span><strong>Delete {pal.name}</strong><small>Deletes the Pal and every confirmed memory</small></span>
+            </button>
           </div>
         </section>
       </main>

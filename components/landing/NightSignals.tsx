@@ -151,7 +151,7 @@ export function NightSignalStage({ signal }: { signal: NightSignal }) {
   const labelId = `night-signal-tab-${signal.id}`;
   const assetLabel =
     signal.asset.status === "authored-pilot"
-      ? "Authored Beer visual pilot"
+      ? "Static Beer look-development pilot"
       : "Character look-development fallback";
 
   return (
@@ -298,7 +298,7 @@ export default function NightSignals() {
             <dt>Production state</dt>
             <dd>
               {signal.asset.status === "authored-pilot"
-                ? "Interactive visual pilot"
+                ? "Static look-development pilot"
                 : "Authored look development"}
             </dd>
           </div>

@@ -219,6 +219,19 @@
 .palControlGrid svg { color: #aaa6ff; }
 .palControlGrid span { display: grid; gap: .2rem; }
 .palControlGrid small { color: var(--pal-soft); }
+.palDanger { border-color: rgba(255, 116, 136, .45) !important; color: #ffb1bc !important; }
+.palUnlockSummary { padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: rgba(222, 220, 255, .04); }
+.palUnlockSummary ul { margin: .8rem 0 0; padding: 0; display: grid; gap: .45rem; list-style: none; }
+.palUnlockSummary li { display: flex; justify-content: space-between; color: var(--pal-soft); font-size: .78rem; opacity: .55; }
+.palUnlockSummary li.isUnlocked { color: var(--pal-paper); opacity: 1; }
+.palVoice { margin-top: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: rgba(222, 220, 255, .04); }
+.palVoiceStatus, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: .76rem; line-height: 1.45; }
+.palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
+.palVoiceActions > button, .palVoiceActions label { min-height: 2.9rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; gap: .5rem; background: rgba(222, 220, 255, .04); color: var(--pal-paper); }
+.palVoiceActions > button { padding: 0 .85rem; cursor: pointer; }
+.palVoiceActions label { padding-left: .85rem; }
+.palVoiceActions input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: inherit; }
+.palVoiceActions label button { width: 2.8rem; align-self: stretch; border: 0; display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer; }
 
 .palLoading { width: min(84rem, 100%); min-height: 70dvh; margin: 0 auto; display: grid; place-items: center; color: var(--pal-soft); }
 
