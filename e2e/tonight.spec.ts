@@ -72,3 +72,104 @@ test("filtering by kind narrows the list and rows tap into a venue", async ({
     expect(href).toMatch(/^\/map\?sel=/);
   }
 });
+
+test("location is opt-in, removable, and only used for local walk times", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "__tonightLocationRequests", {
+      value: 0,
+      writable: true,
+    });
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(success: PositionCallback) {
+          const testWindow = window as Window & { __tonightLocationRequests: number };
+          testWindow.__tonightLocationRequests += 1;
+          success({
+            coords: {
+              latitude: 51.5074,
+              longitude: -0.1278,
+              accuracy: 20,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null,
+            },
+            timestamp: Date.now(),
+          } as GeolocationPosition);
+        },
+      },
+    });
+  });
+  await page.route("**/api/whats-on?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: "2026-07-15T18:00:00.000Z",
+        rows: [
+          {
+            id: "quiz-1",
+            venueId: "venue-xjf3n0",
+            placeName: "The Test Arms",
+            kind: "quiz",
+            startsAt: "2026-07-15T20:00:00.000Z",
+            title: "Quiz night",
+            source: { label: "Pub listing", url: "https://example.com/quiz" },
+            observedAt: "2026-07-15T18:00:00.000Z",
+            confidence: "listed",
+            lat: 51.51,
+            lng: -0.13,
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.goto("/tonight");
+  await expect(page.getByTestId("tonight-list")).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      (window as Window & { __tonightLocationRequests: number })
+        .__tonightLocationRequests,
+    ),
+  ).toBe(0);
+  await expect(page.getByTestId("tonight-row")).not.toContainText("min walk");
+
+  await page
+    .getByRole("button", { name: "Share location for walk times" })
+    .click();
+  expect(
+    await page.evaluate(() =>
+      (window as Window & { __tonightLocationRequests: number })
+        .__tonightLocationRequests,
+    ),
+  ).toBe(1);
+  await expect(page.getByTestId("tonight-row")).toContainText("min walk");
+
+  await page.getByRole("button", { name: "Remove location" }).click();
+  await expect(page.getByTestId("tonight-row")).not.toContainText("min walk");
+});
+
+test("a failed listings request can be retried", async ({ page }) => {
+  let requests = 0;
+  await page.route("**/api/whats-on?**", async (route) => {
+    requests += 1;
+    if (requests === 1) {
+      await route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ rows: [], asOf: "2026-07-15T18:00:00.000Z" }),
+    });
+  });
+
+  await page.goto("/tonight");
+  await page.getByRole("button", { name: "Retry listings" }).click();
+  await expect(page.getByText(/Nothing confirmed in London tonight yet/)).toBeVisible();
+  expect(requests).toBe(2);
+});

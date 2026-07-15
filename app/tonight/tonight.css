@@ -75,6 +75,69 @@
   color: var(--ink-soft);
 }
 
+.tonightLocation {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-raised);
+}
+
+.tonightLocationCopy,
+.tonightStatus p {
+  margin: 0;
+}
+
+.tonightLocationCopy {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.tonightLocationButton,
+.tonightRetry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  width: fit-content;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 42%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.tonightLocationButton:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.tonightLocationButton:focus-visible,
+.tonightRetry:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.tonightSrOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .tonightStatus {
   margin: 20px 0;
   font-size: 0.88rem;
@@ -84,6 +147,18 @@
 
 .tonightStatusError {
   color: color-mix(in srgb, var(--ink) 70%, crimson 30%);
+}
+
+.tonightRetry {
+  margin-top: 10px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tonightLocationButton:hover:not(:disabled),
+  .tonightRetry:hover {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  }
 }
 
 .tonightInlineReset {

@@ -9,14 +9,17 @@
 // React 19 safe: settle() defers setState out of the effect body.
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   CalendarClock,
   ExternalLink,
   Footprints,
+  LocateFixed,
   MapPin,
+  RefreshCw,
   Tv,
+  X,
 } from "lucide-react";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -37,6 +40,7 @@ import {
 import "./tonight.css";
 
 type Origin = { lat: number; lng: number };
+type LocationStatus = "idle" | "requesting" | "unavailable";
 
 function rowHref(row: WhatsOnRow): { href: string; external: boolean } | null {
   if (typeof row.venueId === "string" && row.venueId.length > 0) {
@@ -54,33 +58,35 @@ function coverageLabel(count: number): string {
 }
 
 export default function TonightClient() {
-  const { rows, asOf, status } = useWhatsOnTonight(true);
+  const { rows, asOf, status, retry } = useWhatsOnTonight(true);
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
 
   useEffect(() => {
     trackEvent("tonight_screen_view");
   }, []);
 
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
-    let cancelled = false;
+  const requestLocation = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationStatus("unavailable");
+      return;
+    }
+    setLocationStatus("requesting");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        if (cancelled) return;
         const { latitude, longitude } = pos.coords;
-        void Promise.resolve().then(() => {
-          if (!cancelled) setOrigin({ lat: latitude, lng: longitude });
-        });
+        setOrigin({ lat: latitude, lng: longitude });
+        setLocationStatus("idle");
       },
-      () => {
-        /* denied / unavailable — walk time stays hidden */
-      },
+      () => setLocationStatus("unavailable"),
       { enableHighAccuracy: false, maximumAge: 300_000, timeout: 8_000 },
     );
-    return () => {
-      cancelled = true;
-    };
+  }, []);
+
+  const clearLocation = useCallback(() => {
+    setOrigin(null);
+    setLocationStatus("idle");
   }, []);
 
   const facets = useMemo(() => laneKindFacets(rows), [rows]);
@@ -115,6 +121,47 @@ export default function TonightClient() {
             {checkedLabel(asOf)} · via what&rsquo;s-on
           </p>
         ) : null}
+        {ready && rows.some((row) => typeof row.lat === "number" && typeof row.lng === "number") ? (
+          <div className="tonightLocation">
+            <p className="tonightLocationCopy">
+              Walk times are optional. Your location stays on this page and is not
+              sent or saved.
+            </p>
+            {origin ? (
+              <button
+                type="button"
+                className="tonightLocationButton"
+                onClick={clearLocation}
+              >
+                <X size={15} aria-hidden="true" />
+                Remove location
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="tonightLocationButton"
+                onClick={requestLocation}
+                disabled={locationStatus === "requesting"}
+              >
+                <LocateFixed size={15} aria-hidden="true" />
+                {locationStatus === "requesting"
+                  ? "Finding your location…"
+                  : locationStatus === "unavailable"
+                    ? "Try location again"
+                    : "Share location for walk times"}
+              </button>
+            )}
+            <span className="tonightSrOnly" role="status" aria-live="polite">
+              {locationStatus === "requesting"
+                ? "Finding your location."
+                : locationStatus === "unavailable"
+                  ? "Location unavailable. You can try again."
+                  : origin
+                    ? "Walk times are now shown."
+                    : ""}
+            </span>
+          </div>
+        ) : null}
       </header>
 
       {loading ? (
@@ -124,10 +171,13 @@ export default function TonightClient() {
       ) : null}
 
       {errored ? (
-        <p className="tonightStatus tonightStatusError" role="status">
-          Couldn&rsquo;t reach tonight&rsquo;s listings just now. Try again
-          shortly.
-        </p>
+        <div className="tonightStatus tonightStatusError">
+          <p role="status">Couldn&rsquo;t reach tonight&rsquo;s listings just now.</p>
+          <button type="button" className="tonightRetry" onClick={retry}>
+            <RefreshCw size={15} aria-hidden="true" />
+            Retry listings
+          </button>
+        </div>
       ) : null}
 
       {empty ? (
