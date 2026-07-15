@@ -1,19 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowRight } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { ArrowRight, Check } from "lucide-react";
+
 import type { SignalFamily } from "@/lib/pubPal";
+
 import "./nightSignals.css";
 
 export type NightSignalAssetStatus = "authored-pilot" | "lookdev-fallback";
 
-/**
- * The delivery seam for the final Blender/Houdini character pipeline.
- * Only the active manifest is mounted. Missing production files deliberately
- * resolve to the authored SVG poster rather than a blank WebGL viewport.
- */
+/** Dormant delivery seam for future character work. It is not rendered. */
 export type NightSignalAssetManifest = {
   revision: string;
   status: NightSignalAssetStatus;
@@ -27,23 +24,19 @@ export type NightSignalAssetManifest = {
 export type NightSignal = {
   id: string;
   family: SignalFamily;
-  name: string;
+  label: string;
   mood: string;
-  material: string;
+  description: string;
   accent: string;
+  mapHref: string;
   accessibleDescription: string;
   asset: NightSignalAssetManifest;
 };
 
-const asset = (
-  id: string,
-  status: NightSignalAssetStatus = "lookdev-fallback",
-): NightSignalAssetManifest => ({
-  revision: status === "authored-pilot" ? "beer-pilot-01" : "lookdev-01",
-  status,
+const asset = (id: string): NightSignalAssetManifest => ({
+  revision: "paused-lookdev-01",
+  status: "lookdev-fallback",
   posterSrc: `/night-signals/${id}.svg`,
-  // Populated by the production export pipeline. Null is meaningful: the UI
-  // shows an authored poster and does not imply a final real-time asset exists.
   modelSrc: null,
   loopWebmSrc: null,
   loopMp4Src: null,
@@ -54,188 +47,70 @@ export const NIGHT_SIGNALS: NightSignal[] = [
   {
     id: "beer-runner",
     family: "beer",
-    name: "Mara / Runner 01",
-    mood: "Carbonated momentum",
-    material: "Amber volume / rising microbubbles",
-    accent: "#f6ad3c",
-    accessibleDescription:
-      "A fictional adult synthetic face dissolves at the neck while a translucent hand raises an amber pint. Fine carbonation travels through the face like warm data.",
-    asset: asset("beer-runner", "authored-pilot"),
+    label: "Beer",
+    mood: "Easy first round",
+    description: "Good-value pints, familiar pubs and enough energy to keep the night moving.",
+    accent: "#dca43d",
+    mapHref: "/map?drink=beer&style=balanced",
+    accessibleDescription: "Choose a relaxed beer-led night.",
+    asset: asset("beer-runner"),
   },
   {
     id: "gin-oracle",
     family: "gin",
-    name: "Iona / Oracle 02",
-    mood: "Botanical refraction",
-    material: "Crystal planes / suspended botanicals",
-    accent: "#9effdc",
-    accessibleDescription:
-      "A fictional adult crystalline face and partial hand hold a stemmed gin glass, with translucent botanical fragments suspended through the portrait.",
+    label: "Gin",
+    mood: "A sharper evening",
+    description: "Smaller rooms, good conversation and places that feel considered without feeling formal.",
+    accent: "#86b9a8",
+    mapHref: "/map?drink=gin&style=dateNight",
+    accessibleDescription: "Choose a considered gin-led night.",
     asset: asset("gin-oracle"),
   },
   {
     id: "rum-navigator",
     family: "rum",
-    name: "Sol / Navigator 03",
-    mood: "Copper after-hours",
-    material: "Copper volume / slow smoke ribbons",
-    accent: "#e0714a",
-    accessibleDescription:
-      "A fictional adult holographic face appears from copper ribbons while a partial hand carries a low rum glass toward the mouth.",
+    label: "Rum",
+    mood: "Something less obvious",
+    description: "Louder flavour, later rooms and a route that is willing to leave the predictable streets.",
+    accent: "#c97852",
+    mapHref: "/map?drink=rum&style=hiddenGems",
+    accessibleDescription: "Choose an adventurous rum-led night.",
     asset: asset("rum-navigator"),
   },
   {
     id: "whisky-archivist",
     family: "whisky",
-    name: "Ren / Archivist 04",
-    mood: "Faceted midnight",
-    material: "Dark glass / restrained warm caustics",
-    accent: "#e5a552",
-    accessibleDescription:
-      "A fictional adult faceted synthetic face studies a whisky tumbler, with warm light moving through dark translucent planes.",
+    label: "Whisky",
+    mood: "Old rooms, long stories",
+    description: "Heritage pubs, quieter corners and the sort of night where one place can hold your attention.",
+    accent: "#b9854e",
+    mapHref: "/map?drink=whisky&style=heritage",
+    accessibleDescription: "Choose a heritage whisky-led night.",
     asset: asset("whisky-archivist"),
   },
   {
     id: "brandy-diplomat",
     family: "brandy",
-    name: "Vela / Diplomat 05",
-    mood: "Polished ceremony",
-    material: "Rose contour / liquid lensing",
-    accent: "#f07a70",
-    accessibleDescription:
-      "A fictional adult polished translucent face raises a rounded brandy glass, with the wrist and neck fading into fine contour lines.",
+    label: "Brandy",
+    mood: "Slow the pace",
+    description: "Comfortable seats, warmer rooms and fewer stops chosen for staying rather than rushing.",
+    accent: "#b56f5f",
+    mapHref: "/map?style=dateNight",
+    accessibleDescription: "Choose a slower brandy-inspired night without changing map drink filters.",
     asset: asset("brandy-diplomat"),
   },
   {
     id: "vodka-signal",
     family: "vodka",
-    name: "Nix / Signal 06",
-    mood: "Ice-frequency clarity",
-    material: "Ice geometry / controlled interference",
-    accent: "#c5ccff",
-    accessibleDescription:
-      "A fictional adult colourless digital face and partial hand emerge around a chilled vodka glass, interrupted by precise ice-like signal fragments.",
+    label: "Vodka",
+    mood: "Clean, late, direct",
+    description: "A simple route into the busier part of the night, with transport home kept visible.",
+    accent: "#8992ad",
+    mapHref: "/map?style=balanced",
+    accessibleDescription: "Choose a direct vodka-inspired night without changing map drink filters.",
     asset: asset("vodka-signal"),
   },
 ];
-
-function useReducedMotion() {
-  const [reduced, setReduced] = useState(true);
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-
-  return reduced;
-}
-
-export function NightSignalStage({ signal }: { signal: NightSignal }) {
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [posterLoaded, setPosterLoaded] = useState(false);
-  const [posterFailed, setPosterFailed] = useState(false);
-  const reducedMotion = useReducedMotion();
-  const hasLoop = Boolean(signal.asset.loopWebmSrc || signal.asset.loopMp4Src);
-  const showLoop = hasLoop && !reducedMotion;
-  const captureCachedPoster = useCallback((node: HTMLImageElement | null) => {
-    // An SVG can finish before React hydrates and attaches `onLoad`. The ref
-    // callback closes that cache-hit gap without introducing an effect render.
-    if (node?.complete && node.naturalWidth > 0) {
-      queueMicrotask(() => setPosterLoaded(true));
-    }
-  }, []);
-
-  const labelId = `night-signal-tab-${signal.id}`;
-  const assetLabel =
-    signal.asset.status === "authored-pilot"
-      ? "Static Beer look-development pilot"
-      : "Character look-development fallback";
-
-  return (
-    <div
-      ref={stageRef}
-      id="night-signal-stage"
-      className="nightSignalStage"
-      role="tabpanel"
-      aria-labelledby={labelId}
-      aria-label={signal.accessibleDescription}
-      data-asset-status={signal.asset.status}
-      data-poster-state={posterFailed ? "failed" : posterLoaded ? "ready" : "loading"}
-      style={{ "--signal-accent": signal.accent } as CSSProperties}
-      onPointerMove={(event) => {
-        if (event.pointerType !== "mouse" || !stageRef.current) return;
-        const bounds = stageRef.current.getBoundingClientRect();
-        const x = (event.clientX - bounds.left) / bounds.width - 0.5;
-        const y = (event.clientY - bounds.top) / bounds.height - 0.5;
-        stageRef.current.style.setProperty("--signal-x", `${x * 10}px`);
-        stageRef.current.style.setProperty("--signal-y", `${y * 7}px`);
-      }}
-      onPointerLeave={() => {
-        stageRef.current?.style.setProperty("--signal-x", "0px");
-        stageRef.current?.style.setProperty("--signal-y", "0px");
-      }}
-    >
-      <div className="nightSignalStageHardware" aria-hidden="true">
-        <span>PX-SIGNAL / {signal.asset.revision}</span>
-        <span>{signal.asset.alphaMode}</span>
-      </div>
-
-      {/* This silhouette exists synchronously, before an image request can
-          finish. Slow networks and broken assets therefore never produce an
-          empty black viewport. */}
-      <div className="nightSignalInstantFallback" aria-hidden="true">
-        <span className="instantHalo" />
-        <span className="instantFace" />
-        <span className="instantGlass" />
-      </div>
-
-      {showLoop ? (
-        <video
-          key={signal.id}
-          className="nightSignalMedia"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster={signal.asset.posterSrc}
-          aria-hidden="true"
-        >
-          {signal.asset.loopWebmSrc ? (
-            <source src={signal.asset.loopWebmSrc} type="video/webm" />
-          ) : null}
-          {signal.asset.loopMp4Src ? (
-            <source src={signal.asset.loopMp4Src} type="video/mp4" />
-          ) : null}
-        </video>
-      ) : (
-        <Image
-          ref={captureCachedPoster}
-          key={signal.id}
-          className="nightSignalMedia"
-          src={signal.asset.posterSrc}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          width={800}
-          height={940}
-          unoptimized
-          onLoad={() => setPosterLoaded(true)}
-          onError={() => setPosterFailed(true)}
-        />
-      )}
-
-      <div className="nightSignalStageReadout" aria-hidden="true">
-        <span className="stagePulse" />
-        <span>{assetLabel}</span>
-        <strong>{signal.family.toUpperCase()}</strong>
-      </div>
-    </div>
-  );
-}
 
 export default function NightSignals() {
   const [active, setActive] = useState(0);
@@ -247,7 +122,7 @@ export default function NightSignals() {
       const savedIndex = NIGHT_SIGNALS.findIndex((item) => item.family === saved);
       if (savedIndex >= 0) queueMicrotask(() => setActive(savedIndex));
     } catch {
-      // Local storage is optional; selection remains fully usable without it.
+      // Selection is fully usable when storage is unavailable.
     }
   }, []);
 
@@ -257,100 +132,82 @@ export default function NightSignals() {
     try {
       localStorage.setItem("pubmax_signal_affinity", pending);
     } catch {
-      // The visual choice still succeeds when preference persistence is denied.
+      // Saving is optional; the selected map route remains available.
     }
     setPending(null);
   };
 
   return (
     <section
-      className={`nightSignals signalWorld-${signal.family}`}
+      className="nightSignals"
       id="signals"
       aria-labelledby="signals-title"
       style={{ "--signal-accent": signal.accent } as CSSProperties}
     >
-      <div className="nightSignalsAtmosphere" aria-hidden="true" />
+      <header className="nightSignalsIntro">
+        <p className="nsKicker">Start with tonight</p>
+        <h2 id="signals-title">What are you in the mood for?</h2>
+        <p>Choose a direction, not a personality test. PubMax will keep the route grounded in real places, prices and journeys home.</p>
+      </header>
 
-      <div className="nightSignalsCopy">
-        <p className="nsKicker">
-          <span>Night Signal</span>
-          <span>0{active + 1} / 06</span>
-        </p>
-        <h2 id="signals-title">
-          Meet the future<br />
-          <em>you go out with.</em>
-        </h2>
-        <p className="nightSignalIdentity">
-          <strong>{signal.name}</strong>
-          <span>{signal.mood}</span>
-        </p>
-        <p className="nightSignalIntroduction">
-          Six fictional people. Six nightlife frequencies. Choose the atmosphere
-          that feels like tonight—then let your map stay grounded in real places,
-          prices and journeys.
-        </p>
-        <dl>
-          <div>
-            <dt>Material study</dt>
-            <dd>{signal.material}</dd>
-          </div>
-          <div>
-            <dt>Production state</dt>
-            <dd>
-              {signal.asset.status === "authored-pilot"
-                ? "Static look-development pilot"
-                : "Authored look development"}
-            </dd>
-          </div>
-        </dl>
-        <Link href="/pal" className="nightSignalPalLink">
-          <span>Meet your Pub Pal</span>
-          <i aria-hidden="true">
-            <ArrowRight size={16} strokeWidth={1.5} />
-          </i>
-        </Link>
-      </div>
-
-      <NightSignalStage key={signal.id} signal={signal} />
-
-      <div className="nightSignalRailWrap">
-        <p>Choose a frequency</p>
-        <div className="nightSignalRail" role="tablist" aria-label="Night Signal characters">
+      <div className="nightSignalChooser">
+        <div className="nightSignalOptions" role="tablist" aria-label="Choose the mood for tonight">
           {NIGHT_SIGNALS.map((item, index) => (
             <button
               id={`night-signal-tab-${item.id}`}
+              key={item.id}
               type="button"
               role="tab"
-              aria-controls="night-signal-stage"
+              aria-controls="night-signal-summary"
               aria-selected={active === index}
-              tabIndex={active === index ? 0 : -1}
               className={active === index ? "isActive" : ""}
-              key={item.id}
               onClick={() => {
                 setActive(index);
                 setPending(item.family);
               }}
             >
-              <span>0{index + 1}</span>
-              <strong>{item.family}</strong>
-              <small>{item.mood}</small>
+              <span className="nightSignalIndex">0{index + 1}</span>
+              <span className="nightSignalOptionCopy">
+                <strong>{item.label}</strong>
+                <small>{item.mood}</small>
+              </span>
+              <span className="nightSignalCheck" aria-hidden="true">
+                {active === index ? <Check size={15} /> : null}
+              </span>
             </button>
           ))}
         </div>
+
+        <article
+          className="nightSignalSummary"
+          id="night-signal-summary"
+          role="tabpanel"
+          aria-labelledby={`night-signal-tab-${signal.id}`}
+        >
+          <p>Tonight’s direction</p>
+          <div className="nightSignalSummaryHeading">
+            <span aria-hidden="true" />
+            <h3>{signal.mood}</h3>
+          </div>
+          <p className="nightSignalSummaryText">{signal.description}</p>
+          <div className="nightSignalSummaryActions">
+            <Link className="nightSignalPrimary" href={signal.mapHref}>
+              Open this map <ArrowRight size={17} />
+            </Link>
+            <Link className="nightSignalSecondary" href="/pal">Set up a Pub Pal</Link>
+          </div>
+          <small>Choosing Brandy or Vodka changes this page’s mood only. It does not create a hidden map filter.</small>
+        </article>
       </div>
 
       {pending ? (
         <div className="signalConfirm" role="dialog" aria-label="Save drink preference">
           <div>
-            <span>Optional preference</span>
-            <p>Use {pending} when PubMax suggests drinks?</p>
+            <span>Optional</span>
+            <p>Remember {pending} as a drink preference?</p>
           </div>
-          <button type="button" onClick={() => setPending(null)}>
-            Visual only
-          </button>
-          <button type="button" onClick={confirm}>
-            Save preference
-          </button>
+          <button type="button" onClick={() => setPending(null)}>Not now</button>
+          <button type="button" onClick={confirm}>Remember it</button>
         </div>
       ) : null}
     </section>

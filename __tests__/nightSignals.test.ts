@@ -2,21 +2,18 @@ import { describe, expect, it } from "vitest";
 import { NIGHT_SIGNALS } from "@/components/landing/NightSignals";
 
 describe("Night Signals", () => {
-  it("defines six fictional accessible adult character worlds", () => {
+  it("defines six accessible nightlife directions without rendering characters", () => {
     expect(NIGHT_SIGNALS).toHaveLength(6);
     expect(new Set(NIGHT_SIGNALS.map(signal => signal.family)).size).toBe(6);
     for (const signal of NIGHT_SIGNALS) {
-      expect(signal.accessibleDescription).toMatch(/adult/);
-      expect(signal.accessibleDescription).toMatch(/synthetic|fictional|holographic|digital|faceted|translucent/);
+      expect(signal.accessibleDescription.length).toBeGreaterThan(20);
+      expect(signal.description.length).toBeGreaterThan(40);
     }
   });
 
-  it("uses an explicit poster-first asset contract without claiming missing production assets", () => {
-    expect(NIGHT_SIGNALS.filter((signal) => signal.asset.status === "authored-pilot").map((signal) => signal.id)).toEqual([
-      "beer-runner",
-    ]);
-
+  it("keeps the paused asset contract dormant and honest", () => {
     for (const signal of NIGHT_SIGNALS) {
+      expect(signal.asset.status).toBe("lookdev-fallback");
       expect(signal.asset.posterSrc).toBe(`/night-signals/${signal.id}.svg`);
       expect(signal.asset.modelSrc).toBeNull();
       expect(signal.asset.loopWebmSrc).toBeNull();
@@ -25,9 +22,11 @@ describe("Night Signals", () => {
     }
   });
 
-  it("keeps every character selector distinct and named", () => {
+  it("keeps selectors distinct and avoids unsupported Brandy or Vodka filters", () => {
     expect(new Set(NIGHT_SIGNALS.map((signal) => signal.id)).size).toBe(6);
-    expect(NIGHT_SIGNALS.every((signal) => signal.name.includes("/"))).toBe(true);
+    expect(NIGHT_SIGNALS.every((signal) => signal.label.length > 0)).toBe(true);
     expect(NIGHT_SIGNALS.every((signal) => signal.accent.startsWith("#"))).toBe(true);
+    expect(NIGHT_SIGNALS.find((signal) => signal.family === "brandy")?.mapHref).not.toContain("drink=");
+    expect(NIGHT_SIGNALS.find((signal) => signal.family === "vodka")?.mapHref).not.toContain("drink=");
   });
 });
