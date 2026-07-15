@@ -6,7 +6,7 @@ import type { PlanState } from "@/lib/plan";
 function fixtureState(crewCount: number): PlanState {
   const now = "2026-07-10T18:00:00.000Z";
   return {
-    plan: { id: "11111111-1111-4111-8111-111111111111", title: "Test Plan", startTime: now, createdAt: now },
+    plan: { id: "11111111-1111-4111-8111-111111111111", title: "Test Plan", startTime: now, createdAt: now, routeRevision: 1 },
     stops: [
       { venueId: "venue-b", venueName: "The Second", position: 1 },
       { venueId: "venue-a", venueName: "The First", position: 0 },

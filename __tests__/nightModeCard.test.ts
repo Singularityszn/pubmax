@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { confirmedEndingForPlan, recommendedEndingForPlan } from "@/components/night/NightModeCard";
+import {
+  completePlanPayload,
+  confirmedEndingForPlan,
+  recommendedEndingForPlan,
+  routeRevisionFromPlan,
+} from "@/components/night/NightModeCard";
 import type { PlanState } from "@/lib/plan";
 
 function plan(overrides: Partial<NonNullable<PlanState["context"]>> = {}): PlanState {
@@ -10,6 +15,7 @@ function plan(overrides: Partial<NonNullable<PlanState["context"]>> = {}): PlanS
       title: "Tonight",
       startTime: "2026-07-13T19:00:00.000Z",
       createdAt: "2026-07-13T12:00:00.000Z",
+      routeRevision: 1,
       status: "active",
     },
     stops: [],
@@ -54,7 +60,19 @@ describe("confirmedEndingForPlan", () => {
     expect(confirmedEndingForPlan({ ...plan(), ending: "get_home" }, "food")).toBe("get_home");
   });
 
-  it("allows the success-only local fallback while refreshed plan state catches up", () => {
-    expect(confirmedEndingForPlan(plan(), "food")).toBe("food");
+  it("does not render a local ending before the canonical completion response", () => {
+    expect(confirmedEndingForPlan(plan(), "food")).toBeNull();
+  });
+});
+
+describe("canonical route revision completion", () => {
+  it("reads the active revision and sends the current canonical pub as terminal", () => {
+    const current = { ...plan(), routeRevision: 7 } as PlanState & { routeRevision: number };
+    expect(routeRevisionFromPlan(current)).toBe(7);
+    expect(completePlanPayload("food", "canonical-current-pub", 7)).toEqual({
+      ending: "food",
+      terminalVenueId: "canonical-current-pub",
+      expectedRouteRevision: 7,
+    });
   });
 });

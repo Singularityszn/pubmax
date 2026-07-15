@@ -127,7 +127,10 @@ export async function createNightMemory(
   const input = raw as Record<string, unknown>;
   const title = cleanText(input.title, 120);
   const planCompletionId = cleanText(input.planCompletionId, 80) || null;
-  if (!title) return null;
+  // Plans are capability-based and do not carry an authenticated owner yet.
+  // Accepting a client-supplied completion id would let any signed-in account
+  // attach somebody else's private Night Memory to a guessed/shared Plan.
+  if (!title || planCompletionId) return null;
   const timestamp = now();
   const memory: NightMemory = {
     id: randomUUID(),

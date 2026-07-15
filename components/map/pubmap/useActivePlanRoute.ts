@@ -34,35 +34,40 @@ export function useActivePlanRoute(): PlanStopDTO[] {
 
   useEffect(() => {
     let active = true;
-    // The plan whose stops are currently loaded, so a window re-tick or an
-    // unrelated active-plan event (stopIndex bump, focus) doesn't refetch the
-    // same plan. Cleared when no plan is live so a plan that re-enters its
-    // window later refetches cleanly.
-    let loadedId = "";
-    const controller = new AbortController();
+    // Keep the overlay tied to the canonical plan read. A creator can save a
+    // new route revision in another tab, so same-plan focus/timer events must
+    // be allowed to refresh stops rather than being short-circuited by id.
+    let requestController: AbortController | null = null;
+    let loadedPlanId = "";
 
     const load = () => {
       const ref = readActivePlan();
       if (!ref || !isPlanActiveNow(ref, Date.now())) {
-        loadedId = "";
+        requestController?.abort();
+        requestController = null;
+        loadedPlanId = "";
         if (active) setStops([]);
         return;
       }
-      if (ref.id === loadedId) return; // already have this plan's stops
-      loadedId = ref.id;
+      if (loadedPlanId !== ref.id) {
+        loadedPlanId = ref.id;
+        if (active) setStops([]);
+      }
+      requestController?.abort();
+      requestController = new AbortController();
+      const controller = requestController;
       fetch(`/api/plans/${ref.id}`, { cache: "no-store", signal: controller.signal })
         .then((res) => (res.ok ? res.json() : null))
         .then((body: PlanState | null) => {
-          if (!active) return;
+          if (!active || controller !== requestController) return;
           setStops(body && Array.isArray(body.stops) ? body.stops : []);
         })
-        .catch(() => {
-          // Network / abort / bad JSON — honest-empty, never a stale overlay.
-          if (active) {
-            // Allow a later event to retry (the fetch didn't land).
-            if (loadedId === ref.id) loadedId = "";
-            setStops([]);
-          }
+        .catch((error: unknown) => {
+          if (!active || controller !== requestController) return;
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          // Keep the last verified overlay during a transient refresh failure.
+          // A new plan id was already cleared above, so this cannot show the
+          // previous plan over a different active plan.
         });
     };
 
@@ -71,7 +76,7 @@ export function useActivePlanRoute(): PlanStopDTO[] {
     const timer = window.setInterval(load, WINDOW_TICK_MS);
     return () => {
       active = false;
-      controller.abort();
+      requestController?.abort();
       unsub();
       window.clearInterval(timer);
     };

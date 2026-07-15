@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
-import { canTransitionPlannedNight, cleanCreatePlan, isPlanId, PLANNED_NIGHT_STATUSES, type CrawlEnding, type CreatePlanInput, type PlanActionDTO, type PlanDTO, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import { canTransitionPlannedNight, cleanCreatePlan, isPlanId, PLANNED_NIGHT_STATUSES, type CrawlEnding, type CreatePlanInput, type PlanActionDTO, type PlanCompletionDTO, type PlanDTO, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -9,20 +9,26 @@ const PLANS = "plans";
 const STOPS = "plan_stops";
 const MEMBERS = "plan_crew_members";
 const ACTIONS = "plan_actions";
+const COMPLETIONS = "plan_completions";
 
-export type PlanWriteError = "invalid" | "not_found" | "full" | "forbidden" | "error";
+export type PlanWriteError = "invalid" | "not_found" | "full" | "forbidden" | "conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string } | { ok: false; error: PlanWriteError };
 export type PlanPresenceResult = { ok: true; plan: PlanState } | { ok: false; error: PlanWriteError };
 export type PlanUpdateResult = PlanPresenceResult;
+export type PlanCompletionResult =
+  | { ok: true; plan: PlanState; completion: PlanCompletionDTO; created: boolean }
+  | { ok: false; error: PlanWriteError };
 
 export type PlanStore = {
   create(input: CreatePlanInput): Promise<PlanCreateResult>;
   get(id: string): Promise<PlanState | null>;
   join(id: string, name: unknown): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
-  update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext }): Promise<PlanUpdateResult>;
+  update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number }): Promise<PlanUpdateResult>;
   addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding }): Promise<PlanUpdateResult>;
+  getCompletion(id: string): Promise<PlanCompletionDTO | null>;
+  complete(id: string, memberToken: unknown, input: { expectedRouteRevision: number; ending: CrawlEnding; terminalVenueId?: string }): Promise<PlanCompletionResult>;
 };
 
 function mintToken(): string {
@@ -40,8 +46,40 @@ function planFromRow(row: Record<string, unknown>): PlanDTO {
     title: String(row.title ?? ""),
     startTime: String(row.start_time),
     createdAt: String(row.created_at),
+    routeRevision: Number(row.route_revision ?? 1),
     status: (row.status as PlannedNightStatus) ?? "draft",
   };
+}
+
+function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
+  const snapshot = Array.isArray(row.route_snapshot) ? row.route_snapshot : [];
+  return {
+    id: String(row.id),
+    planId: String(row.plan_id),
+    ending: row.ending as CrawlEnding,
+    terminalVenueId: typeof row.terminal_venue_id === "string" ? row.terminal_venue_id : null,
+    finalPintDropId: typeof row.final_pint_drop_id === "string" ? row.final_pint_drop_id : null,
+    routeRevision: Number(row.route_revision ?? 1),
+    routeSnapshot: snapshot.map((stop) => stopFromRow({
+      venue_id: (stop as Record<string, unknown>).venueId,
+      venue_name: (stop as Record<string, unknown>).venueName,
+      position: (stop as Record<string, unknown>).position,
+    })).sort((a, b) => a.position - b.position),
+    completedAt: String(row.completed_at),
+  };
+}
+
+function cleanReplacementStops(stops: PlanStopDTO[] | undefined): PlanStopDTO[] | null {
+  if (!stops || stops.length !== 3) return null;
+  if (new Set(stops.map((stop) => stop.venueId)).size !== stops.length) return null;
+  if (stops.some((stop, position) => !stop.venueId || !stop.venueName || stop.position !== position)) return null;
+  return stops.map((stop) => ({ ...stop }));
+}
+
+function routeRevisionOf(plan: PlanDTO): number {
+  return typeof plan.routeRevision === "number" && Number.isInteger(plan.routeRevision) && plan.routeRevision >= 1
+    ? plan.routeRevision
+    : 1;
 }
 
 function stopFromRow(row: Record<string, unknown>): PlanStopDTO {
@@ -91,7 +129,7 @@ export const supabasePlanStore: PlanStore = {
     try {
       const admin = requireSupabaseAdmin();
       const { data: planRow, error } = await admin.from(PLANS)
-        .select("id,title,start_time,created_at,status,night_context,ending").eq("id", id).maybeSingle();
+        .select("id,title,start_time,created_at,status,route_revision,night_context,ending").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!planRow) return null;
       const [{ data: stopRows, error: stopsError }, { data: memberRows, error: membersError }, { data: actionRows, error: actionsError }] = await Promise.all([
@@ -160,6 +198,26 @@ export const supabasePlanStore: PlanStore = {
   async update(id, rawToken, update) {
     if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
     const admin = requireSupabaseAdmin();
+    if (update.stops) {
+      const stops = cleanReplacementStops(update.stops);
+      if (!stops || !Number.isInteger(update.expectedRouteRevision) || update.expectedRouteRevision! < 1 || update.status) return { ok: false, error: "invalid" };
+      try {
+        const { data, error } = await admin.rpc("replace_plan_route_atomic", {
+          p_plan_id: id,
+          p_token_hash: tokenHash(rawToken),
+          p_expected_route_revision: update.expectedRouteRevision,
+          p_stops: stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+          p_context: update.context ?? null,
+        });
+        if (error) throw new Error(error.message);
+        if (data !== "ok") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : "invalid" };
+        const plan = await this.get(id);
+        return plan ? { ok: true, plan } : { ok: false, error: "not_found" };
+      } catch (error) {
+        console.error("[plans] route replacement failed:", error instanceof Error ? error.message : error);
+        return { ok: false, error: "error" };
+      }
+    }
     const [{ data: creator }, current] = await Promise.all([
       admin.from(MEMBERS).select("id,token_hash").eq("plan_id", id).order("joined_at").limit(1).maybeSingle(),
       this.get(id),
@@ -177,21 +235,69 @@ export const supabasePlanStore: PlanStore = {
   },
   async addAction(id, rawToken, action) {
     if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
+    // Completion is intentionally not an ordinary action write: it must insert
+    // the ending action, completion record, and terminal status atomically.
+    if (action.type === "ending") return { ok: false, error: "invalid" };
     const admin = requireSupabaseAdmin();
     const { data: member } = await admin.from(MEMBERS).select("id").eq("plan_id", id).eq("token_hash", tokenHash(rawToken)).maybeSingle();
     if (!member) return { ok: false, error: "forbidden" };
     const createdAt = new Date().toISOString();
     const { error } = await admin.from(ACTIONS).insert({ id: randomUUID(), plan_id: id, actor_member_id: member.id, type: action.type, stop_position: action.stopPosition ?? null, ending: action.ending ?? null, created_at: createdAt });
     if (error) return { ok: false, error: "error" };
-    if (action.type === "ending") await admin.from(PLANS).update({ status: "completed", ending: action.ending }).eq("id", id);
-    else await admin.from(PLANS).update({ status: "active" }).eq("id", id).in("status", ["draft", "ready"]);
+    await admin.from(PLANS).update({ status: "active" }).eq("id", id).in("status", ["draft", "ready"]);
     const plan = await this.get(id);
     return plan ? { ok: true, plan } : { ok: false, error: "not_found" };
+  },
+  async getCompletion(id) {
+    if (!isPlanId(id)) return null;
+    try {
+      const { data, error } = await requireSupabaseAdmin().from(COMPLETIONS)
+        .select("id,plan_id,ending,terminal_venue_id,final_pint_drop_id,route_revision,route_snapshot,completed_at")
+        .eq("plan_id", id).maybeSingle();
+      return error || !data ? null : completionFromRow(data as Record<string, unknown>);
+    } catch {
+      return null;
+    }
+  },
+  async complete(id, rawToken, input) {
+    if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1) return { ok: false, error: "invalid" };
+    try {
+      const { data, error } = await requireSupabaseAdmin().rpc("complete_plan_atomic", {
+        p_plan_id: id,
+        p_token_hash: tokenHash(rawToken),
+        p_expected_route_revision: input.expectedRouteRevision,
+        p_completion_id: randomUUID(),
+        p_action_id: randomUUID(),
+        p_ending: input.ending,
+        p_terminal_venue_id: input.terminalVenueId ?? null,
+        p_completed_at: new Date().toISOString(),
+      });
+      if (error) throw new Error(error.message);
+      if (data !== "completed" && data !== "already_completed") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : data === "not_found" ? "not_found" : "invalid" };
+      const [plan, completion] = await Promise.all([this.get(id), this.getCompletion(id)]);
+      return plan && completion ? { ok: true, plan, completion, created: data === "completed" } : { ok: false, error: "error" };
+    } catch (error) {
+      console.error("[plans] completion failed:", error instanceof Error ? error.message : error);
+      return { ok: false, error: "error" };
+    }
   },
 };
 
 type MemoryMember = CrewMemberDTO & { tokenHash: string };
-type MemoryPlan = { plan: PlanDTO; stops: PlanStopDTO[]; crew: MemoryMember[]; context: NightContext | null; actions: PlanActionDTO[]; ending: CrawlEnding | null };
+type StoredCompletion = PlanCompletionDTO & { actorMemberId: string };
+function publicCompletion(completion: StoredCompletion): PlanCompletionDTO {
+  return {
+    id: completion.id,
+    planId: completion.planId,
+    ending: completion.ending,
+    terminalVenueId: completion.terminalVenueId,
+    finalPintDropId: completion.finalPintDropId,
+    routeRevision: completion.routeRevision,
+    routeSnapshot: completion.routeSnapshot.map((stop) => ({ ...stop })),
+    completedAt: completion.completedAt,
+  };
+}
+type MemoryPlan = { plan: PlanDTO; stops: PlanStopDTO[]; crew: MemoryMember[]; context: NightContext | null; actions: PlanActionDTO[]; ending: CrawlEnding | null; completion: StoredCompletion | null };
 type PlanMemoryState = { plans: Map<string, MemoryPlan>; sequence: number };
 const planMemoryGlobal = globalThis as typeof globalThis & {
   __pubmaxPlanMemory?: PlanMemoryState;
@@ -233,7 +339,7 @@ export const memoryPlanStore: PlanStore = {
     const memberToken = mintToken();
     const createdAt = stamp();
     const plan: MemoryPlan = {
-      plan: { id, title: clean.title, startTime: clean.startTime, createdAt, status: "draft" },
+      plan: { id, title: clean.title, startTime: clean.startTime, createdAt, routeRevision: 1, status: "draft" },
       stops: clean.stops.map((stop, position) => ({ ...stop, position })),
       crew: [{
         id: randomUUID(), name: clean.creatorName, status: "in", joinedAt: createdAt,
@@ -242,6 +348,7 @@ export const memoryPlanStore: PlanStore = {
       context: null,
       actions: [],
       ending: null,
+      completion: null,
     };
     memoryPlans.set(id, plan);
     return { ok: true, plan: publicState(plan), memberToken };
@@ -279,6 +386,18 @@ export const memoryPlanStore: PlanStore = {
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
     if (plan.crew[0]?.tokenHash !== tokenHash(rawToken)) return { ok: false, error: "forbidden" };
+    if (update.stops) {
+      const stops = cleanReplacementStops(update.stops);
+      if (!stops || !Number.isInteger(update.expectedRouteRevision) || update.expectedRouteRevision! < 1 || update.status) return { ok: false, error: "invalid" };
+      if (routeRevisionOf(plan.plan) !== update.expectedRouteRevision) return { ok: false, error: "conflict" };
+      if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return { ok: false, error: "invalid" };
+      // One synchronous mutation keeps the demo store's route + revision
+      // semantics equivalent to the production RPC transaction.
+      plan.stops = stops;
+      plan.plan.routeRevision = routeRevisionOf(plan.plan) + 1;
+      if (update.context) plan.context = structuredClone(update.context);
+      return { ok: true, plan: publicState(plan) };
+    }
     if (update.status && !canTransitionPlannedNight(plan.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
     if (update.status) plan.plan.status = update.status;
     if (update.context) plan.context = structuredClone(update.context);
@@ -286,13 +405,51 @@ export const memoryPlanStore: PlanStore = {
   },
   async addAction(id, rawToken, action) {
     if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
+    if (action.type === "ending") return { ok: false, error: "invalid" };
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
     if (!plan.crew.some((candidate) => candidate.tokenHash === tokenHash(rawToken))) return { ok: false, error: "forbidden" };
     plan.actions.push({ id: randomUUID(), type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp() });
-    if (action.type === "ending") { plan.plan.status = "completed"; plan.ending = action.ending ?? null; }
-    else if (plan.plan.status === "draft" || plan.plan.status === "ready") plan.plan.status = "active";
+    if (plan.plan.status === "draft" || plan.plan.status === "ready") plan.plan.status = "active";
     return { ok: true, plan: publicState(plan) };
+  },
+  async getCompletion(id) {
+    if (!isPlanId(id)) return null;
+    const completion = memoryPlans.get(id)?.completion;
+    if (!completion) return null;
+    return publicCompletion(completion);
+  },
+  async complete(id, rawToken, input) {
+    if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1) return { ok: false, error: "invalid" };
+    const plan = memoryPlans.get(id);
+    if (!plan) return { ok: false, error: "not_found" };
+    const actor = plan.crew.find((candidate) => candidate.tokenHash === tokenHash(rawToken));
+    if (!actor) return { ok: false, error: "forbidden" };
+    if (routeRevisionOf(plan.plan) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
+    if (plan.completion) {
+      return { ok: true, plan: publicState(plan), completion: publicCompletion(plan.completion), created: false };
+    }
+    if (input.ending === "food" && !input.terminalVenueId) return { ok: false, error: "invalid" };
+    if (input.terminalVenueId && !plan.stops.some((stop) => stop.venueId === input.terminalVenueId)) return { ok: false, error: "invalid" };
+    const completedAt = stamp();
+    const completion: StoredCompletion = {
+      id: randomUUID(),
+      planId: id,
+      ending: input.ending,
+      terminalVenueId: input.terminalVenueId ?? null,
+      finalPintDropId: null,
+      routeRevision: routeRevisionOf(plan.plan),
+      routeSnapshot: plan.stops.map((stop) => ({ ...stop })),
+      actorMemberId: actor.id,
+      completedAt,
+    };
+    // No await follows validation: ending action, terminal plan state, and
+    // completion record become visible together or not at all.
+    plan.actions.push({ id: randomUUID(), type: "ending", stopPosition: null, ending: input.ending, createdAt: completedAt });
+    plan.plan.status = "completed";
+    plan.ending = input.ending;
+    plan.completion = completion;
+    return { ok: true, plan: publicState(plan), completion: publicCompletion(completion), created: true };
   },
 };
 

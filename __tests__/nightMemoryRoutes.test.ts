@@ -41,6 +41,14 @@ describe("Night Memory HTTP contract", () => {
     expect((await list.json()).memories).toHaveLength(1);
   });
 
+  it("does not accept a client-supplied Plan completion link without an ownership binding", async () => {
+    const response = await CREATE_MEMORY(auth("/api/night-memories", {
+      title: "Friday orbit",
+      planCompletionId: crypto.randomUUID(),
+    }));
+    expect(response.status).toBe(400);
+  });
+
   it("publishes via a typed proposal followed by token confirmation", async () => {
     const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Friday orbit" }));
     const { memory } = await memoryResponse.json();

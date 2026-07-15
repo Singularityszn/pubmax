@@ -115,6 +115,75 @@ describe("Plan public HTTP contract", () => {
     expect(await response.json()).toMatchObject({ plan: { status: "ready" }, context: { nightArea: "clapham", daypart: "after_work", groupSize: 4 } });
   });
 
+  it("replaces a creator-authorized route with exactly three canonical Venue Dataset stops", async () => {
+    const { body } = await createPlan();
+    const response = await PATCH(new Request(`${URL}/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${body.memberToken}` },
+      body: JSON.stringify({
+        expectedRouteRevision: 1,
+        stops: [
+          { venueId: "venue-1f5ygjb", venueName: "Client supplied name is ignored" },
+          { venueId: "venue-xjf3n0", venueName: "Also ignored" },
+          { venueId: "venue-3h52h", venueName: "Ignored too" },
+        ],
+        context: { nightArea: "clapham", daypart: "evening", partyType: "friends", groupSize: 3, budget: "value" },
+      }),
+    }), ctx(body.plan.plan.id));
+
+    expect(response.status).toBe(200);
+    const state = await response.json() as PlanState;
+    expect(state.plan.routeRevision).toBe(2);
+    expect(state.stops).toEqual([
+      { venueId: "venue-1f5ygjb", venueName: "The Bohemia", position: 0 },
+      { venueId: "venue-xjf3n0", venueName: "Arnos Arms", position: 1 },
+      { venueId: "venue-3h52h", venueName: "The Elephant Inn", position: 2 },
+    ]);
+    expect(state.context).toMatchObject({ nightArea: "clapham", daypart: "evening" });
+    expect(JSON.stringify(state)).not.toContain(body.memberToken);
+  });
+
+  it("rejects unauthorized, stale, duplicate, and unknown canonical route replacements", async () => {
+    const { body } = await createPlan();
+    const valid = [
+      { venueId: "venue-1f5ygjb" },
+      { venueId: "venue-xjf3n0" },
+      { venueId: "venue-3h52h" },
+    ];
+    const unauthorized = await PATCH(new Request(`${URL}/${body.plan.plan.id}`, {
+      method: "PATCH", body: JSON.stringify({ memberToken: "wrong", expectedRouteRevision: 1, stops: valid }),
+    }), ctx(body.plan.plan.id));
+    expect(unauthorized.status).toBe(403);
+
+    const stale = await PATCH(new Request(`${URL}/${body.plan.plan.id}`, {
+      method: "PATCH", body: JSON.stringify({ memberToken: body.memberToken, expectedRouteRevision: 2, stops: valid }),
+    }), ctx(body.plan.plan.id));
+    expect(stale.status).toBe(409);
+
+    const invalid = await PATCH(new Request(`${URL}/${body.plan.plan.id}`, {
+      method: "PATCH", body: JSON.stringify({ memberToken: body.memberToken, expectedRouteRevision: 1, stops: [valid[0], valid[0], { venueId: "invented-pub" }] }),
+    }), ctx(body.plan.plan.id));
+    expect(invalid.status).toBe(400);
+  });
+
+  it("does not replace a terminal Planned Night route", async () => {
+    const { body } = await createPlan();
+    const abandoned = await PATCH(new Request(`${URL}/${body.plan.plan.id}`, {
+      method: "PATCH", body: JSON.stringify({ memberToken: body.memberToken, status: "abandoned" }),
+    }), ctx(body.plan.plan.id));
+    expect(abandoned.status).toBe(200);
+
+    const replacement = await PATCH(new Request(`${URL}/${body.plan.plan.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        memberToken: body.memberToken,
+        expectedRouteRevision: 1,
+        stops: [{ venueId: "venue-1f5ygjb" }, { venueId: "venue-xjf3n0" }, { venueId: "venue-3h52h" }],
+      }),
+    }), ctx(body.plan.plan.id));
+    expect(replacement.status).toBe(400);
+  });
+
   it("records explicit stop actions and completion without drink tracking", async () => {
     const { body } = await createPlan();
     const response = await ACTION(new Request(`${URL}/${body.plan.plan.id}/actions`, {
@@ -129,6 +198,6 @@ describe("Plan public HTTP contract", () => {
       method: "POST",
       body: JSON.stringify({ memberToken: body.memberToken, type: "ending", ending: "get_home" }),
     }), ctx(body.plan.plan.id));
-    expect(await ending.json()).toMatchObject({ plan: { status: "completed" }, ending: "get_home" });
+    expect(ending.status).toBe(400);
   });
 });

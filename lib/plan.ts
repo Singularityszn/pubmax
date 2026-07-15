@@ -12,6 +12,8 @@ export type PlanDTO = {
   title: string;
   startTime: string;
   createdAt: string;
+  /** Incremented only when the canonical ordered Crawl Route is replaced. Legacy records read as revision 1. */
+  routeRevision?: number | string;
   /** Defaults to draft for legacy Plan records created before Planned Night lifecycle metadata. */
   status?: PlannedNightStatus;
 };
@@ -43,6 +45,18 @@ export type PlanState = {
   context?: NightContext | null;
   actions?: PlanActionDTO[];
   ending?: CrawlEnding | null;
+};
+
+/** A share-safe completed Planned Night record. Member identifiers stay server-only. */
+export type PlanCompletionDTO = {
+  id: string;
+  planId: string;
+  ending: CrawlEnding;
+  terminalVenueId: string | null;
+  finalPintDropId: string | null;
+  routeRevision: number;
+  routeSnapshot: PlanStopDTO[];
+  completedAt: string;
 };
 
 export type CreatePlanInput = {

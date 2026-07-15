@@ -7,6 +7,9 @@ import {
   nightAreaMapHref,
   nightAreaOptionLabel,
   nightAreaSelectorGroups,
+  nightContextChanged,
+  routeStopsFromGenerated,
+  swapDraftStop,
 } from "@/components/plan/PlanComposer";
 import { getNightArea } from "@/lib/nightAreas";
 
@@ -102,5 +105,67 @@ describe("PlanComposer Night Area coverage states", () => {
     expect(nightAreaMapHref(getNightArea("bermondsey-london-bridge"))).toBe(
       "/map?q=Bermondsey%20%26%20London%20Bridge",
     );
+  });
+});
+
+describe("PlanComposer route preview seam", () => {
+  it("keeps exactly three generated stops and attaches the top-level alternative pool", () => {
+    const stops = routeStopsFromGenerated([
+      { venueId: "a", venueName: "A" },
+      { venueId: "b", venueName: "B" },
+      { venueId: "c", venueName: "C" },
+      { venueId: "d", venueName: "D" },
+    ], [
+      { venueId: "a", venueName: "duplicate current" },
+      { venueId: "x", venueName: "X" },
+      { venueId: "x", venueName: "X again" },
+    ]);
+
+    expect(stops).toHaveLength(3);
+    expect(stops[0]?.alternatives).toEqual([{ venueId: "x", venueName: "X" }]);
+  });
+
+  it("cycles a grounded swap while retaining the previous venue as an alternative", () => {
+    const next = swapDraftStop({
+      key: 1,
+      venueId: "a",
+      venueName: "A",
+      alternatives: [{ venueId: "x", venueName: "X" }, { venueId: "y", venueName: "Y" }],
+    });
+
+    expect(next).toMatchObject({ venueId: "x", venueName: "X" });
+    expect(next.alternatives).toEqual([
+      { venueId: "y", venueName: "Y" },
+      { venueId: "a", venueName: "A" },
+    ]);
+  });
+
+  it("skips alternatives already used by another route stop", () => {
+    const current = {
+      key: 1,
+      venueId: "a",
+      venueName: "A",
+      alternatives: [{ venueId: "b", venueName: "B" }, { venueId: "x", venueName: "X" }],
+    };
+
+    expect(swapDraftStop(current, new Set(["b"]))).toMatchObject({ venueId: "x", venueName: "X" });
+    expect(swapDraftStop(current, new Set(["b", "x"]))).toBe(current);
+  });
+
+  it("marks only real context changes as route-staling edits", () => {
+    const context = {
+      nightArea: "clapham" as const,
+      daypart: "evening" as const,
+      partyType: "friends" as const,
+      groupSize: 4,
+      budget: "standard" as const,
+      atmosphere: [],
+      foodNeeds: [],
+      accessibility: [],
+      transportConstraints: [],
+    };
+
+    expect(nightContextChanged(context, { ...context })).toBe(false);
+    expect(nightContextChanged(context, { ...context, budget: "value" })).toBe(true);
   });
 });

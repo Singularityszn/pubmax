@@ -64,6 +64,48 @@ function readMemberToken(planId: string): string {
   }
 }
 
+export type PlanRouteRevision = string | number;
+
+export function routeRevisionFromPlan(value: PlanState | null): PlanRouteRevision | null {
+  if (!value) return null;
+  const direct = (value as PlanState & { routeRevision?: unknown }).routeRevision;
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  if (typeof direct === "number" && Number.isInteger(direct) && direct >= 0) return direct;
+  const nested = (value.plan as PlanState["plan"] & { routeRevision?: unknown }).routeRevision;
+  if (typeof nested === "string" && nested.trim()) return nested.trim();
+  if (typeof nested === "number" && Number.isInteger(nested) && nested >= 0) return nested;
+  return null;
+}
+
+export function completePlanPayload(
+  ending: CrawlEnding,
+  terminalVenueId: string,
+  expectedRouteRevision: PlanRouteRevision,
+  finalPintDropId?: string,
+): Record<string, string | number> {
+  return {
+    ending,
+    terminalVenueId,
+    expectedRouteRevision,
+    ...(finalPintDropId ? { finalPintDropId } : {}),
+  };
+}
+
+export function canonicalPlanFromCompleteBody(value: unknown): PlanState | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as { stops?: unknown; plan?: unknown; state?: unknown };
+  if (Array.isArray(row.stops) && row.plan && typeof row.plan === "object") return value as PlanState;
+  if (row.plan && typeof row.plan === "object") {
+    const plan = row.plan as { stops?: unknown };
+    if (Array.isArray(plan.stops)) return row.plan as PlanState;
+  }
+  if (row.state && typeof row.state === "object") {
+    const state = row.state as { stops?: unknown };
+    if (Array.isArray(state.stops)) return row.state as PlanState;
+  }
+  return null;
+}
+
 export function recommendedEndingForPlan(
   plan: PlanState | null,
   lateFoodCount: number,
@@ -76,9 +118,12 @@ export function recommendedEndingForPlan(
 
 export function confirmedEndingForPlan(
   plan: PlanState | null,
-  confirmedChoice: CrawlEnding | null,
+  _confirmedChoice: CrawlEnding | null,
 ): CrawlEnding | null {
-  return plan?.ending ?? confirmedChoice;
+  // A local selection is only intent. The result becomes visible after the
+  // canonical /complete response returns a persisted ending.
+  void _confirmedChoice;
+  return plan?.ending ?? null;
 }
 
 export default function NightModeCard() {
@@ -229,34 +274,67 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
     setActivePlanStopIndex(clampStopIndex(cursor + 1, stops.length));
   }, [cursor, stops.length]);
 
-  const chooseEnding = useCallback(async (ending: RouteEndingId) => {
+  const completeEnding = useCallback(async (ending: CrawlEnding, terminalVenueId: string) => {
     if (!plan || endingSaving) return;
-    if (ending === "food") {
-      setChosenEnding("food");
-      setEndingError("Food is a reviewed suggestion list for now. Pick a place, then choose Get home or Keep going to complete the plan.");
-      trackEvent("planned_night_action", { type: "food_preview" });
+    const memberToken = readMemberToken(id);
+    const expectedRouteRevision = routeRevisionFromPlan(plan);
+    if (!memberToken) {
+      setEndingError("Join this plan before saving its ending.");
       return;
     }
-    const memberToken = readMemberToken(id);
+    if (expectedRouteRevision === null) {
+      setEndingError("This route has no active revision. Nothing was completed; refresh the plan and try again.");
+      return;
+    }
     setEndingSaving(true);
     setEndingError("");
     try {
-      const response = await fetch(`/api/plans/${id}/actions`, {
+      const response = await fetch(`/api/plans/${id}/complete`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ memberToken, type: "ending", ending }),
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${memberToken}`,
+        },
+        body: JSON.stringify(completePlanPayload(ending, terminalVenueId, expectedRouteRevision)),
       });
-      const body = response.ok ? (await response.json() as PlanState) : null;
-      if (!response.ok || !body?.plan) throw new Error("Could not save that ending.");
-      setPlan(body);
-      setChosenEnding(ending);
-      trackEvent("planned_night_completed", { ending });
-    } catch {
-      setEndingError("Could not save that ending. Nothing was completed yet — try again when the connection settles.");
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(response.status === 409 || response.status === 412
+          ? "This route changed before the ending was saved. Nothing was completed; refresh the plan and try again."
+          : body?.error || "Could not save that ending.");
+      }
+      let canonical = canonicalPlanFromCompleteBody(body);
+      if (!canonical) {
+        const refreshed = await fetch(`/api/plans/${id}`, { cache: "no-store" });
+        canonical = refreshed.ok ? canonicalPlanFromCompleteBody(await refreshed.json()) : null;
+      }
+      if (!canonical || (!canonical.ending && canonical.plan.status !== "completed")) {
+        throw new Error("The ending response was not canonical. Nothing was marked complete in this view.");
+      }
+      setPlan(canonical);
+      setChosenEnding(null);
+      trackEvent("planned_night_completed", { ending: canonical.ending ?? ending });
+    } catch (caught) {
+      setEndingError(caught instanceof Error
+        ? `${caught.message} Nothing was completed in this view.`
+        : "Could not save that ending. Nothing was completed in this view.");
     } finally {
       setEndingSaving(false);
     }
   }, [endingSaving, id, plan]);
+
+  const chooseEnding = useCallback(async (ending: RouteEndingId) => {
+    if (!plan || endingSaving) return;
+    if (ending === "food") {
+      setChosenEnding("food");
+      setEndingError(lateFood.length > 0
+        ? "Review a nearby food recommendation below, then choose Food to complete the plan. The current pub remains the route terminal."
+        : "No reviewed food ending is available yet. Choose Get home or Keep going instead.");
+      trackEvent("planned_night_action", { type: "food_preview" });
+      return;
+    }
+    await completeEnding(ending, currentStop?.venueId ?? "");
+  }, [completeEnding, currentStop?.venueId, endingSaving, lateFood.length, plan]);
 
   // Lightweight swipe-down-to-dismiss on the grabber (Apple sheet idiom) — kept
   // local so we don't couple to the map-only useSheetDrag host.
@@ -368,6 +446,9 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
           {endingError ? (
             <p className="nightCard__endingError" role="alert">{endingError}</p>
           ) : null}
+          {chosenEnding === "food" && !activeEnding ? (
+            <FoodEndingPicker terminals={lateFood} saving={endingSaving} onChoose={() => completeEnding("food", currentStop.venueId)} />
+          ) : null}
           {activeEnding ? (
             <NightEndingResult
               ending={activeEnding}
@@ -393,6 +474,42 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
         </div>
       ) : null}
     </section>
+  );
+}
+
+function FoodEndingPicker({
+  terminals,
+  saving,
+  onChoose,
+}: {
+  terminals: LateFoodTerminal[];
+  saving: boolean;
+  onChoose: () => void;
+}) {
+  if (terminals.length === 0) {
+    return <p className="nightCard__endingHint">Reviewed nearby food recommendations are not available for this route yet.</p>;
+  }
+  return (
+    <div className="nightCard__foodPicker" aria-label="Choose a food ending">
+      <strong>Nearby food to review</strong>
+      <ul>
+        {terminals.slice(0, 3).map((terminal) => (
+          <li key={terminal.id}>
+            <button
+              type="button"
+              className="nightCard__endingLink"
+              style={{ width: "100%", justifyContent: "space-between", border: 0, font: "inherit", textAlign: "left", cursor: saving ? "wait" : "pointer" }}
+              onClick={onChoose}
+              disabled={saving}
+              aria-label={`Choose Food ending; ${terminal.name} is a nearby recommendation`}
+            >
+              <span>{terminal.name}</span>
+              <small>{terminal.walkingDetour.minutes} min detour · {terminal.confidence} confidence · recommendation only</small>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { planViewModel, shareCopyForPlan, stopsFromAnswerCards, stopsFromConcierge } from "@/components/plan/planPresentation";
+import { routeHasChanged } from "@/components/plan/PlanSummary";
 import type { PlanState } from "@/lib/plan";
 
 const state: PlanState = {
@@ -9,6 +10,7 @@ const state: PlanState = {
     title: "Thursday, sorted",
     startTime: "2026-07-16T17:30:00.000Z",
     createdAt: "2026-07-11T12:00:00.000Z",
+    routeRevision: 1,
   },
   stops: [
     { venueId: "v-second", venueName: "The Swan", position: 2 },
@@ -29,6 +31,13 @@ describe("planViewModel", () => {
     expect(shareCopyForPlan(state)).toBe(
       "Thursday, sorted · 2 stops · Starts 18:30 — see the plan and tap I'm in.",
     );
+  });
+});
+
+describe("routeHasChanged", () => {
+  it("requires an actual ordered stop change", () => {
+    expect(routeHasChanged([{ venueId: "a" }, { venueId: "b" }, { venueId: "c" }], [{ venueId: "a" }, { venueId: "b" }, { venueId: "c" }])).toBe(false);
+    expect(routeHasChanged([{ venueId: "a" }, { venueId: "b" }, { venueId: "c" }], [{ venueId: "a" }, { venueId: "x" }, { venueId: "c" }])).toBe(true);
   });
 });
 

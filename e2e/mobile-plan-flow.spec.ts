@@ -12,8 +12,9 @@ async function expectNoHorizontalOverflow(page: Page) {
 
 async function expectTouchHeight(locator: Locator, minHeight = 44) {
   await expect(locator).toBeVisible();
-  const box = await locator.boundingBox();
-  expect(box?.height ?? 0).toBeGreaterThanOrEqual(minHeight);
+  await expect
+    .poll(async () => (await locator.boundingBox())?.height ?? 0)
+    .toBeGreaterThanOrEqual(minHeight);
 }
 
 test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => {
@@ -26,7 +27,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   expect(response?.status()).toBe(200);
 
   await expect(page.getByRole("heading", { name: "Describe the night. We’ll put it in order." })).toBeVisible();
-  await expectTouchHeight(page.getByLabel("Describe the night"));
+  await expectTouchHeight(page.getByRole("textbox", { name: "Describe the night" }));
   await expectTouchHeight(page.getByRole("button", { name: "Plan my night" }));
   await expectNoHorizontalOverflow(page);
 
@@ -44,7 +45,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Plan my night" }).click();
 
-  await expect(page.getByRole("status")).toContainText("Three grounded stops");
+  await expect(page.locator("#plan-concierge-status")).toContainText("Three grounded stops");
   await expect(page.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: "People" })).toHaveValue("4");
 
@@ -64,6 +65,10 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await page.getByRole("spinbutton", { name: "People" }).fill("5");
   await expect(page.getByRole("combobox", { name: "Time" })).toHaveValue("late_night");
   await expect(page.getByRole("spinbutton", { name: "People" })).toHaveValue("5");
+  const regenerateRoute = page.getByRole("button", { name: "Regenerate route" });
+  await expectTouchHeight(regenerateRoute);
+  await regenerateRoute.click();
+  await expect(page.locator("#plan-route-status")).toContainText("Route refreshed");
 
   await page.getByText("Night Area coverage", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Ready to plan now" })).toBeVisible();
