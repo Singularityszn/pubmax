@@ -8,7 +8,7 @@ const css = readFileSync(join(process.cwd(), "app/pal/pal.css"), "utf8");
 
 describe("Pub Pal first meeting and onboarding", () => {
   it("offers all three Pal forms and an eight-part flow", () => {
-    expect(experience).toContain("PAL_SPECIES.map");
+    expect(experience).toContain("PAL_ONBOARDING_SPECIES.map");
     expect(experience).toContain("step + 1} of 8");
     expect(experience).toContain("Meet your Pub Pal");
   });
@@ -32,6 +32,17 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(css).toContain("prefers-reduced-motion: reduce");
     expect(css).toContain("prefers-reduced-transparency: reduce");
     expect(css).toContain("prefers-contrast: more");
+  });
+
+  it("gives the three hero species distinct character faces instead of generic icons", () => {
+    for (const species of ["hound", "raven", "fox"]) {
+      expect(portrait).toContain(`"${species}"`);
+      expect(css).toContain(`.palCharacter-${species}`);
+    }
+    expect(portrait).toContain("CharacterFace");
+    expect(portrait).not.toContain("hound: Dog");
+    expect(css).toContain(".palCharacter-raven");
+    expect(css).toContain(".palCharacter-fox");
   });
 
   it("keeps controls thumb-sized and avoids unstable viewport height", () => {

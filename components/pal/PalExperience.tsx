@@ -21,7 +21,7 @@ import { authedFetch } from "@/lib/authedFetch";
 import {
   DEFAULT_PAL_DRAFT,
   PAL_UNLOCKS,
-  PAL_SPECIES,
+  PAL_ONBOARDING_SPECIES,
   PAL_VOICES,
   SIGNAL_FAMILIES,
   type PubPal,
@@ -32,6 +32,7 @@ import {
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
+import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
@@ -408,7 +409,7 @@ export default function PalExperience() {
             <h1 id="pal-meeting-title">A little signal that becomes yours.</h1>
             <p>Choose its form, voice and boundaries. It can help plan the night, but you approve every important action.</p>
             <div className="palMeetingActions">
-              <button className="palPrimary" type="button" onClick={() => setMode("onboarding")}>Meet your Pub Pal<ArrowRight size={18} /></button>
+              <Button className="palPrimary" size="large" type="button" onClick={() => setMode("onboarding")}>Meet your Pub Pal<ArrowRight size={18} /></Button>
               <Link href="/map">Use PUBMAXX without a Pal</Link>
             </div>
           </div>
@@ -447,7 +448,7 @@ export default function PalExperience() {
               <p className="palEyebrow">Form</p>
               <h1>Who finds you?</h1>
               <p>Each Pal has the same planning intelligence. Choose the presence you want beside you.</p>
-              <div className="palChoiceList palSpeciesGrid">{PAL_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
+              <div className="palChoiceList palSpeciesGrid">{PAL_ONBOARDING_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
             </div>
           )}
           {step === 2 && (
@@ -526,9 +527,9 @@ export default function PalExperience() {
           <div className="palOnboardingActions">
             <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}>Back</button>
             {step < 7 ? (
-              <button className="palPrimary" type="button" disabled={!canContinue || (step === 2 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></button>
+              <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 2 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
             ) : user ? (
-              <button className="palPrimary" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={18} /></button>
+              <Button className="palPrimary" size="large" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={18} /></Button>
             ) : (
               <button type="button" onClick={() => setStep(0)}>Start over</button>
             )}

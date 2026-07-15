@@ -14,6 +14,7 @@ export const PAL_SPECIES = [
   "squirrel",
   "bot",
 ] as const;
+export const PAL_ONBOARDING_SPECIES = ["hound", "raven", "fox"] as const;
 export const SIGNAL_FAMILIES = ["beer", "gin", "rum", "whisky", "brandy", "vodka"] as const;
 export const PAL_VOICES = ["ember", "velvet", "signal"] as const;
 export type PubPalSpecies = (typeof PAL_SPECIES)[number];

@@ -1,16 +1,41 @@
-import { Bird, Bot, Cat, Dog, Rabbit, Squirrel, Turtle, type LucideIcon } from "lucide-react";
+import { Bot, Cat, Rabbit, Squirrel, Turtle, type LucideIcon } from "lucide-react";
 import type { PubPalAppearance } from "@/lib/pubPal";
 
-const speciesIcons: Record<PubPalAppearance["species"], LucideIcon> = {
-  hound: Dog,
-  raven: Bird,
-  fox: Cat,
+const legacySpeciesIcons: Partial<Record<PubPalAppearance["species"], LucideIcon>> = {
   cat: Cat,
   rabbit: Rabbit,
   turtle: Turtle,
   squirrel: Squirrel,
   bot: Bot,
 };
+
+const CHARACTER_SPECIES = ["hound", "raven", "fox"] as const;
+
+function isCharacterSpecies(
+  species: PubPalAppearance["species"],
+): species is (typeof CHARACTER_SPECIES)[number] {
+  return CHARACTER_SPECIES.includes(species as (typeof CHARACTER_SPECIES)[number]);
+}
+
+function CharacterFace({ species }: { species: (typeof CHARACTER_SPECIES)[number] }) {
+  return (
+    <span className={`palCharacter palCharacter-${species}`} data-pal-species={species}>
+      <span className="palCharacterEar palCharacterEarLeft" />
+      <span className="palCharacterEar palCharacterEarRight" />
+      <span className="palCharacterHead">
+        <span className="palCharacterBrow palCharacterBrowLeft" />
+        <span className="palCharacterBrow palCharacterBrowRight" />
+        <span className="palCharacterEye palCharacterEyeLeft"><span className="palCharacterPupil" /></span>
+        <span className="palCharacterEye palCharacterEyeRight"><span className="palCharacterPupil" /></span>
+        <span className="palCharacterBeak" />
+        <span className="palCharacterMuzzle"><span className="palCharacterMouth" /></span>
+        <span className="palCharacterCheek palCharacterCheekLeft" />
+        <span className="palCharacterCheek palCharacterCheekRight" />
+      </span>
+      <span className="palCharacterNeck" />
+    </span>
+  );
+}
 
 const speciesDescriptions: Record<PubPalAppearance["species"], string> = {
   hound: "an alert cyber hound with an open, loyal expression",
@@ -32,7 +57,7 @@ export default function PalPortrait({
   name: string;
   compact?: boolean;
 }) {
-  const Icon = speciesIcons[appearance.species];
+  const LegacyIcon = legacySpeciesIcons[appearance.species];
 
   return (
     <div
@@ -44,11 +69,15 @@ export default function PalPortrait({
       <span className="palPortraitOrbit palPortraitOrbitA" aria-hidden="true" />
       <span className="palPortraitOrbit palPortraitOrbitB" aria-hidden="true" />
       <span className="palPortraitCore" aria-hidden="true">
-        <Icon strokeWidth={1.15} />
+        {isCharacterSpecies(appearance.species) ? (
+          <CharacterFace species={appearance.species} />
+        ) : LegacyIcon ? (
+          <LegacyIcon className="palLegacyIcon" strokeWidth={1.15} />
+        ) : null}
         <span className="palPortraitScan" />
       </span>
       <span className="palPortraitEcho" aria-hidden="true">
-        <Icon strokeWidth={0.8} />
+        <span className="palPortraitSignalMark" />
       </span>
       {appearance.accessory !== "none" && (
         <span className="palPortraitAccessory" aria-hidden="true">
