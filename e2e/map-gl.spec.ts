@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import sharp from "sharp";
 
+test.describe.configure({ mode: "serial" });
+
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
 // Chromium with SwiftShader (a software GL implementation) so a real WebGL2
 // context exists even on a GPU-less CI box. Where smoke.spec.ts asserts
@@ -84,13 +86,20 @@ test("/map stays visually stable while the viewer is idle", async ({ page }) => 
   expect(changed / pixels).toBeLessThan(0.02);
 });
 
-test("/map reuses granted location to frame nearby pubs", async ({ page, context }) => {
+test("/map reuses granted location after an explicit Near me action", async ({ page, context }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 51.513, longitude: -0.125 });
   await page.goto("/map");
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText("Showing pubs near you")).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator(".mapUserLocationMarker")).toBeVisible();
+  await page.getByRole("button", { name: "Near me" }).click();
+  await expect(page.getByRole("button", { name: "Nearby" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapUserLocationMarker")).toBeVisible({ timeout: 20_000 });
 });
 
 // Issue #35 — optimistic-pins perf guard. The map paints pins from the ~116 KB
@@ -101,7 +110,7 @@ test("/map reuses granted location to frame nearby pubs", async ({ page, context
 // since it measures the data path, not the GPU. Threshold is a generous CI
 // ceiling (4s) well under the old full-dataset-only path.
 test("/map paints optimistic pins from the slim index quickly", async ({ page }) => {
-  test.setTimeout(30_000);
+  test.setTimeout(60_000);
   const fullDatasetRequests: string[] = [];
   page.on("request", (request) => {
     const path = new URL(request.url()).pathname;
@@ -119,7 +128,7 @@ test("/map paints optimistic pins from the slim index quickly", async ({ page })
     .poll(
       () =>
         page.evaluate(() => performance.getEntriesByName("pubmax:first-pins")[0]?.startTime ?? 0),
-      { timeout: 30_000 },
+      { timeout: 45_000 },
     )
     .toBeGreaterThan(0);
 

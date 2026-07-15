@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Map, CirclePlus, UserRound, Images, CalendarClock } from "lucide-react";
 import { useCallback, useSyncExternalStore, type CSSProperties } from "react";
 import {
@@ -62,6 +62,7 @@ function isActive(pathname: string, tab: Tab): boolean {
 
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
+  const searchParams = useSearchParams();
   const router = useRouter();
   // Preference may be null → /map. useSyncExternalStore: SSR/hydration stay on
   // /map, then re-read after mount (and when CitySwitcher writes).
@@ -70,7 +71,8 @@ export default function MobileTabBar() {
     preferredCityMapHref,
     () => "/map",
   );
-  const tabs = buildTabs(mapHref, pathname);
+  const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
+  const tabs = buildTabs(mapHref, returnTo);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the five tabs own) hides it via CSS rather than pinning it
   // to a wrong tab.

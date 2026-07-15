@@ -23,10 +23,11 @@ import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/pr
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import MobileMapShell from "@/components/mobile/MobileMapShell";
-import MobileSharedSheet from "@/components/mobile/MobileSharedSheet";
-import MobileTflPanel from "@/components/mobile/MobileTflPanel";
+import { Sheet } from "@/components/ui/sheet";
+import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
 import { SearchField } from "@/components/ui/search-field";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MapLayersControl from "@/components/map/MapLayersControl";
@@ -99,10 +100,12 @@ import {
   shouldShowCuratedOnboarding,
 } from "@/lib/bandOnboardingChip";
 import { shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import { getNightArea, nightAreaForMapQuery } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   readMobileMapSession,
   writeMobileMapSession,
+  type MobileShellState,
   type MapOverlay,
   type MapViewportSnapshot,
   type NearbyMapResult,
@@ -316,7 +319,8 @@ export default function PubMap({
     restoredMobileSession?.viewport ?? city.mapView,
   );
   const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
-  const [tflCount, setTflCount] = useState(0);
+  const [mobileLayersTab, setMobileLayersTab] = useState<"layers" | "prices" | "events" | "transit">("layers");
+  const tflStatus = useMobileTflStatus();
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
   const [mode, setMode] = useState<CrawlMode>(seed.mode);
   const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
@@ -601,9 +605,19 @@ export default function PubMap({
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
+  const nearbyVenueIds = useMemo(
+    () => nearbyMapResult ? new Set(nearbyMapResult.venueIds) : null,
+    [nearbyMapResult],
+  );
+  const mapMembershipVenues = useMemo(
+    () => nearbyVenueIds
+      ? filteredVenues.filter((venue) => nearbyVenueIds.has(venue.id))
+      : filteredVenues,
+    [filteredVenues, nearbyVenueIds],
+  );
   const canvasVenues = useMemo(
-    () => withForcedVenue(filteredVenues, venueById, selectedVenueId),
-    [filteredVenues, venueById, selectedVenueId],
+    () => withForcedVenue(mapMembershipVenues, venueById, selectedVenueId),
+    [mapMembershipVenues, venueById, selectedVenueId],
   );
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams);
@@ -1074,7 +1088,7 @@ export default function PubMap({
         const nearby = nearbyVenuesForMap(location.lat, location.lng, filteredVenues, {
           radiusKm: 2.5,
           minCount: 20,
-          maxCount: 20,
+          maxCount: Math.max(20, filteredVenues.length),
         });
         const withinRadius = nearby.filter(
           (venue) => haversineKm([location.lng, location.lat], [venue.longitude, venue.latitude]) <= 2.5,
@@ -1116,8 +1130,26 @@ export default function PubMap({
   }, [closePlanning, route, selectVenue]);
 
   const detailOpen = Boolean(selectedVenueId && selectedVenue);
+  const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
+    (!filters.query.trim() && restoredMobileSession?.nightArea ? getNightArea(restoredMobileSession.nightArea) : null),
+  [cityId, filters.query, restoredMobileSession]);
+  const coordinatedMobileOverlay: MapOverlay = logIntentFallbackVisible
+    ? "moment"
+    : detailOpen
+      ? "venue"
+      : planningOpen
+        ? "planner"
+        : mapOverlay;
+  const mobileShellState: MobileShellState = {
+    overlay: coordinatedMobileOverlay,
+    viewport: mapViewport,
+    selectedVenueId: selectedVenueId || null,
+    cityId,
+    nightArea: activeNightArea?.slug ?? null,
+  };
 
   const changeMapOverlay = useCallback((next: MapOverlay) => {
+    if (next !== "moment") setLogIntentFallbackVisible(false);
     if (next !== "none" && isMobileViewport()) {
       setPlanningOpen(false);
       setSelectedVenueId("");
@@ -1131,6 +1163,7 @@ export default function PubMap({
       viewport: mapViewport,
       filters,
       cityId,
+      nightArea: activeNightArea?.slug ?? null,
       selectedVenueId: selectedVenueId || null,
       openSheet: detailOpen
         ? "venue"
@@ -1140,7 +1173,7 @@ export default function PubMap({
             ? mapOverlay
             : null,
     });
-  }, [cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId]);
+  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId]);
 
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
@@ -1471,7 +1504,7 @@ export default function PubMap({
             onDismissOverlay={dismissTonightOverlay}
           />
         ) : null}
-        {logIntentFallbackVisible ? (
+        {!mobileViewport && logIntentFallbackVisible ? (
           <LogIntentFallback
             candidates={logNearbyCandidates}
             hasUserLocation={Boolean(userLocation)}
@@ -1516,13 +1549,15 @@ export default function PubMap({
         ) : null}
 
         <MobileMapShell
-          cityLabel={city.displayName}
-          overlay={detailOpen ? "venue" : planningOpen ? "planner" : mapOverlay}
+          cityLabel={activeNightArea?.name ?? city.displayName}
+          overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
           onNearMe={showNearbyMap}
           nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResult ? "ready" : nearbyError ? "error" : "idle"}
+          nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
           tonightCount={whatsOnTonight.rows.length}
-          tflCount={tflCount}
+          tflCount={tflStatus.issueCount}
+          tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
           filtersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails || filters.maxPrice < 10)}
           searchContent={
@@ -1567,7 +1602,7 @@ export default function PubMap({
               </fieldset>
             </div>
           }
-          tflContent={<MobileTflPanel onCountChange={setTflCount} />}
+          tflContent={<MobileTflPanel status={tflStatus} />}
           tonightContent={
             <TonightLane
               rows={whatsOnTonight.rows}
@@ -1583,34 +1618,35 @@ export default function PubMap({
             />
           }
           layersContent={
-            <div className="mobileLayersPanel">
-              <Button
-                className="mobilePlannerLaunch w-full justify-start"
-                onClick={() => {
-                  changeMapOverlay("none");
-                  openPlanning();
-                }}
-              >
-                <MapPinned size={18} aria-hidden="true" />
-                Plan tonight
-              </Button>
-              <div className="mobileLayersTheme">
-                <div>
-                  <strong>Map appearance</strong>
-                  <small>Theme changes preserve this view and its active sheet.</small>
+            <Tabs className="mobileLayersPanel" value={mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
+              <TabsList aria-label="Layer settings sections">
+                <TabsTrigger value="layers">Layers</TabsTrigger>
+                <TabsTrigger value="prices">Prices</TabsTrigger>
+                <TabsTrigger value="events">Events</TabsTrigger>
+                <TabsTrigger value="transit">Transit</TabsTrigger>
+              </TabsList>
+              <TabsContent value="layers" className="mobileLayersPanel">
+                <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
+                  <MapPinned size={18} aria-hidden="true" />
+                  Plan tonight
+                </Button>
+                {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
+                <div className="mobileLayersTheme">
+                  <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
+                  <ThemeToggle />
                 </div>
-                <ThemeToggle />
-              </div>
-              <MapLayersControl
-                embedded
-                poiHidden={poiHidden}
-                onPoiHiddenChange={setPoiHidden}
-                activeBandId={activeBandId}
-                onBandChange={setActiveBandId}
-                storyBands={cityStoryBands}
-                cityId={cityId}
-              />
-            </div>
+                <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
+              </TabsContent>
+              <TabsContent value="prices" className="mobileMapFilters">
+                <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
+                <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, requireCocktails: drinkCategory === "cocktail" }))} />
+                <fieldset className="mobilePriceChoices"><legend>Maximum pint price</legend>{[10, 7, 6, 5.5].map((price) => <button type="button" key={price} className={filters.maxPrice === price ? "isActive" : ""} aria-pressed={filters.maxPrice === price} onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}>{price === 10 ? "Any" : `£${price.toFixed(2)}`}</button>)}</fieldset>
+              </TabsContent>
+              <TabsContent value="events">
+                <TonightLane rows={whatsOnTonight.rows} asOf={whatsOnTonight.asOf} status={whatsOnTonight.status} open onOpenChange={() => undefined} onSelectVenue={selectVenue} overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0} overlayActive={tonightOverlayVisible} onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)} onDismissOverlay={dismissTonightOverlay} />
+              </TabsContent>
+              <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent>
+            </Tabs>
           }
           palContent={
             <div className="mobilePalSummon">
@@ -1620,6 +1656,20 @@ export default function PubMap({
               <Link href="/pal">Open Pub Pal</Link>
               <small><ShieldCheck size={14} aria-hidden="true" /> It never changes a plan or posts a memory without confirmation.</small>
             </div>
+          }
+          momentContent={
+            <LogIntentFallback
+              candidates={logNearbyCandidates}
+              hasUserLocation={Boolean(userLocation)}
+              filteredVenueCount={filteredVenueCount}
+              onPickVenue={pickLogNearbyVenue}
+              onPrefetchVenue={prefetchVenueDetail}
+              onFocusSearch={() => {
+                changeMapOverlay("search");
+                requestAnimationFrame(focusMapSearch);
+              }}
+              onResetFilters={resetLogIntentFilters}
+            />
           }
         />
 
@@ -1637,7 +1687,7 @@ export default function PubMap({
       </section>
 
       {mobileViewport ? (
-        <MobileSharedSheet
+        <Sheet
           kind={detailOpen ? "venue" : planningOpen ? "planner" : null}
           title={detailOpen ? selectedVenue?.name ?? "Pub detail" : "Plan tonight"}
           initialSnap="half"
@@ -1645,7 +1695,7 @@ export default function PubMap({
           onClose={detailOpen ? dismissSheet : closePlanning}
         >
           {detailOpen ? venuePanel : plannerPanel}
-        </MobileSharedSheet>
+        </Sheet>
       ) : null}
 
       {/* Left drawer: the whole crawl planner, on demand.

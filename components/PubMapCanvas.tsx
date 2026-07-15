@@ -1678,7 +1678,7 @@ export default function PubMapCanvas({
   const cityDisplayName = getCity(cityId).displayName;
 
   return (
-    <div className="mapCanvasWrap" data-route-stops={route.length}>
+    <div className="mapCanvasWrap" data-route-stops={route.length} data-venue-count={venues.length}>
       <div ref={containerRef} className="maplibreMap" />
       {/* Camera fit for the active city — not a city switcher (toolbar owns that). */}
       <div className="mapCameraControls" aria-label="Map camera controls">

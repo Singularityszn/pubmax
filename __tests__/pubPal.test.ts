@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanPalDraft, DEFAULT_PAL_DRAFT, PAL_ANIMATION_STATES, PAL_ONBOARDING_DRAFT_KEY, PAL_SPECIES, PAL_UNLOCKS, PAL_VISUAL_MANIFEST, SIGNAL_FAMILIES, readPalOnboardingDraft, writePalOnboardingDraft } from "@/lib/pubPal";
+import { cleanPalDraft, DEFAULT_PAL_DRAFT, migrateLegacyPalOnboardingDraft, PAL_ANIMATION_STATES, PAL_ONBOARDING_DRAFT_KEY, PAL_SPECIES, PAL_UNLOCKS, PAL_VISUAL_MANIFEST, SIGNAL_FAMILIES, palOnboardingDraftKey, readPalOnboardingDraft, writePalOnboardingDraft } from "@/lib/pubPal";
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -37,12 +37,27 @@ describe("Pub Pal domain", () => {
 
   it("round-trips an incomplete five-step onboarding draft safely", () => {
     (globalThis as { window?: { localStorage: Storage } }).window = { localStorage: memoryStorage() };
-    writePalOnboardingDraft({
+    writePalOnboardingDraft("user-1", {
       step: 2,
       draft: { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Nova" },
       privacy: { proposeMemories: false, visible: true, muted: false },
     });
-    expect(window.localStorage.getItem(PAL_ONBOARDING_DRAFT_KEY)).toContain('"version":1');
-    expect(readPalOnboardingDraft()).toMatchObject({ step: 2, draft: { name: "Nova" } });
+    expect(window.localStorage.getItem(palOnboardingDraftKey("user-1"))).toContain('"version":1');
+    expect(readPalOnboardingDraft("user-1")).toMatchObject({ step: 2, draft: { name: "Nova" } });
+    expect(readPalOnboardingDraft("user-2")).toBeNull();
+  });
+
+  it("migrates the old shared draft but requires a fresh adult attestation", () => {
+    (globalThis as { window?: { localStorage: Storage } }).window = { localStorage: memoryStorage() };
+    window.localStorage.setItem(PAL_ONBOARDING_DRAFT_KEY, JSON.stringify({
+      version: 1,
+      savedAt: new Date(0).toISOString(),
+      step: 4,
+      draft: { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Nova" },
+      privacy: { proposeMemories: true, visible: true, muted: false },
+    }));
+    expect(migrateLegacyPalOnboardingDraft("user-1")).toMatchObject({ step: 0, draft: { name: "Nova", adultConfirmed: false }, privacy: { proposeMemories: false } });
+    expect(window.localStorage.getItem(PAL_ONBOARDING_DRAFT_KEY)).toBeNull();
+    expect(readPalOnboardingDraft("user-1")).toMatchObject({ step: 0, draft: { adultConfirmed: false } });
   });
 });

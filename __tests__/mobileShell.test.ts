@@ -38,6 +38,7 @@ describe("mobile map session adapter", () => {
       viewport: { center: [-0.12, 51.51], zoom: 13, pitch: 28, bearing: -8 },
       filters,
       cityId: "london",
+      nightArea: "shoreditch",
       selectedVenueId: "pub-1",
       openSheet: "venue",
     });
@@ -46,6 +47,7 @@ describe("mobile map session adapter", () => {
     expect(readMobileMapSession()).toMatchObject({
       version: 1,
       cityId: "london",
+      nightArea: "shoreditch",
       selectedVenueId: "pub-1",
       openSheet: "venue",
       filters,

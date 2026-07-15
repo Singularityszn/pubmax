@@ -30,19 +30,21 @@ export const MOMENT_NAV_ACTION = {
   label: "Moment",
 } as const;
 
-export type MomentReturnTarget = "/map" | "/tonight" | "/feed" | "/u/you";
+export type MomentReturnTarget = string;
 
-const SAFE_MOMENT_RETURN_TARGETS = new Set<MomentReturnTarget>([
-  "/map",
-  "/tonight",
-  "/feed",
-  "/u/you",
-]);
+const BLOCKED_MOMENT_RETURN_PREFIXES = ["/api", "/admin", "/auth", "/moment"];
 
 export function safeMomentReturnTo(value: string | null | undefined): MomentReturnTarget {
   if (!value) return "/map";
-  const path = value.split("?")[0]?.split("#")[0] as MomentReturnTarget | undefined;
-  return path && SAFE_MOMENT_RETURN_TARGETS.has(path) ? path : "/map";
+  if (!value.startsWith("/") || value.startsWith("//")) return "/map";
+  try {
+    const url = new URL(value, "https://pubmaxxing.com");
+    if (url.origin !== "https://pubmaxxing.com") return "/map";
+    if (BLOCKED_MOMENT_RETURN_PREFIXES.some((prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`))) return "/map";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/map";
+  }
 }
 
 export function momentHref(returnTo: string | null | undefined): string {

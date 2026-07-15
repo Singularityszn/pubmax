@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { displayHandle } from "@/lib/handleDisplay";
 import { subscribeToComments } from "@/lib/realtime";
 import { relativeTime } from "@/lib/relativeTime";
-import { readCommentDraft, writeCommentDraft } from "@/lib/socialDrafts";
+import { readCommentDraft, subscribeCommentDraft, writeCommentDraft } from "@/lib/socialDrafts";
 
 // The comment thread under a Pint Drop — where a drop's story continues after
 // the night (cc_plan2 §4), now with one-level THREADED replies (issue #37) and
@@ -93,6 +93,13 @@ export default function CommentThread({ dropId }: { dropId: string }) {
   useEffect(() => {
     writeCommentDraft(dropId, { body, replyTo, replyBody });
   }, [body, dropId, replyBody, replyTo]);
+
+  useEffect(() => subscribeCommentDraft(dropId, () => {
+    const next = readCommentDraft(dropId);
+    setBody(next.body);
+    setReplyTo(next.replyTo);
+    setReplyBody(next.replyBody);
+  }), [dropId]);
 
   // A ref to the latest fetch routine so the realtime subscription (set up in a
   // separate effect keyed only on open/dropId) can trigger a refetch without

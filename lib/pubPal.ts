@@ -148,6 +148,26 @@ export type PalOnboardingDraftV1 = {
 };
 
 export const PAL_ONBOARDING_DRAFT_KEY = "pubmaxx.pub-pal-onboarding.v1";
+const PAL_ANONYMOUS_OWNER_KEY = "pubmaxx.pub-pal-onboarding-owner.v1";
+let fallbackAnonymousOwner = "";
+
+export function palOnboardingDraftKey(ownerId: string): string {
+  return `${PAL_ONBOARDING_DRAFT_KEY}:${encodeURIComponent(ownerId)}`;
+}
+
+export function anonymousPalDraftOwner(): string {
+  if (typeof window === "undefined") return "anonymous-server";
+  try {
+    const existing = window.sessionStorage.getItem(PAL_ANONYMOUS_OWNER_KEY);
+    if (existing) return existing;
+    const token = `anonymous-${crypto.randomUUID()}`;
+    window.sessionStorage.setItem(PAL_ANONYMOUS_OWNER_KEY, token);
+    return token;
+  } catch {
+    fallbackAnonymousOwner ||= `anonymous-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return fallbackAnonymousOwner;
+  }
+}
 
 export const DEFAULT_PAL_DRAFT: PubPalDraft = {
   adultConfirmed: false,
@@ -157,10 +177,9 @@ export const DEFAULT_PAL_DRAFT: PubPalDraft = {
   voice: { id: "ember", pace: 50, warmth: 64, energy: 52 },
 };
 
-export function readPalOnboardingDraft(): PalOnboardingDraftV1 | null {
-  if (typeof window === "undefined") return null;
+function parsePalOnboardingDraft(serialized: string | null): PalOnboardingDraftV1 | null {
   try {
-    const raw = JSON.parse(window.localStorage.getItem(PAL_ONBOARDING_DRAFT_KEY) ?? "null") as Partial<PalOnboardingDraftV1> | null;
+    const raw = JSON.parse(serialized ?? "null") as Partial<PalOnboardingDraftV1> | null;
     if (!raw || raw.version !== 1 || !raw.draft || !raw.privacy) return null;
     const draft = raw.draft as PubPalDraft;
     if (
@@ -192,10 +211,38 @@ export function readPalOnboardingDraft(): PalOnboardingDraftV1 | null {
   }
 }
 
-export function writePalOnboardingDraft(value: Omit<PalOnboardingDraftV1, "version" | "savedAt">): void {
+export function readPalOnboardingDraft(ownerId: string): PalOnboardingDraftV1 | null {
+  if (typeof window === "undefined") return null;
+  try { return parsePalOnboardingDraft(window.localStorage.getItem(palOnboardingDraftKey(ownerId))); }
+  catch { return null; }
+}
+
+export function migrateLegacyPalOnboardingDraft(ownerId: string): PalOnboardingDraftV1 | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const legacy = parsePalOnboardingDraft(window.localStorage.getItem(PAL_ONBOARDING_DRAFT_KEY));
+    if (!legacy) return null;
+    // The old key was shared by every browser user. Preserve creative choices,
+    // but force a fresh adult attestation before the migrated draft can finish.
+    const migrated: PalOnboardingDraftV1 = {
+      ...legacy,
+      savedAt: new Date().toISOString(),
+      step: 0,
+      draft: { ...legacy.draft, adultConfirmed: false },
+      privacy: { proposeMemories: false, visible: true, muted: false },
+    };
+    writePalOnboardingDraft(ownerId, { step: migrated.step, draft: migrated.draft, privacy: migrated.privacy });
+    window.localStorage.removeItem(PAL_ONBOARDING_DRAFT_KEY);
+    return migrated;
+  } catch {
+    return null;
+  }
+}
+
+export function writePalOnboardingDraft(ownerId: string, value: Omit<PalOnboardingDraftV1, "version" | "savedAt">): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(PAL_ONBOARDING_DRAFT_KEY, JSON.stringify({
+    window.localStorage.setItem(palOnboardingDraftKey(ownerId), JSON.stringify({
       ...value,
       version: 1,
       savedAt: new Date().toISOString(),
@@ -205,9 +252,9 @@ export function writePalOnboardingDraft(value: Omit<PalOnboardingDraftV1, "versi
   }
 }
 
-export function clearPalOnboardingDraft(): void {
+export function clearPalOnboardingDraft(ownerId: string): void {
   if (typeof window === "undefined") return;
-  try { window.localStorage.removeItem(PAL_ONBOARDING_DRAFT_KEY); } catch { /* best effort */ }
+  try { window.localStorage.removeItem(palOnboardingDraftKey(ownerId)); } catch { /* best effort */ }
 }
 
 export function cleanPalDraft(value: unknown): PubPalDraft | null {

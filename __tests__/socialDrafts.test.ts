@@ -25,8 +25,9 @@ function memoryStorage(): Storage {
 
 describe("versioned social draft session adapters", () => {
   beforeEach(() => {
-    (globalThis as { window?: { sessionStorage: Storage } }).window = {
+    (globalThis as { window?: { sessionStorage: Storage; localStorage: Storage } }).window = {
       sessionStorage: memoryStorage(),
+      localStorage: memoryStorage(),
     };
   });
 
@@ -44,7 +45,7 @@ describe("versioned social draft session adapters", () => {
     };
     writeMemoryStudioDraft("user-1", draft);
     expect(readMemoryStudioDraft("user-1")).toEqual(draft);
-    expect(window.sessionStorage.getItem("pubmaxx.memory-studio.v1:user-1")).toContain('"version":1');
+    expect(window.localStorage.getItem("pubmaxx.memory-studio.v1:user-1")).toContain('"version":1');
   });
 
   it("round-trips comment and reply drafts but removes an empty draft", () => {
@@ -52,14 +53,26 @@ describe("versioned social draft session adapters", () => {
     expect(readCommentDraft("drop-1")).toEqual({ body: "Save this thought", replyTo: "comment-1", replyBody: "And this reply" });
     writeCommentDraft("drop-1", EMPTY_COMMENT_DRAFT);
     expect(readCommentDraft("drop-1")).toEqual(EMPTY_COMMENT_DRAFT);
-    expect(window.sessionStorage.length).toBe(0);
+    expect(window.localStorage.length).toBe(0);
   });
 
   it("rejects malformed or oversized payloads", () => {
     expect(validateMemoryStudioDraft({ ...EMPTY_MEMORY_STUDIO_DRAFT, momentKind: "secret" })).toBeNull();
     expect(validateMemoryStudioDraft({ ...EMPTY_MEMORY_STUDIO_DRAFT, storySummary: "x".repeat(501) })).toBeNull();
     expect(validateCommentDraft({ body: "x".repeat(501), replyTo: null, replyBody: "" })).toBeNull();
-    window.sessionStorage.setItem("pubmaxx.comment-draft.v1:drop-2", JSON.stringify({ version: 2, draft: { body: "stale" } }));
+    window.localStorage.setItem("pubmaxx.comment-draft.v1:drop-2", JSON.stringify({ version: 2, draft: { body: "stale" } }));
     expect(readCommentDraft("drop-2")).toEqual(EMPTY_COMMENT_DRAFT);
+  });
+
+  it("migrates the previous versioned session drafts once", () => {
+    const legacy = { ...EMPTY_MEMORY_STUDIO_DRAFT, memoryTitle: "Recovered night" };
+    window.sessionStorage.setItem("pubmaxx.memory-studio.v1:user-1", JSON.stringify({ version: 1, savedAt: new Date(0).toISOString(), draft: legacy }));
+    window.sessionStorage.setItem("pubmaxx.comment-draft.v1:drop-1", JSON.stringify({ version: 1, savedAt: new Date(0).toISOString(), draft: { body: "Recovered comment", replyTo: null, replyBody: "" } }));
+    expect(readMemoryStudioDraft("user-1")).toEqual(legacy);
+    expect(readCommentDraft("drop-1")).toMatchObject({ body: "Recovered comment" });
+    expect(window.sessionStorage.getItem("pubmaxx.memory-studio.v1:user-1")).toBeNull();
+    expect(window.sessionStorage.getItem("pubmaxx.comment-draft.v1:drop-1")).toBeNull();
+    expect(window.localStorage.getItem("pubmaxx.memory-studio.v1:user-1")).toContain("Recovered night");
+    expect(window.localStorage.getItem("pubmaxx.comment-draft.v1:drop-1")).toContain("Recovered comment");
   });
 });

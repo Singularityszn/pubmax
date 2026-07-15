@@ -25,6 +25,8 @@ describe("PUBMAXX primary navigation", () => {
   it("accepts only safe Moment return destinations", () => {
     expect(momentHref("/feed")).toBe("/moment?returnTo=%2Ffeed");
     expect(safeMomentReturnTo("https://example.com/steal")).toBe("/map");
-    expect(safeMomentReturnTo("/u/you?tab=moments")).toBe("/u/you");
+    expect(safeMomentReturnTo("/u/you?tab=moments")).toBe("/u/you?tab=moments");
+    expect(safeMomentReturnTo("/map/manchester?sel=pub-1#sheet")).toBe("/map/manchester?sel=pub-1#sheet");
+    expect(safeMomentReturnTo("/moment?returnTo=/admin")).toBe("/map");
   });
 });

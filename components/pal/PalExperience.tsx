@@ -20,7 +20,9 @@ import SignInButton from "@/components/auth/SignInButton";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   DEFAULT_PAL_DRAFT,
+  anonymousPalDraftOwner,
   clearPalOnboardingDraft,
+  migrateLegacyPalOnboardingDraft,
   PAL_UNLOCKS,
   PAL_ONBOARDING_SPECIES,
   PAL_VOICES,
@@ -101,6 +103,17 @@ const DEFAULT_PRIVACY: PrivacyState = {
   muted: false,
 };
 
+const palStateSpeech: Record<PalAnimationState, string> = {
+  idle: "Ready when you are. I will never make a change without showing you first.",
+  noticing: "I hear you. Getting the signal clear.",
+  listening: "Listening — nothing from this conversation becomes memory.",
+  thinking: "Thinking through a grounded answer.",
+  speaking: "Here is what I found. You choose what happens next.",
+  celebrating: "Signal confirmed. Nice one.",
+  sleeping: "Voice is muted. Tap the control when you want me back.",
+  error: "The signal dropped. Text still works, and nothing was saved.",
+};
+
 function previewSpeech(step: number, draft: PubPalDraft): string {
   switch (step) {
     case 0: return "I am for adults planning a night out.";
@@ -175,26 +188,54 @@ function RangeControl({
 
 export default function PalExperience() {
   const { user, loading, configured } = useAuth();
-  const [restoredOnboarding] = useState(readPalOnboardingDraft);
-  const [mode, setMode] = useState<"meeting" | "onboarding" | "home">(restoredOnboarding ? "onboarding" : "meeting");
-  const [step, setStep] = useState<number>(restoredOnboarding?.step ?? 0);
-  const [draft, setDraft] = useState<PubPalDraft>(restoredOnboarding?.draft ?? DEFAULT_PAL_DRAFT);
-  const [privacy, setPrivacy] = useState<PrivacyState>(restoredOnboarding?.privacy ?? DEFAULT_PRIVACY);
+  const [draftOwner, setDraftOwner] = useState("");
+  const [mode, setMode] = useState<"meeting" | "onboarding" | "home">("meeting");
+  const [step, setStep] = useState<number>(0);
+  const [draft, setDraft] = useState<PubPalDraft>(DEFAULT_PAL_DRAFT);
+  const [privacy, setPrivacy] = useState<PrivacyState>(DEFAULT_PRIVACY);
   const [pal, setPal] = useState<PubPal | null>(null);
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [memories, setMemories] = useState<PubPalMemory[]>([]);
+  const [palAnimationState, setPalAnimationState] = useState<PalAnimationState>("idle");
 
   useEffect(() => {
-    if (mode !== "onboarding") return;
-    const timer = window.setTimeout(() => writePalOnboardingDraft({
+    if (loading) return;
+    const anonymousOwner = anonymousPalDraftOwner();
+    const owner = user?.id ?? anonymousOwner;
+    if (owner === draftOwner) return;
+    let restored = readPalOnboardingDraft(owner);
+    if (user && !restored) {
+      const anonymousDraft = readPalOnboardingDraft(anonymousOwner);
+      if (anonymousDraft) {
+        restored = anonymousDraft;
+        writePalOnboardingDraft(owner, { step: restored.step, draft: restored.draft, privacy: restored.privacy });
+        clearPalOnboardingDraft(anonymousOwner);
+      }
+    }
+    restored ??= migrateLegacyPalOnboardingDraft(owner);
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setDraftOwner(owner);
+      setMode(restored ? "onboarding" : "meeting");
+      setStep(restored?.step ?? 0);
+      setDraft(restored?.draft ?? DEFAULT_PAL_DRAFT);
+      setPrivacy(restored?.privacy ?? DEFAULT_PRIVACY);
+    });
+    return () => { cancelled = true; };
+  }, [draftOwner, loading, user]);
+
+  useEffect(() => {
+    if (mode !== "onboarding" || !draftOwner) return;
+    const timer = window.setTimeout(() => writePalOnboardingDraft(draftOwner, {
       step: Math.max(0, Math.min(4, step)) as 0 | 1 | 2 | 3 | 4,
       draft,
       privacy,
     }), 200);
     return () => window.clearTimeout(timer);
-  }, [draft, mode, privacy, step]);
+  }, [draft, draftOwner, mode, privacy, step]);
 
   useEffect(() => {
     if (!user) {
@@ -297,7 +338,7 @@ export default function PalExperience() {
       localStorage.setItem(`${PRIVACY_KEY}:${user.id}`, JSON.stringify({ proposeMemories: privacy.proposeMemories }));
       setPal(next);
       setMode("home");
-      clearPalOnboardingDraft();
+      clearPalOnboardingDraft(draftOwner);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Your Pal could not be created.");
     } finally {
@@ -317,11 +358,13 @@ export default function PalExperience() {
         body: JSON.stringify(patch),
       });
       const body = await response.json().catch(() => ({})) as { pal?: PubPal };
-      if (response.ok && body.pal) {
-        setPal(body.pal);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(body.pal));
-      }
+      if (!response.ok || !body.pal) throw new Error("Pal control update failed");
+      setPal(body.pal);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(body.pal));
+      setPalAnimationState("celebrating");
+      window.setTimeout(() => setPalAnimationState("idle"), 900);
     } catch {
+      setPalAnimationState("error");
       setPal(pal);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(pal));
     }
@@ -339,7 +382,7 @@ export default function PalExperience() {
     setPrivacy(DEFAULT_PRIVACY);
     setStep(0);
     setMode("meeting");
-    clearPalOnboardingDraft();
+    clearPalOnboardingDraft(draftOwner);
   };
 
   if (loading || !ready) {
@@ -347,6 +390,7 @@ export default function PalExperience() {
   }
 
   if (mode === "home" && pal) {
+    const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
     return (
       <main className="palExperience palHome">
         <div className="palTopbar">
@@ -355,15 +399,15 @@ export default function PalExperience() {
         </div>
         <section className="palHomeHero" aria-labelledby="pal-home-title">
           <div className="palHomePortrait">
-            <PalPortrait appearance={pal.appearance} name={pal.name} state="idle" />
-            <p className="palSpeech">Ready when you are. I will never make a change without showing you first.</p>
+            <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} />
+            <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
           </div>
           <div className="palHomeCopy">
             <p className="palEyebrow">Your Pub Pal</p>
             <h1 id="pal-home-title">{pal.name}</h1>
             <p>A {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
             <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
-            <PubPalVoice />
+            <PubPalVoice onStateChange={setPalAnimationState} />
           </div>
         </section>
         <section className="palControls" aria-labelledby="pal-controls-title">

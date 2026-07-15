@@ -92,7 +92,7 @@ export default function PubmaxxAccountHub() {
         <form onSubmit={claim}><h3>{currentHandle ? "Your @handle" : "Claim your @handle"}</h3><input value={handle} onChange={(event) => setHandle(event.target.value)} pattern="[A-Za-z0-9_]{3,30}" placeholder="night_owl" required /><button type="submit">{currentHandle ? "Rename handle" : "Claim handle"}</button>{currentHandle ? <small>Renames are limited to once every 30 days. Old links keep working.</small> : null}</form>
         <div><h3>Connected accounts</h3><div className="accountHubActions">{(["x", "tiktok", "instagram"] as const).map((provider) => <button type="button" key={provider} onClick={() => void connectOAuth(provider)}>Connect {provider === "x" ? "X" : provider[0].toUpperCase() + provider.slice(1)}</button>)}</div><form onSubmit={connectInstagram}><input type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Personal Instagram URL" required /><button type="submit">Add personal link</button></form><small>{connections.length} connected</small></div>
       </div>
-      <NightMemoryStudio userId={user.id} />
+      <NightMemoryStudio key={user.id} userId={user.id} />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
     </section>
   );

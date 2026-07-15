@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+  });
+});
+
 // Social-loop E2E (cc_plan2 §8/§9/§11). A READ-ONLY journey through the durable
 // social surfaces — feed, pint permalink, crawl poster. It asserts the loop
 // RENDERS correctly (real pub names, shareable posts, working cross-links)
@@ -436,9 +442,9 @@ test("desktop map control rail exposes the 'Saved only' filter checkbox", async 
   // un-hydrated DOM. WebGL-agnostic — canvas or fallback, either is fine.
   await expect(page.locator(".mapCanvasWrap")).toBeVisible();
 
-  // The control rail renders unconditionally inside the (collapsed-by-default)
-  // planning drawer, so it's in the DOM on desktop even before the planner is
-  // opened. Web-first (auto-retrying) so hydration timing can't false-fail it.
+  // The reset keeps planner controls out of the map until explicitly requested.
+  // Open the desktop planner, then verify the saved-only entry remains present.
+  await page.getByRole("button", { name: "Plan tonight" }).click();
   const rail = page.locator(".controlRail");
   await expect(rail).toHaveCount(1);
 

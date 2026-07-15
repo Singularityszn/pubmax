@@ -49,6 +49,11 @@ export const EMPTY_COMMENT_DRAFT: CommentDraft = {
 
 function storage(): Storage | null {
   if (typeof window === "undefined") return null;
+  try { return window.localStorage; } catch { return null; }
+}
+
+function legacyStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
   try { return window.sessionStorage; } catch { return null; }
 }
 
@@ -62,6 +67,23 @@ function studioKey(userId: string): string {
 
 function commentKey(dropId: string): string {
   return `pubmaxx.comment-draft.v1:${encodeURIComponent(dropId)}`;
+}
+
+function subscribeKey(key: string, listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.storageArea === window.localStorage && event.key === key) listener();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+
+export function subscribeMemoryStudioDraft(userId: string, listener: () => void): () => void {
+  return subscribeKey(studioKey(userId), listener);
+}
+
+export function subscribeCommentDraft(dropId: string, listener: () => void): () => void {
+  return subscribeKey(commentKey(dropId), listener);
 }
 
 export function validateMemoryStudioDraft(value: unknown): MemoryStudioDraft | null {
@@ -82,9 +104,18 @@ export function validateMemoryStudioDraft(value: unknown): MemoryStudioDraft | n
 
 export function readMemoryStudioDraft(userId: string): MemoryStudioDraft {
   try {
-    const raw = JSON.parse(storage()?.getItem(studioKey(userId)) ?? "null") as Partial<MemoryStudioDraftV1> | null;
-    if (!raw || raw.version !== 1) return EMPTY_MEMORY_STUDIO_DRAFT;
-    return validateMemoryStudioDraft(raw.draft) ?? EMPTY_MEMORY_STUDIO_DRAFT;
+    const target = storage();
+    const raw = JSON.parse(target?.getItem(studioKey(userId)) ?? "null") as Partial<MemoryStudioDraftV1> | null;
+    if (raw?.version === 1) return validateMemoryStudioDraft(raw.draft) ?? EMPTY_MEMORY_STUDIO_DRAFT;
+    const legacyKey = studioKey(userId);
+    const legacy = JSON.parse(legacyStorage()?.getItem(legacyKey) ?? "null") as Partial<MemoryStudioDraftV1> | MemoryStudioDraft | null;
+    const migrated = legacy && "version" in legacy && legacy.version === 1
+      ? validateMemoryStudioDraft(legacy.draft)
+      : validateMemoryStudioDraft(legacy);
+    if (!migrated) return EMPTY_MEMORY_STUDIO_DRAFT;
+    writeMemoryStudioDraft(userId, migrated);
+    legacyStorage()?.removeItem(legacyKey);
+    return migrated;
   } catch {
     return EMPTY_MEMORY_STUDIO_DRAFT;
   }
@@ -94,7 +125,11 @@ export function writeMemoryStudioDraft(userId: string, draft: MemoryStudioDraft)
   const safe = validateMemoryStudioDraft(draft);
   if (!safe) return;
   try {
-    storage()?.setItem(studioKey(userId), JSON.stringify({
+    const target = storage();
+    if (!target) return;
+    const existing = JSON.parse(target.getItem(studioKey(userId)) ?? "null") as Partial<MemoryStudioDraftV1> | null;
+    if (existing?.version === 1 && JSON.stringify(validateMemoryStudioDraft(existing.draft)) === JSON.stringify(safe)) return;
+    target.setItem(studioKey(userId), JSON.stringify({
       version: 1,
       savedAt: new Date().toISOString(),
       draft: safe,
@@ -117,8 +152,16 @@ export function validateCommentDraft(value: unknown): CommentDraft | null {
 export function readCommentDraft(dropId: string): CommentDraft {
   try {
     const raw = JSON.parse(storage()?.getItem(commentKey(dropId)) ?? "null") as Partial<CommentDraftV1> | null;
-    if (!raw || raw.version !== 1) return EMPTY_COMMENT_DRAFT;
-    return validateCommentDraft(raw.draft) ?? EMPTY_COMMENT_DRAFT;
+    if (raw?.version === 1) return validateCommentDraft(raw.draft) ?? EMPTY_COMMENT_DRAFT;
+    const legacyKey = commentKey(dropId);
+    const legacy = JSON.parse(legacyStorage()?.getItem(legacyKey) ?? "null") as Partial<CommentDraftV1> | CommentDraft | null;
+    const migrated = legacy && "version" in legacy && legacy.version === 1
+      ? validateCommentDraft(legacy.draft)
+      : validateCommentDraft(legacy);
+    if (!migrated) return EMPTY_COMMENT_DRAFT;
+    writeCommentDraft(dropId, migrated);
+    legacyStorage()?.removeItem(legacyKey);
+    return migrated;
   } catch {
     return EMPTY_COMMENT_DRAFT;
   }
@@ -134,6 +177,8 @@ export function writeCommentDraft(dropId: string, draft: CommentDraft): void {
       target.removeItem(commentKey(dropId));
       return;
     }
+    const existing = JSON.parse(target.getItem(commentKey(dropId)) ?? "null") as Partial<CommentDraftV1> | null;
+    if (existing?.version === 1 && JSON.stringify(validateCommentDraft(existing.draft)) === JSON.stringify(safe)) return;
     target.setItem(commentKey(dropId), JSON.stringify({
       version: 1,
       savedAt: new Date().toISOString(),

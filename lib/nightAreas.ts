@@ -178,6 +178,13 @@ export function getNightAreasForCity(cityId: CityId): NightArea[] {
   return NIGHT_AREAS.filter((area) => area.cityId === cityId);
 }
 
+export function nightAreaForMapQuery(cityId: CityId, query: string): NightArea | null {
+  const normalized = query.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+  if (!normalized) return null;
+  return NIGHT_AREAS.find((area) => area.cityId === cityId &&
+    [area.name, ...area.aliases].some((label) => label.toLocaleLowerCase().replace(/\s+/g, " ") === normalized)) ?? null;
+}
+
 function hasCompleteRouteReadyGate(gate: NightAreaGate): boolean {
   const requiredChecks = gate.checks.filter((check) => check.required);
   if (requiredChecks.length !== REQUIRED_GATE_CODES.length) return false;

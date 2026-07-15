@@ -1,6 +1,7 @@
 import type { Filters } from "@/lib/venues";
 import { parseCityId, type CityId } from "@/lib/cities";
 import type { SheetSnap } from "@/lib/sheetSnap";
+import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 
 export type MapOverlay =
   | "none"
@@ -36,6 +37,7 @@ export type MobileShellState = {
   viewport: MapViewportSnapshot | null;
   selectedVenueId: string | null;
   cityId: CityId;
+  nightArea: NightAreaSlug | null;
 };
 
 export type MobileMapSessionV1 = {
@@ -44,6 +46,7 @@ export type MobileMapSessionV1 = {
   viewport: MapViewportSnapshot | null;
   filters: Filters;
   cityId: CityId;
+  nightArea: NightAreaSlug | null;
   selectedVenueId: string | null;
   openSheet: MapSheetKind | null;
 };
@@ -85,6 +88,10 @@ const FILTER_BOOLEAN_KEYS = [
 
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function isNightAreaSlug(value: unknown): value is NightAreaSlug {
+  return typeof value === "string" && (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
 }
 
 export function validateMapViewport(value: unknown): MapViewportSnapshot | null {
@@ -132,6 +139,7 @@ export function readMobileMapSession(): MobileMapSessionV1 | null {
       viewport: validateMapViewport(raw.viewport),
       filters,
       cityId,
+      nightArea: isNightAreaSlug(raw.nightArea) ? raw.nightArea : null,
       selectedVenueId: typeof raw.selectedVenueId === "string" ? raw.selectedVenueId : null,
       openSheet: typeof raw.openSheet === "string" && RESTORABLE_SHEETS.has(raw.openSheet as MapSheetKind)
         ? (raw.openSheet as MapSheetKind)

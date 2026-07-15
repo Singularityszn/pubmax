@@ -110,7 +110,9 @@
   .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { transform: translateY(8dvh); }
   .mobileSharedSheetHeader { position: relative; min-height: 64px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 12px 4px; touch-action: none; }
   .mobileSharedSheetHeader h2 { grid-column: 2; margin: 0; text-align: center; font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: var(--tracking-tight); }
+  .mobileSharedSheetDetent { position: absolute; top: 0; left: 50%; z-index: 1; width: 52px; height: 44px; border: 0; background: transparent; transform: translateX(-50%); }
   .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
+  .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
   .mobileSharedSheetClose { grid-column: 3; }
   .mobileSharedSheetBody { flex: 1; min-height: 0; overflow: hidden; padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
   .mobileSharedSheetBody.isScrollable { overflow-y: auto; overscroll-behavior: contain; }
@@ -137,7 +139,10 @@
   }
   .mobileSheetPortal .tonightLane { inset: auto; box-shadow: none; }
   .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; }
+  .mobileSheetPortal .logIntentFallback { position: static; inset: auto; width: 100%; max-width: none; margin: 0; box-shadow: none; }
   .mobileLayersPanel { display: grid; gap: 16px; }
+  .mobileLayerShortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .mobileLayerShortcuts button { min-height: 44px; justify-content: flex-start; }
   .mobileLayersTheme { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
   .mobileLayersTheme > div { min-width: 0; display: grid; gap: 3px; }
   .mobileLayersTheme small { color: var(--color-text-muted); line-height: 1.35; }
@@ -177,5 +182,5 @@
 }
 
 @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
-  .mobileSharedSheet.mapDrawer { transition: opacity 160ms ease !important; transform: translateY(45vh); }
+  .mobileSharedSheet.mapDrawer { transition: none !important; }
 }

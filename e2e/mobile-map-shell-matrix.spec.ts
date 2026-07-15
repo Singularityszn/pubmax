@@ -93,7 +93,11 @@ for (const viewport of VIEWPORTS) {
       });
       await page.getByRole("button", { name: "Near me" }).click();
       await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-geo-calls"))).toBe("1");
-      await expect(page.getByRole("button", { name: "Nearby" })).toBeVisible();
+      const nearbyChip = page.getByRole("button", { name: "Nearby" });
+      await expect(nearbyChip).toBeVisible();
+      const nearbyCount = Number.parseInt((await nearbyChip.innerText()).replace(/\D+/g, ""), 10);
+      expect(nearbyCount).toBeGreaterThan(0);
+      await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-venue-count", String(nearbyCount));
       await expect.poll(() => page.evaluate(() => {
         const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: unknown } | null;
         return JSON.stringify(raw?.viewport ?? null);
@@ -141,6 +145,15 @@ for (const viewport of VIEWPORTS) {
       await page.getByRole("button", { name: `Switch to ${theme} theme` }).click();
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
 
+      const layerTabs = page.getByRole("tablist", { name: "Layer settings sections" });
+      const layersTab = layerTabs.getByRole("tab", { name: "Layers" });
+      await layersTab.focus();
+      await page.keyboard.press("ArrowRight");
+      await expect(layerTabs.getByRole("tab", { name: "Prices" })).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByText("Maximum pint price")).toBeVisible();
+      await page.keyboard.press("ArrowLeft");
+      await expect(layersTab).toHaveAttribute("aria-selected", "true");
+
       await page.getByRole("button", { name: "Close Map layers" }).click();
       await page.getByRole("button", { name: "Drinks" }).click();
       const filtersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
@@ -166,6 +179,62 @@ test("venue selection opens exactly one coordinated sheet", async ({ page }) => 
   await page.getByRole("tab", { name: "Stories", exact: true }).click();
   await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
 });
+
+test("TfL status is fresh in the rail before its grouped sheet opens", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  let statusRequests = 0;
+  await page.route("**/api/citymcp/status**", (route) => {
+    statusRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: "2026-07-15T21:05:00.000Z",
+        signals: [
+          { headline: "Crowding near the river", kind: "alert", severity: "notable" },
+          { headline: "Late museum opening", kind: "event", severity: "info" },
+        ],
+        tubeLines: [{ line: "Central", status: "Minor delays", disruption: "Signal fault" }],
+      }),
+    });
+  });
+
+  await page.goto("/map");
+  const tflChip = page.getByRole("button", { name: /TfL/ });
+  await expect(tflChip).toContainText("3");
+  expect(statusRequests).toBe(1);
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]')).toHaveCount(0);
+
+  await tflChip.click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText(/Updated/)).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: "Alerts" })).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: "Transport" })).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: "Events" })).toBeVisible();
+});
+
+for (const width of [320, 390]) {
+  test(`Moment pub picker stays visible in its only sheet at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    await page.goto("/map?log=1&max=0");
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="moment"]');
+    await expect(sheet).toBeVisible({ timeout: 45_000 });
+    await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
+    await expect(sheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+    await expect(sheet.getByText("Pick a pub to log a Pint Drop")).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Search pubs" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+}
 
 for (const theme of THEMES) {
   test(`London basemap hierarchy at z10 z12 z14 z16 ${theme}`, async ({ page }) => {

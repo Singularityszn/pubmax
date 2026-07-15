@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const experience = readFileSync(join(process.cwd(), "components/pal/PalExperience.tsx"), "utf8");
 const portrait = readFileSync(join(process.cwd(), "components/pal/PalPortrait.tsx"), "utf8");
+const voice = readFileSync(join(process.cwd(), "components/pubpal/PubPalVoice.tsx"), "utf8");
 const css = readFileSync(join(process.cwd(), "app/pal/pal.css"), "utf8");
 
 describe("Pub Pal first meeting and onboarding", () => {
@@ -36,6 +37,14 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(portrait).toContain("palRigHound");
     expect(portrait).toContain("palRigRaven");
     expect(portrait).toContain("palRigFox");
+  });
+
+  it("drives every visual state from real Pal interactions", () => {
+    for (const state of ["idle", "noticing", "listening", "thinking", "speaking", "celebrating", "sleeping", "error"]) {
+      expect(`${experience}\n${voice}`).toContain(`\"${state}\"`);
+    }
+    expect(voice).toContain("onStateChange");
+    expect(experience).toContain("palAnimationState");
   });
 
   it("keeps controls thumb-sized and avoids unstable viewport height", () => {

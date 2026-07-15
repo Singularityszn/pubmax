@@ -8,6 +8,7 @@ import { authedFetch } from "@/lib/authedFetch";
 import type { NightMomentKind } from "@/lib/nightMemory";
 import {
   readMemoryStudioDraft,
+  subscribeMemoryStudioDraft,
   writeMemoryStudioDraft,
   type MemoryStudioDraft,
 } from "@/lib/socialDrafts";
@@ -62,6 +63,10 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   useEffect(() => {
     writeMemoryStudioDraft(userId, draft);
   }, [draft, userId]);
+
+  useEffect(() => subscribeMemoryStudioDraft(userId, () => {
+    setDraft(readMemoryStudioDraft(userId));
+  }), [userId]);
 
   useEffect(() => {
     if (!draft.selectedMemoryId) {

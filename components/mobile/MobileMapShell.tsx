@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { Ellipsis, LocateFixed, Search, SlidersHorizontal, Sparkles, TrainFront, WalletCards } from "lucide-react";
+import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { Chip } from "@/components/ui/chip";
 import { IconButton } from "@/components/ui/icon-button";
-import MobileSharedSheet from "@/components/mobile/MobileSharedSheet";
+import { Sheet } from "@/components/ui/sheet";
 import type { MapOverlay, MapSheetKind } from "@/lib/mobileShell";
 
 import "./mobileMapShell.css";
@@ -17,6 +18,7 @@ const SHEET_TITLES: Partial<Record<MapOverlay, string>> = {
   tonight: "Tonight",
   layers: "Map layers",
   "pub-pal": "Pub Pal",
+  moment: "Choose a pub",
 };
 
 const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
@@ -25,6 +27,7 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "tonight",
   "layers",
   "pub-pal",
+  "moment",
 ];
 
 function PalSignalAvatar() {
@@ -41,14 +44,16 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, tonightCount, tflCount, priceLabel, filtersActive, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent }: {
+export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, filtersActive, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent }: {
   cityLabel: string;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
   onNearMe: () => void;
   nearMeStatus: "idle" | "requesting" | "ready" | "error";
+  nearbyCount: number;
   tonightCount: number;
   tflCount: number;
+  tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
   filtersActive: boolean;
   searchContent: React.ReactNode;
@@ -57,12 +62,14 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
   tonightContent: React.ReactNode;
   layersContent: React.ReactNode;
   palContent: React.ReactNode;
+  momentContent: React.ReactNode;
 }) {
   const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
+  const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;
-  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : palContent;
+  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : palContent;
 
   return (
     <>
@@ -79,15 +86,15 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
           <div className="mobileMapSearchRow">{searchContent}</div>
         ) : (
           <nav className="mobileMapRail" aria-label="Contextual map controls">
-            <Chip aria-pressed={nearMeStatus === "ready"} disabled={nearMeStatus === "requesting"} onClick={onNearMe}><LocateFixed size={17} />{nearMeStatus === "requesting" ? "Locating" : nearMeStatus === "ready" ? "Nearby" : nearMeStatus === "error" ? "Try near me" : "Near me"}</Chip>
+            <Chip aria-pressed={nearMeStatus === "ready"} disabled={nearMeStatus === "requesting"} onClick={onNearMe}><LocateFixed size={17} />{nearMeStatus === "requesting" ? "Locating" : nearMeStatus === "ready" ? `Nearby ${nearbyCount}` : nearMeStatus === "error" ? "Try near me" : "Near me"}</Chip>
             <Chip aria-pressed={overlay === "tonight"} onClick={() => set("tonight")}><Sparkles size={17} />Tonight{tonightCount ? <span className="mobileMapChipCount">{tonightCount}</span> : null}</Chip>
             <Chip aria-pressed={overlay === "filters" && filtersActive} onClick={() => set("filters")}><SlidersHorizontal size={17} />Drinks</Chip>
             <Chip aria-pressed={overlay === "filters"} onClick={() => set("filters")}><WalletCards size={17} />{priceLabel}</Chip>
-            <Chip aria-pressed={overlay === "tfl"} onClick={() => set("tfl")}><TrainFront size={17} />TfL{tflCount ? <span className="mobileMapChipCount">{tflCount}</span> : null}</Chip>
+            <Chip aria-pressed={overlay === "tfl"} onClick={() => set("tfl")}><TrainFront size={17} />TfL{tflStatus === "clear" ? " OK" : tflStatus === "unavailable" ? " ?" : null}{tflCount ? <span className="mobileMapChipCount">{tflCount}</span> : null}</Chip>
           </nav>
         )}
       </div>
-      <MobileSharedSheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} onClose={() => onOverlayChange("none")}>{sheetContent}</MobileSharedSheet>
+      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
     </>
   );
 }
