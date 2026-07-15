@@ -61,6 +61,7 @@ type VenueInspectorProps = {
   userLocation: JourneyPoint | null;
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
+  onClearLocation: () => void;
 };
 
 export default function VenueInspector({
@@ -83,6 +84,7 @@ export default function VenueInspector({
   userLocation,
   locationRequestStatus,
   onRequestLocation,
+  onClearLocation,
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
@@ -155,6 +157,7 @@ export default function VenueInspector({
         userLocation={userLocation}
         locationRequestStatus={locationRequestStatus}
         onRequestLocation={onRequestLocation}
+        onClearLocation={onClearLocation}
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}

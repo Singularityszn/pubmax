@@ -12,26 +12,28 @@ test.use({
   },
 });
 
-test("shares location once and shows walk, TfL, and origin-aware directions", async ({
+test("keeps location private, supports forgetting, and shows useful routes", async ({
   page,
 }) => {
   let journeyRequests = 0;
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
   });
-  await page.route("**/api/citymcp/journey?**", async (route) => {
-    const url = new URL(route.request().url());
-    const isVenueJourney = url.searchParams.get("limit") === "3";
-    if (isVenueJourney) {
-      journeyRequests += 1;
-      expect(url.searchParams.get("fromLat")).toBe(String(USER_LOCATION.latitude));
-      expect(url.searchParams.get("fromLng")).toBe(String(USER_LOCATION.longitude));
-    }
+  await page.route("**/api/citymcp/journey", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.url()).not.toContain(String(USER_LOCATION.latitude));
+    expect(request.url()).not.toContain(String(USER_LOCATION.longitude));
+    const body = request.postDataJSON() as Record<string, unknown>;
+    expect(body.fromLat).toBe(51.607);
+    expect(body.fromLng).toBe(-0.128);
+    expect(body.limit).toBe(3);
+    journeyRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        journeys: isVenueJourney ? [
+        journeys: [
           {
             durationMinutes: 21,
             legs: [{ mode: "walking" }, { mode: "tube" }],
@@ -44,7 +46,7 @@ test("shares location once and shows walk, TfL, and origin-aware directions", as
               { mode: "walking" },
             ],
           },
-        ] : [],
+        ],
       }),
     });
   });
@@ -53,13 +55,20 @@ test("shares location once and shows walk, TfL, and origin-aware directions", as
   expect(response?.status()).toBe(200);
   await page.getByRole("tab", { name: "Pub" }).click();
 
+  const gettingThere = page.getByRole("region", { name: "Getting there" });
   const shareLocation = page.getByRole("button", {
     name: "Share location for travel times",
   });
   await expect(shareLocation).toBeVisible();
+  await expect(gettingThere).toContainText("approximate point is sent to CityMCP");
+  const venueOnlyMaps = gettingThere.getByRole("link", {
+    name: "Open venue in Google Maps without sharing your location",
+  });
+  await expect(venueOnlyMaps).toBeVisible();
+  expect(new URL((await venueOnlyMaps.getAttribute("href"))!).searchParams.get("origin"))
+    .toBeNull();
   await shareLocation.click();
 
-  const gettingThere = page.getByRole("region", { name: "Getting there" });
   await expect(gettingThere).toContainText("Walk");
   await expect(gettingThere).toContainText("TfL");
   await expect(gettingThere).toContainText("14 min · walk → bus → walk");
@@ -69,7 +78,54 @@ test("shares location once and shows walk, TfL, and origin-aware directions", as
   const href = await maps.getAttribute("href");
   expect(href).toBeTruthy();
   const directions = new URL(href!);
-  expect(directions.searchParams.get("origin")).toBe(
-    `${USER_LOCATION.latitude},${USER_LOCATION.longitude}`,
-  );
+  expect(directions.searchParams.get("origin")).toBe("51.607,-0.128");
+
+  await gettingThere.getByRole("button", { name: "Forget" }).click();
+  await expect(
+    gettingThere.getByRole("button", { name: "Share location for travel times" }),
+  ).toBeVisible();
+  await expect(gettingThere).not.toContainText("14 min");
+  await expect(gettingThere).toContainText("without sharing your location");
+
+  await gettingThere
+    .getByRole("button", { name: "Share location for travel times" })
+    .click();
+  await expect.poll(() => journeyRequests).toBe(2);
+});
+
+test("announces location progress and retries a failed route request", async ({ page }) => {
+  let journeyRequests = 0;
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+  });
+  await page.route("**/api/citymcp/journey", async (route) => {
+    journeyRequests += 1;
+    if (journeyRequests === 1) {
+      await route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        journeys: [
+          {
+            durationMinutes: 12,
+            legs: [{ mode: "walking" }, { mode: "tube" }],
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto(`/map?sel=${VENUE_ID}`);
+  await page.getByRole("tab", { name: "Pub" }).click();
+  const gettingThere = page.getByRole("region", { name: "Getting there" });
+  await gettingThere
+    .getByRole("button", { name: "Share location for travel times" })
+    .click();
+  await expect(gettingThere.getByRole("button", { name: "Retry routes" })).toBeVisible();
+  await gettingThere.getByRole("button", { name: "Retry routes" }).click();
+  await expect(gettingThere).toContainText("12 min · walk → tube");
+  await expect.poll(() => journeyRequests).toBe(2);
 });

@@ -1,8 +1,11 @@
-// GET /api/citymcp/journey?fromLat=&fromLng=&toLat=&toLng=&limit=
+// GET  /api/citymcp/journey?fromLat=&fromLng=&toLat=&toLng=&limit=
+// POST /api/citymcp/journey { fromLat, fromLng, toLat, toLng, limit }
 //
 // Thin CityMCP London `get_journey` proxy. Coords are formatted as the
 // `"lat,lng"` strings the upstream expects (free-text names often Ambiguous).
-// Returns a short list of trimmed TfL itineraries for the crawl RoutePanel.
+// GET is for public venue-to-venue crawl legs and may be CDN cached. POST is
+// for a viewer's location: coordinates stay out of URLs and every response is
+// private/no-store.
 //
 // Fail-soft: any upstream failure lands as 200 + `{ error, journeys: [] }`.
 // Missing / out-of-range coords are a client mistake and return 400.
@@ -45,15 +48,15 @@ function jsonResponse(
   });
 }
 
-function parseLimit(raw: string | null): number {
-  if (!raw) return DEFAULT_LIMIT;
-  const n = Number.parseInt(raw, 10);
+function parseLimit(raw: unknown): number {
+  if (raw == null || raw === "") return DEFAULT_LIMIT;
+  const n = Number.parseInt(String(raw), 10);
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_LIMIT;
   return Math.min(n, MAX_LIMIT);
 }
 
-function parseCoord(raw: string | null): number | null {
-  if (raw == null || raw.trim() === "") return null;
+function parseCoord(raw: unknown): number | null {
+  if (raw == null || (typeof raw === "string" && raw.trim() === "")) return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }
@@ -67,7 +70,19 @@ function isUkLatLng(lat: number, lng: number): boolean {
   );
 }
 
-export async function GET(request: Request): Promise<Response> {
+type JourneyInput = {
+  fromLat?: unknown;
+  fromLng?: unknown;
+  toLat?: unknown;
+  toLng?: unknown;
+  limit?: unknown;
+};
+
+async function respondWithJourney(
+  request: Request,
+  input: JourneyInput,
+  options: { cache: boolean; exposePoints: boolean },
+): Promise<Response> {
   if (await isCityMcpLimited(request)) {
     return jsonResponse(
       { error: "Too many requests, slow down.", from: null, to: null, journeys: [] },
@@ -75,12 +90,10 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  const params = new URL(request.url).searchParams;
-
-  const fromLat = parseCoord(params.get("fromLat"));
-  const fromLng = parseCoord(params.get("fromLng"));
-  const toLat = parseCoord(params.get("toLat"));
-  const toLng = parseCoord(params.get("toLng"));
+  const fromLat = parseCoord(input.fromLat);
+  const fromLng = parseCoord(input.fromLng);
+  const toLat = parseCoord(input.toLat);
+  const toLng = parseCoord(input.toLng);
 
   if (
     fromLat === null ||
@@ -113,18 +126,20 @@ export async function GET(request: Request): Promise<Response> {
 
   const from = formatJourneyPoint(fromLat, fromLng);
   const to = formatJourneyPoint(toLat, toLng);
-  const limit = parseLimit(params.get("limit"));
+  const limit = parseLimit(input.limit);
 
   let journeys: CityJourney[];
   try {
-    const result = await fetchJourney({ from, to });
+    const result = await fetchJourney(
+      { from, to },
+      { cache: options.cache },
+    );
     journeys = result.journeys.slice(0, limit);
   } catch (err) {
     const message =
       err instanceof CityMcpError ? err.message : "CityMCP request failed";
     return jsonResponse({
-      from,
-      to,
+      ...(options.exposePoints ? { from, to } : {}),
       journeys: [],
       asOf: null,
       error: message,
@@ -133,11 +148,45 @@ export async function GET(request: Request): Promise<Response> {
 
   return jsonResponse(
     {
-      from,
-      to,
+      ...(options.exposePoints ? { from, to } : {}),
       journeys,
       asOf: null,
     },
-    { cache: true },
+    { cache: options.cache },
+  );
+}
+
+export async function GET(request: Request): Promise<Response> {
+  const params = new URL(request.url).searchParams;
+  return respondWithJourney(
+    request,
+    {
+      fromLat: params.get("fromLat"),
+      fromLng: params.get("fromLng"),
+      toLat: params.get("toLat"),
+      toLng: params.get("toLng"),
+      limit: params.get("limit"),
+    },
+    { cache: true, exposePoints: true },
+  );
+}
+
+export async function POST(request: Request): Promise<Response> {
+  let input: JourneyInput;
+  try {
+    const body = (await request.json()) as unknown;
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
+    input = body as JourneyInput;
+  } catch {
+    return jsonResponse(
+      { error: "A JSON journey request is required.", journeys: [] },
+      { status: 400 },
+    );
+  }
+
+  return respondWithJourney(
+    request,
+    input,
+    { cache: false, exposePoints: false },
   );
 }

@@ -893,6 +893,11 @@ export type FetchJourneyResult = {
   journeys: CityJourney[];
 };
 
+export type FetchJourneyOptions = CityMcpCallOptions & {
+  /** Disable the process cache when an itinerary contains viewer location. */
+  cache?: boolean;
+};
+
 type JourneyCacheEntry = { value: FetchJourneyResult; expiresAt: number };
 const journeyCache = new Map<string, JourneyCacheEntry>();
 
@@ -954,8 +959,9 @@ export function trimJourney(raw: unknown): CityJourney | null {
  */
 export async function fetchJourney(
   args: FetchJourneyArgs,
-  opts: CityMcpCallOptions = {},
+  opts: FetchJourneyOptions = {},
 ): Promise<FetchJourneyResult> {
+  const { cache: cacheEnabled = true, ...callOptions } = opts;
   const from = typeof args.from === "string" ? args.from.trim() : "";
   const to = typeof args.to === "string" ? args.to.trim() : "";
   if (!from || !to) {
@@ -970,13 +976,13 @@ export async function fetchJourney(
 
   const cacheKey = JSON.stringify(callArgs);
   const now = Date.now();
-  const cached = journeyCache.get(cacheKey);
+  const cached = cacheEnabled ? journeyCache.get(cacheKey) : undefined;
   if (cached && cached.expiresAt > now) return cached.value;
 
   const result = await callCityMcpTool<Record<string, unknown>>(
     "get_journey",
     callArgs,
-    opts,
+    callOptions,
   );
   const structured = result.structuredContent ?? {};
   const rawJourneys = Array.isArray(structured.journeys)
@@ -991,7 +997,9 @@ export async function fetchJourney(
   }
 
   const value: FetchJourneyResult = { journeys };
-  setCappedCache(journeyCache, cacheKey, { value, expiresAt: now + JOURNEY_TTL_MS });
+  if (cacheEnabled) {
+    setCappedCache(journeyCache, cacheKey, { value, expiresAt: now + JOURNEY_TTL_MS });
+  }
   return value;
 }
 
