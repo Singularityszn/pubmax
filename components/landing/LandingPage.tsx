@@ -18,6 +18,7 @@ import {
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
+import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CityChooser from "@/components/city/CityChooser";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -89,9 +90,9 @@ export default function LandingPage() {
   return (
     <div className="lp">
       <header className="lpNav">
-        <Link href="/" className="lpWordmark" aria-label="PUBMAXX home">
+        <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
           <span className="lpMark" aria-hidden="true">P<span>XX</span></span>
-          <span>PUBMAXX</span>
+          <PubmaxxWordmark />
         </Link>
 
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
@@ -125,10 +126,10 @@ export default function LandingPage() {
                 Open the map <ArrowRight size={18} aria-hidden="true" />
               </Link>
               <Link className="lpButton lpButtonQuiet" href="#wedge">
-                How it works
+                <Sparkles size={17} aria-hidden="true" /> How it works
               </Link>
               <Link className="lpButton lpButtonQuiet" href="/pal">
-                Meet your Pub Pal
+                <MessageSquareText size={17} aria-hidden="true" /> Meet your Pub Pal
               </Link>
             </div>
             <div className="lpLiveReadout" aria-label="Product highlights">

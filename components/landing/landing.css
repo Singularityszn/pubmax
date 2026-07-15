@@ -140,14 +140,14 @@
 .lpHeroLede { max-width: 520px; margin: 25px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.6vw, 20px); line-height: 1.55; }
 .lpHeroActions { width: min(100%, 680px); margin-top: 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 10px; }
 .lpButton {
-  min-height: 50px;
-  padding: 0 20px;
+  min-height: 54px;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 16px;
   font-size: 14px;
   font-weight: 750;
   text-decoration: none;
@@ -155,8 +155,8 @@
   transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 .lpButton:active { transform: scale(.98); }
-.lpButtonPrimary { background: var(--ink-deep); color: var(--color-on-inverse); box-shadow: 0 14px 34px color-mix(in srgb, var(--ink-deep) 23%, transparent); }
-.lpButtonPrimary:hover { background: color-mix(in srgb, var(--ink-deep) 84%, var(--brass)); }
+.lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); box-shadow: 0 14px 34px color-mix(in srgb, var(--brass) 24%, transparent); }
+.lpButtonPrimary:hover { background: var(--brass-bright); }
 .lpButtonQuiet { background: color-mix(in srgb, var(--panel-raised) 78%, transparent); border-color: var(--line); color: var(--ink); }
 .lpButtonQuiet:hover { border-color: var(--brass); }
 .lpLiveReadout { margin-top: 30px; display: flex; align-items: center; gap: 18px; color: var(--ink-soft); font: 600 11px/1.2 var(--font-data); }
@@ -253,10 +253,9 @@
 }
 
 @media (max-width: 700px) {
-  .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 8px 6px 12px; border-radius: 17px; }.lpWordmark { font-size: 13px; }.lpMark { width: 32px; height: 32px; }
-  .lpNavActions .authUserNav { display: none; }
+  .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 8px 6px 12px; gap: 8px; border-radius: 17px; }.lpWordmark { font-size: 12px; }.lpMark { width: 32px; height: 32px; }
   .lpHero { padding: 106px 18px 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
-  .lpHero h1 { font-size: clamp(48px, 15vw, 66px); line-height: .92; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { align-items: stretch; }
+  .lpHero h1 { font-size: clamp(48px, 15vw, 66px); line-height: .92; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
   .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 430px; border-radius: 22px; }.thamesHeroPinMeta { display: none; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
   .lpSignalSection, .lpProofSection { width: calc(100% - 36px); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
@@ -267,9 +266,15 @@
 }
 
 @media (max-width: 420px) {
-  .lpHeroActions { grid-template-columns: 1fr; }.lpHeroActions .lpButton { width: 100%; }
+  .lpMark { display: none; }
   .thamesHeroPhoto { min-height: 390px; }.thamesHeroPin:nth-child(n+4) { display: none; }
   .lpMemoryActions { align-items: stretch; flex-direction: column; }.lpMemoryActions .lpTextLink { justify-content: center; }
+}
+
+@media (max-width: 350px) {
+  .lpNavActions .authUserNav { display: none; }
+  .lpHeroActions { grid-template-columns: 1fr; }
+  .lpHeroActions .lpButton:first-child { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

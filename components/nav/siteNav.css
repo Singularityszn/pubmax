@@ -422,41 +422,25 @@
   .siteNavBrand {
     flex: 0 0 auto;
     width: auto;
-    min-width: 58px;
+    min-width: 104px;
     min-height: 44px;
     height: 44px;
     justify-content: center;
     align-items: center;
     padding: 0 9px;
-    border-radius: 999px;
-    background: linear-gradient(135deg, var(--brass), var(--river));
-    color: var(--color-on-accent);
-    font-size: 0.65rem;
-    font-family: var(--font-data, system-ui, sans-serif);
-    font-weight: 900;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--panel-raised);
+    color: var(--ink);
+    font-size: 0.72rem;
+    font-family: var(--font-display, system-ui, sans-serif);
+    font-weight: 800;
     line-height: 1;
     overflow: hidden;
-    box-shadow: 0 3px 8px color-mix(in srgb, var(--brass) 14%, transparent);
+    box-shadow: 0 3px 8px color-mix(in srgb, var(--ink-deep) 8%, transparent);
   }
 
-  .siteNavBrandMobile {
-    align-items: center;
-    gap: 4px;
-    line-height: 1;
-  }
-
-  .siteNavBrandMobile svg {
-    display: block;
-    flex-shrink: 0;
-  }
-
-  .siteNavBrandFull {
-    display: none;
-  }
-
-  .siteNavBrandMobile {
-    display: inline-flex;
-  }
+  .siteNavBrand .pubmaxxWordmark { line-height: 1; }
 
   /* The actions cluster holds its shape — the brand is the only flexible part
      of the compact bar, so the controls never compress or wrap. */

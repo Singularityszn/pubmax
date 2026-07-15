@@ -8,6 +8,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SignInButton from "@/components/auth/SignInButton";
+import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import {
   preferredCityMapHref,
@@ -157,8 +158,7 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
     >
       {/* Wordmark: the compact-mobile anchor + the desktop home affordance. */}
       <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXX landing page">
-        <span className="siteNavBrandFull">PUBMAXX</span>
-        <span className="siteNavBrandMobile" aria-hidden="true">PUBMAXX</span>
+        <PubmaxxWordmark />
       </Link>
 
       {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}
