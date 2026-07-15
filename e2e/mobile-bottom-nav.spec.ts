@@ -55,37 +55,25 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByTestId("tonight-screen")).toBeVisible();
   });
 
-  test("Moment tab routes to /map?log=1 and opens the capture surface", async ({ page }) => {
+  test("Moment opens the capture chooser without silently returning to the map", async ({ page }) => {
     await page.goto("/map");
 
     await primaryNav(page).getByRole("link", { name: "Moment", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/map\?log=1$/);
-    const composer = page.getByRole("form", { name: "Pint Drop composer" });
-    const fallback = page.locator(".logIntentFallback");
-    await expect
-      .poll(async () => (await composer.isVisible()) || (await fallback.isVisible()), {
-        timeout: 15_000,
-      })
-      .toBe(true);
-    if (await composer.isVisible()) {
-      await expect(composer).toBeVisible();
-    } else {
-      await expect(fallback).toContainText("Pick a pub to log a Pint Drop");
-    }
+    await expect(page).toHaveURL(/\/moment$/);
+    await expect(page.getByRole("heading", { name: "Keep this one." })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Log a Pint Drop" })).toHaveAttribute("href", "/map?log=1");
   });
 
-  test("Stories tab routes to /discover and exposes the story headline", async ({ page }) => {
+  test("Stories routes directly to the social feed", async ({ page }) => {
     await page.goto("/map");
 
     await primaryNav(page)
       .getByRole("link", { name: "Stories", exact: true })
       .click();
 
-    await expect(page).toHaveURL(/\/discover$/);
-    await expect(
-      page.getByRole("heading", { name: "There is a story behind every pint.", exact: true }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/feed$/);
+    await expect(page.getByRole("heading", { name: "The Pint Feed", exact: true })).toBeVisible();
   });
 
   test("You tab routes to the owned profile surface", async ({ page }) => {

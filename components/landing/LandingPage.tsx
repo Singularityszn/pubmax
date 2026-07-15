@@ -98,8 +98,8 @@ export default function LandingPage() {
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
           <Link href={primaryCtaHref} {...warmProps}>Map</Link>
           <Link href="/tonight">Tonight</Link>
-          <Link href="/map?log=1">Moment</Link>
-          <Link href="/discover">Stories</Link>
+          <Link href="/moment">Moment</Link>
+          <Link href="/feed">Stories</Link>
           <Link href="/u/you">You</Link>
         </nav>
 
@@ -171,7 +171,7 @@ export default function LandingPage() {
               <p>Your Night Memory stays private. When the crew is ready, turn approved moments into a Story worth reliving.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
-                <Link href="/discover" className="lpTextLink">Explore stories <ArrowRight size={16} aria-hidden="true" /></Link>
+              <Link href="/feed" className="lpTextLink">Explore stories <ArrowRight size={16} aria-hidden="true" /></Link>
               </div>
             </div>
             <ol className="lpMemorySteps">

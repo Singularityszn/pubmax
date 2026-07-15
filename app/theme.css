@@ -231,9 +231,9 @@ html[data-theme="dark"] .mobileTabList {
 /* Night Out Plan CTA: amber fill even if a consumer still expects coral brass.
    --brass is already amber in dark; this pins the gradient to --night-amber. */
 html[data-theme="dark"] .planBtn {
-  background: linear-gradient(135deg, var(--night-amber), var(--brass-bright));
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--night-amber) 28%, transparent);
-  color: #0a0e0c;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--brass) 24%, transparent);
+  color: var(--color-on-accent);
 }
 
 html[data-theme="dark"] .planBtn.active {

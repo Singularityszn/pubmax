@@ -1070,6 +1070,8 @@
 .memoryStudioHeader { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .memoryStudioHeader h3 { margin: .2rem 0 0; font-size: clamp(1.2rem, 2vw, 1.6rem); }
 .memoryStudioHeader > p { max-width: 34rem; margin: 0; color: var(--muted); }
+.memoryCaptureLink { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); font-weight: 750; text-decoration: none; white-space: nowrap; }
+.memoryCaptureLink:hover { border-color: var(--brass); color: var(--brass); }
 .memoryStudioFlow { display: grid; grid-template-columns: .8fr 1.15fr 1fr; gap: .75rem; }
 .memoryStudioFlow form { position: relative; display: grid; align-content: start; gap: .7rem; padding: 1rem; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--panel-raised); }
 .memoryStudioFlow h4 { margin: 0; padding-right: 2.5rem; font-size: 1rem; }

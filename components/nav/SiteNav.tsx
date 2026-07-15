@@ -30,7 +30,7 @@ import "./siteNav.css";
 // drifts page-to-page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar — Map/Pubs/Drop/Discover/You). Repeating the full link list up
+// (MobileTabBar — Map/Tonight/Moment/Stories/You). Repeating the full link list up
 // top there caused the old `.appNav` pill to overflow the viewport (Admin +
 // theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
 // bar — just the wordmark + theme toggle + sign-in — and hides the full link
@@ -60,25 +60,14 @@ type NavLink = {
   label: string;
   /** Path prefixes that should mark this link active (defaults to href). */
   match: string[];
-  /** Optional category tint for the active/hover state. */
-  accent?: "beer" | "wine" | "whisky" | "gin" | "vodka" | "rum" | "cocktail" | "shot" | "other";
 };
 
 // Consumer nav only. Staff moderation lives at /admin (URL + token) and is
 // intentionally absent from every public nav so demos never look like an
 // admin console.
-const ACCENTS: Record<(typeof PRIMARY_NAV_ITEMS)[number]["key"], NavLink["accent"]> = {
-  map: "beer",
-  tonight: "other",
-  moment: "shot",
-  stories: "gin",
-  you: "vodka",
-};
-
 const LINKS: NavLink[] = PRIMARY_NAV_ITEMS.map((item) => ({
   ...item,
   key: item.key === "moment" ? "drop" : item.key === "stories" ? "discover" : item.key === "you" ? "profile" : item.key,
-  accent: ACCENTS[item.key],
 }));
 
 function matchesPath(pathname: string, link: NavLink): boolean {
@@ -99,8 +88,7 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
 // variable-width labels, not equal columns like the mobile tab bar, so the
 // indicator's geometry has to be measured off the real DOM node rather than
 // derived from an index. Kept to a thin underline (not a repaint of the
-// existing `.siteNavLink.isActive` pill) so it never has to duplicate the
-// category-tint (data-cat) logic already owned by that pill.
+// existing `.siteNavLink.isActive` pill) so it stays geometrically stable.
 type IndicatorRect = { x: number; width: number; visible: boolean };
 const HIDDEN_INDICATOR: IndicatorRect = { x: 0, width: 0, visible: false };
 
@@ -125,10 +113,6 @@ export default function SiteNav({
   );
   const links = LINKS.map((link) => {
     if (link.key === "map") return { ...link, href: mapHref };
-    if (link.key === "drop") {
-      // Same city-aware base as the Map link, with the composer flag.
-      return { ...link, href: `${mapHref}${mapHref.includes("?") ? "&" : "?"}log=1` };
-    }
     return link;
   });
 
@@ -208,7 +192,6 @@ export default function SiteNav({
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={link.label}
-                data-cat={link.accent}
                 title={link.label}
               >
                 {link.label}

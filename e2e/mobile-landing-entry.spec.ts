@@ -77,3 +77,15 @@ test.describe("mobile landing entry", () => {
     await expect(page).toHaveURL(/\/(choose-city|map)/);
   });
 });
+
+test("keeps the drink-signal image within a deliberate mobile crop", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  const image = page.locator(".thamesHeroPhoto");
+  await expect(image).toBeVisible();
+  const box = await image.boundingBox();
+  expect(box).not.toBeNull();
+  expect((box?.width ?? 0) / (box?.height ?? 1)).toBeGreaterThan(0.74);
+  expect((box?.width ?? 0) / (box?.height ?? 1)).toBeLessThan(0.86);
+});

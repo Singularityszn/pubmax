@@ -13,12 +13,12 @@ describe("PUBMAXX primary navigation", () => {
     ]);
   });
 
-  it("preserves the existing product routes", () => {
+  it("keeps capture separate from the map and sends Stories to the social feed", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ href }) => href)).toEqual([
       "/map",
       "/tonight",
-      "/map?log=1",
-      "/discover",
+      "/moment",
+      "/feed",
       "/u/you",
     ]);
   });

@@ -80,9 +80,38 @@
   line-height: 1.55;
 }
 
+.feedComposeActions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.feedMomentCta,
 .feedDropCta {
-  /* Drop lives on the map / tab bar — hide duplicate header CTA everywhere. */
-  display: none;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: .88rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.feedMomentCta {
+  border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+  background: var(--brass);
+  color: #fff;
+}
+
+.feedMomentCta:hover,
+.feedDropCta:hover {
+  transform: translateY(-1px);
 }
 
 /* ── "Live tonight" presence strip (PRD §1.5 / §5.1 tonight loop) ───────────

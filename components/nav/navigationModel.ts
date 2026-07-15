@@ -15,10 +15,10 @@ export type PrimaryNavItem = {
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
   { key: "tonight", href: "/tonight", label: "Tonight", match: ["/tonight"] },
-  { key: "moment", href: "/map?log=1", label: "Moment", match: ["/__moment__"] },
+  { key: "moment", href: "/moment", label: "Moment", match: ["/moment"] },
   {
     key: "stories",
-    href: "/discover",
+    href: "/feed",
     label: "Stories",
     match: ["/discover", "/feed", "/crawls", "/borough"],
   },

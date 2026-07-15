@@ -166,8 +166,8 @@
 .lpHeroMap { position: relative; margin: 0; min-width: 0; }
 .lpHeroMap::before { content: ""; position: absolute; inset: -12px; border: 1px solid color-mix(in srgb, var(--river) 28%, transparent); border-radius: 38px; transform: rotate(2deg); }
 .lpHeroMap figcaption { margin: 12px 4px 0; color: var(--ink-soft); font: 550 10px/1.4 var(--font-data); text-align: right; }
-.thamesHeroPhoto { position: relative; min-height: clamp(430px, 58vh, 620px); overflow: hidden; border-radius: 32px; background: var(--ink-deep); box-shadow: 0 34px 90px color-mix(in srgb, var(--ink-deep) 28%, transparent); }
-.thamesHeroImg { object-fit: cover; }
+.thamesHeroPhoto { position: relative; width: 100%; min-height: 0; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 32px; background: var(--ink-deep); box-shadow: 0 34px 90px color-mix(in srgb, var(--ink-deep) 28%, transparent); }
+.thamesHeroImg { object-fit: cover; object-position: 50% 50%; }
 .thamesHeroScrim { position: absolute; inset: 0; background: linear-gradient(145deg, color-mix(in srgb, var(--ink-deep) 10%, transparent), color-mix(in srgb, var(--ink-deep) 60%, transparent)); }
 .thamesHeroHint { position: absolute; left: 18px; top: 18px; z-index: 2; max-width: 230px; margin: 0; padding: 8px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(8,12,20,.62); color: white; font-size: 10px; font-weight: 650; backdrop-filter: blur(8px); }
 .thamesHeroHintPointer { display: none; }
@@ -248,7 +248,7 @@
 @media (max-width: 960px) {
   .lpNav { grid-template-columns: auto 1fr; }.lpPrimaryNav { display: none; }.lpNavActions { justify-self: end; }
   .lpHero { grid-template-columns: 1fr; min-height: auto; padding-top: 118px; }.lpHeroCopy { max-width: 690px; }.lpHero h1 { max-width: 10ch; font-size: clamp(56px, 11vw, 88px); }
-  .lpHeroMap { width: min(720px, 100%); }.thamesHeroPhoto { min-height: 500px; }
+  .lpHeroMap { width: min(720px, 100%); }
   .lpMemoryCanvas, .lpProofIntro { grid-template-columns: 1fr; }.lpProofIntro { gap: 18px; }
 }
 
@@ -257,7 +257,11 @@
   .lpHero { padding: 106px 18px 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
   .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
-  .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 430px; border-radius: 22px; }.thamesHeroPinMeta { display: none; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
+  .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 0; aspect-ratio: 4 / 5; border-radius: 22px; }.thamesHeroImg { object-position: 52% 50%; }.thamesHeroPinMeta { display: none; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
+  .thamesHeroPin:nth-child(1) { left: 18% !important; top: 24% !important; }
+  .thamesHeroPin:nth-child(2) { left: 34% !important; top: 66% !important; }
+  .thamesHeroPin:nth-child(3) { left: 70% !important; top: 28% !important; }
+  .thamesHeroPin:nth-child(4) { left: 80% !important; top: 70% !important; }
   .lpSignalSection, .lpProofSection { width: calc(100% - 36px); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
   .lpSignalGrid { margin-top: 38px; grid-template-columns: 1fr; }.lpSignalGrid article { min-height: 230px; border-right: 0; border-bottom: 1px solid var(--line); }.lpSignalGrid article:last-child { border-bottom: 0; }
   .lpMemorySection { padding: 76px 18px; }.lpMemoryCanvas { gap: 48px; }.lpMemorySteps li { grid-template-columns: 44px 1fr; }
@@ -267,7 +271,7 @@
 
 @media (max-width: 420px) {
   .lpMark { display: none; }
-  .thamesHeroPhoto { min-height: 390px; }.thamesHeroPin:nth-child(n+4) { display: none; }
+  .thamesHeroPhoto { min-height: 0; }.thamesHeroPin:nth-child(n+4) { display: none; }
   .lpMemoryActions { align-items: stretch; flex-direction: column; }.lpMemoryActions .lpTextLink { justify-content: center; }
 }
 

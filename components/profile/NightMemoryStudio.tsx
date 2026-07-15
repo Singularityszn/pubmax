@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
@@ -168,13 +169,14 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   }
 
   return (
-    <section className="memoryStudio" aria-labelledby="memory-studio-title">
+    <section className="memoryStudio" id="night-memories" aria-labelledby="memory-studio-title">
       <div className="memoryStudioHeader">
         <div>
           <p className="profileSectionKicker">Night Memory studio</p>
           <h3 id="memory-studio-title">Keep the parts you will tell people about.</h3>
         </div>
         <p>Everything starts private. A Story is a separate draft, never an automatic post.</p>
+        <Link className="memoryCaptureLink" href="/moment">Capture a Moment</Link>
       </div>
 
       <div className="memoryStudioFlow">

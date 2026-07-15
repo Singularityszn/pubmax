@@ -1,7 +1,7 @@
 /* ────────────────────────────────────────────────────────────────────────
    PUBMAXXING token scale — see DESIGN.md + docs/DESIGN_SYSTEM.md.
-   Light default = Direction A Candle Coral (PRODUCT.md color decision).
-   Dark overrides = Direction B Night Out in app/theme.css.
+   Light default = neutral paper with a focused coral action colour.
+   Dark overrides preserve the same semantic identity in app/theme.css.
 
    Every token name below that already existed keeps working unchanged (35+
    components and the map's readTokens() read these directly). New tokens are
@@ -9,18 +9,17 @@
    fork of the existing system.
    ──────────────────────────────────────────────────────────────────────── */
 :root {
-  /* — Colour: Candle Coral (warm paper + coral Plan CTA). Neutrals tinted
-       peach-candle, not flat cream DTC (#F4F1EA). See DESIGN.md §2. */
-  --ink: #1c1412;
-  --ink-soft: #4a3632;
-  --muted: #7a5c55;
-  --line: #efcfc4;
-  --line-soft: #f5e0d6;
-  --paper: #fff1e6; /* candle peach — warmer than flat cream */
-  --panel: #fffaf6;
-  --panel-raised: #ffffff;
-  --panel-overlay: #ffffff; /* light default for the dark elevation ladder's 4th step (theme.css) */
-  --ink-deep: #16122a;
+  /* — Colour: neutral editorial paper + coral actions. */
+  --ink: #17171a;
+  --ink-soft: #3f3f46;
+  --muted: #6b6b73;
+  --line: #dedcdf;
+  --line-soft: #ece9eb;
+  --paper: #faf8f5;
+  --panel: #f5f2ef;
+  --panel-raised: #fffdfb;
+  --panel-overlay: #ffffff;
+  --ink-deep: #0b0b0d;
 
   --pint: #18a76d; /* cheap pint / positive — Field Guide semantic */
   --amber: #f2a71b; /* mid price / lager-gold */

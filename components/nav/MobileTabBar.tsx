@@ -16,8 +16,8 @@ import "./mobileNav.css";
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
 // desktop it is display:none so the existing desktop navs are untouched.
 //
-// Log is the emphasized centre action — larger, brass — linking to the map with
-// the composer opened (?log=1). The other four are plain destinations.
+// Moment is the emphasized centre action and opens the private-first camera
+// composer. Pint Drop remains an explicit action inside Moment and the map.
 //
 // No effects: usePathname() is enough to mark the active tab, which keeps this
 // clear of react-hooks/set-state-in-effect.
@@ -35,21 +35,20 @@ type Tab = {
 
 const warmedTabs = new Set<string>();
 
-// Map + Tonight + Discover; Drop stays the centre action; Pal owns the account surface.
-// Map / Drop hrefs follow the preferred city (null → /map).
-function buildTabs(mapHref: string, dropHref: string): Tab[] {
+// Map follows the preferred city (null → /map); every other route is canonical.
+function buildTabs(mapHref: string): Tab[] {
   const icons = { map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
   return PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
-    href: item.key === "map" ? mapHref : item.key === "moment" ? dropHref : item.href,
+    href: item.key === "map" ? mapHref : item.href,
     Icon: icons[item.key],
     primary: item.key === "moment",
   }));
 }
 
 function isActive(pathname: string, tab: Tab): boolean {
-  // The Log tab points at /map?log=1 — a mode of the map, not its own page — so
-  // it is never marked as the current page (the Map tab owns /map).
+  // The primary Moment action is intentionally not painted as a persistent
+  // active tab; its raised shape communicates creation rather than location.
   if (tab.primary) return false;
   const prefixes = tab.match ?? [tab.href];
   return prefixes.some(
@@ -67,12 +66,7 @@ export default function MobileTabBar() {
     preferredCityMapHref,
     () => "/map",
   );
-  const dropHref = useSyncExternalStore(
-    subscribePreferredCity,
-    () => preferredCityMapHref(new URLSearchParams({ log: "1" })),
-    () => "/map?log=1",
-  );
-  const tabs = buildTabs(mapHref, dropHref);
+  const tabs = buildTabs(mapHref);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the five tabs own) hides it via CSS rather than pinning it
   // to a wrong tab.
