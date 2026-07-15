@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
-import PubPalHome from "@/components/pubpal/PubPalHome";
+import PalExperience from "@/components/pal/PalExperience";
 import "./pal.css";
 
-export const metadata: Metadata = { title: "Your Pub Pal", description: "Create and grow your private cyber companion for nights out." };
+export const metadata: Metadata = {
+  title: "Meet your Pub Pal",
+  description: "Meet, shape and control your private companion for a night out.",
+};
 
-export default function PalPage() { return <PubPalHome />; }
+export default function PalPage() {
+  return <PalExperience />;
+}

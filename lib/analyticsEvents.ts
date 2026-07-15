@@ -40,6 +40,7 @@ export const ANALYTICS_EVENTS = {
   planned_night_completed: ["ending"],
   pub_pal_adopted: ["pal"],
   pub_pal_memory_changed: ["action", "category"],
+  web_vital: ["metric", "value", "rating"],
   guest_plan_participated: ["action"],
   // Wave A
   tonight_screen_view: [],

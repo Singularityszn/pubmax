@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "notice": "Look-development assets only. Production GLB and transparent video exports are intentionally unset.",
+  "signals": [
+    { "id": "beer-runner", "revision": "beer-pilot-01", "status": "authored-pilot", "poster": "/night-signals/beer-runner.svg", "model": null, "webm": null, "mp4": null },
+    { "id": "gin-oracle", "revision": "lookdev-01", "status": "lookdev-fallback", "poster": "/night-signals/gin-oracle.svg", "model": null, "webm": null, "mp4": null },
+    { "id": "rum-navigator", "revision": "lookdev-01", "status": "lookdev-fallback", "poster": "/night-signals/rum-navigator.svg", "model": null, "webm": null, "mp4": null },
+    { "id": "whisky-archivist", "revision": "lookdev-01", "status": "lookdev-fallback", "poster": "/night-signals/whisky-archivist.svg", "model": null, "webm": null, "mp4": null },
+    { "id": "brandy-diplomat", "revision": "lookdev-01", "status": "lookdev-fallback", "poster": "/night-signals/brandy-diplomat.svg", "model": null, "webm": null, "mp4": null },
+    { "id": "vodka-signal", "revision": "lookdev-01", "status": "lookdev-fallback", "poster": "/night-signals/vodka-signal.svg", "model": null, "webm": null, "mp4": null }
+  ]
+}

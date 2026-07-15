@@ -44,6 +44,15 @@ describe("sanitizeEvent", () => {
     });
   });
 
+  it("keeps only bounded performance fields for web vitals", () => {
+    expect(sanitizeEvent("web_vital", {
+      metric: "INP",
+      value: 143,
+      rating: "good",
+      attribution: "button#private-account-control",
+    })?.props).toEqual({ metric: "INP", value: 143, rating: "good" });
+  });
+
   it("tolerates missing/invalid props objects", () => {
     expect(sanitizeEvent("tonight_screen_view")).toEqual({
       name: "tonight_screen_view",

@@ -1,1 +1,647 @@
-.nightSignals{--ns:#e3a236;position:relative;min-height:100dvh;padding:clamp(92px,10vw,150px) clamp(20px,6vw,92px);display:grid;grid-template-columns:.8fr 1.2fr;align-items:center;gap:3vw;background:radial-gradient(circle at 72% 40%,color-mix(in srgb,var(--ns) 18%,transparent),transparent 27%),#050315;color:#fbfbfe;isolation:isolate;overflow:hidden}.nightSignals:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(rgba(222,220,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(222,220,255,.025) 1px,transparent 1px);background-size:54px 54px}.signalWorld-gin{--ns:#b7ffe4}.signalWorld-rum{--ns:#c66a42}.signalWorld-whisky{--ns:#d08b39}.signalWorld-brandy{--ns:#d36d55}.signalWorld-vodka{--ns:#bfcaff}.nightSignalsCopy{position:relative;z-index:3;max-width:610px}.nsKicker{font:600 10px var(--font-data);letter-spacing:.16em;color:color-mix(in srgb,var(--ns) 72%,white)}.nightSignalsCopy h2{margin:20px 0 24px;font:600 clamp(58px,7.5vw,112px)/.84 var(--font-display);letter-spacing:-.075em}.nightSignalsCopy h2 em{font-style:normal;color:transparent;-webkit-text-stroke:1px color-mix(in srgb,var(--ns) 62%,white)}.nightSignalsCopy>p:not(.nsKicker){max-width:470px;color:rgba(251,251,254,.6);font-size:18px;line-height:1.6}.nightSignalsCopy dl{display:flex;gap:38px;margin:30px 0}.nightSignalsCopy dl div{display:grid;gap:6px}.nightSignalsCopy dt{font:9px var(--font-data);letter-spacing:.13em;text-transform:uppercase;color:rgba(251,251,254,.35)}.nightSignalsCopy dd{margin:0;font-size:12px}.nightSignalsCopy>a{display:inline-flex;align-items:center;gap:18px;min-height:50px;padding:0 20px;background:#433bff;color:white;text-decoration:none;font-weight:700}.nightSignalFigure{--rx:0deg;--ry:0deg;position:relative;height:min(72vh,680px);min-height:500px;perspective:1000px;transform:rotateX(var(--rx)) rotateY(var(--ry));transition:transform .35s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 34px color-mix(in srgb,var(--ns) 20%,transparent))}.nsOrbit{position:absolute;inset:7% 2% 8% 5%;border:1px solid color-mix(in srgb,var(--ns) 19%,transparent);border-radius:50%;transform:rotate(-19deg);box-shadow:0 0 0 70px color-mix(in srgb,var(--ns) 2%,transparent)}.nsFace{position:absolute;left:28%;top:7%;width:46%;height:58%;border:1px solid color-mix(in srgb,var(--ns) 48%,white 8%);clip-path:polygon(11% 7%,78% 0,96% 26%,91% 76%,65% 100%,18% 91%,0 58%);border-radius:45% 54% 44% 55%;background:repeating-linear-gradient(180deg,color-mix(in srgb,var(--ns) 10%,transparent) 0 1px,transparent 1px 7px),linear-gradient(115deg,color-mix(in srgb,var(--ns) 23%,transparent),rgba(222,220,255,.025) 55%,color-mix(in srgb,var(--ns) 12%,transparent));backdrop-filter:blur(3px);overflow:hidden;animation:nsBreathe 5s ease-in-out infinite}.nsEye{position:absolute;top:39%;width:17%;height:2px;background:#fbfbfe;box-shadow:0 0 10px var(--ns);animation:nsBlink 5.5s infinite}.nsEye.left{left:18%;transform:rotate(5deg)}.nsEye.right{right:18%;transform:rotate(-7deg)}.nsNose{position:absolute;left:49%;top:39%;width:12%;height:26%;border-left:1px solid color-mix(in srgb,var(--ns) 50%,white);border-bottom:1px solid color-mix(in srgb,var(--ns) 35%,transparent)}.nsMouth{position:absolute;left:35%;top:73%;width:32%;height:6%;border-bottom:1px solid color-mix(in srgb,var(--ns) 58%,white);border-radius:50%}.nsScan{position:absolute;inset:-20% 0 auto;height:18%;background:linear-gradient(transparent,color-mix(in srgb,var(--ns) 15%,transparent),transparent);animation:nsScan 4s linear infinite}.nsGlass{position:absolute;z-index:3;left:21%;bottom:5%;width:19%;height:39%;border:1px solid rgba(251,251,254,.58);clip-path:polygon(7% 0,94% 0,82% 100%,18% 100%);transform:rotate(-8deg);animation:nsSip 5.5s ease-in-out infinite}.nsGlass i{position:absolute;inset:19% 7% 2%;background:linear-gradient(90deg,color-mix(in srgb,var(--ns) 32%,transparent),color-mix(in srgb,var(--ns) 72%,transparent),color-mix(in srgb,var(--ns) 28%,transparent));clip-path:polygon(0 5%,100% 0,88% 100%,12% 100%)}.nsGlass b{position:absolute;left:8%;right:7%;top:14%;height:9%;background:color-mix(in srgb,var(--ns) 30%,white 60%)}.nsHand{position:absolute;z-index:2;left:5%;bottom:0;width:38%;height:34%;transform:rotate(-8deg);animation:nsHand 5.5s ease-in-out infinite}.nsHand:after{content:"";position:absolute;right:4%;bottom:0;width:62%;height:56%;border:1px solid color-mix(in srgb,var(--ns) 42%,transparent);border-radius:44% 36% 10% 60%;background:repeating-linear-gradient(175deg,color-mix(in srgb,var(--ns) 9%,transparent) 0 2px,transparent 2px 8px)}.nsHand i{position:absolute;z-index:2;right:9%;width:52%;height:15%;border:1px solid color-mix(in srgb,var(--ns) 42%,transparent);border-radius:999px}.nsHand i:nth-child(1){top:12%;transform:rotate(-8deg)}.nsHand i:nth-child(2){top:28%;right:3%}.nsHand i:nth-child(3){top:44%;right:0;transform:rotate(5deg)}.nsDissolve i{--a:calc(var(--i)*25deg);position:absolute;left:53%;top:44%;width:3px;height:3px;background:var(--ns);opacity:.4;transform:rotate(var(--a)) translateX(calc(190px + var(--i)*6px));animation:nsParticle 3.4s calc(var(--i)*-.17s) ease-in-out infinite}.nightSignalRail{position:absolute;left:clamp(20px,6vw,92px);right:clamp(20px,6vw,92px);bottom:24px;z-index:4;display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid rgba(222,220,255,.16)}.nightSignalRail button{min-height:76px;padding:12px;border:0;border-right:1px solid rgba(222,220,255,.1);background:transparent;color:rgba(251,251,254,.36);display:grid;grid-template-columns:auto 1fr;gap:2px 8px;text-align:left}.nightSignalRail button.isActive{color:#fff;background:color-mix(in srgb,var(--ns) 10%,transparent)}.nightSignalRail span{font:9px var(--font-data)}.nightSignalRail strong{text-transform:capitalize}.nightSignalRail small{grid-column:2;font-size:9px}.signalConfirm{position:absolute;right:clamp(20px,6vw,92px);bottom:118px;z-index:8;padding:16px;background:#fbfbfe;color:#050315;box-shadow:0 24px 60px rgba(0,0,0,.3)}.signalConfirm p{margin:0 0 12px;font-weight:700}.signalConfirm button{min-height:42px;padding:0 13px;border:1px solid #d4d1f2;background:transparent}.signalConfirm button:last-child{background:#433bff;color:white;border-color:#433bff}@keyframes nsBreathe{50%{transform:translateY(-8px) scale(1.012)}}@keyframes nsBlink{0%,45%,49%,100%{transform:scaleY(1)}47%{transform:scaleY(.05)}}@keyframes nsScan{to{transform:translateY(600%)}}@keyframes nsSip{0%,100%{transform:translate(0) rotate(-8deg)}44%,59%{transform:translate(38px,-78px) rotate(8deg)}}@keyframes nsHand{0%,100%{transform:translate(0) rotate(-8deg)}44%,59%{transform:translate(36px,-74px) rotate(7deg)}}@keyframes nsParticle{50%{opacity:.08;filter:blur(2px);transform:rotate(var(--a)) translateX(calc(230px + var(--i)*6px))}}@media(max-width:800px){.nightSignals{grid-template-columns:1fr;align-content:start;padding-top:92px;padding-bottom:132px}.nightSignalsCopy h2{font-size:56px}.nightSignalsCopy>p:not(.nsKicker){font-size:15px}.nightSignalsCopy dl{display:none}.nightSignalFigure{height:43vh;min-height:350px;margin:-10px -17vw 0}.nightSignalRail{overflow-x:auto;grid-template-columns:repeat(6,minmax(112px,1fr));scroll-snap-type:x mandatory}.nightSignalRail button{scroll-snap-align:start}.signalConfirm{left:20px;right:20px;bottom:116px}}@media(prefers-reduced-motion:reduce){.nightSignals *{animation:none!important;transition:none!important}.nightSignalFigure{transform:none!important}}
+.nightSignals {
+  --signal-accent: #f6ad3c;
+  position: relative;
+  min-height: 100dvh;
+  padding: clamp(92px, 9vw, 132px) clamp(20px, 5.6vw, 88px) 126px;
+  display: grid;
+  grid-template-columns: minmax(310px, 0.78fr) minmax(480px, 1.22fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 86px);
+  overflow: hidden;
+  isolation: isolate;
+  background: #050315;
+  color: #fbfbfe;
+}
+
+.nightSignalsAtmosphere {
+  position: absolute;
+  inset: -18%;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 72% 38%, color-mix(in srgb, var(--signal-accent) 17%, transparent), transparent 23%),
+    radial-gradient(circle at 44% 80%, rgba(67, 59, 255, 0.13), transparent 31%),
+    linear-gradient(127deg, transparent 18%, rgba(222, 220, 255, 0.025) 18.1%, transparent 18.3% 76%, rgba(222, 220, 255, 0.035) 76.1%, transparent 76.3%);
+  transition: background 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nightSignals::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(222, 220, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(222, 220, 255, 0.025) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at 70% 42%, black, transparent 68%);
+}
+
+.nightSignalsCopy {
+  position: relative;
+  z-index: 3;
+  max-width: 580px;
+}
+
+.nsKicker {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  gap: 22px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(251, 251, 254, 0.055);
+  box-shadow: inset 0 0 0 1px rgba(222, 220, 255, 0.11);
+  color: color-mix(in srgb, var(--signal-accent) 70%, white);
+  font: 600 9px/1 var(--font-data);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.nsKicker span + span {
+  color: rgba(251, 251, 254, 0.42);
+}
+
+.nightSignalsCopy h2 {
+  max-width: 730px;
+  margin: 24px 0 27px;
+  font: 600 clamp(52px, 6.4vw, 102px) / 0.88 var(--font-display);
+  letter-spacing: -0.074em;
+  text-wrap: balance;
+}
+
+.nightSignalsCopy h2 em {
+  display: inline-block;
+  padding-right: 0.08em;
+  font-style: normal;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--signal-accent) 52%, #dedcff);
+}
+
+.nightSignalIdentity {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 0 0 13px;
+}
+
+.nightSignalIdentity strong {
+  font-size: 16px;
+}
+
+.nightSignalIdentity span {
+  color: color-mix(in srgb, var(--signal-accent) 66%, #dedcff);
+  font: 500 10px/1.3 var(--font-data);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nightSignalIntroduction {
+  max-width: 490px;
+  margin: 0;
+  color: rgba(251, 251, 254, 0.58);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.nightSignalsCopy dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  max-width: 510px;
+  margin: 28px 0 31px;
+  padding-top: 20px;
+  box-shadow: inset 0 1px rgba(222, 220, 255, 0.1);
+}
+
+.nightSignalsCopy dl div {
+  display: grid;
+  gap: 7px;
+}
+
+.nightSignalsCopy dt {
+  color: rgba(251, 251, 254, 0.34);
+  font: 500 9px/1.2 var(--font-data);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nightSignalsCopy dd {
+  margin: 0;
+  color: rgba(251, 251, 254, 0.82);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.nightSignalPalLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 52px;
+  padding: 5px 6px 5px 21px;
+  border-radius: 999px;
+  background: #433bff;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1), background 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nightSignalPalLink i {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(5, 3, 21, 0.28);
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nightSignalPalLink:hover {
+  transform: translateY(-2px);
+  background: #544cff;
+}
+
+.nightSignalPalLink:hover i {
+  transform: translateX(2px);
+}
+
+.nightSignalPalLink:active {
+  transform: scale(0.98);
+}
+
+.nightSignalPalLink:focus-visible,
+.nightSignalRail button:focus-visible,
+.signalConfirm button:focus-visible {
+  outline: 2px solid #fbfbfe;
+  outline-offset: 3px;
+}
+
+.nightSignalStage {
+  --signal-x: 0px;
+  --signal-y: 0px;
+  position: relative;
+  width: min(100%, 760px);
+  height: min(70vh, 720px);
+  min-height: 560px;
+  justify-self: end;
+  border-radius: clamp(32px, 4vw, 58px);
+  background:
+    radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--signal-accent) 11%, transparent), transparent 46%),
+    rgba(10, 8, 34, 0.63);
+  box-shadow:
+    0 0 0 7px rgba(222, 220, 255, 0.025),
+    0 0 0 8px rgba(222, 220, 255, 0.075),
+    inset 0 1px rgba(251, 251, 254, 0.1);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.nightSignalStage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 49.8%, rgba(222, 220, 255, 0.055) 50%, transparent 50.2%),
+    linear-gradient(transparent 49.8%, rgba(222, 220, 255, 0.04) 50%, transparent 50.2%),
+    linear-gradient(180deg, transparent 62%, rgba(5, 3, 21, 0.55) 100%);
+}
+
+.nightSignalStage::after {
+  content: "";
+  position: absolute;
+  inset: 13px;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: calc(clamp(32px, 4vw, 58px) - 13px);
+  box-shadow: inset 0 0 0 1px rgba(222, 220, 255, 0.075);
+}
+
+.nightSignalMedia {
+  position: absolute;
+  inset: -1% 0 0;
+  z-index: 0;
+  width: 100%;
+  height: 102%;
+  object-fit: contain;
+  object-position: center bottom;
+  user-select: none;
+  transform: translate3d(var(--signal-x), var(--signal-y), 0) scale(1.02);
+  opacity: 0;
+  transition:
+    opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 820ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nightSignalStage[data-poster-state="ready"] .nightSignalMedia,
+.nightSignalStage video.nightSignalMedia {
+  opacity: 1;
+}
+
+.nightSignalInstantFallback {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 1;
+  transition: opacity 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nightSignalStage[data-poster-state="ready"] .nightSignalInstantFallback {
+  opacity: 0;
+}
+
+.instantHalo {
+  position: absolute;
+  width: 62%;
+  aspect-ratio: 0.84;
+  left: 21%;
+  top: 10%;
+  border-radius: 48% 52% 46% 54%;
+  background: radial-gradient(ellipse at 52% 42%, color-mix(in srgb, var(--signal-accent) 14%, transparent), transparent 68%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal-accent) 22%, transparent);
+}
+
+.instantFace {
+  position: absolute;
+  left: 31%;
+  top: 12%;
+  width: 40%;
+  height: 52%;
+  border-radius: 46% 54% 48% 52%;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--signal-accent) 13%, transparent), rgba(222, 220, 255, 0.025)),
+    repeating-linear-gradient(180deg, color-mix(in srgb, var(--signal-accent) 11%, transparent) 0 1px, transparent 1px 9px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal-accent) 31%, transparent);
+  clip-path: polygon(13% 5%, 73% 0, 94% 21%, 89% 77%, 61% 100%, 20% 91%, 3% 59%);
+}
+
+.instantGlass {
+  position: absolute;
+  left: 21%;
+  bottom: 12%;
+  width: 17%;
+  height: 32%;
+  clip-path: polygon(5% 0, 95% 0, 82% 100%, 18% 100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--signal-accent) 40%, transparent), transparent);
+  box-shadow: inset 0 0 0 1px rgba(251, 251, 254, 0.32);
+}
+
+.nightSignalStageHardware {
+  position: absolute;
+  inset: 23px 27px auto;
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  color: rgba(251, 251, 254, 0.32);
+  font: 500 8px/1 var(--font-data);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.nightSignalStageReadout {
+  position: absolute;
+  inset: auto 27px 26px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 999px;
+  background: rgba(5, 3, 21, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(222, 220, 255, 0.12);
+  color: rgba(251, 251, 254, 0.55);
+  font: 500 8px/1.3 var(--font-data);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nightSignalStageReadout strong {
+  color: color-mix(in srgb, var(--signal-accent) 67%, #fbfbfe);
+  font-weight: 600;
+}
+
+.stagePulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--signal-accent) 12%, transparent);
+  animation: signalPulse 2.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.nightSignalRailWrap {
+  position: absolute;
+  left: clamp(20px, 5.6vw, 88px);
+  right: clamp(20px, 5.6vw, 88px);
+  bottom: 22px;
+  z-index: 5;
+}
+
+.nightSignalRailWrap > p {
+  margin: 0 0 9px;
+  color: rgba(251, 251, 254, 0.32);
+  font: 500 8px/1 var(--font-data);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.nightSignalRail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.nightSignalRail button {
+  position: relative;
+  min-height: 66px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(251, 251, 254, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(222, 220, 255, 0.07);
+  color: rgba(251, 251, 254, 0.37);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 8px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nightSignalRail button::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--signal-accent);
+  transform: scaleY(0);
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nightSignalRail button:hover {
+  color: rgba(251, 251, 254, 0.78);
+  transform: translateY(-2px);
+}
+
+.nightSignalRail button.isActive {
+  color: #fbfbfe;
+  background: color-mix(in srgb, var(--signal-accent) 9%, rgba(251, 251, 254, 0.035));
+}
+
+.nightSignalRail button.isActive::before {
+  transform: scaleY(0.54);
+}
+
+.nightSignalRail span {
+  font: 500 8px/1.2 var(--font-data);
+}
+
+.nightSignalRail strong {
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.nightSignalRail small {
+  grid-column: 2;
+  overflow: hidden;
+  font-size: 8px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signalConfirm {
+  position: absolute;
+  right: clamp(20px, 5.6vw, 88px);
+  bottom: 111px;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  max-width: 590px;
+  padding: 8px 8px 8px 16px;
+  border-radius: 20px;
+  background: #fbfbfe;
+  color: #050315;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+}
+
+.signalConfirm div > span {
+  color: #5d5a76;
+  font: 600 8px/1 var(--font-data);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.signalConfirm p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.signalConfirm button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #efeff8;
+  color: #050315;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.signalConfirm button:last-child {
+  background: #433bff;
+  color: white;
+}
+
+@keyframes signalPulse {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.76);
+  }
+}
+
+@media (max-width: 900px) {
+  .nightSignals {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 28px;
+    padding: 82px 18px 126px;
+  }
+
+  .nightSignalsCopy {
+    max-width: none;
+  }
+
+  .nightSignalsCopy h2 {
+    max-width: 620px;
+    margin-block: 20px 22px;
+    font-size: clamp(48px, 12vw, 76px);
+  }
+
+  .nightSignalIntroduction {
+    font-size: 15px;
+  }
+
+  .nightSignalsCopy dl {
+    margin: 24px 0 27px;
+  }
+
+  .nightSignalStage {
+    width: 100%;
+    height: min(76vh, 680px);
+    min-height: 520px;
+    justify-self: stretch;
+  }
+
+  .nightSignalRailWrap {
+    left: 18px;
+    right: 0;
+    bottom: 20px;
+  }
+
+  .nightSignalRail {
+    grid-template-columns: repeat(6, minmax(126px, 1fr));
+    padding-right: 18px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .nightSignalRail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nightSignalRail button {
+    min-height: 72px;
+    scroll-snap-align: start;
+  }
+
+  .signalConfirm {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 540px) {
+  .nightSignals {
+    padding-top: 70px;
+    gap: 24px;
+  }
+
+  .nightSignalsCopy h2 {
+    font-size: clamp(46px, 14vw, 62px);
+    letter-spacing: -0.068em;
+  }
+
+  .nightSignalIdentity {
+    display: grid;
+    gap: 6px;
+  }
+
+  .nightSignalsCopy dl {
+    display: none;
+  }
+
+  .nightSignalPalLink {
+    margin-top: 25px;
+  }
+
+  .nightSignalStage {
+    height: 62vh;
+    min-height: 460px;
+    border-radius: 35px;
+  }
+
+  .nightSignalStageHardware {
+    inset: 21px 21px auto;
+  }
+
+  .nightSignalStageReadout {
+    inset: auto 20px 20px;
+  }
+
+  .nightSignalStageReadout span:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .signalConfirm {
+    grid-template-columns: 1fr 1fr;
+    padding: 12px;
+  }
+
+  .signalConfirm div {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .nightSignalMedia {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nightSignals *,
+  .nightSignals *::before,
+  .nightSignals *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .nightSignalMedia {
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .nightSignalsAtmosphere {
+    display: none;
+  }
+
+  .nightSignalStage,
+  .nightSignalRail button,
+  .nightSignalStageReadout,
+  .nsKicker {
+    background: #0b0924;
+  }
+
+  .nightSignalStage::before {
+    background: linear-gradient(180deg, transparent 64%, #050315 100%);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .nightSignalIntroduction,
+  .nightSignalsCopy dd,
+  .nightSignalRail button,
+  .nightSignalStageReadout {
+    color: #fbfbfe;
+  }
+
+  .nightSignalStage,
+  .nightSignalRail button,
+  .nightSignalStageReadout {
+    box-shadow: inset 0 0 0 2px #fbfbfe;
+  }
+}

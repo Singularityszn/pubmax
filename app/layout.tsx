@@ -11,6 +11,7 @@ import FirstRunTour from "@/components/onboarding/FirstRunTour";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
+import PerformanceVitals from "@/components/PerformanceVitals";
 
 // Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
@@ -210,6 +211,7 @@ export default async function RootLayout({
             {/* Silent offline SW registration (issue #32) — renders nothing,
                 production-only, registers after load. */}
             <OfflineReady />
+            <PerformanceVitals />
           </CommandPaletteProvider>
         </AuthProvider>
         {/* Vercel Web Analytics (R3) — cookie-less pageview + custom-event
