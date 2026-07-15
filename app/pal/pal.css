@@ -273,8 +273,8 @@
 .palCharacter-raven .palCharacterBrowRight { display: none; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .palCharacterPupil { animation: palLook 6.5s cubic-bezier(.2, .8, .2, 1) infinite; }
-  .palCharacterHead { animation: palHeadTilt 7.2s cubic-bezier(.2, .8, .2, 1) infinite; }
+  .palCharacterPupil { animation: palLook var(--duration-pal-gaze) var(--ease-in-out-strong) infinite; }
+  .palCharacterHead { animation: palHeadTilt var(--duration-pal-idle) var(--ease-in-out-strong) infinite; }
 }
 
 .palProgress { width: min(84rem, 100%); height: 1px; margin: .5rem auto 0; background: var(--pal-line); }

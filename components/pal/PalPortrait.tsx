@@ -1,5 +1,5 @@
 import { Bot, Cat, Rabbit, Squirrel, Turtle, type LucideIcon } from "lucide-react";
-import type { PubPalAppearance } from "@/lib/pubPal";
+import { PAL_ONBOARDING_SPECIES, type PubPalAppearance } from "@/lib/pubPal";
 
 const legacySpeciesIcons: Partial<Record<PubPalAppearance["species"], LucideIcon>> = {
   cat: Cat,
@@ -9,15 +9,15 @@ const legacySpeciesIcons: Partial<Record<PubPalAppearance["species"], LucideIcon
   bot: Bot,
 };
 
-const CHARACTER_SPECIES = ["hound", "raven", "fox"] as const;
+type CharacterSpecies = (typeof PAL_ONBOARDING_SPECIES)[number];
 
 function isCharacterSpecies(
   species: PubPalAppearance["species"],
-): species is (typeof CHARACTER_SPECIES)[number] {
-  return CHARACTER_SPECIES.includes(species as (typeof CHARACTER_SPECIES)[number]);
+): species is CharacterSpecies {
+  return PAL_ONBOARDING_SPECIES.includes(species as CharacterSpecies);
 }
 
-function CharacterFace({ species }: { species: (typeof CHARACTER_SPECIES)[number] }) {
+function CharacterFace({ species }: { species: CharacterSpecies }) {
   return (
     <span className={`palCharacter palCharacter-${species}`} data-pal-species={species}>
       <span className="palCharacterEar palCharacterEarLeft" />

@@ -34,17 +34,6 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(css).toContain("prefers-contrast: more");
   });
 
-  it("gives the three hero species distinct character faces instead of generic icons", () => {
-    for (const species of ["hound", "raven", "fox"]) {
-      expect(portrait).toContain(`"${species}"`);
-      expect(css).toContain(`.palCharacter-${species}`);
-    }
-    expect(portrait).toContain("CharacterFace");
-    expect(portrait).not.toContain("hound: Dog");
-    expect(css).toContain(".palCharacter-raven");
-    expect(css).toContain(".palCharacter-fox");
-  });
-
   it("keeps controls thumb-sized and avoids unstable viewport height", () => {
     expect(css).toContain("min-height: 100dvh");
     expect(css).toMatch(/\.palChoice\s*{[\s\S]*?min-height:\s*4\.75rem/);

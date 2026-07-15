@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 
 /* ────────────────────────────────────────────────────────────────────────
    PUBMAXXING token scale — see DESIGN.md + docs/DESIGN_SYSTEM.md.
@@ -141,6 +143,8 @@
   --duration-base: 0.15s;
   --duration-slow: 0.28s;
   --duration-ambient: 1.4s;
+  --duration-pal-gaze: 6.5s;
+  --duration-pal-idle: 7.2s;
   --duration-press: 0.13s; /* button press-in / release */
   --ease-standard: ease;
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
