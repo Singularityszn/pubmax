@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import MomentCapture from "@/components/moment/MomentCapture";
 
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function MomentPage(): React.JSX.Element {
-  return <MomentCapture />;
+  return (
+    <Suspense fallback={<main aria-busy="true" aria-label="Loading Moment composer" />}>
+      <MomentCapture />
+    </Suspense>
+  );
 }

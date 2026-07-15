@@ -27,6 +27,20 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "pub-pal",
 ];
 
+function PalSignalAvatar() {
+  return (
+    <span className="mobilePalAvatar" aria-hidden="true">
+      <svg viewBox="0 0 40 40">
+        <path className="mobilePalAvatarBack" d="m11 14-5-5 2 13m21-8 5-5-2 13" />
+        <path className="mobilePalAvatarHead" d="M8 17c2-12 22-12 24 0 2 12-4 19-12 19S6 29 8 17Z" />
+        <path className="mobilePalAvatarMuzzle" d="M14 24c3-3 9-3 12 0 2 5-1 8-6 8s-8-3-6-8Z" />
+        <circle cx="15" cy="20" r="1.6" /><circle cx="25" cy="20" r="1.6" />
+        <path d="M18 25h4l-2 2Z" />
+      </svg>
+    </span>
+  );
+}
+
 export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, tonightCount, tflCount, priceLabel, filtersActive, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent }: {
   cityLabel: string;
   overlay: MapOverlay;
@@ -57,7 +71,7 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
           <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page"><PubmaxxWordmark /></Link>
           <span className="mobileMapCity">{cityLabel}</span>
           <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>
-          <IconButton className="mobileMapPalButton" aria-label="Open Pub Pal" aria-expanded={overlay === "pub-pal"} onClick={() => set("pub-pal")}><Sparkles size={19} /></IconButton>
+          <IconButton className="mobileMapPalButton" aria-label="Open Pub Pal" aria-expanded={overlay === "pub-pal"} onClick={() => set("pub-pal")}><PalSignalAvatar /></IconButton>
           <IconButton aria-label="More map controls" aria-expanded={overlay === "layers"} onClick={() => set("layers")}><Ellipsis size={20} /></IconButton>
         </header>
 

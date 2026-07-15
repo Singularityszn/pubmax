@@ -97,6 +97,7 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
 
 test("/feed exposes the For You lane control (issue #36)", async ({ page }) => {
   const errors = watchPageErrors(page);
+  await dismissMapFirstRunTour(page);
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
   // The lane switcher is always rendered (FeedFilters), independent of feed
@@ -196,45 +197,33 @@ test("nav does not overflow at 390px — sign-in button never clips (GH #18)", a
   }
 });
 
-test("mobile map toolbar controls stay inside the search card at 390px", async ({ page }) => {
+test("mobile map shell controls stay inside the coordinated chrome at 390px", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await dismissMapFirstRunTour(page);
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  const toolbar = page.locator(".mapToolbar").first();
-  await expect(toolbar).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mobileMapRail")).toBeVisible();
 
-  const toolbarBox = await toolbar.boundingBox();
-  expect(toolbarBox).not.toBeNull();
-  if (!toolbarBox) return;
-
-  for (const selector of [".mapToolbarSearch", ".mapToolbarDrinksBtn", ".planBtn"]) {
-    const control = page.locator(selector).first();
+  for (const selector of [".mobileMapTopbar", ".mobileMapRail"]) {
+    const control = page.locator(selector);
     await expect(control).toBeVisible();
-    const box = await control.boundingBox();
-    expect(box, `${selector} has a box`).not.toBeNull();
-    if (!box) continue;
-    expect(box.x, `${selector} left edge`).toBeGreaterThanOrEqual(toolbarBox.x - 1);
+    const box = await control.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, width: rect.width };
+    });
+    expect(box.x, `${selector} left edge`).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width, `${selector} right edge`).toBeLessThanOrEqual(
-      toolbarBox.x + toolbarBox.width + 1,
+      391,
     );
   }
 
-  await page.getByRole("button", { name: "Show drink filters" }).click();
-  const favoritePicker = page.locator(".mapToolbarDrinksLens .favoritePintPicker").first();
-  await expect(favoritePicker).toBeVisible();
-  const pickerBox = await favoritePicker.boundingBox();
-  expect(pickerBox, "expanded mobile drink picker has a box").not.toBeNull();
-  if (pickerBox) {
-    expect(pickerBox.x, "expanded drink picker left edge").toBeGreaterThanOrEqual(
-      toolbarBox.x - 1,
-    );
-    expect(pickerBox.x + pickerBox.width, "expanded drink picker right edge").toBeLessThanOrEqual(
-      toolbarBox.x + toolbarBox.width + 1,
-    );
-  }
+  await page.getByRole("button", { name: "Drinks" }).click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
+  await expect(sheet).toHaveCount(1);
+  await expect(sheet.getByRole("heading", { name: "Drinks and price" })).toBeVisible();
 });
 
 // Mirrors lib/venues.ts venueGroupingKey + stableVenueIdFromKey exactly (a
@@ -284,16 +273,17 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   // while still proving the sheet-open contract that peek/half/full build on.
   const sheet = page.locator(".mapDrawer.right");
   await expect(sheet).toHaveClass(/open/);
-  await expect(page.locator(".mapDrawer.left")).not.toHaveClass(/open/);
+  await expect(page.locator(".mapDrawer.left")).toHaveCount(0);
 
   // The grab handle (the drag affordance itself) is visible and — even
   // without simulating a real pointer-drag — present in the DOM as the
   // documented gesture surface (components/map/VenueInspector.tsx).
-  await expect(sheet.locator(".venueSheetGrab").first()).toBeVisible();
+  await expect(sheet.locator(".mobileSharedSheetGrab")).toBeVisible();
 
   // The sheet stays fully usable with no gesture at all: the close button and
   // tabs are reachable and functional (a11y contract from the spec).
-  await expect(page.locator(".drawerClose")).toBeVisible();
+  const closeButton = page.getByRole("button", { name: "Close pub detail" });
+  await expect(closeButton).toBeVisible();
   const tabs = page.getByRole("tab");
   await expect(tabs.first()).toBeVisible();
 
@@ -306,7 +296,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
 
   const [navBox, closeBox, tabsBox, horizontalOverflow, goldenThreadPriceStyle] = await Promise.all([
     mobileNav.boundingBox(),
-    page.locator(".drawerClose").boundingBox(),
+    closeButton.boundingBox(),
     tablist.boundingBox(),
     page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
     goldenThreadPrice.evaluate((node) => {
@@ -328,8 +318,8 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   expect(closeBox!.y + closeBox!.height).toBeLessThan(navBox!.y);
   expect(tabsBox!.y + tabsBox!.height).toBeLessThan(navBox!.y);
 
-  await page.locator(".drawerClose").click();
-  await expect(sheet).not.toHaveClass(/open/);
+  await closeButton.click();
+  await expect(sheet).toHaveCount(0);
 });
 
 test("mobile venue sheet sticky actions switch to Train and Drop without desktop tabs", async ({
@@ -345,6 +335,8 @@ test("mobile venue sheet sticky actions switch to Train and Drop without desktop
 
   const sheet = page.locator(".mapDrawer.right");
   await expect(sheet).toHaveClass(/open/);
+  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  await expect(sheet).toHaveClass(/sheet-full/);
 
   const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
@@ -355,7 +347,7 @@ test("mobile venue sheet sticky actions switch to Train and Drop without desktop
   await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
 
   await stickyActions.getByRole("button", { name: /log a pint drop/i }).click();
-  const dropsTab = page.getByRole("tab", { name: "Drops", exact: true });
+  const dropsTab = page.getByRole("tab", { name: "Stories", exact: true });
   await expect(dropsTab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#venuePanel-pints")).toBeVisible();
   await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
@@ -367,17 +359,18 @@ test("theme toggle flips html[data-theme], persists to localStorage, survives re
 }) => {
   // The floating ThemeToggle lives on /map. The no-flash inline script sets
   // data-theme before hydration, so an initial value always exists.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dismissMapFirstRunTour(page);
   await page.goto("/map");
+  await page.getByRole("button", { name: "More map controls" }).click();
 
   const html = page.locator("html");
   const before = await html.getAttribute("data-theme");
   expect(before === "light" || before === "dark").toBe(true);
 
-  // force: the floating toggle can sit under the route header in headless
-  // layout; we're asserting the toggle's behaviour contract, not hit-testing.
   await page
     .getByRole("button", { name: /switch to (dark|light) theme/i })
-    .click({ force: true });
+    .click();
 
   const after = await html.getAttribute("data-theme");
   expect(after).not.toBe(before);

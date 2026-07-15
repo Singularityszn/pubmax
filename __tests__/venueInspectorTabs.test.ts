@@ -4,8 +4,15 @@ import { CITIES } from "@/lib/cities";
 import { BASE_TABS, DEFAULT_TAB, tabsForCity } from "@/lib/venueInspectorTabs";
 
 describe("venueInspectorTabs", () => {
-  it("keeps Drops as the default tab", () => {
-    expect(DEFAULT_TAB).toBe("pints");
+  it("opens on the useful venue overview", () => {
+    expect(DEFAULT_TAB).toBe("overview");
+    expect(BASE_TABS.map((tab) => tab.label)).toEqual([
+      "Overview",
+      "Drinks",
+      "Stories",
+      "Lore",
+      "Ask",
+    ]);
   });
 
   it("appends a getting-home tab after the base tabs for London", () => {

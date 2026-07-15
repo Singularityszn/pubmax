@@ -11,6 +11,7 @@
 }
 
 .momentIntro { max-width: 650px; }
+.momentIntroRail { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .momentPrivacy {
   min-height: 32px;
   display: inline-flex;
@@ -19,6 +20,8 @@
   color: var(--ink-soft);
   font: 700 12px/1 var(--font-body);
 }
+.momentCancel { min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 999px; color: var(--ink-soft); font-size: 13px; font-weight: 750; text-decoration: none; }
+.momentCancel:hover, .momentCancel:focus-visible { color: var(--ink); background: color-mix(in srgb, var(--brass) 8%, transparent); }
 .momentIntro h1 {
   max-width: 9ch;
   margin: 14px 0 0;

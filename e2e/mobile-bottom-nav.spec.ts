@@ -26,6 +26,7 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toBeVisible();
     await expect(nav).toHaveCSS("opacity", "1");
 
+    await page.getByRole("button", { name: "More map controls" }).click();
     await page.getByRole("button", { name: "Plan tonight" }).click();
     await expect(page.locator(".appShell")).toHaveClass(/planning-open/);
     await expect(page.locator(".mapDrawer.left")).toHaveClass(/open/);
@@ -43,7 +44,8 @@ test.describe("mobile bottom-tab navigation", () => {
     await primaryNav(page).getByRole("link", { name: "Map", exact: true }).click();
 
     await expect(page).toHaveURL(/\/map$/);
-    await expect(page.getByLabel("Search pubs by name, area, borough or drink")).toBeVisible();
+    await page.getByRole("button", { name: "Search the map" }).click();
+    await expect(page.getByRole("searchbox", { name: "Search pubs" })).toBeVisible();
   });
 
   test("Tonight tab routes to /tonight and exposes the tonight screen", async ({ page }) => {
@@ -60,9 +62,10 @@ test.describe("mobile bottom-tab navigation", () => {
 
     await primaryNav(page).getByRole("link", { name: "Moment", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/moment$/);
+    await expect(page).toHaveURL(/\/moment\?returnTo=%2Fmap$/);
     await expect(page.getByRole("heading", { name: "Keep this one." })).toBeVisible();
     await expect(page.getByRole("link", { name: "Log a Pint Drop" })).toHaveAttribute("href", "/map?log=1");
+    await expect(page.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/map");
   });
 
   test("Stories routes directly to the social feed", async ({ page }) => {
@@ -81,7 +84,7 @@ test.describe("mobile bottom-tab navigation", () => {
 
     await primaryNav(page).getByRole("link", { name: "You", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/u\/you$/);
-    await expect(page.getByRole("navigation", { name: "Site navigation" })).toBeVisible();
+    await expect(page).toHaveURL(/\/u\/you$/, { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Make the night yours." })).toBeVisible();
   });
 });

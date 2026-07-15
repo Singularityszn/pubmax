@@ -7,9 +7,9 @@ import { X } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
 import { sheetTranslateY } from "@/lib/sheetSnap";
-import type { MapSheetKind } from "@/lib/mobileShell";
+import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
-export default function MobileSharedSheet({ kind, title, onClose, children }: { kind: MapSheetKind | null; title: string; onClose: () => void; children: React.ReactNode }) {
+export default function MobileSharedSheet({ kind, title, initialSnap = "half", requestedSnap, onClose, children }: { kind: MapSheetKind | null; title: string; initialSnap?: MapSheetDetent; requestedSnap?: MapSheetDetent; onClose: () => void; children: React.ReactNode }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -18,7 +18,7 @@ export default function MobileSharedSheet({ kind, title, onClose, children }: { 
   useEffect(() => {
     if (!kind) return;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setSheetSnap("half");
+    setSheetSnap(initialSnap);
     setSheetDragY(null);
     const frame = requestAnimationFrame(() => closeRef.current?.focus());
     const onKey = (event: KeyboardEvent) => {
@@ -30,24 +30,31 @@ export default function MobileSharedSheet({ kind, title, onClose, children }: { 
       window.removeEventListener("keydown", onKey);
       previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [kind, onClose, setSheetDragY, setSheetSnap]);
+  }, [initialSnap, kind, onClose, setSheetDragY, setSheetSnap]);
+
+  useEffect(() => {
+    if (!kind || !requestedSnap) return;
+    setSheetDragY(null);
+    setSheetSnap(requestedSnap);
+  }, [kind, requestedSnap, setSheetDragY, setSheetSnap]);
 
   if (!kind || typeof document === "undefined") return null;
+  const closeLabel = kind === "venue" ? "Close pub detail" : kind === "planner" ? "Close planner" : `Close ${title}`;
 
   return createPortal(
     <div className="mobileSheetPortal" data-sheet-kind={kind}>
-      <button className="mobileSheetScrim" type="button" onClick={onClose} aria-label={`Close ${title}`} />
+      <button className="mobileSheetScrim" type="button" onClick={onClose} aria-label={`Dismiss ${title} backdrop`} />
       <section
-        className={`mapDrawer mobileSharedSheet open sheet-${sheetSnap}${sheetDragY !== null ? " sheet-dragging" : ""}`}
-        role="dialog"
-        aria-modal="true"
+        className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${sheetDragY !== null ? " sheet-dragging" : ""}`}
+        role={sheetSnap === "full" ? "dialog" : undefined}
+        aria-modal={sheetSnap === "full" ? "true" : undefined}
         aria-labelledby={titleId}
         style={sheetDragY !== null ? { transform: `translateY(${Math.max(0, sheetTranslateY(sheetSnap, window.innerHeight) + sheetDragY)}px)`, transition: "none" } : undefined}
       >
         <header className="mobileSharedSheetHeader sheetDragHandle" onPointerDown={onSheetDragStart} onPointerMove={onSheetDragMove} onPointerUp={onSheetDragEnd} onPointerCancel={onSheetDragEnd}>
           <span className="mobileSharedSheetGrab" aria-hidden="true" />
           <h2 id={titleId}>{title}</h2>
-          <IconButton ref={closeRef} className="mobileSharedSheetClose" aria-label={`Close ${title}`} onClick={onClose}><X size={18} /></IconButton>
+          <IconButton ref={closeRef} className="mobileSharedSheetClose" aria-label={closeLabel} onClick={onClose}><X size={18} /></IconButton>
         </header>
         <div className={`mobileSharedSheetBody${sheetSnap === "full" ? " isScrollable" : ""}`}>{children}</div>
       </section>

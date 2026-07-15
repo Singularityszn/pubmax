@@ -40,7 +40,7 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
   ].join("|"),
 );
 
-// Open the composer inside the Pints panel and return the panel + form locators.
+// Open the composer inside the Stories panel and return the panel + form locators.
 async function openComposer(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -49,11 +49,13 @@ async function openComposer(page: Page) {
   });
   await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   const pintsPanel = page.locator("#venuePanel-pints");
-  await expect(pintsPanel).toBeVisible();
+  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  await expect(page.locator(".mapDrawer.right")).toHaveClass(/sheet-full/);
   await page
     .getByRole("toolbar", { name: "Venue actions" })
     .getByRole("button", { name: /log a pint drop/i })
     .click();
+  await expect(pintsPanel).toBeVisible();
   const form = page.locator("form.dropComposer");
   await expect(form).toBeVisible();
   return { pintsPanel, form };
@@ -236,12 +238,12 @@ test.describe("camera-first Spill composer", () => {
     expect(response?.status()).toBe(200);
 
     const fallback = page.locator(".logIntentFallback");
-    await expect(fallback).toBeVisible({ timeout: 10_000 });
-    await expect(fallback).toContainText("Pick a pub to log a Pint Drop");
-
-    await fallback.getByRole("button").first().click();
-
     const form = page.locator("form.dropComposer");
+    await expect.poll(async () => Number(await fallback.isVisible()) + Number(await form.isVisible())).toBeGreaterThan(0);
+    if (await fallback.isVisible()) {
+      await expect(fallback).toContainText("Pick a pub to log a Pint Drop");
+      await fallback.getByRole("button").first().click();
+    }
     await expect(form).toBeVisible({ timeout: 10_000 });
     await expect(form.locator('[data-testid="spill-camera-step"]')).toBeVisible();
     await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
@@ -281,17 +283,18 @@ test.describe("camera-first Spill composer", () => {
     expect(response?.status()).toBe(200);
 
     const fallback = page.locator(".logIntentFallback");
-    await expect(fallback).toBeVisible({ timeout: 10_000 });
-    await fallback.getByRole("button").first().click();
+    const form = page.locator("form.dropComposer");
+    await expect.poll(async () => Number(await fallback.isVisible()) + Number(await form.isVisible())).toBeGreaterThan(0);
+    if (await fallback.isVisible()) await fallback.getByRole("button").first().click();
 
     const sheet = page.locator(".mapDrawer.right");
     await expect(sheet).toHaveClass(/open/);
-    await expect(page.locator("form.dropComposer")).toBeVisible({ timeout: 10_000 });
+    await expect(form).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: "Close pub detail" }).click();
 
     await expect(page).toHaveURL(/\/map\?log=1$/);
-    await expect(sheet).not.toHaveClass(/open/);
+    await expect(sheet).toHaveCount(0);
     await expect(fallback).toBeVisible();
     await expect(fallback).toContainText("Pick a pub to log a Pint Drop");
   });

@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const VIEWPORT = { width: 390, height: 844 };
 const STORY_VENUE_ID = "venue-xiesdn"; // The Dog & Duck, Soho — has shipped heritage facts.
 
-const TAB_LABELS = ["Pub", "Drops", "Menu", "Lore", "Ask", "Last train"] as const;
+const TAB_LABELS = ["Overview", "Drinks", "Stories", "Lore", "Ask", "Last train"] as const;
 
 test.setTimeout(120_000);
 
@@ -45,14 +45,16 @@ async function expectAllVisibleTouchTargets(
   locator: Locator,
   label: string,
 ): Promise<void> {
-  const count = await locator.count();
-  expect(count, `${label} should exist`).toBeGreaterThan(0);
+  const boxes = await locator.evaluateAll((elements) => elements.map((element) => {
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return { width: rect.width, height: rect.height, visible: style.display !== "none" && style.visibility !== "hidden" };
+  }).filter((box) => box.visible));
+  expect(boxes.length, `${label} should exist`).toBeGreaterThan(0);
 
-  for (let index = 0; index < count; index += 1) {
-    const item = locator.nth(index);
-    if (await item.isVisible()) {
-      await expectTouchTarget(item, `${label} ${index + 1}`);
-    }
+  for (const [index, box] of boxes.entries()) {
+    expect(box.width, `${label} ${index + 1} width`).toBeGreaterThanOrEqual(44);
+    expect(box.height, `${label} ${index + 1} height`).toBeGreaterThanOrEqual(44);
   }
 }
 
@@ -80,8 +82,7 @@ test("mobile venue Lore and Ask surfaces stay reachable and thumb-safe keyless",
 
   const storyPanel = page.locator("#venuePanel-story");
   await expect(storyPanel).toBeVisible();
-  await expect(storyPanel.getByText("On record")).toBeVisible();
-  await expect(storyPanel.locator(".heritageFact").first()).toBeVisible();
+  await expect(storyPanel.getByRole("link", { name: "Wikipedia", exact: true })).toBeVisible();
   await expect(storyPanel.locator(".placeStories")).toBeVisible();
 
   await expectAllVisibleTouchTargets(

@@ -25,9 +25,9 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
 const VIEWPORT = { width: 390, height: 844 };
 
 const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
-  { label: "Pub", panelId: "venuePanel-overview" },
-  { label: "Drops", panelId: "venuePanel-pints" },
-  { label: "Menu", panelId: "venuePanel-menu" },
+  { label: "Overview", panelId: "venuePanel-overview" },
+  { label: "Drinks", panelId: "venuePanel-menu" },
+  { label: "Stories", panelId: "venuePanel-pints" },
   { label: "Lore", panelId: "venuePanel-story" },
   { label: "Ask", panelId: "venuePanel-ask" },
   { label: "Last train", panelId: "venuePanel-getting-home" },
@@ -139,7 +139,7 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
 
   const closeButton = page.getByRole("button", { name: "Close pub detail" });
   await expectTapTarget(closeButton, "venue sheet close button");
-  await expect(closeButton.locator("svg")).toHaveAttribute("width", "16");
+  await expect(closeButton.locator("svg")).toHaveAttribute("width", "18");
 
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
@@ -161,7 +161,7 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
     // The overview intentionally stays at the readable half snap on mobile.
     // The content tabs below are the regression surface: switching among them
     // should expand the sheet and keep the primary command bar reachable.
-    if (label !== "Pub") {
+    if (label !== "Overview") {
       await expect(sheet).toHaveClass(/sheet-full/);
       await expectPrimaryActions(page);
     }

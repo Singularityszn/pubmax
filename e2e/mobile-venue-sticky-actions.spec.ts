@@ -54,6 +54,8 @@ test("mobile venue sticky Share and Crawl actions stay tappable in build mode", 
 
   const sheet = page.locator(".mapDrawer.right");
   await expect(sheet).toHaveClass(/open/);
+  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  await expect(sheet).toHaveClass(/sheet-full/);
 
   const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
@@ -81,6 +83,8 @@ test("mobile sticky Train action opens Last train and the sheet reopens cleanly"
 
   const sheet = page.locator(".mapDrawer.right");
   await expect(sheet).toHaveClass(/open/);
+  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  await expect(sheet).toHaveClass(/sheet-full/);
 
   const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
@@ -92,14 +96,14 @@ test("mobile sticky Train action opens Last train and the sheet reopens cleanly"
   await expect(sheet).toHaveClass(/sheet-full/);
 
   await page.getByRole("button", { name: "Close pub detail" }).click();
-  await expect(sheet).not.toHaveClass(/open/);
+  await expect(sheet).toHaveCount(0);
 
   await page.reload();
   await expect(sheet).toHaveClass(/open/);
   await expect(stickyActions).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Drops", exact: true })).toHaveAttribute(
+  await expect(page.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
   );
-  await expect(page.locator("#venuePanel-pints")).toBeVisible();
+  await expect(page.locator("#venuePanel-overview")).toBeVisible();
 });

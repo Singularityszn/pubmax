@@ -141,8 +141,7 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
 
-  // The sheet opens on the Drops tab; Overview carries the journey entry from
-  // this pub, so switch to it the way a user would — via its tab.
+  // The sheet opens on Overview, which carries the journey entry from this pub.
   await page.locator("#venueTab-overview").click();
   const overviewPanel = page.locator("#venuePanel-overview");
   await expect(overviewPanel).toBeVisible();

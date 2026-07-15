@@ -53,7 +53,7 @@ test("keeps location private, supports forgetting, and shows useful routes", asy
 
   const response = await page.goto(`/map?sel=${VENUE_ID}`);
   expect(response?.status()).toBe(200);
-  await page.getByRole("tab", { name: "Pub" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
 
   const gettingThere = page.getByRole("region", { name: "Getting there" });
   const shareLocation = page.getByRole("button", {
@@ -119,7 +119,7 @@ test("announces location progress and retries a failed route request", async ({ 
   });
 
   await page.goto(`/map?sel=${VENUE_ID}`);
-  await page.getByRole("tab", { name: "Pub" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
   const gettingThere = page.getByRole("region", { name: "Getting there" });
   await gettingThere
     .getByRole("button", { name: "Share location for travel times" })

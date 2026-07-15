@@ -37,9 +37,9 @@ test("venue price-story block renders when a pub is selected via ?sel (§34)", a
 
   // If the inspector opened (selected venue resolved from the dataset), the
   // Golden Thread block MUST be present — either the resolved price story or its
-  // honest empty state. Both render inside .venuePriceStory, which leads the
-  // (default) Pints tab, so it is not behind a hidden tab panel.
+  // honest empty state. Both render inside the explicit Stories tab.
   if ((await inspector.count()) > 0) {
+    await page.getByRole("tab", { name: "Stories", exact: true }).click();
     await expect(priceStory).toHaveCount(1);
 
     // The section is always titled, populated or empty.

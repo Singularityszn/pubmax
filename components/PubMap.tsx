@@ -3,15 +3,17 @@
 import { MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
+import ThemeToggle from "@/components/ThemeToggle";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 
 import {
   buildCrawlRoute,
+  formatPrice,
   mergeVenueDrops,
   type Filters,
   type Venue,
@@ -21,8 +23,10 @@ import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/pr
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import MobileMapShell from "@/components/mobile/MobileMapShell";
+import MobileSharedSheet from "@/components/mobile/MobileSharedSheet";
 import MobileTflPanel from "@/components/mobile/MobileTflPanel";
 import { SearchField } from "@/components/ui/search-field";
+import { Button } from "@/components/ui/button";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MapLayersControl from "@/components/map/MapLayersControl";
@@ -137,6 +141,16 @@ function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
 }
 
+function subscribeMobileViewport(onChange: () => void): () => void {
+  const query = window.matchMedia("(max-width: 640px)");
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function mobileViewportSnapshot(): boolean {
+  return isMobileViewport();
+}
+
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
 // a bare price is never a story, and demo seeds never move prices or hasStory.
 
@@ -221,6 +235,11 @@ export default function PubMap({
   cityId?: CityId;
 }) {
   const city = getCity(cityId);
+  const mobileViewport = useSyncExternalStore(
+    subscribeMobileViewport,
+    mobileViewportSnapshot,
+    () => false,
+  );
   const isLondon = cityId === "london";
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
@@ -287,7 +306,7 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
-  const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("pints");
+  const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
   const [mapOverlay, setMapOverlay] = useState<MapOverlay>(() => {
     const restored = restoredMobileSession?.openSheet;
@@ -312,8 +331,10 @@ export default function PubMap({
   // for it. Curated crawl arrivals stay map-first (polyline + chip); other
   // shared/restored crawl links still open straight into planning.
   const [planningOpen, setPlanningOpen] = useState<boolean>(() =>
-    restoredMobileSession?.openSheet === "planner" ||
-    shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch()),
+    !seed.selectedVenueId &&
+    restoredMobileSession?.openSheet !== "venue" &&
+    (restoredMobileSession?.openSheet === "planner" ||
+      shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch())),
   );
   // Explicit route mapping: a suggested crawl can exist without drawing on the
   // clean first map. Once the user chooses "Map route" (or a curated/nearby
@@ -692,7 +713,7 @@ export default function PubMap({
   useBuiltIdsPersistence(builtIds, BUILT_STORAGE_KEY);
 
   const selectVenue = useCallback(
-    (id: string, initialTab: TabKey = "pints") => {
+    (id: string, initialTab: TabKey = "overview") => {
       if (!id) return;
       prefetchVenue(id);
       setTonightLaneOpen(false);
@@ -837,6 +858,7 @@ export default function PubMap({
 
   const openComposerForLog = useCallback(() => {
     closePlanning();
+    setVenueInitialTab("pints");
     setSheetSnap("full");
     setSheetDragY(null);
     dismissOnboarding();
@@ -1159,6 +1181,142 @@ export default function PubMap({
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
 
+  const plannerPanel = planningOpen ? (
+    <>
+      <button type="button" className="plannerMapButton" onClick={closePlanning}>
+        <MapPinned size={16} aria-hidden="true" />
+        View {city.displayName} map
+      </button>
+      <ControlRail
+        mode={mode}
+        onModeChange={setMode}
+        filters={filters}
+        onFiltersChange={setFilters}
+        filteredVenues={filteredVenues}
+        builtCount={builtIds.length}
+        onClearBuilt={clearBuilt}
+        onLoadCrawl={loadCuratedCrawl}
+        onNearbyCrawl={startNearbyCrawl}
+        nearbyLoading={nearbyLoading}
+        nearbyError={nearbyError}
+        savedOnly={savedOnly}
+        onSavedOnlyChange={changeSavedOnly}
+        curatedCrawls={cityCuratedCrawls}
+        cityDisplayName={city.displayName}
+        cityId={cityId}
+      />
+      <RoutePanel
+        mode={mode}
+        crawlStyle={filters.crawlStyle}
+        altStyle={altStyle}
+        onAltStyleChange={setAltStyle}
+        route={route}
+        filteredVenues={filteredVenues}
+        builtIds={builtIds}
+        activeVenueId={selectedVenue?.id}
+        venueSignals={venueSignals}
+        crawlBlurb={activeCrawl?.blurb}
+        crawlName={activeCrawl?.name}
+        crawlId={activeCrawl?.id}
+        routeMapped={routeMappedActive}
+        originDistanceKm={distanceFromUserKm}
+        onMapRoute={mapCurrentRoute}
+        onHideRoute={hideMappedRoute}
+        onCheckLastTrain={checkLastTrainAtRouteEnd}
+        onSelectVenue={selectVenue}
+        onToggleStop={toggleBuiltStop}
+        onReverseRoute={reverseRoute}
+        journeyByToIndex={journeyByToIndex}
+        journeyLoading={journeyLoading}
+        journeyTotalMinutes={journeyTotalMinutes}
+        cityDisplayName={city.displayName}
+        cityId={cityId}
+        poisPath={city.poisPath}
+        onRoundStarted={setActiveRoundStartedCode}
+      >
+        {loaded && filteredVenues.length === 0 ? (
+          savedOnly && savedIds.size === 0 ? (
+            <section className="venueInspector" style={{ textAlign: "center" }}>
+              <p className="description" style={{ marginTop: 0 }}>
+                No saved pubs yet — tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
+                back on to see just your list.
+              </p>
+              <button type="button" className="addStopBtn" onClick={() => changeSavedOnly(false)}>
+                Show all pubs
+              </button>
+            </section>
+          ) : (
+            <section className="venueInspector" style={{ textAlign: "center" }}>
+              <p className="description" style={{ marginTop: 0 }}>
+                No pubs match these filters — try widening your price or clearing your story filters.
+              </p>
+              <button type="button" className="addStopBtn" onClick={() => setFilters(seedCrawlState("").filters)}>
+                Clear filters
+              </button>
+            </section>
+          )
+        ) : null}
+      </RoutePanel>
+    </>
+  ) : null;
+
+  const venuePanel = detailOpen && selectedVenue ? (
+    <>
+      <div className="mobileVenuePeekSummary" aria-label="Selected pub summary">
+        <span>
+          <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
+          <small>current recorded price</small>
+        </span>
+        <span>
+          <strong>
+            {userLocation
+              ? `${Math.max(1, Math.ceil(haversineKm(
+                  [userLocation.lng, userLocation.lat],
+                  [selectedVenue.longitude, selectedVenue.latitude],
+                ) * 12.5))} min`
+              : "Near me"}
+          </strong>
+          <small>{userLocation ? "walk" : "for walk time"}</small>
+        </span>
+        <button
+          type="button"
+          aria-pressed={builtIds.includes(selectedVenue.id)}
+          onClick={() => toggleBuiltStop(selectedVenue.id)}
+        >
+          {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
+        </button>
+      </div>
+      {selectedDetailStatus === "loading" ? <VenueSheetSkeleton /> : null}
+      {selectedDetailStatus === "unavailable" ? (
+        <div style={DETAIL_WARNING_STYLE} role="status">
+          Showing fast map details. Full pub notes are unavailable right now.
+        </div>
+      ) : null}
+      <VenueInspector
+        venue={selectedVenue}
+        mode={mode}
+        inCrawl={builtIds.includes(selectedVenue.id)}
+        latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
+        onToggleStop={toggleBuiltStop}
+        onSelectVenue={selectVenue}
+        initialTab={venueInitialTab}
+        pintDrops={pintDrops}
+        onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
+        onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
+        onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
+        onTabSelect={handleInspectorTabSelect}
+        cityLandmarks={cityLandmarks}
+        cityStoryBands={cityStoryBands}
+        cityCuratedCrawls={cityCuratedCrawls}
+        cityId={cityId}
+        userLocation={venueJourneyLocation}
+        locationRequestStatus={locationRequestStatus}
+        onRequestLocation={requestVenueLocation}
+        onClearLocation={clearVenueLocation}
+      />
+    </>
+  ) : null;
+
   return (
     <main
       className={
@@ -1181,16 +1339,18 @@ export default function PubMap({
         (showOnboarding ? " onboarding-open" : "")
       }
     >
-      <SiteNav
-        active="map"
-        mobileMapUtility={
-          <MapPriceControl
-            placement="header"
-            filters={filters}
-            onFiltersChange={setFilters}
-          />
-        }
-      />
+      {!mobileViewport ? (
+        <SiteNav
+          active="map"
+          mobileMapUtility={
+            <MapPriceControl
+              placement="header"
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
+          }
+        />
+      ) : null}
 
       {/* Full-bleed map is the base layer; every panel slides in over it. */}
       <section className="mapStage">
@@ -1256,9 +1416,10 @@ export default function PubMap({
           onTonightOpportunityClick={handleTonightOpportunityClick}
           poiHidden={poiHidden}
           onPoiHiddenChange={setPoiHidden}
+          hideLayersControl={mobileViewport}
           onViewportChange={setMapViewport}
         />
-        <MapToolbar
+        {!mobileViewport ? <MapToolbar
           query={filters.query}
           onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
           favoritePint={favoritePint}
@@ -1283,14 +1444,14 @@ export default function PubMap({
           filteredVenueCount={filteredVenues.length}
           searchableVenueCount={venues.length}
           cityId={cityId}
-        />
-        <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} />
-        {isLondon ? <CityStatusBanner cityId={cityId} /> : null}
+        /> : null}
+        {!mobileViewport ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
+        {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its
             sibling CSS lifts the lane above the collapsed pill (no collision). */}
-        <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} />
-        {isLondon ? (
+        {!mobileViewport ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
+        {!mobileViewport && isLondon ? (
           <TonightLane
             rows={whatsOnTonight.rows}
             asOf={whatsOnTonight.asOf}
@@ -1321,8 +1482,8 @@ export default function PubMap({
             onResetFilters={resetLogIntentFilters}
           />
         ) : null}
-        <ActiveRoundChip refreshKey={activeRoundStartedCode} />
-        {routeMappedActive ? (
+        {!mobileViewport ? <ActiveRoundChip refreshKey={activeRoundStartedCode} /> : null}
+        {!mobileViewport && routeMappedActive ? (
           <MappedRouteChip
             stopCount={route.length}
             totalKm={routeForMapLegs.totalKm}
@@ -1335,7 +1496,7 @@ export default function PubMap({
         {/* G3: Place story deep-link chip — corridor title + one-line copy when
             `?band=` resolves. Distinct dismiss key from curated onboarding;
             suppresses that overlay while visible. */}
-        {showBandChip && activeBand ? (
+        {!mobileViewport && showBandChip && activeBand ? (
           <BandOnboardingChip
             title={activeBand.title}
             copy={activeBand.copy}
@@ -1346,11 +1507,13 @@ export default function PubMap({
         {/* Desktop retains the expanded price filter. On phones the compact key
             lives beside the PUBMAXXING wordmark so the bottom action lane can
             breathe above primary navigation. */}
-        <MapPriceControl
-          placement="map"
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
+        {!mobileViewport ? (
+          <MapPriceControl
+            placement="map"
+            filters={filters}
+            onFiltersChange={setFilters}
+          />
+        ) : null}
 
         <MobileMapShell
           cityLabel={city.displayName}
@@ -1420,15 +1583,34 @@ export default function PubMap({
             />
           }
           layersContent={
-            <MapLayersControl
-              embedded
-              poiHidden={poiHidden}
-              onPoiHiddenChange={setPoiHidden}
-              activeBandId={activeBandId}
-              onBandChange={setActiveBandId}
-              storyBands={cityStoryBands}
-              cityId={cityId}
-            />
+            <div className="mobileLayersPanel">
+              <Button
+                className="mobilePlannerLaunch w-full justify-start"
+                onClick={() => {
+                  changeMapOverlay("none");
+                  openPlanning();
+                }}
+              >
+                <MapPinned size={18} aria-hidden="true" />
+                Plan tonight
+              </Button>
+              <div className="mobileLayersTheme">
+                <div>
+                  <strong>Map appearance</strong>
+                  <small>Theme changes preserve this view and its active sheet.</small>
+                </div>
+                <ThemeToggle />
+              </div>
+              <MapLayersControl
+                embedded
+                poiHidden={poiHidden}
+                onPoiHiddenChange={setPoiHidden}
+                activeBandId={activeBandId}
+                onBandChange={setActiveBandId}
+                storyBands={cityStoryBands}
+                cityId={cityId}
+              />
+            </div>
           }
           palContent={
             <div className="mobilePalSummon">
@@ -1445,7 +1627,7 @@ export default function PubMap({
             offers curated crawls on a clean first paint. It's the mobile
             onboarding (control rail is hidden on small screens) and never blocks
             the map — the backdrop and the link both close it. */}
-        {showOnboarding ? (
+        {!mobileViewport && showOnboarding ? (
           <MapOnboardingOverlay
             crawls={onboardingCrawls}
             onLoadCrawl={loadCuratedCrawl}
@@ -1454,12 +1636,24 @@ export default function PubMap({
         ) : null}
       </section>
 
+      {mobileViewport ? (
+        <MobileSharedSheet
+          kind={detailOpen ? "venue" : planningOpen ? "planner" : null}
+          title={detailOpen ? selectedVenue?.name ?? "Pub detail" : "Plan tonight"}
+          initialSnap="half"
+          requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
+          onClose={detailOpen ? dismissSheet : closePlanning}
+        >
+          {detailOpen ? venuePanel : plannerPanel}
+        </MobileSharedSheet>
+      ) : null}
+
       {/* Left drawer: the whole crawl planner, on demand.
           On mobile (≤640px) this is a drag bottom-sheet with the same snap
           points as the venue sheet (peek/half/full — lib/sheetSnap.ts). Opens
           at half so the map stays partially visible. Desktop is unchanged —
           side drawer, no gesture. */}
-      <div
+      {!mobileViewport ? <div
         className={
           (planningOpen ? "mapDrawer left open" : "mapDrawer left") +
           (planningOpen ? ` sheet-${plannerSheetSnap}` : "") +
@@ -1489,98 +1683,8 @@ export default function PubMap({
             <span className="venueSheetGrab" />
           </span>
         </div>
-        {planningOpen ? (
-          <>
-            <button
-              type="button"
-              className="plannerMapButton"
-              onClick={closePlanning}
-            >
-              <MapPinned size={16} aria-hidden="true" />
-              View {city.displayName} map
-            </button>
-            <ControlRail
-              mode={mode}
-              onModeChange={setMode}
-              filters={filters}
-              onFiltersChange={setFilters}
-              filteredVenues={filteredVenues}
-              builtCount={builtIds.length}
-              onClearBuilt={clearBuilt}
-              onLoadCrawl={loadCuratedCrawl}
-              onNearbyCrawl={startNearbyCrawl}
-              nearbyLoading={nearbyLoading}
-              nearbyError={nearbyError}
-              savedOnly={savedOnly}
-              onSavedOnlyChange={changeSavedOnly}
-              curatedCrawls={cityCuratedCrawls}
-              cityDisplayName={city.displayName}
-              cityId={cityId}
-            />
-            <RoutePanel
-              mode={mode}
-              crawlStyle={filters.crawlStyle}
-              altStyle={altStyle}
-              onAltStyleChange={setAltStyle}
-              route={route}
-              filteredVenues={filteredVenues}
-              builtIds={builtIds}
-              activeVenueId={selectedVenue?.id}
-              venueSignals={venueSignals}
-              crawlBlurb={activeCrawl?.blurb}
-              crawlName={activeCrawl?.name}
-              crawlId={activeCrawl?.id}
-              routeMapped={routeMappedActive}
-              originDistanceKm={distanceFromUserKm}
-              onMapRoute={mapCurrentRoute}
-              onHideRoute={hideMappedRoute}
-              onCheckLastTrain={checkLastTrainAtRouteEnd}
-              onSelectVenue={selectVenue}
-              onToggleStop={toggleBuiltStop}
-              onReverseRoute={reverseRoute}
-              journeyByToIndex={journeyByToIndex}
-              journeyLoading={journeyLoading}
-              journeyTotalMinutes={journeyTotalMinutes}
-              cityDisplayName={city.displayName}
-              cityId={cityId}
-              poisPath={city.poisPath}
-              onRoundStarted={setActiveRoundStartedCode}
-            >
-              {loaded && filteredVenues.length === 0 ? (
-                savedOnly && savedIds.size === 0 ? (
-                  <section className="venueInspector" style={{ textAlign: "center" }}>
-                    <p className="description" style={{ marginTop: 0 }}>
-                      No saved pubs yet — tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
-                      back on to see just your list.
-                    </p>
-                    <button
-                      type="button"
-                      className="addStopBtn"
-                      onClick={() => changeSavedOnly(false)}
-                    >
-                      Show all pubs
-                    </button>
-                  </section>
-                ) : (
-                  <section className="venueInspector" style={{ textAlign: "center" }}>
-                    <p className="description" style={{ marginTop: 0 }}>
-                      No pubs match these filters — try widening your price or clearing your story
-                      filters.
-                    </p>
-                    <button
-                      type="button"
-                      className="addStopBtn"
-                      onClick={() => setFilters(seedCrawlState("").filters)}
-                    >
-                      Clear filters
-                    </button>
-                  </section>
-                )
-              ) : null}
-            </RoutePanel>
-          </>
-        ) : null}
-      </div>
+        {plannerPanel}
+      </div> : null}
 
       {/* Right drawer: the selected pub's detail — opens only on an explicit pick.
           On mobile (≤640px) this is a true drag bottom-sheet with snap points
@@ -1590,7 +1694,7 @@ export default function PubMap({
           hand-picked pixel position. Desktop ignores both — no drag handlers
           fire above the gesture breakpoint, and the extra classes/attrs are
           no-ops there (see venueSheet.css / globals.css .mapDrawer rules). */}
-      <div
+      {!mobileViewport ? <div
         className={
           (detailOpen ? "mapDrawer right open" : "mapDrawer right") +
           (detailOpen ? ` sheet-${sheetSnap}` : "") +
@@ -1629,39 +1733,8 @@ export default function PubMap({
             <X size={16} />
           </button>
         </div>
-        {detailOpen && selectedVenue ? (
-          <>
-            {selectedDetailStatus === "loading" ? <VenueSheetSkeleton /> : null}
-            {selectedDetailStatus === "unavailable" ? (
-              <div style={DETAIL_WARNING_STYLE} role="status">
-                Showing fast map details. Full pub notes are unavailable right now.
-              </div>
-            ) : null}
-            <VenueInspector
-              venue={selectedVenue}
-              mode={mode}
-              inCrawl={builtIds.includes(selectedVenue.id)}
-              latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
-              onToggleStop={toggleBuiltStop}
-              onSelectVenue={selectVenue}
-              initialTab={venueInitialTab}
-              pintDrops={pintDrops}
-              onGrabDragStart={onSheetDragStart}
-              onGrabDragMove={onSheetDragMove}
-              onGrabDragEnd={onSheetDragEnd}
-              onTabSelect={handleInspectorTabSelect}
-              cityLandmarks={cityLandmarks}
-              cityStoryBands={cityStoryBands}
-              cityCuratedCrawls={cityCuratedCrawls}
-              cityId={cityId}
-              userLocation={venueJourneyLocation}
-              locationRequestStatus={locationRequestStatus}
-              onRequestLocation={requestVenueLocation}
-              onClearLocation={clearVenueLocation}
-            />
-          </>
-        ) : null}
-      </div>
+        {venuePanel}
+      </div> : null}
     </main>
   );
 }

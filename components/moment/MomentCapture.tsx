@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Camera, ImagePlus, LockKeyhole, MapPin, Sparkles, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import { safeMomentReturnTo } from "@/components/nav/navigationModel";
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import {
@@ -61,6 +63,9 @@ function withPreviewUrls(draft: MomentDraftV1): MomentDraftV1 {
 }
 
 export default function MomentCapture(): React.JSX.Element {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = safeMomentReturnTo(searchParams?.get("returnTo"));
   const { user, loading: authLoading } = useAuth();
   const ownerKey = user?.id ?? GUEST_OWNER;
   const [draft, setDraft] = useState<MomentDraftV1>(() => newDraft(GUEST_OWNER));
@@ -245,6 +250,7 @@ export default function MomentCapture(): React.JSX.Element {
     setSaveState("saved");
     setMessage("Moment saved privately. You decide if it becomes a Story.");
     trackEvent("night_moment_saved", { kind: draft.media.length ? "photo" : draft.kind, visibility: "private" });
+    router.replace(returnTo);
   }
 
   return (
@@ -252,7 +258,10 @@ export default function MomentCapture(): React.JSX.Element {
       <SiteNav />
       <main className="momentMain">
         <header className="momentIntro">
-          <span className="momentPrivacy"><LockKeyhole size={14} aria-hidden="true" /> Private first</span>
+          <div className="momentIntroRail">
+            <span className="momentPrivacy"><LockKeyhole size={14} aria-hidden="true" /> Private first</span>
+            <Link href={returnTo} className="momentCancel">Cancel</Link>
+          </div>
           <h1>Keep this one.</h1>
           <p>Take the photo now. Decide what it means, and who sees it, when the night slows down.</p>
         </header>
