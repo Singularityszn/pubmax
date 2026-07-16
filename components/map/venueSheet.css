@@ -1092,6 +1092,8 @@ html[data-legacy="1"] .venueTabPanel::before {
     padding-top: 0;
     border-top: 0;
   }
+}
+
 /* ── Passive cited heritage ("On record") ────────────────────────────────────
    The facts a pub carries on record, surfaced at the top of the Lore tab the
    instant it opens so the story reads passively — no need to interrogate the
