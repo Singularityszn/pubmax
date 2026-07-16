@@ -5,6 +5,7 @@ import {
   assertServerEnv,
   DEV_RATE_LIMIT_SALT,
 } from "@/lib/serverEnv";
+import { requiresSupabaseStore } from "@/lib/supabase";
 
 describe("assertProductionSecrets", () => {
   afterEach(() => {
@@ -13,6 +14,9 @@ describe("assertProductionSecrets", () => {
     delete process.env.RATE_LIMIT_SALT;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.NEXT_PHASE;
+    delete process.env.PUBMAX_E2E_KEYLESS;
+    delete process.env.VERCEL_ENV;
   });
 
   it("is a no-op outside production", () => {
@@ -20,6 +24,40 @@ describe("assertProductionSecrets", () => {
     expect(() => assertProductionSecrets()).not.toThrow();
   });
 
+  it.each([
+    ["the Next production build phase", "phase-production-build", undefined],
+    ["explicit keyless E2E mode", undefined, "1"],
+  ])("skips secret checks during %s", (_label, nextPhase, e2eKeyless) => {
+    vi.stubEnv("NODE_ENV", "production");
+    if (nextPhase) process.env.NEXT_PHASE = nextPhase;
+    if (e2eKeyless) process.env.PUBMAX_E2E_KEYLESS = e2eKeyless;
+
+    expect(() => assertProductionSecrets()).not.toThrow();
+  });
+
+  it("does not accept a truthy-looking value for keyless E2E mode", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.PUBMAX_E2E_KEYLESS = "true";
+
+    expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
+  });
+
+  it("ignores keyless E2E mode on a Vercel Production deploy", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    process.env.PUBMAX_E2E_KEYLESS = "1";
+
+    expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
+    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
+    expect(requiresSupabaseStore()).toBe(true);
+  });
+
+  it("is a no-op on Vercel Preview even when NODE_ENV is production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    delete process.env.ADMIN_TOKEN;
+    expect(() => assertProductionSecrets()).not.toThrow();
+  });
   it("throws when ADMIN_TOKEN is unset in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.ADMIN_TOKEN;
@@ -59,6 +97,14 @@ describe("assertProductionSecrets", () => {
 
     expect(() => assertProductionSecrets()).not.toThrow();
   });
+
+  it("enforces secrets when VERCEL_ENV=production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    delete process.env.ADMIN_TOKEN;
+    process.env.RATE_LIMIT_SALT = "prod-salt";
+    expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
+  });
 });
 
 describe("assertServerEnv", () => {
@@ -68,6 +114,9 @@ describe("assertServerEnv", () => {
     delete process.env.RATE_LIMIT_SALT;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.NEXT_PHASE;
+    delete process.env.PUBMAX_E2E_KEYLESS;
+    delete process.env.VERCEL_ENV;
   });
 
   it("is a no-op outside production", () => {
@@ -76,6 +125,31 @@ describe("assertServerEnv", () => {
     expect(() => assertServerEnv()).not.toThrow();
   });
 
+  it.each([
+    ["the Next production build phase", "phase-production-build", undefined],
+    ["explicit keyless E2E mode", undefined, "1"],
+  ])("allows keyless operation during %s", (_label, nextPhase, e2eKeyless) => {
+    vi.stubEnv("NODE_ENV", "production");
+    if (nextPhase) process.env.NEXT_PHASE = nextPhase;
+    if (e2eKeyless) process.env.PUBMAX_E2E_KEYLESS = e2eKeyless;
+
+    expect(() => assertServerEnv()).not.toThrow();
+  });
+
+  it("still rejects keyless production requests outside the build phase", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.NEXT_PHASE = "phase-production-server";
+
+    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
+  });
+
+  it("is a no-op on Vercel Preview without Supabase", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    expect(() => assertServerEnv()).not.toThrow();
+  });
   it("throws when Supabase is missing in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.SUPABASE_URL;
@@ -102,5 +176,26 @@ describe("assertServerEnv", () => {
     process.env.RATE_LIMIT_SALT = "unique-prod-salt";
 
     expect(() => assertServerEnv()).not.toThrow();
+  });
+});
+
+describe("requiresSupabaseStore", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    delete process.env.PUBMAX_E2E_KEYLESS;
+  });
+
+  it("keeps production-style Playwright keyless writes on the in-memory store", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.PUBMAX_E2E_KEYLESS = "1";
+
+    expect(requiresSupabaseStore()).toBe(false);
+  });
+
+  it("still requires durable storage for normal production runtime", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.PUBMAX_E2E_KEYLESS;
+
+    expect(requiresSupabaseStore()).toBe(true);
   });
 });
