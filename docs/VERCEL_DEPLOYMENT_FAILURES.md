@@ -84,17 +84,18 @@ Shipped in this branch:
 - `lib/supabase.ts` — `requiresSupabaseStore()` mirrors the same rule so Preview runtimes can use the memory store instead of 503-ing every write.
 - Tests updated in `__tests__/serverEnv.test.ts`.
 
-**Production remains strict:** missing Supabase on a Production target still FATAL.
+**Production remains strict:** missing Supabase on a Production target still FATALs, and the `PUBMAX_E2E_KEYLESS=1` test escape hatch is ignored when `VERCEL_ENV=production`.
 
 ---
 
-## Owner actions (Vercel dashboard) — still recommended
+## Preview storage policy — current behaviour
 
-Even with the code fix, for Preview to behave like Production data-wise:
+`requiresSupabaseStore()` returns `false` whenever `VERCEL_ENV=preview`, so **Preview always uses the in-memory store — even if Supabase secrets are configured for the Preview environment**. Enabling Preview secrets alone does not make Preview storage durable; that would need a deliberate policy/code change (e.g. keying the store on secret presence rather than environment). This is intentional for now: Preview data is ephemeral by design.
+
+Configuring Preview-scoped secrets is therefore optional and only affects features that read them directly (not the store selection):
 
 1. Open **Project → Settings → Environment Variables**.
-2. For each of `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_TOKEN`, `RATE_LIMIT_SALT` (and any other prod secrets the app needs):
-   - Enable **Preview** (and Development if you use `vercel dev`), not only Production.
+2. Enable **Preview** scope for any vars those features need.
 3. Redeploy the PR Preview after saving.
 
 Optional hardening:

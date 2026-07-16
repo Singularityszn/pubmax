@@ -42,6 +42,16 @@ describe("assertProductionSecrets", () => {
     expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
   });
 
+  it("ignores keyless E2E mode on a Vercel Production deploy", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    process.env.PUBMAX_E2E_KEYLESS = "1";
+
+    expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
+    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
+    expect(requiresSupabaseStore()).toBe(true);
+  });
+
   it("is a no-op on Vercel Preview even when NODE_ENV is production", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("VERCEL_ENV", "preview");
