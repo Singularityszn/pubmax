@@ -1,7 +1,18 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { promises as fs } from "fs";
+import path from "path";
 
 import sitemap from "@/app/sitemap";
+import { listEnabledCities } from "@/lib/cities";
+import { listBoroughs } from "@/lib/boroughs";
+import { landmarks } from "@/lib/landmarks";
+import { loadHistoricPubs } from "@/lib/historic";
+import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
+
+// The number of static hub URLs the generator emits (the fixed list in
+// app/sitemap.ts). Kept here so a change to that list is a conscious test edit.
+const STATIC_HUB_COUNT = 10;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -26,32 +37,83 @@ const FORBIDDEN_SUBSTRINGS = [
 ];
 
 // Query strings carry map/crawl tokens; a sitemap URL must be a bare canonical.
+// Expected per-family counts, derived from the SAME data sources the generator
+// reads — so the test detects real coverage loss (a shrunken dataset, a dropped
+// family) without hard-coding a brittle magic total.
+type ExpectedCounts = {
+  cities: number;
+  boroughs: number;
+  landmarks: number;
+  historic: number;
+  venues: number;
+  total: number;
+};
+
+async function expectedCounts(): Promise<ExpectedCounts> {
+  const file = path.join(
+    process.cwd(),
+    "public",
+    "data",
+    "pint_prices_app_dataset.json",
+  );
+  const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
+  const venues = groupVenuePrices(rows);
+  const cities = listEnabledCities().filter((c) => c.id !== "london").length;
+  const boroughs = listBoroughs(venues).length;
+  const historic = (await loadHistoricPubs()).length;
+  const counts = {
+    cities,
+    boroughs,
+    landmarks: landmarks.length,
+    historic,
+    venues: venues.length,
+  };
+  return {
+    ...counts,
+    total:
+      STATIC_HUB_COUNT +
+      counts.cities +
+      counts.boroughs +
+      counts.landmarks +
+      counts.historic +
+      counts.venues,
+  };
+}
+
 describe("sitemap()", () => {
   let entries: MetadataRoute.Sitemap;
   let urls: string[];
+  let expected: ExpectedCounts;
+
+  const familyCount = (prefix: string) =>
+    urls.filter((u) => u.startsWith(`${SITE}${prefix}`)).length;
 
   beforeAll(async () => {
     entries = await sitemap();
     urls = entries.map((e) => e.url);
+    expected = await expectedCounts();
   });
 
-  it("emits a healthy number of URLs", () => {
-    // static hubs + cities + boroughs + landmarks + historic + venues.
-    expect(entries.length).toBeGreaterThan(50);
+  it("emits exactly the dataset-derived total (no silent coverage loss)", () => {
+    expect(entries.length).toBe(expected.total);
   });
 
   it("includes the core static hubs", () => {
-    for (const path of ["/", "/map", "/borough", "/historic", "/discover", "/crawls"]) {
-      expect(urls).toContain(`${SITE}${path}`);
+    for (const hub of ["/", "/map", "/borough", "/historic", "/discover", "/crawls"]) {
+      expect(urls).toContain(`${SITE}${hub}`);
     }
   });
 
-  it("includes at least one of each dynamic family", () => {
-    expect(urls.some((u) => u.startsWith(`${SITE}/borough/`))).toBe(true);
-    expect(urls.some((u) => u.startsWith(`${SITE}/historic/`))).toBe(true);
-    expect(urls.some((u) => u.startsWith(`${SITE}/landmark/`))).toBe(true);
-    expect(urls.some((u) => u.startsWith(`${SITE}/ledger/`))).toBe(true);
-    expect(urls.some((u) => u.startsWith(`${SITE}/map/`))).toBe(true);
+  it("emits the promised count for every dynamic family", () => {
+    expect(familyCount("/map/")).toBe(expected.cities);
+    expect(familyCount("/borough/")).toBe(expected.boroughs);
+    expect(familyCount("/landmark/")).toBe(expected.landmarks);
+    expect(familyCount("/historic/")).toBe(expected.historic);
+    expect(familyCount("/ledger/")).toBe(expected.venues);
+    // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
+    expect(expected.boroughs).toBeGreaterThan(0);
+    expect(expected.historic).toBeGreaterThan(0);
+    expect(expected.venues).toBeGreaterThan(0);
   });
 
   it("advertises no token / UGC / auth surface", () => {

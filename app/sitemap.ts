@@ -38,23 +38,37 @@ import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 const SITE_URL = "https://pubmaxxing.com";
 
 // Read the grouped venue set from the bundled dataset (same read path the
-// borough/ledger pages use). Never throws — a failure yields [] so the sitemap
-// degrades to the static hubs rather than 500-ing.
+// borough/ledger pages use). Deliberately FAILS LOUD: a read/parse/grouping
+// failure — or an unexpectedly empty dataset — throws, aborting sitemap
+// generation. This is intentional (CodeRabbit S1 review): a silently shrunken
+// sitemap is a deindexing hazard. If we published a 200 that dropped every
+// borough/venue/historic URL, Google would treat those pages as removed. A
+// thrown error instead surfaces as a 500 for /sitemap.xml, and crawlers keep
+// the last-known-good sitemap rather than acting on a truncated one. The path
+// is a fixed literal under public/data — no request-derived input, so the
+// static-fs-path lint note here is a false positive.
 async function loadVenues(): Promise<Venue[]> {
-  try {
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
+  const { promises: fs } = await import("fs");
+  const path = await import("path");
+  const file = path.join(
+    process.cwd(),
+    "public",
+    "data",
+    "pint_prices_app_dataset.json",
+  );
+  const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error(
+      "sitemap: pint price dataset is empty or malformed — refusing to publish a truncated sitemap",
     );
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-    return groupVenuePrices(Array.isArray(rows) ? rows : []);
-  } catch {
-    return [];
   }
+  const venues = groupVenuePrices(rows);
+  if (venues.length === 0) {
+    throw new Error(
+      "sitemap: grouped venue set is empty — refusing to publish a truncated sitemap",
+    );
+  }
+  return venues;
 }
 
 // mtime of a public/data file as a Date, or `fallback` when it can't be read.
@@ -78,6 +92,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       dataFileModified("pint_prices_app_dataset.json", now),
       dataFileModified("historic_pubs.json", now),
     ]);
+
+  // loadHistoricPubs() swallows read errors to [] (shared lib contract). The
+  // historic index is always non-empty in practice (346 cited pubs), so an
+  // empty result here means the data source failed — fail loud rather than
+  // publish a sitemap missing every /historic/{slug} page (see loadVenues).
+  if (historicPubs.length === 0) {
+    throw new Error(
+      "sitemap: historic pub dataset is empty — refusing to publish a truncated sitemap",
+    );
+  }
 
   const entries: MetadataRoute.Sitemap = [];
 
