@@ -611,6 +611,7 @@ export default function LandingPage() {
               <a href="#wedge">How it works</a>
               <a href="#drops">Pint Drops</a>
               <a href="#landlord">The PUBMAXXER</a>
+              <Link href="/about">Our story</Link>
             </div>
             <div className="footerCol">
               <h4>The record</h4>
