@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import JsonLd from "@/components/seo/JsonLd";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
@@ -127,9 +129,43 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
-    openGraph: { title, description, type: "website" },
+    alternates: { canonical: `/borough/${slugifyBorough(name)}` },
+    openGraph: { title, description, type: "website", url: `/borough/${slugifyBorough(name)}` },
     twitter: { card: "summary", title, description },
   };
+}
+
+const SITE_URL = "https://pubmaxxing.com";
+
+// BreadcrumbList + ItemList structured data for this borough (Wave S1.3). Both
+// are built strictly from what the page already renders: the breadcrumb mirrors
+// the on-page "Boroughs · London" trail, and the ItemList is the cheapest-first
+// pub table. Each pub links to its canonical, crawlable venue permalink
+// (/ledger/{id}) — nothing invented; a pub with no price still lists, priced or
+// not, exactly as the table shows it.
+function boroughJsonLd(name: string, slug: string, pubs: Venue[]) {
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Boroughs", item: `${SITE_URL}/borough` },
+      { "@type": "ListItem", position: 2, name, item: `${SITE_URL}/borough/${slug}` },
+    ],
+  };
+  const itemList = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `Pubs in ${name}`,
+    numberOfItems: pubs.length,
+    itemListOrder: "https://schema.org/ItemListOrderAscending",
+    itemListElement: pubs.map((pub, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: pub.name,
+      url: `${SITE_URL}/ledger/${pub.id}`,
+    })),
+  };
+  return [breadcrumb, itemList];
 }
 
 export default async function BoroughPage({ params }: PageProps) {
@@ -150,8 +186,12 @@ export default async function BoroughPage({ params }: PageProps) {
   // when the borough has none — the section then renders nothing (no empty box).
   const heritage = await loadBoroughHeritage(slug);
 
+  // Per-request CSP nonce (proxy.ts) for the JSON-LD block below.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <main className="boroughPage">
+      <JsonLd data={boroughJsonLd(name, slugifyBorough(name), pubs)} nonce={nonce} />
       <SiteNav active="borough" />
 
       <header className="boroughHead">

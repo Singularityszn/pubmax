@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: "London's Historic Pubs — cited from Wikipedia & Wikidata · PUBMAXXING",
   description:
     "A browsable index of London's notable, historic pubs — dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Never invented. Filter by borough, jump straight onto the map.",
+  alternates: { canonical: "/historic" },
 };
 
 export default async function HistoricPage() {

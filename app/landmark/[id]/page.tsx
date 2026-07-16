@@ -44,10 +44,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
   const title = `${landmark.name} — London story chapter — PUBMAXXING`;
   const description = landmark.history.slice(0, 155);
+  const canonical = `/landmark/${landmark.id}`;
   return {
     title,
     description,
-    openGraph: { title, description, type: "article" },
+    alternates: { canonical },
+    openGraph: { title, description, type: "article", url: canonical },
     twitter: { card: "summary", title, description },
   };
 }

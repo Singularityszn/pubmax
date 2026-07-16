@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Pubs — scraped menus on the map · PUBMAXXING",
   description:
     "Browse Young's, Nicholson's, and Greene King pubs we've scraped — each with a drink picture, menu links, and a jump to the map.",
+  alternates: { canonical: "/pubs" },
 };
 
 export default async function PubsPage() {

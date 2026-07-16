@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Tonight in London · PUBMAXXING",
   description:
     "What's on in London tonight — a grounded, upstream-sourced read via CityMCP London. No invented listings.",
+  alternates: { canonical: "/tonight" },
 };
 
 export default function TonightPage() {

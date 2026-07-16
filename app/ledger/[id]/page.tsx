@@ -19,6 +19,7 @@ import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
+import JsonLd from "@/components/seo/JsonLd";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import VenueRatingPanel from "@/components/ratings/VenueRatingPanel";
@@ -111,12 +112,53 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const title = `The Ledger: ${venue.name} — PUBMAXXING`;
   const description = `The story of ${venue.name} in ${venue.primaryBorough || "London"} — heritage notes and the pub's logbook of visits, in large print.`;
+  // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
+  // URL points at the one indexable venue permalink.
+  const canonical = `/ledger/${encodeURIComponent(venue.id)}`;
 
   return {
     title,
     description,
-    openGraph: { title, description, type: "article" },
+    alternates: { canonical },
+    openGraph: { title, description, type: "article", url: canonical },
     twitter: { card: "summary", title, description },
+  };
+}
+
+const SITE_URL = "https://pubmaxxing.com";
+
+// BarOrPub structured data for the venue permalink (Wave S1.3). ONLY fields the
+// dataset actually carries — name, geo (lat/lng), postal address, canonical url.
+// No invented cuisine/priceRange/rating: provenance rule. lat/lng and address
+// are omitted when absent rather than guessed.
+function venueJsonLd(venue: Venue) {
+  const hasGeo =
+    typeof venue.latitude === "number" && typeof venue.longitude === "number";
+  return {
+    "@context": "https://schema.org",
+    "@type": "BarOrPub",
+    name: venue.name,
+    url: `${SITE_URL}/ledger/${encodeURIComponent(venue.id)}`,
+    ...(venue.address || venue.primaryBorough
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            ...(venue.address ? { streetAddress: venue.address } : {}),
+            ...(venue.primaryBorough ? { addressLocality: venue.primaryBorough } : {}),
+            addressRegion: "London",
+            addressCountry: "GB",
+          },
+        }
+      : {}),
+    ...(hasGeo
+      ? {
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: venue.latitude,
+            longitude: venue.longitude,
+          },
+        }
+      : {}),
   };
 }
 
@@ -145,6 +187,8 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   const viewer = await resolveViewer(searchParams);
   const venue = await getVenue(id);
   if (!venue) return <NotInTheLedger />;
+  // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   // Everything below reads/links off the canonical venue id (D1) so a merged
   // alias URL and the surviving canonical URL share the same logbook, Family
   // Table, and ratings — never the raw route param, which may be a losing
@@ -227,6 +271,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
 
   return (
     <main className="ledgerPage">
+      <JsonLd data={venueJsonLd(venue)} nonce={nonce} />
       <header className="ledgerHead">
         <Link className="ledgerHomeLink" href="/">
           PUBMAXXING
