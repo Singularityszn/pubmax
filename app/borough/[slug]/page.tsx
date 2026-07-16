@@ -130,8 +130,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     alternates: { canonical: `/borough/${slugifyBorough(name)}` },
+    // opengraph-image.tsx sits beside this route, so Next auto-attaches the
+    // dynamic borough card to both OG and Twitter. summary_large_image makes X
+    // render it as the full 1200×630 card rather than a thumbnail.
     openGraph: { title, description, type: "website", url: `/borough/${slugifyBorough(name)}` },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
