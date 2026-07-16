@@ -934,6 +934,51 @@
   color: var(--ink);
 }
 
+.profilePage .passportQuestOptIn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -12px 0 28px;
+  padding: 16px 18px;
+  border: 1px dashed color-mix(in srgb, var(--brass) 45%, var(--line));
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--brass) 5%, var(--panel));
+}
+
+.profilePage .passportQuestOptInKicker {
+  margin: 0 0 4px;
+  font-family: var(--font-data, monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.profilePage .passportQuestOptInTitle {
+  margin: 0;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.profilePage .passportQuestOptInCopy {
+  margin: 5px 0 0;
+  max-width: 54ch;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.profilePage .passportQuestOptInActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .profilePage .passportQuestList {
   display: grid;
   gap: 10px;
@@ -1043,6 +1088,13 @@
   }
   .profilePage .passportQuest {
     grid-template-columns: 1fr;
+  }
+  .profilePage .passportQuestOptIn {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .profilePage .passportQuestOptInActions {
+    justify-content: flex-start;
   }
   .profilePage .passportQuestProgressText {
     text-align: left;
