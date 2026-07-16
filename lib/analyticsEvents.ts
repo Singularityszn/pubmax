@@ -48,6 +48,7 @@ export const ANALYTICS_EVENTS = {
   account_claimed: ["source"],
   social_account_connected: ["provider", "connectionType"],
   night_moment_saved: ["kind", "visibility"],
+  night_memory_created: ["source"],
   night_story_published: ["contributors", "moments"],
   next_night_committed: ["windowDays", "source"],
   draft_recovered: ["kind", "surface"],

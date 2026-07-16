@@ -14,10 +14,15 @@ vi.mock("@/lib/authServer", () => ({
 import { GET as LIST_MEMORIES, POST as CREATE_MEMORY } from "@/app/api/night-memories/route";
 import { GET as LIST_MOMENTS, POST as ADD_MEMORY_MOMENT } from "@/app/api/night-memories/[id]/moments/route";
 import { GET as LIST_STORIES, POST as CREATE_STORY } from "@/app/api/night-stories/route";
-import { GET as GET_STORY } from "@/app/api/night-stories/[id]/route";
+import { GET as GET_STORY, PATCH as UPDATE_STORY } from "@/app/api/night-stories/[id]/route";
+import { GET as GET_STORY_WORKSPACE } from "@/app/api/night-stories/[id]/workspace/route";
+import { DELETE as DECLINE_CONTRIBUTOR, PATCH as ACCEPT_CONTRIBUTOR, POST as INVITE_CONTRIBUTOR } from "@/app/api/night-stories/[id]/contributors/route";
+import { POST as ADD_STORY_MOMENT } from "@/app/api/night-stories/[id]/moments/route";
+import { POST as SET_STORY_CONSENT } from "@/app/api/night-stories/[id]/consents/route";
 import { POST as PROPOSE } from "@/app/api/night-stories/[id]/publish-proposals/route";
 import { POST as CONFIRM } from "@/app/api/night-stories/[id]/publish-confirmations/route";
 import { __resetNightMemoryStore } from "@/lib/nightMemoryStore";
+import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
 
 const auth = (path: string, body?: unknown, token = "host") => new Request(`http://localhost${path}`, {
   method: body === undefined ? "GET" : "POST",
@@ -27,7 +32,10 @@ const auth = (path: string, body?: unknown, token = "host") => new Request(`http
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 
 describe("Night Memory HTTP contract", () => {
-  beforeEach(() => __resetNightMemoryStore());
+  beforeEach(() => {
+    __resetNightMemoryStore();
+    __resetMemoryProfiles();
+  });
 
   it("requires an account and creates only a private Memory", async () => {
     const denied = await CREATE_MEMORY(new Request("http://localhost/api/night-memories", { method: "POST", body: "{}" }));
@@ -79,5 +87,72 @@ describe("Night Memory HTTP contract", () => {
     const publicBody = await publicResponse.json();
     expect(publicBody.story).not.toHaveProperty("memoryId");
     expect(publicBody.story).not.toHaveProperty("hostEditorId");
+  });
+
+  it("edits and previews a private Story without exposing account identifiers", async () => {
+    const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Friday orbit" }));
+    const { memory } = await memoryResponse.json();
+    await ADD_MEMORY_MOMENT(auth(`/api/night-memories/${memory.id}/moments`, { kind: "venue", caption: "Approved private line", venueId: "venue-a" }), ctx(memory.id));
+    const storyResponse = await CREATE_STORY(auth("/api/night-stories", { memoryId: memory.id, title: "Draft title" }));
+    const { story } = await storyResponse.json();
+
+    const updated = await UPDATE_STORY(auth(`/api/night-stories/${story.id}`, { title: "Edited title", summary: "Edited opening" }), ctx(story.id));
+    expect(updated.status).toBe(200);
+    const updatedBody = await updated.json();
+    expect(updatedBody).toMatchObject({ story: { title: "Edited title", status: "draft", visibility: "private" } });
+    expect(updatedBody.story).not.toHaveProperty("hostEditorId");
+    expect(updatedBody.story).not.toHaveProperty("memoryId");
+
+    const workspace = await GET_STORY_WORKSPACE(auth(`/api/night-stories/${story.id}/workspace`), ctx(story.id));
+    expect(workspace.status).toBe(200);
+    const body = await workspace.json();
+    expect(body).toMatchObject({
+      story: { id: story.id, title: "Edited title" },
+      moments: [expect.objectContaining({ caption: "Approved private line", ownedByCaller: true, consent: "pending" })],
+      caller: { role: "host", canEdit: true },
+    });
+    expect(JSON.stringify(body)).not.toContain('"ownerId"');
+    expect(JSON.stringify(body)).not.toContain('"profileId"');
+    expect(JSON.stringify(body)).not.toContain('"hostEditorId"');
+    expect(JSON.stringify(body)).not.toContain('"memoryId"');
+    const forbiddenWorkspace = await GET_STORY_WORKSPACE(auth(`/api/night-stories/${story.id}/workspace`, undefined, "stranger"), ctx(story.id));
+    expect(forbiddenWorkspace.status).toBe(403);
+    expect(await forbiddenWorkspace.json()).toMatchObject({ code: "STORY_WORKSPACE_FORBIDDEN", retryable: false });
+  });
+
+  it("lets a non-host discover, accept, contribute, and consent without edit capability", async () => {
+    await profileStore().linkUser("friend", "friend-user");
+    const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Crew night" }));
+    const { memory } = await memoryResponse.json();
+    const storyResponse = await CREATE_STORY(auth("/api/night-stories", { memoryId: memory.id, title: "Crew night" }));
+    const { story } = await storyResponse.json();
+    expect((await INVITE_CONTRIBUTOR(auth(`/api/night-stories/${story.id}/contributors`, { handle: "friend", role: "contributor" }), ctx(story.id))).status).toBe(201);
+
+    const invitedList = await LIST_STORIES(auth("/api/night-stories", undefined, "friend-user"));
+    const invitedBody = await invitedList.json();
+    expect(invitedBody.stories).toHaveLength(1);
+    expect(invitedBody.stories[0]).toMatchObject({ id: story.id, membership: { role: "contributor", status: "invited" } });
+    expect((await GET_STORY_WORKSPACE(auth(`/api/night-stories/${story.id}/workspace`, undefined, "friend-user"), ctx(story.id))).status).toBe(403);
+    expect((await ACCEPT_CONTRIBUTOR(auth(`/api/night-stories/${story.id}/contributors`, {}, "friend-user"), ctx(story.id))).status).toBe(200);
+    const replayedAccept = await ACCEPT_CONTRIBUTOR(auth(`/api/night-stories/${story.id}/contributors`, {}, "friend-user"), ctx(story.id));
+    expect(replayedAccept.status).toBe(404);
+    expect(await replayedAccept.json()).toMatchObject({ code: "STORY_INVITATION_NOT_FOUND", retryable: false });
+
+    const momentResponse = await ADD_STORY_MOMENT(auth(`/api/night-stories/${story.id}/moments`, { kind: "quote", caption: "Friend-approved line" }, "friend-user"), ctx(story.id));
+    expect(momentResponse.status).toBe(201);
+    const { moment } = await momentResponse.json();
+    const friendWorkspace = await GET_STORY_WORKSPACE(auth(`/api/night-stories/${story.id}/workspace`, undefined, "friend-user"), ctx(story.id));
+    expect(await friendWorkspace.json()).toMatchObject({ caller: { role: "contributor", canEdit: false }, moments: [expect.objectContaining({ id: moment.id, ownedByCaller: true })] });
+    expect((await SET_STORY_CONSENT(auth(`/api/night-stories/${story.id}/consents`, { momentId: moment.id, status: "approved" }, "friend-user"), ctx(story.id))).status).toBe(200);
+    const hostWorkspace = await GET_STORY_WORKSPACE(auth(`/api/night-stories/${story.id}/workspace`), ctx(story.id));
+    expect(await hostWorkspace.json()).toMatchObject({ moments: [expect.objectContaining({ caption: "Friend-approved line", consent: "approved" })] });
+
+    const secondStoryResponse = await CREATE_STORY(auth("/api/night-stories", { memoryId: memory.id, title: "Declined story" }));
+    const { story: secondStory } = await secondStoryResponse.json();
+    await INVITE_CONTRIBUTOR(auth(`/api/night-stories/${secondStory.id}/contributors`, { handle: "friend" }), ctx(secondStory.id));
+    expect((await DECLINE_CONTRIBUTOR(auth(`/api/night-stories/${secondStory.id}/contributors`, undefined, "friend-user"), ctx(secondStory.id))).status).toBe(200);
+    expect((await DECLINE_CONTRIBUTOR(auth(`/api/night-stories/${secondStory.id}/contributors`, undefined, "friend-user"), ctx(secondStory.id))).status).toBe(404);
+    const afterDecline = await LIST_STORIES(auth("/api/night-stories", undefined, "friend-user"));
+    expect((await afterDecline.json()).stories.map((item: { id: string }) => item.id)).not.toContain(secondStory.id);
   });
 });

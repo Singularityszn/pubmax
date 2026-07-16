@@ -9,6 +9,9 @@
   transform: translateX(-50%) translateY(var(--night-drag-y, 0px));
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   width: min(440px, calc(100vw - 20px));
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 640; /* under tab bar (700) + modals (1200); above page content */
   display: flex;
   flex-direction: column;
@@ -33,6 +36,7 @@
     width: auto;
     transform: translateY(var(--night-drag-y, 0px));
     bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 8px);
+    max-height: calc(100dvh - var(--tabbar-h, 64px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
   }
 }
 
@@ -82,10 +86,15 @@
 }
 
 .nightCard__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding: 2px 0;
+  background: var(--panel-raised, #fbf9f2);
 }
 
 .nightCard__eyebrow {
@@ -314,6 +323,97 @@
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
+}
+
+.nightCard__recapActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nightCard__recapActions .nightCard__endingLink {
+  gap: 7px;
+  border: 0;
+  cursor: pointer;
+}
+
+.nightCard__quietButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line, #d9d4c7);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft, #6b726a);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nightCard__recap {
+  display: grid;
+  gap: 10px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+  border: 1px solid var(--line, #d9d4c7);
+  border-radius: var(--radius-sm, 10px);
+  background: var(--paper, #fff);
+}
+
+.nightCard__recap p,
+.nightCard__recap ol {
+  margin: 0;
+}
+
+.nightCard__recap p {
+  color: var(--ink-soft, #6b726a);
+  font-size: 12px;
+}
+
+.nightCard__recap label,
+.nightCard__recap li {
+  display: grid;
+  gap: 5px;
+}
+
+.nightCard__recap label > span,
+.nightCard__recap li > strong {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.nightCard__recap input,
+.nightCard__recap textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid var(--line, #d9d4c7);
+  border-radius: 10px;
+  background: var(--panel-raised, #fbf9f2);
+  color: var(--ink, #2a2a26);
+  font: inherit;
+}
+
+.nightCard__recap textarea {
+  resize: vertical;
+}
+
+.nightCard__recap ol {
+  display: grid;
+  gap: 9px;
+  padding-left: 22px;
+}
+
+@media (max-width: 360px) {
+  .nightCard__recapActions > * {
+    width: 100%;
+  }
 }
 
 .nightCard__train {

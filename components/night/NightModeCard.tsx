@@ -20,26 +20,35 @@
 // is active and undismissed — so it costs nothing on every other night.
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, MapPin, PlusCircle, TrainFront, X } from "lucide-react";
+import { BookOpen, ChevronRight, MapPin, PlusCircle, TrainFront, Trash2, X } from "lucide-react";
 
 import {
-  dismissNightMode,
-  restoreNightMode,
   setActivePlanStopIndex,
   clampStopIndex,
   markNightModeActiveFired,
   type ActivePlanRef,
 } from "@/lib/activePlan";
 import { trackEvent } from "@/lib/analytics";
+import { authedFetch } from "@/lib/authedFetch";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
-import type { CrawlEnding, PlanState, PlanStopDTO } from "@/lib/plan";
+import type { CrawlEnding, PlanCompletionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
 import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
 import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
 import { haversineKm } from "@/lib/haversine";
 import RouteEndingCard, { type RouteEndingId, type RouteEndingOptions } from "@/components/night/RouteEndingCard";
 import { useActivePlan } from "@/components/night/useActivePlan";
+import {
+  ensurePendingPlanRecap,
+  readPendingPlanRecap,
+  resolvePendingPlanRecap,
+  subscribePendingPlanRecap,
+  writePendingPlanRecap,
+  type PendingPlanRecap,
+} from "@/lib/planRecap";
+import { parsePlanCapabilitySnapshot, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
 import "./nightMode.css";
 
 type VenueCoord = { id: string; name: string; lat: number; lng: number; cheapestPrice: number | null };
@@ -58,12 +67,7 @@ const ARRIVED: ReadonlySet<CrewMemberDTO["status"]> = new Set(["here", "on_the_w
 const SWIPE_DISMISS_PX = 72;
 
 function readMemberToken(planId: string): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return window.sessionStorage.getItem(`pubmax-plan-member:${planId}`) ?? "";
-  } catch {
-    return "";
-  }
+  return parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId)).token;
 }
 
 export type PlanRouteRevision = string | number;
@@ -169,21 +173,41 @@ export function confirmedEndingForPlan(
 }
 
 export default function NightModeCard() {
-  const { ref, visible, dismissed } = useActivePlan();
+  const pathname = usePathname();
+  const { ref } = useActivePlan();
 
-  if (dismissed && ref) return <NightModePill id={ref.id} />;
-  if (!visible || !ref) return null;
-  // Key by plan id so a plan switch remounts the sheet fresh — React otherwise
-  // preserves the prior plan's route/crew/last-train state until refetch lands.
-  return <NightModeSheet key={ref.id} entry={ref} />;
+  // The mobile map already owns the active-plan pill and planner sheet. Keeping
+  // this global surface off /map prevents a second fixed sheet from stacking.
+  if (pathname === "/map" || pathname.startsWith("/map/")) return null;
+
+  if (!ref) return null;
+  return <NightModeSurface key={ref.id} entry={ref} />;
 }
 
-function NightModePill({ id }: { id: string }) {
+function NightModeSurface({ entry }: { entry: ActivePlanRef }) {
+  const [expanded, setExpanded] = useState(false);
+  const [restoreFocus, setRestoreFocus] = useState(false);
+  const open = () => {
+    setRestoreFocus(false);
+    setExpanded(true);
+  };
+  const collapse = () => {
+    setRestoreFocus(true);
+    setExpanded(false);
+  };
+  if (!expanded) return <NightModePill onOpen={open} restoreFocus={restoreFocus} />;
+  // Key by plan id so a plan switch remounts the sheet fresh — React otherwise
+  // preserves the prior plan's route/crew/last-train state until refetch lands.
+  return <NightModeSheet entry={entry} onCollapse={collapse} />;
+}
+
+function NightModePill({ onOpen, restoreFocus }: { onOpen: () => void; restoreFocus: boolean }) {
   return (
     <button
       type="button"
       className="nightPill"
-      onClick={() => restoreNightMode(id)}
+      onClick={onOpen}
+      autoFocus={restoreFocus}
       aria-label="Show tonight's plan"
     >
       <MapPin size={15} aria-hidden="true" />
@@ -192,7 +216,7 @@ function NightModePill({ id }: { id: string }) {
   );
 }
 
-function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
+function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollapse: () => void }) {
   const { id, stopIndex } = entry;
   const [plan, setPlan] = useState<PlanState | null>(null);
   const [report, setReport] = useState<PlanGetInReportDTO | null>(null);
@@ -202,6 +226,10 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   const [chosenExtension, setChosenExtension] = useState<KeepGoingExtension | null>(null);
   const [endingSaving, setEndingSaving] = useState(false);
   const [endingError, setEndingError] = useState("");
+  const [recap, setRecap] = useState<PendingPlanRecap | null>(() => readPendingPlanRecap(id));
+  const [recapOpen, setRecapOpen] = useState(false);
+  const [recapSaving, setRecapSaving] = useState(false);
+  const [recapMessage, setRecapMessage] = useState("");
   // Store the last-train result tagged with the venue it belongs to, so a result
   // from a previous stop is never rendered against the current one (the tag is
   // checked at read time — cheaper and lint-cleaner than a clear-in-effect).
@@ -211,6 +239,16 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   // Track the live drag distance in a ref too: a fast pointer-up can fire before
   // the dragY state commit, so release must read the ref, not stale state.
   const dragYRef = useRef(0);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCollapse();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onCollapse]);
 
   // Plan state + get-in report — the two feeds the plan screen already uses.
   useEffect(() => {
@@ -231,6 +269,24 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
       active = false;
     };
   }, [id]);
+
+  useEffect(() => subscribePendingPlanRecap(id, () => {
+    setRecap(readPendingPlanRecap(id));
+  }), [id]);
+
+  useEffect(() => {
+    if (plan?.plan.status !== "completed" && !plan?.ending) return;
+    const controller = new AbortController();
+    void fetch(`/api/plans/${id}/complete`, { cache: "no-store", signal: controller.signal })
+      .then(async (response) => response.ok ? response.json() as Promise<{ completion?: PlanCompletionDTO | null }> : null)
+      .then((body) => {
+        if (controller.signal.aborted || !body?.completion) return;
+        const existing = readPendingPlanRecap(id);
+        if (!existing || existing.completionId !== body.completion.id) setRecap(ensurePendingPlanRecap(body.completion, plan.plan.title));
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [id, plan]);
 
   // Venue coordinates for the last-train lookup — the slim index the app already
   // ships and caches (same file the plan composer reads).
@@ -368,6 +424,12 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
         throw new Error("The ending response was not canonical. Nothing was marked complete in this view.");
       }
       setPlan(canonical);
+      const completed = body && typeof body === "object" && "completion" in body
+        ? (body as { completion?: PlanCompletionDTO }).completion ?? null
+        : null;
+      if (completed) {
+        setRecap(ensurePendingPlanRecap(completed, canonical.plan.title));
+      }
       setChosenEnding(null);
       trackEvent("planned_night_completed", { ending: canonical.ending ?? ending });
     } catch (caught) {
@@ -378,6 +440,39 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
       setEndingSaving(false);
     }
   }, [endingSaving, id, plan]);
+
+  const savePrivateRecap = useCallback(async () => {
+    if (!recap || recapSaving) return;
+    const memberToken = readMemberToken(id);
+    if (!memberToken) {
+      setRecapMessage("Open the Plan in this browser before saving. Your recap remains private on this device.");
+      return;
+    }
+    setRecapSaving(true);
+    setRecapMessage("");
+    try {
+      const response = await authedFetch(`/api/plans/${id}/recap`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberToken, recap }),
+      });
+      const body = await response.json().catch(() => ({})) as { memory?: { id: string }; error?: string; code?: string };
+      if (!response.ok || !body.memory) {
+        throw new Error(response.status === 401
+          ? "Sign in to move this local recap into your private Memories."
+          : body.error ?? "Could not save this private Memory.");
+      }
+      resolvePendingPlanRecap(recap, "saved");
+      setRecap(null);
+      setRecapOpen(false);
+      setRecapMessage("Private Memory saved. Nothing was published.");
+      trackEvent("night_memory_created", { source: "completed_plan" });
+    } catch (caught) {
+      setRecapMessage(caught instanceof Error ? caught.message : "Could not save this private Memory. Your local recap is safe.");
+    } finally {
+      setRecapSaving(false);
+    }
+  }, [id, recap, recapSaving]);
 
   const chooseEnding = useCallback((ending: RouteEndingId) => {
     if (!plan || endingSaving) return;
@@ -406,7 +501,7 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   };
   const onPointerUp = () => {
     // Read the ref, not dragY state: a fast release can precede the state commit.
-    if (dragStart.current !== null && dragYRef.current > SWIPE_DISMISS_PX) dismissNightMode(id);
+    if (dragStart.current !== null && dragYRef.current > SWIPE_DISMISS_PX) onCollapse();
     resetDrag();
   };
   const onPointerCancel = () => resetDrag();
@@ -430,6 +525,8 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
     <section
       className="nightCard"
       aria-label="Tonight's plan"
+      role="dialog"
+      aria-modal="false"
       style={dragY ? ({ "--night-drag-y": `${dragY}px` } as React.CSSProperties) : undefined}
     >
       <div
@@ -446,9 +543,10 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
       <div className="nightCard__head">
         <p className="nightCard__eyebrow">On tonight{plan?.plan.title ? ` · ${plan.plan.title}` : ""}</p>
         <button
+          ref={closeRef}
           type="button"
           className="nightCard__close"
-          onClick={() => dismissNightMode(id)}
+          onClick={onCollapse}
           aria-label="Hide tonight's plan"
         >
           <X size={18} aria-hidden="true" />
@@ -525,14 +623,30 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
             />
           ) : null}
           {activeEnding ? (
-            <NightEndingResult
-              ending={activeEnding}
-              currentStop={currentStop}
-              lateFood={lateFood}
-              stationName={currentTrain?.station?.name ?? null}
-              leaveByIso={lastTrainLeaveBy}
-              keepGoingExtension={chosenExtension}
-            />
+            <>
+              <NightEndingResult
+                ending={activeEnding}
+                currentStop={currentStop}
+                lateFood={lateFood}
+                stationName={currentTrain?.station?.name ?? null}
+                leaveByIso={lastTrainLeaveBy}
+                keepGoingExtension={chosenExtension}
+              />
+              {recap ? (
+                <div className="nightCard__recapActions">
+                  <button type="button" className="nightCard__endingLink" onClick={() => setRecapOpen((open) => !open)} aria-expanded={recapOpen}>
+                    <BookOpen size={16} aria-hidden="true" /> Review private recap
+                  </button>
+                  <button type="button" className="nightCard__quietButton" onClick={() => { resolvePendingPlanRecap(recap, "discarded"); setRecap(null); setRecapOpen(false); }}>
+                    <Trash2 size={15} aria-hidden="true" /> Discard local recap
+                  </button>
+                </div>
+              ) : null}
+              {recapOpen && recap ? (
+                <PlanRecapEditor recap={recap} saving={recapSaving} onChange={(next) => { setRecap(next); writePendingPlanRecap(next); }} onSave={() => void savePrivateRecap()} />
+              ) : null}
+              {recapMessage ? <p className="nightCard__endingStatus" role="status">{recapMessage} {recapMessage.startsWith("Private Memory saved") ? <Link href="/u/you#night-memories">Open Memories</Link> : null}</p> : null}
+            </>
           ) : null}
         </div>
       ) : null}
@@ -638,6 +752,60 @@ function KeepGoingPicker({
         ))}
       </ul>
     </div>
+  );
+}
+
+function PlanRecapEditor({
+  recap,
+  saving,
+  onChange,
+  onSave,
+}: {
+  recap: PendingPlanRecap;
+  saving: boolean;
+  onChange: (recap: PendingPlanRecap) => void;
+  onSave: () => void;
+}) {
+  const updateStopCaption = (position: number, caption: string) => {
+    onChange({
+      ...recap,
+      stops: recap.stops.map((stop) => stop.position === position ? { ...stop, caption } : stop),
+    });
+  };
+  return (
+    <form className="nightCard__recap" onSubmit={(event) => { event.preventDefault(); onSave(); }}>
+      <div>
+        <strong>Private recap preview</strong>
+        <p>Only the route and words you approve are saved. Nothing is posted as a Story.</p>
+      </div>
+      <label>
+        <span>Name this Memory</span>
+        <input
+          value={recap.title}
+          maxLength={120}
+          required
+          onChange={(event) => onChange({ ...recap, title: event.target.value })}
+        />
+      </label>
+      <ol>
+        {recap.stops.map((stop) => (
+          <li key={stop.venueId}>
+            <strong>{stop.venueName}</strong>
+            <textarea
+              value={stop.caption}
+              maxLength={500}
+              rows={2}
+              placeholder="Add an optional private caption"
+              aria-label={`Private caption for ${stop.venueName}`}
+              onChange={(event) => updateStopCaption(stop.position, event.target.value)}
+            />
+          </li>
+        ))}
+      </ol>
+      <button type="submit" className="nightCard__endingLink" disabled={saving || !recap.title.trim()}>
+        {saving ? "Saving privately…" : "Save private Memory"}
+      </button>
+    </form>
   );
 }
 

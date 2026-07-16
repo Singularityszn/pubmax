@@ -1,12 +1,14 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { createNightStory, listNightStories } from "@/lib/nightMemoryStore";
+import { createNightStory, listNightStoryInbox } from "@/lib/nightMemoryStore";
 
 export async function GET(request: Request): Promise<Response> {
   const ownerId = await callerUserId(request);
-  return ownerId
-    ? jsonNoStore({ stories: await listNightStories(ownerId) })
-    : jsonNoStore({ error: "Sign in to view Night Stories." }, { status: 401 });
+  if (!ownerId) return jsonNoStore({ error: "Sign in to view Night Stories." }, { status: 401 });
+  const result = await listNightStoryInbox(ownerId);
+  return result.ok
+    ? jsonNoStore({ stories: result.value })
+    : jsonNoStore({ error: "The Story inbox is temporarily unavailable.", code: "STORY_INBOX_UNAVAILABLE", retryable: true }, { status: 503 });
 }
 
 export async function POST(request: Request): Promise<Response> {

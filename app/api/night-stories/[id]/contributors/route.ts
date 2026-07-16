@@ -1,6 +1,6 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { acceptStoryContribution, upsertStoryContributor } from "@/lib/nightMemoryStore";
+import { acceptStoryContributionResult, declineStoryContributionResult, upsertStoryContributor } from "@/lib/nightMemoryStore";
 import { profileStore } from "@/lib/profileStore";
 
 type Context = { params: Promise<{ id: string }> };
@@ -26,9 +26,22 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   const actorId = await callerUserId(request);
   if (!actorId) return jsonNoStore({ error: "Sign in to accept this invitation." }, { status: 401 });
   const { id } = await context.params;
-  const contributor = await acceptStoryContribution(actorId, id);
-  const profile = contributor ? await profileStore().getByUserId(actorId) : null;
-  return contributor
-    ? jsonNoStore({ contributor: { storyId: contributor.storyId, handle: profile?.handle ?? null, role: contributor.role, status: contributor.status, joinedAt: contributor.joinedAt } })
-    : jsonNoStore({ error: "No active Story invitation was found." }, { status: 404 });
+  const result = await acceptStoryContributionResult(actorId, id);
+  if (!result.ok) return result.error === "error"
+    ? jsonNoStore({ error: "The Story invitation store is temporarily unavailable.", code: "STORY_INVITATION_UNAVAILABLE", retryable: true }, { status: 503 })
+    : jsonNoStore({ error: "No active Story invitation was found.", code: "STORY_INVITATION_NOT_FOUND", retryable: false }, { status: 404 });
+  const profile = await profileStore().getByUserId(actorId);
+  const contributor = result.value;
+  return jsonNoStore({ contributor: { storyId: contributor.storyId, handle: profile?.handle ?? null, role: contributor.role, status: contributor.status, joinedAt: contributor.joinedAt } });
+}
+
+export async function DELETE(request: Request, context: Context): Promise<Response> {
+  const actorId = await callerUserId(request);
+  if (!actorId) return jsonNoStore({ error: "Sign in to decline this invitation." }, { status: 401 });
+  const { id } = await context.params;
+  const result = await declineStoryContributionResult(actorId, id);
+  if (result.ok) return jsonNoStore({ declined: true });
+  return result.error === "error"
+    ? jsonNoStore({ error: "The Story invitation store is temporarily unavailable.", code: "STORY_INVITATION_UNAVAILABLE", retryable: true }, { status: 503 })
+    : jsonNoStore({ error: "No active Story invitation was found.", code: "STORY_INVITATION_NOT_FOUND", retryable: false }, { status: 404 });
 }

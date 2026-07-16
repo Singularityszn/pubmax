@@ -465,6 +465,7 @@ export const memoryPlanStore: PlanStore = {
 
 export type PlanMemberIdentity = { memberId: string; role: PlanMemberRole; collaborationAuthorized: boolean };
 export type PlanMemberIdentityResult = { ok: true; identity: PlanMemberIdentity | null } | { ok: false; error: "error" };
+export type PlanCompletionLookupResult = { ok: true; completion: PlanCompletionDTO | null } | { ok: false; error: "error" };
 
 export function grantMemoryPlanCollaboration(id: string, rawToken: unknown): boolean {
   if (isSupabaseConfigured() || !isPlanId(id) || typeof rawToken !== "string") return false;
@@ -508,6 +509,22 @@ export async function planMemberIdentityResult(id: string, rawToken: unknown): P
     if (error) return { ok: false, error: "error" };
     const index = (data ?? []).findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
     return { ok: true, identity: index < 0 ? null : { memberId: String(data![index].id), role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || data![index].can_collaborate === true } };
+  } catch {
+    return { ok: false, error: "error" };
+  }
+}
+
+/** Distinguishes a genuinely absent completion from a configured-store outage. */
+export async function planCompletionResult(id: string): Promise<PlanCompletionLookupResult> {
+  if (!isPlanId(id)) return { ok: true, completion: null };
+  if (!isSupabaseConfigured()) return { ok: true, completion: await memoryPlanStore.getCompletion(id) };
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(COMPLETIONS)
+      .select("id,plan_id,ending,terminal_venue_id,final_pint_drop_id,route_revision,route_snapshot,completed_at")
+      .eq("plan_id", id)
+      .maybeSingle();
+    if (error) return { ok: false, error: "error" };
+    return { ok: true, completion: data ? completionFromRow(data as Record<string, unknown>) : null };
   } catch {
     return { ok: false, error: "error" };
   }
