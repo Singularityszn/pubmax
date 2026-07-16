@@ -27,6 +27,20 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
 | `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. |
 
+### Optional — other integrations
+
+| Var | Purpose |
+|---|---|
+| `EXA_API_KEY` | Powers the scheduled signals-ingestion job (sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
+| `TFL_APP_KEY` | Optional TfL app key for `/api/last-train`. The keyless TfL API is used by default; the key is only appended when present (higher rate limits). |
+| `ACTOR_HASH_SALT` / `PLAN_MEMBER_TOKEN_SALT` | Extra identity-hash salts. Both fall back safely (`ACTOR_HASH_SALT` → `RATE_LIMIT_SALT`; `PLAN_MEMBER_TOKEN_SALT` → `ACTOR_HASH_SALT`). Set distinct secrets in production. |
+
+### Vercel-injected (do not set by hand)
+
+| Var | Purpose |
+|---|---|
+| `VERCEL_OIDC_TOKEN` | Minted and injected by the Vercel CLI / build (`vercel env pull`, `vercel dev`) for OIDC federation. Not read by application code in this repo — documented here so its origin is clear; do not set it manually. |
+
 ## Supabase setup
 
 ### 1. Run the migrations, in order
