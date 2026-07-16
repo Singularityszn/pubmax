@@ -2,9 +2,26 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { SocialConnectionActions } from "@/components/profile/PubmaxxAccountHub";
+import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
+import { NightProfileControls, SocialConnectionActions } from "@/components/profile/PubmaxxAccountHub";
 
 describe("PubmaxxAccountHub provider gating", () => {
+  it("renders editable Night Profile controls with the privacy boundary", () => {
+    const html = renderToStaticMarkup(createElement(NightProfileControls, {
+      profile: DEFAULT_NIGHT_PROFILE_INPUT,
+      saveLabel: "Saved on this device",
+      onChange: vi.fn(),
+    }));
+
+    expect(html).toContain("Night Profile");
+    expect(html).toContain("Night Area");
+    expect(html).toContain("Max per person");
+    expect(html).toContain("Voice");
+    expect(html).toContain("Briefings");
+    expect(html).toContain("Precise location and voice transcripts are never saved here.");
+    expect(html).toContain("Saved on this device");
+  });
+
   it("renders only OAuth providers declared available by the server", () => {
     const html = renderToStaticMarkup(createElement(SocialConnectionActions, {
       providers: {

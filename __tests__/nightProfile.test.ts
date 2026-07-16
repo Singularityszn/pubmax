@@ -9,6 +9,7 @@ import {
   confirmedNightProfileMerge,
   nightProfileMergeState,
   readDeviceNightProfile,
+  writeDeviceNightContext,
   writeDeviceNightProfile,
 } from "@/lib/nightProfileClient";
 import {
@@ -51,6 +52,37 @@ describe("Night Profile contracts", () => {
     expect(readDeviceNightProfile(storage)).toEqual(DEFAULT_NIGHT_PROFILE_INPUT);
     storage.setItem("pubmaxx.night-profile.v1:device", JSON.stringify({ version: 2, profile: DEFAULT_NIGHT_PROFILE_INPUT }));
     expect(readDeviceNightProfile(storage)).toBeNull();
+  });
+
+  it("turns anonymous planning edits into a validated device profile only", () => {
+    const storage = memoryStorage();
+    const context = {
+      ...DEFAULT_NIGHT_PROFILE_INPUT.context,
+      nightArea: "piccadilly-soho" as const,
+      budget: "value" as const,
+      groupSize: 5,
+      zeroProof: true,
+    };
+    const written = writeDeviceNightContext(context, "london", storage);
+
+    expect(written).toMatchObject({ cityId: "london", context });
+    const raw = storage.getItem("pubmaxx.night-profile.v1:device") ?? "";
+    expect(raw).not.toContain("latitude");
+    expect(raw).not.toContain("longitude");
+    expect(raw).not.toContain("transcript");
+    expect(readDeviceNightProfile(storage)).toEqual(written);
+  });
+
+  it("rejects an invalid planning edit instead of corrupting the device profile", () => {
+    const storage = memoryStorage();
+    writeDeviceNightProfile(DEFAULT_NIGHT_PROFILE_INPUT, storage);
+    const invalid = {
+      ...DEFAULT_NIGHT_PROFILE_INPUT.context,
+      groupSize: 99,
+    };
+
+    expect(writeDeviceNightContext(invalid, "london", storage)).toBeNull();
+    expect(readDeviceNightProfile(storage)).toEqual(DEFAULT_NIGHT_PROFILE_INPUT);
   });
 
   it("detects a merge but cannot choose a winner without an explicit choice", () => {

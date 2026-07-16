@@ -1,12 +1,16 @@
 import {
   cleanNightProfileInput,
+  DEFAULT_NIGHT_PROFILE_INPUT,
   nightProfileInput,
   NIGHT_PROFILE_VERSION,
   type NightProfile,
   type NightProfileInput,
 } from "@/lib/nightProfile";
+import type { CityId } from "@/lib/cities";
+import type { NightContext } from "@/lib/nightPlanning";
 
 export const NIGHT_PROFILE_DEVICE_KEY = "pubmaxx.night-profile.v1:device";
+export const NIGHT_PROFILE_DEVICE_CHANGED_EVENT = "pubmax:night-profile-device-changed";
 
 type StoredNightProfileDraft = {
   version: typeof NIGHT_PROFILE_VERSION;
@@ -47,6 +51,9 @@ export function writeDeviceNightProfile(
       NIGHT_PROFILE_DEVICE_KEY,
       JSON.stringify({ version: NIGHT_PROFILE_VERSION, profile: clean } satisfies StoredNightProfileDraft),
     );
+    if (typeof window !== "undefined" && storage === window.localStorage) {
+      window.dispatchEvent(new Event(NIGHT_PROFILE_DEVICE_CHANGED_EVENT));
+    }
     return true;
   } catch {
     return false;
@@ -56,9 +63,32 @@ export function writeDeviceNightProfile(
 export function clearDeviceNightProfile(storage = browserStorage()): void {
   try {
     storage?.removeItem(NIGHT_PROFILE_DEVICE_KEY);
+    if (typeof window !== "undefined" && storage === window.localStorage) {
+      window.dispatchEvent(new Event(NIGHT_PROFILE_DEVICE_CHANGED_EVENT));
+    }
   } catch {
     // Storage is best effort; a failed clear must not erase the server profile.
   }
+}
+
+/**
+ * Persists only the validated planning context and optional public city id.
+ * NightContext has no coordinates or voice transcript fields, so callers
+ * cannot accidentally turn a planning edit into location or speech history.
+ */
+export function writeDeviceNightContext(
+  context: NightContext,
+  cityId?: CityId,
+  storage = browserStorage(),
+): NightProfileInput | null {
+  const current = readDeviceNightProfile(storage) ?? DEFAULT_NIGHT_PROFILE_INPUT;
+  const next = cleanNightProfileInput({
+    ...current,
+    ...(cityId ? { cityId } : {}),
+    context,
+  });
+  if (!next || !writeDeviceNightProfile(next, storage)) return null;
+  return next;
 }
 
 export type NightProfileMergeState =
@@ -114,6 +144,11 @@ export function subscribeDeviceNightProfile(listener: () => void): () => void {
       listener();
     }
   };
+  const onChanged = () => listener();
   window.addEventListener("storage", onStorage);
-  return () => window.removeEventListener("storage", onStorage);
+  window.addEventListener(NIGHT_PROFILE_DEVICE_CHANGED_EVENT, onChanged);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(NIGHT_PROFILE_DEVICE_CHANGED_EVENT, onChanged);
+  };
 }
