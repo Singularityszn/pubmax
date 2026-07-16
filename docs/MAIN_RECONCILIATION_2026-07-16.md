@@ -47,3 +47,26 @@ refers to the GitHub `main` line rather than assigning human authorship.
 Only the verified integration commit may be pushed to GitHub `main` and promoted
 to Vercel Production. A Vercel `READY` state is not sufficient: both
 `pubmaxxing.com` and `www.pubmaxxing.com` must be smoke-tested after aliasing.
+
+## Supabase migration-ledger reconciliation
+
+The first production push exposed an existing mismatch between Git filenames
+and the production migration ledger. Production recorded migrations `0022–0030`
+under the timestamps below, while Git carried the same migration names and SQL
+under earlier timestamps. The files were renamed to the recorded versions; the
+production history table itself was not rewritten.
+
+| Migration | Production/local version |
+|---|---|
+| `0022_visit_reports_feed_index` | `20260709142346` |
+| `0023_rls_deny_anon_sensitive_reads` | `20260712130421` |
+| `0024_plans` | `20260712130423` |
+| `0025_price_confirms` | `20260712130424` |
+| `0026_planned_nights` | `20260715091442` |
+| `0027_pub_pal_and_plan_completion` | `20260715091533` |
+| `pub_pal_plan_completion_indexes` | `20260715091628` |
+| `0030_canonical_plan_routes` | `20260715174107` |
+
+The Supabase connector confirmed the recorded names and statements before the
+rename. Pending migrations remain normal additive migrations and must be applied
+in timestamp order; no remote reset or destructive migration repair is allowed.

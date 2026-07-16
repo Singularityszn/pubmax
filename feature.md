@@ -1135,7 +1135,7 @@ Primary implementation sources:
 - `lib/plan.ts`
 - `lib/planStore.ts`
 - `lib/analyticsEvents.ts`
-- `supabase/migrations/20260715110000_0027_pub_pal_and_plan_completion.sql`
+- `supabase/migrations/20260715091533_0027_pub_pal_and_plan_completion.sql`
 - `supabase/migrations/20260715133000_0028_night_memories.sql`
 - `supabase/migrations/20260715134000_0029_identity_and_social_connections.sql`
 
