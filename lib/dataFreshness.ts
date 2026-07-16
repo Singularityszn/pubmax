@@ -1,20 +1,17 @@
 // Honest data-freshness helpers (Wave S3, tightened by the SEO integrity
 // cleanup). The fact layer must stamp every derived stat with WHEN the
 // underlying prices were collected — never a fabricated "live" timestamp and
-// never a build artifact dressed up as an observation date.
+// never a build artifact dressed up as a collection date.
 //
 // Two distinct signals, deliberately kept apart:
 //   • PINT_DATASET_OBSERVED_AT — the dataset's real collection date. Drives
 //     every user-facing "collected" stamp and the JSON-LD dates.
-//   • dataFileModified() — the bundled file's mtime. Says only "this file was
-//     last written" (builds, re-exports). Legitimate for sitemap
-//     `lastModified`; must never be presented as a price-observation date.
+//   • The bundled file's mtime says only "this file was last written" (builds,
+//     re-exports), never when prices were collected; app/sitemap.ts derives its
+//     `lastModified` from that mtime with its own local helper.
 //
-// Pure formatters are split out from the fs read so they can be unit-tested on
-// fixed Dates with no disk access.
-
-import { promises as fs } from "node:fs";
-import path from "node:path";
+// Pure formatters keep no disk access, so they can be unit-tested on fixed
+// Dates.
 
 /** The bundled London pint-price dataset every borough/index page reads. */
 export const PINT_DATASET_FILE = "pint_prices_app_dataset.json";
@@ -35,23 +32,6 @@ export const PINT_DATASET_FILE = "pint_prices_app_dataset.json";
  */
 export const PINT_DATASET_OBSERVED_AT = new Date("2026-07-03T12:00:00Z");
 
-// mtime of a public/data file as a Date, or `fallback` when it can't be read.
-// Mirrors app/sitemap.ts#dataFileModified so the sitemap and the on-page
-// freshness stamp never disagree about when the data last changed.
-export async function dataFileModified(
-  name: string,
-  fallback: Date = new Date(),
-): Promise<Date> {
-  try {
-    const stat = await fs.stat(
-      path.join(process.cwd(), "public", "data", name),
-    );
-    return stat.mtime;
-  } catch {
-    return fallback;
-  }
-}
-
 // en-GB, London time, so "July 2026" / "16 July 2026" read the same wherever
 // the build runs — a US-locale build must not stamp a page "7/2026".
 const MONTH_YEAR = new Intl.DateTimeFormat("en-GB", {
@@ -67,12 +47,12 @@ const FULL_DATE = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
 });
 
-/** "July 2026" — the observation month for the "As of {month year}" lead. */
+/** "July 2026" — the collection month for the "As of {month year}" lead. */
 export function formatMonthYear(date: Date): string {
   return MONTH_YEAR.format(date);
 }
 
-/** "16 July 2026" — the "Prices last observed {date}" stamp. */
+/** "16 July 2026" — the "Prices last collected {date}" stamp. */
 export function formatObservedDate(date: Date): string {
   return FULL_DATE.format(date);
 }

@@ -20,9 +20,9 @@ import "./pint-index.css";
 // zero-client-JS borough league table built from the tracked pint dataset, with
 // a methodology + provenance section, a Dataset JSON-LD node (what AI engines
 // love most), and a downloadable CSV (app/pint-index/data.csv). Every figure is
-// derived from the data; nothing invented, and freshness is a dated observation
+// derived from the data; nothing invented, and freshness is a dated collection
 // window — never "live". The page is quarterly by nature (prices move slowly),
-// so it stamps WHEN the underlying dataset was last observed rather than
+// so it stamps WHEN the underlying dataset was last collected rather than
 // implying a live feed.
 
 const SITE_URL = "https://pubmaxxing.com";
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
 };
 
 // Dataset structured data (Wave S1.3 / S3.3). Only fields we can honestly back:
-// name, description, temporalCoverage (observation date), dateModified, a
+// name, description, temporalCoverage (collection date), dateModified, a
 // human-readable creator, and a CSV distribution. No fabricated licence terms.
 function datasetJsonLd(observedAt: Date, boroughCount: number, pubCount: number) {
   return {
@@ -81,7 +81,7 @@ function datasetJsonLd(observedAt: Date, boroughCount: number, pubCount: number)
 export default async function PintIndexPage() {
   const venues = await loadGroupedVenues();
   // The honest stamp: when the dataset's prices were collected — never the
-  // bundled file's mtime, which tracks builds/re-exports, not observation.
+  // bundled file's mtime, which tracks builds/re-exports, not collection.
   const observedAt = PINT_DATASET_OBSERVED_AT;
   const rows = buildLeagueTable(venues);
   const summary = indexSummary(rows);
@@ -274,10 +274,9 @@ export default async function PintIndexPage() {
             <strong>Where the prices come from.</strong> The baseline is{" "}
             <strong>PUBMAXXING&rsquo;s tracked pint dataset</strong> — a July
             2026 snapshot of cheapest-pint prices across London, each carrying
-            its collection date. On top of that sits the live signal:{" "}
-            <strong>community Pint Drops</strong> — prices logged by drinkers,
-            attributed as contributions, not a live feed. A fresher community
-            observation always beats the snapshot.
+            its collection date. Newer <strong>community Pint Drops</strong> are
+            layered over the snapshot — prices logged by drinkers, attributed as
+            contributions; a fresher community price always beats the snapshot.
           </p>
           <p>
             <strong>What we never do.</strong> We never present a stale price
