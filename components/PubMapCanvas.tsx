@@ -65,6 +65,7 @@ import {
 } from "@/components/map/canvas/hoverCard";
 import { assembleScene } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
+import { createPinRevealCoordinator } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
@@ -803,14 +804,38 @@ export default function PubMapCanvas({
     // buildSceneBody delegates the full source/layer assembly to assembleScene
     // (components/map/canvas/buildScene.ts); the wrapper keeps only the D2
     // tile-paint gate and the pendingUpdatesRef flush, which own component state.
-    // Fallback timer for the tile-paint gate (see buildSceneBody); lives at
-    // construct scope so a theme-swap rebuild replaces the previous timer and
-    // teardown can clear it.
-    let pinRevealTimer: ReturnType<typeof setTimeout> | undefined;
-    // Companion rAF handle for the already-loaded-source reveal below — retained
-    // so a theme-swap rebuild or teardown can cancel a stale frame that would
-    // otherwise reveal pins for a scene that no longer exists.
-    let pinRevealRaf: ReturnType<typeof requestAnimationFrame> | undefined;
+    // One generation-scoped gate owns every pin reveal callback. A theme swap
+    // cancels the previous generation before setStyle, so a late render/frame
+    // from the old style can never mutate the new one.
+    const pinRevealCoordinator = createPinRevealCoordinator({
+      timeoutMs: PIN_REVEAL_TIMEOUT_MS,
+      areTilesLoaded: () => map.areTilesLoaded(),
+      setPinsVisible: (visible) => {
+        for (const id of PUB_PIN_LAYERS) {
+          if (map.getLayer(id)) {
+            map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+          }
+        }
+      },
+      subscribeRender: (listener) => {
+        map.on("render", listener);
+        return () => map.off("render", listener);
+      },
+      subscribeIdle: (listener) => {
+        map.on("idle", listener);
+        return () => map.off("idle", listener);
+      },
+      requestFrame: (callback) => requestAnimationFrame(callback),
+      cancelFrame: (id) => cancelAnimationFrame(id),
+      setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
+      clearTimer: (handle) => window.clearTimeout(handle),
+      onReveal: (reason, generation) => {
+        window.dispatchEvent(new CustomEvent("pubmax:pin-reveal", {
+          detail: { reason, generation },
+        }));
+        startPinEntrance();
+      },
+    });
     const buildScene = () => {
       // Stale-event guard. A style.load can arrive from a style that a rapid
       // setStyle() just superseded (e.g. two theme flips inside one style-fetch
@@ -832,6 +857,7 @@ export default function PubMapCanvas({
         buildSceneBody();
         settleSceneReady();
       } catch (error) {
+        pinRevealCoordinator.cancel();
         console.error("[pubmap] buildScene failed", error);
         const detail =
           error instanceof Error ? error.message : "Scene build threw unexpectedly";
@@ -900,70 +926,15 @@ export default function PubMapCanvas({
       // Liberty/Positron style, which has no dark background to mask it; the dark
       // style just hid the same race). Hold every pub layer hidden until the pub
       // data is actually paintable, then reveal them together. Applies on the
-      // initial load AND every theme swap. Skipped when tiles are already loaded
-      // (cached / a duplicate build) so there is no needless flash.
+      // initial load AND every theme swap. Cached tiles still cross one frame
+      // boundary, avoiding a same-frame full-opacity flash.
       //
-      // Reveal trigger (P1 dark-pins fix): the PRIMARY signal is the `pubs`
-      // GeoJSON source finishing its load — that source is THEME-INDEPENDENT and
-      // carries the pins' own data, so pin reveal no longer waits on the
-      // basemap's vector tiles. The dark ("dark") and light ("liberty") styles
-      // fetch different tile/sprite/glyph endpoints at different speeds, so
-      // gating on basemap readiness let whichever style was slower (or being
-      // rate-limited) strand its theme on a pinless map showing only landmarks.
-      // `idle` stays as a same-frame reveal when the basemap IS quick, but it is
-      // routinely starved (the ambient orbit nudges the camera every frame, so
-      // the map may never go idle), and PIN_REVEAL_TIMEOUT_MS is the hard
-      // backstop. Whichever fires first reveals the pins and disarms the rest.
-      if (!map.areTilesLoaded()) {
-        if (pinRevealRaf !== undefined) {
-          cancelAnimationFrame(pinRevealRaf);
-          pinRevealRaf = undefined;
-        }
-        for (const id of PUB_PIN_LAYERS) {
-          if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
-        }
-        // Reveal the instant the pub source itself is loaded — independent of
-        // the basemap, so dark and light reveal pins symmetrically even when one
-        // style's tiles are slow/rate-limited. Declared before revealPins so the
-        // reveal can detach it by reference (revealPins is hoisted).
-        const onPubsSourceData = (e: maplibregl.MapSourceDataEvent) => {
-          if (e.sourceId === "pubs" && e.isSourceLoaded) revealPins();
-        };
-        function revealPins() {
-          clearTimeout(pinRevealTimer);
-          pinRevealTimer = undefined;
-          if (pinRevealRaf !== undefined) {
-            cancelAnimationFrame(pinRevealRaf);
-            pinRevealRaf = undefined;
-          }
-          map.off("idle", revealPins);
-          map.off("sourcedata", onPubsSourceData);
-          for (const id of PUB_PIN_LAYERS) {
-            if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
-          }
-          // M7 — this is the true "first pin reveal" when the gate was armed:
-          // settleSceneReady already ran (and deferred) while pins were still
-          // hidden, so kick the entrance off here instead. Fire-once inside
-          // startPinEntrance, so theme-swap rebuilds re-running this reveal
-          // can never replay the entrance.
-          startPinEntrance();
-        }
-        // If the pub source already parsed before this listener attached (its
-        // `sourcedata` would not fire again), reveal on the next frame so we
-        // never strand pins waiting on an event that has passed.
-        if (map.getSource("pubs") && map.isSourceLoaded("pubs")) {
-          pinRevealRaf = requestAnimationFrame(() => {
-            pinRevealRaf = undefined;
-            if (pinRevealTimer !== undefined) revealPins();
-          });
-        }
-        map.on("sourcedata", onPubsSourceData);
-        map.once("idle", revealPins);
-        // A theme-swap rebuild re-arms the gate; drop the previous build's timer
-        // so only the latest reveal pair is live.
-        clearTimeout(pinRevealTimer);
-        pinRevealTimer = setTimeout(revealPins, PIN_REVEAL_TIMEOUT_MS);
-      }
+      // The local `pubs` GeoJSON can finish before any basemap vector tile has
+      // painted. Gate every pin layer as one style generation and reveal only
+      // after tile readiness crosses a paint frame. The timeout deliberately
+      // degrades to usable pins over the themed container when community tiles
+      // are partial/offline instead of leaving the product invisible.
+      pinRevealCoordinator.arm();
 
       // Flush any mutations that arrived while the style was mid-load (initial
       // load or a theme swap). buildScene has just re-seeded every source/layer
@@ -1110,6 +1081,7 @@ export default function PubMapCanvas({
     const swapToBasemapFallback = () => {
       if (styleLoaded || usingFallback) return;
       usingFallback = true;
+      pinRevealCoordinator.cancel();
       map.setStyle(FALLBACK_STYLES[themeRef.current], { diff: false });
       hardFailTimer = setTimeout(() => {
         if (!styleLoaded) {
@@ -1270,6 +1242,7 @@ export default function PubMapCanvas({
       // and style.load always fires, so buildScene deterministically rebuilds
       // every layer with the new theme's tokens (a successful diff would keep
       // stale-themed layers and skip style.load entirely).
+      pinRevealCoordinator.cancel();
       map.setStyle(MAP_STYLES[next], { diff: false });
     });
     themeObserver.observe(document.documentElement, {
@@ -1285,10 +1258,7 @@ export default function PubMapCanvas({
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
-      if (pinRevealTimer) clearTimeout(pinRevealTimer);
-      pinRevealTimer = undefined;
-      if (pinRevealRaf !== undefined) cancelAnimationFrame(pinRevealRaf);
-      pinRevealRaf = undefined;
+      pinRevealCoordinator.dispose();
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);

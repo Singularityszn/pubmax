@@ -25,14 +25,20 @@ export function createCameraIntentCoordinator({
   let lastKey = "";
   let lastRunAt = Number.NEGATIVE_INFINITY;
   let sequence = 0;
+  let callbackGeneration = 0;
 
   function schedule(kind: CameraIntentKind, key: string, run: () => void): boolean {
     const timestamp = now();
     if (pendingFrame !== null && key === pendingKey) return false;
     if (key === lastKey && timestamp - lastRunAt < dedupeMs) return false;
-    if (pendingFrame !== null) cancelFrame(pendingFrame);
+    if (pendingFrame !== null) {
+      callbackGeneration += 1;
+      cancelFrame(pendingFrame);
+    }
     pendingKey = key;
+    const scheduledGeneration = ++callbackGeneration;
     pendingFrame = requestFrame(() => {
+      if (scheduledGeneration !== callbackGeneration) return;
       pendingFrame = null;
       const settledKey = pendingKey;
       pendingKey = "";
@@ -46,6 +52,7 @@ export function createCameraIntentCoordinator({
   }
 
   function dispose(): void {
+    callbackGeneration += 1;
     if (pendingFrame !== null) cancelFrame(pendingFrame);
     pendingFrame = null;
     pendingKey = "";
