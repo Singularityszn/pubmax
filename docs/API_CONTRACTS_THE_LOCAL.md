@@ -580,13 +580,18 @@ Existing shared limiter: `isLimited(localKey, durableKey, limit=8, windowMs=60_0
 
 ---
 
-## 12. Open questions for the owner
+## 12. Owner decisions (resolved 2026-07-16) + remaining open questions
 
-1. **Endpoint name:** confirm `/api/plans/generate` (built) supersedes #252's `/api/companion/recommend`. (Recommend yes.)
-2. **Error envelope:** approve migrating all THE LOCAL routes to `apiError` `{ error: { code, message, status } }`, and confirm how generate's `409` sibling coverage payload should be carried (extra fields vs `details`).
-3. **`plan-generate` durable key** is a global constant — confirm it should be per-IP (`plan-generate:${ipHash}`). Likely bug.
-4. **Analytics registry:** adopt #252's exact event names, keep Codex's, or map (§8)?
-5. **Product noun:** "Companion" (#252) vs "Pub Pal" (Codex) — pick one.
+**Decided by the owner:**
+
+1. **Endpoint name — RESOLVED:** `/api/plans/generate` supersedes #252's `/api/companion/recommend`. The #252 path is a historical alias; do not build it.
+2. **Error envelope — RESOLVED:** migrate all THE LOCAL routes to the shared `apiError` `{ error: { code, message, status } }` shape before more clients depend on the flat form. Carry generate's `409` sibling coverage payload in a `details` object on the envelope.
+3. **Analytics registry — RESOLVED:** keep Codex's event names (already emitting; renaming buys nothing). #252's registry is amended to the shipped vocabulary; the §8 mapping table records the correspondence.
+4. **Product noun — RESOLVED:** "Pub Pal" wins over #252's "Companion" everywhere (UI, code, analytics).
+
+**Still open:**
+
+5. **`plan-generate` durable key** is a global constant — should be per-IP (`plan-generate:${ipHash}`). Treated as a bug; fix lands via the reset-branch gate review.
 6. **`/api/plans/:id/actions` auth:** align to the `Authorization: Bearer` header (like PATCH/complete) rather than body-only token?
 7. **Late-food scope:** is the static 6-area editorial seed acceptable for Phase 1/2, with time/hygiene/route ranking deferred to a later phase?
 8. **Rate limits:** confirm budgets for the read routes (night-areas, late-food) and the member-write routes (PATCH, actions, complete).
