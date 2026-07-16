@@ -49,7 +49,9 @@ describe("external social account policy", () => {
       scopes: ["user.info.basic"],
       accessTokenCiphertext: "secret-access-token",
       refreshTokenCiphertext: "secret-refresh-token",
-      tokenExpiresAt: "2026-07-16T12:00:00.000Z",
+      // Keep this projection test independent of the wall clock. Expiry
+      // behavior has its own tests; this fixture exercises secret redaction.
+      tokenExpiresAt: "2099-07-16T12:00:00.000Z",
       connectedAt: "2026-07-15T12:00:00.000Z",
       updatedAt: "2026-07-15T12:00:00.000Z",
     };
