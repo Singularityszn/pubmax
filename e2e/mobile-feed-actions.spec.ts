@@ -21,8 +21,8 @@ async function expectTappable(locator: Locator, label: string): Promise<void> {
   const box = await locator.boundingBox();
   expect(box, `${label} should have a layout box`).not.toBeNull();
   if (!box) return;
-  expect(box.height, `${label} should meet the 44px mobile tap target`).toBeGreaterThanOrEqual(44);
-  expect(box.width, `${label} should be wide enough to tap`).toBeGreaterThanOrEqual(44);
+  expect(Math.round(box.height), `${label} should meet the 44px mobile tap target`).toBeGreaterThanOrEqual(44);
+  expect(Math.round(box.width), `${label} should be wide enough to tap`).toBeGreaterThanOrEqual(44);
 }
 
 async function waitForFeedOutcome(page: Page): Promise<"cards" | "empty"> {

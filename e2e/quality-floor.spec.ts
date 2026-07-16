@@ -150,38 +150,40 @@ for (const path of ["/", "/map", "/feed", "/discover"]) {
 }
 
 // ---------------------------------------------------------------------------
-// Non-alcoholic filter toggle — flips a real, user-visible control state.
-//
-// The control lives in the planner's control rail (components/map/ControlRail.tsx),
-// which is a DOM overlay beside the map — reachable WITHOUT the WebGL canvas by
-// opening the planner via the toolbar's "Plan tonight" button. We open the
-// planner, find the "Non-alcoholic" checkbox, and prove clicking it flips its
-// checked state (the observable contract). No canvas interaction, no persistence
-// (the filter is per-session UI state, never written).
+// Non-alcoholic filter toggle — flips a real control inside the one coordinated
+// planner sheet. This is WebGL-agnostic and never writes location or voice data.
 test("quality floor: the non-alcoholic filter checkbox flips its checked state", async ({
   page,
 }) => {
-  // Desktop viewport so the planner side-drawer + control rail are the layout
-  // (on mobile the same controls live in a drag-sheet; desktop is deterministic).
-  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
   // PubMap is a client component — wait for the map region to mount (proof it
   // hydrated) before driving the toolbar. WebGL-agnostic: canvas OR fallback.
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible();
+  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
 
   // Open the planner so the control rail's filter toggles become visible.
-  const planBtn = page.getByRole("button", { name: /Plan tonight/i });
+  const planBtn = page.getByRole("button", { name: "Describe your night" });
   await expect(planBtn).toBeVisible();
   await planBtn.click();
+  const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+  await expect(planner).toBeVisible();
+  await planner.getByRole("button", { name: "Expand sheet" }).click();
+  await expect(planner.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
 
   // The control rail is now revealed; find the "Non-alcoholic" filter checkbox
   // by its label text (components/map/ControlRail.tsx wraps the input in a
   // <label> reading "Non-alcoholic"). It defaults to off.
-  const nonAlc = page
+  const nonAlc = planner
     .locator(".controlRail label", { hasText: "Non-alcoholic" })
     .locator('input[type="checkbox"]');
   await expect(nonAlc).toHaveCount(1);
@@ -198,30 +200,28 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
 });
 
 // ---------------------------------------------------------------------------
-// POI category toggles — flip a real aria-pressed state via MapLayersControl
-// (Wave J moved mid-map .poiToggle into the Layers popover).
-//
-// Under a headless box with software WebGL the map canvas is present; on a
-// truly GPU-less box the canvas falls back and we skip cleanly.
-test("quality floor: a POI category toggle flips its aria-pressed state (when the map canvas renders)", async ({
+// POI category toggles live in the coordinated Layers sheet and remain usable
+// even when the basemap falls back.
+test("quality floor: a POI category toggle flips in the coordinated Layers sheet", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible();
+  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
 
-  if ((await page.locator(".mapFallback").count()) > 0) {
-    test.skip(true, "no-WebGL fallback rendered: POI overlay is not present headlessly");
-    return;
-  }
-
-  const layersFab = page.getByRole("button", { name: /Map layers/i });
+  const layersFab = page.getByRole("button", { name: "More map controls" });
   await expect(layersFab).toBeVisible();
   await layersFab.click();
 
-  const layers = page.getByRole("dialog", { name: "Map layers" });
+  const layers = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
   await expect(layers).toBeVisible();
 
   const poiGroup = layers.getByRole("group", { name: "Points of interest" });

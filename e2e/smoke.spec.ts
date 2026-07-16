@@ -19,7 +19,11 @@ async function dismissMapFirstRunTour(page: Page): Promise<void> {
   });
 }
 
-test("landing / serves, shows hero + Demo honesty label + a working /map CTA", async ({
+test.beforeEach(async ({ page }) => {
+  await dismissMapFirstRunTour(page);
+});
+
+test("landing / serves, shows hero + Demo honesty label + a working city-first map CTA", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -34,11 +38,13 @@ test("landing / serves, shows hero + Demo honesty label + a working /map CTA", a
   // provenance vocabulary — see lib/provenanceLabels.ts).
   await expect(page.getByText("Demo").first()).toBeVisible();
 
-  // A working CTA to the planner. There are several "Open the map" links; take
-  // the first and assert it points at /map, then that following it lands there.
+  // First entry is city-first so the app never assumes location or silently
+  // chooses a city. Choose London explicitly, then verify the canonical map.
   const cta = page.getByRole("link", { name: /open the map/i }).first();
-  await expect(cta).toHaveAttribute("href", /\/map/);
+  await expect(cta).toHaveAttribute("href", "/choose-city");
   await cta.click();
+  await expect(page).toHaveURL(/\/choose-city$/);
+  await page.getByRole("link", { name: /^London .*Open map\.$/i }).click();
   await expect(page).toHaveURL(/\/map/);
 
   expect(errors).toEqual([]);

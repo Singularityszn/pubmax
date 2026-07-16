@@ -7,6 +7,7 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 type SlimRow = Record<string, unknown>;
 
 const cache = new Map<CityId, ConciergeVenue[]>();
+const inflight = new Map<CityId, Promise<ConciergeVenue[]>>();
 
 function bool(record: Record<string, unknown>, key: string): boolean {
   return record[key] === true;
@@ -63,17 +64,28 @@ function toVenue(value: unknown): ConciergeVenue | null {
 export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenue[]> {
   const hit = cache.get(cityId);
   if (hit) return hit;
+  const pending = inflight.get(cityId);
+  if (pending) return pending;
+
+  const load = (async () => {
+    try {
+      const publicPath = getCity(cityId).slimVenuesPath.replace(/^\//, "");
+      const raw = await readFile(path.join(process.cwd(), "public", publicPath), "utf8");
+      const parsed: unknown = JSON.parse(raw);
+      const venues = Array.isArray(parsed)
+        ? parsed.map(toVenue).filter((venue): venue is ConciergeVenue => venue !== null)
+        : [];
+      cache.set(cityId, venues);
+      return venues;
+    } catch {
+      // Missing/corrupt data must degrade to an honest empty result, never 500.
+      return [];
+    }
+  })();
+  inflight.set(cityId, load);
   try {
-    const publicPath = getCity(cityId).slimVenuesPath.replace(/^\//, "");
-    const raw = await readFile(path.join(process.cwd(), "public", publicPath), "utf8");
-    const parsed: unknown = JSON.parse(raw);
-    const venues = Array.isArray(parsed)
-      ? parsed.map(toVenue).filter((venue): venue is ConciergeVenue => venue !== null)
-      : [];
-    cache.set(cityId, venues);
-    return venues;
-  } catch {
-    // Missing/corrupt data must degrade to an honest empty result, never 500.
-    return [];
+    return await load;
+  } finally {
+    if (inflight.get(cityId) === load) inflight.delete(cityId);
   }
 }

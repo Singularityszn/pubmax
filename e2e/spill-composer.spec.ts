@@ -42,16 +42,13 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
 
 // Open the composer inside the Stories panel and return the panel + form locators.
 async function openComposer(page: Page) {
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmax-tour-v1-done", "1");
-    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-  });
   await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-  const pintsPanel = page.locator("#venuePanel-pints");
-  await page.getByRole("tab", { name: "Stories", exact: true }).click();
-  await expect(page.locator(".mapDrawer.right")).toHaveClass(/sheet-full/);
-  await page
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible();
+  const pintsPanel = venueSheet.locator("#venuePanel-pints");
+  await venueSheet.getByRole("tab", { name: "Stories", exact: true }).click();
+  await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+  await venueSheet
     .getByRole("toolbar", { name: "Venue actions" })
     .getByRole("button", { name: /log a pint drop/i })
     .click();
@@ -62,7 +59,14 @@ async function openComposer(page: Page) {
 }
 
 test.describe("camera-first Spill composer", () => {
-  test.describe.configure({ mode: "serial" });
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+  });
 
   test("on a 390px viewport the camera action leads without blocking price fields", async ({
     page,
@@ -287,11 +291,12 @@ test.describe("camera-first Spill composer", () => {
     await expect.poll(async () => Number(await fallback.isVisible()) + Number(await form.isVisible())).toBeGreaterThan(0);
     if (await fallback.isVisible()) await fallback.getByRole("button").first().click();
 
-    const sheet = page.locator(".mapDrawer.right");
+    const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const sheet = venueSheet.locator(".mobileSharedSheet");
     await expect(sheet).toHaveClass(/open/);
     await expect(form).toBeVisible({ timeout: 10_000 });
 
-    await page.getByRole("button", { name: "Close pub detail" }).click();
+    await venueSheet.getByRole("button", { name: "Close pub detail" }).click();
 
     await expect(page).toHaveURL(/\/map\?log=1$/);
     await expect(sheet).toHaveCount(0);

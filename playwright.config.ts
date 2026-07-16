@@ -19,6 +19,7 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
+    video: process.env.PUBMAX_GATE_Z_VIDEO ? "on" : "off",
   },
   // Screenshots are design-QA artifacts, not assertions: kept out of the
   // `chromium` project (testIgnore below) and out of `playwright test`'s

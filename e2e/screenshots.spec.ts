@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 
 // Design-QA artifacts for the Gate-Z baseline. The configured Playwright
@@ -61,6 +62,7 @@ async function createPlanFixture(
 ): Promise<PlanFixture> {
   const startTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const created = await request.post("/api/plans", {
+    headers: { "idempotency-key": randomUUID() },
     data: {
       title: status === "active" ? "The Gate Zero night" : "Friday around Arnos Grove",
       startTime,
@@ -83,6 +85,7 @@ async function createPlanFixture(
     expect(active.ok()).toBeTruthy();
   } else {
     const joined = await request.post(`/api/plans/${planId}/join`, {
+      headers: { "idempotency-key": randomUUID() },
       data: { name: "Luna" },
     });
     expect(joined.ok()).toBeTruthy();

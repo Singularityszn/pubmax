@@ -16,6 +16,7 @@ function watchPageErrors(page: Page): string[] {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -149,6 +150,7 @@ test.describe("map / venue sheet tabs", () => {
       ["Last train", "venuePanel-getting-home"],
     ] as const) {
       const tab = tablist.getByRole("tab", { name: label, exact: true });
+      await expect(tab).toBeVisible();
       await tab.click();
       await expect(tab).toHaveAttribute("aria-selected", "true");
       await expect(pintsTab).toHaveAttribute("aria-selected", "false");

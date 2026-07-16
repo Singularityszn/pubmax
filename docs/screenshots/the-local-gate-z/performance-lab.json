@@ -1,0 +1,40 @@
+{
+  "lcpMs": 1180,
+  "cls": 0.0008,
+  "maxInteractionMs": 104,
+  "firstPinsMs": 69,
+  "warmNavigationMs": 30,
+  "routeReadinessMs": 230.5,
+  "slowestInteractions": [
+    {
+      "name": "pointerdown",
+      "duration": 104,
+      "startTime": 1938,
+      "interactionId": 6422
+    },
+    {
+      "name": "pointerup",
+      "duration": 104,
+      "startTime": 1938,
+      "interactionId": 6422
+    },
+    {
+      "name": "click",
+      "duration": 104,
+      "startTime": 1938,
+      "interactionId": 6422
+    },
+    {
+      "name": "pointerdown",
+      "duration": 48,
+      "startTime": 3896,
+      "interactionId": 6429
+    },
+    {
+      "name": "pointerup",
+      "duration": 48,
+      "startTime": 3896,
+      "interactionId": 6429
+    }
+  ]
+}

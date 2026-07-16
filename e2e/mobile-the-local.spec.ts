@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mkdir, writeFile } from "node:fs/promises";
 
 test("mobile Describe your night builds one grounded route without camera flicker", async ({ page }) => {
   test.setTimeout(90_000);
@@ -20,7 +21,7 @@ test("mobile Describe your night builds one grounded route without camera flicke
   const planner = page.locator(".mapDrawer.left");
   await expect(planner).toHaveClass(/sheet-half/);
   await planner.getByLabel("What do you need?").fill("Four of us in Barnes, under £24 each and quiet");
-  const generateRequest = page.waitForRequest((request) => request.url().endsWith("/api/plans/generate"));
+  const generateRequest = page.waitForRequest((request) => request.method() === "POST" && request.url().endsWith("/api/plans/generate"));
   await planner.getByRole("button", { name: "Build 3-stop route" }).click();
   const submitted = (await generateRequest).postDataJSON() as { context: Record<string, unknown> };
   expect(submitted.context).not.toHaveProperty("nightArea");
@@ -36,4 +37,17 @@ test("mobile Describe your night builds one grounded route without camera flicke
   ).filter((intent) => intent.kind === "route").length);
   expect(routeIntents).toBeLessThanOrEqual(1);
   await expect(page.getByRole("button", { name: "Describe your night" })).toHaveCount(0);
+
+  if (process.env.PUBMAX_GATE_Z_SHOTS) {
+    const directory = "docs/screenshots/the-local-gate-z";
+    await mkdir(directory, { recursive: true });
+    await planner.getByRole("button", { name: "Expand sheet" }).click();
+    await expect(planner).toHaveClass(/sheet-full/);
+    await planner.locator(".mobilePlannerRouteTotal").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${directory}/activation-route-390x844-light.png` });
+    const cameraIntents = await page.evaluate(() => (
+      (window as Window & { __cameraIntents?: Array<{ kind: string; sequence: number }> }).__cameraIntents ?? []
+    ));
+    await writeFile(`${directory}/camera-intents.json`, `${JSON.stringify({ cameraIntents, routeIntents }, null, 2)}\n`);
+  }
 });

@@ -36,3 +36,28 @@ These comparisons were made against the local Git object database. Matching beha
 ## Release contract
 
 Every slice must preserve keyless operation, existing public URLs, current API fields, explicit location consent, and user-controlled memories. Production promotion occurs only for an exact reviewed commit, followed by apex and `www` smoke verification.
+
+## Delivered reconciliation
+
+| THE LOCAL ticket | Delivered state | Local commit / evidence |
+| --- | --- | --- |
+| 01 verified matrix | Implemented | This document; stale PR, branch, and issue references reconciled against the local object database. |
+| 02 map orchestration | Implemented | `953363f1`; one latest-wins camera coordinator, plan coordinator, route-intent trace, and restored mobile session seam. |
+| 03 Describe your night | Implemented | `953363f1`; primary map CTA opens the shared planner sheet with transient voice, text, and editable context controls. |
+| 04 always-plan confidence | Implemented | `953363f1`; reviewed coverage labels confidence and warnings but no longer returns the old route-readiness block. |
+| 05 grounded scoring | Partial | `51226745`; three stops, alternatives, budget/route totals, Tonight evidence, provenance, stale-request aborts, and generation dedupe are live. Opening hours, weather, venue accessibility, and get-in remain explicit evidence gaps and never score as satisfied constraints. |
+| 06 night endings | Partial | `51226745` and `029c5e3d`; Food, Get home, and Keep going are confirmation-gated, with live-night late-food and last-train loading. Several Night Areas do not yet have the two grounded late-food records required by the contract, and generation-time Get home does not yet embed live status. |
+| 07 secure invitations | Implemented | `0dd43e5b`; hashed, expiring, revocable capabilities with host/guest roles and read-only legacy links. |
+| 08 crew decisions | Implemented | `0dd43e5b`; constraints, votes, proposals, host decisions, replay protection, and idempotent mutations. |
+| 09 live-night HUD | Implemented | `029c5e3d`; active-plan pill and shared planner surface cover arrival, skip, swaps, and endings without sheet stacking. |
+| 10 recap and Story approval | Implemented | `029c5e3d`; versioned pending recaps, editable private Memory seeding, contributor consent, and Stories-local publication. |
+| 11 six companions | Implemented | `5a1a316d`; Greyhound, Black Cat, Fox, Pigeon, Badger, and Corgi plus all eight states and legacy species mappings. |
+| 12 Pal ownership | Implemented | `5a1a316d`; correction, deletion, export, proposal disabling, visible context, and explicit confirmation gates. |
+| 13 scheduled evidence | Partial | `07494b3e`; versioned claim snapshot, provenance/review/expiry validation, scheduled review workflow, and route-affecting review rules are live. The workflow validates staged candidates but does not yet acquire upstream event, price, access, opening, or transport claims; the reviewed snapshot is therefore intentionally empty. |
+| 14 cross-tab continuity | Implemented | `07494b3e`; versioned plan, proposal, caption/comment, Pal, and pending-recap adapters exclude voice, secrets, and precise-location history. |
+| 15 consolidation | Implemented for this release seam | `07494b3e`; common backend batches and keyless/configured parity tests landed without a wholesale store, CSS, or MapLibre rewrite. |
+| 16 Gate Z | Partial, local evidence complete for implemented scope | `docs/screenshots/the-local-gate-z/` plus the refreshed mobile matrix in `docs/screenshots/mobile-reset/`; functional gates and strict performance budgets pass. A continuous full-journey recording and external Fable approvals remain outstanding. |
+
+Metric status: `planned_night_completed` implements the primary release metric. Weekly Active Crews and Worthwhile Nights Completed can be inferred from existing crew, Memory, contribution, share, and Story events, but a durable privacy-safe aggregation/report has not landed and remains partial.
+
+The only planned deferrals are the boundaries already named above: Google and Microsoft identity, MapLibre 6, affiliate growth, passive location, drink-volume rewards, and automatic Pal memories. Fable approval is an external release decision, not an implementation state.

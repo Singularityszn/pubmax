@@ -50,9 +50,9 @@ test("landing night choice reaches a usable filtered mobile map", async ({ page 
   const requests = watchRequests(page);
 
   await page.goto("/#signals");
-  await page.getByRole("link", { name: "Open this map", exact: true }).click();
+  await page.getByRole("link", { name: /Beer at .*open on the map/ }).click();
 
-  await expect(page).toHaveURL(/\/map\?drink=beer(?:&style=balanced)?$/);
+  await expect(page).toHaveURL(/\/map\?drink=beer&style=cheapest$/);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
   await expect
     .poll(
@@ -61,6 +61,7 @@ test("landing night choice reaches a usable filtered mobile map", async ({ page 
     )
     .toBeGreaterThan(0);
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 20_000 });
+  await page.getByRole("button", { name: "Drinks" }).click();
   await expect(page.getByLabel("Drink category")).toHaveValue("beer");
 
   await page.waitForTimeout(1_500);

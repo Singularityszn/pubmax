@@ -1,7 +1,7 @@
 "use client";
 
 import { Mic, MicOff, ShieldCheck, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -10,6 +10,7 @@ import type { CityId } from "@/lib/cities";
 import { getNightAreasForCity, type NightAreaSlug } from "@/lib/nightAreas";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
+import { shouldWarmMapIntent } from "@/lib/mapWarmup";
 
 type GeneratedStop = { venueId: string; venueName: string };
 
@@ -75,6 +76,20 @@ export function MobilePlanActivation({
     requestRef.current = null;
   }, []);
 
+  useEffect(() => {
+    if (!shouldWarmMapIntent(navigator)) return;
+    const controller = new AbortController();
+    void fetch(`/api/plans/generate?cityId=${encodeURIComponent(cityId)}`, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    }).catch(() => {
+      // This only removes cold-start work from the primary action. Generation
+      // remains fully functional if warmup is unavailable or interrupted.
+    });
+    return () => controller.abort();
+  }, [cityId]);
+
   async function generate() {
     if (requestRef.current) return;
     const controller = new AbortController();
@@ -136,7 +151,9 @@ export function MobilePlanActivation({
         routeTotals: generated.routeTotals,
         endings: generated.endings,
       });
-      onGenerated(generated);
+      // Keep the planner result responsive while the map derives and paints
+      // the route layers. Route activation is non-urgent and remains ordered.
+      startTransition(() => onGenerated(generated));
     } catch (caught) {
       if (controller.signal.aborted) return;
       setError(caught instanceof Error ? caught.message : "PUBMAXX could not build that route.");
@@ -187,7 +204,7 @@ export function MobilePlanActivation({
         <div className="mobilePlannerResult" role="status">
           <div className="mobilePlannerConfidence" data-level={result.confidence.level}>
             <ShieldCheck size={17} aria-hidden="true" />
-            <div><strong>{result.confidence.level === "high" ? "Higher confidence" : result.confidence.level === "medium" ? "Plan with checks" : "Low confidence, fully editable"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Price evidence is incomplete; check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings[0] ? <small>{result.confidence.warnings[0]}</small> : null}</div>
+            <div><strong>{result.confidence.level === "high" ? "Higher confidence" : result.confidence.level === "medium" ? "Plan with checks" : "Low confidence, fully editable"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Price evidence is incomplete; check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Evidence warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal"><strong>{result.routeTotals.estimatedWalkingMinutes} min walk</strong> · {result.routeTotals.straightLineWalkingKm.toFixed(1)} km straight-line</p>
           <div className="mobilePlannerEndings" aria-label="Ending recommendations">

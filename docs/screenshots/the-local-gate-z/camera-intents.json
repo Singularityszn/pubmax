@@ -1,0 +1,9 @@
+{
+  "cameraIntents": [
+    {
+      "kind": "route",
+      "sequence": 1
+    }
+  ],
+  "routeIntents": 1
+}

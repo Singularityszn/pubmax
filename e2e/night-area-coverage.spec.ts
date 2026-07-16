@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("mobile planner explains route-ready and capture coverage", async ({ page }) => {
+test("mobile planner explains planning confidence and evidence warnings", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 
   const response = await page.goto("/plan");
@@ -16,18 +18,17 @@ test("mobile planner explains route-ready and capture coverage", async ({ page }
   await coverage.getByText("Night Area coverage", { exact: true }).click();
 
   await expect(coverage).toContainText(
-    "Route-ready means the required evidence gate is complete and still within its review window.",
+    "Every area can still produce an editable route, with missing evidence shown before you rely on it.",
   );
-  await expect(coverage.getByRole("heading", { name: "Ready to plan now" })).toBeVisible();
-  await expect(coverage.getByRole("heading", { name: "Capture, review, and queue" })).toBeVisible();
+  await expect(coverage.getByRole("heading", { name: "Higher-confidence planning" })).toBeVisible();
+  await expect(coverage.getByRole("heading", { name: "Plan with warnings" })).toBeVisible();
   await expect(coverage.getByText("Clapham", { exact: true })).toBeVisible();
   await expect(coverage.getByText("Route-ready", { exact: true }).first()).toBeVisible();
   await expect(coverage.getByText("Shoreditch", { exact: true })).toBeVisible();
-  await expect(coverage.getByText("Captured", { exact: true }).first()).toBeVisible();
-  await expect(coverage.getByText("Discovered", { exact: true }).first()).toBeVisible();
-  await expect(coverage.getByText("Reviewed", { exact: true }).first()).toBeVisible();
-  await expect(coverage.getByText("Paused", { exact: true })).toBeVisible();
-  await expect(coverage).toContainText("Not route-ready yet — missing opening hours and route feasibility + 2 more.");
+  await expect(coverage.getByText("Plan with warnings", { exact: true }).first()).toBeVisible();
+  await expect(coverage.getByText("Low confidence", { exact: true }).first()).toBeVisible();
+  await expect(coverage.getByText("Review expired", { exact: true })).toBeVisible();
+  await expect(coverage).toContainText("Captured coverage, missing opening hours and route feasibility + 2 more.");
   await expect(coverage.getByRole("link", { name: "Explore Shoreditch pubs on the map" })).toHaveAttribute(
     "href",
     "/map?q=Shoreditch",
@@ -41,6 +42,8 @@ test("mobile planner announces concierge progress while it finds a route", async
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   let releaseGenerate: () => void = () => {};
   const generatePaused = new Promise<void>((resolve) => {
@@ -57,14 +60,21 @@ test("mobile planner announces concierge progress while it finds a route", async
 
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
+  await page.waitForLoadState("networkidle").catch(() => undefined);
 
   const concierge = page.locator(".planComposer__concierge");
-  await page.getByLabel("Describe the night").fill("A calm, affordable night near Clapham");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  const description = page.getByLabel("Describe the night");
+  await description.fill("A calm, affordable night near Clapham");
+  await expect(description).toHaveValue("A calm, affordable night near Clapham");
+  const submit = page.getByRole("button", { name: "Plan my night" });
+  await expect(submit).toBeEnabled();
+  await submit.click();
 
   await expect(concierge).toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("button", { name: "Planning…" })).toBeDisabled();
-  await expect(page.getByRole("status")).toContainText("checking route-ready areas");
+  await expect(page.locator("#plan-concierge-status")).toContainText(
+    "checking confidence and finding grounded stops",
+  );
   releaseGenerate();
   await expect(page.locator(".planComposer__error")).toContainText("The planner is unavailable right now.");
   await expect(concierge).toHaveAttribute("aria-busy", "false");
@@ -74,6 +84,8 @@ test("mobile planner keeps the inferred Night Area context editable", async ({ p
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.route("**/api/plans/generate", async (route) => {
     await route.fulfill({

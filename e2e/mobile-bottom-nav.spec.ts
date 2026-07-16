@@ -33,7 +33,7 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toHaveCSS("opacity", "0");
     await expect(nav).toHaveCSS("pointer-events", "none");
 
-    await page.getByRole("button", { name: "View London map" }).click();
+    await page.getByRole("button", { name: "Close planner" }).click();
     await expect(page.locator(".appShell")).not.toHaveClass(/planning-open/);
     await expect(nav).toHaveCSS("opacity", "1");
   });

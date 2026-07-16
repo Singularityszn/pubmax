@@ -24,6 +24,7 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -52,13 +53,21 @@ test("mobile venue sticky Share and Crawl actions stay tappable in build mode", 
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
 
-  const sheet = page.locator(".mapDrawer.right");
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
-  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  await portal.getByRole("tab", { name: "Stories", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
-  const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
+  const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
+
+  await stickyActions.getByRole("button", { name: /share arnos arms/i }).click();
+  await expect(stickyActions.getByRole("status")).toHaveText("Link copied.");
+  await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-shared-url"))).toContain(
+    `/map?sel=${ARNOS_ARMS_ID}`,
+  );
 
   const crawlButton = stickyActions.getByRole("button", { name: "Crawl" });
   await expect(crawlButton).toHaveAttribute("aria-pressed", "false");
@@ -68,11 +77,6 @@ test("mobile venue sticky Share and Crawl actions stay tappable in build mode", 
   await removeButton.click();
   await expect(crawlButton).toHaveAttribute("aria-pressed", "false");
 
-  await stickyActions.getByRole("button", { name: /share arnos arms/i }).click();
-  await expect(stickyActions.getByRole("status")).toHaveText("Link copied.");
-  await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-shared-url"))).toContain(
-    `/map?sel=${ARNOS_ARMS_ID}`,
-  );
 });
 
 test("mobile sticky Train action opens Last train and the sheet reopens cleanly", async ({
@@ -81,29 +85,33 @@ test("mobile sticky Train action opens Last train and the sheet reopens cleanly"
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
 
-  const sheet = page.locator(".mapDrawer.right");
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
-  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  await portal.getByRole("tab", { name: "Stories", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
-  const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
+  const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
-  const lastTrainTab = page.getByRole("tab", { name: "Last train", exact: true });
+  const lastTrainTab = portal.getByRole("tab", { name: "Last train", exact: true });
   await stickyActions.getByRole("button", { name: "Check last train" }).click();
   await expect(lastTrainTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
+  await expect(portal.locator("#venuePanel-getting-home")).toBeVisible();
   await expect(sheet).toHaveClass(/sheet-full/);
 
-  await page.getByRole("button", { name: "Close pub detail" }).click();
-  await expect(sheet).toHaveCount(0);
+  await portal.getByRole("button", { name: "Close pub detail" }).click();
+  await expect(portal).toHaveCount(0);
 
   await page.reload();
-  await expect(sheet).toHaveClass(/open/);
-  await expect(stickyActions).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute(
+  const reopenedPortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(reopenedPortal).toBeVisible();
+  await expect(reopenedPortal.locator(".mobileSharedSheet")).toHaveClass(/open/);
+  await expect(reopenedPortal.getByRole("toolbar", { name: "Venue actions" })).toBeVisible();
+  await expect(reopenedPortal.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
   );
-  await expect(page.locator("#venuePanel-overview")).toBeVisible();
+  await expect(reopenedPortal.locator("#venuePanel-overview")).toBeVisible();
 });

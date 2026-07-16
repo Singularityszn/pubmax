@@ -37,6 +37,7 @@ test.setTimeout(60_000);
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -133,35 +134,35 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
 
-  const sheet = page.locator(".mapDrawer.right.open");
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveClass(/sheet-half/);
 
-  const closeButton = page.getByRole("button", { name: "Close pub detail" });
+  const closeButton = portal.getByRole("button", { name: "Close pub detail" });
   await expectTapTarget(closeButton, "venue sheet close button");
   await expect(closeButton.locator("svg")).toHaveAttribute("width", "18");
 
-  const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
+  const tablist = portal.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
   await expectNoPageHorizontalOverflow(page);
 
-  for (const { label } of TABS) {
-    const tab = tablist.getByRole("tab", { name: label, exact: true });
-    await tab.scrollIntoViewIfNeeded();
-    await expectTapTarget(tab, `${label} tab`);
-  }
+  await expect(tablist.getByRole("tab")).toHaveCount(TABS.length);
 
   for (const { label, panelId } of TABS) {
     const tab = tablist.getByRole("tab", { name: label, exact: true });
-    await tab.scrollIntoViewIfNeeded();
+    await expectTapTarget(tab, `${label} tab`);
     await tab.click();
 
     await expect(tab).toHaveAttribute("aria-selected", "true");
-    await expect(page.locator(`#${panelId}`)).toBeVisible();
+    await expect(portal.locator(`#${panelId}`)).toBeVisible();
     // The overview intentionally stays at the readable half snap on mobile.
     // The content tabs below are the regression surface: switching among them
     // should expand the sheet and keep the primary command bar reachable.
-    if (label !== "Overview") {
+    if (label === "Overview") {
+      await expect(sheet).toHaveClass(/sheet-half/);
+    } else {
       await expect(sheet).toHaveClass(/sheet-full/);
       await expectPrimaryActions(page);
     }

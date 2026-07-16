@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { mkdir } from "node:fs/promises";
 
 test("completed Plan recap stays inside 320px viewport and explicit discard survives remount", async ({ page, request }) => {
   const startTime = new Date().toISOString();
@@ -6,6 +8,7 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   const venues = (await venueResponse.json() as Array<{ id: string; name: string }>).slice(0, 3);
   expect(venues).toHaveLength(3);
   const createdResponse = await request.post("/api/plans", {
+    headers: { "idempotency-key": randomUUID() },
     data: {
       title: "Thursday orbit",
       creatorName: "Mobile host",
@@ -44,6 +47,11 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   expect(box!.y).toBeGreaterThanOrEqual(0);
   expect(box!.y + box!.height).toBeLessThanOrEqual(568);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  if (process.env.PUBMAX_GATE_Z_SHOTS) {
+    const directory = "docs/screenshots/the-local-gate-z";
+    await mkdir(directory, { recursive: true });
+    await page.screenshot({ path: `${directory}/private-recap-320x568-light.png` });
+  }
 
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);

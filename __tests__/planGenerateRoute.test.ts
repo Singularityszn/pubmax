@@ -6,9 +6,16 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   return { ...actual, isLimited: async () => false };
 });
 
-import { POST } from "@/app/api/plans/generate/route";
+import { GET, POST } from "@/app/api/plans/generate/route";
 
 describe("POST /api/plans/generate", () => {
+  it("warms stable planning data without creating a plan", async () => {
+    const response = await GET(new Request("http://localhost/api/plans/generate?cityId=london"));
+    expect(response.status).toBe(204);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.text()).toBe("");
+  });
+
   it("returns an explained three-stop suggestion without creating a Plan", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",

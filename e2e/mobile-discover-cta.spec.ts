@@ -41,14 +41,11 @@ test("mobile discover Plan tonight card opens a mapped crawl on the map", async 
     )
     .toBeLessThanOrEqual(1);
 
-  const mappedRouteChip = page.locator(".mappedRouteChip");
-  await expect(mappedRouteChip).toContainText(/\d+ stops mapped/, { timeout: 20_000 });
-
-  const mappedOrPlannerState = await page
-    .locator(".mappedRouteChip, .mapDrawer.left.open .routePanel")
-    .count();
-  expect(
-    mappedOrPlannerState,
-    "Discover handoff should leave a mapped crawl chip or an open planner route panel",
-  ).toBeGreaterThan(0);
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+  const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+  if ((await planner.count()) === 0) await page.locator(".mobilePlanActivation").click();
+  await expect(planner).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
+  await expect(planner.locator(".routePanel")).toBeVisible();
+  await expect.poll(() => planner.locator("ol.routeList > li").count()).toBeGreaterThan(0);
 });

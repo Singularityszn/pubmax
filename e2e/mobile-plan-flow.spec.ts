@@ -51,13 +51,13 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
 
   const contextControls = page.locator(".planComposer__context label");
   const contextControlCount = await contextControls.count();
-  expect(contextControlCount).toBe(5);
+  expect(contextControlCount).toBe(7);
   for (let index = 0; index < contextControlCount; index += 1) {
     await expectTouchHeight(contextControls.nth(index));
   }
   const editableContextControls = page.locator(".planComposer__context select, .planComposer__context input");
   const editableContextControlCount = await editableContextControls.count();
-  expect(editableContextControlCount).toBe(5);
+  expect(editableContextControlCount).toBe(7);
   for (let index = 0; index < editableContextControlCount; index += 1) {
     await expectTouchHeight(editableContextControls.nth(index));
   }
@@ -71,7 +71,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await expect(page.locator("#plan-route-status")).toContainText("Route refreshed");
 
   await page.getByText("Night Area coverage", { exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Ready to plan now" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Higher-confidence planning" })).toBeVisible();
   await expectTouchHeight(page.getByRole("link", { name: "Explore Clapham pubs on the map" }));
   await expectNoHorizontalOverflow(page);
 

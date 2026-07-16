@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-const VENUE_ID = "venue-xjf3n0";
+// Stable Prospect of Whitby seed from the slim keyless index.
+const VENUE_ID = "venue-16pnwmm";
 const USER_LOCATION = { latitude: 51.6074, longitude: -0.1278 };
 
 test.use({
@@ -18,6 +19,8 @@ test("keeps location private, supports forgetting, and shows useful routes", asy
   let journeyRequests = 0;
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.route("**/api/citymcp/journey", async (route) => {
     const request = route.request();
@@ -53,9 +56,15 @@ test("keeps location private, supports forgetting, and shows useful routes", asy
 
   const response = await page.goto(`/map?sel=${VENUE_ID}`);
   expect(response?.status()).toBe(200);
-  await page.getByRole("tab", { name: "Overview" }).click();
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible({ timeout: 45_000 });
+  await expect(venueSheet.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 
-  const gettingThere = page.getByRole("region", { name: "Getting there" });
+  const gettingThere = venueSheet.getByRole("region", { name: "Getting there" });
   const shareLocation = page.getByRole("button", {
     name: "Share location for travel times",
   });
@@ -97,6 +106,8 @@ test("announces location progress and retries a failed route request", async ({ 
   let journeyRequests = 0;
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.route("**/api/citymcp/journey", async (route) => {
     journeyRequests += 1;
@@ -119,8 +130,10 @@ test("announces location progress and retries a failed route request", async ({ 
   });
 
   await page.goto(`/map?sel=${VENUE_ID}`);
-  await page.getByRole("tab", { name: "Overview" }).click();
-  const gettingThere = page.getByRole("region", { name: "Getting there" });
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible({ timeout: 45_000 });
+  const gettingThere = venueSheet.getByRole("region", { name: "Getting there" });
   await gettingThere
     .getByRole("button", { name: "Share location for travel times" })
     .click();

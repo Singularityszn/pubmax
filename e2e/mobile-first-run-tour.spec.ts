@@ -49,6 +49,13 @@ test.describe("mobile first-run tour", () => {
   });
 
   test("does not cover the dedicated You or Pub Pal onboarding", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx.pub-pal-route-activation.v1", JSON.stringify({
+        version: 1,
+        activatedAt: new Date().toISOString(),
+      }));
+    });
     await page.goto("/u/you", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("dialog", { name: "PUBMAXXING" })).toHaveCount(0);
 
@@ -59,13 +66,13 @@ test.describe("mobile first-run tour", () => {
 
     const geometry = await page.evaluate(() => {
       const actions = document.querySelector(".palOnboardingActions")?.getBoundingClientRect();
-      const tabs = document.querySelector('nav[aria-label="Primary"]')?.getBoundingClientRect();
       return {
         overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        gap: actions && tabs ? tabs.top - actions.bottom : -1,
+        actionsRight: actions?.right ?? Number.POSITIVE_INFINITY,
       };
     });
+    await expect(page.locator(".mobileTabBar")).toBeHidden();
     expect(geometry.overflow).toBeLessThanOrEqual(1);
-    expect(geometry.gap).toBeGreaterThanOrEqual(8);
+    expect(geometry.actionsRight).toBeLessThanOrEqual(390);
   });
 });

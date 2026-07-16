@@ -152,6 +152,21 @@ function missingContextEvidence(context: NightContext): string[] {
 	return [...missing];
 }
 
+/**
+ * Best-effort planning warmup. It loads only the stable public venue index and
+ * never creates a plan, records a location, or consumes a generation budget.
+ */
+export async function GET(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  const cityId = parseCityId(url.searchParams.get("cityId") ?? "") ?? DEFAULT_CITY_ID;
+  await loadConciergeVenues(cityId);
+  baselineTonight(Date.now());
+  return new Response(null, {
+    status: 204,
+    headers: { "cache-control": "no-store" },
+  });
+}
+
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return jsonNoStore(publicError("Malformed request body.", "MALFORMED_REQUEST"), { status: 400 }); }

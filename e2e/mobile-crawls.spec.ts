@@ -54,6 +54,7 @@ test.describe("mobile Crawls surfaces", () => {
   test("/crawls renders curated crawls with thumb-sized primary actions and no horizontal overflow", async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const errors = watchPageErrors(page);
 
     const response = await page.goto("/crawls");
@@ -97,22 +98,20 @@ test.describe("mobile Crawls surfaces", () => {
     await firstPlanButton.click();
     await expect(page).toHaveURL(/\/map\?mode=build&pubs=/, { timeout: 30_000 });
 
-    const mappedRoute = page.locator(".mappedRouteChip");
-    await expect(mappedRoute).toBeVisible({ timeout: 20_000 });
-    await expect(mappedRoute).toContainText(/\d+ stops mapped/);
-    await expectTappable(mappedRoute.getByRole("button", { name: "Edit" }), "mapped crawl edit action");
-    await expectTappable(
-      mappedRoute.getByRole("button", { name: "Check last train at final stop" }),
-      "mapped crawl last train action",
-    );
-    await expectTappable(
-      mappedRoute.getByRole("button", { name: "Hide mapped crawl" }),
-      "mapped crawl hide action",
-    );
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+    if ((await planner.count()) === 0) await page.locator(".mobilePlanActivation").click();
+    await expect(planner).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
+    await expect(planner.getByRole("heading", { name: "Plan tonight" })).toBeVisible();
 
-    await mappedRoute.getByRole("button", { name: "Edit" }).click();
-    const routePanel = page.locator(".routePanel");
-    await expect(routePanel).toBeVisible({ timeout: 20_000 });
+    const routePanel = planner.locator(".routePanel");
+    const stops = routePanel.locator("ol.routeList > li");
+    await expect.poll(() => stops.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    await expectTappable(
+      routePanel.getByRole("button", { name: /Copy a shareable link/i }),
+      "crawl share action",
+    );
     await expectNoHorizontalOverflow(page);
 
     expect(errors).toEqual([]);

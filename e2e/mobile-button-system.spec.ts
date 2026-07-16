@@ -11,6 +11,10 @@ async function setTheme(page: Page, theme: (typeof THEMES)[number]): Promise<voi
   await page.addInitScript((value) => {
     window.localStorage.setItem("pubmax-theme", value);
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmaxx.pub-pal-route-activation.v1", JSON.stringify({
+      version: 1,
+      activatedAt: new Date().toISOString(),
+    }));
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   }, theme);
 }
@@ -19,6 +23,7 @@ for (const viewport of DEVICES) {
   for (const theme of THEMES) {
     test(`${viewport.width}px ${theme}: landing and Pub Pal controls stay uniform and clear`, async ({ page }) => {
       await page.setViewportSize(viewport);
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await setTheme(page, theme);
       await page.goto("/");
 
@@ -45,19 +50,19 @@ for (const viewport of DEVICES) {
 
       const palGeometry = await page.evaluate(() => {
         const actions = document.querySelector(".palOnboardingActions")?.getBoundingClientRect();
-        const tabs = document.querySelector('nav[aria-label="Primary"]')?.getBoundingClientRect();
         const pal = document.querySelector(".palExperience");
         const styles = pal ? getComputedStyle(pal) : null;
         const root = getComputedStyle(document.documentElement);
         return {
-          gap: actions && tabs ? tabs.top - actions.bottom : -1,
+          actionsRight: actions?.right ?? Number.POSITIVE_INFINITY,
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           accent: styles?.getPropertyValue("--pal-accent").trim(),
           brandAccent: root.getPropertyValue("--brass").trim(),
         };
       });
 
-      expect(palGeometry.gap).toBeGreaterThanOrEqual(8);
+      await expect(page.locator(".mobileTabBar")).toBeHidden();
+      expect(palGeometry.actionsRight).toBeLessThanOrEqual(viewport.width);
       expect(palGeometry.overflow).toBeLessThanOrEqual(1);
       expect(palGeometry.accent).toBe(palGeometry.brandAccent);
 

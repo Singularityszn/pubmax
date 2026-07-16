@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mkdir } from "node:fs/promises";
 
 test("route-first Pal chooser shows all six companions and restores its five-step draft at 320px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
@@ -19,6 +20,12 @@ test("route-first Pal chooser shows all six companions and restores its five-ste
 
   for (const species of ["Greyhound", "Black Cat", "Fox", "Pigeon", "Badger", "Corgi"]) {
     await expect(page.getByRole("button", { name: new RegExp(`^${species}`) })).toBeVisible();
+  }
+  if (process.env.PUBMAX_GATE_Z_SHOTS) {
+    const directory = "docs/screenshots/the-local-gate-z";
+    await mkdir(directory, { recursive: true });
+    await page.getByRole("button", { name: /^Greyhound/ }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${directory}/pal-cast-320x568-light.png` });
   }
   await page.getByRole("button", { name: /^Pigeon/ }).click();
   await page.getByRole("textbox", { name: "Name" }).fill("Beacon");
