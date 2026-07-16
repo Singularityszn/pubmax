@@ -64,7 +64,14 @@ export type DonutClusterSync = {
 export function createDonutClusterSync(
   map: maplibregl.Map,
   cinematic: (options: maplibregl.EaseToOptions) => void,
+  { enabled = true }: { enabled?: boolean } = {},
 ): DonutClusterSync {
+  // Mobile Safari is especially sensitive to DOM markers being reconciled
+  // while vector-source tiles settle. The permanent MapLibre cluster/count
+  // layers already carry the same interaction and remain GPU-composited, so
+  // mobile/coarse-pointer callers disable this decorative DOM enhancement.
+  if (!enabled) return { destroy: () => {} };
+
   const markers = new Map<number, MarkerEntry>();
   let donutsActive = false;
   let lastRenderAt = 0;
