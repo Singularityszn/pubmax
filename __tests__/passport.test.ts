@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildPassport, buildBoroughPassport, filterDropsInBorough } from "@/lib/passport";
+import type { BadgeEventDefinition } from "@/lib/badgeEvents";
 import type { ProfileDrop } from "@/lib/profiles";
 
 // Pure aggregation for the Pint Passport render (user story 29). No DOM/network:
@@ -11,6 +12,21 @@ import type { ProfileDrop } from "@/lib/profiles";
 function drop(overrides: Partial<ProfileDrop> = {}): ProfileDrop {
   return { handle: "ken", venueId: "v1", priceGbp: 5, ...overrides };
 }
+
+const boroughStampCard: BadgeEventDefinition = {
+  id: "borough-stamp-card-test",
+  label: "Borough Stamp Card",
+  description: "Visit three boroughs during the event window.",
+  badgeLabel: "Borough Explorer",
+  startsAt: "2026-07-01T00:00:00.000Z",
+  endsAt: "2026-08-01T00:00:00.000Z",
+  criteria: {
+    kind: "distinct-drop-field",
+    field: "borough",
+    target: 3,
+    progressLabel: "boroughs",
+  },
+};
 
 describe("buildPassport — first-run / empty", () => {
   it("is fully zeroed and isEmpty for no drops and no counts", () => {
@@ -93,6 +109,53 @@ describe("buildPassport — aggregation", () => {
     expect(ids).toContain("cheap-legend");
     // Every returned badge is earned (the card shows accomplishments, not a ladder).
     expect(p.badges.every((b) => b.earned)).toBe(true);
+  });
+
+  it("adds opted-in active seasonal progress and earned event badges from the same drops", () => {
+    const p = buildPassport(
+      [
+        drop({ borough: "Camden", createdAt: "2026-07-03T18:00:00.000Z" }),
+        drop({ borough: "Hackney", createdAt: "2026-07-04T18:00:00.000Z" }),
+        drop({ borough: "Southwark", createdAt: "2026-07-05T18:00:00.000Z" }),
+      ],
+      {
+        badgeEvents: {
+          events: [boroughStampCard],
+          now: "2026-07-10T12:00:00.000Z",
+          optedInEventIds: [boroughStampCard.id],
+        },
+      },
+    );
+
+    expect(p.badgeEvents).toHaveLength(1);
+    expect(p.badgeEvents[0]).toMatchObject({
+      current: 3,
+      target: 3,
+      earned: true,
+      label: "3 of 3 boroughs",
+    });
+    expect(p.badges.map((badge) => badge.id)).toContain("event-borough-stamp-card-test");
+  });
+
+  it("suppresses seasonal progress and event badges in legacy mode", () => {
+    const p = buildPassport(
+      [
+        drop({ borough: "Camden", createdAt: "2026-07-03T18:00:00.000Z" }),
+        drop({ borough: "Hackney", createdAt: "2026-07-04T18:00:00.000Z" }),
+        drop({ borough: "Southwark", createdAt: "2026-07-05T18:00:00.000Z" }),
+      ],
+      {
+        badgeEvents: {
+          events: [boroughStampCard],
+          now: "2026-07-10T12:00:00.000Z",
+          optedInEventIds: [boroughStampCard.id],
+          legacyMode: true,
+        },
+      },
+    );
+
+    expect(p.badgeEvents).toEqual([]);
+    expect(p.badges.map((badge) => badge.id)).not.toContain("event-borough-stamp-card-test");
   });
 });
 
