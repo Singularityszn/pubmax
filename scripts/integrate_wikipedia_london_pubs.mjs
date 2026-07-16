@@ -138,11 +138,17 @@ function nextAppPriceId(existing) {
 
 const FETCH_TIMEOUT_MS = 30000;
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+// The abort timer must stay armed until the RESPONSE BODY is consumed, not just
+// until headers arrive — otherwise res.json()/res.text() can hang indefinitely
+// past the timeout. Callers that read the body pass a `consume(res)` callback so
+// the read happens inside the timeout window; the timer only clears once it
+// resolves.
+async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS, consume) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return consume ? await consume(res) : res;
   } finally {
     clearTimeout(timer);
   }
@@ -150,17 +156,25 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS)
 
 async function fetchJson(url, retries = 4) {
   for (let attempt = 0; attempt <= retries; attempt += 1) {
-    const res = await fetchWithTimeout(url, {
-      headers: {
-        "user-agent": "pubmax-wikipedia-integrate/0.1 (contact: demo@pubmax.local)",
+    const result = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          "user-agent": "pubmax-wikipedia-integrate/0.1 (contact: demo@pubmax.local)",
+        },
       },
-    });
-    if (res.status === 429 && attempt < retries) {
+      FETCH_TIMEOUT_MS,
+      async (res) => {
+        if (res.status === 429 && attempt < retries) return { retry: true };
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return { data: await res.json() };
+      },
+    );
+    if (result.retry) {
       await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
       continue;
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return result.data;
   }
   throw new Error("HTTP 429");
 }
@@ -282,27 +296,36 @@ async function writeSupabase(norm, facts) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key || facts.length === 0) return;
   try {
-    const res = await fetchWithTimeout(`${base.replace(/\/$/, "")}/rest/v1/pub_heritage`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        apikey: key,
-        authorization: `Bearer ${key}`,
-        prefer: "resolution=merge-duplicates",
+    const failure = await fetchWithTimeout(
+      `${base.replace(/\/$/, "")}/rest/v1/pub_heritage`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          apikey: key,
+          authorization: `Bearer ${key}`,
+          prefer: "resolution=merge-duplicates",
+        },
+        body: JSON.stringify(
+          facts.map((f) => ({
+            venue_key: norm,
+            source: f.source,
+            fact: f.fact,
+            source_ref: f.sourceRef ?? null,
+          })),
+        ),
       },
-      body: JSON.stringify(
-        facts.map((f) => ({
-          venue_key: norm,
-          source: f.source,
-          fact: f.fact,
-          source_ref: f.sourceRef ?? null,
-        })),
-      ),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
+      FETCH_TIMEOUT_MS,
+      async (res) => {
+        // Read the error body inside the timeout window so a slow/hung body
+        // can't outlive the abort timer.
+        if (res.ok) return null;
+        return { status: res.status, detail: await res.text().catch(() => "") };
+      },
+    );
+    if (failure) {
       console.warn(
-        `writeSupabase: pub_heritage upsert for "${norm}" failed: HTTP ${res.status}${detail ? ` — ${detail.slice(0, 200)}` : ""}`,
+        `writeSupabase: pub_heritage upsert for "${norm}" failed: HTTP ${failure.status}${failure.detail ? ` — ${failure.detail.slice(0, 200)}` : ""}`,
       );
     }
   } catch (err) {
