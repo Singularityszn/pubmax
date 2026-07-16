@@ -85,7 +85,6 @@ export function createPinRevealCoordinator({
     unsubscribeRender = subscribeRender(() => scheduleTileReveal("tiles"));
     unsubscribeIdle = subscribeIdle(() => scheduleTileReveal("idle"));
     timer = setTimer(() => reveal("timeout"), timeoutMs);
-    scheduleTileReveal("tiles");
     return armedGeneration;
   };
 

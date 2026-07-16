@@ -3,6 +3,13 @@ import sharp from "sharp";
 
 test.describe.configure({ mode: "serial" });
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+});
+
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
 // Chromium with SwiftShader (a software GL implementation) so a real WebGL2
 // context exists even on a GPU-less CI box. Where smoke.spec.ts asserts
@@ -155,10 +162,6 @@ test("/map uses the bounded pin fallback when basemap tiles are delayed", async 
 test("/map reuses granted location after an explicit Near me action", async ({ page, context }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmax-tour-v1-done", "1");
-    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-  });
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 51.513, longitude: -0.125 });
   await page.goto("/map");

@@ -117,6 +117,7 @@ describe("pin reveal coordinator", () => {
     const h = harness();
     h.setTilesLoaded(true);
     h.coordinator.arm();
+    h.fireRender();
     const staleFrame = [...h.frames.values()][0];
     const staleTimer = [...h.timers.values()][0];
 
@@ -128,6 +129,19 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([]);
     expect(h.renderListeners.size).toBe(0);
     expect(h.idleListeners.size).toBe(0);
+  });
+
+  it("does not trust the pre-render tile-ready value after a style load", () => {
+    const h = harness();
+    h.setTilesLoaded(true);
+    h.coordinator.arm();
+
+    expect(h.frames.size).toBe(0);
+    expect(h.reveals).toEqual([]);
+
+    h.fireRender();
+    h.flushFrame();
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
   });
 
   it("reveals from idle only after tile readiness and still does so once", () => {
