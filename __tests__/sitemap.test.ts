@@ -12,7 +12,8 @@ import type { MetadataRoute } from "next";
 
 // The number of static hub URLs the generator emits (the fixed list in
 // app/sitemap.ts). Kept here so a change to that list is a conscious test edit.
-const STATIC_HUB_COUNT = 10;
+// Includes /pint-index (Wave S3.3 — the London Pint Index hub).
+const STATIC_HUB_COUNT = 11;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is

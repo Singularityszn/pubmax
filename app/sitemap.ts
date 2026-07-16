@@ -115,6 +115,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/", priority: 1.0, changeFrequency: "daily", lastModified: now },
     { path: "/map", priority: 0.9, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
+    { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pricesModified },
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
     { path: "/discover", priority: 0.7, changeFrequency: "weekly", lastModified: now },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },

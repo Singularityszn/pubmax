@@ -4,7 +4,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import JsonLd from "@/components/seo/JsonLd";
+import FactBlock from "@/components/seo/FactBlock";
+import FaqBlock from "@/components/seo/FaqBlock";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { pintFactStats, faqItems, faqPageJsonLd } from "@/lib/pintFacts";
+import {
+  dataFileModified,
+  formatMonthYear,
+  formatObservedDate,
+  PINT_DATASET_FILE,
+} from "@/lib/dataFreshness";
 import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
 import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
@@ -15,6 +24,7 @@ import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
 
 import "./borough.css";
+import "@/components/seo/factLayer.css";
 
 // Borough discovery / "night-out chapter" page: /borough/[slug]. A SERVER
 // component (cc_plan2 §14/§25, story 28) — it reads the bundled dataset via
@@ -189,12 +199,31 @@ export default async function BoroughPage({ params }: PageProps) {
   // when the borough has none — the section then renders nothing (no empty box).
   const heritage = await loadBoroughHeritage(slug);
 
+  // Programmatic fact layer (Wave S3.1/S3.2): stats derived from the tracked
+  // pint prices already loaded above, stamped with the dataset's observation
+  // date (honest freshness — never "live"). FAQ items skip any question whose
+  // answer data is missing, so a price-less borough renders neither block.
+  const observedAt = await dataFileModified(PINT_DATASET_FILE);
+  const boroughSlug = slugifyBorough(name);
+  const factStats = pintFactStats(pubs, name, boroughSlug);
+  const faq = faqItems(factStats, {
+    monthYear: formatMonthYear(observedAt),
+    year: String(observedAt.getFullYear()),
+    observedDate: formatObservedDate(observedAt),
+  });
+  const faqLd = faqPageJsonLd(faq);
+  const jsonLdGraph = [
+    ...boroughJsonLd(name, boroughSlug, pubs),
+    ...(faqLd ? [faqLd] : []),
+  ];
+
+
   // Per-request CSP nonce (proxy.ts) for the JSON-LD block below.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <main className="boroughPage">
-      <JsonLd data={boroughJsonLd(name, slugifyBorough(name), pubs)} nonce={nonce} />
+      <JsonLd data={jsonLdGraph} nonce={nonce} />
       <SiteNav active="borough" />
 
       <header className="boroughHead">
@@ -387,6 +416,45 @@ export default async function BoroughPage({ params }: PageProps) {
           </p>
         </section>
       ) : null}
+
+      <FactBlock
+        stats={factStats}
+        monthYear={formatMonthYear(observedAt)}
+        observedDate={formatObservedDate(observedAt)}
+        headingId="boroughFactHeading"
+        title={`Pint prices in ${name}, by the numbers`}
+      />
+
+      <FaqBlock
+        items={faq}
+        headingId="boroughFaqHeading"
+        title={`Pint prices in ${name} — questions`}
+      />
+
+      {/* Internal cross-links (Wave S3.5): let crawlers walk borough → map →
+          Pint Index → historic via plain hrefs. Individual /ledger permalinks
+          already sit in the pubs table above. */}
+      <nav className="factLinks" aria-labelledby="boroughLinksHeading">
+        <p className="factLinksTitle" id="boroughLinksHeading">
+          Explore more
+        </p>
+        <ul className="factLinksList">
+          <li>
+            <Link href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
+          </li>
+          <li>
+            <Link href="/pint-index">London Pint Index</Link>
+          </li>
+          {heritage ? (
+            <li>
+              <Link href="/historic">Historic pubs</Link>
+            </li>
+          ) : null}
+          <li>
+            <Link href="/borough">All boroughs</Link>
+          </li>
+        </ul>
+      </nav>
 
       <p className="boroughFootnote">
         Every pint has a story. <Link href="/borough">See every borough →</Link>
