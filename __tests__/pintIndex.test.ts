@@ -118,3 +118,28 @@ describe("leagueTableToCsv", () => {
     expect(row).toContain('"The ""Ivy"" Arms"');
   });
 });
+
+describe("borough validation (SEO integrity)", () => {
+  it("excludes venues whose primaryBorough is not a real borough", () => {
+    const mixed = [
+      v({ id: "1", name: "Real", cheapestPrice: 5, primaryBorough: "Camden" }),
+      v({ id: "2", name: "SohoPub", cheapestPrice: 3, primaryBorough: "Soho" }),
+      v({ id: "3", name: "MayfairPub", cheapestPrice: 9, primaryBorough: "Mayfair" }),
+      v({ id: "4", name: "NoArea", cheapestPrice: 4, primaryBorough: "" }),
+    ];
+    const rows = buildLeagueTable(mixed);
+    expect(rows.map((r) => r.name)).toEqual(["Camden"]);
+    // The CSV can therefore never emit a non-borough row.
+    const csv = leagueTableToCsv(rows);
+    expect(csv).not.toMatch(/Soho|Mayfair/);
+  });
+
+  it("normalises ceremonial prefixes into one borough row", () => {
+    const rows = buildLeagueTable([
+      v({ id: "1", name: "A", cheapestPrice: 5, primaryBorough: "Greenwich" }),
+      v({ id: "2", name: "B", cheapestPrice: 6, primaryBorough: "Royal Borough of Greenwich" }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ name: "Greenwich", totalPubCount: 2 });
+  });
+});

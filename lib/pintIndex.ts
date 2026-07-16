@@ -5,13 +5,13 @@
 // never disagree.
 //
 // Provenance: every figure is DERIVED from the same per-borough stats the
-// borough pages show (lib/pintFacts.pintFactStats over lib/leaderboard.venueArea
-// buckets). Nothing invented; boroughs with no priced pub are still listed with
-// null figures so coverage is honest, and sort them last.
+// borough pages show (lib/pintFacts.pintFactStats over validated
+// lib/boroughs.canonicalBorough buckets — real boroughs only, never
+// neighbourhood labels). Nothing invented; boroughs with no priced pub are
+// still listed with null figures so coverage is honest, and sort them last.
 
 import type { Venue } from "@/lib/venues";
-import { venueArea } from "@/lib/leaderboard";
-import { slugifyBorough } from "@/lib/boroughs";
+import { canonicalBorough, slugifyBorough } from "@/lib/boroughs";
 import { pintFactStats, type PintFactStats } from "@/lib/pintFacts";
 
 export type LeagueRow = {
@@ -35,9 +35,12 @@ export function buildLeagueTable(venues: Venue[]): LeagueRow[] {
   const byBorough = new Map<string, Venue[]>();
   const displayName = new Map<string, string>();
   for (const venue of venues) {
-    const name = venueArea(venue);
+    // Only real boroughs (validated primaryBorough) may appear as league rows;
+    // venues carrying a neighbourhood label (Soho, Mayfair) or nothing are
+    // excluded rather than presented as boroughs. See lib/boroughs.ts.
+    const name = canonicalBorough(venue);
+    if (!name) continue;
     const slug = slugifyBorough(name);
-    if (!slug) continue;
     if (!byBorough.has(slug)) {
       byBorough.set(slug, []);
       displayName.set(slug, name);

@@ -1,15 +1,58 @@
 import type { Venue } from "@/lib/venues";
-import { venueArea } from "@/lib/leaderboard";
 
 // Pure, deterministic helpers behind the borough discovery pages (cc_plan2
-// §14/§25). Locals talk about pubs by area — Camden, Soho, Hackney — so each
-// borough gets a server-rendered, shareable page. Everything here is a plain
-// transform over a Venue[] (no fetch, no React, no side effects) so it can be
-// unit-tested directly against tiny fixtures (see __tests__/boroughs.test.ts).
+// §14/§25). Each London borough gets a server-rendered, shareable page.
+// Everything here is a plain transform over a Venue[] (no fetch, no React, no
+// side effects) so it can be unit-tested directly against tiny fixtures (see
+// __tests__/boroughs.test.ts).
 //
-// The borough name is resolved through leaderboard.venueArea, which already
-// carries the app's canonical primaryBorough → visibleBorough → UNKNOWN_AREA
-// fallback, so a sparse row is grouped, never dropped.
+// Integrity rule (SEO cleanup): anything these helpers label a "borough" must
+// BE one. Names resolve through canonicalBorough() below — validated against
+// the 33 real Greater London boroughs — never through the map UI's loose
+// venueArea() fallback, which happily returns neighbourhoods (Soho, Mayfair,
+// Covent Garden) and single-letter junk from visibleBoroughs[0].
+
+/**
+ * The 32 London boroughs + City of London — the same canonical names carried
+ * by data/london_boroughs_simplified.json (the point-in-polygon source that
+ * assigns primary_borough at build time). __tests__/boroughs.test.ts asserts
+ * this list matches that GeoJSON exactly.
+ */
+export const LONDON_BOROUGHS: readonly string[] = [
+  "Barking and Dagenham",
+  "Barnet",
+  "Bexley",
+  "Brent",
+  "Bromley",
+  "Camden",
+  "City of London",
+  "Croydon",
+  "Ealing",
+  "Enfield",
+  "Greenwich",
+  "Hackney",
+  "Hammersmith and Fulham",
+  "Haringey",
+  "Harrow",
+  "Havering",
+  "Hillingdon",
+  "Hounslow",
+  "Islington",
+  "Kensington and Chelsea",
+  "Kingston upon Thames",
+  "Lambeth",
+  "Lewisham",
+  "Merton",
+  "Newham",
+  "Redbridge",
+  "Richmond upon Thames",
+  "Southwark",
+  "Sutton",
+  "Tower Hamlets",
+  "Waltham Forest",
+  "Wandsworth",
+  "Westminster",
+] as const;
 
 export type BoroughSummary = {
   slug: string;
@@ -47,15 +90,37 @@ export function boroughFromSlug(slug: string, venues: Venue[]): string | null {
   return null;
 }
 
-// The distinct borough display names present in the dataset, in first-seen
-// order. Deduped case-insensitively by slug so "Camden"/"camden" don't split.
+// Canonical name lookup by slug, built once.
+const CANONICAL_BY_SLUG = new Map(
+  LONDON_BOROUGHS.map((name) => [slugifyBorough(name), name]),
+);
+
+/**
+ * The venue's real borough — its primaryBorough (assigned by point-in-polygon
+ * at build time), validated against LONDON_BOROUGHS — or null when the record
+ * carries something else (a neighbourhood like Soho/Mayfair, "London", or
+ * nothing). Ceremonial prefixes ("Royal Borough of Greenwich", "London
+ * Borough of Camden") normalise to the canonical name; anything that isn't a
+ * borough is null, never remapped by guesswork. Deliberately NO
+ * visibleBoroughs fallback — that field holds neighbourhood labels and junk.
+ */
+export function canonicalBorough(venue: Venue): string | null {
+  const raw = venue.primaryBorough?.trim();
+  if (!raw) return null;
+  const stripped = raw.replace(/^(?:royal|london)\s+borough\s+of\s+/i, "");
+  return CANONICAL_BY_SLUG.get(slugifyBorough(stripped)) ?? null;
+}
+
+// The distinct canonical borough names present in the dataset, in first-seen
+// order. Venues without a valid borough are skipped, not invented.
 function boroughNames(venues: Venue[]): string[] {
   const seen = new Set<string>();
   const names: string[] = [];
   for (const venue of venues) {
-    const name = venueArea(venue);
+    const name = canonicalBorough(venue);
+    if (!name) continue;
     const key = slugifyBorough(name);
-    if (!key || seen.has(key)) continue;
+    if (seen.has(key)) continue;
     seen.add(key);
     names.push(name);
   }
@@ -72,9 +137,9 @@ export function listBoroughs(venues: Venue[]): BoroughSummary[] {
   >();
 
   for (const venue of venues) {
-    const name = venueArea(venue);
+    const name = canonicalBorough(venue);
+    if (!name) continue;
     const slug = slugifyBorough(name);
-    if (!slug) continue;
     const entry = byKey.get(slug) ?? { name, pubCount: 0, cheapestGbp: null };
     entry.pubCount += 1;
     const price = venue.cheapestPrice;
@@ -99,7 +164,10 @@ export function pubsInBorough(venues: Venue[], slug: string): Venue[] {
   const target = slugifyBorough(slug);
   if (!target) return [];
   return venues
-    .filter((venue) => slugifyBorough(venueArea(venue)) === target)
+    .filter((venue) => {
+      const name = canonicalBorough(venue);
+      return name !== null && slugifyBorough(name) === target;
+    })
     .sort((a, b) => {
       const left = a.cheapestPrice ?? Number.POSITIVE_INFINITY;
       const right = b.cheapestPrice ?? Number.POSITIVE_INFINITY;

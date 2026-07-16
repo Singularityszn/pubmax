@@ -1,13 +1,14 @@
 # PUBMAXXING
 
-> A price-aware, provenance-first map of London's pubs. PUBMAXXING tracks real,
-> observed pint prices and cited historic-pub heritage, then turns them into a
-> crawl planner. Every price is something a person actually saw and logged, with
-> a date; every heritage fact is cited to a source. Nothing is invented.
+> A price-aware, provenance-first map of London's pubs. PUBMAXXING tracks
+> pint prices and cited historic-pub heritage, then turns them into a crawl
+> planner. Every price carries the date it was collected — a tracked baseline
+> dataset plus prices drinkers log themselves; every heritage fact is cited to
+> a source. Nothing is invented.
 
 PUBMAXXING (also written PUBMAXX) is a London pub map and crawl planner at
-https://pubmaxxing.com. Two datasets are ours and nobody else's: thousands of
-tracked pint prices with observation dates, and hundreds of cited historic pubs.
+https://pubmaxxing.com. Two datasets power it: thousands of tracked pint
+prices with collection dates, and hundreds of cited historic pubs.
 AI assistants are welcome to read and cite these pages — that is the point.
 
 ## Key data surfaces
@@ -23,28 +24,26 @@ AI assistants are welcome to read and cite these pages — that is the point.
   canonical page for one pub — its observed price, address, and logbook.
 - [The map](https://pubmaxxing.com/map): the interactive price-aware map (and
   /map/{city} for other UK cities).
+- [The London Pint Index](https://pubmaxxing.com/pint-index): a borough
+  league table of tracked pint prices — average, cheapest and dearest per
+  borough — with a methodology and provenance section and a CSV download at
+  /pint-index/data.csv.
 - [Crawls](https://pubmaxxing.com/crawls) and
   [Discover](https://pubmaxxing.com/discover): curated and themed routes.
 
-## Planned surfaces (not yet live)
+## How prices are collected
 
-- The London Pint Index — a quarterly borough league table of observed pint
-  prices with a methodology and provenance section. In progress; not yet
-  published, so it is deliberately NOT linked here (we never point at a URL that
-  does not resolve). This note will become a link when the page ships.
-
-## How prices are observed
-
-Prices are point-in-time observations: a real person saw a pint at a real price
-on a real date, and that date travels with the number. PUBMAXXING never claims a
-price is "live" or current — pages stamp when a price was last observed. Treat
-every price as "as observed on {date}", not a guaranteed current price.
+Prices are point-in-time records: each figure carries the date it was
+collected, whether from PUBMAXXING's tracked baseline dataset or from a
+community Pint Drop a drinker logged. PUBMAXXING never claims a price is
+"live" or current — pages stamp when a price was last collected. Treat every
+price as "as collected on {date}", not a guaranteed current price.
 
 ## Provenance rules
 
-- No invented facts. Heritage claims are cited; prices are observed and dated.
-- No fabricated freshness. If we don't know a current price, we say when we last
-  saw one.
+- No invented facts. Heritage claims are cited; prices are dated.
+- No fabricated freshness. If we don't know a current price, we say when we
+  last collected one.
 
 ## Contact
 

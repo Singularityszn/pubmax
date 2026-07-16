@@ -9,10 +9,9 @@ import FaqBlock from "@/components/seo/FaqBlock";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { pintFactStats, faqItems, faqPageJsonLd } from "@/lib/pintFacts";
 import {
-  dataFileModified,
   formatMonthYear,
   formatObservedDate,
-  PINT_DATASET_FILE,
+  PINT_DATASET_OBSERVED_AT,
 } from "@/lib/dataFreshness";
 import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
@@ -203,7 +202,8 @@ export default async function BoroughPage({ params }: PageProps) {
   // pint prices already loaded above, stamped with the dataset's observation
   // date (honest freshness — never "live"). FAQ items skip any question whose
   // answer data is missing, so a price-less borough renders neither block.
-  const observedAt = await dataFileModified(PINT_DATASET_FILE);
+  // Honest stamp: the dataset's collection date, not the bundled file's mtime.
+  const observedAt = PINT_DATASET_OBSERVED_AT;
   const boroughSlug = slugifyBorough(name);
   const factStats = pintFactStats(pubs, name, boroughSlug);
   const faq = faqItems(factStats, {
