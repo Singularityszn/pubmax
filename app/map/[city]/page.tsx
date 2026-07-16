@@ -41,8 +41,15 @@ export async function generateMetadata({
   const title = cityMapOgTitle(cityId, opts);
   const description = cityMapOgDescription(cityId, opts);
   const url = cityMapShareUrl(cityId, opts);
-  const image = cityMapOgImageUrl(cityId, opts);
   const alt = cityMapOgAlt(cityId, opts);
+
+  // The base per-city share now renders through the dynamic dark/coral
+  // opengraph-image.tsx sibling (Wave S2 — city name + coverage + price range),
+  // so we only override with the query-aware `/api/city-map-card` when a band or
+  // crawl is actually present. Without an explicit `images`, Next auto-attaches
+  // the file-convention card to both OG and Twitter.
+  const image =
+    band || crawl ? cityMapOgImageUrl(cityId, opts) : null;
 
   return {
     title,
@@ -52,13 +59,13 @@ export async function generateMetadata({
       description,
       type: "website",
       url,
-      images: [{ url: image, width: 1200, height: 630, alt }],
+      ...(image ? { images: [{ url: image, width: 1200, height: 630, alt }] } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [image],
+      ...(image ? { images: [image] } : {}),
     },
   };
 }
