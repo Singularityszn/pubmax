@@ -44,10 +44,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
   const title = `${landmark.name} — London story chapter — PUBMAXXING`;
   const description = landmark.history.slice(0, 155);
+  const canonical = `/landmark/${landmark.id}`;
   return {
     title,
     description,
-    openGraph: { title, description, type: "article" },
+    alternates: { canonical },
+    // App Router shallow-merges metadata: a child openGraph REPLACES the
+    // layout's object wholesale, so the shared siteName + /og.png card must be
+    // restated here or they'd be dropped on landmark shares. (This route has no
+    // file-convention OG image of its own.)
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: canonical,
+      siteName: "PUBMAXXING",
+      images: ["/og.png"],
+    },
     twitter: { card: "summary", title, description },
   };
 }

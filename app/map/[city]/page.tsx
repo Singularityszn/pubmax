@@ -54,6 +54,9 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // Canonical is the bare city map (London → /map), never the share URL with
+    // its crawl/band query — those are one crawlable map surface per city.
+    alternates: { canonical: cityId === "london" ? "/map" : `/map/${cityId}` },
     openGraph: {
       title,
       description,
