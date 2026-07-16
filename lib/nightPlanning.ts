@@ -82,7 +82,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
     ? Number(budgetLimitMatch[1]) * 100 + Number((budgetLimitMatch[2] ?? "").padEnd(2, "0") || 0)
     : null;
   if (budgetLimitPence) reasons.push({ field: "budgetLimitPence", evidence: `£${(budgetLimitPence / 100).toFixed(2)}`, explanation: "Matched the explicit per-person route budget." });
-  const atmosphere = ["quiet", "lively", "historic", "cosy", "sports", "music"].filter((value) => lower.includes(value));
+  const atmosphere = ["quiet", "lively", "historic", "cosy", "sports", "music", "garden"].filter((value) => lower.includes(value));
   const foodNeeds = ["kebab", "pizza", "chips", "vegan", "vegetarian", "halal"].filter((value) => lower.includes(value));
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];

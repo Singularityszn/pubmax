@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   completePlanPayload,
   confirmedEndingForPlan,
+  endingOptionsForSignals,
   recommendedEndingForPlan,
   routeRevisionFromPlan,
 } from "@/components/night/NightModeCard";
@@ -50,6 +51,21 @@ describe("recommendedEndingForPlan", () => {
   it("uses get-home as the safe default when there is no stronger signal", () => {
     expect(recommendedEndingForPlan(plan(), 2)).toBe("get_home");
     expect(recommendedEndingForPlan(null, 2)).toBe("get_home");
+  });
+});
+
+describe("endingOptionsForSignals", () => {
+  it("turns grounded live-night signals into review copy without selecting an ending", () => {
+    const options = endingOptionsForSignals({
+      lateFoodCount: 2,
+      stationName: "Clapham Common",
+      leaveByIso: "2026-07-16T23:40:00.000Z",
+      extensionCount: 2,
+    });
+
+    expect(options[0].description).toContain("2 reviewed nearby options");
+    expect(options[1].description).toContain("Clapham Common");
+    expect(options[2].description).toContain("2 grounded nearby extensions");
   });
 });
 

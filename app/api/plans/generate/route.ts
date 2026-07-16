@@ -3,13 +3,24 @@ import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage } from "@/lib/nightAreas";
 import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
-import type { PlanBudgetSummary, PlanningConfidence } from "@/lib/planIntelligence";
+import type { PlanBudgetSummary, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
+import { buildPlanEndingRecommendations } from "@/lib/planEndings";
+import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
+import { filterTonight, type WhatsOnRow } from "@/lib/whatsOn";
+import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import type { PublicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 assertServerEnv();
+
+let baselineWhatsOn: WhatsOnRow[] | null = null;
+
+function baselineTonight(now: number): WhatsOnRow[] {
+  baselineWhatsOn ??= loadBaselineWhatsOn();
+  return filterTonight(baselineWhatsOn, now);
+}
 
 function publicError(error: string, code: string, retryable = false, details?: Record<string, unknown>): PublicApiError {
   return { error, code, retryable, ...(details ? { details } : {}) };
@@ -32,6 +43,7 @@ function scoreVenueForContext(
 	venue: Awaited<ReturnType<typeof loadConciergeVenues>>[number],
 	context: NightContext,
 	distance: number,
+	tonightEvents: readonly WhatsOnRow[],
 ): { score: number; reasons: string[] } {
 	const reasons: string[] = [];
 	const price = venue.cheapestPrice;
@@ -87,6 +99,10 @@ function scoreVenueForContext(
 		score += 2;
 		reasons.push("historic character");
 	}
+	if (context.atmosphere.includes("garden") && venue.amenities.beerGarden) {
+		score += 2;
+		reasons.push("beer garden on record; weather still needs checking");
+	}
 	if (context.atmosphere.includes("sports") && venue.amenities.liveSports) {
 		score += 1.5;
 		reasons.push("sports-friendly");
@@ -97,6 +113,13 @@ function scoreVenueForContext(
 	}
 	if (context.atmosphere.includes("quiet") && (venue.amenities.liveMusic || venue.amenities.liveSports)) {
 		score -= 2;
+	}
+	for (const event of tonightEvents) {
+		const matchesBrief =
+			(event.kind === "music" && (context.atmosphere.includes("music") || context.atmosphere.includes("lively"))) ||
+			(event.kind === "sport" && context.atmosphere.includes("sports"));
+		score += matchesBrief ? 2 : 0.5;
+		reasons.push(`Tonight: ${event.title} (${event.confidence})`);
 	}
 
 	return { score, reasons };
@@ -132,28 +155,44 @@ export async function POST(request: Request): Promise<Response> {
   if (area.cityId !== cityId) return jsonNoStore(publicError("The selected Night Area is not available in this city.", "NIGHT_AREA_CITY_MISMATCH"), { status: 422 });
 	const routeReady = isNightAreaRouteReady(area);
 	const coverage = publicNightAreaCoverage(area);
+	const tonightRows = baselineTonight(Date.now());
+	const tonightByVenue = new Map<string, WhatsOnRow[]>();
+	for (const row of tonightRows) {
+		if (!row.venueId) continue;
+		const current = tonightByVenue.get(row.venueId) ?? [];
+		current.push(row);
+		tonightByVenue.set(row.venueId, current);
+	}
 	  const candidates = (await loadConciergeVenues(cityId))
 	    .map((venue) => {
 	      const distance = distanceKm(area.centre, venue);
-	      const scored = scoreVenueForContext(venue, context, distance);
-	      return { venue, distance, ...scored };
+	      const tonightEvents = tonightByVenue.get(venue.id) ?? [];
+	      const scored = scoreVenueForContext(venue, context, distance, tonightEvents);
+	      return { venue, distance, tonightEvents, ...scored };
 	    })
     .filter(({ distance }) => distance <= area.radiusKm)
     .sort((a, b) => b.score - a.score);
   const chosen = candidates.slice(0, 3);
   if (chosen.length < 3) return jsonNoStore(publicError(`Not enough grounded venues are available in ${area.name} yet.`, "GROUNDED_VENUES_INSUFFICIENT", false, { nightArea: area.slug, availableVenueCount: chosen.length }), { status: 422 });
 	const contextEvidenceGaps = missingContextEvidence(context);
-	if (context.budgetLimitPence && chosen.some(({ venue }) => venue.cheapestPrice === null)) {
+	const operationalEvidenceGaps = ["current_opening_hours"];
+	if ((context.groupSize ?? 1) > 1) operationalEvidenceGaps.push("get_in_estimates");
+	if (
+		context.atmosphere.some((value) => ["lively", "music", "sports"].includes(value)) &&
+		chosen.every(({ tonightEvents }) => tonightEvents.length === 0)
+	) operationalEvidenceGaps.push("tonight_event_evidence");
+	if (context.atmosphere.includes("garden")) operationalEvidenceGaps.push("live_weather");
+	if ((context.budgetLimitPence || context.budget === "value") && chosen.some(({ venue }) => venue.cheapestPrice === null)) {
 		contextEvidenceGaps.push("price_evidence");
 	}
 	if (context.zeroProof && chosen.every(({ venue }) => venue.amenities.nonAlcoholic === true)) {
 		const zeroProofGap = contextEvidenceGaps.indexOf("zero_proof_options");
 		if (zeroProofGap >= 0) contextEvidenceGaps.splice(zeroProofGap, 1);
 	}
-	const missingEvidence = [...new Set([...area.missingEvidence, ...contextEvidenceGaps])];
+	const missingEvidence = [...new Set([...area.missingEvidence, ...contextEvidenceGaps, ...operationalEvidenceGaps])];
 	const confidenceScore = Math.max(0, Math.min(1, Math.min(inferred.confidence, coverage.coverageScore / 100)));
 	const planningConfidence: PlanningConfidence = {
-		level: routeReady ? (contextEvidenceGaps.length ? "medium" : "high") : "low",
+		level: routeReady ? (missingEvidence.length ? "medium" : "high") : "low",
 		score: Number(confidenceScore.toFixed(2)),
 		routeReady,
 		missingEvidence,
@@ -176,17 +215,50 @@ export async function POST(request: Request): Promise<Response> {
 		withinLimit: context.budgetLimitPence === null || estimatedPerPersonPence === null ? null : estimatedPerPersonPence <= context.budgetLimitPence,
 		basis: "one-recorded-pint-per-stop",
 	};
+	let straightLineWalkingKm = 0;
+	for (let index = 0; index < chosen.length - 1; index += 1) {
+		straightLineWalkingKm += distanceKm(chosen[index].venue, chosen[index + 1].venue);
+	}
+	const routeTotals: PlanRouteTotals = {
+		stopCount: chosen.length,
+		straightLineWalkingKm: Number(straightLineWalkingKm.toFixed(2)),
+		estimatedWalkingMinutes: Math.ceil((straightLineWalkingKm / 4.8) * 60),
+		distanceBasis: "straight-line",
+	};
+	const lastStop = chosen.at(-1)?.venue;
+	const extensions = candidates.slice(3, 5).map(({ venue }) => ({
+		venueId: venue.id,
+		venueName: venue.name,
+		distanceKm: lastStop ? distanceKm(lastStop, venue) : 0,
+		estimatedPintPricePence: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
+	}));
+	const lateFoodArea = normalizeLateFoodArea(area.slug);
+	const lateFood = lateFoodArea ? getLateFoodForArea(lateFoodArea) : [];
+	const rankedLateFood = context.foodNeeds.length === 0 ? lateFood : [...lateFood].sort((left, right) => {
+		const leftMatch = context.foodNeeds.some((need) => left.category === need || left.dietary.some((tag) => tag === need));
+		const rightMatch = context.foodNeeds.some((need) => right.category === need || right.dietary.some((tag) => tag === need));
+		return Number(rightMatch) - Number(leftMatch);
+	});
+	const endingRecommendations = buildPlanEndingRecommendations({
+		daypart: context.daypart,
+		foodRequested: context.foodNeeds.length > 0,
+		transportAnchor: area.transportAnchors[0] ?? area.name,
+		lateFood: rankedLateFood,
+		extensions,
+	});
 	const nightArea = { id: area.slug, ...coverage };
   return jsonNoStore({
     inferredContext: context,
     confidence: inferred.confidence,
 		planningConfidence,
 		budgetSummary,
+		routeTotals,
+		endingRecommendations,
 		nightArea,
 		// Back-compatible alias until every client has moved to Night Area.
 		district: nightArea,
     explanations: inferred.reasons,
-	    stops: chosen.map(({ venue, distance, reasons }, index) => ({
+	    stops: chosen.map(({ venue, distance, reasons, tonightEvents }, index) => ({
 	      venueId: venue.id,
 	      venueName: venue.name,
 	      position: index,
@@ -196,9 +268,20 @@ export async function POST(request: Request): Promise<Response> {
 			provenance: [
 				{ kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
 				{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
+				...tonightEvents.map((event) => ({ kind: "night_signal" as const, label: `${event.source.label}: ${event.title}`, asOf: event.observedAt })),
 			],
 	      reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
-	      alternatives: candidates.slice(3, 5).map(({ venue: alternative }) => ({ venueId: alternative.id, venueName: alternative.name })),
+	      alternatives: candidates
+				.filter(({ venue: alternative }) => !chosen.some(({ venue: selected }) => selected.id === alternative.id))
+				.map(({ venue: alternative }) => ({
+					venueId: alternative.id,
+					venueName: alternative.name,
+					distanceKm: Number(distanceKm(venue, alternative).toFixed(2)),
+					estimatedPintPricePence: alternative.cheapestPrice === null ? null : Math.round(alternative.cheapestPrice * 100),
+					provenance: [{ kind: "venue_dataset", label: `PUBMAXX venue record for ${alternative.name}` }],
+				}))
+				.sort((left, right) => left.distanceKm - right.distanceKm)
+				.slice(0, 2),
 	    })),
 	    contextEffects: [
 	      "budget",

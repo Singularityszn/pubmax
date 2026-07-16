@@ -37,11 +37,13 @@ import type { CrawlEnding, PlanState, PlanStopDTO } from "@/lib/plan";
 import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
 import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
-import RouteEndingCard, { type RouteEndingId } from "@/components/night/RouteEndingCard";
+import { haversineKm } from "@/lib/haversine";
+import RouteEndingCard, { type RouteEndingId, type RouteEndingOptions } from "@/components/night/RouteEndingCard";
 import { useActivePlan } from "@/components/night/useActivePlan";
 import "./nightMode.css";
 
-type VenueCoord = { id: string; lat: number; lng: number };
+type VenueCoord = { id: string; name: string; lat: number; lng: number; cheapestPrice: number | null };
+type KeepGoingExtension = VenueCoord & { distanceKm: number };
 
 // Minimal shape we read off /api/last-train (LastRideResult) — narrowed so we
 // don't drag the whole tfl type surface into the client for one countdown.
@@ -116,6 +118,46 @@ export function recommendedEndingForPlan(
   return "get_home";
 }
 
+export function endingOptionsForSignals({
+  lateFoodCount,
+  stationName,
+  leaveByIso,
+  extensionCount,
+}: {
+  lateFoodCount: number;
+  stationName: string | null;
+  leaveByIso: string | null;
+  extensionCount: number;
+}): RouteEndingOptions {
+  return [
+    {
+      id: "food",
+      title: "Find food",
+      description: lateFoodCount > 0
+        ? `${lateFoodCount} reviewed nearby option${lateFoodCount === 1 ? "" : "s"}; verify tonight's hours.`
+        : "No reviewed late-food option is available here yet.",
+      actionLabel: "Review food",
+    },
+    {
+      id: "get_home",
+      title: "Get home",
+      description: leaveByIso
+        ? `Live leave-by signal for ${stationName ?? "the nearest station"}.`
+        : `Review ${stationName ?? "the nearest transport anchor"} before confirming.`,
+      actionLabel: "Review journey",
+      recommended: true,
+    },
+    {
+      id: "keep_going",
+      title: "Keep going",
+      description: extensionCount > 0
+        ? `${extensionCount} grounded nearby extension${extensionCount === 1 ? "" : "s"}; hours unverified.`
+        : "No grounded nearby extension is available yet.",
+      actionLabel: "Review extensions",
+    },
+  ];
+}
+
 export function confirmedEndingForPlan(
   plan: PlanState | null,
   _confirmedChoice: CrawlEnding | null,
@@ -157,6 +199,7 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   const [coords, setCoords] = useState<VenueCoord[] | null>(null);
   const [lateFood, setLateFood] = useState<LateFoodTerminal[]>([]);
   const [chosenEnding, setChosenEnding] = useState<CrawlEnding | null>(null);
+  const [chosenExtension, setChosenExtension] = useState<KeepGoingExtension | null>(null);
   const [endingSaving, setEndingSaving] = useState(false);
   const [endingError, setEndingError] = useState("");
   // Store the last-train result tagged with the venue it belongs to, so a result
@@ -238,6 +281,19 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
     if (!currentStop || !coords) return null;
     return coords.find((v) => v.id === currentStop.venueId) ?? null;
   }, [currentStop, coords]);
+  const keepGoingExtensions = useMemo<KeepGoingExtension[]>(() => {
+    if (!currentCoord || !coords) return [];
+    const routeIds = new Set(stops.map((stop) => stop.venueId));
+    return coords
+      .filter((venue) => !routeIds.has(venue.id))
+      .map((venue) => ({
+        ...venue,
+        distanceKm: haversineKm([currentCoord.lng, currentCoord.lat], [venue.lng, venue.lat]),
+      }))
+      .filter((venue) => venue.distanceKm <= 2.5)
+      .sort((left, right) => left.distanceKm - right.distanceKm)
+      .slice(0, 2);
+  }, [coords, currentCoord, stops]);
 
   // Last-train for the current venue (London last-ride feed) — omitted entirely
   // when we have no coords or the feed can't produce a station.
@@ -323,18 +379,12 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
     }
   }, [endingSaving, id, plan]);
 
-  const chooseEnding = useCallback(async (ending: RouteEndingId) => {
+  const chooseEnding = useCallback((ending: RouteEndingId) => {
     if (!plan || endingSaving) return;
-    if (ending === "food") {
-      setChosenEnding("food");
-      setEndingError(lateFood.length > 0
-        ? "Review a nearby food recommendation below, then choose Food to complete the plan. The current pub remains the route terminal."
-        : "No reviewed food ending is available yet. Choose Get home or Keep going instead.");
-      trackEvent("planned_night_action", { type: "food_preview" });
-      return;
-    }
-    await completeEnding(ending, currentStop?.venueId ?? "");
-  }, [completeEnding, currentStop?.venueId, endingSaving, lateFood.length, plan]);
+    setChosenEnding(ending);
+    setEndingError("");
+    trackEvent("planned_night_action", { type: `${ending}_preview` });
+  }, [endingSaving, plan]);
 
   // Lightweight swipe-down-to-dismiss on the grabber (Apple sheet idiom) — kept
   // local so we don't couple to the map-only useSheetDrag host.
@@ -369,6 +419,12 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
   const lastTrainLeaveBy = currentTrain?.decision?.leaveByIso ?? null;
   const activeEnding = confirmedEndingForPlan(plan, chosenEnding);
   const recommendedEnding = recommendedEndingForPlan(plan, lateFood.length);
+  const endingOptions = endingOptionsForSignals({
+    lateFoodCount: lateFood.length,
+    stationName: currentTrain?.station?.name ?? null,
+    leaveByIso: lastTrainLeaveBy,
+    extensionCount: keepGoingExtensions.length,
+  });
 
   return (
     <section
@@ -436,7 +492,8 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
           <RouteEndingCard
             className="nightCard__endingCard"
             title="Last stop. What next?"
-            description="Choose the ending that fits the group. PUBMAXX saves the choice only after you tap."
+            description="Choose an ending to review. PUBMAXX changes nothing until you confirm."
+            options={endingOptions}
             recommendedId={recommendedEnding}
             onChoose={chooseEnding}
           />
@@ -449,6 +506,24 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
           {chosenEnding === "food" && !activeEnding ? (
             <FoodEndingPicker terminals={lateFood} saving={endingSaving} onChoose={() => completeEnding("food", currentStop.venueId)} />
           ) : null}
+          {chosenEnding === "get_home" && !activeEnding ? (
+            <GetHomeEndingConfirmation
+              saving={endingSaving}
+              stationName={currentTrain?.station?.name ?? null}
+              leaveByIso={lastTrainLeaveBy}
+              onConfirm={() => completeEnding("get_home", currentStop.venueId)}
+            />
+          ) : null}
+          {chosenEnding === "keep_going" && !activeEnding ? (
+            <KeepGoingPicker
+              extensions={keepGoingExtensions}
+              saving={endingSaving}
+              onChoose={(extension) => {
+                setChosenExtension(extension);
+                void completeEnding("keep_going", currentStop.venueId);
+              }}
+            />
+          ) : null}
           {activeEnding ? (
             <NightEndingResult
               ending={activeEnding}
@@ -456,6 +531,7 @@ function NightModeSheet({ entry }: { entry: ActivePlanRef }) {
               lateFood={lateFood}
               stationName={currentTrain?.station?.name ?? null}
               leaveByIso={lastTrainLeaveBy}
+              keepGoingExtension={chosenExtension}
             />
           ) : null}
         </div>
@@ -513,18 +589,72 @@ function FoodEndingPicker({
   );
 }
 
+function GetHomeEndingConfirmation({
+  saving,
+  stationName,
+  leaveByIso,
+  onConfirm,
+}: {
+  saving: boolean;
+  stationName: string | null;
+  leaveByIso: string | null;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="nightCard__foodPicker" aria-label="Confirm Get home ending">
+      <strong>Review the journey signal</strong>
+      <p>{leaveByIso ? `A live leave-by signal is available for ${stationName ?? "the nearest station"}.` : `Check live status and your destination from ${stationName ?? "the nearest transport anchor"}.`}</p>
+      <button type="button" className="nightCard__endingLink" disabled={saving} onClick={onConfirm}>
+        Confirm Get home ending
+      </button>
+      <a className="nightCard__endingLink" href="https://tfl.gov.uk/plan-a-journey/" target="_blank" rel="noreferrer">Open TfL journey planner</a>
+    </div>
+  );
+}
+
+function KeepGoingPicker({
+  extensions,
+  saving,
+  onChoose,
+}: {
+  extensions: KeepGoingExtension[];
+  saving: boolean;
+  onChoose: (extension: KeepGoingExtension) => void;
+}) {
+  if (extensions.length === 0) {
+    return <p className="nightCard__endingHint">No grounded nearby extension is available without widening the route.</p>;
+  }
+  return (
+    <div className="nightCard__foodPicker" aria-label="Choose a Keep going extension">
+      <strong>Grounded nearby extensions</strong>
+      <ul>
+        {extensions.map((extension) => (
+          <li key={extension.id}>
+            <button type="button" className="nightCard__endingLink" disabled={saving} onClick={() => onChoose(extension)}>
+              <span>{extension.name}</span>
+              <small>{extension.distanceKm.toFixed(1)} km straight-line · {extension.cheapestPrice === null ? "price unknown" : `about £${extension.cheapestPrice.toFixed(2)} for one recorded pint`} · hours unverified</small>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function NightEndingResult({
   ending,
   currentStop,
   lateFood,
   stationName,
   leaveByIso,
+  keepGoingExtension,
 }: {
   ending: CrawlEnding;
   currentStop: PlanStopDTO;
   lateFood: LateFoodTerminal[];
   stationName: string | null;
   leaveByIso: string | null;
+  keepGoingExtension: KeepGoingExtension | null;
 }) {
   if (ending === "food") {
     return (
@@ -557,14 +687,14 @@ function NightEndingResult({
       <div className="nightCard__endingResult" data-ending="keep_going">
         <strong>Keep it feasible</strong>
         <p>
-          Open the map around {currentStop.venueName} and choose something genuinely nearby.
-          PUBMAXX will not reward extra drinking or volume.
+          {keepGoingExtension ? `${keepGoingExtension.name} is your reviewed extension from ${currentStop.venueName}.` : `Open the map around ${currentStop.venueName} and choose something genuinely nearby.`}
+          {" "}PUBMAXX will not reward extra drinking or volume.
         </p>
         <Link
           className="nightCard__endingLink"
-          href={`/map?venue=${encodeURIComponent(currentStop.venueId)}`}
+          href={`/map?venue=${encodeURIComponent(keepGoingExtension?.id ?? currentStop.venueId)}`}
         >
-          Find nearby pubs
+          {keepGoingExtension ? `Open ${keepGoingExtension.name} on the map` : "Find nearby pubs"}
         </Link>
       </div>
     );

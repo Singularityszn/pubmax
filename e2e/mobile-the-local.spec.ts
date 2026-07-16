@@ -27,6 +27,9 @@ test("mobile Describe your night builds one grounded route without camera flicke
   expect(submitted.context).not.toHaveProperty("atmosphere");
   await expect(planner.getByText("Low confidence, fully editable")).toBeVisible();
   await expect(planner.getByText("Price evidence is incomplete; check each stop before relying on the budget.")).toBeVisible();
+  await expect(planner.locator(".mobilePlannerRouteTotal")).toContainText("min walk");
+  await expect(planner.locator(".mobilePlannerEndings > div")).toHaveCount(3);
+  await expect(planner.locator('.mobilePlannerEndings > div[data-recommended="true"]')).toHaveCount(1);
 
   const routeIntents = await page.evaluate(() => (
     (window as Window & { __cameraIntents?: Array<{ kind: string }> }).__cameraIntents ?? []

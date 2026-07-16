@@ -23,7 +23,22 @@ describe("POST /api/plans/generate", () => {
       venueName: expect.any(String),
       reason: expect.any(String),
       provenance: expect.arrayContaining([expect.objectContaining({ kind: "venue_dataset" })]),
+      alternatives: expect.arrayContaining([expect.objectContaining({
+        venueId: expect.any(String),
+        distanceKm: expect.any(Number),
+        provenance: expect.any(Array),
+      })]),
     });
+    expect(body.routeTotals).toMatchObject({
+      stopCount: 3,
+      straightLineWalkingKm: expect.any(Number),
+      estimatedWalkingMinutes: expect.any(Number),
+    });
+    expect(body.endingRecommendations).toEqual([
+      expect.objectContaining({ kind: "food", requiresConfirmation: true }),
+      expect.objectContaining({ kind: "get_home", requiresConfirmation: true }),
+      expect.objectContaining({ kind: "keep_going", requiresConfirmation: true }),
+    ]);
     expect(body.contextEffects).toEqual(expect.arrayContaining(["budget", "daypart", "groupSize", "atmosphere"]));
     expect(body.missingContextEvidence).toEqual([]);
     expect(body.explanations).toEqual(expect.arrayContaining([expect.objectContaining({ field: "nightArea" })]));
@@ -138,5 +153,18 @@ describe("POST /api/plans/generate", () => {
       distanceKm: expect.any(Number),
       evidence: expect.any(Array),
     });
+  });
+
+  it("keeps two grounded food endings while ranking an explicit food need first", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "Late night in Clapham with kebab afterwards" }),
+    }));
+    const body = await response.json();
+    const food = body.endingRecommendations.find((ending: { kind: string }) => ending.kind === "food");
+
+    expect(food.preselected).toBe(true);
+    expect(food.options).toHaveLength(2);
+    expect(food.options[0]).toMatchObject({ label: "Kebab Corner", closingConfidence: "unknown" });
   });
 });

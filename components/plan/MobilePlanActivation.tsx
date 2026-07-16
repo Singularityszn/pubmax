@@ -9,7 +9,7 @@ import { useTransientSpeechInput } from "@/components/plan/useTransientSpeechInp
 import type { CityId } from "@/lib/cities";
 import { getNightAreasForCity, type NightAreaSlug } from "@/lib/nightAreas";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
-import type { PlanBudgetSummary, PlanningConfidence } from "@/lib/planIntelligence";
+import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 
 type GeneratedStop = { venueId: string; venueName: string };
 
@@ -18,9 +18,11 @@ export type GeneratedMobilePlan = {
   context: NightContext;
   confidence: PlanningConfidence;
   budget: PlanBudgetSummary;
+  routeTotals: PlanRouteTotals;
+  endings: PlanEndingRecommendation[];
 };
 
-const MOODS = ["quiet", "lively", "historic", "music"] as const;
+const MOODS = ["quiet", "lively", "historic", "music", "garden"] as const;
 const PACES = ["easy pace", "balanced pace", "fast pace"] as const;
 
 function responseError(body: unknown): string {
@@ -59,7 +61,12 @@ export function MobilePlanActivation({
   const [zeroProof, setZeroProof] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<{ confidence: PlanningConfidence; budget: PlanBudgetSummary } | null>(null);
+  const [result, setResult] = useState<{
+    confidence: PlanningConfidence;
+    budget: PlanBudgetSummary;
+    routeTotals: PlanRouteTotals;
+    endings: PlanEndingRecommendation[];
+  } | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const speech = useTransientSpeechInput(query, setQuery);
 
@@ -69,7 +76,7 @@ export function MobilePlanActivation({
   }, []);
 
   async function generate() {
-    requestRef.current?.abort();
+    if (requestRef.current) return;
     const controller = new AbortController();
     requestRef.current = controller;
     setLoading(true);
@@ -108,9 +115,11 @@ export function MobilePlanActivation({
         inferredContext?: NightContext;
         planningConfidence?: PlanningConfidence;
         budgetSummary?: PlanBudgetSummary;
+        routeTotals?: PlanRouteTotals;
+        endingRecommendations?: PlanEndingRecommendation[];
         error?: unknown;
       };
-      if (!response.ok || body.stops?.length !== 3 || !body.inferredContext || !body.planningConfidence || !body.budgetSummary) {
+      if (!response.ok || body.stops?.length !== 3 || !body.inferredContext || !body.planningConfidence || !body.budgetSummary || !body.routeTotals || body.endingRecommendations?.length !== 3) {
         throw new Error(responseError(body));
       }
       const generated = {
@@ -118,8 +127,15 @@ export function MobilePlanActivation({
         context: body.inferredContext,
         confidence: body.planningConfidence,
         budget: body.budgetSummary,
+        routeTotals: body.routeTotals,
+        endings: body.endingRecommendations,
       } satisfies GeneratedMobilePlan;
-      setResult({ confidence: generated.confidence, budget: generated.budget });
+      setResult({
+        confidence: generated.confidence,
+        budget: generated.budget,
+        routeTotals: generated.routeTotals,
+        endings: generated.endings,
+      });
       onGenerated(generated);
     } catch (caught) {
       if (controller.signal.aborted) return;
@@ -168,9 +184,20 @@ export function MobilePlanActivation({
       <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={() => void generate()}>{loading ? "Building route" : "Build 3-stop route"}</Button>
       {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}
       {result ? (
-        <div className="mobilePlannerConfidence" data-level={result.confidence.level} role="status">
-          <ShieldCheck size={17} aria-hidden="true" />
-          <div><strong>{result.confidence.level === "high" ? "Higher confidence" : result.confidence.level === "medium" ? "Plan with checks" : "Low confidence, fully editable"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Price evidence is incomplete; check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings[0] ? <small>{result.confidence.warnings[0]}</small> : null}</div>
+        <div className="mobilePlannerResult" role="status">
+          <div className="mobilePlannerConfidence" data-level={result.confidence.level}>
+            <ShieldCheck size={17} aria-hidden="true" />
+            <div><strong>{result.confidence.level === "high" ? "Higher confidence" : result.confidence.level === "medium" ? "Plan with checks" : "Low confidence, fully editable"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Price evidence is incomplete; check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings[0] ? <small>{result.confidence.warnings[0]}</small> : null}</div>
+          </div>
+          <p className="mobilePlannerRouteTotal"><strong>{result.routeTotals.estimatedWalkingMinutes} min walk</strong> · {result.routeTotals.straightLineWalkingKm.toFixed(1)} km straight-line</p>
+          <div className="mobilePlannerEndings" aria-label="Ending recommendations">
+            {result.endings.map((ending) => (
+              <div key={ending.kind} data-recommended={ending.preselected ? "true" : undefined}>
+                <span><strong>{ending.label}</strong>{ending.preselected ? <small>Recommended</small> : null}</span>
+                <p>{ending.reason}</p>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </section>
