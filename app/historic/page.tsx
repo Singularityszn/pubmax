@@ -21,11 +21,26 @@ import "./historic.css";
 // client component that owns filtering, sorting, and interactivity. Below it,
 // the server-rendered "Oldest pubs by borough" rail (Wave S3.4) cross-links each
 // borough's cited heritage section so crawlers can walk the graph.
+const HISTORIC_TITLE =
+  "London's Historic Pubs — cited from Wikipedia & Wikidata · PUBMAXXING";
+const HISTORIC_DESCRIPTION =
+  "A browsable index of London's notable, historic pubs — dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Never invented. Filter by borough, jump straight onto the map.";
+
 export const metadata: Metadata = {
-  title: "London's Historic Pubs — cited from Wikipedia & Wikidata · PUBMAXXING",
-  description:
-    "A browsable index of London's notable, historic pubs — dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Never invented. Filter by borough, jump straight onto the map.",
+  title: HISTORIC_TITLE,
+  description: HISTORIC_DESCRIPTION,
   alternates: { canonical: "/historic" },
+  // Route-specific Open Graph so a shared /historic link shows this index (not
+  // the homepage OG). siteName + the shared /og.png card carried over — this
+  // index route has no file-convention OG image (only /historic/[slug] does).
+  openGraph: {
+    title: HISTORIC_TITLE,
+    description: HISTORIC_DESCRIPTION,
+    url: "/historic",
+    siteName: "PUBMAXXING",
+    type: "website",
+    images: ["/og.png"],
+  },
 };
 
 // Build the "Oldest pubs in {borough}" rail (Wave S3.4). Only boroughs that

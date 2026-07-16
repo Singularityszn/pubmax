@@ -26,6 +26,13 @@ AI assistants are welcome to read and cite these pages — that is the point.
 - [Crawls](https://pubmaxxing.com/crawls) and
   [Discover](https://pubmaxxing.com/discover): curated and themed routes.
 
+## Planned surfaces (not yet live)
+
+- The London Pint Index — a quarterly borough league table of observed pint
+  prices with a methodology and provenance section. In progress; not yet
+  published, so it is deliberately NOT linked here (we never point at a URL that
+  does not resolve). This note will become a link when the page ships.
+
 ## How prices are observed
 
 Prices are point-in-time observations: a real person saw a pint at a real price
