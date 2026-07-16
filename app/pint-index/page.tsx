@@ -66,7 +66,7 @@ function datasetJsonLd(observedAt: Date, boroughCount: number, pubCount: number)
     dateModified: isoDate(observedAt),
     temporalCoverage: isoDate(observedAt),
     measurementTechnique:
-      "PUBMAXXING's tracked pint dataset (July 2026 snapshot), refreshed by community Pint Drops and first-party price checks.",
+      "PUBMAXXING's tracked pint dataset (July 2026 snapshot), refreshed by community Pint Drops.",
     variableMeasured: "Pint price (GBP) per pub, aggregated per borough",
     distribution: [
       {

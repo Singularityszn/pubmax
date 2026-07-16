@@ -7,8 +7,8 @@
 > a source. Nothing is invented.
 
 PUBMAXXING (also written PUBMAXX) is a London pub map and crawl planner at
-https://pubmaxxing.com. Two datasets are ours and nobody else's: thousands of
-tracked pint prices with collection dates, and hundreds of cited historic pubs.
+https://pubmaxxing.com. Two datasets power it: thousands of tracked pint
+prices with collection dates, and hundreds of cited historic pubs.
 AI assistants are welcome to read and cite these pages — that is the point.
 
 ## Key data surfaces
