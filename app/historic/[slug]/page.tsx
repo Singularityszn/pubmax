@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, ExternalLink, MessageSquare } from "lucide-react";
 
+import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
 import ShareBar from "@/components/share/ShareBar";
 import { slugifyBorough } from "@/lib/boroughs";
@@ -75,10 +77,52 @@ export async function generateMetadata({
   };
 }
 
+const SITE_URL = "https://pubmaxxing.com";
+
+// LandmarksOrHistoricalBuildings structured data for a cited historic pub
+// (Wave S1.3). Every field is lifted verbatim from the record — name, the
+// borough it sits in, its coordinates, its own hook — and `sameAs` carries the
+// Wikipedia/Wikidata citation URLs from the pub's cited facts, so an AI engine
+// can follow provenance straight to the source. Nothing invented: a field only
+// appears when the record actually carries it.
+function historicPubJsonLd(pub: HistoricPub) {
+  const sameAs = Array.from(
+    new Set(
+      pub.facts
+        .map((fact) => fact.sourceRef)
+        .filter((ref): ref is string => typeof ref === "string" && /^https?:\/\//.test(ref)),
+    ),
+  );
+  return {
+    "@context": "https://schema.org",
+    "@type": "LandmarksOrHistoricalBuildings",
+    name: pub.name,
+    url: `${SITE_URL}/historic/${pub.slug}`,
+    ...(pub.hook ? { description: pub.hook } : {}),
+    ...(pub.borough
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: pub.borough,
+            addressRegion: "London",
+            addressCountry: "GB",
+          },
+        }
+      : {}),
+    ...(typeof pub.lat === "number" && typeof pub.lng === "number"
+      ? { geo: { "@type": "GeoCoordinates", latitude: pub.lat, longitude: pub.lng } }
+      : {}),
+    ...(sameAs.length ? { sameAs } : {}),
+  };
+}
+
 export default async function HistoricDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const pub = getHistoricPubBySlug(slug, await loadHistoricPubs());
   if (!pub) notFound();
+
+  // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   const grade = listedBadge(pub.listed);
   const boroughSlug = pub.borough ? slugifyBorough(pub.borough) : null;
@@ -88,6 +132,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
 
   return (
     <main className="hdPage">
+      <JsonLd data={historicPubJsonLd(pub)} nonce={nonce} />
       <SiteNav active="historic" />
 
       <p className="hdBack">

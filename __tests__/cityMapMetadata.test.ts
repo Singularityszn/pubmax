@@ -47,8 +47,11 @@ describe("city map generateMetadata", () => {
     expect(metadata.description).toContain("Northern Quarter");
     expect(metadata.openGraph).toMatchObject({
       url: "/map/manchester",
-      images: [{ url: "/api/city-map-card?city=manchester" }],
     });
+    // No explicit images override on the base city page: the file-convention
+    // opengraph-image (app/map/[city]/opengraph-image.tsx) supplies the card;
+    // /api/city-map-card only overrides when ?band= or ?crawl= is present.
+    expect(metadata.openGraph).not.toHaveProperty("images");
   });
 
   it("wires London /map metadata lightly", async () => {

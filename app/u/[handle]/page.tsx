@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useSyncExternalStore } from "react";
 
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
@@ -14,8 +14,15 @@ import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
 import SiteNav from "@/components/nav/SiteNav";
+import { BADGE_EVENTS } from "@/lib/badgeEvents";
+import {
+  BADGE_EVENT_OPT_INS_STORAGE_KEY,
+  addBadgeEventOptIn,
+  parseBadgeEventOptIns,
+} from "@/lib/badgeEventOptIn";
 import type { FollowCounts } from "@/lib/followStore";
 import { buildPassport } from "@/lib/passport";
+import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
 import {
   deriveProfileFromDrops,
   normalizeHandle,
@@ -35,6 +42,7 @@ import {
   type SavedPubDTO,
 } from "@/lib/savedPubs";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { currentMode, modeEnablesLegacy } from "@/lib/viewMode";
 
 import "./profile.css";
 
@@ -63,6 +71,62 @@ type PublicDrop = ProfileDrop & {
 };
 
 type LoadState = "loading" | "ready" | "error";
+
+const BADGE_EVENT_IDS = BADGE_EVENTS.map((event) => event.id);
+const BADGE_EVENT_OPT_IN_CHANGED = "pubmax-badge-event-opt-ins-changed";
+
+function subscribeBadgeEventOptIns(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(BADGE_EVENT_OPT_IN_CHANGED, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(BADGE_EVENT_OPT_IN_CHANGED, onChange);
+  };
+}
+
+function currentBadgeEventOptInRaw(): string {
+  try {
+    return localStorage.getItem(BADGE_EVENT_OPT_INS_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function subscribeLegacyMode(onChange: () => void): () => void {
+  const el = document.documentElement;
+  const mo = new MutationObserver(onChange);
+  mo.observe(el, { attributes: true, attributeFilter: ["data-mode", "data-legacy"] });
+  window.addEventListener("storage", onChange);
+  return () => {
+    mo.disconnect();
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function currentLegacyMode(): boolean {
+  if (typeof document !== "undefined" && document.documentElement.dataset.legacy === "1") {
+    return true;
+  }
+  try {
+    return modeEnablesLegacy(currentMode());
+  } catch {
+    return false;
+  }
+}
+
+function isEventActive(event: (typeof BADGE_EVENTS)[number], now: string): boolean {
+  const time = Date.parse(now);
+  const startsAt = Date.parse(event.startsAt);
+  const endsAt = Date.parse(event.endsAt);
+  return (
+    Number.isFinite(time) &&
+    Number.isFinite(startsAt) &&
+    Number.isFinite(endsAt) &&
+    startsAt < endsAt &&
+    time >= startsAt &&
+    time < endsAt
+  );
+}
 
 // localStorage fallback → DTO groups. The client has no server venue index, so a
 // local-only save renders its id as the name (the demo degrade for a signed-out /
@@ -95,6 +159,18 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
+  const storedBadgeEventOptInRaw = useSyncExternalStore(
+    subscribeBadgeEventOptIns,
+    currentBadgeEventOptInRaw,
+    () => "",
+  );
+  const legacyMode = useSyncExternalStore(subscribeLegacyMode, currentLegacyMode, () => true);
+  const [badgeEventOptInOverride, setBadgeEventOptInOverride] = useState<string | null>(null);
+  const [badgeEventsNow, setBadgeEventsNow] = useState(() => new Date().toISOString());
+  const badgeEventOptIns = parseBadgeEventOptIns(
+    badgeEventOptInOverride ?? storedBadgeEventOptInRaw,
+    BADGE_EVENT_IDS,
+  );
 
   const [drops, setDrops] = useState<PublicDrop[]>([]);
   const [state, setState] = useState<LoadState>("loading");
@@ -303,6 +379,14 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = myHandle !== "" && myHandle === routeHandle;
   const isAnonymous = myHandle === "";
+  const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
+  const joinedBadgeEventIds = new Set(badgeEventOptIns.optedInEventIds);
+  const joinableBadgeEvents =
+    passportIsOwn && !legacyMode
+      ? BADGE_EVENTS.filter(
+          (event) => isEventActive(event, badgeEventsNow) && !joinedBadgeEventIds.has(event.id),
+        )
+      : [];
 
   // Pint Passport data (story 29): aggregated from the same drops the page
   // already loaded, plus this handle's published crawl-story count from
@@ -313,8 +397,42 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const passport = buildPassport(drops as ProfileDrop[], {
     crawls: storyCount,
     storyPosts: storyCount,
+    badgeEvents: buildProfileBadgeEventOptions({
+      isOwnPassport: passportIsOwn,
+      legacyMode,
+      now: badgeEventsNow,
+      optIns: badgeEventOptIns,
+    }),
   });
-  const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
+
+  function joinBadgeEvent(eventId: string) {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const event = BADGE_EVENTS.find((candidate) => candidate.id === eventId);
+    // Re-check the window at click time: a Join button rendered before the
+    // event ended must not persist a post-expiry opt-in (badgeEventsNow is
+    // captured at mount and can be stale).
+    setBadgeEventsNow(nowIso);
+    if (!event || !isEventActive(event, nowIso)) return;
+    const next = addBadgeEventOptIn(
+      badgeEventOptInOverride ?? currentBadgeEventOptInRaw(),
+      eventId,
+      now,
+      BADGE_EVENT_IDS,
+    );
+    let persisted = false;
+    try {
+      window.localStorage.setItem(BADGE_EVENT_OPT_INS_STORAGE_KEY, next.serialized);
+      persisted = true;
+    } catch {
+      // Storage disabled/private mode — keep the opt-in for this mounted session.
+    }
+    // Clear the optimistic override once the write lands so the store (which
+    // also sees cross-tab "storage" updates) is the source of truth; only keep
+    // the override as a session fallback when the write failed.
+    setBadgeEventOptInOverride(persisted ? null : next.serialized);
+    window.dispatchEvent(new Event(BADGE_EVENT_OPT_IN_CHANGED));
+  }
 
   // Claim this handle: an anonymous visitor adopts the route handle as their own
   // demo identity (localStorage `pubmax_handle`) — the same identity that
@@ -466,6 +584,32 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
                 profile also surfaces local "Crawls walked" from crawlCompletion. */}
             {routeHandle && routeHandle !== YOU_SENTINEL ? (
               <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
+            ) : null}
+
+            {joinableBadgeEvents.length ? (
+              <section className="passportQuestOptIn" aria-labelledby="questOptInHeading">
+                <div>
+                  <p className="passportQuestOptInKicker">Optional events</p>
+                  <h2 id="questOptInHeading" className="passportQuestOptInTitle">
+                    Seasonal badges
+                  </h2>
+                  <p className="passportQuestOptInCopy">
+                    Join only if you want them. Progress starts from the moment you join.
+                  </p>
+                </div>
+                <div className="passportQuestOptInActions">
+                  {joinableBadgeEvents.map((event) => (
+                    <button
+                      key={event.id}
+                      type="button"
+                      className="passportCta passportCtaPrimary"
+                      onClick={() => joinBadgeEvent(event.id)}
+                    >
+                      Join {event.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
             ) : null}
 
             {isOwnProfile && editing ? (

@@ -69,7 +69,14 @@ export function buildVenueNameIndex(dataset) {
     if (seenGroups.has(key)) continue;
     seenGroups.add(key);
     const name = normaliseVenueName(row.pub_name);
-    if (byName.has(name)) continue; // first group per normalised name wins
+    if (byName.has(name)) {
+      // First group per normalised name wins (deterministic), but flag the
+      // collision so a genuinely distinct second venue isn't silently dropped.
+      console.warn(
+        `buildVenueNameIndex: duplicate normalised venue name "${name}" — keeping first group, ignoring "${row.pub_name}"`,
+      );
+      continue;
+    }
     const lat = Number(row.latitude);
     const lng = Number(row.longitude);
     byName.set(name, {
@@ -164,7 +171,10 @@ export function pickHook(facts) {
 
 // Normalise a raw cache fact to exactly {source, fact, sourceRef?}.
 function normaliseFact(fact) {
-  const out = { source: fact.source, fact: fact.fact };
+  // Trim the cited text so downstream era/listed extraction and the citation
+  // hook match operate on the same clean string the UI renders — otherwise
+  // leading/trailing whitespace can skew the hook and text-scan matches.
+  const out = { source: fact.source, fact: String(fact.fact).trim() };
   if (fact.sourceRef != null && fact.sourceRef !== "") out.sourceRef = fact.sourceRef;
   return out;
 }

@@ -43,3 +43,10 @@ export function canonicalizeDataset<T extends CanonicalizationRow>(
   rows: T[],
   options?: { maxMergeMeters?: number },
 ): CanonicalizationResult<T>;
+export function clusterHasPostcodeConflict(
+  cluster: Array<{ address?: unknown }>,
+): boolean;
+export function mergeAliasMaps(
+  prevAliases: Record<string, string> | undefined,
+  currentAliases: Record<string, string>,
+): Record<string, string>;

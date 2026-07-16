@@ -35,7 +35,10 @@ export function requiresSupabaseStore(): boolean {
   // Keep the runtime store guard aligned with lib/serverEnv's startup guard:
   // Playwright's production-style keyless server deliberately runs with
   // PUBMAX_E2E_KEYLESS=1 so local/mobile QA can exercise real write paths
-  // against the in-memory stores. Deployed production must never set this.
+  // against the in-memory stores. A real Vercel Production deploy ignores the
+  // escape hatch — setting it there must not opt production into ephemeral
+  // stores.
+  if (process.env.VERCEL_ENV === "production") return true;
   if (process.env.PUBMAX_E2E_KEYLESS === "1") return false;
   return isDeployedProduction();
 }

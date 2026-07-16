@@ -1,11 +1,22 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import JsonLd from "@/components/seo/JsonLd";
+import FactBlock from "@/components/seo/FactBlock";
+import FaqBlock from "@/components/seo/FaqBlock";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { pintFactStats, faqItems, faqPageJsonLd } from "@/lib/pintFacts";
+import {
+  dataFileModified,
+  formatMonthYear,
+  formatObservedDate,
+  PINT_DATASET_FILE,
+} from "@/lib/dataFreshness";
 import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
-import { loadBoroughHeritage } from "@/lib/boroughHeritage";
+import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
@@ -13,6 +24,7 @@ import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
 
 import "./borough.css";
+import "@/components/seo/factLayer.css";
 
 // Borough discovery / "night-out chapter" page: /borough/[slug]. A SERVER
 // component (cc_plan2 §14/§25, story 28) — it reads the bundled dataset via
@@ -127,9 +139,46 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
-    openGraph: { title, description, type: "website" },
-    twitter: { card: "summary", title, description },
+    alternates: { canonical: `/borough/${slugifyBorough(name)}` },
+    // opengraph-image.tsx sits beside this route, so Next auto-attaches the
+    // dynamic borough card to both OG and Twitter. summary_large_image makes X
+    // render it as the full 1200×630 card rather than a thumbnail.
+    openGraph: { title, description, type: "website", url: `/borough/${slugifyBorough(name)}` },
+    twitter: { card: "summary_large_image", title, description },
   };
+}
+
+const SITE_URL = "https://pubmaxxing.com";
+
+// BreadcrumbList + ItemList structured data for this borough (Wave S1.3). Both
+// are built strictly from what the page already renders: the breadcrumb mirrors
+// the on-page "Boroughs · London" trail, and the ItemList is the cheapest-first
+// pub table. Each pub links to its canonical, crawlable venue permalink
+// (/ledger/{id}) — nothing invented; a pub with no price still lists, priced or
+// not, exactly as the table shows it.
+function boroughJsonLd(name: string, slug: string, pubs: Venue[]) {
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Boroughs", item: `${SITE_URL}/borough` },
+      { "@type": "ListItem", position: 2, name, item: `${SITE_URL}/borough/${slug}` },
+    ],
+  };
+  const itemList = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `Pubs in ${name}`,
+    numberOfItems: pubs.length,
+    itemListOrder: "https://schema.org/ItemListOrderAscending",
+    itemListElement: pubs.map((pub, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: pub.name,
+      url: `${SITE_URL}/ledger/${pub.id}`,
+    })),
+  };
+  return [breadcrumb, itemList];
 }
 
 export default async function BoroughPage({ params }: PageProps) {
@@ -150,8 +199,31 @@ export default async function BoroughPage({ params }: PageProps) {
   // when the borough has none — the section then renders nothing (no empty box).
   const heritage = await loadBoroughHeritage(slug);
 
+  // Programmatic fact layer (Wave S3.1/S3.2): stats derived from the tracked
+  // pint prices already loaded above, stamped with the dataset's observation
+  // date (honest freshness — never "live"). FAQ items skip any question whose
+  // answer data is missing, so a price-less borough renders neither block.
+  const observedAt = await dataFileModified(PINT_DATASET_FILE);
+  const boroughSlug = slugifyBorough(name);
+  const factStats = pintFactStats(pubs, name, boroughSlug);
+  const faq = faqItems(factStats, {
+    monthYear: formatMonthYear(observedAt),
+    year: String(observedAt.getFullYear()),
+    observedDate: formatObservedDate(observedAt),
+  });
+  const faqLd = faqPageJsonLd(faq);
+  const jsonLdGraph = [
+    ...boroughJsonLd(name, boroughSlug, pubs),
+    ...(faqLd ? [faqLd] : []),
+  ];
+
+
+  // Per-request CSP nonce (proxy.ts) for the JSON-LD block below.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <main className="boroughPage">
+      <JsonLd data={jsonLdGraph} nonce={nonce} />
       <SiteNav active="borough" />
 
       <header className="boroughHead">
@@ -315,7 +387,7 @@ export default async function BoroughPage({ params }: PageProps) {
           </p>
           <p className="boroughHeritageProvenance">Cited from Wikipedia &mdash; never invented.</p>
           <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
-            {heritage.notable.slice(0, 6).map((pub) => (
+            {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => (
               <li key={pub.slug} className="boroughHeritageCard">
                 {pub.era || pub.listed ? (
                   <div className="boroughHeritageMeta">
@@ -344,6 +416,45 @@ export default async function BoroughPage({ params }: PageProps) {
           </p>
         </section>
       ) : null}
+
+      <FactBlock
+        stats={factStats}
+        monthYear={formatMonthYear(observedAt)}
+        observedDate={formatObservedDate(observedAt)}
+        headingId="boroughFactHeading"
+        title={`Pint prices in ${name}, by the numbers`}
+      />
+
+      <FaqBlock
+        items={faq}
+        headingId="boroughFaqHeading"
+        title={`Pint prices in ${name} — questions`}
+      />
+
+      {/* Internal cross-links (Wave S3.5): let crawlers walk borough → map →
+          Pint Index → historic via plain hrefs. Individual /ledger permalinks
+          already sit in the pubs table above. */}
+      <nav className="factLinks" aria-labelledby="boroughLinksHeading">
+        <p className="factLinksTitle" id="boroughLinksHeading">
+          Explore more
+        </p>
+        <ul className="factLinksList">
+          <li>
+            <Link href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
+          </li>
+          <li>
+            <Link href="/pint-index">London Pint Index</Link>
+          </li>
+          {heritage ? (
+            <li>
+              <Link href="/historic">Historic pubs</Link>
+            </li>
+          ) : null}
+          <li>
+            <Link href="/borough">All boroughs</Link>
+          </li>
+        </ul>
+      </nav>
 
       <p className="boroughFootnote">
         Every pint has a story. <Link href="/borough">See every borough →</Link>

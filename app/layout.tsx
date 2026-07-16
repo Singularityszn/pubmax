@@ -12,6 +12,35 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
 import PerformanceVitals from "@/components/PerformanceVitals";
+import JsonLd from "@/components/seo/JsonLd";
+
+// Site-wide structured data (Wave S1.3). WebSite + Organization only — the
+// identity graph Google reads for the brand panel and AI engines read to know
+// what pubmaxxing.com IS. No SearchAction/potentialAction: the only on-site
+// search is the client-rendered WebGL map (/map?q=), which is not a crawlable
+// results page, so advertising a sitelinks search box would be schema for
+// something we can't prove (PRD non-negotiable). logo is an absolute URL to a
+// shipped icon asset (public/icon-512.png).
+const SITE_JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://pubmaxxing.com/#website",
+    name: "PUBMAXXING",
+    alternateName: "PUBMAXX",
+    url: "https://pubmaxxing.com",
+    description:
+      "A price-aware, provenance-first London pub map and crawl planner — real observed pint prices and cited historic pubs.",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://pubmaxxing.com/#organization",
+    name: "PUBMAXXING",
+    url: "https://pubmaxxing.com",
+    logo: "https://pubmaxxing.com/icon-512.png",
+  },
+];
 
 // Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
@@ -185,6 +214,9 @@ export default async function RootLayout({
             }),
           }}
         />
+        {/* Site-wide JSON-LD (WebSite + Organization). Carries the nonce like
+            every other inline script under the nonce CSP (proxy.ts). */}
+        <JsonLd data={SITE_JSON_LD} nonce={nonce} />
       </head>
       <body>
         {/* AuthProvider is additive: it establishes identity for signed-in users
