@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
 import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
-import { loadBoroughHeritage } from "@/lib/boroughHeritage";
+import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
@@ -315,7 +315,7 @@ export default async function BoroughPage({ params }: PageProps) {
           </p>
           <p className="boroughHeritageProvenance">Cited from Wikipedia &mdash; never invented.</p>
           <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
-            {heritage.notable.slice(0, 6).map((pub) => (
+            {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => (
               <li key={pub.slug} className="boroughHeritageCard">
                 {pub.era || pub.listed ? (
                   <div className="boroughHeritageMeta">

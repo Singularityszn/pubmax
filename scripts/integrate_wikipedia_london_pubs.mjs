@@ -13,7 +13,7 @@
 
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { boroughForPoint, loadBoroughIndex } from "./lib/boroughFromPoint.mjs";
@@ -60,7 +60,7 @@ function normaliseVenueName(value) {
 }
 
 function inLondon(lat, lng) {
-  return LAT_MIN <= lat && lat <= LAT_MAX && LON_MIN <= lng && LON_MAX <= LON_MAX;
+  return LAT_MIN <= lat && lat <= LAT_MAX && LON_MIN <= lng && lng <= LON_MAX;
 }
 
 function wikiTitleFromUrl(url) {
@@ -94,10 +94,21 @@ function dedupeByUrl(pubs) {
 }
 
 function loadJson(path, fallback) {
+  let raw;
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return fallback;
+    raw = readFileSync(path, "utf8");
+  } catch (err) {
+    // File-missing is expected on a first run: fall back to the seed value.
+    if (err?.code === "ENOENT") return fallback;
+    // Any other read error (permissions, IO) must fail loudly rather than
+    // silently rebuilding over an unreadable-but-present dataset.
+    throw new Error(`Failed to read ${path}: ${err?.message ?? err}`);
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    // A corrupt/partial existing dataset must not be silently overwritten.
+    throw new Error(`Failed to parse ${path} as JSON: ${err?.message ?? err}`);
   }
 }
 
@@ -125,19 +136,45 @@ function nextAppPriceId(existing) {
   return max;
 }
 
+const FETCH_TIMEOUT_MS = 30000;
+
+// The abort timer must stay armed until the RESPONSE BODY is consumed, not just
+// until headers arrive — otherwise res.json()/res.text() can hang indefinitely
+// past the timeout. Callers that read the body pass a `consume(res)` callback so
+// the read happens inside the timeout window; the timer only clears once it
+// resolves.
+async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS, consume) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return consume ? await consume(res) : res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchJson(url, retries = 4) {
   for (let attempt = 0; attempt <= retries; attempt += 1) {
-    const res = await fetch(url, {
-      headers: {
-        "user-agent": "pubmax-wikipedia-integrate/0.1 (contact: demo@pubmax.local)",
+    const result = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          "user-agent": "pubmax-wikipedia-integrate/0.1 (contact: demo@pubmax.local)",
+        },
       },
-    });
-    if (res.status === 429 && attempt < retries) {
+      FETCH_TIMEOUT_MS,
+      async (res) => {
+        if (res.status === 429 && attempt < retries) return { retry: true };
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return { data: await res.json() };
+      },
+    );
+    if (result.retry) {
       await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
       continue;
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return result.data;
   }
   throw new Error("HTTP 429");
 }
@@ -259,25 +296,44 @@ async function writeSupabase(norm, facts) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key || facts.length === 0) return;
   try {
-    await fetch(`${base.replace(/\/$/, "")}/rest/v1/pub_heritage`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        apikey: key,
-        authorization: `Bearer ${key}`,
-        prefer: "resolution=merge-duplicates",
+    const failure = await fetchWithTimeout(
+      `${base.replace(/\/$/, "")}/rest/v1/pub_heritage`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          apikey: key,
+          authorization: `Bearer ${key}`,
+          prefer: "resolution=merge-duplicates",
+        },
+        body: JSON.stringify(
+          facts.map((f) => ({
+            venue_key: norm,
+            source: f.source,
+            fact: f.fact,
+            source_ref: f.sourceRef ?? null,
+          })),
+        ),
       },
-      body: JSON.stringify(
-        facts.map((f) => ({
-          venue_key: norm,
-          source: f.source,
-          fact: f.fact,
-          source_ref: f.sourceRef ?? null,
-        })),
-      ),
-    });
-  } catch {
-    // best-effort
+      FETCH_TIMEOUT_MS,
+      async (res) => {
+        // Read the error body inside the timeout window so a slow/hung body
+        // can't outlive the abort timer.
+        if (res.ok) return null;
+        return { status: res.status, detail: await res.text().catch(() => "") };
+      },
+    );
+    if (failure) {
+      console.warn(
+        `writeSupabase: pub_heritage upsert for "${norm}" failed: HTTP ${failure.status}${failure.detail ? ` — ${failure.detail.slice(0, 200)}` : ""}`,
+      );
+    }
+  } catch (err) {
+    // Best-effort persistence, but surface the failure so a broken/timed-out
+    // Supabase write is visible rather than silently dropped.
+    console.warn(
+      `writeSupabase: pub_heritage upsert for "${norm}" errored: ${err?.message ?? err}`,
+    );
   }
 }
 
@@ -523,7 +579,11 @@ async function main() {
   else console.log("  Run: npm run build:slim");
 }
 
-main().catch((err) => {
-  console.error("integrate_wikipedia_london_pubs failed:", err?.message ?? err);
-  process.exit(1);
-});
+export { inLondon, loadJson, venueKey };
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error("integrate_wikipedia_london_pubs failed:", err?.message ?? err);
+    process.exit(1);
+  });
+}

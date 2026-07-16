@@ -97,7 +97,7 @@ export function buildHeritageCrawls(pubs: HistoricPub[]): CuratedCrawl[] {
   const oldestCrawl = makeCrawl(
     "heritage-oldest-pubs",
     "London's Oldest Pubs",
-    `The city's oldest surviving pubs, earliest first — from a Tudor riverside tavern onward. Every date is ${PROVENANCE}`,
+    `The city's oldest surviving pubs, earliest first. Every date is ${PROVENANCE}`,
     oldest,
   );
   if (oldestCrawl) crawls.push(oldestCrawl);
