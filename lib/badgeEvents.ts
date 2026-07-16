@@ -193,7 +193,13 @@ export function computeBadgeEventProgress(
       Number.isFinite(event.criteria.target) && event.criteria.target > 0
         ? Math.floor(event.criteria.target)
         : 1;
-    const current = Math.min(currentFor(event.criteria, dropsInWindow(list, effectiveStart, endsAt)), target);
+    // Cap the window's upper bound at `now` so a future-dated drop (clock skew
+    // or a bad timestamp ahead of the current moment) never counts toward
+    // progress before it has actually happened.
+    const current = Math.min(
+      currentFor(event.criteria, dropsInWindow(list, effectiveStart, Math.min(now, endsAt))),
+      target,
+    );
     const earned = current >= target;
     const badge: Badge = {
       id: `event-${event.id}`,

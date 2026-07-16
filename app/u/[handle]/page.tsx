@@ -393,19 +393,29 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   function joinBadgeEvent(eventId: string) {
     const now = new Date();
     const nowIso = now.toISOString();
+    const event = BADGE_EVENTS.find((candidate) => candidate.id === eventId);
+    // Re-check the window at click time: a Join button rendered before the
+    // event ended must not persist a post-expiry opt-in (badgeEventsNow is
+    // captured at mount and can be stale).
+    setBadgeEventsNow(nowIso);
+    if (!event || !isEventActive(event, nowIso)) return;
     const next = addBadgeEventOptIn(
       badgeEventOptInOverride ?? currentBadgeEventOptInRaw(),
       eventId,
       now,
       BADGE_EVENT_IDS,
     );
+    let persisted = false;
     try {
       window.localStorage.setItem(BADGE_EVENT_OPT_INS_STORAGE_KEY, next.serialized);
+      persisted = true;
     } catch {
       // Storage disabled/private mode — keep the opt-in for this mounted session.
     }
-    setBadgeEventsNow(nowIso);
-    setBadgeEventOptInOverride(next.serialized);
+    // Clear the optimistic override once the write lands so the store (which
+    // also sees cross-tab "storage" updates) is the source of truth; only keep
+    // the override as a session fallback when the write failed.
+    setBadgeEventOptInOverride(persisted ? null : next.serialized);
     window.dispatchEvent(new Event(BADGE_EVENT_OPT_IN_CHANGED));
   }
 
