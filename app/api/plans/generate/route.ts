@@ -18,7 +18,7 @@ import {
 import type { PublicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { clientIp, hashIp } from "@/lib/supabase";
+import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
 
 assertServerEnv();
 
@@ -170,7 +170,8 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return jsonNoStore(publicError("Malformed request body.", "MALFORMED_REQUEST"), { status: 400 }); }
-  if (await isLimited(`plan-generate:${hashIp(clientIp(request))}`, "plan-generate")) return jsonNoStore(publicError("Too many requests.", "RATE_LIMITED", true), { status: 429 });
+  const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) return jsonNoStore(publicError("Too many requests.", "RATE_LIMITED", true), { status: 429 });
   const query = typeof body.query === "string" ? body.query.trim() : "";
   if (!query && !body.context) return jsonNoStore(publicError("Describe the night or provide Night Context.", "NIGHT_CONTEXT_REQUIRED"), { status: 400 });
   const inferred = inferNightContext(query);

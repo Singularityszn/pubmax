@@ -1,19 +1,46 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { isLimitedMock, loadConciergeVenuesMock } = vi.hoisted(() => ({
+  isLimitedMock: vi.fn(async (...args: [
+    localKey: string,
+    durableKey: string,
+    limit?: number,
+    windowMs?: number,
+    opts?: { failClosed?: boolean },
+  ]) => {
+    void args;
+    return false;
+  }),
+  loadConciergeVenuesMock: vi.fn(),
+}));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
-  return { ...actual, isLimited: async () => false };
+  return { ...actual, isLimited: isLimitedMock };
+});
+vi.mock("@/lib/concierge/venues.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/concierge/venues.server")>();
+  loadConciergeVenuesMock.mockImplementation(actual.loadConciergeVenues);
+  return { ...actual, loadConciergeVenues: loadConciergeVenuesMock };
 });
 
 import { GET, POST } from "@/app/api/plans/generate/route";
+import { hashIp } from "@/lib/supabase";
 
 describe("POST /api/plans/generate", () => {
+  beforeEach(() => {
+    isLimitedMock.mockClear();
+    isLimitedMock.mockResolvedValue(false);
+    loadConciergeVenuesMock.mockClear();
+  });
+
   it("warms stable planning data without creating a plan", async () => {
     const response = await GET(new Request("http://localhost/api/plans/generate?cityId=london"));
     expect(response.status).toBe(204);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.text()).toBe("");
+    expect(isLimitedMock).not.toHaveBeenCalled();
   });
 
   it("returns an explained three-stop suggestion without creating a Plan", async () => {
@@ -60,6 +87,71 @@ describe("POST /api/plans/generate", () => {
       code: "NIGHT_CONTEXT_REQUIRED",
       retryable: false,
     });
+  });
+
+  it("uses the same privacy-safe per-client bucket for local and durable limiting", async () => {
+    const rawIp = "203.0.113.42";
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      headers: { "x-forwarded-for": `${rawIp}, 198.51.100.7` },
+      body: JSON.stringify({ query: "A quiet night in Barnes" }),
+    }));
+
+    expect(response.status).toBe(200);
+    const expectedKey = `plan-generate:${hashIp(rawIp)}`;
+    expect(isLimitedMock).toHaveBeenCalledOnce();
+    expect(isLimitedMock).toHaveBeenCalledWith(expectedKey, expectedKey, 8, 60_000);
+    expect(JSON.stringify(isLimitedMock.mock.calls)).not.toContain(rawIp);
+  });
+
+  it("isolates plan-generation budgets by client and preserves the flat 429 contract", async () => {
+    for (const rawIp of ["203.0.113.1", "203.0.113.2"]) {
+      await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        headers: { "x-real-ip": rawIp },
+        body: JSON.stringify({ query: "A quiet night in Barnes" }),
+      }));
+    }
+    const firstKey = isLimitedMock.mock.calls[0]?.[0];
+    const secondKey = isLimitedMock.mock.calls[1]?.[0];
+    expect(firstKey).not.toBe(secondKey);
+
+    isLimitedMock.mockResolvedValueOnce(true);
+    const limited = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      headers: { "x-real-ip": "203.0.113.3" },
+      body: JSON.stringify({ query: "A quiet night in Barnes" }),
+    }));
+
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({
+      error: "Too many requests.",
+      code: "RATE_LIMITED",
+      retryable: true,
+    });
+  });
+
+  it("shares one bucket for repeated requests from the same client", async () => {
+    for (let requestNumber = 0; requestNumber < 2; requestNumber += 1) {
+      await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        headers: { "x-real-ip": "203.0.113.9" },
+        body: JSON.stringify({ query: "A quiet night in Barnes" }),
+      }));
+    }
+    expect(isLimitedMock.mock.calls[0]?.slice(0, 2)).toEqual(isLimitedMock.mock.calls[1]?.slice(0, 2));
+  });
+
+  it("does not load venues after rate-limit rejection", async () => {
+    isLimitedMock.mockResolvedValueOnce(true);
+    const before = loadConciergeVenuesMock.mock.calls.length;
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      headers: { "x-real-ip": "203.0.113.10" },
+      body: JSON.stringify({ query: "A quiet night in Barnes" }),
+    }));
+    expect(response.status).toBe(429);
+    expect(loadConciergeVenuesMock).toHaveBeenCalledTimes(before);
   });
 
   it("keeps inferred brief fields when the client sends only explicit chip corrections", async () => {
