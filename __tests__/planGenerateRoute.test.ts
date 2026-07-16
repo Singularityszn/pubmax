@@ -231,6 +231,19 @@ describe("POST /api/plans/generate", () => {
     expect(body.stops).toHaveLength(3);
   });
 
+  it("does not invent weather when the scheduled cache has no active observation", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "A beer garden night in Clapham" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.weatherEvidence).toBeNull();
+    expect(body.planningConfidence.missingEvidence).toContain("live_weather");
+    expect(body.contextEffects).not.toContain("weather");
+  });
+
   it("returns route budget evidence while preserving the legacy numeric confidence", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
@@ -254,7 +267,7 @@ describe("POST /api/plans/generate", () => {
     });
   });
 
-  it("keeps two grounded food endings while ranking an explicit food need first", async () => {
+  it("does not claim a food ending when official evidence is insufficient", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({ query: "Late night in Clapham with kebab afterwards" }),
@@ -262,8 +275,29 @@ describe("POST /api/plans/generate", () => {
     const body = await response.json();
     const food = body.endingRecommendations.find((ending: { kind: string }) => ending.kind === "food");
 
-    expect(food.preselected).toBe(true);
-    expect(food.options).toHaveLength(2);
-    expect(food.options[0]).toMatchObject({ label: "Kebab Corner", closingConfidence: "unknown" });
+    expect(food.preselected).toBe(false);
+    expect(food.options).toEqual([]);
+    expect(food.warnings).toContain("No reviewed late-food option is available for this Night Area.");
+  });
+
+  it("calculates evidenced food distance from the actual final route stop", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-16T23:00:00.000Z"));
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "Late night in Soho" }),
+      }));
+      const body = await response.json();
+      const food = body.endingRecommendations.find((ending: { kind: string }) => ending.kind === "food");
+
+      expect(response.status).toBe(200);
+      expect(food.options).toEqual([expect.objectContaining({
+        label: "Balans No.60",
+        detail: expect.stringContaining("direct-distance estimate"),
+        provenance: [expect.objectContaining({ label: expect.stringContaining("Balans Restaurants") })],
+      })]);
+    } finally {
+      clock.mockRestore();
+    }
   });
 });

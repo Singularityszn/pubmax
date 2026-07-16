@@ -31,17 +31,24 @@ function setupScratch(files: Record<string, unknown>): string {
   const scratchData = join(scratchRoot, "public", "data");
   const scratchGeneratedData = join(scratchRoot, "data", "generated");
   mkdirSync(scratchScripts, { recursive: true });
+  mkdirSync(join(scratchScripts, "lib"), { recursive: true });
   mkdirSync(scratchData, { recursive: true });
   mkdirSync(scratchGeneratedData, { recursive: true });
   // Copy the real script (unmodified) and the real bundled datasets it also
   // validates, so the run reflects production data validation end-to-end.
   cpSync(SCRIPT, join(scratchScripts, "validate-data.mjs"));
+  cpSync(
+    join(ROOT, "scripts", "lib", "validateLateFoodEvidence.mjs"),
+    join(scratchScripts, "lib", "validateLateFoodEvidence.mjs"),
+  );
   for (const f of [
     "london_pois.json",
     "tfl_lines.json",
     "pint_prices_app_dataset.json",
     "venues_slim.json",
     "pubmaxxing_seed_snapshot.json",
+    "pint_index_snapshot.json",
+    "late_food_evidence.json",
   ]) {
     cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
   }
@@ -49,6 +56,11 @@ function setupScratch(files: Record<string, unknown>): string {
   cpSync(
     join(ROOT, "public", "data", "night_signals", "latest.json"),
     join(scratchData, "night_signals", "latest.json"),
+  );
+  mkdirSync(join(scratchData, "weather"), { recursive: true });
+  cpSync(
+    join(ROOT, "public", "data", "weather", "latest.json"),
+    join(scratchData, "weather", "latest.json"),
   );
   for (const f of ["venue_detail_index.json", "venue_details.jsonl"]) {
     cpSync(join(ROOT, "data", "generated", f), join(scratchGeneratedData, f));

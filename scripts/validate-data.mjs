@@ -11,6 +11,7 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -44,6 +45,10 @@ function isValidNightSignalClaim(row) {
       return ["http:", "https:"].includes(url.protocol)
         && !url.username && !url.password && !url.port && !url.search && !url.hash;
     } catch { return false; }
+  };
+  const hostname = (value) => {
+    try { return new URL(value).hostname.toLowerCase().replace(/^www\./, ""); }
+    catch { return null; }
   };
   const source = (value) => value && typeof value === "object" && publicUrl(value.sourceUrl) && text(value.publisher, 160) && iso(value.publishedAt);
   if (!row || typeof row !== "object" || !text(row.id, 120) || !text(row.claim, 500)) return false;
@@ -1095,6 +1100,125 @@ function validateNightSignalSnapshot() {
   return { ok, count: data.claims.length };
 }
 
+function validateWeatherSnapshotData() {
+  const name = "public/data/weather/latest.json";
+  const errs = makeCollector();
+  let data;
+  try { data = loadJson("weather/latest.json"); }
+  catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  const areas = new Set([
+    "clapham", "victoria", "piccadilly-soho", "canary-wharf", "barnes", "chiswick",
+    "shoreditch", "camden", "brixton", "bermondsey-london-bridge", "kings-cross", "islington",
+    "dalston", "peckham", "greenwich", "hammersmith", "balham", "marylebone", "richmond", "putney",
+  ]);
+  const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  if (data?.version !== 1 || !iso(data?.generatedAt) || !Array.isArray(data?.observations)) {
+    console.log(`FAIL ${name}: expected a v1 snapshot with generatedAt and observations`);
+    return { ok: false, count: 0 };
+  }
+  const seen = new Set();
+  for (const [index, row] of data.observations.entries()) {
+    if (!areas.has(row?.nightArea) || seen.has(row?.nightArea)) errs.add(`observation ${index}: invalid or duplicate Night Area`);
+    seen.add(row?.nightArea);
+    if (!iso(row?.observedAt) || !iso(row?.expiresAt) || Date.parse(row.expiresAt) <= Date.parse(row.observedAt)) errs.add(`observation ${index}: invalid evidence interval`);
+    if (Date.parse(row?.observedAt) > Date.parse(data.generatedAt)) errs.add(`observation ${index}: newer than snapshot`);
+    if (typeof row?.condition !== "string" || !row.condition.trim()) errs.add(`observation ${index}: condition is required`);
+    if (typeof row?.feelsLikeC !== "number" || row.feelsLikeC < -40 || row.feelsLikeC > 60) errs.add(`observation ${index}: invalid feelsLikeC`);
+    if (typeof row?.precipitationProbabilityPct !== "number" || row.precipitationProbabilityPct < 0 || row.precipitationProbabilityPct > 100) errs.add(`observation ${index}: invalid precipitation probability`);
+    if (row?.windKph !== null && (typeof row?.windKph !== "number" || row.windKph < 0 || row.windKph > 300)) errs.add(`observation ${index}: invalid windKph`);
+    if (!row?.source || !isHttpUrl(row.source.sourceUrl) || typeof row.source.publisher !== "string" || !row.source.publisher.trim() || !iso(row.source.publishedAt) || Date.parse(row.source.publishedAt) > Date.parse(row.observedAt)) errs.add(`observation ${index}: invalid source provenance`);
+  }
+  if (data.observations.length !== 0 && data.observations.length !== areas.size) errs.add("a non-empty refresh must be atomic across all 20 Night Areas");
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.observations.length} cached observations, ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: data.observations.length };
+}
+
+function validatePintIndexSnapshot() {
+  const name = "public/data/pint_index_snapshot.json";
+  const errs = makeCollector();
+  let data;
+  try { data = loadJson("pint_index_snapshot.json"); }
+  catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  const publicUrl = (value) => {
+    try {
+      const url = new URL(value);
+      return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+    } catch { return false; }
+  };
+  const boroughs = new Set([
+    "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden",
+    "City of London", "Croydon", "Ealing", "Enfield", "Greenwich", "Hackney",
+    "Hammersmith and Fulham", "Haringey", "Harrow", "Havering", "Hillingdon",
+    "Hounslow", "Islington", "Kensington and Chelsea", "Kingston upon Thames",
+    "Lambeth", "Lewisham", "Merton", "Newham", "Redbridge", "Richmond upon Thames",
+    "Southwark", "Sutton", "Tower Hamlets", "Waltham Forest", "Wandsworth", "Westminster",
+  ]);
+  const code = (value) => value.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (data?.schemaVersion !== 1 || !["published", "partial", "empty"].includes(data?.status) || !iso(data?.generatedAt)) errs.add("expected a v1 snapshot with valid status and generatedAt");
+  if (data?.classification?.method !== "point_in_polygon" || typeof data?.classification?.licence !== "string") errs.add("invalid classification provenance");
+  if (!Array.isArray(data?.sources) || !Array.isArray(data?.observations) || !Array.isArray(data?.excluded)) errs.add("sources, observations and excluded must be arrays");
+  const ids = new Set();
+  for (const [index, source] of (data?.sources ?? []).entries()) {
+    if (!source?.id || ids.has(source.id)) errs.add(`source ${index}: missing or duplicate id`);
+    ids.add(source?.id);
+    if (!["confirmed_pint_drop", "official_publisher", "open_data"].includes(source?.kind)) errs.add(`source ${index}: ineligible kind`);
+    if (!publicUrl(source?.sourceUrl)) errs.add(`source ${index}: invalid public URL`);
+    if (source?.kind === "confirmed_pint_drop" &&
+        (source?.reviewState !== "confirmed" || !source?.confirmationId)) {
+      errs.add(`source ${index}: Pint Drop requires confirmed review evidence`);
+    }
+    if (source?.kind === "official_publisher") {
+      const domain = typeof source?.officialDomain === "string" ? source.officialDomain.toLowerCase().replace(/^www\./, "") : "";
+      const sourceHost = hostname(source?.sourceUrl);
+      if (!["pub", "brewery"].includes(source?.publisherType) || !domain || !sourceHost ||
+          (sourceHost !== domain && !sourceHost.endsWith(`.${domain}`))) {
+        errs.add(`source ${index}: official pub/brewery domain must match source URL`);
+      }
+    }
+    if (source?.kind === "open_data" && (!source?.licence || !source?.datasetName)) errs.add(`source ${index}: open data requires a named, licensed dataset`);
+  }
+  for (const [index, row] of (data?.observations ?? []).entries()) {
+    if (!boroughs.has(row?.boroughName) || code(row.boroughName ?? "") !== row?.boroughCode) errs.add(`observation ${index}: non-canonical borough`);
+    if (!Number.isInteger(row?.pricePence) || row.pricePence <= 0) errs.add(`observation ${index}: invalid pricePence`);
+    if (!iso(row?.observedAt)) errs.add(`observation ${index}: invalid observedAt`);
+    if (!ids.has(row?.sourceId)) errs.add(`observation ${index}: unknown source`);
+  }
+  if (data?.status === "empty" && (data?.observations?.length ?? 0) !== 0) errs.add("empty snapshot contains observations");
+  if (data?.status !== "empty" && (data?.observations?.length ?? 0) === 0) errs.add("non-empty snapshot has no observations");
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data?.observations?.length ?? 0} public observations, ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: data?.observations?.length ?? 0 };
+}
+
+function validateLateFoodEvidenceSnapshot() {
+  const name = "public/data/late_food_evidence.json";
+  let data;
+  try { data = loadJson("late_food_evidence.json"); }
+  catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  const errors = validateLateFoodEvidence(data);
+  const count = Object.values(data?.areas ?? {}).reduce(
+    (sum, area) => sum + (Array.isArray(area?.options) ? area.options.length : 0),
+    0,
+  );
+  const ok = errors.length === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${Object.keys(data?.areas ?? {}).length} Night Areas, ${count} evidenced option(s), ${errors.length} error(s)`);
+  if (!ok) errors.slice(0, 20).forEach((error) => console.log(`    - ${error}`));
+  return { ok, count };
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -1110,6 +1234,9 @@ function main() {
     validateDrinkPriceUpdates(),
     validateWhatsOnUpdates(),
     validateNightSignalSnapshot(),
+    validateWeatherSnapshotData(),
+    validatePintIndexSnapshot(),
+    validateLateFoodEvidenceSnapshot(),
     validatePubmaxxingSeed(),
   ];
   const failed = results.filter((r) => !r.ok).length;

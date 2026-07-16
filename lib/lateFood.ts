@@ -1,232 +1,232 @@
-// Curated crawl-ending options. This stays deliberately separate from the
-// Venue Dataset: late-food suitability is not a pint-price or crawl-stop fact.
-// The seed is keyless and static so callers can always offer an honest ending.
+import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { haversineKm } from "@/lib/haversine";
+import evidenceSnapshot from "@/public/data/late_food_evidence.json";
 
-export const LATE_FOOD_AREAS = [
-  "clapham",
-  "victoria",
-  "piccadilly-soho",
-  "canary-wharf",
-  "barnes",
-  "chiswick",
-] as const;
+// Food endings are deliberately separate from the Venue Dataset: their hours,
+// locations and provenance must pass their own evidence gate and never become
+// pint-price or crawl-stop facts.
+export const LATE_FOOD_AREAS = NIGHT_AREA_SLUGS;
+export type LateFoodArea = NightAreaSlug;
 
-export type LateFoodArea = (typeof LATE_FOOD_AREAS)[number];
-
-/** Accepted URL aliases that normalize to a canonical Night Area slug. */
 export const LATE_FOOD_AREA_ALIASES = {
   soho: "piccadilly-soho",
   piccadilly: "piccadilly-soho",
 } as const satisfies Record<string, LateFoodArea>;
 
-export const LATE_FOOD_CATEGORIES = [
-  "kebab",
-  "pizza",
-  "cafe",
-  "restaurant",
-] as const;
-
+export const LATE_FOOD_CATEGORIES = ["kebab", "pizza", "cafe", "restaurant"] as const;
 export type LateFoodCategory = (typeof LATE_FOOD_CATEGORIES)[number];
 export type LateFoodDietary = "vegan" | "vegetarian" | "gluten-free";
 export type LateFoodConfidence = "high" | "medium" | "low";
 
+const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
+type Weekday = (typeof WEEKDAYS)[number];
+
+export type LateFoodServiceWindow = { open: string; close: string; closesNextDay: boolean };
 export type LateFoodHours = {
-  /** Human-readable late-service guidance, not a live opening-hours feed. */
   service: string;
-  /** The static seed is intentionally conservative: callers must verify tonight. */
   verifyOnNight: true;
+  weekly: Record<Weekday, LateFoodServiceWindow[]>;
 };
 
 export type LateFoodProvenance = {
-  kind: "editorial";
+  kind: "official_operator";
   source: string;
+  sourceUrl: string;
+  observedAt: string;
   reviewedAt: string;
+  expiresAt: string;
 };
 
 export type LateFoodWalkingDetour = {
-  /** Typical extra walking time from the Night Area's central crawl cluster. */
-  minutes: number;
+  minutes: number | null;
+  distanceKm: number | null;
+  basis: "straight-line-from-final-stop" | "unavailable";
   note: string;
 };
 
-/**
- * A food-only crawl ending. It intentionally has no venue ID, pint prices,
- * amenities, or coordinates, so it cannot be passed into venue route scoring.
- */
 export type LateFoodTerminal = {
   id: string;
   name: string;
   area: LateFoodArea;
   category: LateFoodCategory;
+  /** Empty means no dietary claim is evidenced, not that no options exist. */
   dietary: LateFoodDietary[];
+  address: string;
+  coordinates: { lat: number; lng: number };
   hours: LateFoodHours;
   walkingDetour: LateFoodWalkingDetour;
   provenance: LateFoodProvenance;
   confidence: LateFoodConfidence;
+  openAtRequestedTime: boolean | null;
 };
 
-/** Successful /api/late-food payload, ready for mobile UI consumption. */
 export type LateFoodApiSuccessResponse = {
   area: LateFoodArea;
+  requestedAt: string | null;
   terminals: LateFoodTerminal[];
   rankingSignals: string[];
   missingEvidence: string[];
 };
 
-/** Invalid /api/late-food request payload; terminals is always explicitly empty. */
 export type LateFoodApiErrorResponse = {
   error: string;
+  code: string;
+  retryable: false;
   terminals: [];
+  details: { terminals: [] };
 };
 
 export type LateFoodApiResponse = LateFoodApiSuccessResponse | LateFoodApiErrorResponse;
 
-const STATIC_PROVENANCE: LateFoodProvenance = {
-  kind: "editorial",
-  source: "PUBMAXX London Capture static curation",
-  reviewedAt: "2026-07-13",
+type RawOption = {
+  id: string;
+  name: string;
+  area: LateFoodArea;
+  category: LateFoodCategory;
+  address: string;
+  coordinates: { lat: number; lng: number };
+  serviceHoursText: string;
+  weeklyHours: Record<Weekday, LateFoodServiceWindow[]>;
+  verifyOnNight: true;
+  confidence: LateFoodConfidence;
+  source: {
+    kind: "official_operator";
+    publisher: string;
+    sourceUrl: string;
+    observedAt: string;
+    reviewedAt: string;
+    expiresAt: string;
+  };
 };
 
-const HOURS_TO_VERIFY: LateFoodHours = {
-  service: "Late-service suitability is curated; confirm tonight's kitchen hours before heading over.",
-  verifyOnNight: true,
+type RankingOptions = {
+  at?: string | Date | null;
+  from?: { lat: number; lng: number } | null;
+  now?: number;
 };
 
-export const LATE_FOOD_TERMINALS: readonly LateFoodTerminal[] = [
-  {
-    id: "late-food-clapham-kebab-corner",
-    name: "Kebab Corner",
-    area: "clapham",
-    category: "kebab",
-    dietary: ["vegetarian"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 4, note: "Short detour from Clapham High Street." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "medium",
-  },
-  {
-    id: "late-food-clapham-joe-public",
-    name: "Joe Public",
-    area: "clapham",
-    category: "pizza",
-    dietary: ["vegetarian"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 6, note: "Short detour from Clapham Common station." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "medium",
-  },
-  {
-    id: "late-food-victoria-the-athenian",
-    name: "The Athenian",
-    area: "victoria",
-    category: "restaurant",
-    dietary: ["vegetarian"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 5, note: "Near Victoria station for an easy onward journey." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "medium",
-  },
-  {
-    id: "late-food-piccadilly-soho-bar-italia",
-    name: "Bar Italia",
-    area: "piccadilly-soho",
-    category: "cafe",
-    dietary: ["vegetarian"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 4, note: "In the Soho core, close to the final crawl stop cluster." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "high",
-  },
-  {
-    id: "late-food-piccadilly-soho-balans",
-    name: "Balans Soho",
-    area: "piccadilly-soho",
-    category: "restaurant",
-    dietary: ["vegan", "vegetarian", "gluten-free"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 5, note: "A short walk from Piccadilly Circus." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "medium",
-  },
-  {
-    id: "late-food-canary-wharf-big-easy",
-    name: "Big Easy Canary Wharf",
-    area: "canary-wharf",
-    category: "restaurant",
-    dietary: ["vegetarian", "gluten-free"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 7, note: "Inside the Canary Wharf estate." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "medium",
-  },
-  {
-    id: "late-food-canary-wharf-royal-china",
-    name: "Royal China Club",
-    area: "canary-wharf",
-    category: "restaurant",
-    dietary: ["vegetarian"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 8, note: "A short walk east of the main station cluster." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "medium",
-  },
-  {
-    id: "late-food-barnes-rick-stein",
-    name: "Rick Stein Barnes",
-    area: "barnes",
-    category: "restaurant",
-    dietary: ["vegetarian", "gluten-free"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 6, note: "Near Barnes village and the riverside crawl cluster." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "low",
-  },
-  {
-    id: "late-food-chiswick-lavinia",
-    name: "Lavinia's",
-    area: "chiswick",
-    category: "restaurant",
-    dietary: ["vegan", "vegetarian"],
-    hours: HOURS_TO_VERIFY,
-    walkingDetour: { minutes: 5, note: "Close to Chiswick High Road." },
-    provenance: STATIC_PROVENANCE,
-    confidence: "low",
-  },
-];
-
-export function isLateFoodArea(value: string): value is LateFoodArea {
-  return (LATE_FOOD_AREAS as readonly string[]).includes(value);
+function rawOptions(): RawOption[] {
+  const areas = evidenceSnapshot.areas as Record<LateFoodArea, { options: RawOption[] }>;
+  return NIGHT_AREA_SLUGS.flatMap((area) => areas[area]?.options ?? []);
 }
 
-/**
- * Normalizes user-facing area labels before querying the static catalogue.
- * Responses always use canonical Night Area slugs.
- */
+function clockMinutes(value: string): number {
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function londonClock(value: Date): { weekday: Weekday; minutes: number } | null {
+  if (!Number.isFinite(value.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value);
+  const weekday = parts.find((part) => part.type === "weekday")?.value.toLocaleLowerCase("en-GB") as Weekday | undefined;
+  const hour = Number(parts.find((part) => part.type === "hour")?.value);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value);
+  return weekday && WEEKDAYS.includes(weekday) && Number.isFinite(hour) && Number.isFinite(minute)
+    ? { weekday, minutes: hour * 60 + minute }
+    : null;
+}
+
+export function isLateFoodOpenAt(hours: LateFoodHours, value: string | Date): boolean | null {
+  const instant = value instanceof Date ? value : new Date(value);
+  const local = londonClock(instant);
+  if (!local) return null;
+  const dayIndex = WEEKDAYS.indexOf(local.weekday);
+  const today = hours.weekly[local.weekday] ?? [];
+  if (today.some((window) => {
+    const open = clockMinutes(window.open);
+    const close = clockMinutes(window.close);
+    return local.minutes >= open && (window.closesNextDay || local.minutes < close);
+  })) return true;
+  const previousDay = WEEKDAYS[(dayIndex + WEEKDAYS.length - 1) % WEEKDAYS.length];
+  return (hours.weekly[previousDay] ?? []).some((window) =>
+    window.closesNextDay && local.minutes < clockMinutes(window.close),
+  );
+}
+
+function terminalFromRaw(raw: RawOption, options: RankingOptions): LateFoodTerminal | null {
+  const now = options.now ?? Date.now();
+  const at = options.at ? (options.at instanceof Date ? options.at : new Date(options.at)) : null;
+  if (Date.parse(raw.source.observedAt) > now || Date.parse(raw.source.reviewedAt) > now || Date.parse(raw.source.expiresAt) <= now) return null;
+  if (at && (!Number.isFinite(at.getTime()) || at.getTime() >= Date.parse(raw.source.expiresAt))) return null;
+  const directKm = options.from
+    ? haversineKm([options.from.lng, options.from.lat], [raw.coordinates.lng, raw.coordinates.lat])
+    : null;
+  const openAtRequestedTime = at ? isLateFoodOpenAt({ service: raw.serviceHoursText, verifyOnNight: true, weekly: raw.weeklyHours }, at) : null;
+  return {
+    id: raw.id,
+    name: raw.name,
+    area: raw.area,
+    category: raw.category,
+    dietary: [],
+    address: raw.address,
+    coordinates: raw.coordinates,
+    hours: { service: raw.serviceHoursText, verifyOnNight: true, weekly: raw.weeklyHours },
+    walkingDetour: directKm === null ? {
+      minutes: null,
+      distanceKm: null,
+      basis: "unavailable",
+      note: "Choose a final route stop to calculate distance.",
+    } : {
+      minutes: Math.ceil((directKm / 4.8) * 60),
+      distanceKm: Number(directKm.toFixed(2)),
+      basis: "straight-line-from-final-stop",
+      note: "Direct-distance estimate from the route's actual final stop; confirm the walking route before leaving.",
+    },
+    provenance: {
+      kind: "official_operator",
+      source: raw.source.publisher,
+      sourceUrl: raw.source.sourceUrl,
+      observedAt: raw.source.observedAt,
+      reviewedAt: raw.source.reviewedAt,
+      expiresAt: raw.source.expiresAt,
+    },
+    confidence: raw.confidence,
+    openAtRequestedTime,
+  };
+}
+
+export const LATE_FOOD_TERMINALS: readonly LateFoodTerminal[] = rawOptions()
+  .map((raw) => terminalFromRaw(raw, { now: Date.parse(evidenceSnapshot.generatedAt) }))
+  .filter((terminal): terminal is LateFoodTerminal => terminal !== null);
+
+export function isLateFoodArea(value: string): value is LateFoodArea {
+  return (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
+}
+
 export function normalizeLateFoodArea(value: string | null | undefined): LateFoodArea | null {
   const candidate = value?.trim().toLowerCase();
   if (!candidate) return null;
-
   if (Object.hasOwn(LATE_FOOD_AREA_ALIASES, candidate)) {
     return LATE_FOOD_AREA_ALIASES[candidate as keyof typeof LATE_FOOD_AREA_ALIASES];
   }
-
   return isLateFoodArea(candidate) ? candidate : null;
 }
 
-export function getLateFoodForArea(area: LateFoodArea, tags: readonly string[] = []): LateFoodTerminal[] {
+export function getLateFoodForArea(
+  area: LateFoodArea,
+  tags: readonly string[] = [],
+  options: RankingOptions = {},
+): LateFoodTerminal[] {
   const normalizedTags = tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean);
-  return LATE_FOOD_TERMINALS
-    .filter((terminal) => terminal.area === area)
-    .filter((terminal) => {
-      if (normalizedTags.length === 0) return true;
-      return normalizedTags.some((tag) =>
-        terminal.category === tag ||
-        terminal.dietary.includes(tag as LateFoodDietary) ||
-        terminal.name.toLowerCase().includes(tag)
-      );
-    })
-    .sort((a, b) => {
+  const requestedAt = options.at ? (options.at instanceof Date ? options.at : new Date(options.at)) : null;
+  return rawOptions()
+    .filter((raw) => raw.area === area)
+    .map((raw) => terminalFromRaw(raw, options))
+    .filter((terminal): terminal is LateFoodTerminal => terminal !== null)
+    .filter((terminal) => !requestedAt || terminal.openAtRequestedTime === true)
+    .filter((terminal) => normalizedTags.length === 0 || normalizedTags.some((tag) =>
+      terminal.category === tag || terminal.dietary.includes(tag as LateFoodDietary) || terminal.name.toLowerCase().includes(tag)
+    ))
+    .sort((left, right) => {
+      const open = Number(right.openAtRequestedTime === true) - Number(left.openAtRequestedTime === true);
       const confidence = { high: 3, medium: 2, low: 1 } satisfies Record<LateFoodConfidence, number>;
-      return confidence[b.confidence] - confidence[a.confidence] || a.walkingDetour.minutes - b.walkingDetour.minutes;
+      return open || confidence[right.confidence] - confidence[left.confidence]
+        || (left.walkingDetour.distanceKm ?? Number.POSITIVE_INFINITY) - (right.walkingDetour.distanceKm ?? Number.POSITIVE_INFINITY);
     });
 }

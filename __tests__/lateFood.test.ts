@@ -1,111 +1,118 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/late-food/route";
 import {
+  LATE_FOOD_AREAS,
   LATE_FOOD_TERMINALS,
   getLateFoodForArea,
+  isLateFoodOpenAt,
   normalizeLateFoodArea,
   type LateFoodApiErrorResponse,
   type LateFoodApiSuccessResponse,
 } from "@/lib/lateFood";
 
-describe("late-food terminal catalogue", () => {
-  it("filters curated endings by London Night Area", () => {
-    const terminals = getLateFoodForArea("clapham");
+const SNAPSHOT_NOW = Date.parse("2026-07-16T23:00:00.000Z");
 
-    expect(terminals).toHaveLength(2);
-    expect(terminals.every((terminal) => terminal.area === "clapham")).toBe(true);
-    expect(terminals.map((terminal) => terminal.name)).toEqual([
-      "Kebab Corner",
-      "Joe Public",
-    ]);
+describe("late-food evidence catalogue", () => {
+  it("represents all 20 Night Areas with at least one grounded option", () => {
+    expect(LATE_FOOD_AREAS).toHaveLength(20);
+    expect(normalizeLateFoodArea("shoreditch")).toBe("shoreditch");
+    expect(getLateFoodForArea("shoreditch", [], { now: SNAPSHOT_NOW })).toHaveLength(1);
+    expect(getLateFoodForArea("clapham", [], { now: SNAPSHOT_NOW })).toHaveLength(1);
   });
 
-  it("keeps late-food terminals separate from pint-price venues", () => {
-    const terminal = LATE_FOOD_TERMINALS[0];
-
-    expect(terminal).toMatchObject({
-      provenance: expect.objectContaining({ kind: "editorial" }),
-      confidence: "medium",
-      hours: expect.objectContaining({ service: expect.any(String) }),
-      dietary: expect.any(Array),
-      walkingDetour: expect.objectContaining({ minutes: expect.any(Number) }),
+  it("exposes only the official-source option that passed the evidence gate", () => {
+    const terminals = getLateFoodForArea("piccadilly-soho", [], {
+      now: SNAPSHOT_NOW,
+      from: { lat: 51.5105, lng: -0.134 },
     });
-    expect(terminal).not.toHaveProperty("prices");
-    expect(terminal).not.toHaveProperty("cheapestPint");
-    expect(terminal).not.toHaveProperty("amenities");
+
+    expect(terminals).toHaveLength(1);
+    expect(terminals[0]).toMatchObject({
+      name: "Balans No.60",
+      provenance: {
+        kind: "official_operator",
+        sourceUrl: "https://balans.co.uk/locations/soho-no-60/",
+      },
+      walkingDetour: {
+        minutes: expect.any(Number),
+        distanceKm: expect.any(Number),
+        basis: "straight-line-from-final-stop",
+      },
+    });
+    expect(LATE_FOOD_TERMINALS).toHaveLength(20);
+    expect(terminals[0]).not.toHaveProperty("prices");
   });
 
-  it("normalizes familiar Soho and Piccadilly aliases to the canonical Night Area", () => {
-    expect(normalizeLateFoodArea("soho")).toBe("piccadilly-soho");
-    expect(normalizeLateFoodArea(" PICCADILLY ")).toBe("piccadilly-soho");
-    expect(normalizeLateFoodArea("shoreditch")).toBeNull();
-    expect(normalizeLateFoodArea("constructor")).toBeNull();
+  it("uses structured London hours and never treats unknown dietary evidence as a match", () => {
+    const terminal = getLateFoodForArea("piccadilly-soho", [], { now: SNAPSHOT_NOW })[0]!;
+    expect(isLateFoodOpenAt(terminal.hours, "2026-07-17T00:00:00.000Z")).toBe(true);
+    expect(isLateFoodOpenAt(terminal.hours, "2026-07-17T05:00:00.000Z")).toBe(false);
+    expect(getLateFoodForArea("piccadilly-soho", ["vegan"], { now: SNAPSHOT_NOW })).toEqual([]);
+  });
+
+  it("filters an evidenced option when it is closed at the requested time", () => {
+    expect(getLateFoodForArea("piccadilly-soho", [], {
+      now: SNAPSHOT_NOW,
+      at: "2026-07-17T00:00:00.000Z",
+    })).toHaveLength(1);
+    expect(getLateFoodForArea("piccadilly-soho", [], {
+      now: SNAPSHOT_NOW,
+      at: "2026-07-17T05:00:00.000Z",
+    })).toEqual([]);
   });
 });
 
 describe("GET /api/late-food", () => {
-  it("returns only the requested area and honours a limit", async () => {
-    const response = await GET(new Request("http://localhost/api/late-food?near=canary-wharf&limit=1"));
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(SNAPSHOT_NOW));
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("uses requested time and the actual final-stop origin", async () => {
+    const response = await GET(new Request(
+      "http://localhost/api/late-food?near=soho&at=2026-07-17T00%3A00%3A00.000Z&fromLat=51.5105&fromLng=-0.134&limit=1",
+    ));
     const body: LateFoodApiSuccessResponse = await response.json();
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(body).toEqual({
-      area: "canary-wharf",
-      terminals: [expect.objectContaining({ area: "canary-wharf" })],
-      rankingSignals: expect.arrayContaining(["walking_detour"]),
-      missingEvidence: expect.arrayContaining(["live_opening_hours"]),
-    });
+    expect(body.requestedAt).toBe("2026-07-17T00:00:00.000Z");
+    expect(body.terminals).toEqual([expect.objectContaining({
+      area: "piccadilly-soho",
+      openAtRequestedTime: true,
+      walkingDetour: expect.objectContaining({ basis: "straight-line-from-final-stop" }),
+    })]);
+    expect(body.rankingSignals).toEqual(expect.arrayContaining(["open_at_requested_time", "distance_from_actual_final_stop"]));
   });
 
-  it.each(["soho", "piccadilly"])("normalizes the %s alias in the mobile response", async (alias) => {
-    const response = await GET(new Request(`http://localhost/api/late-food?near=${alias}`));
+  it("returns honest empty coverage when the grounded option is closed", async () => {
+    const response = await GET(new Request("http://localhost/api/late-food?near=shoreditch&at=2026-07-17T03%3A00%3A00.000Z"));
     const body: LateFoodApiSuccessResponse = await response.json();
-
     expect(response.status).toBe(200);
-    expect(body.area).toBe("piccadilly-soho");
-    expect(body.terminals).toHaveLength(2);
-    expect(body.terminals.every((terminal) => terminal.area === "piccadilly-soho")).toBe(true);
+    expect(body.area).toBe("shoreditch");
+    expect(body.terminals).toEqual([]);
+    expect(body.missingEvidence).toContain("eligible_late_food_options");
   });
 
-  it("rejects an unsupported area with an explicit empty terminal list", async () => {
-    const response = await GET(new Request("http://localhost/api/late-food?near=shoreditch"));
-    const body: LateFoodApiErrorResponse = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(body).toEqual({
-      error: "near must be one of clapham, victoria, piccadilly-soho, canary-wharf, barnes, chiswick.",
-      terminals: [],
-    });
-  });
-
-  it("exposes explicit verify-tonight guidance and editorial provenance", async () => {
-    const response = await GET(new Request("http://localhost/api/late-food?near=clapham&limit=1"));
-    const body: LateFoodApiSuccessResponse = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.terminals[0]).toMatchObject({
-      hours: {
-        service: expect.any(String),
-        verifyOnNight: true,
-      },
-      provenance: {
-        kind: "editorial",
-        source: "PUBMAXX London Capture static curation",
-        reviewedAt: "2026-07-13",
-      },
-    });
-  });
-
-  it("filters by category or dietary tags before returning terminal suggestions", async () => {
-    const response = await GET(new Request("http://localhost/api/late-food?near=piccadilly&tags=vegan&limit=3"));
-    const body: LateFoodApiSuccessResponse = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.terminals).toEqual([
-      expect.objectContaining({ id: "late-food-piccadilly-soho-balans", dietary: expect.arrayContaining(["vegan"]) }),
-    ]);
+  it("rejects invalid area, time and partial origin with the flat contract", async () => {
+    for (const url of [
+      "http://localhost/api/late-food?near=not-a-night-area",
+      "http://localhost/api/late-food?near=soho&at=late_night",
+      "http://localhost/api/late-food?near=soho&fromLat=51.5",
+    ]) {
+      const response = await GET(new Request(url));
+      const body: LateFoodApiErrorResponse = await response.json();
+      expect(response.status).toBe(400);
+      expect(body).toMatchObject({
+        error: expect.any(String),
+        code: expect.any(String),
+        retryable: false,
+        terminals: [],
+        details: { terminals: [] },
+      });
+    }
   });
 });
