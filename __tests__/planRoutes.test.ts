@@ -34,7 +34,7 @@ async function createPlan() {
       ],
     }),
   }));
-  return { response, body: await response.json() as { plan: PlanState; memberToken: string } };
+  return { response, body: await response.json() as { plan: PlanState; memberToken: string; role: string } };
 }
 
 beforeEach(() => __resetMemoryPlans());
@@ -51,6 +51,7 @@ describe("Plan public HTTP contract", () => {
     ]);
     expect(body.plan.stops.map((stop) => stop.venueName)).not.toContain("Fabricated client name");
     expect(body.memberToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(body.role).toBe("host");
   });
 
   it("rejects venue ids that are not in the server-owned Venue Dataset", async () => {
@@ -82,9 +83,10 @@ describe("Plan public HTTP contract", () => {
       body: JSON.stringify({ name: "Luna" }),
     }), ctx(body.plan.plan.id));
     expect(response.status).toBe(200);
-    const joined = await response.json() as { plan: PlanState; memberToken: string };
+    const joined = await response.json() as { plan: PlanState; memberToken: string; role: string };
     expect(joined.plan.crew.map((member) => member.name)).toEqual(["Karan", "Luna"]);
     expect(joined.memberToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(joined.role).toBe("guest");
     expect(JSON.stringify(joined.plan)).not.toContain(joined.memberToken);
   });
 

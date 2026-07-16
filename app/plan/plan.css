@@ -141,6 +141,61 @@
 .planSummary__editorActions { display: flex; flex-wrap: wrap; gap: 8px; }
 .planSummary__save { border-color: var(--plan-accent); background: var(--plan-accent); color: #fff; }
 .planSummary__status { margin: 18px 0 0 72px; color: var(--ink-soft); font-size: 0.8rem; line-height: 1.4; }
+.planCollab {
+  display: grid;
+  gap: 16px;
+  margin: 30px 0 0 72px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+.planCollab__heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.planCollab__heading h3 { margin: 0; font-family: var(--display, var(--serif)); font-size: 1.35rem; }
+.planCollab__heading > span { padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel)); color: var(--plan-accent-strong); font-size: 0.7rem; font-weight: 850; text-transform: uppercase; }
+.planCollab button,
+.planCollab input,
+.planCollab select,
+.planCollab textarea { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-raised); color: var(--ink); font: inherit; }
+.planCollab button { padding: 9px 13px; border-color: var(--plan-accent); background: var(--plan-accent); color: #fff; font-size: 0.76rem; font-weight: 850; cursor: pointer; }
+.planCollab button:disabled { opacity: 0.55; cursor: wait; }
+.planCollab .planCollab__quiet { border-color: var(--line); background: var(--panel-raised); color: var(--ink-soft); }
+.planCollab__invite { display: flex; flex-wrap: wrap; gap: 8px; }
+.planCollab__invite output { flex-basis: 100%; overflow-wrap: anywhere; color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
+.planCollab__activeInvite { flex-basis: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.planCollab__activeInvite small { color: var(--muted); font-size: 0.7rem; }
+.planCollab__form { display: grid; gap: 9px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.planCollab__form > strong,
+.planCollab__proposals > strong { font-size: 0.82rem; }
+.planCollab__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.planCollab input,
+.planCollab select,
+.planCollab textarea { width: 100%; padding: 9px 11px; font-size: 0.8rem; }
+.planCollab textarea { min-height: 78px; resize: vertical; }
+.planCollab__inputRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.planCollab fieldset { display: grid; gap: 7px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }
+.planCollab legend { padding: 0 5px; color: var(--muted); font-size: 0.72rem; }
+.planCollab fieldset label { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 0.75rem; }
+.planCollab fieldset input { width: 20px; min-height: 20px; }
+.planCollab__constraints { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.planCollab__constraints li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.78rem; }
+.planCollab__constraints small { color: var(--muted); text-align: right; }
+.planCollab__provenance { display: grid; gap: 3px; margin-top: 5px; }
+.planCollab__provenance a { color: var(--plan-accent-strong); font-size: 0.68rem; text-underline-offset: 2px; }
+.planCollab__source { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line-soft); border-radius: 12px; }
+.planCollab__source > strong { font-size: 0.75rem; }
+.planCollab__proposals { display: grid; gap: 10px; }
+.planCollab__proposals article { display: grid; gap: 9px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; }
+.planCollab__proposals p,
+.planCollab__proposals ol { margin: 0; }
+.planCollab__proposals ol { padding-left: 18px; color: var(--ink-soft); font-size: 0.75rem; }
+.planCollab__proposals small,
+.planCollab__status { color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
+.planCollab__evidenceNote { margin: 0; color: var(--color-caution); font-size: 0.74rem; line-height: 1.45; }
+.planCollab__blocked { padding: 9px 10px; border-radius: 10px; background: color-mix(in srgb, var(--color-caution) 10%, transparent); color: var(--ink-soft); font-size: 0.74rem; }
+.planCollab__blocked ul { margin: 5px 0 0; padding-left: 18px; }
+.planCollab__actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.planCollab__actions button[aria-pressed="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 28%, transparent); }
 .planSummary__heading h2,
 .planCrew h2,
 .planShare h2 { margin: 0; font-size: clamp(1.65rem, 4vw, 2.8rem); line-height: 1; }
@@ -495,6 +550,8 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   .planSummary__headingRow { align-items: flex-start; }
   .planSummary__editor { margin-left: 0; }
   .planSummary__status { margin-left: 0; }
+  .planCollab { margin-left: 0; padding: 15px; }
+  .planCollab__fields { grid-template-columns: 1fr; }
   .planSummary__stops li { grid-template-columns: 48px 1fr; gap: 14px; }
   .planSummary__marker { width: 42px; height: 42px; box-shadow: 0 0 0 5px var(--panel-raised); }
   .planComposer__routeStale { align-items: stretch; flex-direction: column; }

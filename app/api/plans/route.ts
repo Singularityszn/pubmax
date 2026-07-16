@@ -40,5 +40,5 @@ export async function POST(request: Request): Promise<Response> {
       { status: result.error === "invalid" ? 400 : 503 },
     );
   }
-  return jsonNoStore({ plan: result.plan, memberToken: result.memberToken }, { status: 201 });
+  return jsonNoStore({ plan: result.plan, memberToken: result.memberToken, role: result.role }, { status: 201 });
 }

@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
-import { canTransitionPlannedNight, cleanCreatePlan, isPlanId, PLANNED_NIGHT_STATUSES, type CrawlEnding, type CreatePlanInput, type PlanActionDTO, type PlanCompletionDTO, type PlanDTO, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import { canTransitionPlannedNight, cleanCreatePlan, isPlanId, PLANNED_NIGHT_STATUSES, type CrawlEnding, type CreatePlanInput, type PlanActionDTO, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -12,8 +12,8 @@ const ACTIONS = "plan_actions";
 const COMPLETIONS = "plan_completions";
 
 export type PlanWriteError = "invalid" | "not_found" | "full" | "forbidden" | "conflict" | "error";
-export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string } | { ok: false; error: PlanWriteError };
-export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string } | { ok: false; error: PlanWriteError };
+export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host" } | { ok: false; error: PlanWriteError };
+export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
 export type PlanPresenceResult = { ok: true; plan: PlanState } | { ok: false; error: PlanWriteError };
 export type PlanUpdateResult = PlanPresenceResult;
 export type PlanCompletionResult =
@@ -23,7 +23,7 @@ export type PlanCompletionResult =
 export type PlanStore = {
   create(input: CreatePlanInput): Promise<PlanCreateResult>;
   get(id: string): Promise<PlanState | null>;
-  join(id: string, name: unknown): Promise<PlanJoinResult>;
+  join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
   update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number }): Promise<PlanUpdateResult>;
   addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding }): Promise<PlanUpdateResult>;
@@ -31,11 +31,11 @@ export type PlanStore = {
   complete(id: string, memberToken: unknown, input: { expectedRouteRevision: number; ending: CrawlEnding; terminalVenueId?: string }): Promise<PlanCompletionResult>;
 };
 
-function mintToken(): string {
+export function mintPlanMemberToken(): string {
   return randomBytes(32).toString("hex");
 }
 
-function tokenHash(token: string): string {
+export function hashPlanMemberToken(token: string): string {
   const salt = process.env.PLAN_MEMBER_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-member";
   return createHash("sha256").update(`${salt}:${token}`).digest("hex");
 }
@@ -101,7 +101,7 @@ export const supabasePlanStore: PlanStore = {
     const clean = cleanCreatePlan(input);
     if (!clean) return { ok: false, error: "invalid" };
     const id = randomUUID();
-    const memberToken = mintToken();
+    const memberToken = mintPlanMemberToken();
     const memberId = randomUUID();
     const joinedAt = new Date().toISOString();
     try {
@@ -112,12 +112,12 @@ export const supabasePlanStore: PlanStore = {
         p_stops: clean.stops,
         p_member_id: memberId,
         p_member_name: clean.creatorName,
-        p_token_hash: tokenHash(memberToken),
+        p_token_hash: hashPlanMemberToken(memberToken),
         p_joined_at: joinedAt,
       });
       if (error) throw new Error(error.message);
       const plan = await this.get(id);
-      return plan ? { ok: true, plan, memberToken } : { ok: false, error: "error" };
+      return plan ? { ok: true, plan, memberToken, role: "host" } : { ok: false, error: "error" };
     } catch (error) {
       console.error("[plans] create failed:", error instanceof Error ? error.message : error);
       return { ok: false, error: "error" };
@@ -134,7 +134,7 @@ export const supabasePlanStore: PlanStore = {
       if (!planRow) return null;
       const [{ data: stopRows, error: stopsError }, { data: memberRows, error: membersError }, { data: actionRows, error: actionsError }] = await Promise.all([
         admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position"),
-        admin.from(MEMBERS).select("id,name,status,joined_at,updated_at").eq("plan_id", id).order("joined_at"),
+        admin.from(MEMBERS).select("id,name,status,joined_at,updated_at").eq("plan_id", id).order("joined_at").order("id"),
         admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
       ]);
       if (stopsError || membersError || actionsError) throw new Error(stopsError?.message ?? membersError?.message ?? actionsError?.message);
@@ -152,26 +152,27 @@ export const supabasePlanStore: PlanStore = {
     }
   },
 
-  async join(id, rawName) {
+  async join(id, rawName, options = {}) {
     const name = cleanCrewName(rawName);
     if (!isPlanId(id) || !name) return { ok: false, error: "invalid" };
     const current = await this.get(id);
     if (!current) return { ok: false, error: "not_found" };
     if (current.crew.length >= CREW_MAX_MEMBERS) return { ok: false, error: "full" };
-    const memberToken = mintToken();
+    const memberToken = mintPlanMemberToken();
     const joinedAt = new Date().toISOString();
     try {
       const { data, error } = await requireSupabaseAdmin().rpc("join_plan_atomic", {
         p_plan_id: id,
         p_member_id: randomUUID(),
         p_member_name: name,
-        p_token_hash: tokenHash(memberToken),
+        p_token_hash: hashPlanMemberToken(memberToken),
         p_joined_at: joinedAt,
+        p_can_collaborate: options.collaborationAuthorized === true,
       });
       if (error) throw new Error(error.message);
       if (data !== true) return { ok: false, error: "full" };
       const plan = await this.get(id);
-      return plan ? { ok: true, plan, memberToken } : { ok: false, error: "error" };
+      return plan ? { ok: true, plan, memberToken, role: "guest", collaborationAuthorized: options.collaborationAuthorized === true } : { ok: false, error: "error" };
     } catch (error) {
       console.error("[plans] join failed:", error instanceof Error ? error.message : error);
       return { ok: false, error: "error" };
@@ -185,7 +186,7 @@ export const supabasePlanStore: PlanStore = {
     try {
       const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
         .update({ status: rawStatus, updated_at: new Date().toISOString() })
-        .eq("plan_id", id).eq("token_hash", tokenHash(rawToken)).select("id").maybeSingle();
+        .eq("plan_id", id).eq("token_hash", hashPlanMemberToken(rawToken)).select("id").maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return { ok: false, error: "forbidden" };
       const plan = await this.get(id);
@@ -204,7 +205,7 @@ export const supabasePlanStore: PlanStore = {
       try {
         const { data, error } = await admin.rpc("replace_plan_route_atomic", {
           p_plan_id: id,
-          p_token_hash: tokenHash(rawToken),
+          p_token_hash: hashPlanMemberToken(rawToken),
           p_expected_route_revision: update.expectedRouteRevision,
           p_stops: stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
           p_context: update.context ?? null,
@@ -219,10 +220,10 @@ export const supabasePlanStore: PlanStore = {
       }
     }
     const [{ data: creator }, current] = await Promise.all([
-      admin.from(MEMBERS).select("id,token_hash").eq("plan_id", id).order("joined_at").limit(1).maybeSingle(),
+      admin.from(MEMBERS).select("id,token_hash").eq("plan_id", id).order("joined_at").order("id").limit(1).maybeSingle(),
       this.get(id),
     ]);
-    if (!creator || creator.token_hash !== tokenHash(rawToken)) return { ok: false, error: "forbidden" };
+    if (!creator || creator.token_hash !== hashPlanMemberToken(rawToken)) return { ok: false, error: "forbidden" };
     if (!current) return { ok: false, error: "not_found" };
     if (update.status && !canTransitionPlannedNight(current.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
     const values: Record<string, unknown> = {};
@@ -238,8 +239,13 @@ export const supabasePlanStore: PlanStore = {
     // Completion is intentionally not an ordinary action write: it must insert
     // the ending action, completion record, and terminal status atomically.
     if (action.type === "ending") return { ok: false, error: "invalid" };
+    const identityResult = await planMemberIdentityResult(id, rawToken);
+    if (!identityResult.ok) return { ok: false, error: "error" };
+    const identity = identityResult.identity;
+    if (!identity?.collaborationAuthorized || (action.type === "swapped" && identity.role !== "host")) return { ok: false, error: "forbidden" };
     const admin = requireSupabaseAdmin();
-    const { data: member } = await admin.from(MEMBERS).select("id").eq("plan_id", id).eq("token_hash", tokenHash(rawToken)).maybeSingle();
+    const { data: member, error: memberError } = await admin.from(MEMBERS).select("id").eq("plan_id", id).eq("token_hash", hashPlanMemberToken(rawToken)).maybeSingle();
+    if (memberError) return { ok: false, error: "error" };
     if (!member) return { ok: false, error: "forbidden" };
     const createdAt = new Date().toISOString();
     const { error } = await admin.from(ACTIONS).insert({ id: randomUUID(), plan_id: id, actor_member_id: member.id, type: action.type, stop_position: action.stopPosition ?? null, ending: action.ending ?? null, created_at: createdAt });
@@ -261,10 +267,11 @@ export const supabasePlanStore: PlanStore = {
   },
   async complete(id, rawToken, input) {
     if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1) return { ok: false, error: "invalid" };
+    if ((await planMemberIdentity(id, rawToken))?.role !== "host") return { ok: false, error: "forbidden" };
     try {
       const { data, error } = await requireSupabaseAdmin().rpc("complete_plan_atomic", {
         p_plan_id: id,
-        p_token_hash: tokenHash(rawToken),
+        p_token_hash: hashPlanMemberToken(rawToken),
         p_expected_route_revision: input.expectedRouteRevision,
         p_completion_id: randomUUID(),
         p_action_id: randomUUID(),
@@ -283,7 +290,7 @@ export const supabasePlanStore: PlanStore = {
   },
 };
 
-type MemoryMember = CrewMemberDTO & { tokenHash: string };
+type MemoryMember = CrewMemberDTO & { tokenHash: string; collaborationAuthorized: boolean };
 type StoredCompletion = PlanCompletionDTO & { actorMemberId: string };
 function publicCompletion(completion: StoredCompletion): PlanCompletionDTO {
   return {
@@ -336,14 +343,14 @@ export const memoryPlanStore: PlanStore = {
     const clean = cleanCreatePlan(input);
     if (!clean) return { ok: false, error: "invalid" };
     const id = randomUUID();
-    const memberToken = mintToken();
+    const memberToken = mintPlanMemberToken();
     const createdAt = stamp();
     const plan: MemoryPlan = {
       plan: { id, title: clean.title, startTime: clean.startTime, createdAt, routeRevision: 1, status: "draft" },
       stops: clean.stops.map((stop, position) => ({ ...stop, position })),
       crew: [{
         id: randomUUID(), name: clean.creatorName, status: "in", joinedAt: createdAt,
-        updatedAt: createdAt, tokenHash: tokenHash(memberToken),
+        updatedAt: createdAt, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized: true,
       }],
       context: null,
       actions: [],
@@ -351,23 +358,24 @@ export const memoryPlanStore: PlanStore = {
       completion: null,
     };
     memoryPlans.set(id, plan);
-    return { ok: true, plan: publicState(plan), memberToken };
+    return { ok: true, plan: publicState(plan), memberToken, role: "host" };
   },
   async get(id) {
     if (!isPlanId(id)) return null;
     const plan = memoryPlans.get(id);
     return plan ? publicState(plan) : null;
   },
-  async join(id, rawName) {
+  async join(id, rawName, options = {}) {
     const name = cleanCrewName(rawName);
     if (!isPlanId(id) || !name) return { ok: false, error: "invalid" };
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
     if (plan.crew.length >= CREW_MAX_MEMBERS) return { ok: false, error: "full" };
-    const memberToken = mintToken();
+    const memberToken = mintPlanMemberToken();
     const at = stamp();
-    plan.crew.push({ id: randomUUID(), name, status: "in", joinedAt: at, updatedAt: at, tokenHash: tokenHash(memberToken) });
-    return { ok: true, plan: publicState(plan), memberToken };
+    const collaborationAuthorized = options.collaborationAuthorized === true;
+    plan.crew.push({ id: randomUUID(), name, status: "in", joinedAt: at, updatedAt: at, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized });
+    return { ok: true, plan: publicState(plan), memberToken, role: "guest", collaborationAuthorized };
   },
   async updatePresence(id, rawToken, rawStatus) {
     if (!isPlanId(id) || typeof rawToken !== "string" || !isCrewPresenceStatus(rawStatus)) {
@@ -375,7 +383,7 @@ export const memoryPlanStore: PlanStore = {
     }
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
-    const member = plan.crew.find((candidate) => candidate.tokenHash === tokenHash(rawToken));
+    const member = plan.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
     if (!member) return { ok: false, error: "forbidden" };
     member.status = rawStatus;
     member.updatedAt = stamp();
@@ -385,7 +393,7 @@ export const memoryPlanStore: PlanStore = {
     if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
-    if (plan.crew[0]?.tokenHash !== tokenHash(rawToken)) return { ok: false, error: "forbidden" };
+    if (plan.crew[0]?.tokenHash !== hashPlanMemberToken(rawToken)) return { ok: false, error: "forbidden" };
     if (update.stops) {
       const stops = cleanReplacementStops(update.stops);
       if (!stops || !Number.isInteger(update.expectedRouteRevision) || update.expectedRouteRevision! < 1 || update.status) return { ok: false, error: "invalid" };
@@ -408,7 +416,8 @@ export const memoryPlanStore: PlanStore = {
     if (action.type === "ending") return { ok: false, error: "invalid" };
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
-    if (!plan.crew.some((candidate) => candidate.tokenHash === tokenHash(rawToken))) return { ok: false, error: "forbidden" };
+    const actorIndex = plan.crew.findIndex((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
+    if (actorIndex < 0 || !plan.crew[actorIndex]?.collaborationAuthorized || (action.type === "swapped" && actorIndex !== 0)) return { ok: false, error: "forbidden" };
     plan.actions.push({ id: randomUUID(), type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp() });
     if (plan.plan.status === "draft" || plan.plan.status === "ready") plan.plan.status = "active";
     return { ok: true, plan: publicState(plan) };
@@ -423,8 +432,9 @@ export const memoryPlanStore: PlanStore = {
     if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1) return { ok: false, error: "invalid" };
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
-    const actor = plan.crew.find((candidate) => candidate.tokenHash === tokenHash(rawToken));
+    const actor = plan.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
     if (!actor) return { ok: false, error: "forbidden" };
+    if (plan.crew[0]?.id !== actor.id) return { ok: false, error: "forbidden" };
     if (routeRevisionOf(plan.plan) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
     if (plan.completion) {
       return { ok: true, plan: publicState(plan), completion: publicCompletion(plan.completion), created: false };
@@ -452,6 +462,56 @@ export const memoryPlanStore: PlanStore = {
     return { ok: true, plan: publicState(plan), completion: publicCompletion(completion), created: true };
   },
 };
+
+export type PlanMemberIdentity = { memberId: string; role: PlanMemberRole; collaborationAuthorized: boolean };
+export type PlanMemberIdentityResult = { ok: true; identity: PlanMemberIdentity | null } | { ok: false; error: "error" };
+
+export function grantMemoryPlanCollaboration(id: string, rawToken: unknown): boolean {
+  if (isSupabaseConfigured() || !isPlanId(id) || typeof rawToken !== "string") return false;
+  const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
+  if (!member) return false;
+  member.collaborationAuthorized = true;
+  return true;
+}
+
+/** Resolves a private member capability to its canonical role without exposing the stored hash. */
+export async function planMemberIdentity(id: string, rawToken: unknown): Promise<PlanMemberIdentity | null> {
+  if (!isPlanId(id) || typeof rawToken !== "string" || !rawToken.trim()) return null;
+  const hash = hashPlanMemberToken(rawToken.trim());
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
+        .select("id,token_hash,joined_at,can_collaborate")
+        .eq("plan_id", id)
+        .order("joined_at").order("id");
+      if (error || !data) return null;
+      const index = data.findIndex((member) => member.token_hash === hash);
+      return index < 0 ? null : { memberId: String(data[index].id), role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || data[index].can_collaborate === true };
+    } catch {
+      return null;
+    }
+  }
+  const plan = memoryPlans.get(id);
+  if (!plan) return null;
+  const index = plan.crew.findIndex((member) => member.tokenHash === hash);
+  return index < 0 ? null : { memberId: plan.crew[index].id, role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || plan.crew[index].collaborationAuthorized };
+}
+
+export async function planMemberIdentityResult(id: string, rawToken: unknown): Promise<PlanMemberIdentityResult> {
+  if (!isPlanId(id) || typeof rawToken !== "string" || !rawToken.trim()) return { ok: true, identity: null };
+  if (!isSupabaseConfigured()) return { ok: true, identity: await planMemberIdentity(id, rawToken) };
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
+      .select("id,token_hash,joined_at,can_collaborate")
+      .eq("plan_id", id)
+      .order("joined_at").order("id");
+    if (error) return { ok: false, error: "error" };
+    const index = (data ?? []).findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
+    return { ok: true, identity: index < 0 ? null : { memberId: String(data![index].id), role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || data![index].can_collaborate === true } };
+  } catch {
+    return { ok: false, error: "error" };
+  }
+}
 
 export function planStore(): PlanStore {
   return isSupabaseConfigured() ? supabasePlanStore : memoryPlanStore;

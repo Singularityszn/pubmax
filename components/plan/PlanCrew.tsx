@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { trackEvent } from "@/lib/analytics";
+import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, writePlanCapability } from "@/lib/planSessionCapability";
 
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   in: "In",
@@ -19,7 +20,7 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const tokenEvent = `pubmax-plan-member-change:${planId}`;
+  const tokenEvent = planCapabilityEvent(planId);
   const statusKey = `pubmax-plan-status:${planId}`;
   const statusEvent = `pubmax-plan-status-change:${planId}`;
 
@@ -54,7 +55,7 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
     }
     window.dispatchEvent(new Event(statusEvent));
   }, [statusKey, statusEvent]);
-  const memberToken = useSyncExternalStore(
+  const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
       window.addEventListener("storage", onChange);
       window.addEventListener(tokenEvent, onChange);
@@ -63,9 +64,48 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
         window.removeEventListener(tokenEvent, onChange);
       };
     },
-    () => sessionStorage.getItem(`pubmax-plan-member:${planId}`) ?? "",
-    () => "",
+    () => {
+      return readPlanCapabilitySnapshot(planId);
+    },
+    () => "|0",
   );
+  const { token: memberToken, collaborationAuthorized } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+
+  useEffect(() => {
+    if (!memberToken) return;
+    const inviteToken = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite");
+    if (!inviteToken) return;
+    if (collaborationAuthorized) {
+      history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      return;
+    }
+    try {
+      if (sessionStorage.getItem(`pubmaxx:plan-creator-token:v1:${planId}`) === memberToken) {
+        writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true });
+        history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+        return;
+      }
+    } catch {
+      // Configured storage may be unavailable; the server still rejects host upgrades.
+    }
+    const controller = new AbortController();
+    fetch(`/api/plans/${planId}/invites/redeem`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "content-type": "application/json", authorization: `Bearer ${memberToken}` },
+      body: JSON.stringify({ inviteToken }),
+    })
+      .then(async (response) => ({ response, body: await response.json().catch(() => null) }))
+      .then(({ response, body }) => {
+        if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not unlock crew decisions.");
+        writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true });
+        history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      })
+      .catch((caught) => {
+        if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "Could not unlock crew decisions.");
+      });
+    return () => controller.abort();
+  }, [collaborationAuthorized, memberToken, planId]);
 
   const refetchCrew = useCallback(async () => {
     if (document.visibilityState !== "visible") return;
@@ -85,15 +125,16 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
     setPending(true);
     setError("");
     try {
+      const inviteToken = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite") ?? undefined;
       const response = await fetch(`/api/plans/${planId}/join`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, inviteToken }),
       });
       const body = await response.json();
       if (!response.ok || !body?.memberToken) throw new Error(body?.error || "Could not join this plan.");
-      sessionStorage.setItem(`pubmax-plan-member:${planId}`, body.memberToken);
-      window.dispatchEvent(new Event(tokenEvent));
+      writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: body.collaborationAuthorized === true });
+      if (inviteToken) history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       rememberStatus("in");
       const nextCrew = body.plan?.crew ?? crew;
       setCrew(nextCrew);

@@ -21,6 +21,7 @@ export type PlanDTO = {
 export const PLANNED_NIGHT_STATUSES = ["draft", "ready", "active", "ending", "completed", "abandoned"] as const;
 export type PlannedNightStatus = (typeof PLANNED_NIGHT_STATUSES)[number];
 export type CrawlEnding = "food" | "get_home" | "keep_going";
+export type PlanMemberRole = "host" | "guest";
 export type PlanActionDTO = { id: string; type: "arrived" | "skipped" | "swapped" | "ending"; stopPosition: number | null; ending: CrawlEnding | null; createdAt: string };
 
 const PLAN_TRANSITIONS: Record<PlannedNightStatus, readonly PlannedNightStatus[]> = {

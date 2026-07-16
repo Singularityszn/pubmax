@@ -1,0 +1,17 @@
+import { jsonNoStore } from "@/lib/apiResponses";
+import { isPlanId } from "@/lib/plan";
+import { collaborationError, collaborationIdempotencyKey } from "@/lib/planCollaborationHttp";
+import { planCollaborationStore } from "@/lib/planCollaborationStore";
+import { planMemberCapability } from "@/lib/planMemberCapability";
+
+type Context = { params: Promise<{ id: string; inviteId: string }> };
+
+export async function DELETE(request: Request, context: Context): Promise<Response> {
+  const { id, inviteId } = await context.params;
+  if (!isPlanId(id)) return jsonNoStore({ error: "That Plan doesn't exist.", code: "PLAN_NOT_FOUND", retryable: false }, { status: 404 });
+  let body: Record<string, unknown> = {};
+  try { body = await request.json() as Record<string, unknown>; } catch { /* DELETE may use headers only. */ }
+  const result = await planCollaborationStore().revokeInvite(id, planMemberCapability(request, body.memberToken), inviteId, collaborationIdempotencyKey(request, body));
+  if (!result.ok) { const failure = collaborationError(result.error); return jsonNoStore(failure.body, { status: failure.status }); }
+  return jsonNoStore(result);
+}

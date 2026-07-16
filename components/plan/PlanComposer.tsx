@@ -10,6 +10,7 @@ import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightA
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
+import { writePlanCapability } from "@/lib/planSessionCapability";
 
 export type RouteRevision = string | number;
 export type RouteAlternative = { venueId: string; venueName: string };
@@ -510,7 +511,7 @@ function PlanComposerForm({
       trackEvent("plan_created", { count: completeStops.length });
       if (body.memberToken) {
         const planId = body.plan.plan.id as string;
-        sessionStorage.setItem(`pubmax-plan-member:${planId}`, body.memberToken);
+        writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true });
         sessionStorage.setItem(`pubmaxx:plan-creator-token:v1:${planId}`, body.memberToken);
         const metadataResponse = await fetch(`/api/plans/${planId}`, {
           method: "PATCH",

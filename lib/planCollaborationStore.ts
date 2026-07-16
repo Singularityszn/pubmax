@@ -1,0 +1,627 @@
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+
+import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import { grantMemoryPlanCollaboration, hashPlanMemberToken, mintPlanMemberToken, planMemberIdentity, planMemberIdentityResult, planStore } from "@/lib/planStore";
+import { cleanText } from "@/lib/textClean";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+
+export type PlanInvite = {
+  id: string;
+  planId: string;
+  role: "guest";
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  redeemedAt: string | null;
+};
+
+export type PlanConstraintKind = "accessibility" | "budget" | "zero_proof" | "timing" | "transport" | "other";
+export type PlanConstraintVenueEvidence = { venueId: string; sourceUrl: string; publisher: string; observedAt: string; note: string };
+export type PlanConstraintEvidence = { proposalId: string; routeRevision: number; sources: PlanConstraintVenueEvidence[] };
+export type PlanConstraint = {
+  id: string;
+  planId: string;
+  memberId: string;
+  kind: PlanConstraintKind;
+  value: string;
+  priority: "required" | "preference";
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedByMemberId: string | null;
+  evidence: PlanConstraintEvidence | null;
+};
+
+export type PlanVote = {
+  id: string;
+  planId: string;
+  proposalId: string;
+  memberId: string;
+  value: "approve" | "reject" | "abstain";
+  createdAt: string;
+};
+
+export type PlanRouteProposal = {
+  id: string;
+  planId: string;
+  proposedByMemberId: string;
+  expectedRouteRevision: number;
+  stops: PlanStopDTO[];
+  reason: string;
+  resolvedConstraintIds: string[];
+  unresolvedConstraintIds: string[];
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+  decidedAt: string | null;
+};
+
+export type PlanCollaborationError = "invalid" | "not_found" | "forbidden" | "expired" | "revoked" | "replayed" | "conflict" | "constraints_unresolved" | "error";
+type Failure = { ok: false; error: PlanCollaborationError };
+type StoredInvite = PlanInvite & { tokenHash: string };
+
+type CollaborationMemory = {
+  invites: Map<string, StoredInvite>;
+  constraints: Map<string, PlanConstraint>;
+  proposals: Map<string, PlanRouteProposal>;
+  votes: Map<string, PlanVote>;
+  idempotency: Map<string, unknown>;
+};
+
+const globalMemory = globalThis as typeof globalThis & { __pubmaxPlanCollaboration?: CollaborationMemory };
+const memory = globalMemory.__pubmaxPlanCollaboration ??= {
+  invites: new Map(),
+  constraints: new Map(),
+  proposals: new Map(),
+  votes: new Map(),
+  idempotency: new Map(),
+};
+
+function inviteHash(token: string): string {
+  const salt = process.env.PLAN_INVITE_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-invite";
+  return createHash("sha256").update(`${salt}:${token}`).digest("hex");
+}
+
+function memberTokenHash(token: string): string {
+  const salt = process.env.PLAN_MEMBER_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-member";
+  return createHash("sha256").update(`${salt}:${token}`).digest("hex");
+}
+
+function validKey(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length >= 8 && value.trim().length <= 120;
+}
+
+function idempotencyKey(planId: string, memberId: string, operation: string, key: string): string {
+  return `${planId}:${memberId}:${operation}:${key.trim()}`;
+}
+
+function publicInvite(invite: StoredInvite): PlanInvite {
+  const { tokenHash: _tokenHash, ...value } = invite;
+  void _tokenHash;
+  return { ...value };
+}
+
+function cloneProposal(proposal: PlanRouteProposal): PlanRouteProposal {
+  return {
+    ...proposal,
+    stops: proposal.stops.map((stop) => ({ ...stop })),
+    resolvedConstraintIds: [...proposal.resolvedConstraintIds],
+    unresolvedConstraintIds: [...proposal.unresolvedConstraintIds],
+  };
+}
+
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function inviteFromRow(row: Record<string, unknown>): PlanInvite {
+  return { id: String(row.id), planId: String(row.plan_id), role: "guest", createdAt: String(row.created_at), expiresAt: String(row.expires_at), revokedAt: typeof row.revoked_at === "string" ? row.revoked_at : null, redeemedAt: typeof row.redeemed_at === "string" ? row.redeemed_at : null };
+}
+
+function constraintFromRow(row: Record<string, unknown>): PlanConstraint {
+  const evidence = row.resolution_evidence && typeof row.resolution_evidence === "object" ? row.resolution_evidence as Record<string, unknown> : null;
+  return {
+    id: String(row.id), planId: String(row.plan_id), memberId: String(row.member_id), kind: row.kind as PlanConstraintKind, value: String(row.value), priority: row.priority as PlanConstraint["priority"], createdAt: String(row.created_at),
+    resolvedAt: typeof row.resolved_at === "string" ? row.resolved_at : null,
+    resolvedByMemberId: typeof row.resolved_by_member_id === "string" ? row.resolved_by_member_id : null,
+    evidence: evidence ? {
+      proposalId: String(evidence.proposalId ?? ""), routeRevision: Number(evidence.routeRevision),
+      sources: Array.isArray(evidence.sources) ? evidence.sources.flatMap((source) => {
+        if (!source || typeof source !== "object") return [];
+        const row = source as Record<string, unknown>;
+        return [{ venueId: String(row.venueId ?? ""), sourceUrl: String(row.sourceUrl ?? ""), publisher: String(row.publisher ?? ""), observedAt: String(row.observedAt ?? ""), note: String(row.note ?? "") }];
+      }) : [],
+    } : null,
+  };
+}
+
+function evidenceCoversProposal(constraint: PlanConstraint, proposal: PlanRouteProposal): boolean {
+  const evidence = constraint.evidence;
+  if (!evidence || evidence.proposalId !== proposal.id || evidence.routeRevision !== proposal.expectedRouteRevision) return false;
+  const expected = new Set(proposal.stops.map((stop) => stop.venueId));
+  return evidence.sources.length === expected.size && evidence.sources.every((source) => expected.has(source.venueId) && /^https?:\/\//i.test(source.sourceUrl) && Boolean(source.publisher));
+}
+
+function cleanConstraintEvidence(input: PlanConstraintEvidence, proposal: PlanRouteProposal, now: Date): PlanConstraintEvidence | null {
+  if (input.proposalId !== proposal.id || input.routeRevision !== proposal.expectedRouteRevision || !Array.isArray(input.sources)) return null;
+  const expected = new Set(proposal.stops.map((stop) => stop.venueId));
+  if (input.sources.length !== expected.size || new Set(input.sources.map((source) => source.venueId)).size !== expected.size) return null;
+  const sources = input.sources.map((source) => {
+    const sourceUrl = cleanText(source.sourceUrl, 500);
+    const publisher = cleanText(source.publisher, 120);
+    const note = cleanText(source.note, 300);
+    const observedAt = new Date(source.observedAt);
+    if (!expected.has(source.venueId) || !/^https?:\/\//i.test(sourceUrl) || !publisher || !Number.isFinite(observedAt.getTime()) || observedAt.getTime() > now.getTime() + 60_000) return null;
+    return { venueId: source.venueId, sourceUrl, publisher, observedAt: observedAt.toISOString(), note };
+  });
+  return sources.some((source) => source === null) ? null : { proposalId: proposal.id, routeRevision: proposal.expectedRouteRevision, sources: sources as PlanConstraintVenueEvidence[] };
+}
+
+function proposalFromRow(row: Record<string, unknown>): PlanRouteProposal {
+  const rawStops = Array.isArray(row.stops) ? row.stops : [];
+  return {
+    id: String(row.id), planId: String(row.plan_id), proposedByMemberId: String(row.proposed_by_member_id),
+    expectedRouteRevision: Number(row.expected_route_revision),
+    stops: rawStops.map((stop) => ({ venueId: String((stop as Record<string, unknown>).venueId), venueName: String((stop as Record<string, unknown>).venueName), position: Number((stop as Record<string, unknown>).position) })),
+    reason: String(row.reason), resolvedConstraintIds: strings(row.resolved_constraint_ids), unresolvedConstraintIds: strings(row.unresolved_constraint_ids),
+    status: row.status as PlanRouteProposal["status"], createdAt: String(row.created_at), decidedAt: typeof row.decided_at === "string" ? row.decided_at : null,
+  };
+}
+
+function voteFromRow(row: Record<string, unknown>): PlanVote {
+  return { id: String(row.id), planId: String(row.plan_id), proposalId: String(row.proposal_id), memberId: String(row.member_id), value: row.value as PlanVote["value"], createdAt: String(row.created_at) };
+}
+
+async function member(planId: string, token: unknown, role?: PlanMemberRole) {
+  const result = await planMemberIdentityResult(planId, token);
+  if (!result.ok) throw new Error("plan collaboration capability lookup failed");
+  const identity = result.identity;
+  if (!identity || (role && identity.role !== role)) return null;
+  return identity.role === "host" || identity.collaborationAuthorized ? identity : null;
+}
+
+function validStops(stops: readonly PlanStopDTO[]): boolean {
+  return stops.length === 3 &&
+    new Set(stops.map((stop) => stop.venueId)).size === 3 &&
+    stops.every((stop, index) => stop.position === index && Boolean(stop.venueId) && Boolean(stop.venueName));
+}
+
+export type PlanCollaborationStore = {
+  createInvite(planId: string, token: unknown, input: { expiresInMinutes: number; idempotencyKey: string; now?: Date }): Promise<{ ok: true; invite: PlanInvite; token: string } | Failure>;
+  revokeInvite(planId: string, token: unknown, inviteId: string, key: string, now?: Date): Promise<{ ok: true; invite: PlanInvite } | Failure>;
+  consumeInvite(planId: string, token: unknown, now?: Date): Promise<{ ok: true; inviteId: string; role: "guest" } | Failure>;
+  redeemInviteAndJoin(planId: string, token: unknown, name: string, now?: Date): Promise<{ ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } | Failure | { ok: false; error: "full" }>;
+  upgradeMemberInvite(planId: string, memberToken: unknown, inviteToken: unknown, now?: Date): Promise<{ ok: true; collaborationAuthorized: true } | Failure>;
+  addConstraint(planId: string, token: unknown, input: { kind: PlanConstraintKind; value: string; priority: PlanConstraint["priority"]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
+  resolveConstraint(planId: string, token: unknown, constraintId: string, input: { evidence: PlanConstraintEvidence; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
+  createProposal(planId: string, token: unknown, input: { reason: string; expectedRouteRevision: number; stops: PlanStopDTO[]; resolvedConstraintIds: string[]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>;
+  vote(planId: string, token: unknown, proposalId: string, value: PlanVote["value"], key: string, now?: Date): Promise<{ ok: true; vote: PlanVote } | Failure>;
+  decideProposal(planId: string, token: unknown, proposalId: string, decision: "accepted" | "rejected", key: string, apply: (proposal: PlanRouteProposal) => Promise<boolean>, now?: Date): Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>;
+  list(planId: string, token: unknown): Promise<{ ok: true; memberId: string; invites: PlanInvite[]; constraints: PlanConstraint[]; proposals: PlanRouteProposal[]; votes: PlanVote[] } | Failure>;
+};
+
+const memoryStore: PlanCollaborationStore = {
+  async createInvite(planId, token, input) {
+    if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !Number.isInteger(input.expiresInMinutes) || input.expiresInMinutes < 5 || input.expiresInMinutes > 10_080) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token, "host");
+    if (!identity) return { ok: false, error: "forbidden" };
+    const idem = idempotencyKey(planId, identity.memberId, "invite:create", input.idempotencyKey);
+    const replay = memory.idempotency.get(idem) as { ok: true; invite: PlanInvite; token: string } | undefined;
+    if (replay) return structuredClone(replay);
+    const rawToken = randomBytes(32).toString("hex");
+    const now = input.now ?? new Date();
+    const invite: StoredInvite = {
+      id: randomUUID(),
+      planId,
+      role: "guest",
+      createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + input.expiresInMinutes * 60_000).toISOString(),
+      revokedAt: null,
+      redeemedAt: null,
+      tokenHash: inviteHash(rawToken),
+    };
+    memory.invites.set(invite.id, invite);
+    const result = { ok: true as const, invite: publicInvite(invite), token: rawToken };
+    memory.idempotency.set(idem, result);
+    return structuredClone(result);
+  },
+
+  async revokeInvite(planId, token, inviteId, key, now = new Date()) {
+    if (!isPlanId(planId) || !validKey(key)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token, "host");
+    if (!identity) return { ok: false, error: "forbidden" };
+    const idem = idempotencyKey(planId, identity.memberId, "invite:revoke", key);
+    const replay = memory.idempotency.get(idem) as { ok: true; invite: PlanInvite } | undefined;
+    if (replay) return structuredClone(replay);
+    const invite = memory.invites.get(inviteId);
+    if (!invite || invite.planId !== planId) return { ok: false, error: "not_found" };
+    if (!invite.revokedAt) invite.revokedAt = now.toISOString();
+    const result = { ok: true as const, invite: publicInvite(invite) };
+    memory.idempotency.set(idem, result);
+    return structuredClone(result);
+  },
+
+  async consumeInvite(planId, rawToken, now = new Date()) {
+    if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim()) return { ok: false, error: "invalid" };
+    const hash = inviteHash(rawToken.trim());
+    const invite = [...memory.invites.values()].find((candidate) => candidate.planId === planId && candidate.tokenHash === hash);
+    if (!invite) return { ok: false, error: "not_found" };
+    if (invite.revokedAt) return { ok: false, error: "revoked" };
+    if (Date.parse(invite.expiresAt) <= now.getTime()) return { ok: false, error: "expired" };
+    if (invite.redeemedAt) return { ok: false, error: "replayed" };
+    invite.redeemedAt = now.toISOString();
+    return { ok: true, inviteId: invite.id, role: "guest" };
+  },
+
+  async redeemInviteAndJoin(planId, rawToken, name, now = new Date()) {
+    if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim()) return { ok: false, error: "invalid" };
+    const hash = inviteHash(rawToken.trim());
+    const invite = [...memory.invites.values()].find((candidate) => candidate.planId === planId && candidate.tokenHash === hash);
+    if (!invite) return { ok: false, error: "not_found" };
+    if (invite.revokedAt) return { ok: false, error: "revoked" };
+    if (Date.parse(invite.expiresAt) <= now.getTime()) return { ok: false, error: "expired" };
+    if (invite.redeemedAt) return { ok: false, error: "replayed" };
+    invite.redeemedAt = now.toISOString();
+    const joined = await planStore().join(planId, name, { collaborationAuthorized: true });
+    if (!joined.ok) {
+      invite.redeemedAt = null;
+      return joined.error === "full" ? { ok: false, error: "full" } : { ok: false, error: joined.error === "not_found" ? "not_found" : "error" };
+    }
+    return { ...joined, collaborationAuthorized: true };
+  },
+
+  async upgradeMemberInvite(planId, rawMemberToken, rawInviteToken, now = new Date()) {
+    const identity = await planMemberIdentity(planId, rawMemberToken);
+    if (!identity || identity.role !== "guest") return { ok: false, error: "forbidden" };
+    if (identity.collaborationAuthorized) return { ok: true, collaborationAuthorized: true };
+    if (typeof rawInviteToken !== "string" || !rawInviteToken.trim()) return { ok: false, error: "invalid" };
+    const invite = [...memory.invites.values()].find((candidate) => candidate.planId === planId && candidate.tokenHash === inviteHash(rawInviteToken.trim()));
+    if (!invite) return { ok: false, error: "not_found" };
+    if (invite.revokedAt) return { ok: false, error: "revoked" };
+    if (invite.redeemedAt) return { ok: false, error: "replayed" };
+    if (Date.parse(invite.expiresAt) <= now.getTime()) return { ok: false, error: "expired" };
+    if (!grantMemoryPlanCollaboration(planId, rawMemberToken)) return { ok: false, error: "error" };
+    invite.redeemedAt = now.toISOString();
+    return { ok: true, collaborationAuthorized: true };
+  },
+
+  async addConstraint(planId, token, input) {
+    const kinds: PlanConstraintKind[] = ["accessibility", "budget", "zero_proof", "timing", "transport", "other"];
+    const value = cleanText(input.value, 180);
+    if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !kinds.includes(input.kind) || !value || !["required", "preference"].includes(input.priority)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const idem = idempotencyKey(planId, identity.memberId, "constraint:add", input.idempotencyKey);
+    const replay = memory.idempotency.get(idem) as { ok: true; constraint: PlanConstraint } | undefined;
+    if (replay) return structuredClone(replay);
+    const constraint: PlanConstraint = {
+      id: randomUUID(), planId, memberId: identity.memberId, kind: input.kind, value,
+      priority: input.priority, createdAt: (input.now ?? new Date()).toISOString(), resolvedAt: null, resolvedByMemberId: null, evidence: null,
+    };
+    memory.constraints.set(constraint.id, constraint);
+    const result = { ok: true as const, constraint: { ...constraint } };
+    memory.idempotency.set(idem, result);
+    return structuredClone(result);
+  },
+
+  async resolveConstraint(planId, token, constraintId, input) {
+    if (!isPlanId(planId) || !validKey(input.idempotencyKey)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token, "host");
+    if (!identity) return { ok: false, error: "forbidden" };
+    const constraint = memory.constraints.get(constraintId);
+    if (!constraint || constraint.planId !== planId) return { ok: false, error: "not_found" };
+    const now = input.now ?? new Date();
+    const proposal = memory.proposals.get(input.evidence.proposalId);
+    if (!proposal || proposal.planId !== planId || proposal.status !== "pending") return { ok: false, error: "not_found" };
+    const evidence = cleanConstraintEvidence(input.evidence, proposal, now);
+    if (!evidence) return { ok: false, error: "invalid" };
+    constraint.resolvedAt = now.toISOString();
+    constraint.resolvedByMemberId = identity.memberId;
+    constraint.evidence = evidence;
+    return { ok: true, constraint: structuredClone(constraint) };
+  },
+
+  async createProposal(planId, token, input) {
+    const reason = cleanText(input.reason, 300);
+    if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !reason || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1 || !validStops(input.stops) || !Array.isArray(input.resolvedConstraintIds) || input.resolvedConstraintIds.length > 0) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const idem = idempotencyKey(planId, identity.memberId, "proposal:create", input.idempotencyKey);
+    const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
+    if (replay) return structuredClone(replay);
+    const activeConstraints = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId);
+    const resolved: string[] = [];
+    const proposal: PlanRouteProposal = {
+      id: randomUUID(), planId, proposedByMemberId: identity.memberId,
+      expectedRouteRevision: input.expectedRouteRevision,
+      stops: input.stops.map((stop) => ({ ...stop })), reason,
+      resolvedConstraintIds: resolved,
+      unresolvedConstraintIds: activeConstraints.filter((constraint) => constraint.priority === "required" && !resolved.includes(constraint.id)).map((constraint) => constraint.id),
+      status: "pending", createdAt: (input.now ?? new Date()).toISOString(), decidedAt: null,
+    };
+    memory.proposals.set(proposal.id, proposal);
+    const result = { ok: true as const, proposal: cloneProposal(proposal) };
+    memory.idempotency.set(idem, result);
+    return structuredClone(result);
+  },
+
+  async vote(planId, token, proposalId, value, key, now = new Date()) {
+    if (!isPlanId(planId) || !validKey(key) || !["approve", "reject", "abstain"].includes(value)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const idem = idempotencyKey(planId, identity.memberId, "vote", key);
+    const replay = memory.idempotency.get(idem) as { ok: true; vote: PlanVote } | undefined;
+    if (replay) return structuredClone(replay);
+    const proposal = memory.proposals.get(proposalId);
+    if (!proposal || proposal.planId !== planId) return { ok: false, error: "not_found" };
+    if (proposal.status !== "pending") return { ok: false, error: "conflict" };
+    const existing = [...memory.votes.values()].find((vote) => vote.proposalId === proposalId && vote.memberId === identity.memberId);
+    const vote: PlanVote = existing ?? { id: randomUUID(), planId, proposalId, memberId: identity.memberId, value, createdAt: now.toISOString() };
+    vote.value = value;
+    memory.votes.set(vote.id, vote);
+    const result = { ok: true as const, vote: { ...vote } };
+    memory.idempotency.set(idem, result);
+    return structuredClone(result);
+  },
+
+  async decideProposal(planId, token, proposalId, decision, key, apply, now = new Date()) {
+    if (!isPlanId(planId) || !validKey(key) || !["accepted", "rejected"].includes(decision)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token, "host");
+    if (!identity) return { ok: false, error: "forbidden" };
+    const idem = idempotencyKey(planId, identity.memberId, "proposal:decision", key);
+    const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
+    if (replay) return structuredClone(replay);
+    const proposal = memory.proposals.get(proposalId);
+    if (!proposal || proposal.planId !== planId) return { ok: false, error: "not_found" };
+    if (proposal.status !== "pending") return { ok: false, error: "conflict" };
+    const currentRequired = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId && constraint.priority === "required");
+    proposal.unresolvedConstraintIds = currentRequired.filter((constraint) => !evidenceCoversProposal(constraint, proposal)).map((constraint) => constraint.id);
+    if (decision === "accepted" && proposal.unresolvedConstraintIds.length > 0) return { ok: false, error: "constraints_unresolved" };
+    if (decision === "accepted" && !(await apply(cloneProposal(proposal)))) return { ok: false, error: "conflict" };
+    proposal.status = decision;
+    proposal.decidedAt = now.toISOString();
+    const result = { ok: true as const, proposal: cloneProposal(proposal) };
+    memory.idempotency.set(idem, result);
+    return structuredClone(result);
+  },
+
+  async list(planId, token) {
+    if (!isPlanId(planId)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    return {
+      ok: true,
+      memberId: identity.memberId,
+      invites: identity.role === "host" ? [...memory.invites.values()].filter((value) => value.planId === planId && !value.revokedAt && !value.redeemedAt).map(publicInvite) : [],
+      constraints: [...memory.constraints.values()].filter((value) => value.planId === planId).map((value) => ({ ...value })),
+      proposals: [...memory.proposals.values()].filter((value) => value.planId === planId).map((value) => {
+        const proposal = cloneProposal(value);
+        proposal.unresolvedConstraintIds = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId && constraint.priority === "required" && !evidenceCoversProposal(constraint, proposal)).map((constraint) => constraint.id);
+        return proposal;
+      }),
+      votes: [...memory.votes.values()].filter((value) => value.planId === planId).map((value) => ({ ...value })),
+    };
+  },
+};
+
+const INVITES = "plan_invites";
+const CONSTRAINTS = "plan_constraints";
+const PROPOSALS = "plan_route_proposals";
+const VOTES = "plan_votes";
+
+const supabaseStore: PlanCollaborationStore = {
+  async createInvite(planId, token, input) {
+    if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !Number.isInteger(input.expiresInMinutes) || input.expiresInMinutes < 5 || input.expiresInMinutes > 10_080) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token, "host");
+    if (!identity || typeof token !== "string") return { ok: false, error: "forbidden" };
+    const admin = requireSupabaseAdmin();
+    const key = input.idempotencyKey.trim();
+    const rawToken = createHash("sha256").update(`${process.env.PLAN_INVITE_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-invite"}:${planId}:${identity.memberId}:${token}:${key}`).digest("hex");
+    const existing = await admin.from(INVITES).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").eq("plan_id", planId).eq("created_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
+    if (existing.error) return { ok: false, error: "error" };
+    if (existing.data) return { ok: true, invite: inviteFromRow(existing.data as Record<string, unknown>), token: rawToken };
+    const now = input.now ?? new Date();
+    const row = { id: randomUUID(), plan_id: planId, created_by_member_id: identity.memberId, role: "guest", token_hash: inviteHash(rawToken), idempotency_key: key, created_at: now.toISOString(), expires_at: new Date(now.getTime() + input.expiresInMinutes * 60_000).toISOString(), revoked_at: null, redeemed_at: null };
+    const inserted = await admin.from(INVITES).insert(row).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").single();
+    if (inserted.data) return { ok: true, invite: inviteFromRow(inserted.data as Record<string, unknown>), token: rawToken };
+    const replay = await admin.from(INVITES).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").eq("plan_id", planId).eq("created_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
+    return replay.data ? { ok: true, invite: inviteFromRow(replay.data as Record<string, unknown>), token: rawToken } : { ok: false, error: "error" };
+  },
+
+  async revokeInvite(planId, token, inviteId, key, now = new Date()) {
+    if (!isPlanId(planId) || !validKey(key)) return { ok: false, error: "invalid" };
+    if (!(await member(planId, token, "host"))) return { ok: false, error: "forbidden" };
+    const admin = requireSupabaseAdmin();
+    const existing = await admin.from(INVITES).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").eq("id", inviteId).eq("plan_id", planId).maybeSingle();
+    if (existing.error) return { ok: false, error: "error" };
+    if (!existing.data) return { ok: false, error: "not_found" };
+    if ((existing.data as Record<string, unknown>).revoked_at) return { ok: true, invite: inviteFromRow(existing.data as Record<string, unknown>) };
+    const updated = await admin.from(INVITES).update({ revoked_at: now.toISOString() }).eq("id", inviteId).eq("plan_id", planId).is("revoked_at", null).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").maybeSingle();
+    return updated.error || !updated.data ? { ok: false, error: "conflict" } : { ok: true, invite: inviteFromRow(updated.data as Record<string, unknown>) };
+  },
+
+  async consumeInvite(planId, rawToken, now = new Date()) {
+    if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim()) return { ok: false, error: "invalid" };
+    const admin = requireSupabaseAdmin();
+    const hash = inviteHash(rawToken.trim());
+    const found = await admin.from(INVITES).select("id,expires_at,revoked_at,redeemed_at").eq("plan_id", planId).eq("token_hash", hash).maybeSingle();
+    if (found.error) return { ok: false, error: "error" };
+    if (!found.data) return { ok: false, error: "not_found" };
+    const row = found.data as Record<string, unknown>;
+    if (row.revoked_at) return { ok: false, error: "revoked" };
+    if (Date.parse(String(row.expires_at)) <= now.getTime()) return { ok: false, error: "expired" };
+    if (row.redeemed_at) return { ok: false, error: "replayed" };
+    const updated = await admin.from(INVITES).update({ redeemed_at: now.toISOString() }).eq("id", String(row.id)).is("redeemed_at", null).select("id").maybeSingle();
+    return updated.data ? { ok: true, inviteId: String(row.id), role: "guest" } : { ok: false, error: "replayed" };
+  },
+
+  async redeemInviteAndJoin(planId, rawToken, name, now = new Date()) {
+    if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim() || !name) return { ok: false, error: "invalid" };
+    const memberToken = mintPlanMemberToken();
+    const admin = requireSupabaseAdmin();
+    const { data, error } = await admin.rpc("redeem_plan_invite_atomic", {
+      p_plan_id: planId,
+      p_invite_token_hash: inviteHash(rawToken.trim()),
+      p_member_id: randomUUID(),
+      p_member_name: name,
+      p_member_token_hash: hashPlanMemberToken(memberToken),
+      p_joined_at: now.toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    if (data !== "joined") return { ok: false, error: data === "full" ? "full" : data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "replayed" ? "replayed" : data === "not_found" ? "not_found" : "error" };
+    const plan = await planStore().get(planId);
+    return { ok: true, plan, memberToken, role: "guest", collaborationAuthorized: true };
+  },
+
+  async upgradeMemberInvite(planId, rawMemberToken, rawInviteToken, now = new Date()) {
+    if (!isPlanId(planId) || typeof rawMemberToken !== "string" || typeof rawInviteToken !== "string") return { ok: false, error: "invalid" };
+    const { data, error } = await requireSupabaseAdmin().rpc("upgrade_plan_member_invite_atomic", {
+      p_plan_id: planId,
+      p_invite_token_hash: inviteHash(rawInviteToken.trim()),
+      p_member_token_hash: hashPlanMemberToken(rawMemberToken.trim()),
+      p_redeemed_at: now.toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    return data === "upgraded" || data === "already_authorized" ? { ok: true, collaborationAuthorized: true } : { ok: false, error: data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "replayed" ? "replayed" : data === "forbidden" ? "forbidden" : "not_found" };
+  },
+
+  async addConstraint(planId, token, input) {
+    const kinds: PlanConstraintKind[] = ["accessibility", "budget", "zero_proof", "timing", "transport", "other"];
+    const value = cleanText(input.value, 180);
+    if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !kinds.includes(input.kind) || !value || !["required", "preference"].includes(input.priority)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const admin = requireSupabaseAdmin();
+    const key = input.idempotencyKey.trim();
+    const existing = await admin.from(CONSTRAINTS).select("*").eq("plan_id", planId).eq("member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
+    if (existing.error) return { ok: false, error: "error" };
+    if (existing.data) return { ok: true, constraint: constraintFromRow(existing.data as Record<string, unknown>) };
+    const inserted = await admin.from(CONSTRAINTS).insert({ id: randomUUID(), plan_id: planId, member_id: identity.memberId, kind: input.kind, value, priority: input.priority, idempotency_key: key, created_at: (input.now ?? new Date()).toISOString() }).select("*").single();
+    if (inserted.data) return { ok: true, constraint: constraintFromRow(inserted.data as Record<string, unknown>) };
+    const replay = await admin.from(CONSTRAINTS).select("*").eq("plan_id", planId).eq("member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
+    return replay.data ? { ok: true, constraint: constraintFromRow(replay.data as Record<string, unknown>) } : { ok: false, error: "error" };
+  },
+
+  async resolveConstraint(planId, token, constraintId, input) {
+    if (!isPlanId(planId) || !validKey(input.idempotencyKey)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token, "host");
+    if (!identity) return { ok: false, error: "forbidden" };
+    const now = input.now ?? new Date();
+    const admin = requireSupabaseAdmin();
+    const existing = await admin.from(CONSTRAINTS).select("*").eq("id", constraintId).eq("plan_id", planId).maybeSingle();
+    if (existing.error) return { ok: false, error: "error" };
+    if (!existing.data) return { ok: false, error: "not_found" };
+    const proposalRow = await admin.from(PROPOSALS).select("*").eq("id", input.evidence.proposalId).eq("plan_id", planId).eq("status", "pending").maybeSingle();
+    if (proposalRow.error) return { ok: false, error: "error" };
+    if (!proposalRow.data) return { ok: false, error: "not_found" };
+    const evidence = cleanConstraintEvidence(input.evidence, proposalFromRow(proposalRow.data as Record<string, unknown>), now);
+    if (!evidence) return { ok: false, error: "invalid" };
+    const updated = await admin.from(CONSTRAINTS).update({ resolved_at: now.toISOString(), resolved_by_member_id: identity.memberId, resolution_evidence: evidence, resolution_idempotency_key: input.idempotencyKey.trim() }).eq("id", constraintId).eq("plan_id", planId).select("*").maybeSingle();
+    if (updated.data) return { ok: true, constraint: constraintFromRow(updated.data as Record<string, unknown>) };
+    const replay = await admin.from(CONSTRAINTS).select("*").eq("id", constraintId).eq("plan_id", planId).maybeSingle();
+    return replay.data ? { ok: true, constraint: constraintFromRow(replay.data as Record<string, unknown>) } : { ok: false, error: "error" };
+  },
+
+  async createProposal(planId, token, input) {
+    const reason = cleanText(input.reason, 300);
+    if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !reason || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1 || !validStops(input.stops) || input.resolvedConstraintIds.length > 0) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const admin = requireSupabaseAdmin();
+    const key = input.idempotencyKey.trim();
+    const existing = await admin.from(PROPOSALS).select("*").eq("plan_id", planId).eq("proposed_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
+    if (existing.error) return { ok: false, error: "error" };
+    if (existing.data) return { ok: true, proposal: proposalFromRow(existing.data as Record<string, unknown>) };
+    const constraints = await admin.from(CONSTRAINTS).select("id,priority,resolved_at").eq("plan_id", planId);
+    if (constraints.error) return { ok: false, error: "error" };
+    const rows = (constraints.data ?? []) as Array<{ id: string; priority: string; resolved_at: string | null }>;
+    const resolved: string[] = [];
+    const unresolved = rows.filter((item) => item.priority === "required" && !resolved.includes(String(item.id))).map((item) => String(item.id));
+    const inserted = await admin.from(PROPOSALS).insert({ id: randomUUID(), plan_id: planId, proposed_by_member_id: identity.memberId, expected_route_revision: input.expectedRouteRevision, stops: input.stops, reason, resolved_constraint_ids: resolved, unresolved_constraint_ids: unresolved, status: "pending", idempotency_key: key, created_at: (input.now ?? new Date()).toISOString(), decided_at: null }).select("*").single();
+    if (inserted.data) return { ok: true, proposal: proposalFromRow(inserted.data as Record<string, unknown>) };
+    const replay = await admin.from(PROPOSALS).select("*").eq("plan_id", planId).eq("proposed_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
+    return replay.data ? { ok: true, proposal: proposalFromRow(replay.data as Record<string, unknown>) } : { ok: false, error: "error" };
+  },
+
+  async vote(planId, token, proposalId, value, key, now = new Date()) {
+    if (!isPlanId(planId) || !validKey(key) || !["approve", "reject", "abstain"].includes(value)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const admin = requireSupabaseAdmin();
+    const { data: voteRow, error } = await admin.rpc("record_plan_vote_atomic", {
+      p_plan_id: planId, p_proposal_id: proposalId, p_member_id: identity.memberId,
+      p_value: value, p_idempotency_key: key.trim(), p_vote_id: randomUUID(), p_created_at: now.toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    if (!voteRow || typeof voteRow !== "object") return { ok: false, error: "conflict" };
+    return { ok: true, vote: voteFromRow(voteRow as Record<string, unknown>) };
+  },
+
+  async decideProposal(planId, token, proposalId, decision, key, apply, now = new Date()) {
+    if (!isPlanId(planId) || !validKey(key) || !["accepted", "rejected"].includes(decision)) return { ok: false, error: "invalid" };
+    if (!(await member(planId, token, "host"))) return { ok: false, error: "forbidden" };
+    const admin = requireSupabaseAdmin();
+    const { data, error } = await admin.rpc("decide_plan_route_proposal_atomic", {
+      p_plan_id: planId,
+      p_proposal_id: proposalId,
+      p_token_hash: memberTokenHash(String(token)),
+      p_decision: decision,
+      p_idempotency_key: key.trim(),
+      p_decided_at: now.toISOString(),
+    });
+    void apply;
+    if (error) return { ok: false, error: "error" };
+    if (data === "forbidden") return { ok: false, error: "forbidden" };
+    if (data === "not_found") return { ok: false, error: "not_found" };
+    if (data === "constraints_unresolved") return { ok: false, error: "constraints_unresolved" };
+    if (data !== "decided" && data !== "already_decided") return { ok: false, error: "conflict" };
+    const updated = await admin.from(PROPOSALS).select("*").eq("id", proposalId).eq("plan_id", planId).maybeSingle();
+    return !updated.error && updated.data ? { ok: true, proposal: proposalFromRow(updated.data as Record<string, unknown>) } : { ok: false, error: "error" };
+  },
+
+  async list(planId, token) {
+    if (!isPlanId(planId)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const admin = requireSupabaseAdmin();
+    const [invites, constraints, proposals, votes] = await Promise.all([
+      identity.role === "host" ? admin.from(INVITES).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").eq("plan_id", planId).is("revoked_at", null).is("redeemed_at", null).order("created_at") : Promise.resolve({ data: [], error: null }),
+      admin.from(CONSTRAINTS).select("*").eq("plan_id", planId).order("created_at"),
+      admin.from(PROPOSALS).select("*").eq("plan_id", planId).order("created_at"),
+      admin.from(VOTES).select("*").eq("plan_id", planId).order("created_at"),
+    ]);
+    if (invites.error || constraints.error || proposals.error || votes.error) return { ok: false, error: "error" };
+    const publicConstraints = (constraints.data ?? []).map((row) => constraintFromRow(row as Record<string, unknown>));
+    const publicProposals = (proposals.data ?? []).map((row) => {
+      const proposal = proposalFromRow(row as Record<string, unknown>);
+      proposal.unresolvedConstraintIds = publicConstraints.filter((constraint) => constraint.priority === "required" && !evidenceCoversProposal(constraint, proposal)).map((constraint) => constraint.id);
+      return proposal;
+    });
+    return { ok: true, memberId: identity.memberId, invites: (invites.data ?? []).map((row) => inviteFromRow(row as Record<string, unknown>)), constraints: publicConstraints, proposals: publicProposals, votes: (votes.data ?? []).map((row) => voteFromRow(row as Record<string, unknown>)) };
+  },
+};
+
+const safeSupabaseStore = new Proxy(supabaseStore, {
+  get(target, property, receiver) {
+    const value = Reflect.get(target, property, receiver) as unknown;
+    if (typeof value !== "function") return value;
+    return async (...args: unknown[]) => {
+      try {
+        return await Reflect.apply(value, target, args);
+      } catch (error) {
+        console.error("[plan-collaboration] configured store failed:", error instanceof Error ? error.message : error);
+        return { ok: false, error: "error" };
+      }
+    };
+  },
+}) as PlanCollaborationStore;
+
+export function planCollaborationStore(): PlanCollaborationStore {
+  return isSupabaseConfigured() ? safeSupabaseStore : memoryStore;
+}
+
+export function __resetPlanCollaboration(): void {
+  memory.invites.clear();
+  memory.constraints.clear();
+  memory.proposals.clear();
+  memory.votes.clear();
+  memory.idempotency.clear();
+}
