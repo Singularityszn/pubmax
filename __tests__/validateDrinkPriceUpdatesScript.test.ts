@@ -158,6 +158,39 @@ describe("validate-data.mjs drink-price-update extension", () => {
     expect(stdout).toContain("SKIP public/data/drink_price_updates/: no .json files present");
   });
 
+  it("validates an official-publisher Pint Index source without relying on empty coverage", () => {
+    const scriptsDir = setupScratch({});
+    const snapshotPath = join(scriptsDir, "..", "public", "data", "pint_index_snapshot.json");
+    const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+    snapshot.status = "partial";
+    snapshot.observationWindow = {
+      start: "2026-07-01T00:00:00.000Z",
+      end: "2026-07-15T23:59:59.000Z",
+    };
+    snapshot.sources = [{
+      id: "official-pub-1",
+      kind: "official_publisher",
+      publisher: "Example Pub",
+      publisherType: "pub",
+      officialDomain: "example.com",
+      sourceUrl: "https://www.example.com/drinks",
+      licence: null,
+    }];
+    snapshot.observations = [{
+      venueId: "venue-example",
+      pubName: "Example Pub",
+      boroughCode: "hackney",
+      boroughName: "Hackney",
+      pricePence: 600,
+      observedAt: "2026-07-10T12:00:00.000Z",
+      sourceId: "official-pub-1",
+    }];
+    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).toBe(0);
+    expect(stdout).toContain("PASS public/data/pint_index_snapshot.json: 1 public observations");
+  });
+
   it("passes a well-formed drink-price-update file", () => {
     const scriptsDir = setupScratch({
       "prices_20200101.json": { version: 1, generatedAt: "2020-01-01T00:00:00.000Z", updates: [GOOD_ROW] },

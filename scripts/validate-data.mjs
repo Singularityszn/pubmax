@@ -46,10 +46,6 @@ function isValidNightSignalClaim(row) {
         && !url.username && !url.password && !url.port && !url.search && !url.hash;
     } catch { return false; }
   };
-  const hostname = (value) => {
-    try { return new URL(value).hostname.toLowerCase().replace(/^www\./, ""); }
-    catch { return null; }
-  };
   const source = (value) => value && typeof value === "object" && publicUrl(value.sourceUrl) && text(value.publisher, 160) && iso(value.publishedAt);
   if (!row || typeof row !== "object" || !text(row.id, 120) || !text(row.claim, 500)) return false;
   if (!["event", "price", "access", "opening", "transport"].includes(row.kind)) return false;
@@ -1153,6 +1149,10 @@ function validatePintIndexSnapshot() {
       const url = new URL(value);
       return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
     } catch { return false; }
+  };
+  const hostname = (value) => {
+    try { return new URL(value).hostname.toLowerCase().replace(/^www\./, ""); }
+    catch { return null; }
   };
   const boroughs = new Set([
     "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden",
