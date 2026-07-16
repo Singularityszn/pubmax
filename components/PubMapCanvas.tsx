@@ -780,6 +780,10 @@ export default function PubMapCanvas({
     // construct scope so a theme-swap rebuild replaces the previous timer and
     // teardown can clear it.
     let pinRevealTimer: ReturnType<typeof setTimeout> | undefined;
+    // Companion rAF handle for the already-loaded-source reveal below — retained
+    // so a theme-swap rebuild or teardown can cancel a stale frame that would
+    // otherwise reveal pins for a scene that no longer exists.
+    let pinRevealRaf: ReturnType<typeof requestAnimationFrame> | undefined;
     const buildScene = () => {
       // Stale-event guard. A style.load can arrive from a style that a rapid
       // setStyle() just superseded (e.g. two theme flips inside one style-fetch
@@ -884,6 +888,10 @@ export default function PubMapCanvas({
       // the map may never go idle), and PIN_REVEAL_TIMEOUT_MS is the hard
       // backstop. Whichever fires first reveals the pins and disarms the rest.
       if (!map.areTilesLoaded()) {
+        if (pinRevealRaf !== undefined) {
+          cancelAnimationFrame(pinRevealRaf);
+          pinRevealRaf = undefined;
+        }
         for (const id of PUB_PIN_LAYERS) {
           if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
         }
@@ -897,6 +905,10 @@ export default function PubMapCanvas({
         function revealPins() {
           clearTimeout(pinRevealTimer);
           pinRevealTimer = undefined;
+          if (pinRevealRaf !== undefined) {
+            cancelAnimationFrame(pinRevealRaf);
+            pinRevealRaf = undefined;
+          }
           map.off("idle", revealPins);
           map.off("sourcedata", onPubsSourceData);
           for (const id of PUB_PIN_LAYERS) {
@@ -913,7 +925,8 @@ export default function PubMapCanvas({
         // `sourcedata` would not fire again), reveal on the next frame so we
         // never strand pins waiting on an event that has passed.
         if (map.getSource("pubs") && map.isSourceLoaded("pubs")) {
-          requestAnimationFrame(() => {
+          pinRevealRaf = requestAnimationFrame(() => {
+            pinRevealRaf = undefined;
             if (pinRevealTimer !== undefined) revealPins();
           });
         }
@@ -1264,6 +1277,9 @@ export default function PubMapCanvas({
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
       if (pinRevealTimer) clearTimeout(pinRevealTimer);
+      pinRevealTimer = undefined;
+      if (pinRevealRaf !== undefined) cancelAnimationFrame(pinRevealRaf);
+      pinRevealRaf = undefined;
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
