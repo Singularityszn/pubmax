@@ -33,15 +33,18 @@ describe("sanitizeEvent", () => {
   it("rejects unsafe values: emails, over-long strings, non-finite numbers", () => {
     expect(sanitizeEvent("event_chip_view", { kind: "a@b.com" })?.props).toEqual({});
     expect(sanitizeEvent("event_chip_view", { kind: "x".repeat(41) })?.props).toEqual({});
-    expect(sanitizeEvent("streak_increment", { days: Number.NaN })?.props).toEqual({});
-    expect(sanitizeEvent("streak_increment", { days: Infinity })?.props).toEqual({});
+    expect(sanitizeEvent("plan_created", { count: Number.NaN })?.props).toEqual({});
+    expect(sanitizeEvent("plan_created", { count: Infinity })?.props).toEqual({});
   });
 
-  it("accepts safe primitives (short string, finite number, boolean)", () => {
-    expect(sanitizeEvent("streak_increment", { days: 5 })?.props).toEqual({ days: 5 });
+  it("accepts only reviewed enum strings plus bounded numbers", () => {
+    expect(sanitizeEvent("plan_created", { count: 5 })?.props).toEqual({ count: 5 });
     expect(sanitizeEvent("poster_shared", { surface: "borough" })?.props).toEqual({
       surface: "borough",
     });
+    expect(sanitizeEvent("poster_shared", { surface: "someone's private note" })?.props).toEqual({});
+    expect(sanitizeEvent("booking_click", { venueId: "person-or-private-id", tier: "direct" })?.props)
+      .toEqual({ tier: "direct" });
   });
 
   it("keeps only bounded performance fields for web vitals", () => {
@@ -73,6 +76,14 @@ describe("sanitizeEvent", () => {
       props: { windowDays: 18, source: "crew-reinvite" },
     });
   });
+
+  it.each(["morning", "afternoon", "evening", "night"])(
+    "keeps the landing daypart %s",
+    (daypart) => {
+      expect(sanitizeEvent("discovery_viewed", { surface: "landing", daypart })?.props)
+        .toEqual({ surface: "landing", daypart });
+    },
+  );
 
   it("tolerates missing/invalid props objects", () => {
     expect(sanitizeEvent("tonight_screen_view")).toEqual({
@@ -116,5 +127,11 @@ describe("sanitizeEvent", () => {
     for (const keys of Object.values(ANALYTICS_EVENTS)) {
       expect(Array.isArray(keys)).toBe(true);
     }
+  });
+
+  it("does not expose streak or alcohol-quantity progression events", () => {
+    expect(isKnownEvent("streak_increment")).toBe(false);
+    expect(isKnownEvent("streak_view")).toBe(false);
+    expect(sanitizeEvent("streak_increment", { days: 4 })).toBeNull();
   });
 });

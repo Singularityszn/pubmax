@@ -30,9 +30,9 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (ending === "food" && !terminalVenueId) return jsonNoStore({ error: "Include the current route stop before completing this Plan with food." }, { status: 400 });
   const result = await planStore().complete(id, memberToken, { expectedRouteRevision, ending, ...(terminalVenueId ? { terminalVenueId } : {}) });
   if (!result.ok) return jsonNoStore({
-    error: result.error === "forbidden" ? "That member capability cannot complete this Plan." : result.error === "conflict" ? "That Crawl Route has changed. Refresh and try again." : result.error === "error" ? "Plan completion data is temporarily unavailable." : "Could not complete this Plan.",
-    code: result.error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : "PLAN_COMPLETION_INVALID",
+    error: result.error === "forbidden" ? "That member capability cannot complete this Plan." : result.error === "conflict" ? "That Crawl Route has changed. Refresh and try again." : result.error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : result.error === "error" ? "Plan completion data is temporarily unavailable." : "Could not complete this Plan.",
+    code: result.error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : result.error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" : "PLAN_COMPLETION_INVALID",
     retryable: result.error === "error" || result.error === "conflict",
   }, { status: result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : result.error === "error" ? 503 : 400 });
-  return jsonNoStore({ plan: result.plan, completion: result.completion }, { status: result.created ? 201 : 200 });
+  return jsonNoStore({ plan: result.plan, completion: result.completion, created: result.created }, { status: result.created ? 201 : 200 });
 }

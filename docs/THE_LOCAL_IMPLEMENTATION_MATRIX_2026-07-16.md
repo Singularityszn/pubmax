@@ -58,6 +58,11 @@ Every slice must preserve keyless operation, existing public URLs, current API f
 | 15 consolidation | Implemented for this release seam | `07494b3e`; common backend batches and keyless/configured parity tests landed without a wholesale store, CSS, or MapLibre rewrite. |
 | 16 Gate Z | Partial, local evidence complete for implemented scope | `docs/screenshots/the-local-gate-z/` plus the refreshed mobile matrix in `docs/screenshots/mobile-reset/`; functional gates and strict performance budgets pass. A continuous full-journey recording and external Fable approvals remain outstanding. |
 
-Metric status: `planned_night_completed` implements the primary release metric. Weekly Active Crews and Worthwhile Nights Completed can be inferred from existing crew, Memory, contribution, share, and Story events, but a durable privacy-safe aggregation/report has not landed and remains partial.
+Metric status: the idempotent `plan_completions` ledger implements the primary
+release metric. A browser `planned_night_completed` event is intentionally not the
+authority because a committed write can outlive a lost response. Weekly Active
+Crews and Worthwhile Nights Completed can be inferred from existing crew, Memory,
+contribution, share, and Story events, but a durable privacy-safe aggregation/report
+has not landed and remains partial.
 
 The only planned deferrals are the boundaries already named above: Google and Microsoft identity, MapLibre 6, affiliate growth, passive location, drink-volume rewards, and automatic Pal memories. Fable approval is an external release decision, not an implementation state.

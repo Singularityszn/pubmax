@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
+import {
+  anonymousAnalyticsId,
+  laneSourceFromSearch,
+  setAnalyticsConsent,
+  trackEvent,
+} from "@/lib/analytics";
 
 type FakeNavigator = Partial<Navigator> & {
   sendBeacon?: (url: string, data?: BodyInit | null) => boolean;
@@ -8,6 +13,7 @@ type FakeNavigator = Partial<Navigator> & {
 };
 
 function setWindow(navigatorOverrides: FakeNavigator = {}): void {
+  const values = new Map<string, string>();
   const nav: FakeNavigator = {
     sendBeacon: vi.fn().mockReturnValue(true),
     ...navigatorOverrides,
@@ -15,6 +21,20 @@ function setWindow(navigatorOverrides: FakeNavigator = {}): void {
   (globalThis as { navigator?: unknown }).navigator = nav;
   (globalThis as { window?: unknown }).window = {
     location: { pathname: "/tonight" },
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => values.delete(key),
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+  };
+}
+
+function makeStorageThrow(): void {
+  const fail = () => { throw new Error("storage blocked"); };
+  (globalThis as { window: { localStorage: unknown } }).window.localStorage = {
+    getItem: fail,
+    removeItem: fail,
+    setItem: fail,
   };
 }
 
@@ -38,6 +58,34 @@ describe("trackEvent", () => {
     const [url, blob] = beacon.mock.calls[0];
     expect(url).toBe("/api/events");
     expect(blob).toBeInstanceOf(Blob);
+  });
+
+  it("creates no persistent id before consent and clears it after revocation", () => {
+    setWindow();
+    expect(anonymousAnalyticsId()).toBeNull();
+
+    setAnalyticsConsent(true);
+    const first = anonymousAnalyticsId();
+    const second = anonymousAnalyticsId();
+
+    expect(first).toMatch(/^anon_[a-f0-9-]{16,64}$/);
+    expect(second).toBe(first);
+    expect(first).not.toContain("@");
+
+    setAnalyticsConsent(false);
+    expect(anonymousAnalyticsId()).toBeNull();
+  });
+
+  it("fails closed when storage is blocked unless consent was explicitly granted in memory", () => {
+    setWindow();
+    makeStorageThrow();
+    expect(anonymousAnalyticsId()).toBeNull();
+
+    setAnalyticsConsent(true);
+    expect(anonymousAnalyticsId()).toMatch(/^anon_[a-f0-9-]{16,64}$/);
+
+    setAnalyticsConsent(false);
+    expect(anonymousAnalyticsId()).toBeNull();
   });
 
   it("forwards with empty props when none are given", () => {

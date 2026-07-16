@@ -1,7 +1,10 @@
-# PUBMAXXING — The Ultimate Product Requirements Document
+# PUBMAXXING — The Ultimate Product Requirements Document (Historical)
+
+> **SUPERSEDED (2026-07-16)** by [`MASTER_PRD.md`](./MASTER_PRD.md). Retained for
+> historical vision and persona evidence only.
 **Version:** 2026-07-07 (Consolidated Master)  
 **Authors:** Grok (synthesizing Fable, Opus, GLM 5.2, all prior agents, first-principles analysis)  
-**Status:** Single source of truth. Supersedes every previous PRD.
+**Status:** Superseded historical vision.
 
 ---
 

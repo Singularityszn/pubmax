@@ -8,8 +8,8 @@ const REPORTED_METRICS = new Set(["CLS", "FCP", "INP", "LCP", "TTFB"]);
 
 /**
  * Privacy-safe real-user performance reporting. Values are rounded before they
- * enter the existing identifier-free analytics rail; no navigation URL,
- * session identifier, or attribution payload is transmitted.
+ * enter the closed analytics rail; no raw navigation URL, account identifier,
+ * or attribution payload is transmitted.
  */
 export default function PerformanceVitals() {
   useReportWebVitals((metric) => {

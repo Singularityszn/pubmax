@@ -1,5 +1,8 @@
 # PRD: PUBMAXXING Current State and Completion Plan
 
+> **SUPERSEDED SNAPSHOT (2026-07-16):** use [`MASTER_PRD.md`](./MASTER_PRD.md)
+> for current roadmap authority.
+
 Date: 2026-07-08
 
 > **Next wave (2026-07-08):** After Mobile UX (#51) and Design/Map/Drink (#53),
@@ -564,8 +567,8 @@ Preferred mobile widths:
 
 ## Further Notes
 
-- This PRD is the current execution handoff. It does not delete or rewrite the
-  older canonical PRD; it updates the active state as of 2026-07-08.
+- This PRD was the execution handoff on 2026-07-08. It no longer updates the
+  active roadmap.
 - The highest leverage before the demo is not a new feature. It is finishing,
   testing, pushing, and deploying the current mobile completion wave cleanly.
 - The strongest demo path is:

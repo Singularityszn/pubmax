@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { trackEvent } from "@/lib/analytics";
+import { setAnalyticsConsent, trackEvent } from "@/lib/analytics";
+import { ANALYTICS_CONSENT_STORAGE_KEY } from "@/lib/analyticsIdentity";
 import { authedFetch } from "@/lib/authedFetch";
 import { emitIdentityHandleChanged } from "@/lib/identityClient";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
@@ -20,6 +21,40 @@ export default function PubmaxxAccountHub() {
   const [instagramUrl, setInstagramUrl] = useState("");
   const [connections, setConnections] = useState<Connection[]>([]);
   const [message, setMessage] = useState("");
+  const [analyticsConsent, setAnalyticsConsentState] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let granted = false;
+    try {
+      granted = localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
+    } catch {
+      granted = false;
+    }
+    void Promise.resolve().then(() => {
+      if (!cancelled) setAnalyticsConsentState(granted);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  function updateAnalyticsConsent(granted: boolean) {
+    setAnalyticsConsent(granted);
+    setAnalyticsConsentState(granted);
+    setMessage(granted
+      ? "Anonymous usage analytics enabled. No handles, messages, voice, or precise location are sent."
+      : "Anonymous usage analytics disabled and the browser analytics ID was removed.");
+  }
+
+  const analyticsControls = (
+    <div>
+      <h3>Anonymous usage analytics</h3>
+      <p>Help improve journeys with allow-listed product events. This is optional and can be withdrawn here.</p>
+      <div className="accountHubActions">
+        <button type="button" aria-pressed={analyticsConsent} onClick={() => updateAnalyticsConsent(true)}>Allow</button>
+        <button type="button" aria-pressed={!analyticsConsent} onClick={() => updateAnalyticsConsent(false)}>No thanks</button>
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -83,7 +118,7 @@ export default function PubmaxxAccountHub() {
   }
 
   if (loading) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
-  if (!user) return <section className="accountHub"><p className="profileSectionKicker">Your PUBMAXX</p><h2>Own your nights.</h2><p>Sign in to claim a handle, connect profiles, and keep private Night Memories.</p><SignInButton /></section>;
+  if (!user) return <section className="accountHub"><p className="profileSectionKicker">Your PUBMAXX</p><h2>Own your nights.</h2><p>Sign in to claim a handle, connect profiles, and keep private Night Memories.</p><SignInButton /><div className="accountHubGrid">{analyticsControls}</div>{message ? <p role="status" className="accountHubMessage">{message}</p> : null}</section>;
 
   return (
     <section className="accountHub" aria-labelledby="account-hub-title">
@@ -91,6 +126,7 @@ export default function PubmaxxAccountHub() {
       <div className="accountHubGrid">
         <form onSubmit={claim}><h3>{currentHandle ? "Your @handle" : "Claim your @handle"}</h3><input value={handle} onChange={(event) => setHandle(event.target.value)} pattern="[A-Za-z0-9_]{3,30}" placeholder="night_owl" required /><button type="submit">{currentHandle ? "Rename handle" : "Claim handle"}</button>{currentHandle ? <small>Renames are limited to once every 30 days. Old links keep working.</small> : null}</form>
         <div><h3>Connected accounts</h3><div className="accountHubActions">{(["x", "tiktok", "instagram"] as const).map((provider) => <button type="button" key={provider} onClick={() => void connectOAuth(provider)}>Connect {provider === "x" ? "X" : provider[0].toUpperCase() + provider.slice(1)}</button>)}</div><form onSubmit={connectInstagram}><input type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Personal Instagram URL" required /><button type="submit">Add personal link</button></form><small>{connections.length} connected</small></div>
+        {analyticsControls}
       </div>
       <NightMemoryStudio key={user.id} userId={user.id} />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}

@@ -1,7 +1,10 @@
-# PUBMAXXING — Master Features & Roadmap PRD (Consolidated + Expanded)
+# PUBMAXXING — Master Features & Roadmap PRD (Historical)
+
+> **SUPERSEDED (2026-07-16)** by [`MASTER_PRD.md`](./MASTER_PRD.md). Retained for
+> historical feature provenance only.
 
 **Date:** 2026-07-07 (post latest pull)  
-**Status:** Single source of truth. Supersedes all previous PRDs (`glm_prd.md`, `cc_plan*.md`, `FABLE_*`, `FIRST_PRINCIPLES_*`, `THE_SPILL_*`, `CURRENT_IMPLEMENTED_STATE_*`, `BROAD_APPEAL_*`).
+**Status:** Superseded historical roadmap.
 
 This document combines:
 - Current implemented state (after `ea05b9d` pull)

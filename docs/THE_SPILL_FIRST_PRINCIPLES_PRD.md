@@ -1,8 +1,11 @@
 # THE SPILL — First-Principles Social Layer for PUBMAXXING
 
+> **SUPERSEDED TERMINOLOGY (2026-07-16):** the Moment, Memory, and Story model in
+> [`MASTER_PRD.md`](./MASTER_PRD.md) replaces “The Spill.” Retained as research only.
+
 **Author:** Grok (first-principles breakdown in the style of Elon Musk / xAI)  
 **Date:** 2026-07-06  
-**Status:** Strategic vision + implementation blueprint. Can be handed to Fable or any agent as the north star for the social layer.
+**Status:** Historical strategic research; not an implementation north star.
 
 ---
 

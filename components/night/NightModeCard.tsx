@@ -439,7 +439,6 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         setRecap(ensurePendingPlanRecap(completed, canonical.plan.title));
       }
       setActivePlanEndingPreview(id, null);
-      trackEvent("planned_night_completed", { ending: canonical.ending ?? ending });
     } catch (caught) {
       setEndingError(caught instanceof Error
         ? `${caught.message} Nothing was completed in this view.`

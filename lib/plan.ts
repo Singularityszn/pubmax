@@ -49,6 +49,12 @@ export type PlanState = {
 };
 
 /** A share-safe completed Planned Night record. Member identifiers stay server-only. */
+export type PlanQualifyingArrivalDTO = {
+  actionId: string;
+  stopPosition: number;
+  arrivedAt: string;
+};
+
 export type PlanCompletionDTO = {
   id: string;
   planId: string;
@@ -57,6 +63,8 @@ export type PlanCompletionDTO = {
   finalPintDropId: string | null;
   routeRevision: number;
   routeSnapshot: PlanStopDTO[];
+  /** Null only for legacy completion rows created before the v1 arrival gate. */
+  qualifyingArrival: PlanQualifyingArrivalDTO | null;
   completedAt: string;
 };
 

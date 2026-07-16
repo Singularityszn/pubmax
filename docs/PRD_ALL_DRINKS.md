@@ -1,9 +1,12 @@
 # PRD — PUBMAXXING: every drink, every rating, a colourful night out
 
+> **AUTHORITATIVE APPENDIX:** [`MASTER_PRD.md`](./MASTER_PRD.md) is the canonical
+> roadmap. This document retains the drink-family domain detail only.
+
 > The pivot from "cheapest pint" to **the one-stop app for a fun night out** — every drink (beer, wine,
 > whisky, gin, vodka, rum, cocktails, shots), real prices kept live, community ratings, people talking to
 > each other, and a bolder, warmer, more colourful identity. Grounded in `docs/research/all-alcohol-market-research-2026-07-07.json`
-> (102-agent deep research). Companion to `docs/PRD_FOR_FABLE.md` (design) and `docs/PRD_CANONICAL.md` (engineering).
+> (102-agent deep research). Companion to `docs/PRD_FOR_FABLE.md` (design) and `docs/MASTER_PRD.md` (roadmap).
 
 ## Context & why now
 

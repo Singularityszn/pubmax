@@ -1,8 +1,10 @@
-# PUBMAXXING — Canonical PRD (single source of truth)
+# PUBMAXXING — Canonical PRD (historical engineering baseline)
 
-**Updated:** 2026-07-06 · **Supersedes** every prior `docs/PRD_*.md`, `docs/OPUS_REVIEW_PRD.md`,
-`docs/PRODUCT_PLAN.md`, `docs/ACTIVE_PLAN.md`, and root `cc_plan*.md` / `codex_plan.md`
-(archived under `docs/archive/`). This is the one plan to execute against.
+> **SUPERSEDED (2026-07-16)** by [`MASTER_PRD.md`](./MASTER_PRD.md). This file is
+> retained as implementation history; it is no longer the roadmap authority.
+
+**Historical scope:** On 2026-07-06 this document consolidated the then-current
+engineering plan. Its roadmap authority ended when `MASTER_PRD.md` was adopted.
 
 ## One line
 A price-aware, story-led London pub-crawl **map** where every pint has a story — *Letterboxd +

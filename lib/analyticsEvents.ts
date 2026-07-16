@@ -2,8 +2,9 @@
 // client beacon (lib/analytics.ts) and the ingest route (app/api/events), so
 // both agree on which events exist and which props each may carry.
 //
-// First-party and privacy-first by construction: NO third-party tracker, NO
-// identifiers, NO free-text. Every event is a fixed name from this registry and
+// Privacy-first by construction: no account identifiers and no free text.
+// PostHog receives only this sanitized contract, with a stable pseudonymous id
+// available solely after analytics consent. Every event is a fixed name and
 // its props are a small allow-list of low-cardinality primitives — anything
 // else is dropped before it can leave the device or land in the log. This keeps
 // the "measurement spine" the other waves draw their success signals from
@@ -27,7 +28,7 @@ export const ANALYTICS_EVENTS = {
   cmdk_open: [],
   night_mode_active: [],
   drop_logged: [],
-  booking_click: ["venueId", "tier"],
+  booking_click: ["tier"],
   whats_on_filter: [],
   // Wave F · F3 — concierge-as-map-home
   concierge_ask: [],
@@ -37,7 +38,6 @@ export const ANALYTICS_EVENTS = {
   night_description_submitted: ["area", "daypart"],
   planned_night_status_changed: ["status"],
   planned_night_action: ["type"],
-  planned_night_completed: ["ending"],
   pub_pal_adopted: ["pal"],
   pub_pal_summoned: ["surface"],
   pub_pal_memory_changed: ["action", "category"],
@@ -58,10 +58,9 @@ export const ANALYTICS_EVENTS = {
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
   event_chip_view: ["kind"],
-  // Wave D
+  // Wave D — sharing is a return-loop signal; alcohol quantity is never
+  // represented as progression telemetry.
   poster_shared: ["surface"],
-  streak_increment: ["days"],
-  streak_view: ["days"],
   // London Capture — reviewed catalogue identifiers and gate codes only.
   district_catalogue_viewed: [],
   district_viewed: ["district", "coverageStatus", "demandWave"],
@@ -81,6 +80,29 @@ export type AnalyticsEvent = {
 };
 
 const MAX_STRING_LEN = 40;
+
+const SAFE_STRING_VALUES = new Set([
+  // fixed product surfaces and provenance
+  "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "crawl", "recap",
+  "shared-plan", "plan-link", "crew-reinvite", "completed_plan",
+  "tonight-lane", "whats-on-quiz", "whats-on-sport", "whats-on-deal", "whats-on-music",
+  // fixed actions, states, providers, and fallbacks
+  "copy", "native", "whatsapp", "sms", "x", "instagram", "tiktok", "oauth", "manual",
+  "draft", "ready", "active", "ending", "completed", "abandoned",
+  "arrived", "skipped", "swapped", "food_preview", "get_home_preview", "keep_going_preview",
+  "food", "get_home", "keep_going", "hound", "raven", "fox",
+  "create", "edit", "delete", "approve", "reject", "preference", "correction", "outcome",
+  // reviewed domain enums
+  "daytime", "after_work", "evening", "late_night", "morning", "afternoon", "night",
+  "sport", "quiz", "deal", "music", "gig",
+  "photo", "pint_drop", "pint-drop", "event", "venue", "quote", "person", "side_quest",
+  "private", "unlisted", "public", "friends", "legacy", "anonymous",
+  "direct", "site", "search",
+  "CLS", "FCP", "INP", "LCP", "TTFB", "good", "needs-improvement", "poor",
+  ...NIGHT_AREA_SLUGS,
+  ...COVERAGE_STATUSES,
+  ...ROUTE_READY_GATE_CODES,
+]);
 
 const DISTRICT_EVENT_PROP_VALUES = {
   district: NIGHT_AREA_SLUGS,
@@ -107,9 +129,12 @@ export function isKnownEvent(name: string): name is AnalyticsEventName {
  */
 function isSafeValue(value: unknown): value is string | number | boolean {
   if (typeof value === "string") {
-    return value.length > 0 && value.length <= MAX_STRING_LEN && !value.includes("@");
+    return value.length > 0
+      && value.length <= MAX_STRING_LEN
+      && !value.includes("@")
+      && SAFE_STRING_VALUES.has(value);
   }
-  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "number") return Number.isFinite(value) && value >= 0 && value <= 600_000;
   return typeof value === "boolean";
 }
 

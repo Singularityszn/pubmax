@@ -140,7 +140,8 @@
 - Preserve the provenance model and grounded Landlord behavior.
 - Think Gen Z (fast, camera, viral) + Boomer (voice, legacy, simple) in every UI decision.
 
-**This PRD is the single source of truth for the current production + broad-appeal sprint.** Execute Phase 1 first, then report back with what landed and any blockers.
+**Historical sprint brief:** current execution order and gates live in
+[`MASTER_PRD.md`](./MASTER_PRD.md).
 
 ---
 

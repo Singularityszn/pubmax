@@ -1,5 +1,8 @@
 # PUBMAXXING — Next Wave Features & Design Principles PRD
 
+> **SUPERSEDED (2026-07-16)** by [`MASTER_PRD.md`](./MASTER_PRD.md). Retained as
+> design research; its streak proposals are explicitly rejected by the master contract.
+
 **Date:** 2026-07-08 (post latest pull `67a587a2`)  
 **Focus:** Forward-looking features, UI/UX design principles, and the next major iteration after the massive 2026-07-07 foundation.
 

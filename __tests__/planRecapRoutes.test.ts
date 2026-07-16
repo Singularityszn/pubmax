@@ -33,6 +33,12 @@ describe("completed Plan recap promotion", () => {
       ],
     });
     if (!created.ok) throw new Error("fixture failed");
+    const arrival = await planStore().addAction(created.plan.plan.id, created.memberToken, {
+      type: "arrived",
+      stopPosition: 0,
+      idempotencyKey: "recap-fixture-arrival",
+    });
+    if (!arrival.ok) throw new Error("arrival fixture failed");
     const completed = await planStore().complete(created.plan.plan.id, created.memberToken, {
       expectedRouteRevision: 1,
       ending: "get_home",
