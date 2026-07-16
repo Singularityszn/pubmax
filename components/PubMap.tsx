@@ -971,6 +971,25 @@ export default function PubMap({
 
   const detailOpen = Boolean(selectedVenueId && selectedVenue);
 
+  // #215 a11y — the sheet's close button is the natural first stop for a
+  // keyboard/AT user landing in a freshly-opened panel; on close (button,
+  // Esc, or a fresh ?sel= navigating away) we hand focus back to whatever
+  // triggered the open rather than dropping it to <body>.
+  const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const preSheetFocusRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (detailOpen) {
+      preSheetFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      drawerCloseButtonRef.current?.focus();
+    } else if (preSheetFocusRef.current) {
+      // The trigger may have unmounted (e.g. a pin re-rendered away) — guard
+      // with isConnected so we never call .focus() on a detached node.
+      if (preSheetFocusRef.current.isConnected) preSheetFocusRef.current.focus();
+      preSheetFocusRef.current = null;
+    }
+  }, [detailOpen]);
+
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
   const activeBand = useMemo(
@@ -1360,6 +1379,7 @@ export default function PubMap({
           onPointerCancel={onSheetDragEnd}
         >
           <button
+            ref={drawerCloseButtonRef}
             type="button"
             className="drawerClose"
             onClick={() => {
