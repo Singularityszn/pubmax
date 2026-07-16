@@ -358,7 +358,7 @@ Route replacement is **optimistically concurrent** via `expectedRouteRevision` �
 type PlanActionRequest = {
   memberToken: string;          // NOTE: header Bearer NOT read here — see §1.1 divergence
   type: "arrived" | "skipped" | "swapped";  // "ending" is REJECTED here (goes via /complete)
-  stopPosition: number;         // integer 0..7
+  stopPosition: number;         // integer 0..7 (validated against PLAN_STOP_MAX=8); THE LOCAL routes are 3 stops, so 0..2 in practice
 };
 ```
 
@@ -516,7 +516,7 @@ Contract requirements:
 
 ### Request (query params)
 
-```
+```text
 GET /api/late-food?near=<area>&at=<daypart>&tags=<csv>&limit=<n>
 ```
 - `near` (or `area`): normalized via `normalizeLateFoodArea` (aliases `soho`/`piccadilly` → `piccadilly-soho`). Required. Only 6 seeded areas: `clapham, victoria, piccadilly-soho, canary-wharf, barnes, chiswick`.
