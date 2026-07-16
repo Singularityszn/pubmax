@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
-import { canTransitionPlannedNight, cleanCreatePlan, isPlanId, PLANNED_NIGHT_STATUSES, type CrawlEnding, type CreatePlanInput, type PlanActionDTO, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, PLANNED_NIGHT_STATUSES, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -28,7 +28,7 @@ export type PlanStore = {
   update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number }): Promise<PlanUpdateResult>;
   addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding; idempotencyKey?: string }): Promise<PlanUpdateResult>;
   getCompletion(id: string): Promise<PlanCompletionDTO | null>;
-  complete(id: string, memberToken: unknown, input: { expectedRouteRevision: number; ending: CrawlEnding; terminalVenueId?: string }): Promise<PlanCompletionResult>;
+  complete(id: string, memberToken: unknown, input: { expectedRouteRevision: number; ending: CrawlEnding; terminalVenueId?: string; endingSelection: EndingSelection }): Promise<PlanCompletionResult>;
 };
 
 export function mintPlanMemberToken(): string {
@@ -79,6 +79,7 @@ function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
     planId: String(row.plan_id),
     ending: row.ending as CrawlEnding,
     terminalVenueId: typeof row.terminal_venue_id === "string" ? row.terminal_venue_id : null,
+    endingSelection: cleanEndingSelection(row.ending_selection, row.ending as CrawlEnding),
     finalPintDropId: typeof row.final_pint_drop_id === "string" ? row.final_pint_drop_id : null,
     routeRevision: Number(row.route_revision ?? 1),
     routeSnapshot: snapshot.map((stop) => stopFromRow({
@@ -309,7 +310,7 @@ export const supabasePlanStore: PlanStore = {
     if (!isPlanId(id)) return null;
     try {
       const { data, error } = await requireSupabaseAdmin().from(COMPLETIONS)
-        .select("id,plan_id,ending,terminal_venue_id,final_pint_drop_id,route_revision,route_snapshot,completed_at")
+        .select("id,plan_id,ending,terminal_venue_id,ending_selection,final_pint_drop_id,route_revision,route_snapshot,completed_at")
         .eq("plan_id", id).maybeSingle();
       return error || !data ? null : completionFromRow(data as Record<string, unknown>);
     } catch {
@@ -317,7 +318,10 @@ export const supabasePlanStore: PlanStore = {
     }
   },
   async complete(id, rawToken, input) {
-    if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1) return { ok: false, error: "invalid" };
+    if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) ||
+        input.expectedRouteRevision < 1 || !cleanEndingSelection(input.endingSelection, input.ending)) {
+      return { ok: false, error: "invalid" };
+    }
     const identityResult = await planMemberIdentityResult(id, rawToken);
     if (!identityResult.ok) return { ok: false, error: "error" };
     if (identityResult.identity?.role !== "host") return { ok: false, error: "forbidden" };
@@ -330,6 +334,7 @@ export const supabasePlanStore: PlanStore = {
         p_action_id: randomUUID(),
         p_ending: input.ending,
         p_terminal_venue_id: input.terminalVenueId ?? null,
+        p_ending_selection: input.endingSelection,
         p_completed_at: new Date().toISOString(),
       });
       if (error) throw new Error(error.message);
@@ -351,6 +356,7 @@ function publicCompletion(completion: StoredCompletion): PlanCompletionDTO {
     planId: completion.planId,
     ending: completion.ending,
     terminalVenueId: completion.terminalVenueId,
+    endingSelection: completion.endingSelection ? structuredClone(completion.endingSelection) : null,
     finalPintDropId: completion.finalPintDropId,
     routeRevision: completion.routeRevision,
     routeSnapshot: completion.routeSnapshot.map((stop) => ({ ...stop })),
@@ -530,7 +536,10 @@ export const memoryPlanStore: PlanStore = {
     return publicCompletion(completion);
   },
   async complete(id, rawToken, input) {
-    if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1) return { ok: false, error: "invalid" };
+    if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) ||
+        input.expectedRouteRevision < 1 || !cleanEndingSelection(input.endingSelection, input.ending)) {
+      return { ok: false, error: "invalid" };
+    }
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
     const actor = plan.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
@@ -548,6 +557,7 @@ export const memoryPlanStore: PlanStore = {
       planId: id,
       ending: input.ending,
       terminalVenueId: input.terminalVenueId ?? null,
+      endingSelection: structuredClone(input.endingSelection),
       finalPintDropId: null,
       routeRevision: routeRevisionOf(plan.plan),
       routeSnapshot: plan.stops.map((stop) => ({ ...stop })),
@@ -569,6 +579,27 @@ export type PlanMemberIdentityResult = { ok: true; identity: PlanMemberIdentity 
 export type PlanCompletionLookupResult = { ok: true; completion: PlanCompletionDTO | null } | { ok: false; error: "error" };
 export type PlanStateLookupResult = { ok: true; plan: PlanState | null } | { ok: false; error: "error" };
 
+async function supabasePlanMemberIdentityResult(id: string, rawToken: string): Promise<PlanMemberIdentityResult> {
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
+      .select("id,token_hash,joined_at,can_collaborate")
+      .eq("plan_id", id)
+      .order("joined_at").order("id");
+    if (error) return { ok: false, error: "error" };
+    const index = (data ?? []).findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
+    return {
+      ok: true,
+      identity: index < 0 ? null : {
+        memberId: String(data![index].id),
+        role: index === 0 ? "host" : "guest",
+        collaborationAuthorized: index === 0 || data![index].can_collaborate === true,
+      },
+    };
+  } catch {
+    return { ok: false, error: "error" };
+  }
+}
+
 export function grantMemoryPlanCollaboration(id: string, rawToken: unknown): boolean {
   if (isSupabaseConfigured() || !isPlanId(id) || typeof rawToken !== "string") return false;
   const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
@@ -580,20 +611,11 @@ export function grantMemoryPlanCollaboration(id: string, rawToken: unknown): boo
 /** Resolves a private member capability to its canonical role without exposing the stored hash. */
 export async function planMemberIdentity(id: string, rawToken: unknown): Promise<PlanMemberIdentity | null> {
   if (!isPlanId(id) || typeof rawToken !== "string" || !rawToken.trim()) return null;
-  const hash = hashPlanMemberToken(rawToken.trim());
   if (isSupabaseConfigured()) {
-    try {
-      const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
-        .select("id,token_hash,joined_at,can_collaborate")
-        .eq("plan_id", id)
-        .order("joined_at").order("id");
-      if (error || !data) return null;
-      const index = data.findIndex((member) => member.token_hash === hash);
-      return index < 0 ? null : { memberId: String(data[index].id), role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || data[index].can_collaborate === true };
-    } catch {
-      return null;
-    }
+    const result = await supabasePlanMemberIdentityResult(id, rawToken);
+    return result.ok ? result.identity : null;
   }
+  const hash = hashPlanMemberToken(rawToken.trim());
   const plan = memoryPlans.get(id);
   if (!plan) return null;
   const index = plan.crew.findIndex((member) => member.tokenHash === hash);
@@ -603,17 +625,7 @@ export async function planMemberIdentity(id: string, rawToken: unknown): Promise
 export async function planMemberIdentityResult(id: string, rawToken: unknown): Promise<PlanMemberIdentityResult> {
   if (!isPlanId(id) || typeof rawToken !== "string" || !rawToken.trim()) return { ok: true, identity: null };
   if (!isSupabaseConfigured()) return { ok: true, identity: await planMemberIdentity(id, rawToken) };
-  try {
-    const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
-      .select("id,token_hash,joined_at,can_collaborate")
-      .eq("plan_id", id)
-      .order("joined_at").order("id");
-    if (error) return { ok: false, error: "error" };
-    const index = (data ?? []).findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
-    return { ok: true, identity: index < 0 ? null : { memberId: String(data![index].id), role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || data![index].can_collaborate === true } };
-  } catch {
-    return { ok: false, error: "error" };
-  }
+  return supabasePlanMemberIdentityResult(id, rawToken);
 }
 
 /** Distinguishes a genuinely missing public Plan from a configured-store outage. */
@@ -637,7 +649,7 @@ export async function planCompletionResult(id: string): Promise<PlanCompletionLo
   if (!isSupabaseConfigured()) return { ok: true, completion: await memoryPlanStore.getCompletion(id) };
   try {
     const { data, error } = await requireSupabaseAdmin().from(COMPLETIONS)
-      .select("id,plan_id,ending,terminal_venue_id,final_pint_drop_id,route_revision,route_snapshot,completed_at")
+      .select("id,plan_id,ending,terminal_venue_id,ending_selection,final_pint_drop_id,route_revision,route_snapshot,completed_at")
       .eq("plan_id", id)
       .maybeSingle();
     if (error) return { ok: false, error: "error" };

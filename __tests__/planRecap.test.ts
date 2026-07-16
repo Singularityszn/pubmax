@@ -30,6 +30,15 @@ const completion: PlanCompletionDTO = {
   id: "11111111-2222-4333-8444-555555555555",
   planId: PLAN_ID,
   ending: "get_home",
+  endingSelection: {
+    kind: "get_home",
+    optionId: "transport:victoria",
+    evidenceSnapshot: {
+      label: "Victoria",
+      confidence: "medium",
+      source: "TfL journey and last-service signal",
+    },
+  },
   terminalVenueId: "venue-b",
   finalPintDropId: null,
   routeRevision: 2,
@@ -68,6 +77,7 @@ describe("PendingPlanRecap storage", () => {
     expect(readPendingPlanRecap(PLAN_ID)).toMatchObject({
       version: 1,
       title: "Thursday orbit",
+      endingSelection: expect.objectContaining({ optionId: "transport:victoria" }),
       stops: [expect.anything(), expect.objectContaining({ caption: "Approved private caption" }), expect.anything()],
     });
     const raw = window.localStorage.getItem(`pubmaxx.pending-plan-recap.v1:${PLAN_ID}`) ?? "";
