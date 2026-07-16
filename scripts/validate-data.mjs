@@ -1164,7 +1164,7 @@ function validatePintIndexSnapshot() {
   ]);
   const code = (value) => value.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   if (data?.schemaVersion !== 1 || !["published", "partial", "empty"].includes(data?.status) || !iso(data?.generatedAt)) errs.add("expected a v1 snapshot with valid status and generatedAt");
-  if (data?.classification?.method !== "point_in_polygon" || typeof data?.classification?.licence !== "string") errs.add("invalid classification provenance");
+  if (data?.classification?.version !== "london-borough-point-v1" || data?.classification?.method !== "point_in_polygon" || typeof data?.classification?.licence !== "string") errs.add("invalid classification provenance");
   if (!Array.isArray(data?.sources) || !Array.isArray(data?.observations) || !Array.isArray(data?.excluded)) errs.add("sources, observations and excluded must be arrays");
   const ids = new Set();
   for (const [index, source] of (data?.sources ?? []).entries()) {

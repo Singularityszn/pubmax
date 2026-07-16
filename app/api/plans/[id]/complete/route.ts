@@ -1,7 +1,7 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { cleanEndingSelection, isPlanId, type CrawlEnding } from "@/lib/plan";
-import { planCompletionResult, planStateResult, planStore } from "@/lib/planStore";
+import { planCompletionResult, planMemberIdentityResult, planStateResult, planStore } from "@/lib/planStore";
 import { canonicalEndingSelection } from "@/lib/planEndingSelection.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { cleanText } from "@/lib/textClean";
@@ -32,9 +32,18 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!ending || !memberToken || !expectedRouteRevision) return publicApiError("Add a valid Crawl Ending, member capability, and canonical route revision.", "PLAN_COMPLETION_INVALID", 400);
   if (!endingSelection) return publicApiError("Choose a valid grounded ending option.", "PLAN_ENDING_SELECTION_INVALID", 400);
   if (ending === "food" && !terminalVenueId) return publicApiError("Include the current route stop before completing this Plan with food.", "PLAN_FOOD_TERMINAL_REQUIRED", 400);
-  const planLookup = await planStateResult(id);
-  if (!planLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
+  const [planLookup, completionLookup] = await Promise.all([
+    planStateResult(id),
+    planCompletionResult(id),
+  ]);
+  if (!planLookup.ok || !completionLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
   if (!planLookup.plan) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  if (completionLookup.completion) {
+    const identityLookup = await planMemberIdentityResult(id, memberToken);
+    if (!identityLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
+    if (identityLookup.identity?.role !== "host") return publicApiError("That member capability cannot complete this Plan.", "PLAN_COMPLETION_FORBIDDEN", 403);
+    return jsonNoStore({ plan: planLookup.plan, completion: completionLookup.completion });
+  }
   const canonicalSelection = await canonicalEndingSelection(planLookup.plan, endingSelection, terminalVenueId);
   if (!canonicalSelection) {
     return publicApiError("That ending option is no longer supported by current evidence.", "PLAN_ENDING_EVIDENCE_STALE", 409);

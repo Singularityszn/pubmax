@@ -9,6 +9,7 @@ import {
   validatePintIndexSnapshot,
   type PintIndexSnapshot,
 } from "@/lib/pintIndex";
+import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
 
 const snapshot = (over: Partial<PintIndexSnapshot> = {}): PintIndexSnapshot => ({
   schemaVersion: 1,
@@ -16,7 +17,7 @@ const snapshot = (over: Partial<PintIndexSnapshot> = {}): PintIndexSnapshot => (
   status: "published",
   generatedAt: "2026-07-16T12:00:00.000Z",
   observationWindow: { start: "2026-07-01T00:00:00.000Z", end: "2026-07-15T23:59:59.000Z" },
-  classification: { version: "v1", method: "point_in_polygon", sourceArtifact: "data/london_boroughs_simplified.json", licence: "OGL v3" },
+  classification: { version: LONDON_BOROUGH_CLASSIFIER_VERSION, method: "point_in_polygon", sourceArtifact: "data/london_boroughs_simplified.json", licence: "OGL v3" },
   sources: [{
     id: "community-1",
     kind: "confirmed_pint_drop",
@@ -49,6 +50,15 @@ describe("public Pint Index snapshot", () => {
     const result = validatePintIndexSnapshot(bad);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.join(" ")).toMatch(/eligible|canonical/i);
+  });
+
+  it("rejects snapshots produced by a non-canonical borough classifier", () => {
+    expect(validatePintIndexSnapshot(snapshot({
+      classification: {
+        ...snapshot().classification,
+        version: "legacy-borough-classifier",
+      },
+    })).ok).toBe(false);
   });
 
   it("rejects unconfirmed drops and unofficial first-party labels", () => {

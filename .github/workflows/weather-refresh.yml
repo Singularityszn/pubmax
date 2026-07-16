@@ -21,6 +21,10 @@ jobs:
       - run: npm ci
       - name: Verify cache contract
         run: npm test -- __tests__/weatherSnapshots.test.ts
+      - name: Configure review commit identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Refresh cache and open review PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

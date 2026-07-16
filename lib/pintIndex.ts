@@ -4,6 +4,8 @@
 // Index observation is publishable only when its source and observed-at date
 // survive this validator. File mtimes are never evidence of observation time.
 
+import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
+
 export const LONDON_BOROUGH_NAMES = [
   "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden",
   "City of London", "Croydon", "Ealing", "Enfield", "Greenwich", "Hackney",
@@ -110,7 +112,7 @@ export function validatePintIndexSnapshot(value: unknown): PintIndexValidation {
 
   const classification = value.classification;
   if (!isRecord(classification) || classification.method !== "point_in_polygon" ||
-      typeof classification.version !== "string" || typeof classification.sourceArtifact !== "string" ||
+      classification.version !== LONDON_BOROUGH_CLASSIFIER_VERSION || typeof classification.sourceArtifact !== "string" ||
       typeof classification.licence !== "string") {
     errors.push("classification contract is invalid");
   }
