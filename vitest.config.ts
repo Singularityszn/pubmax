@@ -10,6 +10,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // Strips Vercel deployment env vars (VERCEL_ENV, VERCEL) so build-pipeline
+    // test runs don't masquerade as production runtimes — see vitest.setup.ts.
+    setupFiles: ["./vitest.setup.ts"],
     include: ["__tests__/**/*.test.ts"],
     // v8 coverage instrumentation slows async tests enough to trip the default
     // 5s per-test timeout under `npm run coverage`; 20s absorbs that overhead
