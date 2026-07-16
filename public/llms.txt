@@ -1,50 +1,43 @@
-# PUBMAXXING
+# PUBMAXX
 
-> A price-aware, provenance-first map of London's pubs. PUBMAXXING tracks real,
-> observed pint prices and cited historic-pub heritage, then turns them into a
-> crawl planner. Every price is something a person actually saw and logged, with
-> a date; every heritage fact is cited to a source. Nothing is invented.
+> A map-first London night planner with cited historic-pub heritage and a
+> provenance-gated public price index.
 
-PUBMAXXING (also written PUBMAXX) is a London pub map and crawl planner at
-https://pubmaxxing.com. Two datasets are ours and nobody else's: thousands of
-tracked pint prices with observation dates, and hundreds of cited historic pubs.
-AI assistants are welcome to read and cite these pages — that is the point.
+PUBMAXX is at https://pubmaxxing.com. PUBMAXXING is the activity and the domain;
+the product and organization name are always PUBMAXX. Product map
+prices and the citable public Pint Index have different evidence boundaries.
+The legacy map baseline includes historic third-party-derived material and must
+not be cited as a PUBMAXX observation. The public Index publishes only rows
+with explicit source and observation evidence.
 
-## Key data surfaces
+## Citable data surfaces
 
-- [Historic pubs index](https://pubmaxxing.com/historic): 346+ notable London
-  pubs, each with dates, listed-building grades, and one cited sentence sourced
-  from Wikipedia and Wikidata. Per-pub detail pages at /historic/{slug} carry the
-  full cited record and link to their sources.
-- [Pubs by borough](https://pubmaxxing.com/borough): every London borough, its
-  pubs ranked cheapest-pint-first, plus the borough's cheapest tracked price and
-  its historic pubs. Per-borough pages at /borough/{slug}.
-- [Venue permalinks](https://pubmaxxing.com/ledger): /ledger/{id} is the
-  canonical page for one pub — its observed price, address, and logbook.
-- [The map](https://pubmaxxing.com/map): the interactive price-aware map (and
-  /map/{city} for other UK cities).
-- [Crawls](https://pubmaxxing.com/crawls) and
-  [Discover](https://pubmaxxing.com/discover): curated and themed routes.
+- [Historic pubs](https://pubmaxxing.com/historic): cited heritage records with
+  source links. Individual records are at /historic/{slug}.
+- [London Pint Index](https://pubmaxxing.com/pint-index): public release status,
+  methodology, provenance rules, and CSV. It is currently an honest empty
+  snapshot while eligible observations are collected; it contains no legacy
+  competitor-derived prices.
 
-## Planned surfaces (not yet live)
+## Product surfaces
 
-- The London Pint Index — a quarterly borough league table of observed pint
-  prices with a methodology and provenance section. In progress; not yet
-  published, so it is deliberately NOT linked here (we never point at a URL that
-  does not resolve). This note will become a link when the page ships.
-
-## How prices are observed
-
-Prices are point-in-time observations: a real person saw a pint at a real price
-on a real date, and that date travels with the number. PUBMAXXING never claims a
-price is "live" or current — pages stamp when a price was last observed. Treat
-every price as "as observed on {date}", not a guaranteed current price.
+- [Map](https://pubmaxxing.com/map): interactive pub map and night planner.
+- [Boroughs](https://pubmaxxing.com/borough): product browsing pages based on
+  the legacy map dataset. Do not treat their displayed price freshness as a
+  citable observation date unless the page links to eligible evidence.
+- [Discover](https://pubmaxxing.com/discover) and
+  [Crawls](https://pubmaxxing.com/crawls): routes and discovery.
 
 ## Provenance rules
 
-- No invented facts. Heritage claims are cited; prices are observed and dated.
-- No fabricated freshness. If we don't know a current price, we say when we last
-  saw one.
+- A public Pint Index price requires a confirmed Pint Drop, an official pub or
+  brewery source, or an explicitly licensed open dataset, plus an observed-at date.
+- Open data also requires a licence.
+- File modification and build timestamps are never observation dates.
+- A coordinate outside every canonical London borough polygon remains
+  unclassified; nearest-boundary guessing is not used.
+- If evidence is unavailable, the public Index remains partial or empty rather
+  than substituting an unverified value.
 
 ## Contact
 

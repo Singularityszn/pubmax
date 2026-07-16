@@ -5,6 +5,7 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 
 // Wave S1.2 — dynamic sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
@@ -31,9 +32,10 @@ import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 //     and user Crawl Stories (/crawls/[slug]) are draft-gated UGC. So no
 //     per-crawl sitemap URL exists to include (the /crawls index is listed).
 //
-// lastModified: derived from the underlying data file's mtime where a page is
-// data-driven (prices → pint dataset; historic → historic file), else the build
-// date. Honest freshness — never a fabricated "live" timestamp.
+// lastModified: legacy map/borough and historic pages retain their underlying
+// artifact mtimes. The citable Pint Index uses its validated snapshot's
+// generatedAt; that value describes publication, never when a price was seen.
+// Other static routes use the build date.
 
 const SITE_URL = "https://pubmaxxing.com";
 
@@ -85,13 +87,17 @@ async function dataFileModified(name: string, fallback: Date): Promise<Date> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const [venues, historicPubs, pricesModified, historicModified] =
+  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot] =
     await Promise.all([
       loadVenues(),
       loadHistoricPubs(),
       dataFileModified("pint_prices_app_dataset.json", now),
       dataFileModified("historic_pubs.json", now),
+      loadPublicPintIndexSnapshot(),
     ]);
+  const pintIndexPublished = pintIndexSnapshot
+    ? new Date(pintIndexSnapshot.generatedAt)
+    : new Date("2026-07-16T00:00:00.000Z");
 
   // loadHistoricPubs() swallows read errors to [] (shared lib contract). The
   // historic index is always non-empty in practice (346 cited pubs), so an
@@ -115,7 +121,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/", priority: 1.0, changeFrequency: "daily", lastModified: now },
     { path: "/map", priority: 0.9, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
-    { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pricesModified },
+    { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pintIndexPublished },
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
     { path: "/discover", priority: 0.7, changeFrequency: "weekly", lastModified: now },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
