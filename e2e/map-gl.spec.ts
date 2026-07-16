@@ -140,7 +140,7 @@ test("/map uses the bounded pin fallback when basemap tiles are delayed", async 
       trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
     });
   });
-  await page.route(/\.(?:pbf|png|webp)(?:\?|$)/, async (route) => {
+  await page.route(/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 4_000));
     await route.continue();
   });

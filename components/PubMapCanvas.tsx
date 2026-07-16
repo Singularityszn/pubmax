@@ -809,7 +809,19 @@ export default function PubMapCanvas({
     // from the old style can never mutate the new one.
     const pinRevealCoordinator = createPinRevealCoordinator({
       timeoutMs: PIN_REVEAL_TIMEOUT_MS,
-      areTilesLoaded: () => map.areTilesLoaded(),
+      areTilesLoaded: () => {
+        const basemapSourceIds = Object.entries(map.getStyle().sources ?? {})
+          .filter(([, source]) => (
+            source.type === "vector" || source.type === "raster" || source.type === "raster-dem"
+          ))
+          .map(([id]) => id);
+        if (basemapSourceIds.length === 0 || !map.areTilesLoaded()) return false;
+        try {
+          return basemapSourceIds.every((id) => map.isSourceLoaded(id));
+        } catch {
+          return false;
+        }
+      },
       setPinsVisible: (visible) => {
         for (const id of PUB_PIN_LAYERS) {
           if (map.getLayer(id)) {
