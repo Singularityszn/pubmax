@@ -19,12 +19,12 @@ test("mobile planner maps and hides a curated route from the bottom sheet", asyn
 
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
 
-  await page.getByRole("button", { name: "More map controls" }).click();
-  await page.getByRole("button", { name: "Plan tonight" }).click();
+  await expect(page.getByRole("button", { name: "Describe your night" })).toBeVisible();
+  await page.getByRole("button", { name: "Describe your night" }).click();
   const planner = page.locator(".mapDrawer.left");
   await expect(planner).toHaveClass(/open/);
   await expect(planner).toHaveClass(/sheet-half/);
-  await expect(page.getByRole("button", { name: "View London map" })).toBeVisible();
+  await expect(planner.getByRole("heading", { name: "Describe your night" })).toBeVisible();
 
   await planner.getByRole("button", { name: /Map the .* crawl with \d+ stops/ }).first().click();
   await planner.getByRole("button", { name: "Hide line" }).click();
@@ -32,8 +32,7 @@ test("mobile planner maps and hides a curated route from the bottom sheet", asyn
   await planner.getByRole("button", { name: "Map route" }).click();
   await expect(planner).toHaveCount(0);
 
-  await page.getByRole("button", { name: "More map controls" }).click();
-  await page.getByRole("button", { name: "Plan tonight" }).click();
+  await page.getByRole("button", { name: /Edit active \d+-stop plan/ }).click();
   await expect(planner).toHaveClass(/open/);
 
   const reopenedHideLine = planner.getByRole("button", { name: "Hide line" });

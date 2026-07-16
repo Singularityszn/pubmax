@@ -11,6 +11,14 @@
 
 const NO_STORE = "no-store";
 
+export type PublicApiError = {
+  /** Back-compatible human-readable message for existing clients. */
+  error: string;
+  code: string;
+  retryable?: boolean;
+  details?: Record<string, unknown>;
+};
+
 export interface ApiErrorBody {
   error: {
     code: string;

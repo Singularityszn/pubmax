@@ -140,6 +140,8 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
     || before.partyType !== after.partyType
     || before.groupSize !== after.groupSize
     || before.budget !== after.budget
+    || before.budgetLimitPence !== after.budgetLimitPence
+    || before.zeroProof !== after.zeroProof
     || !sameList(before.atmosphere, after.atmosphere)
     || !sameList(before.foodNeeds, after.foodNeeds)
     || !sameList(before.accessibility, after.accessibility)
@@ -164,7 +166,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
 }
 
 export type NightAreaSelectorGroup = {
-  label: "Ready to plan" | "Not ready yet";
+  label: "Higher confidence" | "Plan with warnings";
   disabled: boolean;
   areas: NightArea[];
 };
@@ -172,20 +174,20 @@ export type NightAreaSelectorGroup = {
 export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGroup[] {
   return [
     {
-      label: "Ready to plan",
+      label: "Higher confidence",
       disabled: false,
       areas: NIGHT_AREAS.filter((area) => isNightAreaRouteReady(area, now)),
     },
     {
-      label: "Not ready yet",
-      disabled: true,
+      label: "Plan with warnings",
+      disabled: false,
       areas: NIGHT_AREAS.filter((area) => !isNightAreaRouteReady(area, now)),
     },
   ];
 }
 
 export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled ? `${area.name} — not route-ready` : area.name;
+  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - plan with evidence gaps` : area.name;
 }
 
 export function nightAreaMapHref(area: NightArea): string {
@@ -266,15 +268,15 @@ export function nightAreaCoverageSummary(
 
   switch (area.coverageStatus) {
     case "captured":
-      return { label: "Captured", detail: `Not route-ready yet — ${missingEvidenceDetail}`, tone: "capture" };
+      return { label: "Plan with warnings", detail: `Captured coverage, ${missingEvidenceDetail}`, tone: "capture" };
     case "discovered":
-      return { label: "Discovered", detail: "Not route-ready yet — evidence capture has not started.", tone: "discovery" };
+      return { label: "Low confidence", detail: "Evidence capture has not started. The route stays editable.", tone: "discovery" };
     case "reviewed":
-      return { label: "Reviewed", detail: `Not route-ready yet — ${missingEvidenceDetail}`, tone: "review" };
+      return { label: "Plan with warnings", detail: `Reviewed coverage, ${missingEvidenceDetail}`, tone: "review" };
     case "paused":
-      return { label: "Paused", detail: "Not route-ready yet — review has expired; route planning stays closed.", tone: "paused" };
+      return { label: "Review expired", detail: "Planning remains available with low confidence until evidence is refreshed.", tone: "paused" };
     default:
-      return { label: "Review in progress", detail: `Not route-ready yet — ${missingEvidenceDetail}`, tone: "review" };
+      return { label: "Plan with warnings", detail: `Review in progress, ${missingEvidenceDetail}`, tone: "review" };
   }
 }
 
@@ -430,7 +432,7 @@ function PlanComposerForm({
     if (!conciergeQuery.trim() && !nightContext) return;
     setSorting(true);
     setError("");
-    setRouteStatus("Refreshing the route — checking the updated context and grounded stops.");
+    setRouteStatus("Refreshing the route, checking the updated context and grounded stops.");
     try {
       const response = await fetch("/api/plans/generate", {
         method: "POST",
@@ -545,7 +547,7 @@ function PlanComposerForm({
           <button type="button" onClick={sortWithConcierge} disabled={sorting || !conciergeQuery.trim()} aria-busy={sorting}>{sorting ? "Planning…" : "Plan my night"}</button>
         </div>
         <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
-          {sorting ? "Planning your night — checking route-ready areas and finding grounded stops." : conciergeNote}
+          {sorting ? "Planning your night, checking confidence and finding grounded stops." : conciergeNote}
         </p>
         {routeStale ? (
           <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
@@ -567,12 +569,12 @@ function PlanComposerForm({
         {nightContext ? (
           <fieldset className="planComposer__context">
             <legend>What PUBMAXX understood. Edit anything.</legend>
-            <p id="plan-context-note" className="planComposer__contextNote">Ready areas can be planned now. Other areas stay visible while coverage is checked.</p>
+            <p id="plan-context-note" className="planComposer__contextNote">Every listed area can be planned. Evidence gaps stay visible so you can judge the route.</p>
             <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
               {areaGroups.map((group) => (
                 <optgroup key={group.label} label={group.label}>
                   {group.areas.map((area) => (
-                    <option key={area.slug} value={area.slug} disabled={group.disabled}>
+                    <option key={area.slug} value={area.slug}>
                       {nightAreaOptionLabel(area, group.disabled)}
                     </option>
                   ))}
@@ -588,6 +590,10 @@ function PlanComposerForm({
             <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
             <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
               <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
+            </select></label>
+            <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
+            <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : "any"} onChange={(event) => updateNightContext({ zeroProof: event.target.value === "zero-proof" })}>
+              <option value="any">Any drinks</option><option value="zero-proof">0.0 options</option>
             </select></label>
           </fieldset>
         ) : null}
@@ -620,15 +626,15 @@ function PlanComposerForm({
           <summary>
             <span id="plan-coverage-title">Night Area coverage</span>
             <span className="planComposer__coverageMeta">
-              {readyAreas.length} route-ready · {areasInProgress.length} not route-ready
+              {readyAreas.length} higher confidence · {areasInProgress.length} with warnings
             </span>
           </summary>
           <p className="planComposer__coverageIntro">
-            Browse the current London capture state. Route-ready means the required evidence gate is complete and still within its review window. Only those areas can produce a Crawl Route; the rest stay visible without implying that a route is ready.
+            Browse the current London capture state. Higher-confidence areas have completed the evidence gate. Every area can still produce an editable route, with missing evidence shown before you rely on it.
           </p>
           <div className="planComposer__coverageGroups">
             <section aria-labelledby="plan-coverage-ready">
-              <h3 id="plan-coverage-ready">Ready to plan now</h3>
+              <h3 id="plan-coverage-ready">Higher-confidence planning</h3>
               <ul>
                 {readyAreas.map((area) => {
                   const summary = nightAreaCoverageSummary(area);
@@ -649,7 +655,7 @@ function PlanComposerForm({
               </ul>
             </section>
             <section aria-labelledby="plan-coverage-progress">
-              <h3 id="plan-coverage-progress">Capture, review, and queue</h3>
+              <h3 id="plan-coverage-progress">Plan with warnings</h3>
               <ul>
                 {areasInProgress.map((area) => {
                   const summary = nightAreaCoverageSummary(area);

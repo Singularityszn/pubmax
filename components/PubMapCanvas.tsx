@@ -541,7 +541,7 @@ export default function PubMapCanvas({
     if (!initialLandmarkId || !mapReady) return;
     const landmark = landmarkById(initialLandmarkId);
     if (!landmark) return;
-    cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 });
+    cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark");
   }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
 
   useEffect(() => {

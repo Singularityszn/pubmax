@@ -27,11 +27,12 @@ import { Sheet } from "@/components/ui/sheet";
 import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
 import { SearchField } from "@/components/ui/search-field";
 import { Button } from "@/components/ui/button";
+import { MobilePlanActivation, type GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MapLayersControl from "@/components/map/MapLayersControl";
-import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
+import ControlRail from "@/components/map/ControlRail";
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
 import { landmarksForCity } from "@/lib/cityLandmarks";
@@ -65,6 +66,7 @@ import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
 import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
 import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
+import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
@@ -84,7 +86,6 @@ import {
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { slimVenuesToPins } from "@/lib/slimPins";
-import { buildRouteLegs } from "@/lib/routeLegs";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -100,7 +101,7 @@ import {
   shouldShowCuratedOnboarding,
 } from "@/lib/bandOnboardingChip";
 import { shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
-import { getNightArea, nightAreaForMapQuery } from "@/lib/nightAreas";
+import { getNightArea, nearestNightAreaForViewport, nightAreaForMapQuery } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   readMobileMapSession,
@@ -322,8 +323,27 @@ export default function PubMap({
   const [mobileLayersTab, setMobileLayersTab] = useState<"layers" | "prices" | "events" | "transit">("layers");
   const tflStatus = useMobileTflStatus();
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
-  const [mode, setMode] = useState<CrawlMode>(seed.mode);
-  const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
+  const {
+    mode,
+    setMode,
+    builtIds,
+    setBuiltIds,
+    routeMapped,
+    setRouteMapped,
+    planningOpen,
+    setPlanningOpen,
+    plannedNightArea,
+    activateGeneratedPlan,
+  } = useMapPlanCoordinator({
+    mode: seed.mode,
+    builtIds: seed.builtIds,
+    routeMapped: seed.routeMapped,
+    nightArea: restoredMobileSession?.nightArea ?? null,
+    planningOpen: !seed.selectedVenueId &&
+      restoredMobileSession?.openSheet !== "venue" &&
+      (restoredMobileSession?.openSheet === "planner" ||
+        shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch())),
+  });
   // Issue #15 story bands: the active band id ("" = none), seeded from the URL
   // and synced back so a band link reproduces. The band overlay + picker live
   // inside PubMapCanvas; PubMap only owns the shareable state.
@@ -334,16 +354,9 @@ export default function PubMap({
   // Map-first layout: the planner (left drawer) is hidden until the user asks
   // for it. Curated crawl arrivals stay map-first (polyline + chip); other
   // shared/restored crawl links still open straight into planning.
-  const [planningOpen, setPlanningOpen] = useState<boolean>(() =>
-    !seed.selectedVenueId &&
-    restoredMobileSession?.openSheet !== "venue" &&
-    (restoredMobileSession?.openSheet === "planner" ||
-      shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch())),
-  );
   // Explicit route mapping: a suggested crawl can exist without drawing on the
   // clean first map. Once the user chooses "Map route" (or a curated/nearby
   // crawl), keep the line visible even if the mobile planner closes.
-  const [routeMapped, setRouteMapped] = useState<boolean>(seed.routeMapped);
   // Lights ActiveRoundChip immediately after Plan-drawer Start Round (stay-on-map).
   const [activeRoundStartedCode, setActiveRoundStartedCode] = useState<string | null>(null);
   // Favorite pint: re-prices the map to one beer. Persisted per-device.
@@ -626,19 +639,6 @@ export default function PubMap({
     () => (shouldBuildSuggestedRoute ? buildCrawlRoute(filteredVenues, filters) : EMPTY_ROUTE),
     [shouldBuildSuggestedRoute, filteredVenues, filters],
   );
-  const builtRoute = useMemo(
-    () => builtIds.map((id) => venueById.get(id)).filter((v): v is Venue => Boolean(v)),
-    [builtIds, venueById],
-  );
-  const route = mode === "suggest" ? suggestedRoute : builtRoute;
-  const routeMappedActive = routeMapped && route.length >= 2;
-  // A suggested route exists behind the clean map, but its TfL legs are only
-  // useful once the planner is open or the viewer explicitly maps it.
-  const {
-    byToIndex: journeyByToIndex,
-    loading: journeyLoading,
-    totalMinutes: journeyTotalMinutes,
-  } = useCrawlJourneys(route, isLondon && (planningOpen || routeMappedActive));
   // C2 — a plan that's "on tonight" (lib/activePlan) draws on the map through
   // the SAME route paint the crawl planner uses. useActivePlanRoute carries the
   // live plan's stops; planStopsToRouteVenues resolves them (ordered, deduped,
@@ -649,14 +649,21 @@ export default function PubMap({
     () => planStopsToRouteVenues(activePlanStops, venueById),
     [activePlanStops, venueById],
   );
-  // An explicitly mapped crawl always wins (it's the user's direct action);
-  // otherwise the ambient active plan fills the same `route` prop → route-line +
-  // numbered route-stops, framed by the existing routeKey→fitRoute effect.
-  const routeForMap = useMemo(
-    () => (routeMappedActive ? route : activePlanRoute),
-    [routeMappedActive, route, activePlanRoute],
-  );
-  const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
+  const { route, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
+    mode,
+    builtIds,
+    routeMapped,
+    suggestedRoute,
+    activePlanRoute,
+    venueById,
+  });
+  // A suggested route exists behind the clean map, but its TfL legs are only
+  // useful once the planner is open or the viewer explicitly maps it.
+  const {
+    byToIndex: journeyByToIndex,
+    loading: journeyLoading,
+    totalMinutes: journeyTotalMinutes,
+  } = useCrawlJourneys(route, isLondon && (planningOpen || routeMappedActive));
   const distanceFromUserKm = useMemo(() => {
     const firstStop = route[0];
     if (!firstStop || !userLocation) return null;
@@ -1131,8 +1138,23 @@ export default function PubMap({
 
   const detailOpen = Boolean(selectedVenueId && selectedVenue);
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
-    (!filters.query.trim() && restoredMobileSession?.nightArea ? getNightArea(restoredMobileSession.nightArea) : null),
-  [cityId, filters.query, restoredMobileSession]);
+    (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
+  [cityId, filters.query, plannedNightArea]);
+  const suggestedPlanArea = useMemo(
+    () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
+    [activeNightArea, cityId, mapViewport.center],
+  );
+  const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
+    const ids = generated.stops.map((stop) => stop.venueId);
+    activateGeneratedPlan(generated.context.nightArea, ids);
+    setActiveCrawl(null);
+    if (generated.context.nightArea) {
+      trackEvent("night_description_submitted", {
+        area: generated.context.nightArea,
+        daypart: generated.context.daypart,
+      });
+    }
+  }, [activateGeneratedPlan, setActiveCrawl]);
   const coordinatedMobileOverlay: MapOverlay = logIntentFallbackVisible
     ? "moment"
     : detailOpen
@@ -1216,10 +1238,17 @@ export default function PubMap({
 
   const plannerPanel = planningOpen ? (
     <>
-      <button type="button" className="plannerMapButton" onClick={closePlanning}>
+      {mobileViewport && isLondon && suggestedPlanArea ? (
+        <MobilePlanActivation
+          cityId={cityId}
+          initialNightArea={suggestedPlanArea.slug}
+          onGenerated={applyGeneratedMobilePlan}
+        />
+      ) : null}
+      {!mobileViewport ? <button type="button" className="plannerMapButton" onClick={closePlanning}>
         <MapPinned size={16} aria-hidden="true" />
         View {city.displayName} map
-      </button>
+      </button> : null}
       <ControlRail
         mode={mode}
         onModeChange={setMode}
@@ -1560,6 +1589,11 @@ export default function PubMap({
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
           filtersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails || filters.maxPrice < 10)}
+          planOpen={planningOpen}
+          planActive={routeMappedActive || activePlanRoute.length >= 2}
+          planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
+          planInteractive={mobileViewport}
+          onPlan={openPlanning}
           searchContent={
             <SearchField
               id="mobileMapSearchInput"

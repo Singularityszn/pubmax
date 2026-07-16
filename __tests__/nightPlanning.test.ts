@@ -42,4 +42,9 @@ describe("inferNightContext", () => {
       expect.objectContaining({ field: "nightArea", evidence: "Camden Town" }),
     ]));
   });
+
+  it("captures an explicit per-person route budget without inventing one", () => {
+    expect(inferNightContext("Clapham tonight, keep it under £24 each").context.budgetLimitPence).toBe(2400);
+    expect(inferNightContext("Clapham tonight, standard budget").context.budgetLimitPence).toBeNull();
+  });
 });

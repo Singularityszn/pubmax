@@ -11,6 +11,10 @@ const citySuggestBannerCss = readFileSync(
   join(process.cwd(), "components/map/citySuggestBanner.css"),
   "utf8",
 );
+const mobileMapShellCss = readFileSync(
+  join(process.cwd(), "components/mobile/mobileMapShell.css"),
+  "utf8",
+);
 
 describe("activation chrome CSS", () => {
   it("keeps first-run tour actions thumb-sized", () => {
@@ -22,6 +26,12 @@ describe("activation chrome CSS", () => {
     expect(citySuggestBannerCss).toMatch(/\.citySuggestBannerSwitch\s*{[\s\S]*?min-height:\s*44px;/);
     expect(citySuggestBannerCss).toMatch(
       /\.citySuggestBannerDismiss\s*{[\s\S]*?min-height:\s*44px;[\s\S]*?min-width:\s*44px;/,
+    );
+  });
+
+  it("keeps the primary mobile planning action clear of the bottom dock", () => {
+    expect(mobileMapShellCss).toMatch(
+      /\.mobilePlanActivation\s*{[\s\S]*?min-height:\s*48px;[\s\S]*?bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 10px\);/,
     );
   });
 });

@@ -17,7 +17,7 @@ describe("PlanComposer Night Area coverage states", () => {
   const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));
 
   it("keeps route-ready areas available in the context selector", () => {
-    const ready = groups.find((group) => group.label === "Ready to plan");
+    const ready = groups.find((group) => group.label === "Higher confidence");
 
     expect(ready).toMatchObject({ disabled: false });
     expect(ready?.areas.map((area) => area.slug)).toEqual([
@@ -29,13 +29,13 @@ describe("PlanComposer Night Area coverage states", () => {
     expect(nightAreaOptionLabel(ready!.areas[0], false)).toBe("Clapham");
   });
 
-  it("marks non-route-ready areas as unavailable without hiding them", () => {
-    const notReady = groups.find((group) => group.label === "Not ready yet");
+  it("keeps lower-confidence areas available with an evidence label", () => {
+    const notReady = groups.find((group) => group.label === "Plan with warnings");
     const barnes = notReady?.areas.find((area) => area.slug === "barnes");
 
-    expect(notReady).toMatchObject({ disabled: true });
+    expect(notReady).toMatchObject({ disabled: false });
     expect(barnes).toBeDefined();
-    expect(nightAreaOptionLabel(barnes!, true)).toBe("Barnes — not route-ready");
+    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes - plan with evidence gaps");
   });
 
   it("turns the structured route gate response into useful error copy", () => {
@@ -84,18 +84,18 @@ describe("PlanComposer Night Area coverage states", () => {
       tone: "ready",
     });
     expect(nightAreaCoverageSummary(getNightArea("shoreditch"), now)).toMatchObject({
-      label: "Captured",
-      detail: "Not route-ready yet — missing opening hours and route feasibility + 2 more.",
+      label: "Plan with warnings",
+      detail: "Captured coverage, missing opening hours and route feasibility + 2 more.",
       tone: "capture",
     });
     expect(nightAreaCoverageSummary(getNightArea("barnes"), now)).toMatchObject({
-      label: "Reviewed",
-      detail: "Not route-ready yet — missing opening hours and the route home.",
+      label: "Plan with warnings",
+      detail: "Reviewed coverage, missing opening hours and the route home.",
       tone: "review",
     });
     expect(nightAreaCoverageSummary(getNightArea("dalston"), now)).toMatchObject({
-      label: "Discovered",
-      detail: "Not route-ready yet — evidence capture has not started.",
+      label: "Low confidence",
+      detail: "Evidence capture has not started. The route stays editable.",
       tone: "discovery",
     });
   });
@@ -159,6 +159,8 @@ describe("PlanComposer route preview seam", () => {
       partyType: "friends" as const,
       groupSize: 4,
       budget: "standard" as const,
+      budgetLimitPence: null,
+      zeroProof: false,
       atmosphere: [],
       foodNeeds: [],
       accessibility: [],

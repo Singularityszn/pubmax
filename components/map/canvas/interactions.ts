@@ -31,7 +31,7 @@ type ClickDeps = {
   onTonightOpportunityClickRef: MutableRefObject<((op: ThingsToDoOpportunity) => void) | undefined>;
   cityLandmarksRef: MutableRefObject<Landmark[]>;
   tonightOpportunitiesRef: MutableRefObject<ThingsToDoOpportunity[]>;
-  cinematic: (options: maplibregl.EaseToOptions) => void;
+  cinematic: (options: maplibregl.EaseToOptions, kind?: "cluster" | "venue" | "landmark") => void;
 };
 
 export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
@@ -88,7 +88,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       if (clusterId == null || !source) return;
       source.getClusterExpansionZoom(clusterId).then((zoom) => {
         const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
-        cinematic({ center: [lng, lat], zoom, duration: 700 });
+        cinematic({ center: [lng, lat], zoom, duration: 700 }, "cluster");
       });
       return;
     }
@@ -119,7 +119,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
         zoom: Math.max(map.getZoom(), 13),
         pitch: 55,
         duration: 1100,
-      });
+      }, "landmark");
       return;
     }
 

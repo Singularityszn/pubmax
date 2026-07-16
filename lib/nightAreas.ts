@@ -178,6 +178,18 @@ export function getNightAreasForCity(cityId: CityId): NightArea[] {
   return NIGHT_AREAS.filter((area) => area.cityId === cityId);
 }
 
+/** Suggests a public Night Area from the visible map centre without using location history. */
+export function nearestNightAreaForViewport(cityId: CityId, center: [number, number]): NightArea | null {
+  const [lng, lat] = center;
+  return getNightAreasForCity(cityId)
+    .slice()
+    .sort((left, right) => {
+      const leftDistance = Math.hypot((left.centre.lat - lat) * 111, (left.centre.lng - lng) * 70);
+      const rightDistance = Math.hypot((right.centre.lat - lat) * 111, (right.centre.lng - lng) * 70);
+      return leftDistance - rightDistance;
+    })[0] ?? null;
+}
+
 export function nightAreaForMapQuery(cityId: CityId, query: string): NightArea | null {
   const normalized = query.trim().toLocaleLowerCase().replace(/\s+/g, " ");
   if (!normalized) return null;

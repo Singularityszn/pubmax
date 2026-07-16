@@ -12,6 +12,10 @@ function bool(record: Record<string, unknown>, key: string): boolean {
   return record[key] === true;
 }
 
+function optionalBool(record: Record<string, unknown>, key: string): boolean | undefined {
+  return typeof record[key] === "boolean" ? record[key] as boolean : undefined;
+}
+
 function toVenue(value: unknown): ConciergeVenue | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as SlimRow;
@@ -28,6 +32,7 @@ function toVenue(value: unknown): ConciergeVenue | null {
   const curation = hints.curation && typeof hints.curation === "object" && !Array.isArray(hints.curation)
     ? hints.curation as Record<string, unknown>
     : {};
+  const nonAlcoholic = optionalBool(amenities, "nonAlcoholic");
 
   return {
     id: row.id,
@@ -42,6 +47,7 @@ function toVenue(value: unknown): ConciergeVenue | null {
       food: bool(amenities, "food"),
       liveSports: bool(amenities, "liveSports"),
       liveMusic: bool(amenities, "liveMusic"),
+      ...(nonAlcoholic === undefined ? {} : { nonAlcoholic }),
     },
     nearWater: bool(curation, "nearWater"),
     hasStory: bool(curation, "hasStory"),

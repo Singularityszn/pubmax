@@ -31,6 +31,8 @@ function plan(overrides: Partial<NonNullable<PlanState["context"]>> = {}): PlanS
       accessibility: [],
       transportConstraints: [],
       ...overrides,
+      budgetLimitPence: overrides.budgetLimitPence ?? null,
+      zeroProof: overrides.zeroProof ?? false,
     },
   };
 }

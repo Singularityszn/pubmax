@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, LocateFixed, Search, SlidersHorizontal, Sparkles, TrainFront, WalletCards } from "lucide-react";
+import { Ellipsis, LocateFixed, Route, Search, SlidersHorizontal, Sparkles, TrainFront, WalletCards } from "lucide-react";
 import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -44,7 +44,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, filtersActive, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent }: {
+export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, filtersActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent }: {
   cityLabel: string;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
@@ -56,6 +56,11 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
   tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
   filtersActive: boolean;
+  planOpen: boolean;
+  planActive: boolean;
+  planStopCount: number;
+  planInteractive: boolean;
+  onPlan: () => void;
   searchContent: React.ReactNode;
   filtersContent: React.ReactNode;
   tflContent: React.ReactNode;
@@ -94,6 +99,21 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
           </nav>
         )}
       </div>
+      {overlay === "none" && !planOpen ? (
+        <button
+          type="button"
+          className={`mobilePlanActivation${planActive ? " isActive" : ""}`}
+          aria-label={planActive ? `Edit active ${planStopCount}-stop plan` : "Describe your night"}
+          disabled={!planInteractive}
+          onClick={onPlan}
+        >
+          <Route size={19} aria-hidden="true" />
+          <span>
+            <strong>{planActive ? `${planStopCount}-stop plan` : "Describe your night"}</strong>
+            {planActive ? <small>Edit route</small> : null}
+          </span>
+        </button>
+      ) : null}
       <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
     </>
   );

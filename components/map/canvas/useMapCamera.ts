@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { MutableRefObject } from "react";
 import maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
 import { LONG_JUMP_CURVE } from "./easing";
+import { createCameraIntentCoordinator, type CameraIntentKind } from "@/lib/cameraIntent";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
 
@@ -21,33 +22,42 @@ type CameraRefs = {
 // (recreating them would re-fire the arrival/refit effects that consume them).
 export function useMapCamera(refs: CameraRefs) {
   const { mapRef, reducedRef, mapViewRef, maxBoundsRef, routeRef, venuesRef } = refs;
-  const pendingFrameRef = useRef<number | null>(null);
+  const coordinator = useMemo(() => createCameraIntentCoordinator({
+    requestFrame: (callback) => requestAnimationFrame(callback),
+    cancelFrame: (id) => cancelAnimationFrame(id),
+    onRun: (kind, sequence) => {
+      performance.mark(`pubmax:camera-intent:${kind}`);
+      window.dispatchEvent(new CustomEvent("pubmax:camera-intent", {
+        detail: { kind, sequence },
+      }));
+    },
+  }), []);
 
   // Every camera intent passes through this single lane. A newer intent
   // coalesces a still-pending move and interrupts any active MapLibre
   // animation before it begins, so route, nearby, cluster, and venue moves
   // cannot fight each other on screen.
-  const scheduleCamera = useCallback((move: (map: maplibregl.Map) => void) => {
-    if (pendingFrameRef.current !== null) cancelAnimationFrame(pendingFrameRef.current);
+  const scheduleCamera = useCallback((kind: CameraIntentKind, key: string, move: (map: maplibregl.Map) => void) => {
     const run = () => {
-      pendingFrameRef.current = null;
       const map = mapRef.current;
       if (!map) return;
       map.stop();
       move(map);
     };
-    if (reducedRef.current) run();
-    else pendingFrameRef.current = requestAnimationFrame(run);
-  }, [mapRef, reducedRef]);
+    coordinator.schedule(kind, key, run);
+  }, [coordinator, mapRef]);
 
-  useEffect(() => () => {
-    if (pendingFrameRef.current !== null) cancelAnimationFrame(pendingFrameRef.current);
-  }, []);
+  useEffect(() => () => coordinator.dispose(), [coordinator]);
 
   // Cinematic camera move that suspends the orbit for its duration + resume gap.
-  const cinematic = useCallback((options: maplibregl.EaseToOptions) => {
+  const cinematic = useCallback((options: maplibregl.EaseToOptions, kind: CameraIntentKind = "venue") => {
     const duration = reducedRef.current ? 0 : (options.duration ?? 1000);
-    scheduleCamera((map) => map.easeTo({ ...options, duration }));
+    const center = Array.isArray(options.center)
+      ? options.center.join(",")
+      : options.center && "lng" in options.center
+        ? `${options.center.lng},${options.center.lat}`
+        : "current";
+    scheduleCamera(kind, `${kind}:${center}:${options.zoom ?? "current"}:${options.pitch ?? "current"}`, (map) => map.easeTo({ ...options, duration }));
   }, [reducedRef, scheduleCamera]);
 
   const fitRoute = useCallback(() => {
@@ -56,7 +66,7 @@ export function useMapCamera(refs: CameraRefs) {
     const bounds = new maplibregl.LngLatBounds();
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    scheduleCamera((map) => map.fitBounds(bounds, {
+    scheduleCamera("route", `route:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
       padding: isPhone
         ? { top: 160, right: 28, bottom: 200, left: 28 }
         : 90,
@@ -71,7 +81,7 @@ export function useMapCamera(refs: CameraRefs) {
     const view = mapViewRef.current;
     // M3: fit-London / city-switch is a "long jump" — fitBounds animates via
     // flyTo by default (linear defaults to false), so `curve` shapes its arc.
-    scheduleCamera((map) => map.fitBounds(maxBoundsRef.current, {
+    scheduleCamera("city", `city:${maxBoundsRef.current.flat().join(",")}`, (map) => map.fitBounds(maxBoundsRef.current, {
       padding: isPhone
         ? { top: 184, right: 24, bottom: 190, left: 24 }
         : 90,
@@ -92,7 +102,7 @@ export function useMapCamera(refs: CameraRefs) {
     const bounds = new maplibregl.LngLatBounds();
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    scheduleCamera((map) => map.fitBounds(bounds, {
+    scheduleCamera("query", `query:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
       padding: isPhone
         ? { top: 160, right: 28, bottom: 200, left: 28 }
         : 90,
@@ -109,7 +119,8 @@ export function useMapCamera(refs: CameraRefs) {
       ]);
       nearbyVenues.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
       const isPhone = window.matchMedia("(max-width: 640px)").matches;
-      scheduleCamera((map) => map.fitBounds(bounds, {
+      const locationKey = `${location.lat.toFixed(4)},${location.lng.toFixed(4)}`;
+      scheduleCamera("nearby", `nearby:${locationKey}:${nearbyVenues.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
         padding: isPhone
           ? { top: 190, right: 34, bottom: 190, left: 34 }
           : { top: 150, right: 90, bottom: 110, left: 90 },

@@ -15,6 +15,9 @@ export type NightContext = {
   partyType: PartyType;
   groupSize: number | null;
   budget: Budget;
+  /** Explicit per-person budget for the three-stop route. Never inferred from profile history. */
+  budgetLimitPence: number | null;
+  zeroProof: boolean;
   atmosphere: string[];
   foodNeeds: string[];
   accessibility: string[];
@@ -74,13 +77,19 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
 
   const partyType: PartyType = /colleague|team|work social|leaving do/.test(lower) ? "work" : /solo|just me|on my own/.test(lower) ? "solo" : "friends";
   const budget: Budget = /cheap|budget|value|not pricey/.test(lower) ? "value" : /special|splash out|treat/.test(lower) ? "treat" : "standard";
+  const budgetLimitMatch = lower.match(/(?:under|up to|max(?:imum)?|budget(?: of)?)\s*£\s*(\d{1,3})(?:[.,](\d{1,2}))?(?:\s*(?:each|per person))?/);
+  const budgetLimitPence = budgetLimitMatch
+    ? Number(budgetLimitMatch[1]) * 100 + Number((budgetLimitMatch[2] ?? "").padEnd(2, "0") || 0)
+    : null;
+  if (budgetLimitPence) reasons.push({ field: "budgetLimitPence", evidence: `£${(budgetLimitPence / 100).toFixed(2)}`, explanation: "Matched the explicit per-person route budget." });
   const atmosphere = ["quiet", "lively", "historic", "cosy", "sports", "music"].filter((value) => lower.includes(value));
   const foodNeeds = ["kebab", "pizza", "chips", "vegan", "vegetarian", "halal"].filter((value) => lower.includes(value));
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
+  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|not drinking|sober|0\.0/.test(lower);
 
   return {
-    context: { nightArea: areaMatch?.slug ?? null, daypart, partyType, groupSize, budget, atmosphere, foodNeeds, accessibility, transportConstraints },
+    context: { nightArea: areaMatch?.slug ?? null, daypart, partyType, groupSize, budget, budgetLimitPence, zeroProof, atmosphere, foodNeeds, accessibility, transportConstraints },
     confidence: areaMatch ? 0.86 : 0.62,
     reasons,
   };
@@ -129,6 +138,12 @@ export function cleanNightContextPatch(value: unknown): Partial<NightContext> | 
         ? { groupSize: Math.floor(row.groupSize) }
         : {}),
     ...(isBudget(row.budget) ? { budget: row.budget } : {}),
+    ...(row.budgetLimitPence === null
+      ? { budgetLimitPence: null }
+      : typeof row.budgetLimitPence === "number" && Number.isInteger(row.budgetLimitPence) && row.budgetLimitPence >= 500 && row.budgetLimitPence <= 50_000
+        ? { budgetLimitPence: row.budgetLimitPence }
+        : {}),
+    ...(typeof row.zeroProof === "boolean" ? { zeroProof: row.zeroProof } : {}),
     ...(atmosphere ? { atmosphere } : {}),
     ...(foodNeeds ? { foodNeeds } : {}),
     ...(accessibility ? { accessibility } : {}),
@@ -148,6 +163,10 @@ export function cleanNightContext(value: unknown): NightContext | null {
     partyType: row.partyType as PartyType,
     groupSize: typeof row.groupSize === "number" && row.groupSize >= 1 && row.groupSize <= 30 ? Math.floor(row.groupSize) : null,
     budget: row.budget as Budget,
+    budgetLimitPence: typeof row.budgetLimitPence === "number" && Number.isInteger(row.budgetLimitPence) && row.budgetLimitPence >= 500 && row.budgetLimitPence <= 50_000
+      ? row.budgetLimitPence
+      : null,
+    zeroProof: row.zeroProof === true,
     atmosphere: cleanContextList(row.atmosphere) ?? [],
     foodNeeds: cleanContextList(row.foodNeeds) ?? [],
     accessibility: cleanContextList(row.accessibility) ?? [],

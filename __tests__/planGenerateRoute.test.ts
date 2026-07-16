@@ -18,7 +18,12 @@ describe("POST /api/plans/generate", () => {
     expect(response.status).toBe(200);
     expect(body.inferredContext).toMatchObject({ nightArea: "clapham", daypart: "after_work", groupSize: 4 });
     expect(body.stops).toHaveLength(3);
-    expect(body.stops[0]).toMatchObject({ venueId: expect.any(String), venueName: expect.any(String), reason: expect.any(String) });
+    expect(body.stops[0]).toMatchObject({
+      venueId: expect.any(String),
+      venueName: expect.any(String),
+      reason: expect.any(String),
+      provenance: expect.arrayContaining([expect.objectContaining({ kind: "venue_dataset" })]),
+    });
     expect(body.contextEffects).toEqual(expect.arrayContaining(["budget", "daypart", "groupSize", "atmosphere"]));
     expect(body.missingContextEvidence).toEqual([]);
     expect(body.explanations).toEqual(expect.arrayContaining([expect.objectContaining({ field: "nightArea" })]));
@@ -28,6 +33,30 @@ describe("POST /api/plans/generate", () => {
   it("requires a description or explicit Night Context", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", { method: "POST", body: "{}" }));
     expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: expect.any(String),
+      code: "NIGHT_CONTEXT_REQUIRED",
+      retryable: false,
+    });
+  });
+
+  it("keeps inferred brief fields when the client sends only explicit chip corrections", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "A quiet night in Barnes under £24 each",
+        context: { groupSize: 4 },
+      }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.inferredContext).toMatchObject({
+      nightArea: "barnes",
+      atmosphere: ["quiet"],
+      budgetLimitPence: 2400,
+      groupSize: 4,
+    });
   });
 
   it("retains partial list-based context corrections", async () => {
@@ -60,18 +89,20 @@ describe("POST /api/plans/generate", () => {
     ]));
   });
 
-  it("fails closed with reviewed missing-evidence codes for a non-route-ready Night Area", async () => {
+  it("always returns an editable route with honest confidence for a reviewed area", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({ query: "A quiet night in Barnes" }),
     }));
     const body = await response.json();
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(200);
     expect(body).toMatchObject({
-      error: {
-        code: "NIGHT_AREA_ROUTE_NOT_READY",
-        message: expect.any(String),
+      planningConfidence: {
+        level: "low",
+        routeReady: false,
+        missingEvidence: expect.arrayContaining(["opening_hours"]),
+        warnings: expect.any(Array),
       },
       nightArea: {
         id: "barnes",
@@ -83,6 +114,29 @@ describe("POST /api/plans/generate", () => {
       },
     });
     expect(body.district).toMatchObject(body.nightArea);
-    expect(body).not.toHaveProperty("stops");
+    expect(body.stops).toHaveLength(3);
+  });
+
+  it("returns route budget evidence while preserving the legacy numeric confidence", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "Four of us in Clapham, under £24 each" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.confidence).toEqual(expect.any(Number));
+    expect(body.budgetSummary).toMatchObject({
+      currency: "GBP",
+      limitPence: 2400,
+      estimatedPerPersonPence: expect.any(Number),
+      estimatedCrewPence: expect.any(Number),
+      withinLimit: expect.any(Boolean),
+    });
+    expect(body.stops[0]).toMatchObject({
+      estimatedPintPricePence: expect.any(Number),
+      distanceKm: expect.any(Number),
+      evidence: expect.any(Array),
+    });
   });
 });

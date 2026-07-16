@@ -63,7 +63,7 @@ export type DonutClusterSync = {
  *  clicking the bubble it replaced. */
 export function createDonutClusterSync(
   map: maplibregl.Map,
-  cinematic: (options: maplibregl.EaseToOptions) => void,
+  cinematic: (options: maplibregl.EaseToOptions, kind?: "cluster" | "venue" | "landmark") => void,
   { enabled = true }: { enabled?: boolean } = {},
 ): DonutClusterSync {
   // Mobile Safari is especially sensitive to DOM markers being reconciled
@@ -102,7 +102,7 @@ export function createDonutClusterSync(
     source
       .getClusterExpansionZoom(clusterId)
       .then((zoom) => {
-        cinematic({ center: coordinates, zoom, duration: 700 });
+        cinematic({ center: coordinates, zoom, duration: 700 }, "cluster");
       })
       .catch(() => {
         // A cluster can dissolve between the click and this resolving
