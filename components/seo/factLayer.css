@@ -214,6 +214,18 @@
   color: var(--ink);
 }
 
+/* On the interactive map route the fact region renders below the map shell.
+   The mobile map is a full-viewport interactive surface — extra scrollable
+   prose behind it confuses the sheet/scroll gestures — so the region is
+   desktop-only there. The DOM (and JSON-LD) still ships identically at every
+   width; this is layout, not cloaking. Standalone pages (/pint-index,
+   /borough/*) render fact blocks outside this wrapper and are unaffected. */
+@media (max-width: 1023px) {
+  .cityFactRegion {
+    display: none;
+  }
+}
+
 @media (max-width: 560px) {
   .factStatTable th[scope="row"],
   .factStatTable td {

@@ -137,7 +137,7 @@ export function factBlockSentences(
     );
   }
   sentences.push(
-    `Prices last observed ${opts.observedDate}, from PUBMAXXING's tracked pint dataset — never a live feed.`,
+    `Prices last collected ${opts.observedDate} for PUBMAXXING's tracked pint dataset, refreshed by community Pint Drops — never a live feed.`,
   );
   return sentences;
 }
@@ -159,7 +159,7 @@ export function faqItems(
       question: `What is the cheapest pint in ${name}?`,
       answer: `The cheapest tracked pint in ${name} is ${formatPrice(
         stats.minGbp,
-      )} at ${stats.minPubName}, as observed on ${opts.observedDate}.`,
+      )} at ${stats.minPubName}, as collected on ${opts.observedDate}.`,
     });
   }
 
@@ -195,7 +195,7 @@ export function faqItems(
       question: `What's the price range for a pint in ${name}?`,
       answer: `Tracked cheapest pints in ${name} range from ${formatPrice(
         stats.minGbp,
-      )} to ${formatPrice(stats.maxGbp)}, observed on ${opts.observedDate}.`,
+      )} to ${formatPrice(stats.maxGbp)}, collected on ${opts.observedDate}.`,
     });
   }
 

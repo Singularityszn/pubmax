@@ -16,6 +16,18 @@ import path from "node:path";
 /** The bundled London pint-price dataset every borough/index page reads. */
 export const PINT_DATASET_FILE = "pint_prices_app_dataset.json";
 
+/**
+ * When the bundled dataset's prices were actually collected — the July 2026
+ * snapshot date recorded in data/README.md. This is the honest "collected"
+ * stamp for user-facing copy and JSON-LD. The file mtime (below) says only
+ * "this file was last written", which tracks builds and re-exports, not price
+ * observation — presenting it as an observation date fabricates freshness.
+ * Update this constant whenever the dataset is re-collected (the dataset JSON
+ * is a bare array, so the date can't ride inside the file without a breaking
+ * shape change).
+ */
+export const PINT_DATASET_OBSERVED_AT = new Date("2026-07-03T23:10:47Z");
+
 // mtime of a public/data file as a Date, or `fallback` when it can't be read.
 // Mirrors app/sitemap.ts#dataFileModified so the sitemap and the on-page
 // freshness stamp never disagree about when the data last changed.

@@ -10,10 +10,9 @@ import FaqBlock from "@/components/seo/FaqBlock";
 import { getCity, parseCityId, type CityConfig } from "@/lib/cities";
 import { pintFactStats, faqItems, faqPageJsonLd } from "@/lib/pintFacts";
 import {
-  dataFileModified,
   formatMonthYear,
   formatObservedDate,
-  PINT_DATASET_FILE,
+  PINT_DATASET_OBSERVED_AT,
 } from "@/lib/dataFreshness";
 
 import "@/components/seo/factLayer.css";
@@ -131,7 +130,8 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
 
   // Programmatic fact layer (Wave S3.1/S3.2) for the city, below the map shell.
   const pubs = await loadCityPricedPubs(city);
-  const observedAt = await dataFileModified(PINT_DATASET_FILE);
+  // Honest stamp: the dataset's collection date, not the bundled file's mtime.
+  const observedAt = PINT_DATASET_OBSERVED_AT;
   const stats = pintFactStats(pubs, city.displayName, cityId);
   const faq = faqItems(stats, {
     monthYear: formatMonthYear(observedAt),

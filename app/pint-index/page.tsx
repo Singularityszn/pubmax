@@ -8,11 +8,10 @@ import { loadGroupedVenues } from "@/lib/venueDataset";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
 import { formatPrice } from "@/lib/venues";
 import {
-  dataFileModified,
   formatMonthYear,
   formatObservedDate,
   isoDate,
-  PINT_DATASET_FILE,
+  PINT_DATASET_OBSERVED_AT,
 } from "@/lib/dataFreshness";
 
 import "./pint-index.css";
@@ -67,7 +66,7 @@ function datasetJsonLd(observedAt: Date, boroughCount: number, pubCount: number)
     dateModified: isoDate(observedAt),
     temporalCoverage: isoDate(observedAt),
     measurementTechnique:
-      "Community Pint Drops plus scheduled permissible first-party price refreshes; competitor price aggregators are never scraped.",
+      "PUBMAXXING's tracked pint dataset (July 2026 snapshot), refreshed by community Pint Drops and first-party price checks.",
     variableMeasured: "Pint price (GBP) per pub, aggregated per borough",
     distribution: [
       {
@@ -81,7 +80,9 @@ function datasetJsonLd(observedAt: Date, boroughCount: number, pubCount: number)
 
 export default async function PintIndexPage() {
   const venues = await loadGroupedVenues();
-  const observedAt = await dataFileModified(PINT_DATASET_FILE);
+  // The honest stamp: when the dataset's prices were collected — never the
+  // bundled file's mtime, which tracks builds/re-exports, not observation.
+  const observedAt = PINT_DATASET_OBSERVED_AT;
   const rows = buildLeagueTable(venues);
   const summary = indexSummary(rows);
   const monthYear = formatMonthYear(observedAt);
@@ -109,8 +110,9 @@ export default async function PintIndexPage() {
           pint dataset, sorted cheapest-average first.
         </p>
         <p className="pintIndexStamp">
-          Prices last observed {observedDate}, from PUBMAXXING&rsquo;s tracked
-          pint dataset &mdash; never a live feed.
+          Prices last collected {observedDate} for PUBMAXXING&rsquo;s tracked
+          pint dataset, refreshed by community Pint Drops &mdash; never a live
+          feed.
         </p>
 
         {summary.averageGbp !== null ? (
@@ -269,22 +271,19 @@ export default async function PintIndexPage() {
             mapped but never move the average.
           </p>
           <p>
-            <strong>Where the prices come from.</strong> Two permissible
-            sources, and only these. The live signal is{" "}
+            <strong>Where the prices come from.</strong> The baseline is{" "}
+            <strong>PUBMAXXING&rsquo;s tracked pint dataset</strong> — a July
+            2026 snapshot of cheapest-pint prices across London, each carrying
+            its collection date. On top of that sits the live signal:{" "}
             <strong>community Pint Drops</strong> — prices logged by drinkers,
-            attributed as contributions, not a live feed. Between drops, a
-            scheduled refresh fills in prices from{" "}
-            <strong>permissible first-party sources</strong> (a pub or
-            brewery&rsquo;s own published menu, or an open-licensed dataset),
-            each carrying its source and an observed-at date. A fresher community
-            observation always beats a scheduled one.
+            attributed as contributions, not a live feed. A fresher community
+            observation always beats the snapshot.
           </p>
           <p>
-            <strong>What we never do.</strong> We never scrape competitor
-            price-aggregator or review sites, and we never present a stale price
-            as live — every figure here is stamped with the date the dataset was
-            last observed ({observedDate}). No price is invented; a borough with
-            no tracked pint shows no price rather than a guess.
+            <strong>What we never do.</strong> We never present a stale price
+            as live — every figure here is stamped with the date the dataset
+            was last collected ({observedDate}). No price is invented; a
+            borough with no tracked pint shows no price rather than a guess.
           </p>
         </div>
         <p className="pintIndexNote">
