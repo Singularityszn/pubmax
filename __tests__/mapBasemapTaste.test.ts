@@ -510,4 +510,39 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     expect(store.size).toBe(0);
     expect(setPaintProperty).not.toHaveBeenCalled();
   });
+
+  it("full round-trip: setStyle → style.load re-mute → deselect restores the FRESH original, not the stale one", () => {
+    // Issue #222 item 2 — the whole chain, not just the recapture half. The NEW
+    // style's pois-transport-minor sits mid-ramp at icon-opacity 0.7 (a value
+    // that DIFFERS from the stale 0.9 the old style left behind), so a restore
+    // that replayed the stale snapshot instead of the freshly-recaptured one
+    // would be observable.
+    const paint: Record<string, Record<string, unknown>> = {
+      "pois-transport-minor": { "icon-opacity": 0.7 },
+    };
+    const map = {
+      getLayer: (id: string) => (paint[id] ? { id } : undefined),
+      getPaintProperty: (id: string, prop: string) => paint[id]?.[prop],
+      setPaintProperty: (id: string, prop: string, value: unknown) => {
+        (paint[id] ??= {})[prop] = value;
+      },
+      getStyle: () => ({ layers: [{ id: "pois-transport-minor", type: "symbol" }] }),
+    };
+    // Stale leftover from the OLD style — must never leak into the restore.
+    const store = new Map<string, unknown>([["pois-transport-minor::icon-opacity", 0.9]]);
+
+    // style.load with a venue still selected: clear stale, recapture fresh, mute.
+    applySelectionState(makeCtx(map, store, "venue-1"));
+    expect(store.get("pois-transport-minor::icon-opacity")).toBe(0.7); // fresh, not 0.9
+    expect(paint["pois-transport-minor"]["icon-opacity"]).toEqual([
+      "min",
+      0.7,
+      SELECTION_MUTE_OPACITY,
+    ]);
+
+    // Deselect: restore must land on the FRESH original (0.7), and clear.
+    applySelectionMute(map, false, store);
+    expect(paint["pois-transport-minor"]["icon-opacity"]).toBe(0.7);
+    expect(store.size).toBe(0);
+  });
 });

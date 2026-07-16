@@ -116,17 +116,78 @@ function looksSamePub(a, b, maxMergeMeters) {
 }
 
 // Canonical preference (lower sorts first = more canonical):
-//   1. no operator suffix  (never surface "- JD Wetherspoon" as the pub name)
-//   2. more price rows      (richer coverage)
+//   1. no operator suffix   (never surface "- JD Wetherspoon" as the pub name)
+//   2. more price rows       (richer coverage)
 //   3. more distinct sources
 //   4. no parenthetical qualifier (cleaner name)
-//   5. lexicographically smallest id (stable, deterministic tiebreak)
+//   5. has a postcode in its address (a seed row's bare "England" address loses
+//      to a directory row's full "N16 0NY" address — prefer the more complete,
+//      more useful address as canonical)
+//   6. lexicographically smallest id (stable, deterministic tiebreak)
 function compareCanonical(a, b) {
   if (a.hasSuffix !== b.hasSuffix) return a.hasSuffix ? 1 : -1;
   if (a.rowCount !== b.rowCount) return b.rowCount - a.rowCount;
   if (a.sourceCount !== b.sourceCount) return b.sourceCount - a.sourceCount;
   if (a.hasParen !== b.hasParen) return a.hasParen ? 1 : -1;
+  if (a.hasPostcode !== b.hasPostcode) return a.hasPostcode ? -1 : 1;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+// Cluster-wide safety net: single-link growth (below) only ever admits a new
+// member after checking it against EVERY existing member, so a postcode
+// conflict should never survive into a finished cluster — but that invariant
+// lives in the growth loop's control flow, not in the cluster's data. This
+// re-derives it directly from the cluster's postcodes so a future refactor of
+// the growth loop can't silently reintroduce a transitive false-merge without
+// tripping a test.
+export function clusterHasPostcodeConflict(cluster) {
+  const postcodes = cluster
+    .map((g) => postcodeOutward(g.address))
+    .filter((p) => p != null);
+  return new Set(postcodes).size > 1;
+}
+
+// Merge a previous run's alias map into this run's freshly-computed one.
+//
+// A prior run's canonical target can itself become a loser in a later run
+// (new source coverage flips which record wins compareCanonical) — naively
+// spreading both maps (`{ ...prev, ...current }`) can then create a cycle,
+// e.g. prior `{ a: b }` plus current `{ b: a }`. Rebase every prior mapping
+// through this run's aliases so it always points at the CURRENT winner, and
+// drop any mapping that rebases to a self-map (a cycle already recorded
+// historically, or one this run just introduced) rather than persist it.
+export function mergeAliasMaps(prevAliases, currentAliases) {
+  const previous = prevAliases ?? {};
+  const merged = { ...currentAliases };
+  for (const [from, to] of Object.entries(previous)) {
+    if (Object.prototype.hasOwnProperty.call(merged, from)) continue; // this run wins
+    // Follow the chain to its terminal id through BOTH this run's aliases and
+    // the prior map — a cycle can live entirely in the prior map (e.g. a
+    // historical `{ a: b, b: a }` this run doesn't touch), so traversing only
+    // currentAliases would silently persist it. Resolving to a terminal also
+    // flattens prior-only chains, matching lib/venueAliases.ts's single-hop
+    // lookup (every alias must point straight at a live canonical id).
+    let target = to;
+    const seen = new Set([from]);
+    let cyclic = false;
+    while (true) {
+      if (seen.has(target)) {
+        cyclic = true;
+        break;
+      }
+      seen.add(target);
+      if (Object.prototype.hasOwnProperty.call(currentAliases, target)) {
+        target = currentAliases[target];
+      } else if (Object.prototype.hasOwnProperty.call(previous, target)) {
+        target = previous[target];
+      } else {
+        break;
+      }
+    }
+    if (cyclic) continue; // rebases to a cycle/self-map — drop, never persist
+    merged[from] = target;
+  }
+  return merged;
 }
 
 /**
@@ -177,6 +238,7 @@ export function canonicalizeDataset(rows, options = {}) {
     normName: normalizeVenueIdentityName(g.name),
     hasSuffix: hasOperatorSuffix(g.name),
     hasParen: /\([^)]*\)/.test(g.name),
+    hasPostcode: postcodeOutward(g.address) != null,
   }));
 
   // 2. Cluster identities that share a normalized name and look like the same
@@ -208,7 +270,13 @@ export function canonicalizeDataset(rows, options = {}) {
           }
         }
       }
-      if (cluster.length > 1) clusters.push(cluster);
+      // Belt-and-braces: the growth loop above already blocks postcode-
+      // conflicting members from joining, so this should be unreachable — but
+      // never silently merge on a violated invariant. Drop the whole cluster
+      // rather than guess which member is "right".
+      if (cluster.length > 1 && !clusterHasPostcodeConflict(cluster)) {
+        clusters.push(cluster);
+      }
     }
   }
 
