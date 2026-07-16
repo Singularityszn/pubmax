@@ -28,6 +28,7 @@ export function toPubPalDto(doc: PubPalDoc): PubPalDto {
     voice: doc.voice,
     muted: doc.muted,
     hidden: doc.hidden,
+    proposalPreferences: doc.proposalPreferences ?? { memories: false, routes: true },
     masteryPoints: doc.masteryPoints,
     createdAt: iso(doc.createdAt),
     updatedAt: iso(doc.updatedAt),
@@ -43,6 +44,7 @@ export function toMemoryDto(doc: MemoryDoc): PubPalMemoryDto {
     provenance: doc.provenance,
     proposedAt: iso(doc.proposedAt),
     resolvedAt: doc.resolvedAt === undefined ? null : iso(doc.resolvedAt),
+    updatedAt: iso(doc.updatedAt ?? doc.resolvedAt ?? doc.proposedAt),
   };
 }
 

@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 
 export const palSpecies = v.union(
+  v.literal("greyhound"),
+  v.literal("pigeon"),
+  v.literal("badger"),
+  v.literal("corgi"),
   v.literal("hound"),
   v.literal("raven"),
   v.literal("fox"),
@@ -64,6 +68,11 @@ export const pubPalVoice = v.object({
   pace: v.number(),
   warmth: v.number(),
   energy: v.number(),
+});
+
+export const palProposalPreferences = v.object({
+  memories: v.boolean(),
+  routes: v.boolean(),
 });
 
 export const memoryKind = v.union(

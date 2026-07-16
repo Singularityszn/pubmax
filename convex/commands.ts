@@ -9,6 +9,7 @@ import {
   memoryKind,
   memoryProvenance,
   pubPalAppearance,
+  palProposalPreferences,
   pubPalPersonality,
   pubPalVoice,
 } from "./validators";
@@ -40,6 +41,7 @@ export const upsertPalFromServer = internalMutation({
     voice: pubPalVoice,
     muted: v.boolean(),
     hidden: v.boolean(),
+    proposalPreferences: v.optional(palProposalPreferences),
     now: v.number(),
   },
   returns: v.id("pubPals"),
@@ -66,6 +68,7 @@ export const upsertPalFromServer = internalMutation({
         voice,
         muted: args.muted,
         hidden: args.hidden,
+        proposalPreferences: args.proposalPreferences ?? existing.proposalPreferences ?? { memories: false, routes: true },
         updatedAt: args.now,
         migrationBatchId: args.migrationBatchId,
       });
@@ -83,6 +86,7 @@ export const upsertPalFromServer = internalMutation({
       voice,
       muted: args.muted,
       hidden: args.hidden,
+      proposalPreferences: args.proposalPreferences ?? { memories: false, routes: true },
       masteryPoints: 0,
       createdAt: args.now,
       updatedAt: args.now,
@@ -109,6 +113,7 @@ export const proposeMemoryFromServer = internalMutation({
       status: "proposed",
       provenance: args.provenance,
       proposedAt: args.proposedAt,
+      updatedAt: args.proposedAt,
     });
   },
 });
@@ -135,7 +140,69 @@ export const resolveMemoryFromServer = internalMutation({
     await ctx.db.patch(memory._id, {
       status: args.decision,
       resolvedAt: args.resolvedAt,
+      updatedAt: args.resolvedAt,
     });
+    return null;
+  },
+});
+
+export const correctMemoryFromServer = internalMutation({
+  args: {
+    ...ownerArgs,
+    memoryId: v.id("palMemories"),
+    value: v.string(),
+    correctedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const owner = ownerFrom(args);
+    const memory = await ctx.db.get(args.memoryId);
+    if (!memory) throw new Error("Memory not found");
+    const pal = await ctx.db.get(memory.palId);
+    if (!pal) throw new Error("Pub Pal not found");
+    assertOwner({ issuer: pal.ownerIssuer, subject: pal.ownerSubject }, owner);
+    if (memory.status !== "approved") throw new Error("Only approved memory can be corrected");
+    await ctx.db.patch(memory._id, {
+      value: requiredText(args.value, 500),
+      provenance: { source: "user_correction" },
+      updatedAt: args.correctedAt,
+    });
+    return null;
+  },
+});
+
+export const deleteMemoryFromServer = internalMutation({
+  args: { ...ownerArgs, memoryId: v.id("palMemories") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const owner = ownerFrom(args);
+    const memory = await ctx.db.get(args.memoryId);
+    if (!memory) throw new Error("Memory not found");
+    const pal = await ctx.db.get(memory.palId);
+    if (!pal) throw new Error("Pub Pal not found");
+    assertOwner({ issuer: pal.ownerIssuer, subject: pal.ownerSubject }, owner);
+    await ctx.db.delete(memory._id);
+    return null;
+  },
+});
+
+export const deletePalFromServer = internalMutation({
+  args: ownerArgs,
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const pal = await findOwnedPal(ctx, ownerFrom(args));
+    if (!pal) throw new Error("Pub Pal not found");
+    const [ownedMemories, masteryEvents, unlocks] = await Promise.all([
+      ctx.db.query("palMemories").withIndex("by_pal_proposed_at", (q) => q.eq("palId", pal._id)).collect(),
+      ctx.db.query("masteryEvents").withIndex("by_pal_occurred_at", (q) => q.eq("palId", pal._id)).collect(),
+      ctx.db.query("palUnlocks").withIndex("by_pal_unlocked_at", (q) => q.eq("palId", pal._id)).collect(),
+    ]);
+    await Promise.all([
+      ...ownedMemories.map((memory) => ctx.db.delete(memory._id)),
+      ...masteryEvents.map((event) => ctx.db.delete(event._id)),
+      ...unlocks.map((unlock) => ctx.db.delete(unlock._id)),
+    ]);
+    await ctx.db.delete(pal._id);
     return null;
   },
 });

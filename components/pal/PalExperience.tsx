@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Download,
   Eye,
   EyeOff,
   LockKeyhole,
+  MapPinned,
   Mic,
   ShieldCheck,
   Trash2,
@@ -22,6 +24,7 @@ import {
   DEFAULT_PAL_DRAFT,
   anonymousPalDraftOwner,
   clearPalOnboardingDraft,
+  hasPalRouteActivation,
   migrateLegacyPalOnboardingDraft,
   PAL_UNLOCKS,
   PAL_ONBOARDING_SPECIES,
@@ -45,10 +48,14 @@ const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
 
 const speciesCopy = {
-  hound: { title: "Hound", note: "Loyal · energetic" },
-  raven: { title: "Raven", note: "Observant · dry" },
+  greyhound: { title: "Greyhound", note: "Loyal · perceptive" },
+  cat: { title: "Black Cat", note: "Calm · mischievous" },
   fox: { title: "Fox", note: "Curious · quick" },
-  cat: { title: "Cat", note: "Calm · mischievous" },
+  pigeon: { title: "Pigeon", note: "Streetwise · social" },
+  badger: { title: "Badger", note: "Steady · protective" },
+  corgi: { title: "Corgi", note: "Bright · encouraging" },
+  hound: { title: "Signal Hound", note: "Legacy companion" },
+  raven: { title: "Raven", note: "Legacy companion" },
   rabbit: { title: "Rabbit", note: "Alert · spontaneous" },
   turtle: { title: "Turtle", note: "Steady · thoughtful" },
   squirrel: { title: "Squirrel", note: "Social · excitable" },
@@ -126,8 +133,10 @@ function previewSpeech(step: number, draft: PubPalDraft): string {
 
 function readStoredPal(ownerId: string): PubPal | null {
   try {
-    const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as PubPal | null;
-    return value?.ownerId === ownerId ? value : null;
+    const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as (PubPal & { proposalPreferences?: PubPal["proposalPreferences"] }) | null;
+    return value?.ownerId === ownerId
+      ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: false, routes: true } }
+      : null;
   } catch {
     return null;
   }
@@ -188,6 +197,7 @@ function RangeControl({
 
 export default function PalExperience() {
   const { user, loading, configured } = useAuth();
+  const [anonymousOwner] = useState(anonymousPalDraftOwner);
   const [draftOwner, setDraftOwner] = useState("");
   const [mode, setMode] = useState<"meeting" | "onboarding" | "home">("meeting");
   const [step, setStep] = useState<number>(0);
@@ -199,10 +209,18 @@ export default function PalExperience() {
   const [error, setError] = useState<string | null>(null);
   const [memories, setMemories] = useState<PubPalMemory[]>([]);
   const [palAnimationState, setPalAnimationState] = useState<PalAnimationState>("idle");
+  const [routeActivated, setRouteActivated] = useState(false);
+  const [editingMemoryId, setEditingMemoryId] = useState("");
+  const [editingMemoryValue, setEditingMemoryValue] = useState("");
+  const [controlSaving, setControlSaving] = useState(false);
+  const [activeOwnerId, setActiveOwnerId] = useState("");
+  const activeOwnerRef = useRef("");
+  const palMutationRef = useRef<{ ownerId: string; requestId: number } | null>(null);
+  const controlSavingRef = useRef<{ ownerId: string; requestId: number } | null>(null);
+  const controlRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (loading) return;
-    const anonymousOwner = anonymousPalDraftOwner();
     const owner = user?.id ?? anonymousOwner;
     if (owner === draftOwner) return;
     let restored = readPalOnboardingDraft(owner);
@@ -218,14 +236,26 @@ export default function PalExperience() {
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
+      const activated = hasPalRouteActivation();
+      setRouteActivated(activated);
       setDraftOwner(owner);
-      setMode(restored ? "onboarding" : "meeting");
+      setMode(restored && activated ? "onboarding" : "meeting");
       setStep(restored?.step ?? 0);
       setDraft(restored?.draft ?? DEFAULT_PAL_DRAFT);
       setPrivacy(restored?.privacy ?? DEFAULT_PRIVACY);
     });
     return () => { cancelled = true; };
-  }, [draftOwner, loading, user]);
+  }, [anonymousOwner, draftOwner, loading, user]);
+
+  useEffect(() => {
+    const sync = () => setRouteActivated(hasPalRouteActivation());
+    window.addEventListener("storage", sync);
+    window.addEventListener("pubmaxx:pal-route-activation", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("pubmaxx:pal-route-activation", sync);
+    };
+  }, []);
 
   useEffect(() => {
     if (mode !== "onboarding" || !draftOwner) return;
@@ -238,16 +268,32 @@ export default function PalExperience() {
   }, [draft, draftOwner, mode, privacy, step]);
 
   useEffect(() => {
-    if (!user) {
-      queueMicrotask(() => setReady(true));
-      return;
-    }
+    const ownerId = user?.id ?? "";
+    const controller = new AbortController();
+    activeOwnerRef.current = ownerId;
+    queueMicrotask(() => {
+      if (activeOwnerRef.current !== ownerId) return;
+      setActiveOwnerId(ownerId);
+      setPal(null);
+      setMemories([]);
+      setEditingMemoryId("");
+      setEditingMemoryValue("");
+      setError(null);
+      palMutationRef.current = null;
+      setSaving(false);
+      controlSavingRef.current = null;
+      setControlSaving(false);
+      setReady(!user);
+      if (!user) setMode("meeting");
+    });
+    if (!user) return () => controller.abort();
 
-    void authedFetch("/api/pub-pal")
+    void authedFetch("/api/pub-pal", { signal: controller.signal })
       .then(async (response) => {
         const body = await response.json().catch(() => ({})) as { pal?: PubPal | null };
+        if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
         const next = response.ok ? body.pal ?? null : readStoredPal(user.id);
-        if (next) {
+        if (next?.ownerId === ownerId) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
           setPal(next);
           setDraft({
@@ -257,7 +303,7 @@ export default function PalExperience() {
             personality: next.personality,
             voice: next.voice,
           });
-          setPrivacy((current) => ({ ...current, visible: !next.hidden, muted: next.muted }));
+          setPrivacy((current) => ({ ...current, proposeMemories: next.proposalPreferences?.memories === true, visible: !next.hidden, muted: next.muted }));
           setMode("home");
           const storedPrivacy = localStorage.getItem(`${PRIVACY_KEY}:${user.id}`);
           if (storedPrivacy) {
@@ -265,7 +311,7 @@ export default function PalExperience() {
               const parsed = JSON.parse(storedPrivacy) as { proposeMemories?: unknown };
               setPrivacy((current) => ({
                 ...current,
-                proposeMemories: parsed.proposeMemories === true,
+                proposeMemories: next.proposalPreferences?.memories ?? parsed.proposeMemories === true,
                 visible: !next.hidden,
                 muted: next.muted,
               }));
@@ -273,23 +319,25 @@ export default function PalExperience() {
               // Invalid local consent fails closed: proposals remain disabled.
             }
           }
-          void authedFetch("/api/pub-pal/memories")
+          void authedFetch("/api/pub-pal/memories", { signal: controller.signal })
             .then(async (memoryResponse) => {
               const memoryBody = await memoryResponse.json().catch(() => ({})) as { memories?: PubPalMemory[] };
-              if (memoryResponse.ok) setMemories(memoryBody.memories ?? []);
+              if (!controller.signal.aborted && activeOwnerRef.current === ownerId && memoryResponse.ok) setMemories(memoryBody.memories ?? []);
             })
             .catch(() => {});
         }
-        setReady(true);
+        if (!controller.signal.aborted && activeOwnerRef.current === ownerId) setReady(true);
       })
       .catch(() => {
+        if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
         const next = readStoredPal(user.id);
-        if (next) {
+        if (next?.ownerId === ownerId) {
           setPal(next);
           setMode("home");
         }
         setReady(true);
       });
+    return () => controller.abort();
   }, [user]);
 
   const previewName = draft.name.trim() || `Your ${speciesCopy[draft.appearance.species].title}`;
@@ -312,42 +360,51 @@ export default function PalExperience() {
 
   const createPal = async () => {
     if (!user) return;
+    if (palMutationRef.current || controlSavingRef.current) return;
+    const ownerId = user.id;
+    const lock = { ownerId, requestId: ++controlRequestIdRef.current };
+    palMutationRef.current = lock;
     setSaving(true);
     setError(null);
     try {
       const response = await authedFetch("/api/pub-pal", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(draft),
+        body: JSON.stringify({
+          ...draft,
+          hidden: !privacy.visible,
+          muted: privacy.muted,
+          proposalPreferences: { memories: privacy.proposeMemories, routes: true },
+        }),
       });
       const body = await response.json().catch(() => ({})) as { pal?: PubPal; error?: string };
       if (!response.ok || !body.pal) throw new Error(body.error || "Your Pal could not be created.");
 
-      let next = body.pal;
-      if (!privacy.visible || privacy.muted) {
-        const controlResponse = await authedFetch("/api/pub-pal", {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ hidden: !privacy.visible, muted: privacy.muted }),
-        });
-        const controlBody = await controlResponse.json().catch(() => ({})) as { pal?: PubPal };
-        if (controlResponse.ok && controlBody.pal) next = controlBody.pal;
-      }
+      const next = body.pal;
+      if (activeOwnerRef.current !== ownerId || next.ownerId !== ownerId) return;
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      localStorage.setItem(`${PRIVACY_KEY}:${user.id}`, JSON.stringify({ proposeMemories: privacy.proposeMemories }));
+      localStorage.setItem(`${PRIVACY_KEY}:${ownerId}`, JSON.stringify({ proposeMemories: privacy.proposeMemories }));
       setPal(next);
       setMode("home");
       clearPalOnboardingDraft(draftOwner);
     } catch (cause) {
+      if (activeOwnerRef.current !== ownerId) return;
       setError(cause instanceof Error ? cause.message : "Your Pal could not be created.");
     } finally {
-      setSaving(false);
+      if (palMutationRef.current === lock) {
+        palMutationRef.current = null;
+        setSaving(false);
+      }
     }
   };
 
   const updateControl = async (patch: Partial<Pick<PubPal, "muted" | "hidden">>) => {
-    if (!pal) return;
+    if (!pal || controlSavingRef.current || palMutationRef.current) return;
+    const ownerId = pal.ownerId;
+    const lock = { ownerId, requestId: ++controlRequestIdRef.current };
+    controlSavingRef.current = lock;
+    setControlSaving(true);
     const optimistic = { ...pal, ...patch, updatedAt: new Date().toISOString() };
     setPal(optimistic);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(optimistic));
@@ -359,38 +416,206 @@ export default function PalExperience() {
       });
       const body = await response.json().catch(() => ({})) as { pal?: PubPal };
       if (!response.ok || !body.pal) throw new Error("Pal control update failed");
+      if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
       setPal(body.pal);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(body.pal));
       setPalAnimationState("celebrating");
       window.setTimeout(() => setPalAnimationState("idle"), 900);
     } catch {
+      if (activeOwnerRef.current !== ownerId) return;
       setPalAnimationState("error");
       setPal(pal);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(pal));
+    } finally {
+      if (controlSavingRef.current === lock) {
+        controlSavingRef.current = null;
+        setControlSaving(false);
+      }
+    }
+  };
+
+  const updateProposalPreference = async (kind: "memories" | "routes", enabled: boolean) => {
+    if (!pal || controlSavingRef.current || palMutationRef.current) return;
+    const ownerId = pal.ownerId;
+    const lock = { ownerId, requestId: ++controlRequestIdRef.current };
+    controlSavingRef.current = lock;
+    setControlSaving(true);
+    const previous = { ...pal, proposalPreferences: pal.proposalPreferences ?? { memories: false, routes: true } };
+    const proposalPreferences = { ...previous.proposalPreferences, [kind]: enabled };
+    const optimistic = { ...pal, proposalPreferences, updatedAt: new Date().toISOString() };
+    setPal(optimistic);
+    if (kind === "memories") setPrivacy((current) => ({ ...current, proposeMemories: enabled }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(optimistic));
+    try {
+      const response = await authedFetch("/api/pub-pal", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ proposalPreferences }),
+      });
+      const body = await response.json().catch(() => ({})) as { pal?: PubPal; error?: string };
+      if (!response.ok || !body.pal) throw new Error(body.error ?? "Pal proposal controls could not be saved.");
+      if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
+      setPal(body.pal);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(body.pal));
+      setPalAnimationState("celebrating");
+      window.setTimeout(() => setPalAnimationState("idle"), 900);
+    } catch (cause) {
+      if (activeOwnerRef.current !== ownerId) return;
+      setPal(previous);
+      setPrivacy((current) => ({ ...current, proposeMemories: previous.proposalPreferences.memories }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(previous));
+      setError(cause instanceof Error ? cause.message : "Pal proposal controls could not be saved.");
+      setPalAnimationState("error");
+    } finally {
+      if (controlSavingRef.current === lock) {
+        controlSavingRef.current = null;
+        setControlSaving(false);
+      }
+    }
+  };
+
+  const beginMemoryCorrection = (memory: PubPalMemory) => {
+    setEditingMemoryId(memory.id);
+    setEditingMemoryValue(memory.value);
+  };
+
+  const saveMemoryCorrection = async (memoryId: string) => {
+    if (!editingMemoryValue.trim() || !pal || palMutationRef.current || controlSavingRef.current) return;
+    const ownerId = pal.ownerId;
+    const lock = { ownerId, requestId: ++controlRequestIdRef.current };
+    palMutationRef.current = lock;
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await authedFetch(`/api/pub-pal/memories/${encodeURIComponent(memoryId)}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ value: editingMemoryValue }),
+      });
+      const body = await response.json().catch(() => ({})) as { memory?: PubPalMemory; error?: string };
+      if (!response.ok || !body.memory) throw new Error(body.error ?? "That memory correction could not be saved.");
+      if (activeOwnerRef.current !== ownerId) return;
+      setMemories((current) => current.map((memory) => memory.id === memoryId ? body.memory! : memory));
+      setEditingMemoryId("");
+      setEditingMemoryValue("");
+      setPalAnimationState("celebrating");
+      window.setTimeout(() => setPalAnimationState("idle"), 900);
+    } catch (cause) {
+      if (activeOwnerRef.current !== ownerId) return;
+      setError(cause instanceof Error ? cause.message : "That memory correction could not be saved.");
+      setPalAnimationState("error");
+    } finally {
+      if (palMutationRef.current === lock) {
+        palMutationRef.current = null;
+        setSaving(false);
+      }
+    }
+  };
+
+  const removeMemory = async (memory: PubPalMemory) => {
+    if (!pal || palMutationRef.current || controlSavingRef.current || !window.confirm(`Delete this confirmed memory?\n\n${memory.value}`)) return;
+    const ownerId = pal.ownerId;
+    const lock = { ownerId, requestId: ++controlRequestIdRef.current };
+    palMutationRef.current = lock;
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await authedFetch(`/api/pub-pal/memories/${encodeURIComponent(memory.id)}`, { method: "DELETE" });
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "That memory could not be deleted.");
+      if (activeOwnerRef.current !== ownerId) return;
+      setMemories((current) => current.filter((item) => item.id !== memory.id));
+      if (editingMemoryId === memory.id) {
+        setEditingMemoryId("");
+        setEditingMemoryValue("");
+      }
+    } catch (cause) {
+      if (activeOwnerRef.current !== ownerId) return;
+      setError(cause instanceof Error ? cause.message : "That memory could not be deleted.");
+    } finally {
+      if (palMutationRef.current === lock) {
+        palMutationRef.current = null;
+        setSaving(false);
+      }
+    }
+  };
+
+  const exportMemories = async () => {
+    if (!pal || palMutationRef.current || controlSavingRef.current) return;
+    const ownerId = pal.ownerId;
+    const palName = pal.name;
+    const lock = { ownerId, requestId: ++controlRequestIdRef.current };
+    palMutationRef.current = lock;
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await authedFetch("/api/pub-pal/memories/export");
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Your Pal memory export could not be prepared.");
+      }
+      const blob = await response.blob();
+      if (activeOwnerRef.current !== ownerId) return;
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `pubmaxx-pal-memory-${palName.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "export"}.json`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch (cause) {
+      if (activeOwnerRef.current !== ownerId) return;
+      setError(cause instanceof Error ? cause.message : "Your Pal memory export could not be prepared.");
+    } finally {
+      if (palMutationRef.current === lock) {
+        palMutationRef.current = null;
+        setSaving(false);
+      }
     }
   };
 
   const removePal = async () => {
-    if (!pal || !window.confirm(`Delete ${pal.name} and every confirmed memory?`)) return;
-    const response = await authedFetch("/api/pub-pal", { method: "DELETE" });
-    if (!response.ok) return;
-    localStorage.removeItem(STORAGE_KEY);
-    if (user) localStorage.removeItem(`${PRIVACY_KEY}:${user.id}`);
-    setMemories([]);
-    setPal(null);
-    setDraft(DEFAULT_PAL_DRAFT);
-    setPrivacy(DEFAULT_PRIVACY);
-    setStep(0);
-    setMode("meeting");
-    clearPalOnboardingDraft(draftOwner);
+    if (!pal || palMutationRef.current || controlSavingRef.current || !window.confirm(`Delete ${pal.name} and every confirmed memory?`)) return;
+    const ownerId = pal.ownerId;
+    const lock = { ownerId, requestId: ++controlRequestIdRef.current };
+    palMutationRef.current = lock;
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await authedFetch("/api/pub-pal", { method: "DELETE" });
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "Your Pal could not be deleted.");
+      if (activeOwnerRef.current !== ownerId) return;
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(`${PRIVACY_KEY}:${ownerId}`);
+      setMemories([]);
+      setPal(null);
+      setDraft(DEFAULT_PAL_DRAFT);
+      setPrivacy(DEFAULT_PRIVACY);
+      setStep(0);
+      setMode("meeting");
+      clearPalOnboardingDraft(draftOwner);
+    } catch (cause) {
+      if (activeOwnerRef.current !== ownerId) return;
+      setError(cause instanceof Error ? cause.message : "Your Pal could not be deleted.");
+    } finally {
+      if (palMutationRef.current === lock) {
+        palMutationRef.current = null;
+        setSaving(false);
+      }
+    }
   };
 
-  if (loading || !ready) {
+  const ownerTransitioning = !loading && (
+    activeOwnerId !== (user?.id ?? "") ||
+    draftOwner !== (user?.id ?? anonymousOwner)
+  );
+  if (loading || !ready || ownerTransitioning) {
     return <main className="palExperience"><div className="palLoading" role="status">Waking your Pub Pal</div></main>;
   }
 
-  if (mode === "home" && pal) {
+  if (mode === "home" && pal && user && pal.ownerId === user.id) {
     const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
+    const proposalPreferences = pal.proposalPreferences ?? { memories: false, routes: true };
     return (
       <main className="palExperience palHome">
         <div className="palTopbar">
@@ -417,37 +642,94 @@ export default function PalExperience() {
             <p>Your Pal speaks only when invited. Approved facts are the only memories it can keep.</p>
           </div>
           <div className="palControlGrid">
-            <button type="button" onClick={() => void updateControl({ muted: !pal.muted })} aria-pressed={pal.muted}>
+            <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ muted: !pal.muted })} aria-pressed={pal.muted}>
               {pal.muted ? <VolumeX /> : <Volume2 />}
               <span><strong>{pal.muted ? "Muted" : "Voice available"}</strong><small>{pal.muted ? "Tap to allow voice" : "Tap to mute everywhere"}</small></span>
             </button>
-            <button type="button" onClick={() => void updateControl({ hidden: !pal.hidden })} aria-pressed={pal.hidden}>
+            <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ hidden: !pal.hidden })} aria-pressed={pal.hidden}>
               {pal.hidden ? <EyeOff /> : <Eye />}
               <span><strong>{pal.hidden ? "Hidden" : "Visible"}</strong><small>{pal.hidden ? "Pal shortcuts are hidden" : "Pal can appear in shortcuts"}</small></span>
             </button>
-            <div className="palControlReadOnly">
+            <button type="button" disabled={controlSaving || saving} onClick={() => void updateProposalPreference("memories", !proposalPreferences.memories)} aria-pressed={proposalPreferences.memories}>
               <ShieldCheck />
-              <span><strong>Memory by approval</strong><small>No conversation is saved as memory automatically</small></span>
-            </div>
-            <div className="palControlReadOnly">
-              <ShieldCheck />
-              <span><strong>{memories.length} approved {memories.length === 1 ? "memory" : "memories"}</strong><small>{memories.length ? "Inspect and remove them from your memory controls" : "Nothing has been saved"}</small></span>
-            </div>
+              <span><strong>Memory proposals {proposalPreferences.memories ? "on" : "off"}</strong><small>{proposalPreferences.memories ? "Every suggestion still needs your approval" : "Pal will not suggest facts to remember"}</small></span>
+            </button>
+            <button type="button" disabled={controlSaving || saving} onClick={() => void updateProposalPreference("routes", !proposalPreferences.routes)} aria-pressed={proposalPreferences.routes}>
+              <MapPinned />
+              <span><strong>Route proposals {proposalPreferences.routes ? "on" : "off"}</strong><small>{proposalPreferences.routes ? "Suggestions only; you confirm every change" : "Pal will not propose route changes"}</small></span>
+            </button>
             <div className="palUnlockSummary" aria-label="Pub Pal progression">
               <strong>{pal.masteryPoints} mastery points</strong>
               <ul>{PAL_UNLOCKS.map((unlock) => <li key={unlock.id} className={pal.masteryPoints >= unlock.pointsRequired ? "isUnlocked" : ""}>{unlock.label}<span>{unlock.pointsRequired}</span></li>)}</ul>
             </div>
-            <button className="palDanger" type="button" onClick={() => void removePal()}>
+            <button className="palDanger" type="button" disabled={controlSaving || saving} onClick={() => void removePal()}>
               <Trash2 />
               <span><strong>Delete {pal.name}</strong><small>Deletes the Pal and every confirmed memory</small></span>
             </button>
           </div>
+        </section>
+        <section className="palMemoryControls" aria-labelledby="pal-memory-title">
+          <div className="palMemoryControls__header">
+            <div>
+              <p className="palEyebrow">Visible context</p>
+              <h2 id="pal-memory-title">What {pal.name} remembers.</h2>
+              <p>Only these confirmed facts can shape suggestions. Correct or delete any item; conversations and voice content never appear here.</p>
+            </div>
+            <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={17} /> Export my context</button>
+          </div>
+          {memories.length ? (
+            <ul className="palMemoryList">
+              {memories.map((memory) => (
+                <li key={memory.id}>
+                  <div className="palMemoryList__meta"><span>{memory.kind.replaceAll("_", " ")}</span><small>{memory.provenance.replaceAll("_", " ")}</small></div>
+                  {editingMemoryId === memory.id ? (
+                    <div className="palMemoryList__edit">
+                      <label><span>Correct this memory</span><textarea value={editingMemoryValue} onChange={(event) => setEditingMemoryValue(event.target.value)} maxLength={500} rows={3} disabled={saving} /></label>
+                      <div><button type="button" disabled={saving || !editingMemoryValue.trim()} onClick={() => void saveMemoryCorrection(memory.id)}>Save correction</button><button type="button" className="palSecondary" disabled={saving} onClick={() => { setEditingMemoryId(""); setEditingMemoryValue(""); }}>Cancel</button></div>
+                    </div>
+                  ) : (
+                    <p>{memory.value}</p>
+                  )}
+                  <div className="palMemoryList__actions">
+                    {editingMemoryId !== memory.id ? <button type="button" disabled={saving} onClick={() => beginMemoryCorrection(memory)}>Correct</button> : null}
+                    <button type="button" className="palDanger" disabled={saving} onClick={() => void removeMemory(memory)}><Trash2 size={16} /> Delete</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : <div className="palMemoryEmpty"><ShieldCheck /><p>No confirmed context. {pal.name} can still help with the route in front of you.</p></div>}
+          {error ? <p className="palError" role="alert">{error}</p> : null}
         </section>
       </main>
     );
   }
 
   if (mode === "meeting") {
+    if (!routeActivated) {
+      return (
+        <main className="palExperience palMeeting">
+          <div className="palTopbar">
+            <Link href="/map"><ArrowLeft size={17} /> Map</Link>
+            <span><LockKeyhole size={14} /> Optional by design</span>
+          </div>
+          <section className="palMeetingStage" aria-labelledby="pal-activation-title">
+            <div className="palMeetingPortrait">
+              <PalPortrait appearance={draft.appearance} name="A waiting Pub Pal signal" state="thinking" />
+              <p className="palSpeech">Make one useful route first. Then I can meet you with real context.</p>
+            </div>
+            <div className="palMeetingCopy">
+              <p className="palEyebrow">Route before character</p>
+              <h1 id="pal-activation-title">First, describe your night.</h1>
+              <p>Pub Pal is a companion to a plan, not a gate in front of one. Get three grounded stops, then choose the voice and form that fits you.</p>
+              <div className="palMeetingActions">
+                <Link className="palPrimary" href="/map?plan=1"><MapPinned size={18} /> Describe my night</Link>
+                <Link href="/map">Keep exploring the map</Link>
+              </div>
+            </div>
+          </section>
+        </main>
+      );
+    }
     return (
       <main className="palExperience palMeeting">
         <div className="palTopbar">

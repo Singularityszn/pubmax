@@ -8,6 +8,7 @@
   --pal-accent-strong: var(--brass-bright);
   --pal-line: var(--line);
   --pal-soft: var(--ink-soft);
+  position: relative;
   min-height: 100dvh;
   overflow: hidden;
   padding: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
@@ -272,6 +273,26 @@
 .palUnlockSummary ul { margin: .8rem 0 0; padding: 0; display: grid; gap: .45rem; list-style: none; }
 .palUnlockSummary li { display: flex; justify-content: space-between; color: var(--pal-soft); font-size: .78rem; opacity: .55; }
 .palUnlockSummary li.isUnlocked { color: var(--pal-paper); opacity: 1; }
+.palMemoryControls { width: min(84rem, 100%); margin: 4rem auto 0; padding-top: 3rem; border-top: 1px solid var(--pal-line); display: grid; gap: 1.2rem; }
+.palMemoryControls__header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.palMemoryControls__header h2 { margin-top: .25rem; font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1; }
+.palMemoryControls__header p:not(.palEyebrow) { max-width: 40rem; margin-top: .75rem; color: var(--pal-soft); line-height: 1.55; }
+.palMemoryControls__header > button, .palMemoryList button { min-height: 44px; padding: .7rem .9rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: inline-flex; align-items: center; justify-content: center; gap: .45rem; background: var(--panel-raised); color: var(--pal-paper); font: inherit; font-weight: 750; cursor: pointer; }
+.palMemoryControls button:disabled { cursor: not-allowed; opacity: .55; }
+.palMemoryList { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+.palMemoryList > li { display: grid; grid-template-columns: minmax(8rem, .35fr) minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: var(--panel-raised); }
+.palMemoryList__meta { display: grid; gap: .25rem; }
+.palMemoryList__meta span { color: var(--pal-accent); font: 700 .75rem var(--font-data); letter-spacing: .06em; text-transform: uppercase; }
+.palMemoryList__meta small { color: var(--pal-soft); text-transform: capitalize; }
+.palMemoryList > li > p { margin: 0; line-height: 1.5; }
+.palMemoryList__actions, .palMemoryList__edit > div { display: flex; flex-wrap: wrap; gap: .5rem; }
+.palMemoryList__actions .palDanger { border-color: rgba(255, 116, 136, .45); background: transparent; color: #ffb1bc; }
+.palMemoryList__edit { display: grid; gap: .6rem; }
+.palMemoryList__edit label { display: grid; gap: .35rem; color: var(--pal-soft); font-size: .78rem; font-weight: 700; }
+.palMemoryList__edit textarea { width: 100%; min-height: 5.5rem; padding: .75rem; border: 1px solid var(--pal-line); border-radius: .7rem; background: var(--pal-night); color: var(--pal-paper); font: inherit; resize: vertical; }
+.palMemoryList .palSecondary { background: transparent; color: var(--pal-paper); }
+.palMemoryEmpty { min-height: 6rem; padding: 1rem; border: 1px dashed var(--pal-line); border-radius: .9rem; display: flex; align-items: center; gap: .75rem; color: var(--pal-soft); }
+.palMemoryEmpty p { margin: 0; }
 .palVoice { margin-top: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: var(--panel-raised); }
 .palVoiceStatus, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: .76rem; line-height: 1.45; }
 .palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
@@ -281,7 +302,7 @@
 .palVoiceActions input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: inherit; }
 .palVoiceActions label button { width: 2.8rem; align-self: stretch; border: 0; display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer; }
 
-.palLoading { width: min(84rem, 100%); min-height: 70dvh; margin: 0 auto; display: grid; place-items: center; color: var(--pal-soft); }
+.palLoading { position: absolute; inset: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom)); display: grid; place-items: center; color: var(--pal-soft); }
 
 @keyframes palStepIn { from { opacity: 0; transform: translateY(1rem); } }
 @keyframes palBreathe { 50% { transform: translateY(-.45rem) scale(1.015); } }
@@ -339,6 +360,11 @@
   .palHomeCopy h1 { font-size: clamp(4rem, 20vw, 6rem); }
   .palHomeCopy .palPrimary { width: 100%; }
   .palControls { margin-top: 4rem; padding-top: 2.5rem; gap: 1.5rem; }
+  .palMemoryControls { margin-top: 3rem; padding-top: 2.5rem; }
+  .palMemoryControls__header { align-items: stretch; flex-direction: column; }
+  .palMemoryControls__header > button { width: 100%; }
+  .palMemoryList > li { grid-template-columns: 1fr; }
+  .palMemoryList__actions button { flex: 1 1 8rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

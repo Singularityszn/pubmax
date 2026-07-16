@@ -22,10 +22,29 @@ describe("Pub Pal first meeting and onboarding", () => {
   });
 
   it("exposes appearance, voice, personality, memory and visibility controls", () => {
-    for (const label of ["Appearance", "Personality", "Voice", "Allow memory proposals", "Show Pal shortcuts"]) {
+    for (const label of ["Appearance", "Personality", "Voice", "Allow memory proposals", "Show Pal shortcuts", "Export my context", "Save correction", "Route proposals"]) {
       expect(experience).toContain(label);
     }
     expect(experience).toContain("/api/pub-pal");
+    expect(experience).toContain("/api/pub-pal/memories/export");
+    expect(experience).toContain("/api/pub-pal/memories/${encodeURIComponent(memory.id)}");
+  });
+
+  it("keeps the chooser behind a useful route and opens the existing planner", () => {
+    expect(experience).toContain("hasPalRouteActivation");
+    expect(experience).toContain("Route before character");
+    expect(experience).toContain('href="/map?plan=1"');
+  });
+
+  it("clears account-owned context and serializes proposal controls", () => {
+    expect(experience).toContain("activeOwnerRef.current = ownerId");
+    expect(experience).toContain("setMemories([])");
+    expect(experience).toContain("pal.ownerId === user.id");
+    expect(experience).toContain("controller.abort()");
+    expect(experience).toContain("ownerTransitioning");
+    expect(experience).toContain("controlSavingRef.current");
+    expect(experience).toContain("controlSavingRef.current === lock");
+    expect(experience).toContain("disabled={controlSaving || saving}");
   });
 
   it("renders an accessible Pal image and supports motion, transparency and contrast preferences", () => {
@@ -34,9 +53,13 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(css).toContain("prefers-reduced-motion: reduce");
     expect(css).toContain("prefers-reduced-transparency: reduce");
     expect(css).toContain("prefers-contrast: more");
-    expect(portrait).toContain("palRigHound");
+    expect(portrait).toContain("palRigGreyhound");
+    expect(portrait).toContain("palRigCat");
     expect(portrait).toContain("palRigRaven");
     expect(portrait).toContain("palRigFox");
+    expect(portrait).toContain("palRigPigeon");
+    expect(portrait).toContain("palRigBadger");
+    expect(portrait).toContain("palRigCorgi");
   });
 
   it("drives every visual state from real Pal interactions", () => {

@@ -4,20 +4,27 @@ import { cleanText } from "@/lib/textClean";
  * Eight original Pub Pal forms. The breadth mirrors the useful part of the
  * Codex pet picker (a small, memorable cast) without copying its artwork.
  */
-export const PAL_SPECIES = [
+export const PAL_ONBOARDING_SPECIES = [
+  "greyhound",
+  "cat",
+  "fox",
+  "pigeon",
+  "badger",
+  "corgi",
+] as const;
+export const PAL_LEGACY_SPECIES = [
   "hound",
   "raven",
-  "fox",
-  "cat",
   "rabbit",
   "turtle",
   "squirrel",
   "bot",
 ] as const;
-export const PAL_ONBOARDING_SPECIES = ["hound", "raven", "fox"] as const;
+export const PAL_SPECIES = [...PAL_ONBOARDING_SPECIES, ...PAL_LEGACY_SPECIES] as const;
 export const SIGNAL_FAMILIES = ["beer", "gin", "rum", "whisky", "brandy", "vodka"] as const;
 export const PAL_VOICES = ["ember", "velvet", "signal"] as const;
 export type PubPalSpecies = (typeof PAL_SPECIES)[number];
+export type PalSpecies = PubPalSpecies;
 export type SignalFamily = (typeof SIGNAL_FAMILIES)[number];
 export type PubPalVoiceId = (typeof PAL_VOICES)[number];
 
@@ -37,15 +44,40 @@ export type PalVisualManifest = {
   species: PubPalSpecies;
   format: "layered-svg";
   silhouette: string;
+  face: string;
   signatureProp: string;
+  material: string;
+  idlePose: string;
   supportedStates: readonly PalAnimationState[];
 };
 
-export const PAL_VISUAL_MANIFEST: Record<"hound" | "raven" | "fox", PalVisualManifest> = {
-  hound: { species: "hound", format: "layered-svg", silhouette: "floppy-eared signal hound", signatureProp: "signal collar", supportedStates: PAL_ANIMATION_STATES },
-  raven: { species: "raven", format: "layered-svg", silhouette: "long-beaked observant raven", signatureProp: "lore lens", supportedStates: PAL_ANIMATION_STATES },
-  fox: { species: "fox", format: "layered-svg", silhouette: "sharp-eared quick fox", signatureProp: "route compass", supportedStates: PAL_ANIMATION_STATES },
+export const PAL_VISUAL_MANIFEST: Record<(typeof PAL_ONBOARDING_SPECIES)[number], PalVisualManifest> = {
+  greyhound: { species: "greyhound", format: "layered-svg", silhouette: "long-nosed, swept-ear greyhound", face: "loyal bright eyes and a narrow muzzle", signatureProp: "signal collar", material: "smoked chrome with an amber signal seam", idlePose: "upright and gently leaning into the route", supportedStates: PAL_ANIMATION_STATES },
+  cat: { species: "cat", format: "layered-svg", silhouette: "compact black cat with a hooked signal tail", face: "half-lidded luminous eyes and a dry smile", signatureProp: "brass bell beacon", material: "black glass with a soft edge glow", idlePose: "seated with one paw lifted", supportedStates: PAL_ANIMATION_STATES },
+  fox: { species: "fox", format: "layered-svg", silhouette: "sharp-eared quick fox", face: "curious eyes and an alert tapered muzzle", signatureProp: "route compass", material: "copper hologram with glass highlights", idlePose: "forward on its toes with its tail curled", supportedStates: PAL_ANIMATION_STATES },
+  pigeon: { species: "pigeon", format: "layered-svg", silhouette: "round city pigeon with a proud chest", face: "side-eye with a tiny knowing brow", signatureProp: "transit tag", material: "oil-slick chrome with teal and violet signal bands", idlePose: "one foot forward, head tilted toward the street", supportedStates: PAL_ANIMATION_STATES },
+  badger: { species: "badger", format: "layered-svg", silhouette: "low, broad badger with strong mask stripes", face: "steady eyes and a reassuring blunt muzzle", signatureProp: "night-key lantern", material: "brushed graphite and frosted signal glass", idlePose: "planted firmly with the lantern held close", supportedStates: PAL_ANIMATION_STATES },
+  corgi: { species: "corgi", format: "layered-svg", silhouette: "short, bright corgi with oversized ears", face: "open grin and eager round eyes", signatureProp: "crew-band harness", material: "warm chrome with cream glass panels", idlePose: "front paws wide and ready to celebrate", supportedStates: PAL_ANIMATION_STATES },
 };
+
+export const PAL_SPECIES_COMPATIBILITY = {
+  hound: "greyhound",
+  raven: "raven",
+  rabbit: "rabbit",
+  turtle: "turtle",
+  squirrel: "squirrel",
+  bot: "bot",
+  "black-cat": "cat",
+  black_cat: "cat",
+  night_bot: "bot",
+  "night-bot": "bot",
+} as const satisfies Record<string, PubPalSpecies>;
+
+export function compatiblePalSpecies(value: unknown): PubPalSpecies | null {
+  if (typeof value !== "string") return null;
+  if (PAL_SPECIES.includes(value as PubPalSpecies)) return value as PubPalSpecies;
+  return PAL_SPECIES_COMPATIBILITY[value as keyof typeof PAL_SPECIES_COMPATIBILITY] ?? null;
+}
 
 export type PubPalPersonality = {
   playfulness: number;
@@ -68,6 +100,11 @@ export type PubPalVoice = {
   energy: number;
 };
 
+export type PalProposalPreferences = {
+  memories: boolean;
+  routes: boolean;
+};
+
 export type PubPal = {
   id: string;
   ownerId: string;
@@ -78,6 +115,7 @@ export type PubPal = {
   voice: PubPalVoice;
   muted: boolean;
   hidden: boolean;
+  proposalPreferences: PalProposalPreferences;
   masteryPoints: number;
   createdAt: string;
   updatedAt: string;
@@ -99,6 +137,7 @@ export type PubPalMemory = {
   value: string;
   provenance: "user_confirmed" | "completed_plan" | "user_correction";
   createdAt: string;
+  updatedAt: string;
 };
 
 export type MasteryEventKind =
@@ -148,6 +187,7 @@ export type PalOnboardingDraftV1 = {
 };
 
 export const PAL_ONBOARDING_DRAFT_KEY = "pubmaxx.pub-pal-onboarding.v1";
+export const PAL_ROUTE_ACTIVATION_KEY = "pubmaxx.pub-pal-route-activation.v1";
 const PAL_ANONYMOUS_OWNER_KEY = "pubmaxx.pub-pal-onboarding-owner.v1";
 let fallbackAnonymousOwner = "";
 
@@ -169,10 +209,30 @@ export function anonymousPalDraftOwner(): string {
   }
 }
 
+export function markPalRouteActivation(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PAL_ROUTE_ACTIVATION_KEY, JSON.stringify({ version: 1, activatedAt: new Date().toISOString() }));
+    window.dispatchEvent(new Event("pubmaxx:pal-route-activation"));
+  } catch {
+    // Planning remains usable when storage is unavailable.
+  }
+}
+
+export function hasPalRouteActivation(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(PAL_ROUTE_ACTIVATION_KEY) ?? "null") as { version?: unknown; activatedAt?: unknown } | null;
+    return raw?.version === 1 && typeof raw.activatedAt === "string" && Number.isFinite(Date.parse(raw.activatedAt));
+  } catch {
+    return false;
+  }
+}
+
 export const DEFAULT_PAL_DRAFT: PubPalDraft = {
   adultConfirmed: false,
   name: "",
-  appearance: { species: "hound", signalAffinity: "beer", material: "hologram", accessory: "none" },
+  appearance: { species: "greyhound", signalAffinity: "beer", material: "hologram", accessory: "none" },
   personality: { playfulness: 62, energy: 54, storytelling: 58, relationship: "sidekick" },
   voice: { id: "ember", pace: 50, warmth: 64, energy: 52 },
 };
@@ -185,7 +245,7 @@ function parsePalOnboardingDraft(serialized: string | null): PalOnboardingDraftV
     if (
       typeof draft.adultConfirmed !== "boolean" ||
       typeof draft.name !== "string" || draft.name.length > 32 ||
-      !PAL_SPECIES.includes(draft.appearance?.species) ||
+      !compatiblePalSpecies(draft.appearance?.species) ||
       !SIGNAL_FAMILIES.includes(draft.appearance?.signalAffinity) ||
       !["hologram", "chrome", "glass"].includes(draft.appearance?.material) ||
       !["none", "collar", "monocle", "signal-ring"].includes(draft.appearance?.accessory) ||
@@ -195,11 +255,13 @@ function parsePalOnboardingDraft(serialized: string | null): PalOnboardingDraftV
     const step = Number.isInteger(raw.step) && Number(raw.step) >= 0 && Number(raw.step) <= 4
       ? raw.step as PalOnboardingDraftV1["step"]
       : 0;
+    const species = compatiblePalSpecies(draft.appearance.species);
+    if (!species) return null;
     return {
       version: 1,
       savedAt: typeof raw.savedAt === "string" ? raw.savedAt : new Date(0).toISOString(),
       step,
-      draft,
+      draft: { ...draft, appearance: { ...draft.appearance, species } },
       privacy: {
         proposeMemories: raw.privacy.proposeMemories === true,
         visible: raw.privacy.visible !== false,
@@ -265,7 +327,8 @@ export function cleanPalDraft(value: unknown): PubPalDraft | null {
   const voice = raw.voice as Record<string, unknown> | undefined;
   const name = cleanText(raw.name, 32);
   if (!name || raw.adultConfirmed !== true || !appearance || !personality || !voice) return null;
-  if (!PAL_SPECIES.includes(appearance.species as PubPalSpecies)) return null;
+  const species = compatiblePalSpecies(appearance.species);
+  if (!species) return null;
   if (!SIGNAL_FAMILIES.includes(appearance.signalAffinity as SignalFamily)) return null;
   if (!PAL_VOICES.includes(voice.id as PubPalVoiceId)) return null;
   const clamp = (input: unknown) => Math.max(0, Math.min(100, Number(input) || 0));
@@ -275,7 +338,7 @@ export function cleanPalDraft(value: unknown): PubPalDraft | null {
     adultConfirmed: true,
     name,
     appearance: {
-      species: appearance.species as PubPalSpecies,
+      species,
       signalAffinity: appearance.signalAffinity as SignalFamily,
       material: ["hologram", "chrome", "glass"].includes(String(appearance.material)) ? appearance.material as PubPalAppearance["material"] : "hologram",
       accessory: ["none", "collar", "monocle", "signal-ring"].includes(String(appearance.accessory)) ? appearance.accessory as PubPalAppearance["accessory"] : "none",

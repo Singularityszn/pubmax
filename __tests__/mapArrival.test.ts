@@ -57,6 +57,11 @@ describe("shouldFitQueryVenuesOnArrival", () => {
 });
 
 describe("shouldOpenPlanningInitially", () => {
+  it("opens for the explicit primary planning intent", () => {
+    expect(shouldOpenPlanningInitially([], "suggest", "?plan=1")).toBe(true);
+    expect(shouldOpenPlanningInitially([], "suggest", "?drink=beer&plan=1")).toBe(true);
+  });
+
   it("keeps borough browse (?q=) on the clean map without opening the planner", () => {
     expect(shouldOpenPlanningInitially([], "suggest", "?q=Barnet")).toBe(false);
     expect(shouldOpenPlanningInitially([], "suggest", "?q=Croydon")).toBe(false);

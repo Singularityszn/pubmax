@@ -11,6 +11,7 @@ import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
 import { writePlanCapability } from "@/lib/planSessionCapability";
+import { markPalRouteActivation } from "@/lib/pubPal";
 
 export type RouteRevision = string | number;
 export type RouteAlternative = { venueId: string; venueName: string };
@@ -448,6 +449,7 @@ function PlanComposerForm({
       if (body.inferredContext) setNightContext(body.inferredContext as NightContext);
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
+      markPalRouteActivation();
       setConciergeNote("Three grounded stops, shaped by the editable context below.");
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       if (body.inferredContext) {

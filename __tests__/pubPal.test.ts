@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanPalDraft, DEFAULT_PAL_DRAFT, migrateLegacyPalOnboardingDraft, PAL_ANIMATION_STATES, PAL_ONBOARDING_DRAFT_KEY, PAL_SPECIES, PAL_UNLOCKS, PAL_VISUAL_MANIFEST, SIGNAL_FAMILIES, palOnboardingDraftKey, readPalOnboardingDraft, writePalOnboardingDraft } from "@/lib/pubPal";
+import { cleanPalDraft, compatiblePalSpecies, DEFAULT_PAL_DRAFT, hasPalRouteActivation, markPalRouteActivation, migrateLegacyPalOnboardingDraft, PAL_ANIMATION_STATES, PAL_ONBOARDING_DRAFT_KEY, PAL_ONBOARDING_SPECIES, PAL_ROUTE_ACTIVATION_KEY, PAL_SPECIES, PAL_UNLOCKS, PAL_VISUAL_MANIFEST, SIGNAL_FAMILIES, palOnboardingDraftKey, readPalOnboardingDraft, writePalOnboardingDraft } from "@/lib/pubPal";
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -24,15 +24,18 @@ describe("Pub Pal domain", () => {
     expect(PAL_UNLOCKS.every(unlock => !["ranking", "alcohol", "drink_count"].includes(unlock.category))).toBe(true);
   });
 
-  it("offers a compact eight-form companion collection", () => {
-    expect(PAL_SPECIES).toHaveLength(8);
-    expect(new Set(PAL_SPECIES).size).toBe(8);
+  it("offers six launch companions while retaining every legacy species", () => {
+    expect(PAL_ONBOARDING_SPECIES).toEqual(["greyhound", "cat", "fox", "pigeon", "badger", "corgi"]);
+    expect(PAL_SPECIES).toHaveLength(12);
+    expect(new Set(PAL_SPECIES).size).toBe(12);
+    expect(compatiblePalSpecies("black-cat")).toBe("cat");
+    expect(compatiblePalSpecies("night_bot")).toBe("bot");
   });
 
-  it("ships three original layered launch rigs with every emotional state", () => {
-    expect(Object.keys(PAL_VISUAL_MANIFEST)).toEqual(["hound", "raven", "fox"]);
+  it("ships six reviewed layered launch rigs with every emotional state", () => {
+    expect(Object.keys(PAL_VISUAL_MANIFEST)).toEqual(["greyhound", "cat", "fox", "pigeon", "badger", "corgi"]);
     expect(PAL_ANIMATION_STATES).toEqual(["idle", "noticing", "listening", "thinking", "speaking", "celebrating", "sleeping", "error"]);
-    expect(Object.values(PAL_VISUAL_MANIFEST).every((visual) => visual.format === "layered-svg" && visual.supportedStates.length === 8)).toBe(true);
+    expect(Object.values(PAL_VISUAL_MANIFEST).every((visual) => visual.format === "layered-svg" && visual.face && visual.signatureProp && visual.material && visual.idlePose && visual.supportedStates.length === 8)).toBe(true);
   });
 
   it("round-trips an incomplete five-step onboarding draft safely", () => {
@@ -45,6 +48,16 @@ describe("Pub Pal domain", () => {
     expect(window.localStorage.getItem(palOnboardingDraftKey("user-1"))).toContain('"version":1');
     expect(readPalOnboardingDraft("user-1")).toMatchObject({ step: 2, draft: { name: "Nova" } });
     expect(readPalOnboardingDraft("user-2")).toBeNull();
+  });
+
+  it("records route-first Pal eligibility without route or location context", () => {
+    (globalThis as { window?: { localStorage: Storage; dispatchEvent: (event: Event) => boolean } }).window = { localStorage: memoryStorage(), dispatchEvent: () => true };
+    expect(hasPalRouteActivation()).toBe(false);
+    markPalRouteActivation();
+    expect(hasPalRouteActivation()).toBe(true);
+    const stored = window.localStorage.getItem(PAL_ROUTE_ACTIVATION_KEY) ?? "";
+    expect(stored).toContain('"version":1');
+    expect(stored).not.toMatch(/lat|lng|venue|planId|route/i);
   });
 
   it("migrates the old shared draft but requires a fresh adult attestation", () => {

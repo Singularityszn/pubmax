@@ -49,6 +49,7 @@ export function shouldOpenPlanningInitially(
 ): boolean {
   // Keep this in the initializer — do not force-close via useEffect
   // (react-hooks/set-state-in-effect).
+  if (/[?&]plan=1(?:&|$)/.test(search)) return true;
   if (isDrinkShapeArrival(search)) return false;
   // Curated check before mode=build — curated URLs always carry mode=build.
   if (isCuratedCrawlArrival(search)) return false;

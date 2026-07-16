@@ -95,6 +95,7 @@ import {
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
@@ -1147,6 +1148,7 @@ export default function PubMap({
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
     activateGeneratedPlan(generated.context.nightArea, ids);
+    markPalRouteActivation();
     setActiveCrawl(null);
     if (generated.context.nightArea) {
       trackEvent("night_description_submitted", {

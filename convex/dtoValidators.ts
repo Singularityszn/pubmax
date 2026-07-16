@@ -6,6 +6,7 @@ import {
   memoryProvenance,
   memoryStatus,
   pubPalAppearance,
+  palProposalPreferences,
   pubPalPersonality,
   pubPalVoice,
   unlockCategory,
@@ -20,6 +21,7 @@ export const pubPalDto = v.object({
   voice: pubPalVoice,
   muted: v.boolean(),
   hidden: v.boolean(),
+  proposalPreferences: palProposalPreferences,
   masteryPoints: v.number(),
   createdAt: v.string(),
   updatedAt: v.string(),
@@ -33,6 +35,7 @@ export const memoryDto = v.object({
   provenance: memoryProvenance,
   proposedAt: v.string(),
   resolvedAt: v.union(v.string(), v.null()),
+  updatedAt: v.string(),
 });
 
 export const masteryEventDto = v.object({

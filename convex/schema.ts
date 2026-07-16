@@ -9,6 +9,7 @@ import {
   migrationEntity,
   migrationStatus,
   pubPalAppearance,
+  palProposalPreferences,
   pubPalPersonality,
   pubPalVoice,
   shadowResult,
@@ -31,6 +32,7 @@ export default defineSchema({
     voice: pubPalVoice,
     muted: v.boolean(),
     hidden: v.boolean(),
+    proposalPreferences: v.optional(palProposalPreferences),
     masteryPoints: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -48,6 +50,7 @@ export default defineSchema({
     provenance: memoryProvenance,
     proposedAt: v.number(),
     resolvedAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
     ...migratedRecord,
   })
     .index("by_pal_status", ["palId", "status"])

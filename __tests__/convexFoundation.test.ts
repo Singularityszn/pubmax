@@ -5,6 +5,8 @@ import {
   shadowRecordHash,
 } from "@/lib/convex/migration";
 import { KEYLESS_CONVEX_FLAGS } from "@/lib/convex/contracts";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("Convex hybrid foundation", () => {
   it("keeps every capability on Supabase in keyless mode", () => {
@@ -40,5 +42,16 @@ describe("Convex hybrid foundation", () => {
     const right = shadowRecordHash({ nested: { a: 1, b: 2 }, name: "Rook", updated_at: "new" });
     expect(left).toBe(right);
     expect(left).toHaveLength(64);
+  });
+
+  it("keeps correction, deletion, export, and Pal cleanup available at the Convex seam", () => {
+    const commands = readFileSync(join(process.cwd(), "convex/commands.ts"), "utf8");
+    const memories = readFileSync(join(process.cwd(), "convex/memories.ts"), "utf8");
+    for (const contract of ["correctMemoryFromServer", "deleteMemoryFromServer", "deletePalFromServer"]) {
+      expect(commands).toContain(contract);
+    }
+    expect(commands).toContain('ctx.db.query("palMemories")');
+    expect(memories).toContain("exportMine");
+    expect(memories).toContain("proposalPreferences");
   });
 });

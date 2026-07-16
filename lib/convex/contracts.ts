@@ -17,6 +17,7 @@ export type PubPalDto = Readonly<{
   voice: PubPalVoice;
   muted: boolean;
   hidden: boolean;
+  proposalPreferences: Readonly<{ memories: boolean; routes: boolean }>;
   masteryPoints: number;
   createdAt: string;
   updatedAt: string;
@@ -41,6 +42,7 @@ export type PubPalMemoryDto = Readonly<{
   provenance: PubPalMemoryProvenance;
   proposedAt: string;
   resolvedAt: string | null;
+  updatedAt: string;
 }>;
 
 export type MasteryEventDto = Readonly<{
