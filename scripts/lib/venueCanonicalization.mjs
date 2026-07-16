@@ -157,19 +157,34 @@ export function clusterHasPostcodeConflict(cluster) {
 // drop any mapping that rebases to a self-map (a cycle already recorded
 // historically, or one this run just introduced) rather than persist it.
 export function mergeAliasMaps(prevAliases, currentAliases) {
+  const previous = prevAliases ?? {};
   const merged = { ...currentAliases };
-  for (const [from, to] of Object.entries(prevAliases ?? {})) {
+  for (const [from, to] of Object.entries(previous)) {
     if (Object.prototype.hasOwnProperty.call(merged, from)) continue; // this run wins
+    // Follow the chain to its terminal id through BOTH this run's aliases and
+    // the prior map — a cycle can live entirely in the prior map (e.g. a
+    // historical `{ a: b, b: a }` this run doesn't touch), so traversing only
+    // currentAliases would silently persist it. Resolving to a terminal also
+    // flattens prior-only chains, matching lib/venueAliases.ts's single-hop
+    // lookup (every alias must point straight at a live canonical id).
     let target = to;
     const seen = new Set([from]);
-    while (
-      Object.prototype.hasOwnProperty.call(currentAliases, target) &&
-      !seen.has(target)
-    ) {
+    let cyclic = false;
+    while (true) {
+      if (seen.has(target)) {
+        cyclic = true;
+        break;
+      }
       seen.add(target);
-      target = currentAliases[target];
+      if (Object.prototype.hasOwnProperty.call(currentAliases, target)) {
+        target = currentAliases[target];
+      } else if (Object.prototype.hasOwnProperty.call(previous, target)) {
+        target = previous[target];
+      } else {
+        break;
+      }
     }
-    if (target === from) continue; // rebases to a cycle/self-map — drop, never persist
+    if (cyclic) continue; // rebases to a cycle/self-map — drop, never persist
     merged[from] = target;
   }
   return merged;

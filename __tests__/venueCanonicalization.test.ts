@@ -341,6 +341,22 @@ describe("mergeAliasMaps — alias-prune with cycle detection", () => {
     const merged = mergeAliasMaps({ x: "stale" }, { x: "fresh" });
     expect(merged).toEqual({ x: "fresh" });
   });
+
+  it("drops a pre-existing historical cycle carried in the prior map alone", () => {
+    // A 2-cycle living entirely in the prior map, untouched by this run. The
+    // traversal must follow the prior map too, or the cycle survives unnoticed.
+    expect(mergeAliasMaps({ a: "b", b: "a" }, {})).toEqual({});
+  });
+
+  it("drops a longer historical cycle carried in the prior map alone", () => {
+    expect(mergeAliasMaps({ a: "b", b: "c", c: "a" }, {})).toEqual({});
+  });
+
+  it("flattens a prior-only chain to its terminal id (single-hop resolve)", () => {
+    // b -> a -> c in history; both must resolve straight to terminal c so a
+    // single-hop lookup (lib/venueAliases.ts) never lands on a non-terminal id.
+    expect(mergeAliasMaps({ b: "a", a: "c" }, {})).toEqual({ b: "c", a: "c" });
+  });
 });
 
 // scripts/lib/venueCanonicalization.mjs's venueGroupingKey/stableVenueIdFromKey
