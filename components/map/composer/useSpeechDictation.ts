@@ -9,6 +9,7 @@ import type { PintDropsState } from "@/components/map/usePintDrops";
 type UseSpeechDictationArgs = {
   note: string;
   setDropForm: PintDropsState["setDropForm"];
+  onTranscript: (typedBaseline: string) => void;
 };
 
 type UseSpeechDictationResult = {
@@ -24,6 +25,7 @@ type UseSpeechDictationResult = {
 export function useSpeechDictation({
   note,
   setDropForm,
+  onTranscript,
 }: UseSpeechDictationArgs): UseSpeechDictationResult {
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
@@ -68,6 +70,7 @@ export function useSpeechDictation({
         }
         const base = noteBeforeListeningRef.current;
         const joined = base.trim() ? `${base.trim()} ${transcript}` : transcript;
+        onTranscript(base);
         setDropForm((current) => ({ ...current, note: joined }));
       };
       recognition.onerror = () => {

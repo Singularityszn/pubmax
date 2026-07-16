@@ -8,6 +8,13 @@ import { buildPlanEndingRecommendations } from "@/lib/planEndings";
 import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
 import { filterTonight, type WhatsOnRow } from "@/lib/whatsOn";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
+import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
+import {
+	activeNightSignalClaims,
+	canAffectRoute,
+	claimsForEntity,
+	type NightSignalClaim,
+} from "@/lib/nightSignalClaims";
 import type { PublicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -44,6 +51,7 @@ function scoreVenueForContext(
 	context: NightContext,
 	distance: number,
 	tonightEvents: readonly WhatsOnRow[],
+	signalClaims: readonly NightSignalClaim[],
 ): { score: number; reasons: string[] } {
 	const reasons: string[] = [];
 	const price = venue.cheapestPrice;
@@ -121,6 +129,10 @@ function scoreVenueForContext(
 		score += matchesBrief ? 2 : 0.5;
 		reasons.push(`Tonight: ${event.title} (${event.confidence})`);
 	}
+	for (const signal of signalClaims) {
+		if (canAffectRoute(signal)) score += signal.routeEffect === "boost" ? 2 : -3;
+		reasons.push(`Reviewed signal: ${signal.claim}`);
+	}
 
 	return { score, reasons };
 }
@@ -155,7 +167,9 @@ export async function POST(request: Request): Promise<Response> {
   if (area.cityId !== cityId) return jsonNoStore(publicError("The selected Night Area is not available in this city.", "NIGHT_AREA_CITY_MISMATCH"), { status: 422 });
 	const routeReady = isNightAreaRouteReady(area);
 	const coverage = publicNightAreaCoverage(area);
-	const tonightRows = baselineTonight(Date.now());
+	const requestNow = Date.now();
+	const tonightRows = baselineTonight(requestNow);
+	const reviewedSignalClaims = activeNightSignalClaims(nightSignalSnapshot, requestNow);
 	const tonightByVenue = new Map<string, WhatsOnRow[]>();
 	for (const row of tonightRows) {
 		if (!row.venueId) continue;
@@ -167,8 +181,9 @@ export async function POST(request: Request): Promise<Response> {
 	    .map((venue) => {
 	      const distance = distanceKm(area.centre, venue);
 	      const tonightEvents = tonightByVenue.get(venue.id) ?? [];
-	      const scored = scoreVenueForContext(venue, context, distance, tonightEvents);
-	      return { venue, distance, tonightEvents, ...scored };
+	      const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
+	      const scored = scoreVenueForContext(venue, context, distance, tonightEvents, signalClaims);
+	      return { venue, distance, tonightEvents, signalClaims, ...scored };
 	    })
     .filter(({ distance }) => distance <= area.radiusKm)
     .sort((a, b) => b.score - a.score);
@@ -258,7 +273,7 @@ export async function POST(request: Request): Promise<Response> {
 		// Back-compatible alias until every client has moved to Night Area.
 		district: nightArea,
     explanations: inferred.reasons,
-	    stops: chosen.map(({ venue, distance, reasons, tonightEvents }, index) => ({
+	    stops: chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => ({
 	      venueId: venue.id,
 	      venueName: venue.name,
 	      position: index,
@@ -269,6 +284,7 @@ export async function POST(request: Request): Promise<Response> {
 				{ kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
 				{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
 				...tonightEvents.map((event) => ({ kind: "night_signal" as const, label: `${event.source.label}: ${event.title}`, asOf: event.observedAt })),
+				...signalClaims.map((signal) => ({ kind: "night_signal" as const, label: `${signal.publisher}: ${signal.claim}`, asOf: signal.observedAt })),
 			],
 	      reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
 	      alternatives: candidates
@@ -295,5 +311,9 @@ export async function POST(request: Request): Promise<Response> {
 	    ],
 	    missingContextEvidence: contextEvidenceGaps,
 	    relevantSignals: area.recentSignals,
+		nightSignalClaims: reviewedSignalClaims.filter((claim) =>
+			(claim.entity.type === "night_area" && claim.entity.id === area.slug) ||
+			chosen.some(({ venue }) => claim.entity.type === "venue" && claim.entity.id === venue.id),
+		),
 	  });
 }

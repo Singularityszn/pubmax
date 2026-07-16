@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
-import { grantMemoryPlanCollaboration, hashPlanMemberToken, mintPlanMemberToken, planMemberIdentity, planMemberIdentityResult, planStore } from "@/lib/planStore";
+import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStore } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -188,7 +188,7 @@ export type PlanCollaborationStore = {
   createInvite(planId: string, token: unknown, input: { expiresInMinutes: number; idempotencyKey: string; now?: Date }): Promise<{ ok: true; invite: PlanInvite; token: string } | Failure>;
   revokeInvite(planId: string, token: unknown, inviteId: string, key: string, now?: Date): Promise<{ ok: true; invite: PlanInvite } | Failure>;
   consumeInvite(planId: string, token: unknown, now?: Date): Promise<{ ok: true; inviteId: string; role: "guest" } | Failure>;
-  redeemInviteAndJoin(planId: string, token: unknown, name: string, now?: Date): Promise<{ ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } | Failure | { ok: false; error: "full" }>;
+  redeemInviteAndJoin(planId: string, token: unknown, name: string, now?: Date, options?: { idempotencyKey?: string }): Promise<{ ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } | Failure | { ok: false; error: "full" }>;
   upgradeMemberInvite(planId: string, memberToken: unknown, inviteToken: unknown, now?: Date): Promise<{ ok: true; collaborationAuthorized: true } | Failure>;
   addConstraint(planId: string, token: unknown, input: { kind: PlanConstraintKind; value: string; priority: PlanConstraint["priority"]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
   resolveConstraint(planId: string, token: unknown, constraintId: string, input: { evidence: PlanConstraintEvidence; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
@@ -251,21 +251,28 @@ const memoryStore: PlanCollaborationStore = {
     return { ok: true, inviteId: invite.id, role: "guest" };
   },
 
-  async redeemInviteAndJoin(planId, rawToken, name, now = new Date()) {
+  async redeemInviteAndJoin(planId, rawToken, name, now = new Date(), options = {}) {
     if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim()) return { ok: false, error: "invalid" };
     const hash = inviteHash(rawToken.trim());
+    const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
+    const requestHash = planRequestDigest({ name, inviteHash: hash });
+    const requestKey = `${planId}:invite:join:${key}`;
+    const replay = memory.idempotency.get(requestKey) as { requestHash: string; result: { ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } } | undefined;
+    if (replay) return replay.requestHash === requestHash ? structuredClone(replay.result) : { ok: false, error: "conflict" };
     const invite = [...memory.invites.values()].find((candidate) => candidate.planId === planId && candidate.tokenHash === hash);
     if (!invite) return { ok: false, error: "not_found" };
     if (invite.revokedAt) return { ok: false, error: "revoked" };
     if (Date.parse(invite.expiresAt) <= now.getTime()) return { ok: false, error: "expired" };
     if (invite.redeemedAt) return { ok: false, error: "replayed" };
     invite.redeemedAt = now.toISOString();
-    const joined = await planStore().join(planId, name, { collaborationAuthorized: true });
+    const joined = await planStore().join(planId, name, { collaborationAuthorized: true, idempotencyKey: key });
     if (!joined.ok) {
       invite.redeemedAt = null;
       return joined.error === "full" ? { ok: false, error: "full" } : { ok: false, error: joined.error === "not_found" ? "not_found" : "error" };
     }
-    return { ...joined, collaborationAuthorized: true };
+    const result = { ...joined, collaborationAuthorized: true as const };
+    memory.idempotency.set(requestKey, { requestHash, result });
+    return result;
   },
 
   async upgradeMemberInvite(planId, rawMemberToken, rawInviteToken, now = new Date()) {
@@ -453,20 +460,24 @@ const supabaseStore: PlanCollaborationStore = {
     return updated.data ? { ok: true, inviteId: String(row.id), role: "guest" } : { ok: false, error: "replayed" };
   },
 
-  async redeemInviteAndJoin(planId, rawToken, name, now = new Date()) {
+  async redeemInviteAndJoin(planId, rawToken, name, now = new Date(), options = {}) {
     if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim() || !name) return { ok: false, error: "invalid" };
-    const memberToken = mintPlanMemberToken();
+    const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
+    const inviteTokenHash = inviteHash(rawToken.trim());
+    const memberToken = planIdempotencyDigest(`plan-invite-join-token:${planId}`, key);
     const admin = requireSupabaseAdmin();
-    const { data, error } = await admin.rpc("redeem_plan_invite_atomic", {
+    const { data, error } = await admin.rpc("redeem_plan_invite_idempotent_atomic", {
       p_plan_id: planId,
-      p_invite_token_hash: inviteHash(rawToken.trim()),
-      p_member_id: randomUUID(),
+      p_invite_token_hash: inviteTokenHash,
+      p_member_id: planIdempotentUuid(`plan-invite-join-member:${planId}`, key),
       p_member_name: name,
       p_member_token_hash: hashPlanMemberToken(memberToken),
       p_joined_at: now.toISOString(),
+      p_idempotency_key_hash: planIdempotencyDigest(`plan-invite-join-key:${planId}`, key),
+      p_request_hash: planRequestDigest({ name, inviteHash: inviteTokenHash }),
     });
     if (error) return { ok: false, error: "error" };
-    if (data !== "joined") return { ok: false, error: data === "full" ? "full" : data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "replayed" ? "replayed" : data === "not_found" ? "not_found" : "error" };
+    if (data !== "joined" && data !== "replayed") return { ok: false, error: data === "full" ? "full" : data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "capability_replayed" ? "replayed" : data === "conflict" ? "conflict" : data === "not_found" ? "not_found" : "error" };
     const plan = await planStore().get(planId);
     return { ok: true, plan, memberToken, role: "guest", collaborationAuthorized: true };
   },

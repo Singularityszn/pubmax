@@ -3,7 +3,8 @@ import {
   type SocialProvider,
   type StoredSocialConnection,
 } from "@/lib/socialConnections";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { requireSupabaseAdmin } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
 
 export type OAuthConnectionInput = {
   provider: SocialProvider;
@@ -160,7 +161,7 @@ export const supabaseSocialConnectionStore: SocialConnectionStore = {
 };
 
 export function socialConnectionStore(): SocialConnectionStore {
-  return isSupabaseConfigured() ? supabaseSocialConnectionStore : memorySocialConnectionStore;
+  return selectStore(memorySocialConnectionStore, supabaseSocialConnectionStore);
 }
 
 export function __resetMemorySocialConnections(): void {

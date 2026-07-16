@@ -1,6 +1,8 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isPlanId, type PlanActionDTO } from "@/lib/plan";
 import { planStore } from "@/lib/planStore";
+import { planMemberCapability } from "@/lib/planMemberCapability";
+import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
@@ -15,11 +17,13 @@ export async function POST(request: Request, context: Context): Promise<Response
   const type = typeof body.type === "string" && ACTIONS.includes(body.type as PlanActionDTO["type"]) ? body.type as PlanActionDTO["type"] : null;
   const stopPosition = typeof body.stopPosition === "number" && Number.isInteger(body.stopPosition) && body.stopPosition >= 0 && body.stopPosition < 8 ? body.stopPosition : undefined;
   if (!type || stopPosition === undefined) return jsonNoStore({ error: "Add a valid stop action.", code: "PLAN_ACTION_INVALID", retryable: false }, { status: 400 });
-  const result = await planStore().addAction(id, body.memberToken, { type, stopPosition });
+  const idempotencyKey = planMutationIdempotencyKey(request, body);
+  if (!idempotencyKey) return jsonNoStore(PLAN_IDEMPOTENCY_ERROR, { status: 400 });
+  const result = await planStore().addAction(id, planMemberCapability(request, body.memberToken), { type, stopPosition, idempotencyKey });
   if (!result.ok) {
-    const status = result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "error" ? 503 : 400;
+    const status = result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "error" ? 503 : result.error === "conflict" ? 409 : 400;
     const error = result.error === "forbidden" ? "That member token cannot update this Plan." : result.error === "not_found" ? "That Plan doesn't exist." : result.error === "error" ? "The Plan update is temporarily unavailable." : "Could not record the action.";
-    const code = result.error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "error" ? "PLAN_ACTION_UNAVAILABLE" : "PLAN_ACTION_INVALID";
+    const code = result.error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "error" ? "PLAN_ACTION_UNAVAILABLE" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_ACTION_INVALID";
     return jsonNoStore({ error, code, retryable: result.error === "error" }, { status });
   }
   return jsonNoStore(result.plan, { status: 201 });

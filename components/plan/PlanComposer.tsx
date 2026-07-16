@@ -12,6 +12,7 @@ import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
+import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 
 export type RouteRevision = string | number;
 export type RouteAlternative = { venueId: string; venueName: string };
@@ -487,15 +488,17 @@ function PlanComposerForm({
     setSubmitting(true);
     setError("");
     try {
+      const createPayload = {
+        title,
+        creatorName,
+        startTime: new Date(startTime).toISOString(),
+        stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+      };
+      const operationKey = await persistentPlanMutationKey("create", createPayload);
       const response = await fetch("/api/plans", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          title,
-          creatorName,
-          startTime: new Date(startTime).toISOString(),
-          stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
-        }),
+        headers: { "content-type": "application/json", "idempotency-key": operationKey },
+        body: JSON.stringify(createPayload),
       });
       const body = await response.json();
       if (!response.ok || !body?.plan?.plan?.id) {
@@ -513,8 +516,7 @@ function PlanComposerForm({
       trackEvent("plan_created", { count: completeStops.length });
       if (body.memberToken) {
         const planId = body.plan.plan.id as string;
-        writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true });
-        sessionStorage.setItem(`pubmaxx:plan-creator-token:v1:${planId}`, body.memberToken);
+        writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });
         const metadataResponse = await fetch(`/api/plans/${planId}`, {
           method: "PATCH",
           headers: {
@@ -529,6 +531,7 @@ function PlanComposerForm({
         sessionStorage.removeItem(PLAN_DRAFT_KEY);
         localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY);
       } catch { /* best effort */ }
+      clearPersistentPlanMutationKey("create", operationKey);
       router.push(`/plan/${body.plan.plan.id}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");

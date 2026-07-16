@@ -45,6 +45,11 @@ function setupScratch(files: Record<string, unknown>): string {
   ]) {
     cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
   }
+  mkdirSync(join(scratchData, "night_signals"), { recursive: true });
+  cpSync(
+    join(ROOT, "public", "data", "night_signals", "latest.json"),
+    join(scratchData, "night_signals", "latest.json"),
+  );
   for (const f of ["venue_detail_index.json", "venue_details.jsonl"]) {
     cpSync(join(ROOT, "data", "generated", f), join(scratchGeneratedData, f));
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
@@ -8,6 +8,7 @@ import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
+import { setActivePlanRole } from "@/lib/activePlan";
 
 type RouteRevision = string | number;
 type RouteAlternative = { venueId: string; venueName: string };
@@ -21,16 +22,12 @@ type PendingRoute = {
   stops: EditableStop[];
   expectedRouteRevision: RouteRevision | null;
 };
+type PendingRouteV1 = PendingRoute & { version: 1; savedAt: string };
 
 export const PLAN_PENDING_ROUTE_PREFIX = "pubmaxx:plan-pending-route:v1:";
-export const PLAN_CREATOR_TOKEN_PREFIX = "pubmaxx:plan-creator-token:v1:";
 
 function pendingRouteKey(planId: string): string {
   return `${PLAN_PENDING_ROUTE_PREFIX}${planId}`;
-}
-
-function creatorTokenKey(planId: string): string {
-  return `${PLAN_CREATOR_TOKEN_PREFIX}${planId}`;
 }
 
 function cleanRevision(value: unknown): RouteRevision | null {
@@ -89,10 +86,11 @@ function cleanStops(value: unknown): EditableStop[] {
   });
 }
 
-function parsePendingRoute(raw: string | null): PendingRoute | null {
+export function parsePendingRoute(raw: string | null): PendingRoute | null {
   if (!raw || raw.length > 20_000) return null;
   try {
-    const value = JSON.parse(raw) as Partial<PendingRoute>;
+    const value = JSON.parse(raw) as Partial<PendingRouteV1>;
+    if (value.version !== undefined && value.version !== 1) return null;
     const stops = cleanStops(value.stops);
     if (!stops.length) return null;
     return { stops, expectedRouteRevision: cleanRevision(value.expectedRouteRevision) };
@@ -117,7 +115,7 @@ function announcePendingRouteChange(planId: string): void {
 
 function writePendingRoute(planId: string, pending: PendingRoute): void {
   try {
-    localStorage.setItem(pendingRouteKey(planId), JSON.stringify(pending));
+    localStorage.setItem(pendingRouteKey(planId), JSON.stringify({ ...pending, version: 1, savedAt: new Date().toISOString() } satisfies PendingRouteV1));
     announcePendingRouteChange(planId);
   } catch {
     // The editor remains usable in a storage-restricted browser.
@@ -182,31 +180,15 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
   const pendingEvent = `pubmax:pending-route:${planId}`;
   const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
-      window.addEventListener("storage", onChange);
       window.addEventListener(tokenEvent, onChange);
       return () => {
-        window.removeEventListener("storage", onChange);
         window.removeEventListener(tokenEvent, onChange);
       };
     },
     () => readPlanCapabilitySnapshot(planId),
-    () => "|0",
+    () => "|0|",
   );
-  const { token: memberToken, collaborationAuthorized } = parsePlanCapabilitySnapshot(capabilitySnapshot);
-  const creatorToken = useSyncExternalStore(
-    (onChange) => {
-      window.addEventListener("storage", onChange);
-      window.addEventListener(tokenEvent, onChange);
-      return () => {
-        window.removeEventListener("storage", onChange);
-        window.removeEventListener(tokenEvent, onChange);
-      };
-    },
-    () => {
-      try { return sessionStorage.getItem(creatorTokenKey(planId)) ?? ""; } catch { return ""; }
-    },
-    () => "",
-  );
+  const { token: memberToken, collaborationAuthorized, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
   const pendingRaw = useSyncExternalStore(
     (onChange) => {
       window.addEventListener("storage", onChange);
@@ -228,8 +210,11 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const draftStops = pending?.stops ?? localStops;
-  const creatorCanEdit = Boolean(memberToken && creatorToken && memberToken === creatorToken);
-  const canCollaborate = creatorCanEdit || collaborationAuthorized;
+  const isHost = Boolean(memberToken && role === "host");
+  const canCollaborate = Boolean(memberToken && collaborationAuthorized);
+  useEffect(() => {
+    if (memberToken && role) setActivePlanRole(planId, role);
+  }, [memberToken, planId, role]);
   const [savedRevision, setSavedRevision] = useState<RouteRevision | null>(routeRevisionFromPlanState(state));
   const routeRevision = pending?.expectedRouteRevision ?? savedRevision;
   const canonicalStops = view.stops.map((stop) => ({ venueId: stop.venueId }));
@@ -249,7 +234,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
     setEditing(true);
     setError("");
     if (pending) {
-      setStatus(`Recovered unsaved route changes. Nothing changes until ${creatorCanEdit ? "you save" : "the host accepts a proposal"}.`);
+      setStatus(`Recovered unsaved route changes. Nothing changes until ${isHost ? "you save" : "the host accepts a proposal"}.`);
       return;
     }
     if (!state.context) {
@@ -276,7 +261,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
       if (!validRouteDraft(generated)) throw new Error("The planner did not return three distinct grounded stops.");
       setLocalStops(generated);
       writePendingRoute(planId, { stops: generated, expectedRouteRevision: routeRevisionFromPlanState(state) });
-      setStatus(`Fresh route preview ready. Swap a stop, then ${creatorCanEdit ? "save it" : "send it to the host"}.`);
+      setStatus(`Fresh route preview ready. Swap a stop, then ${isHost ? "save it" : "send it to the host"}.`);
     } catch (caught) {
       setEditing(false);
       setError(caught instanceof Error ? caught.message : "Could not find a replacement route.");
@@ -300,7 +285,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
     setLocalStops(nextStops);
     writePendingRoute(planId, { stops: nextStops, expectedRouteRevision: routeRevision });
     setEditing(true);
-    setStatus(`Stop ${index + 1} swapped to ${nextStops[index]?.venueName}. ${creatorCanEdit ? "Save the route" : "Explain the proposal below"} when it looks right.`);
+    setStatus(`Stop ${index + 1} swapped to ${nextStops[index]?.venueName}. ${isHost ? "Save the route" : "Explain the proposal below"} when it looks right.`);
     setError("");
   }
 
@@ -309,7 +294,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
       setError("Only the plan creator can save route changes.");
       return;
     }
-    if (!creatorToken || memberToken !== creatorToken) {
+    if (!isHost) {
       setError("Only the plan creator can save route changes.");
       return;
     }
@@ -367,7 +352,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
           <h2 id="plan-stops-title">The route</h2>
           {memberToken && canCollaborate ? (
             <button type="button" className="planSummary__edit" onClick={() => void beginEditing()} aria-expanded={editing} disabled={loadingPreview}>
-              {loadingPreview ? "Finding alternatives…" : editing ? "Editing" : creatorCanEdit ? "Edit route" : "Propose swap"}
+              {loadingPreview ? "Finding alternatives…" : editing ? "Editing" : isHost ? "Edit route" : "Propose swap"}
             </button>
           ) : null}
         </div>
@@ -375,7 +360,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
       {memberToken && canCollaborate && (editing || pending) ? (
         <div className="planSummary__editor" aria-labelledby="plan-route-editor-title">
           <h3 id="plan-route-editor-title">Route preview</h3>
-          <p>Swap a stop to make a private draft. {creatorCanEdit ? "Save only when it differs and still has exactly three distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>
+          <p>Swap a stop to make a private draft. {isHost ? "Save only when it differs and still has exactly three distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>
           <ol className="planSummary__editStops">
             {draftStops.map((stop, index) => (
               <li key={`${stop.position}-${stop.venueId}`}>
@@ -396,7 +381,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
               </li>
             ))}
           </ol>
-          {creatorCanEdit ? (
+          {isHost ? (
             <div className="planSummary__editorActions">
               <button type="button" className="planSummary__save" onClick={saveRoute} disabled={saving || !canSaveDraft}>
                 {saving ? "Saving…" : canSaveDraft ? "Save route changes" : "Choose a route change"}
@@ -421,10 +406,10 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
         <PlanCollaborationPanel
           planId={planId}
           memberToken={memberToken}
-          isHost={creatorCanEdit}
+          isHost={isHost}
           draftStops={draftStops.map((stop, index) => ({ venueId: stop.venueId, venueName: stop.venueName, position: index }))}
           routeRevision={routeRevision}
-          canPropose={!creatorCanEdit && canSaveDraft}
+          canPropose={!isHost && canSaveDraft}
           onProposalCreated={() => {
             clearPendingRoute(planId);
             setEditing(false);

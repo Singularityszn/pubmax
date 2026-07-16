@@ -27,6 +27,7 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 async function createPlan() {
   const response = await CREATE(new Request("http://localhost/api/plans", {
     method: "POST",
+    headers: { "idempotency-key": "plan-completion-create" },
     body: JSON.stringify({
       startTime: "2026-07-15T18:00:00.000Z",
       creatorName: "Terra",

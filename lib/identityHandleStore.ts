@@ -1,6 +1,7 @@
 import { profileStore } from "@/lib/profileStore";
 import { assessPubmaxxHandle, evaluateHandleRename } from "@/lib/pubmaxxIdentity";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { requireSupabaseAdmin } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
 
 export type HandleAvailability = {
   handle: string;
@@ -260,7 +261,7 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
 };
 
 export function identityHandleStore(): IdentityHandleStore {
-  return isSupabaseConfigured() ? supabaseIdentityHandleStore : memoryIdentityHandleStore;
+  return selectStore(memoryIdentityHandleStore, supabaseIdentityHandleStore);
 }
 
 export function __resetMemoryIdentityHandles(): void {

@@ -279,6 +279,16 @@ export function readPalOnboardingDraft(ownerId: string): PalOnboardingDraftV1 | 
   catch { return null; }
 }
 
+export function subscribePalOnboardingDraft(ownerId: string, listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const key = palOnboardingDraftKey(ownerId);
+  const onStorage = (event: StorageEvent) => {
+    if (event.storageArea === window.localStorage && event.key === key) listener();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+
 export function migrateLegacyPalOnboardingDraft(ownerId: string): PalOnboardingDraftV1 | null {
   if (typeof window === "undefined") return null;
   try {
@@ -304,7 +314,13 @@ export function migrateLegacyPalOnboardingDraft(ownerId: string): PalOnboardingD
 export function writePalOnboardingDraft(ownerId: string, value: Omit<PalOnboardingDraftV1, "version" | "savedAt">): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(palOnboardingDraftKey(ownerId), JSON.stringify({
+    const key = palOnboardingDraftKey(ownerId);
+    const existing = parsePalOnboardingDraft(window.localStorage.getItem(key));
+    if (existing
+      && existing.step === value.step
+      && JSON.stringify(existing.draft) === JSON.stringify(value.draft)
+      && JSON.stringify(existing.privacy) === JSON.stringify(value.privacy)) return;
+    window.localStorage.setItem(key, JSON.stringify({
       ...value,
       version: 1,
       savedAt: new Date().toISOString(),

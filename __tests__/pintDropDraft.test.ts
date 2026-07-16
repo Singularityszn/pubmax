@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isEmptyPintDropDraft,
   normalisePintDropDraft,
+  pintDropDraftForPersistence,
   pintDropDraftStorageKey,
   readPintDropDraft,
   writePintDropDraft,
@@ -53,6 +54,7 @@ describe("pint drop drafts", () => {
 
   it("normalises invalid stored fields back to safe composer values", () => {
     const draft = normalisePintDropDraft({
+      version: 2,
       form: {
         price: 7,
         drink: "Ale",
@@ -93,6 +95,19 @@ describe("pint drop drafts", () => {
 
     writePintDropDraft(storage, "venue-a", emptyDraft);
     expect(readPintDropDraft(storage, "venue-a")).toBeNull();
+  });
+
+  it("never serialises voice-derived text, including after a manual edit", () => {
+    const storage = makeStorage();
+    writePintDropDraft(storage, "venue-a", pintDropDraftForPersistence(DRAFT, "Typed before dictation"));
+    expect(readPintDropDraft(storage, "venue-a")?.form).toMatchObject({ note: "Typed before dictation", drink: "Guinness" });
+    const manuallyEditedTranscript = { ...DRAFT, form: { ...DRAFT.form, note: "Dictated transcript, then edited" } };
+    writePintDropDraft(storage, "venue-a", pintDropDraftForPersistence(manuallyEditedTranscript, "Typed before dictation"));
+    expect(readPintDropDraft(storage, "venue-a")?.form.note).toBe("Typed before dictation");
+  });
+
+  it("fails closed by scrubbing notes from legacy unversioned drafts", () => {
+    expect(normalisePintDropDraft(DRAFT)?.form.note).toBe("");
   });
 
   it("fails soft when storage is unavailable", () => {

@@ -65,6 +65,8 @@ export default function PintDropComposer({
   } = state;
 
   const maxTagsReached = vibeTags.length >= 4;
+  const [transientVoiceNote, setTransientVoiceNote] = useState<{ venueId: string; typedBaseline: string } | null>(null);
+  const transientVoiceNoteBaseline = transientVoiceNote?.venueId === venueId ? transientVoiceNote.typedBaseline : null;
 
   useEffect(() => {
     markPubmaxTiming("pubmax:composer-mounted");
@@ -79,6 +81,7 @@ export default function PintDropComposer({
     dropForm,
     visibility,
     vibeTags,
+    transientVoiceNoteBaseline,
   });
 
   const mobile = useIsMobileComposer();
@@ -86,6 +89,8 @@ export default function PintDropComposer({
   const { speechSupported, listening, toggleListening } = useSpeechDictation({
     note: dropForm.note,
     setDropForm,
+    onTranscript: (typedBaseline) => setTransientVoiceNote((current) =>
+      current?.venueId === venueId ? current : { venueId, typedBaseline }),
   });
 
   const hasActiveRound = useActiveRound();
@@ -159,7 +164,10 @@ export default function PintDropComposer({
     <form
       className="dropComposer spillComposer"
       aria-label="Pint Drop composer"
-      onSubmit={(event) => submitDrop(event, venueId, { venueName, lastTrainDecision })}
+      onSubmit={(event) => {
+        void submitDrop(event, venueId, { venueName, lastTrainDecision });
+        setTransientVoiceNote(null);
+      }}
     >
       <div className="spillComposerIntro">
         <span className="spillComposerEyebrow">Drop a pint here</span>

@@ -31,6 +31,7 @@ import {
 } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
 
 // A recipient's inbox: newest-first list + how many are unread. Hard-capped so
 // one busy handle can't return an unbounded list.
@@ -324,7 +325,7 @@ export const memoryNotificationsStore: NotificationsStore = {
 
 /** The single backend selection point (mirrors the other stores). */
 export function notificationsStore(): NotificationsStore {
-  return isSupabaseConfigured() ? supabaseNotificationsStore : memoryNotificationsStore;
+  return selectStore(memoryNotificationsStore, supabaseNotificationsStore);
 }
 
 /**

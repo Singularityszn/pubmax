@@ -183,7 +183,9 @@ export function ComposerFields({
           <textarea
             id={noteInputId}
             value={dropForm.note}
-            onChange={(event) => setDropForm({ ...dropForm, note: event.target.value })}
+            onChange={(event) => {
+              setDropForm({ ...dropForm, note: event.target.value });
+            }}
             placeholder="What happened?"
           />
           {speechSupported ? (

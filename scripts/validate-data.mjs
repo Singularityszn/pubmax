@@ -32,6 +32,41 @@ const DRINK_CATEGORIES = new Set([
   "other",
 ]);
 
+// Kept dependency-free because validation tests copy this single script into a
+// scratch repository. Mirrors refresh_night_signal_claims.mjs.
+function isValidNightSignalClaim(row) {
+  const text = (value, max) => typeof value === "string" && value.trim().length > 0 && value.length <= max;
+  const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  const publicUrl = (value) => {
+    if (!text(value, 2_000)) return false;
+    try {
+      const url = new URL(value);
+      return ["http:", "https:"].includes(url.protocol)
+        && !url.username && !url.password && !url.port && !url.search && !url.hash;
+    } catch { return false; }
+  };
+  const source = (value) => value && typeof value === "object" && publicUrl(value.sourceUrl) && text(value.publisher, 160) && iso(value.publishedAt);
+  if (!row || typeof row !== "object" || !text(row.id, 120) || !text(row.claim, 500)) return false;
+  if (!["event", "price", "access", "opening", "transport"].includes(row.kind)) return false;
+  if (!row.entity || !["venue", "night_area", "transport"].includes(row.entity.type) || !text(row.entity.id, 120)) return false;
+  if (!source(row) || !iso(row.observedAt) || !iso(row.expiresAt) || Date.parse(row.expiresAt) <= Date.parse(row.observedAt)) return false;
+  if (Date.parse(row.publishedAt) > Date.parse(row.observedAt)) return false;
+  if (typeof row.confidence !== "number" || row.confidence < 0 || row.confidence > 1) return false;
+  if (!["pending", "approved", "rejected"].includes(row.reviewState) || !["single_source", "corroborated", "manual_review"].includes(row.verification) || !["none", "boost", "avoid"].includes(row.routeEffect)) return false;
+  if (!Array.isArray(row.corroboratingSources) || row.corroboratingSources.length > 5 || !row.corroboratingSources.every(source)) return false;
+  if (row.corroboratingSources.some((item) => Date.parse(item.publishedAt) > Date.parse(row.observedAt))) return false;
+  const keys = row.corroboratingSources.map((item) => `${new URL(item.sourceUrl).toString()}|${item.publisher.trim().toLocaleLowerCase("en-GB")}`);
+  if (new Set(keys).size !== keys.length) return false;
+  const independent = row.corroboratingSources.some((item) => new URL(item.sourceUrl).hostname !== new URL(row.sourceUrl).hostname && item.publisher.trim().toLocaleLowerCase("en-GB") !== row.publisher.trim().toLocaleLowerCase("en-GB"));
+  if (row.corroboratingSources.length > 0 && !independent) return false;
+  if (row.verification === "corroborated" && !independent) return false;
+  if (row.routeEffect !== "none" && row.verification === "single_source") return false;
+  if (row.routeEffect !== "none" && row.verification === "manual_review" && !["operations", "editorial"].includes(row.reviewAuthority)) return false;
+  return row.reviewState !== "approved" || (iso(row.reviewedAt)
+    && ["operations", "editorial", "automated"].includes(row.reviewAuthority)
+    && Date.parse(row.reviewedAt) >= Date.parse(row.observedAt));
+}
+
 // ---------------------------------------------------------------------------
 // Shared rules (kept in sync with the app)
 // ---------------------------------------------------------------------------
@@ -1033,6 +1068,33 @@ function validatePubmaxxingSeed() {
   return { ok, count: beverages.length };
 }
 
+function validateNightSignalSnapshot() {
+  const name = "public/data/night_signals/latest.json";
+  const errs = makeCollector();
+  let data;
+  try { data = loadJson("night_signals/latest.json"); }
+  catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  if (data?.version !== 1 || typeof data?.generatedAt !== "string" || !Number.isFinite(Date.parse(data.generatedAt)) || !Array.isArray(data?.claims)) {
+    console.log(`FAIL ${name}: expected a v1 snapshot with generatedAt and claims`);
+    return { ok: false, count: 0 };
+  }
+  const seen = new Set();
+  data.claims.forEach((claim, index) => {
+    if (!isValidNightSignalClaim(claim)) errs.add(`claim ${index}: invalid provenance, review, expiry, or route-effect contract`);
+    if (claim?.reviewState !== "approved") errs.add(`claim ${index}: public snapshot may only contain approved claims`);
+    if (seen.has(claim?.id)) errs.add(`claim ${index}: duplicate id ${claim?.id}`);
+    if (claim?.reviewedAt && Date.parse(claim.reviewedAt) > Date.parse(data.generatedAt)) errs.add(`claim ${index}: review is newer than the snapshot`);
+    seen.add(claim?.id);
+  });
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.claims.length} reviewed claims, ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: data.claims.length };
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -1047,6 +1109,7 @@ function main() {
     validateVenueDetails(),
     validateDrinkPriceUpdates(),
     validateWhatsOnUpdates(),
+    validateNightSignalSnapshot(),
     validatePubmaxxingSeed(),
   ];
   const failed = results.filter((r) => !r.ok).length;

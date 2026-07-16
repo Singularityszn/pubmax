@@ -15,6 +15,8 @@ import { GET, PATCH } from "@/app/api/plans/[id]/route";
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as PRESENCE } from "@/app/api/plans/[id]/presence/route";
+import { GET as SESSION, POST as EXCHANGE_SESSION } from "@/app/api/plans/[id]/session/route";
+import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import { __resetMemoryPlans } from "@/lib/planStore";
 import type { PlanState } from "@/lib/plan";
 
@@ -24,6 +26,7 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 async function createPlan() {
   const response = await CREATE(new Request(URL, {
     method: "POST",
+    headers: { "idempotency-key": "plan-routes-create" },
     body: JSON.stringify({
       title: "Friday near Bank",
       startTime: "2026-07-11T17:30:00.000Z",
@@ -52,11 +55,43 @@ describe("Plan public HTTP contract", () => {
     expect(body.plan.stops.map((stop) => stop.venueName)).not.toContain("Fabricated client name");
     expect(body.memberToken).toMatch(/^[a-f0-9]{64}$/);
     expect(body.role).toBe("host");
+    expect(response.headers.get("set-cookie")).toContain("HttpOnly");
+    expect(response.headers.get("set-cookie")).toContain(`Path=/api/plans/${body.plan.plan.id}`);
+    expect(response.headers.get("set-cookie")).not.toContain("Max-Age");
+  });
+
+  it("restores host authority through a path-scoped HttpOnly session", async () => {
+    const { response, body } = await createPlan();
+    const cookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
+    const restored = await SESSION(new Request(`${URL}/${body.plan.plan.id}/session`, {
+      headers: { cookie },
+    }), ctx(body.plan.plan.id));
+    expect(await restored.json()).toEqual({ active: true, role: "host", collaborationAuthorized: true });
+
+    const updated = await PATCH(new Request(`${URL}/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${PLAN_HTTP_ONLY_SESSION}`, cookie },
+      body: JSON.stringify({ status: "ready" }),
+    }), ctx(body.plan.plan.id));
+    expect(updated.status).toBe(200);
+    expect(await updated.json()).toMatchObject({ plan: { status: "ready" } });
+  });
+
+  it("exchanges a verified legacy bearer for the HttpOnly recovery session", async () => {
+    const { body } = await createPlan();
+    const exchanged = await EXCHANGE_SESSION(new Request(`${URL}/${body.plan.plan.id}/session`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${body.memberToken}` },
+    }), ctx(body.plan.plan.id));
+    expect(exchanged.status).toBe(200);
+    expect(await exchanged.json()).toEqual({ active: true, role: "host", collaborationAuthorized: true });
+    expect(exchanged.headers.get("set-cookie")).toContain("HttpOnly");
   });
 
   it("rejects venue ids that are not in the server-owned Venue Dataset", async () => {
     const response = await CREATE(new Request(URL, {
       method: "POST",
+      headers: { "idempotency-key": "plan-routes-invalid-venue" },
       body: JSON.stringify({
         startTime: "2026-07-11T17:30:00.000Z",
         creatorName: "Karan",
@@ -80,6 +115,7 @@ describe("Plan public HTTP contract", () => {
     const { body } = await createPlan();
     const response = await JOIN(new Request(`${URL}/${body.plan.plan.id}/join`, {
       method: "POST",
+      headers: { "idempotency-key": "plan-routes-guest-join" },
       body: JSON.stringify({ name: "Luna" }),
     }), ctx(body.plan.plan.id));
     expect(response.status).toBe(200);
@@ -190,6 +226,7 @@ describe("Plan public HTTP contract", () => {
     const { body } = await createPlan();
     const response = await ACTION(new Request(`${URL}/${body.plan.plan.id}/actions`, {
       method: "POST",
+      headers: { "idempotency-key": "plan-routes-arrived" },
       body: JSON.stringify({ memberToken: body.memberToken, type: "arrived", stopPosition: 0 }),
     }), ctx(body.plan.plan.id));
     expect(response.status).toBe(201);

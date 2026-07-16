@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanPalDraft, compatiblePalSpecies, DEFAULT_PAL_DRAFT, hasPalRouteActivation, markPalRouteActivation, migrateLegacyPalOnboardingDraft, PAL_ANIMATION_STATES, PAL_ONBOARDING_DRAFT_KEY, PAL_ONBOARDING_SPECIES, PAL_ROUTE_ACTIVATION_KEY, PAL_SPECIES, PAL_UNLOCKS, PAL_VISUAL_MANIFEST, SIGNAL_FAMILIES, palOnboardingDraftKey, readPalOnboardingDraft, writePalOnboardingDraft } from "@/lib/pubPal";
 
 function memoryStorage(): Storage {
@@ -39,7 +39,9 @@ describe("Pub Pal domain", () => {
   });
 
   it("round-trips an incomplete five-step onboarding draft safely", () => {
-    (globalThis as { window?: { localStorage: Storage } }).window = { localStorage: memoryStorage() };
+    const storage = memoryStorage();
+    const setItem = vi.spyOn(storage, "setItem");
+    (globalThis as { window?: { localStorage: Storage } }).window = { localStorage: storage };
     writePalOnboardingDraft("user-1", {
       step: 2,
       draft: { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Nova" },
@@ -48,6 +50,12 @@ describe("Pub Pal domain", () => {
     expect(window.localStorage.getItem(palOnboardingDraftKey("user-1"))).toContain('"version":1');
     expect(readPalOnboardingDraft("user-1")).toMatchObject({ step: 2, draft: { name: "Nova" } });
     expect(readPalOnboardingDraft("user-2")).toBeNull();
+    writePalOnboardingDraft("user-1", {
+      step: 2,
+      draft: { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Nova" },
+      privacy: { proposeMemories: false, visible: true, muted: false },
+    });
+    expect(setItem).toHaveBeenCalledTimes(1);
   });
 
   it("records route-first Pal eligibility without route or location context", () => {

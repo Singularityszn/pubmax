@@ -26,7 +26,8 @@ import {
   type MessageDTO,
 } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { requireSupabaseAdmin } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
 
 // Hard caps so one busy handle can't return an unbounded payload.
 export const MAX_CONVERSATIONS = 100;
@@ -469,7 +470,7 @@ export const memoryMessagesStore: MessagesStore = {
 
 /** The single backend selection point (mirrors the other stores). */
 export function messagesStore(): MessagesStore {
-  return isSupabaseConfigured() ? supabaseMessagesStore : memoryMessagesStore;
+  return selectStore(memoryMessagesStore, supabaseMessagesStore);
 }
 
 /** Test-only: clear the in-memory maps between cases. */

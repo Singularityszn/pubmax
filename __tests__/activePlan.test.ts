@@ -16,6 +16,9 @@ import {
   readActivePlan,
   restoreNightMode,
   serializeActivePlan,
+  setActivePlanEndingPreview,
+  setActivePlanPalContext,
+  setActivePlanRole,
   setActivePlanStopIndex,
   writeActivePlan,
 } from "@/lib/activePlan";
@@ -59,7 +62,7 @@ afterEach(() => {
 describe("parseActivePlan", () => {
   it("round-trips a valid pointer through serialize", () => {
     const ref = { id: PLAN_ID, startTime: START, stopIndex: 2 };
-    expect(parseActivePlan(serializeActivePlan(ref))).toEqual(ref);
+    expect(parseActivePlan(serializeActivePlan(ref))).toMatchObject(ref);
   });
 
   it("rejects malformed json, non-plan ids, and bad start times", () => {
@@ -68,6 +71,7 @@ describe("parseActivePlan", () => {
     expect(parseActivePlan("{not json")).toBeNull();
     expect(parseActivePlan(JSON.stringify({ id: "nope", startTime: START }))).toBeNull();
     expect(parseActivePlan(JSON.stringify({ id: PLAN_ID, startTime: "not-a-date" }))).toBeNull();
+    expect(parseActivePlan(JSON.stringify({ version: 2, id: PLAN_ID, startTime: START }))).toBeNull();
   });
 
   it("defaults a missing/invalid stopIndex to 0", () => {
@@ -117,7 +121,7 @@ describe("storage round-trip", () => {
   it("reads null when unset and writes/reads a pointer", () => {
     expect(readActivePlan()).toBeNull();
     writeActivePlan({ id: PLAN_ID, startTime: START, stopIndex: 1 });
-    expect(readActivePlan()).toEqual({ id: PLAN_ID, startTime: START, stopIndex: 1 });
+    expect(readActivePlan()).toMatchObject({ version: 1, id: PLAN_ID, startTime: START, stopIndex: 1, role: null, endingPreview: null, palContext: null });
     expect(window.localStorage.getItem(ACTIVE_PLAN_KEY)).toContain(PLAN_ID);
   });
 
@@ -134,7 +138,19 @@ describe("storage round-trip", () => {
     markActivePlan(PLAN_ID, START, now); // same plan → keep the walked cursor
     expect(readActivePlan()?.stopIndex).toBe(2);
     markActivePlan(OTHER_ID, START, now); // new plan (also active) → reset + replace
-    expect(readActivePlan()).toEqual({ id: OTHER_ID, startTime: START, stopIndex: 0 });
+    expect(readActivePlan()).toMatchObject({ version: 1, id: OTHER_ID, startTime: START, stopIndex: 0 });
+  });
+
+  it("restores safe role, ending preview, and Pal identity without storing authority", () => {
+    markActivePlan(PLAN_ID, START);
+    setActivePlanRole(PLAN_ID, "guest");
+    setActivePlanEndingPreview(PLAN_ID, "get_home");
+    setActivePlanPalContext({ id: "pal-1", name: "Miso" });
+    expect(readActivePlan()).toMatchObject({ role: "guest", endingPreview: "get_home", palContext: { id: "pal-1", name: "Miso" } });
+    const raw = window.localStorage.getItem(ACTIVE_PLAN_KEY) ?? "";
+    expect(raw).not.toContain("token");
+    expect(raw).not.toContain("location");
+    expect(raw).not.toContain("voice");
   });
 
   it("markActivePlan does not evict a live plan for an inactive page view (#7)", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { planViewModel, shareCopyForPlan, stopsFromAnswerCards, stopsFromConcierge } from "@/components/plan/planPresentation";
-import { routeHasChanged } from "@/components/plan/PlanSummary";
+import { parsePendingRoute, routeHasChanged } from "@/components/plan/PlanSummary";
 import type { PlanState } from "@/lib/plan";
 
 const state: PlanState = {
@@ -38,6 +38,14 @@ describe("routeHasChanged", () => {
   it("requires an actual ordered stop change", () => {
     expect(routeHasChanged([{ venueId: "a" }, { venueId: "b" }, { venueId: "c" }], [{ venueId: "a" }, { venueId: "b" }, { venueId: "c" }])).toBe(false);
     expect(routeHasChanged([{ venueId: "a" }, { venueId: "b" }, { venueId: "c" }], [{ venueId: "a" }, { venueId: "x" }, { venueId: "c" }])).toBe(true);
+  });
+});
+
+describe("pending route continuity", () => {
+  it("accepts the v1 envelope and rejects unknown storage versions", () => {
+    const stops = [{ venueId: "a", venueName: "A", position: 0, alternatives: [] }];
+    expect(parsePendingRoute(JSON.stringify({ version: 1, savedAt: "2026-07-16T20:00:00Z", expectedRouteRevision: 2, stops }))).toMatchObject({ expectedRouteRevision: 2, stops });
+    expect(parsePendingRoute(JSON.stringify({ version: 2, expectedRouteRevision: 2, stops }))).toBeNull();
   });
 });
 

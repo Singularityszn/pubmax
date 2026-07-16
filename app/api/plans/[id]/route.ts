@@ -3,7 +3,7 @@ import { isPlanId, PLANNED_NIGHT_STATUSES } from "@/lib/plan";
 import { cleanNightContext } from "@/lib/nightPlanning";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { canonicalPlanRoute } from "@/lib/planRoute";
-import { planStore } from "@/lib/planStore";
+import { planStateResult, planStore } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
@@ -12,9 +12,10 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(_request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return jsonNoStore({ error: "That Plan doesn't exist." }, { status: 404 });
-  const plan = await planStore().get(id);
-  if (!plan) return jsonNoStore({ error: "That Plan doesn't exist." }, { status: 404 });
-  return jsonNoStore(plan, { status: 200 });
+  const lookup = await planStateResult(id);
+  if (!lookup.ok) return jsonNoStore({ error: "Plan data is temporarily unavailable.", code: "PLAN_STORE_UNAVAILABLE", retryable: true }, { status: 503 });
+  if (!lookup.plan) return jsonNoStore({ error: "That Plan doesn't exist.", code: "PLAN_NOT_FOUND", retryable: false }, { status: 404 });
+  return jsonNoStore(lookup.plan, { status: 200 });
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {
@@ -35,6 +36,13 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
     ...(nightContext ? { context: nightContext } : {}),
     ...(stops ? { stops, expectedRouteRevision } : {}),
   });
-  if (!result.ok) return jsonNoStore({ error: result.error === "forbidden" ? "That member token cannot edit this Plan." : result.error === "conflict" ? "That Crawl Route has changed. Refresh and try again." : "Could not update the Plan." }, { status: result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : 400 });
+  if (!result.ok) {
+    const unavailable = result.error === "error";
+    return jsonNoStore({
+      error: result.error === "forbidden" ? "That member token cannot edit this Plan." : result.error === "conflict" ? "That Crawl Route has changed. Refresh and try again." : unavailable ? "Plan data is temporarily unavailable." : "Could not update the Plan.",
+      code: unavailable ? "PLAN_UPDATE_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_UPDATE_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : "PLAN_UPDATE_INVALID",
+      retryable: unavailable || result.error === "conflict",
+    }, { status: unavailable ? 503 : result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : 400 });
+  }
   return jsonNoStore(result.plan);
 }

@@ -26,6 +26,7 @@ import { BookOpen, ChevronRight, MapPin, PlusCircle, TrainFront, Trash2, X } fro
 
 import {
   setActivePlanStopIndex,
+  setActivePlanEndingPreview,
   clampStopIndex,
   markNightModeActiveFired,
   type ActivePlanRef,
@@ -48,7 +49,7 @@ import {
   writePendingPlanRecap,
   type PendingPlanRecap,
 } from "@/lib/planRecap";
-import { parsePlanCapabilitySnapshot, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
+import { parsePlanCapabilitySnapshot, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
 import "./nightMode.css";
 
 type VenueCoord = { id: string; name: string; lat: number; lng: number; cheapestPrice: number | null };
@@ -222,13 +223,15 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   const [report, setReport] = useState<PlanGetInReportDTO | null>(null);
   const [coords, setCoords] = useState<VenueCoord[] | null>(null);
   const [lateFood, setLateFood] = useState<LateFoodTerminal[]>([]);
-  const [chosenEnding, setChosenEnding] = useState<CrawlEnding | null>(null);
+  const chosenEnding = entry.endingPreview ?? null;
   const [chosenExtension, setChosenExtension] = useState<KeepGoingExtension | null>(null);
   const [endingSaving, setEndingSaving] = useState(false);
+  const endingSavingRef = useRef(false);
   const [endingError, setEndingError] = useState("");
   const [recap, setRecap] = useState<PendingPlanRecap | null>(() => readPendingPlanRecap(id));
   const [recapOpen, setRecapOpen] = useState(false);
   const [recapSaving, setRecapSaving] = useState(false);
+  const recapSavingRef = useRef(false);
   const [recapMessage, setRecapMessage] = useState("");
   // Store the last-train result tagged with the venue it belongs to, so a result
   // from a previous stop is never rendered against the current one (the tag is
@@ -387,20 +390,25 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   }, [cursor, stops.length]);
 
   const completeEnding = useCallback(async (ending: CrawlEnding, terminalVenueId: string) => {
-    if (!plan || endingSaving) return;
-    const memberToken = readMemberToken(id);
-    const expectedRouteRevision = routeRevisionFromPlan(plan);
-    if (!memberToken) {
-      setEndingError("Join this plan before saving its ending.");
-      return;
-    }
-    if (expectedRouteRevision === null) {
-      setEndingError("This route has no active revision. Nothing was completed; refresh the plan and try again.");
-      return;
-    }
+    if (!plan || endingSavingRef.current) return;
+    endingSavingRef.current = true;
     setEndingSaving(true);
     setEndingError("");
     try {
+      let memberToken = readMemberToken(id);
+      if (!memberToken) {
+        await restorePlanCapability(id);
+        memberToken = readMemberToken(id);
+      }
+      const expectedRouteRevision = routeRevisionFromPlan(plan);
+      if (!memberToken) {
+        setEndingError("Join this plan before saving its ending.");
+        return;
+      }
+      if (expectedRouteRevision === null) {
+        setEndingError("This route has no active revision. Nothing was completed; refresh the plan and try again.");
+        return;
+      }
       const response = await fetch(`/api/plans/${id}/complete`, {
         method: "POST",
         headers: {
@@ -430,27 +438,33 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
       if (completed) {
         setRecap(ensurePendingPlanRecap(completed, canonical.plan.title));
       }
-      setChosenEnding(null);
+      setActivePlanEndingPreview(id, null);
       trackEvent("planned_night_completed", { ending: canonical.ending ?? ending });
     } catch (caught) {
       setEndingError(caught instanceof Error
         ? `${caught.message} Nothing was completed in this view.`
         : "Could not save that ending. Nothing was completed in this view.");
     } finally {
+      endingSavingRef.current = false;
       setEndingSaving(false);
     }
-  }, [endingSaving, id, plan]);
+  }, [id, plan]);
 
   const savePrivateRecap = useCallback(async () => {
-    if (!recap || recapSaving) return;
-    const memberToken = readMemberToken(id);
-    if (!memberToken) {
-      setRecapMessage("Open the Plan in this browser before saving. Your recap remains private on this device.");
-      return;
-    }
+    if (!recap || recapSavingRef.current) return;
+    recapSavingRef.current = true;
     setRecapSaving(true);
     setRecapMessage("");
     try {
+      let memberToken = readMemberToken(id);
+      if (!memberToken) {
+        await restorePlanCapability(id);
+        memberToken = readMemberToken(id);
+      }
+      if (!memberToken) {
+        setRecapMessage("Open the Plan in this browser before saving. Your recap remains private on this device.");
+        return;
+      }
       const response = await authedFetch(`/api/plans/${id}/recap`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -470,16 +484,17 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     } catch (caught) {
       setRecapMessage(caught instanceof Error ? caught.message : "Could not save this private Memory. Your local recap is safe.");
     } finally {
+      recapSavingRef.current = false;
       setRecapSaving(false);
     }
-  }, [id, recap, recapSaving]);
+  }, [id, recap]);
 
   const chooseEnding = useCallback((ending: RouteEndingId) => {
     if (!plan || endingSaving) return;
-    setChosenEnding(ending);
+    setActivePlanEndingPreview(id, ending);
     setEndingError("");
     trackEvent("planned_night_action", { type: `${ending}_preview` });
-  }, [endingSaving, plan]);
+  }, [endingSaving, id, plan]);
 
   // Lightweight swipe-down-to-dismiss on the grabber (Apple sheet idiom) — kept
   // local so we don't couple to the map-only useSheetDrag host.

@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import type { PlanStopDTO } from "@/lib/plan";
 import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal, PlanVote } from "@/lib/planCollaborationStore";
+import { publishPlanCollaborationChange, subscribePlanCollaborationChange, type PlanCollaborationChangeKind } from "@/lib/planContinuity";
 
 type CollaborationState = {
   memberId: string;
@@ -55,16 +56,23 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
   const [pending, setPending] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const refreshRequestRef = useRef<{ generation: number; controller: AbortController } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!memberToken) return;
+    const generation = (refreshRequestRef.current?.generation ?? 0) + 1;
+    refreshRequestRef.current?.controller.abort();
+    const controller = new AbortController();
+    refreshRequestRef.current = { generation, controller };
     try {
       const response = await fetch(`/api/plans/${planId}/collaboration`, {
         cache: "no-store",
+        signal: controller.signal,
         headers: { authorization: `Bearer ${memberToken}` },
       });
       if (!response.ok) return;
       const body = await response.json() as Partial<CollaborationState>;
+      if (controller.signal.aborted || refreshRequestRef.current?.generation !== generation) return;
       setState({
         memberId: typeof body.memberId === "string" ? body.memberId : "",
         invites: Array.isArray(body.invites) ? body.invites : [],
@@ -83,13 +91,18 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       if (document.visibilityState === "visible") void refresh();
     }, 15_000);
     const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
+    const unsubscribe = subscribePlanCollaborationChange(planId, () => void refresh());
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearTimeout(timer);
       window.clearInterval(interval);
+      refreshRequestRef.current?.controller.abort();
       document.removeEventListener("visibilitychange", onVisible);
+      unsubscribe();
     };
-  }, [refresh]);
+  }, [planId, refresh]);
+
+  const announce = (kind: PlanCollaborationChangeKind) => publishPlanCollaborationChange(planId, kind);
 
   async function createInvite() {
     setPending("invite"); setError(""); setStatus("");
@@ -103,6 +116,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       if (!response.ok || !body?.token || !body?.invite) throw new Error(errorMessage(body, "Could not create an invite."));
       const url = `${window.location.origin}/plan/${planId}#invite=${encodeURIComponent(body.token)}`;
       setInvite({ value: body.invite, url });
+      announce("invite");
       await navigator.clipboard?.writeText(url).catch(() => undefined);
       setStatus("Private one-use invite copied. It expires in 24 hours.");
       await refresh();
@@ -120,6 +134,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessage(body, "Could not revoke this invite."));
       if (invite?.value.id === inviteId) setInvite(null);
+      announce("invite");
       setStatus("Invite revoked."); await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not revoke this invite."); }
     finally { setPending(""); }
@@ -137,6 +152,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessage(body, "Could not add that need."));
+      announce("constraint");
       setConstraintValue(""); setStatus("Crew need added to this plan."); await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not add that need."); }
     finally { setPending(""); }
@@ -155,6 +171,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessage(body, "Could not send that route proposal."));
+      announce("proposal");
       setProposalReason(""); setStatus("Proposal sent. The host must confirm before the route changes.");
       onProposalCreated(); await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not send that route proposal."); }
@@ -176,6 +193,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessage(body, "Could not verify that evidence."));
+      announce("constraint");
       setResolutionConstraintId(""); setEvidenceProposalId(""); setEvidenceSources({}); setStatus("Per-stop evidence attached to this proposal."); await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not verify that evidence."); }
     finally { setPending(""); }
@@ -192,6 +210,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessage(body, decision ? "The route was not changed." : "Could not record your vote."));
+      announce(decision ? "decision" : "vote");
       setStatus(decision ? `Proposal ${operation}.` : "Your vote is in.");
       await refresh();
       if (operation === "accepted") window.location.reload();

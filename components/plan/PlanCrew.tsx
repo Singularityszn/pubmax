@@ -5,7 +5,8 @@ import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { trackEvent } from "@/lib/analytics";
-import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, writePlanCapability } from "@/lib/planSessionCapability";
+import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
+import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   in: "In",
@@ -20,6 +21,9 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [sessionCheckedPlanId, setSessionCheckedPlanId] = useState<string | null>(null);
+  const [sessionUnavailable, setSessionUnavailable] = useState(false);
+  const [sessionAttempt, setSessionAttempt] = useState(0);
   const tokenEvent = planCapabilityEvent(planId);
   const statusKey = `pubmax-plan-status:${planId}`;
   const statusEvent = `pubmax-plan-status-change:${planId}`;
@@ -57,36 +61,39 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
   }, [statusKey, statusEvent]);
   const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
-      window.addEventListener("storage", onChange);
       window.addEventListener(tokenEvent, onChange);
       return () => {
-        window.removeEventListener("storage", onChange);
         window.removeEventListener(tokenEvent, onChange);
       };
     },
     () => {
       return readPlanCapabilitySnapshot(planId);
     },
-    () => "|0",
+    () => "|0|",
   );
-  const { token: memberToken, collaborationAuthorized } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  const { token: memberToken, collaborationAuthorized, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  const sessionReady = Boolean(memberToken) || sessionCheckedPlanId === planId;
+
+  useEffect(() => {
+    if (memberToken) return;
+    let active = true;
+    void restorePlanCapability(planId)
+      .then(() => {
+        if (!active) return;
+        setSessionUnavailable(false);
+        setSessionCheckedPlanId(planId);
+      })
+      .catch(() => { if (active) setSessionUnavailable(true); });
+    return () => { active = false; };
+  }, [memberToken, planId, sessionAttempt]);
 
   useEffect(() => {
     if (!memberToken) return;
     const inviteToken = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite");
     if (!inviteToken) return;
-    if (collaborationAuthorized) {
+    if (collaborationAuthorized || role === "host") {
       history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       return;
-    }
-    try {
-      if (sessionStorage.getItem(`pubmaxx:plan-creator-token:v1:${planId}`) === memberToken) {
-        writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true });
-        history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-        return;
-      }
-    } catch {
-      // Configured storage may be unavailable; the server still rejects host upgrades.
     }
     const controller = new AbortController();
     fetch(`/api/plans/${planId}/invites/redeem`, {
@@ -98,14 +105,14 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
       .then(async (response) => ({ response, body: await response.json().catch(() => null) }))
       .then(({ response, body }) => {
         if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not unlock crew decisions.");
-        writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true });
+        writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true, role: "guest" });
         history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       })
       .catch((caught) => {
         if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "Could not unlock crew decisions.");
       });
     return () => controller.abort();
-  }, [collaborationAuthorized, memberToken, planId]);
+  }, [collaborationAuthorized, memberToken, planId, role]);
 
   const refetchCrew = useCallback(async () => {
     if (document.visibilityState !== "visible") return;
@@ -126,14 +133,17 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
     setError("");
     try {
       const inviteToken = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite") ?? undefined;
+      const operationScope = `join:${planId}`;
+      const operationKey = await persistentPlanMutationKey(operationScope, { name: name.trim(), inviteToken: inviteToken ?? null });
       const response = await fetch(`/api/plans/${planId}/join`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "idempotency-key": operationKey },
         body: JSON.stringify({ name, inviteToken }),
       });
       const body = await response.json();
       if (!response.ok || !body?.memberToken) throw new Error(body?.error || "Could not join this plan.");
-      writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: body.collaborationAuthorized === true });
+      writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: body.collaborationAuthorized === true, role: "guest" });
+      clearPersistentPlanMutationKey(operationScope, operationKey);
       if (inviteToken) history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       rememberStatus("in");
       const nextCrew = body.plan?.crew ?? crew;
@@ -179,7 +189,12 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
         <span>{crew.length}</span>
       </div>
 
-      {!memberToken ? (
+      {!sessionReady && !memberToken ? (
+        <p className="planCrew__empty" role="status">
+          {sessionUnavailable ? "Your private crew session is temporarily unavailable." : "Restoring your private crew session…"}
+          {sessionUnavailable ? <button type="button" onClick={() => { setSessionUnavailable(false); setSessionAttempt((value) => value + 1); }}>Retry</button> : null}
+        </p>
+      ) : !memberToken ? (
         <form className="planCrew__join" onSubmit={join}>
           <label htmlFor="join-name">No account. Just your name.</label>
           <div><input id="join-name" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
