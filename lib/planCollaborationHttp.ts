@@ -1,4 +1,4 @@
-import type { PublicApiError } from "@/lib/apiError";
+import { publicApiError, type PublicApiError } from "@/lib/apiError";
 import type { PlanCollaborationError } from "@/lib/planCollaborationStore";
 
 export function collaborationIdempotencyKey(request: Request, body: Record<string, unknown>): string {
@@ -22,4 +22,14 @@ export function collaborationError(error: PlanCollaborationError): { body: Publi
                 : error === "error" ? "The collaboration update is temporarily unavailable."
                   : "Add a valid collaboration request.";
   return { body: { error: message, code: `PLAN_COLLAB_${error.toUpperCase()}`, retryable: error === "error" || error === "conflict" }, status };
+}
+
+export function collaborationErrorResponse(error: PlanCollaborationError): Response {
+  const failure = collaborationError(error);
+  return publicApiError(
+    failure.body.error,
+    failure.body.code,
+    failure.status,
+    { retryable: failure.body.retryable, details: failure.body.details },
+  );
 }

@@ -1,4 +1,5 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { isPlanId } from "@/lib/plan";
 import { attachPlanMemberSession, planMemberCapability } from "@/lib/planMemberCapability";
 import { planMemberIdentityResult } from "@/lib/planStore";
@@ -7,11 +8,11 @@ type Context = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
-  if (!isPlanId(id)) return jsonNoStore({ active: false }, { status: 404 });
+  if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404, { details: { active: false } });
   const token = planMemberCapability(request, undefined);
   if (!token) return jsonNoStore({ active: false }, { status: 200 });
   const result = await planMemberIdentityResult(id, token);
-  if (!result.ok) return jsonNoStore({ error: "Plan session temporarily unavailable.", code: "PLAN_SESSION_UNAVAILABLE", retryable: true }, { status: 503 });
+  if (!result.ok) return publicApiError("Plan session temporarily unavailable.", "PLAN_SESSION_UNAVAILABLE", 503, { retryable: true });
   if (!result.identity) return jsonNoStore({ active: false }, { status: 200 });
   return jsonNoStore({
     active: true,
@@ -22,12 +23,12 @@ export async function GET(request: Request, context: Context): Promise<Response>
 
 export async function POST(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
-  if (!isPlanId(id)) return jsonNoStore({ active: false }, { status: 404 });
+  if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404, { details: { active: false } });
   const token = planMemberCapability(request, undefined);
-  if (!token) return jsonNoStore({ active: false }, { status: 401 });
+  if (!token) return publicApiError("Add a valid Plan member capability.", "PLAN_SESSION_REQUIRED", 401, { details: { active: false } });
   const result = await planMemberIdentityResult(id, token);
-  if (!result.ok) return jsonNoStore({ error: "Plan session temporarily unavailable.", code: "PLAN_SESSION_UNAVAILABLE", retryable: true }, { status: 503 });
-  if (!result.identity) return jsonNoStore({ active: false }, { status: 401 });
+  if (!result.ok) return publicApiError("Plan session temporarily unavailable.", "PLAN_SESSION_UNAVAILABLE", 503, { retryable: true });
+  if (!result.identity) return publicApiError("That member capability is not active.", "PLAN_SESSION_FORBIDDEN", 401, { details: { active: false } });
   return attachPlanMemberSession(jsonNoStore({
     active: true,
     role: result.identity.role,

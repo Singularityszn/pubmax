@@ -1,21 +1,21 @@
 # API Contracts — THE LOCAL
 
-Source of truth: **issue #252** ("Spec: The Local — companion-led activation, night areas, late food, and retention OS"). This document is the API contract that the backend agent (Sol) builds against. It reconciles the four Lane‑2 endpoints named in `sol.md` with what the Codex agent already shipped on `origin/codex/pubmaxx-mobile-ui-reset`, and with the existing plans API on `origin/main`.
+Source of truth: **issue #252** ("Spec: The Local — companion-led activation, night areas, late food, and retention OS") plus the 2026-07-16 Hardening Manifest. This document describes the integrated local implementation; it is not a branch-comparison ledger.
 
 **Status legend used throughout:**
 
-- **EXISTS-ON-MAIN** — shipped on `origin/main` today.
-- **EXISTS-ON-CODEX-BRANCH** — built on `origin/codex/pubmaxx-mobile-ui-reset`, not yet merged to main.
-- **TO-BUILD** — required by #252 / `sol.md` but not implemented anywhere yet.
+- **BASELINE** — present at the fixed `origin/main` baseline.
+- **IMPLEMENTED LOCALLY** — present in the reviewed hardening worktree but not pushed.
+- **DEFERRED** — explicitly outside this manifest or still awaiting an owner decision.
 
 **The four Lane-2 endpoints** (`sol.md`) and their reconciled reality:
 
 | `sol.md` name | Reality | Status |
 | --- | --- | --- |
-| `POST /api/plans/generate` | Built by Codex as `POST /api/plans/generate` (NOT `/api/companion/recommend` from #252) | EXISTS-ON-CODEX-BRANCH |
-| `PATCH /api/plans/:id` | Built by Codex (adds `status`, `context`, `stops` route replacement) | EXISTS-ON-CODEX-BRANCH |
-| `POST /api/plans/:id/actions` | Built by Codex (arrived / skipped / swapped) | EXISTS-ON-CODEX-BRANCH |
-| `GET /api/night-areas/:slug` | Built by Codex, plus `GET /api/night-areas?city=` from #252 | EXISTS-ON-CODEX-BRANCH |
+| `POST /api/plans/generate` | Editable three-stop route generation | IMPLEMENTED LOCALLY |
+| `PATCH /api/plans/:id` | Status, context, and route replacement | IMPLEMENTED LOCALLY |
+| `POST /api/plans/:id/actions` | Arrived / skipped / swapped | IMPLEMENTED LOCALLY |
+| `GET /api/night-areas/:slug` | Detail plus `GET /api/night-areas?city=` catalogue | IMPLEMENTED LOCALLY |
 
 Adjacent endpoints Codex also built and this contract now governs: `POST /api/plans/:id/complete`, `GET /api/late-food`.
 
@@ -28,19 +28,19 @@ These are the places where Codex's implementation diverges from #252 or `sol.md`
 1. **Endpoint naming: `/api/plans/generate` vs #252's `/api/companion/recommend`.**
    #252's Implementation Decisions literally say `POST /api/companion/recommend`. Codex shipped `POST /api/plans/generate` instead, matching `sol.md`. **Recommendation: `sol.md` / Codex wins** — `/api/plans/generate` is already built and tested; treat `/api/companion/recommend` as a superseded alias in #252. Do not build a parallel companion route.
 
-2. **Error envelope is inconsistent and mostly NOT the shared `apiError` shape.** `sol.md` requires "shared apiError shape on every new public route." `lib/apiError.ts` defines the canonical shape `{ error: { code, message, status } }`. But every new route (generate, PATCH, actions, complete, night-areas, late-food) returns the legacy flat shape `{ error: "human string" }` via `jsonNoStore`. Only ONE code path — generate's `409 NIGHT_AREA_ROUTE_NOT_READY` — returns a structured `{ error: { code, message } }` object (and even that omits `status` and adds sibling fields). **Recommendation: #252/`sol.md` wins — this is the single biggest required delta.** See §7. Every public route in THE LOCAL must adopt `apiError(code, message, status)`.
+2. **Flat public errors are authoritative.** THE LOCAL clients consume `{ error: string, code: string, retryable: boolean, details? }`. `publicApiError()` emits that shape with `no-store`. The older nested `apiError()` is retained only for the shipped Heritage response and is not a THE LOCAL contract. See §7.
 
-3. **Rate limits missing on two of the four routes.** `sol.md` requires rate limits "on every new public route." `POST /api/plans/generate` has one; `GET /api/night-areas` (both variants) and `GET /api/late-food` have NONE. **Recommendation: TO-BUILD** rate limits on the two GET routes (see §6).
+3. **Rate-limit scope.** `POST /api/plans/generate` uses one privacy-safe hashed client key for both memory and Supabase limiters. Read/member-route budgets remain a separate owner decision; the matrix in §11 records current behavior without calling it implemented.
 
-4. **`plan-generate` durable rate-limit key is a global constant, not per-IP.** In `app/api/plans/generate/route.ts` the local key is `plan-generate:${hashIp(...)}` (per-IP) but the durable key is the literal string `"plan-generate"` (shared across ALL callers). Under Supabase this throttles the whole world against one 8/60s budget. **Likely a bug — open question for owner.** Should be `plan-generate:${hashIp(...)}` for both.
+4. **`plan-generate` isolation is fixed.** Both limiters receive `plan-generate:${hashIp(clientIp(request))}`. Raw IP addresses are neither persisted nor passed to the limiter.
 
 5. **Analytics vocabulary diverges from #252's registry.** #252 mandates a named set (`activation_started`, `area_selected`, `companion_selected`, `recommendation_returned`, `recommendation_accepted`, `plan_shared`, `plan_joined`, `late_food_viewed`, `late_food_added`, …). Codex instead added its own names (`night_description_submitted`, `planned_night_status_changed`, `planned_night_action`, `planned_night_completed`, `pub_pal_adopted`, `plan_invite_sent`, `plan_invite_opened`, `crew_committed`, `district_viewed`, …). **Open question: which registry wins?** See §8.
 
 6. **"Companion" is shipped as "Pub Pal."** #252 says "companion" and `POST /api/companion/recommend`. Codex shipped the persona system as **Pub Pal** (`lib/pubPal.ts`, `app/api/pub-pal/*`). Same concept, different surface name. Contract treats them as synonyms; owner should pick one product noun.
 
-7. **Late-food is static/editorial, ignores `at=`, covers 6 of 20 areas.** #252 wants open-at-requested-time ranking, FSA hygiene evidence, coordinates, and route-home compatibility. Codex shipped an honest static seed that explicitly labels `live_opening_hours`, `hygiene_rating`, and `terminal_coordinates` as `missingEvidence`, accepts but ignores `at=`, and only seeds `clapham, victoria, piccadilly-soho, canary-wharf, barnes, chiswick`. **Recommendation: Codex's honest static seed is acceptable for Phase 1/2; the full ranking is TO-BUILD** and must keep the "unknown hours are labelled, not assumed" invariant.
+7. **Late-food is evidence-gated.** All 20 Night Area slugs are represented. Only options with active official-operator evidence are returned; empty areas stay empty. ISO `at=` values affect weekly-hours ranking, and `fromLat`/`fromLng` compute an estimate from the actual final stop. Unknown opening/hygiene/walking-route evidence is labelled, never inferred.
 
-8. **`GET/PUT /api/me/night-profile` is not built.** #252 requires durable authenticated night-profile persistence. Codex persists `NightContext` on the Plan row (`night_context`) and has a Pub Pal store, but no `/api/me/night-profile`. **Status: TO-BUILD** (see §9). Anonymous profile lives client-side only, per #252.
+8. **`GET/PUT /api/me/night-profile` is built.** It is owner-scoped by verified Supabase Auth id, backed by memory/Supabase stores, protected by optimistic concurrency and RLS, and mirrored by a validated versioned device adapter for anonymous use. Merge detection never chooses a winner; Account Hub requires explicit confirmation. See §9.
 
 ---
 
@@ -50,28 +50,28 @@ These are the places where Codex's implementation diverges from #252 or `sol.md`
 
 THE LOCAL follows the existing plans pattern: **value before sign-in.** There is no API key and no required account for the core loop.
 
-- **Public read** (`GET /api/plans/:id`, `/getin`, `/complete`, `/api/night-areas*`, `/api/late-food`): no auth. Link-visibility only — anyone with the Plan id can read it. EXISTS-ON-MAIN pattern.
-- **Create** (`POST /api/plans`, `POST /api/plans/generate`): keyless. On a write, the server mints an opaque **member token** (`memberToken`, returned once in the create/join response body; the server stores only its salted SHA‑256 hash). EXISTS-ON-MAIN.
+- **Public read** (`GET /api/plans/:id`, `/getin`, `/complete`, `/api/night-areas*`, `/api/late-food`): no auth. Link-visibility only — anyone with the Plan id can read it. BASELINE pattern.
+- **Create** (`POST /api/plans`, `POST /api/plans/generate`): keyless. On a write, the server mints an opaque **member token** (`memberToken`, returned once in the create/join response body; the server stores only its salted SHA‑256 hash). BASELINE.
 - **Member-scoped writes** (`PATCH /api/plans/:id`, `POST /api/plans/:id/actions`, `POST /api/plans/:id/complete`, `POST /api/plans/:id/presence`): require the caller to present their member token, proving they belong to the crew.
-  - Canonical transport: `Authorization: Bearer <memberToken>` header. Body field `memberToken` is accepted as a migration fallback. Helper: `lib/planMemberCapability.ts` (`planMemberCapability(request, body.memberToken)`). EXISTS-ON-CODEX-BRANCH.
-  - **Divergence:** `POST /api/plans/:id/actions` reads only `body.memberToken` and does NOT use the `planMemberCapability` header helper. **Recommendation: TO-BUILD — align actions to accept the Bearer header** like PATCH/complete.
-- **Authenticated profile** (`/api/me/night-profile`, TO-BUILD): Supabase Auth session (existing consumer identity provider; #252 keeps Supabase, reserves WorkOS for later Work Nights).
+  - Canonical transport: `Authorization: Bearer <memberToken>` header. Body field `memberToken` is accepted as a migration fallback. Helper: `lib/planMemberCapability.ts` (`planMemberCapability(request, body.memberToken)`). IMPLEMENTED LOCALLY.
+  - `POST /api/plans/:id/actions` accepts the Bearer header and retains `body.memberToken` only as a migration fallback.
+- **Authenticated profile** (`/api/me/night-profile`): verified Supabase Auth bearer session; the caller id is server-derived and never accepted from body/query.
 
 The member token is never logged or serialised back after the initial mint (`planMemberCapability` comment; `planStore` stores `token_hash` only).
 
 ### 1.2 Response caching
 
-All THE LOCAL routes are `Cache-Control: no-store` (both `jsonNoStore` and `apiError` default to `no-store`). EXISTS-ON-MAIN.
+All THE LOCAL routes are `Cache-Control: no-store` (`jsonNoStore` and flat `publicApiError` both enforce it).
 
 ### 1.3 City scoping
 
-`cityId` is validated by `parseCityId` (`lib/cities.ts`); `DEFAULT_CITY_ID = "london"`. A Night Area belongs to exactly one city; generate returns `422` if the selected area's `cityId` ≠ the request `cityId`. EXISTS-ON-CODEX-BRANCH.
+`cityId` is validated by `parseCityId` (`lib/cities.ts`); `DEFAULT_CITY_ID = "london"`. A Night Area belongs to exactly one city; generate returns `422` if the selected area's `cityId` ≠ the request `cityId`. IMPLEMENTED LOCALLY.
 
 ---
 
 ## 2. Core lifecycle types (per #252 TL-1)
 
-Defined in `lib/nightPlanning.ts` and `lib/plan.ts` on the Codex branch. **Status: EXISTS-ON-CODEX-BRANCH** unless noted.
+Defined in `lib/nightPlanning.ts` and `lib/plan.ts`. **Status: IMPLEMENTED LOCALLY** unless noted.
 
 ### 2.1 NightContext + Daypart
 
@@ -172,7 +172,7 @@ export type PlanCompletionDTO = {
 };
 ```
 
-`PlanDTO`, `PlanStopDTO`, `PlanState.{plan,stops,crew}` and `isPlanId` are **EXISTS-ON-MAIN**. `routeRevision`, `status`, `CrawlEnding`, `PlanActionDTO`, `PlanCompletionDTO`, `PLANNED_NIGHT_STATUSES`, `canTransitionPlannedNight`, `PlanState.{context,actions,ending}` are **EXISTS-ON-CODEX-BRANCH**.
+`PlanDTO`, `PlanStopDTO`, `PlanState.{plan,stops,crew}` and `isPlanId` are BASELINE. Route revision, lifecycle, ending, action, completion, context and selected-ending fields are IMPLEMENTED LOCALLY.
 
 ### 2.4 NightArea catalogue
 
@@ -218,13 +218,13 @@ export type NightArea = {
 };
 ```
 
-Catalogue is **reviewed application data**, not inferred at request time (per #252). `validateNightAreaCatalogue` runs at import (unique slugs/aliases, valid coords, ≥1 transport anchor). `isNightAreaRouteReady(area, now?)` enforces the full route-ready gate + review freshness. **Status: EXISTS-ON-CODEX-BRANCH.** All 20 #252 London areas are seeded; only wave‑0 areas (`clapham`, `victoria`, `piccadilly-soho`, `canary-wharf`) are `route_ready`.
+Catalogue is **reviewed application data**, not inferred at request time (per #252). `validateNightAreaCatalogue` runs at import (unique slugs/aliases, valid coords, ≥1 transport anchor). `isNightAreaRouteReady(area, now?)` remains a confidence label rather than a generation gate. **Status: IMPLEMENTED LOCALLY.** All 20 London areas are represented.
 
 ---
 
 ## 3. `POST /api/plans/generate` — grounded Plan generation
 
-**Status: EXISTS-ON-CODEX-BRANCH.** (This is `sol.md`'s `/api/plans/generate`; supersedes #252's `/api/companion/recommend`.)
+**Status: IMPLEMENTED LOCALLY.** (This is `sol.md`'s `/api/plans/generate`; supersedes #252's `/api/companion/recommend`.)
 
 Keyless. Produces a grounded three-stop draft route from a Night Area + NightContext, with per-stop reasons and explicit context attribution. Does **not** persist a Plan — it returns a draft the client can then create/save via `POST /api/plans`.
 
@@ -266,24 +266,23 @@ type GeneratePlanResponse = {
 
 **"Explains which context values affected the result" (#252 requirement — SATISFIED):** three complementary fields — `contextEffects` (the list of NightContext fields that moved the ranking), per-stop `reason` (human-readable grounding per venue), and `explanations` (why the context was inferred). `missingContextEvidence` is the honest counterpart: constraints the engine could not yet ground.
 
-### Errors (current Codex behaviour — see §7 for required envelope migration)
+### Errors
 
 | Status | Condition | Current body |
 | --- | --- | --- |
-| `400` | malformed JSON | `{ error: "Malformed request body." }` |
-| `400` | neither `query` nor `context` | `{ error: "Describe the night or provide Night Context." }` |
-| `400` | invalid `cityId` | `{ error: "cityId is invalid." }` |
-| `422` | no `nightArea` resolved | `{ error: "Choose a Night Area." }` |
-| `422` | area not in requested city | `{ error: "The selected Night Area is not available in this city." }` |
-| `422` | fewer than 3 grounded venues in radius | `{ error: "Not enough grounded venues are available in <Area> yet." }` |
-| `429` | rate limited | `{ error: "Too many requests." }` |
-| `409` | area not route-ready | `{ error: { code: "NIGHT_AREA_ROUTE_NOT_READY", message }, nightArea: {…coverage}, district: {…coverage} }` |
+| `400` | malformed JSON | `MALFORMED_REQUEST` |
+| `400` | neither `query` nor `context` | `NIGHT_CONTEXT_REQUIRED` |
+| `400` | invalid `cityId` | `INVALID_CITY` |
+| `422` | no `nightArea` resolved | `NIGHT_AREA_REQUIRED` |
+| `422` | area not in requested city | `NIGHT_AREA_NOT_IN_CITY` |
+| `422` | fewer than 3 grounded venues in radius | `INSUFFICIENT_VENUES` |
+| `429` | rate limited | `RATE_LIMITED` (`retryable: true`) |
 
-The `409` returns `publicNightAreaCoverage(area)` under both `nightArea` (new) and `district` (back-compat alias). This is the **only** route already emitting a structured error `code`.
+Every row uses the flat body described in §7. Coverage/confidence warnings are returned with successful editable routes; coverage readiness does not block generation.
 
 ### Rate limit
 
-`plan-generate` scope, default budget **8 requests / 60s** (`isLimited` defaults). **BUG (open question):** durable key is the constant `"plan-generate"` (global), local key is per-IP — see §0.4.
+`plan-generate` scope, default budget **8 requests / 60s**. Memory and durable paths share the same hashed per-client key; warmup `GET` is not limited.
 
 ### Idempotency
 
@@ -295,13 +294,13 @@ Fully keyless. No token minted (persistence happens later on `POST /api/plans`).
 
 ### Analytics
 
-Emit `night_description_submitted { area, daypart }` on submit; `recommendation_returned`/`recommendation_accepted` (#252 names) are TO-BUILD or map to Codex's `discovery_viewed` — see §8.
+Emit `night_description_submitted { area, daypart }` on submit; the owner-resolved event mapping remains documented in §8.
 
 ---
 
 ## 4. `PATCH /api/plans/:id` — revise a Planned Night
 
-**Status: EXISTS-ON-CODEX-BRANCH.** Member-scoped. One of three mutations (never combined in a way that conflicts):
+**Status: IMPLEMENTED LOCALLY.** Member-scoped. One of three mutations (never combined in a way that conflicts):
 
 ### Request
 
@@ -340,7 +339,7 @@ Route replacement is **optimistically concurrent** via `expectedRouteRevision` �
 
 ### Rate limit
 
-**TO-BUILD.** No limiter currently on PATCH. `sol.md` requires one on every new public route — recommend `plan-patch:<id>:<ipHash>`.
+**DEFERRED.** No limiter currently on PATCH; the owner must set the member-write budget.
 
 ### Analytics
 
@@ -350,13 +349,13 @@ Route replacement is **optimistically concurrent** via `expectedRouteRevision` �
 
 ## 5. `POST /api/plans/:id/actions` — record a stop action
 
-**Status: EXISTS-ON-CODEX-BRANCH.** Member-scoped live tracking.
+**Status: IMPLEMENTED LOCALLY.** Member-scoped live tracking.
 
 ### Request
 
 ```ts
 type PlanActionRequest = {
-  memberToken: string;          // NOTE: header Bearer NOT read here — see §1.1 divergence
+  memberToken?: string;         // migration fallback; Authorization: Bearer is canonical
   type: "arrived" | "skipped" | "swapped";  // "ending" is REJECTED here (goes via /complete)
   stopPosition: number;         // integer 0..7 (validated against PLAN_STOP_MAX=8); THE LOCAL routes are 3 stops, so 0..2 in practice
 };
@@ -380,11 +379,11 @@ Non-idempotent (append-only action log). Each POST inserts a new `PlanActionDTO`
 
 ### Rate limit
 
-**TO-BUILD.** None currently. Recommend `plan-action:<id>:<ipHash>`.
+**DEFERRED.** No limiter currently; the owner must set the member-write budget.
 
 ### 5.4 Adjacent: `POST /api/plans/:id/complete` (+ `GET`)
 
-**Status: EXISTS-ON-CODEX-BRANCH.** Terminal transition to a completed Planned Night.
+**Status: IMPLEMENTED LOCALLY.** Terminal transition to a completed Planned Night.
 
 ```ts
 // POST body
@@ -393,6 +392,7 @@ type CompletePlanRequest = {
   ending: "food" | "get_home" | "keep_going";
   expectedRouteRevision: number;   // required, > 0 — optimistic concurrency
   terminalVenueId?: string;        // required when ending === "food"
+  endingSelection: EndingSelection; // required; canonicalized against server-owned evidence
   finalPintDropId?: unknown;       // MUST be absent — presence returns 400 (ownership not yet verifiable)
 };
 ```
@@ -400,7 +400,7 @@ type CompletePlanRequest = {
 - `POST` → `{ plan, completion }`. HTTP `201` when newly created, `200` when already completed (**idempotent** via `complete_plan_atomic` returning `already_completed`).
 - `GET /api/plans/:id/complete` → `{ completion: PlanCompletionDTO | null }` (public read).
 - Errors: `404` unknown plan; `400` invalid/malformed/missing terminal-for-food/`finalPintDropId` present; `403` member cannot complete; `409` route revision changed; `503` store error.
-- Completion writes the ending action, completion record, and terminal status atomically (Supabase RPC `complete_plan_atomic`).
+- Completion writes the chosen ending, ending action, completion record, and terminal status atomically (Supabase RPC `complete_plan_atomic`). A completion without `endingSelection` is rejected.
 
 **Safety invariant (#252):** the default/encouraged endings are `food` and `get_home`; `keep_going` exists but the product must never frame more drinking as success. Food terminals are late-food places, never pint-price pins (see §10).
 
@@ -408,7 +408,7 @@ type CompletePlanRequest = {
 
 ## 6. `GET /api/night-areas` and `GET /api/night-areas/:slug`
 
-**Status: EXISTS-ON-CODEX-BRANCH.** Keyless read of the reviewed catalogue.
+**Status: IMPLEMENTED LOCALLY.** Keyless read of the reviewed catalogue.
 
 ### `GET /api/night-areas?city=<cityId>` (#252 shape)
 
@@ -431,11 +431,11 @@ type NightAreaDetailResponse = NightArea & { routeReady: boolean };
 
 ### Rate limit
 
-**TO-BUILD** on both. Currently none. Recommend a read limiter (pattern of `lib/roundsReadRateLimit.ts` / `lib/lastRideRateLimit.ts`).
+**DEFERRED** on both pending an owner-approved public-read budget.
 
 ### Error envelope
 
-**TO-BUILD** migration to `apiError` (currently flat `{ error }`).
+Flat `PublicApiError`; routes retain the human-readable `error` string while adding stable `code` and `retryable` fields.
 
 ### Analytics
 
@@ -447,30 +447,27 @@ Fully public. Availability counts / coverage are visible without auth so first-t
 
 ---
 
-## 7. Shared error envelope (`apiError`) — REQUIRED migration
+## 7. Shared flat public error envelope
 
-**Canonical shape** (`lib/apiError.ts`, EXISTS-ON-MAIN):
+**Canonical THE LOCAL shape** (`lib/apiError.ts`):
 
 ```ts
-export interface ApiErrorBody { error: { code: string; message: string; status: number } }
-export function apiError(code, message, status, init?): Response; // Cache-Control: no-store by default
+type PublicApiError = {
+  error: string;
+  code: string;
+  retryable: boolean;
+  details?: Record<string, unknown>;
+};
+export function publicApiError(error, code, status, options?): Response;
 ```
 
-**Reality:** every new THE LOCAL route returns the **legacy** flat shape `{ error: "human string" }` via `jsonNoStore`, EXCEPT generate's `409` which returns a partial `{ error: { code, message } }`. `sol.md` requires the shared shape on every new public route.
-
-**Required deltas (TO-BUILD):**
-1. Route all 4xx/5xx on generate, PATCH, actions, complete, night-areas, late-food through `apiError(code, message, status)`.
-2. Assign a stable machine `code` per failure (e.g. `MALFORMED_BODY`, `INVALID_CITY`, `NIGHT_AREA_REQUIRED`, `NIGHT_AREA_NOT_IN_CITY`, `INSUFFICIENT_VENUES`, `RATE_LIMITED`, `NIGHT_AREA_ROUTE_NOT_READY`, `PLAN_NOT_FOUND`, `MEMBER_FORBIDDEN`, `ROUTE_REVISION_CONFLICT`, `NIGHT_AREA_NOT_FOUND`, `LATE_FOOD_AREA_UNKNOWN`).
-3. Preserve generate's `409` sibling coverage payload (`nightArea` / `district`) as extra fields alongside the standard `error` object, or move it into a documented `details` field — **owner decision**.
-4. `late-food` currently returns `{ error, terminals: [] }` on `400`; reconcile with `apiError` (keep `terminals: []` as a `details` convenience if clients rely on it).
-
-Until migrated, clients MUST tolerate both `error: string` and `error: { code, message, status }`.
+`error` remains a string for existing callers. New callers branch on `code`; `retryable` distinguishes a safe retry from a correction the person must make. Structured conflict/current-state payloads live under `details`. The legacy nested `apiError()` remains intentionally separate for Heritage compatibility and must not be introduced into THE LOCAL routes.
 
 ---
 
 ## 8. Analytics events
 
-Registry: `lib/analyticsEvents.ts` (`ANALYTICS_EVENTS`), first-party, low-cardinality, no free-text/handles/coords (dropped by `sanitizeEvent`). **EXISTS-ON-MAIN** framework; new events **EXISTS-ON-CODEX-BRANCH**.
+Registry: `lib/analyticsEvents.ts` (`ANALYTICS_EVENTS`), first-party, low-cardinality, no free-text/handles/coords (dropped by `sanitizeEvent`). BASELINE framework; new events IMPLEMENTED LOCALLY.
 
 **Codex added (branch reality):** `night_description_submitted {area,daypart}`, `planned_night_status_changed {status}`, `planned_night_action {type}`, `planned_night_completed {ending}`, `pub_pal_adopted {pal}`, `pub_pal_summoned {surface}`, `pub_pal_memory_changed {action,category}`, `discovery_viewed {surface,daypart}`, `plan_invite_sent {channel}`, `plan_invite_opened {source}`, `crew_committed {source,participants}`, `account_claimed {source}`, `social_account_connected {provider,connectionType}`, `night_moment_saved {kind,visibility}`, `night_story_published {contributors,moments}`, `next_night_committed {windowDays,source}`, `draft_recovered {kind,surface}`, `web_vital {metric,value,rating}`, `guest_plan_participated {action}`, plus district events `district_catalogue_viewed`, `district_viewed`, `district_route_blocked`, `district_route_ready_selected`, `route_ready_gate_failed`.
 
@@ -480,49 +477,47 @@ Registry: `lib/analyticsEvents.ts` (`ANALYTICS_EVENTS`), first-party, low-cardin
 
 ---
 
-## 9. `GET/PUT /api/me/night-profile` — TO-BUILD
+## 9. `GET/PUT /api/me/night-profile`
 
-Required by #252 (authenticated durable night profile). **Not implemented on either branch.**
+Authenticated durable Night Profile, implemented with keyless browser parity.
 
 ```ts
 type NightProfile = {
-  companionId: string | null;    // Pub Pal id (fox/black-cat/greyhound/pigeon/badger/corgi) or null (no-companion)
-  companionName: string | null;  // user rename
+  version: 1;
   cityId: CityId;
-  nightArea: NightAreaSlug | null;
-  budget: Budget;
-  atmosphere: string[];
-  foodNeeds: string[];
-  accessibility: string[];
-  transportPreference: string[];
-  briefingPreferences: { muteAll?: boolean; mutedAreas?: NightAreaSlug[]; mutedTopics?: string[] };
+  context: NightContext;
+  briefingPreferences: { muteAll: boolean; mutedAreas: NightAreaSlug[]; mutedTopics: string[] };
   voicePreference: "off" | "tts" | "ptt";
+  pubPalId: string | null;       // owned pub_pals.id only; name/species are never duplicated
   updatedAt: string;
   createdAt: string;
 };
 ```
 
 Contract requirements:
-- `GET` requires a Supabase Auth session; returns the caller's profile only (never addressable by another user — RLS enforced).
-- `PUT` upserts; user-confirmed settings win on identity-claim merge (§ #252 "conflicts shown, never silently overwritten").
-- Anonymous profile stays **client-local** (mirrors this shape in local storage) and is merged through the existing identity-claim flow on first sign-in.
-- Shared `apiError` shape + a rate limit (per-user).
+- `GET` returns `200 { profile: NightProfile | null }`; it requires verified auth and is always `no-store`.
+- `PUT` body is `{ profile: NightProfileInput, expectedUpdatedAt: string | null }`. `null` is create-only; stale writes return `409 NIGHT_PROFILE_CONFLICT` with the current profile in `details`.
+- The route validates that `pubPalId`, when present, belongs to the caller. Pal name/species stay canonical in `pub_pals`.
+- Anonymous profile stays under the validated versioned key `pubmaxx.night-profile.v1:device`. No coordinates, location history, voice content, secrets or Pal memories are stored.
+- Account Hub shows device/account differences and requires an explicit “Bring this device” choice before PUT. “Keep account preferences” performs no account mutation.
+- Reads are limited to 60/minute and writes to 30/minute per verified user/IP.
 
 ---
 
 ## 10. `GET /api/late-food` — crawl-ending food terminals
 
-**Status: EXISTS-ON-CODEX-BRANCH** (`app/api/late-food/route.ts`, `lib/lateFood.ts`). Keyless.
+**Status: IMPLEMENTED LOCALLY** (`app/api/late-food/route.ts`, `lib/lateFood.ts`). Keyless.
 
 ### Request (query params)
 
 ```text
-GET /api/late-food?near=<area>&at=<daypart>&tags=<csv>&limit=<n>
+GET /api/late-food?near=<area>&at=<iso>&fromLat=<lat>&fromLng=<lng>&tags=<csv>&limit=<n>
 ```
-- `near` (or `area`): normalized via `normalizeLateFoodArea` (aliases `soho`/`piccadilly` → `piccadilly-soho`). Required. Only 6 seeded areas: `clapham, victoria, piccadilly-soho, canary-wharf, barnes, chiswick`.
+- `near` (or `area`): normalized via `normalizeLateFoodArea` (aliases `soho`/`piccadilly` → `piccadilly-soho`). Required. All 20 canonical Night Areas are accepted; areas without eligible evidence return zero terminals.
 - `tags`: CSV, max 8, matched against `category` / `dietary` / name substring.
 - `limit`: default 6, max 12.
-- `at`: **accepted but currently ignored** (no time-aware ranking yet — §0.7).
+- `at`: optional ISO instant used to rank operator-evidenced weekly hours.
+- `fromLat` and `fromLng`: optional pair for an estimate from the actual final route stop.
 
 ### Response `200`
 
@@ -531,35 +526,36 @@ type LateFoodTerminal = {
   id: string; name: string; area: LateFoodArea;
   category: "kebab" | "pizza" | "cafe" | "restaurant";
   dietary: Array<"vegan" | "vegetarian" | "gluten-free">;
-  hours: { service: string; verifyOnNight: true };   // conservative: never asserts open-now
-  walkingDetour: { minutes: number; note: string };
-  provenance: { kind: "editorial"; source: string; reviewedAt: string };
+  hours: { service: string; verifyOnNight: true; weekly: Record<string, unknown[]> };
+  walkingDetour: { minutes: number | null; distanceKm: number | null; basis: string; note: string };
+  provenance: { kind: "official_operator"; source: string; sourceUrl: string; observedAt: string; reviewedAt: string; expiresAt: string };
   confidence: "high" | "medium" | "low";
+  openAtRequestedTime: boolean | null;
 };
 type LateFoodApiSuccessResponse = {
   area: LateFoodArea;                 // canonical slug
   terminals: LateFoodTerminal[];      // ranked: confidence desc, then walkingDetour asc
-  rankingSignals: string[];           // ["night_area","category_or_dietary_tags","walking_detour","editorial_confidence"]
-  missingEvidence: string[];          // ["live_opening_hours","hygiene_rating","terminal_coordinates"]
+  rankingSignals: string[];
+  missingEvidence: string[];
 };
 ```
 
 ### Errors
 
-`400` `{ error: "near must be one of …", terminals: [] }` for unknown/missing area. **TO-BUILD:** migrate to `apiError` (§7).
+`400` uses the flat `PublicApiError` envelope. The compatibility payload `{ terminals: [] }` remains both top-level and in `details` for legacy clients.
 
 ### Invariants (#252, honoured)
 
-- Late-food places are modelled **separately** from the Venue Dataset — no `venueId`, no coordinates, no pint prices, no amenities — so they can be a Plan terminal stop but **can never become a pint-price pin or a Pint Drop venue** (`lib/lateFood.ts` type comment enforces this by construction).
+- Late-food places are modelled **separately** from the Venue Dataset — no `venueId`, pint prices, or pub amenities — so they can never become a pint-price pin or Pint Drop venue.
 - Unknown opening hours are **labelled** (`verifyOnNight: true`, `missingEvidence`), never assumed open.
 
 ### Rate limit
 
-**TO-BUILD.** None currently.
+**DEFERRED.** No public-read budget has been approved.
 
-### TO-BUILD to reach #252 full spec
+### Deferred evidence
 
-Time-aware `at=` ranking (open-at-requested-time confidence first), FSA hygiene evidence, route-home compatibility, terminal coordinates, and coverage for all 20 areas — sourced only from permissible first-party/open data (CityMCP, FSA, OSM, venue-owned pages); never scraped from delivery competitors.
+FSA hygiene and routed walking time are not asserted until a scheduled, permissible evidence source is available. The route returns fewer or zero choices rather than substituting competitor or unverified data.
 
 ---
 
@@ -567,14 +563,14 @@ Time-aware `at=` ranking (open-at-requested-time confidence first), FSA hygiene 
 
 | Route | Method | Rate limit | Error envelope | Auth |
 | --- | --- | --- | --- | --- |
-| `/api/plans/generate` | POST | ✅ `plan-generate` (8/60s; global-key bug §0.4) | flat + 1 structured | keyless |
-| `/api/plans/:id` | PATCH | ❌ TO-BUILD | flat → migrate | member token |
-| `/api/plans/:id/actions` | POST | ❌ TO-BUILD | flat → migrate | member token (body only — align to Bearer) |
-| `/api/plans/:id/complete` | POST/GET | ❌ TO-BUILD | flat → migrate | member token (POST) / public (GET) |
-| `/api/night-areas` | GET | ❌ TO-BUILD | flat → migrate | keyless |
-| `/api/night-areas/:slug` | GET | ❌ TO-BUILD | flat → migrate | keyless |
-| `/api/late-food` | GET | ❌ TO-BUILD | flat+`terminals:[]` → migrate | keyless |
-| `/api/me/night-profile` | GET/PUT | TO-BUILD | TO-BUILD (`apiError`) | Supabase Auth |
+| `/api/plans/generate` | POST | ✅ `plan-generate` (8/60s; hashed per client) | flat `PublicApiError` | keyless |
+| `/api/plans/:id` | PATCH | ❌ deferred | flat `PublicApiError` | member token |
+| `/api/plans/:id/actions` | POST | ❌ deferred | flat `PublicApiError` | Bearer member token; body fallback |
+| `/api/plans/:id/complete` | POST/GET | ❌ deferred | flat `PublicApiError` | member token (POST) / public (GET) |
+| `/api/night-areas` | GET | ❌ deferred | flat `PublicApiError` | keyless |
+| `/api/night-areas/:slug` | GET | ❌ deferred | flat `PublicApiError` | keyless |
+| `/api/late-food` | GET | ❌ deferred | flat `PublicApiError`; compatibility terminals top-level and in `details` | keyless |
+| `/api/me/night-profile` | GET/PUT | ✅ 60/30 per minute | flat `PublicApiError` | Supabase Auth |
 
 Existing shared limiter: `isLimited(localKey, durableKey, limit=8, windowMs=60_000, {failClosed?})` from `lib/pintDrops.ts`, with per-domain wrappers (e.g. `lib/lastRideRateLimit.ts`, `lib/roundsReadRateLimit.ts`). Reuse the wrapper pattern; do not invent a new limiter.
 
@@ -585,17 +581,15 @@ Existing shared limiter: `isLimited(localKey, durableKey, limit=8, windowMs=60_0
 **Decided by the owner:**
 
 1. **Endpoint name — RESOLVED:** `/api/plans/generate` supersedes #252's `/api/companion/recommend`. The #252 path is a historical alias; do not build it.
-2. **Error envelope — RESOLVED:** migrate all THE LOCAL routes to the shared `apiError` `{ error: { code, message, status } }` shape before more clients depend on the flat form. Carry generate's `409` sibling coverage payload in a `details` object on the envelope.
+2. **Error envelope — RESOLVED:** flat `PublicApiError` wins: `{ error, code, retryable, details? }`. The nested Heritage helper remains compatibility-only.
 3. **Analytics registry — RESOLVED:** keep Codex's event names (already emitting; renaming buys nothing). #252's registry is amended to the shipped vocabulary; the §8 mapping table records the correspondence.
 4. **Product noun — RESOLVED:** "Pub Pal" wins over #252's "Companion" everywhere (UI, code, analytics).
 
 **Still open:**
 
-5. **`plan-generate` durable key** is a global constant — should be per-IP (`plan-generate:${ipHash}`). Treated as a bug; fix lands via the reset-branch gate review.
-6. **`/api/plans/:id/actions` auth:** align to the `Authorization: Bearer` header (like PATCH/complete) rather than body-only token?
-7. **Late-food scope:** is the static 6-area editorial seed acceptable for Phase 1/2, with time/hygiene/route ranking deferred to a later phase?
-8. **Rate limits:** confirm budgets for the read routes (night-areas, late-food) and the member-write routes (PATCH, actions, complete).
+5. **Rate-limit budgets:** confirm budgets for read routes (night-areas, late-food) and member writes (PATCH, actions, complete). Plan generation is already isolated per hashed client.
+6. **Late-food evidence expansion:** continue scheduled official/open-data acquisition; empty results are intentional until evidence passes validation.
 
 ---
 
-*Prepared as the Lane‑2 Fable deliverable. Reflects `origin/main` and `origin/codex/pubmaxx-mobile-ui-reset` as read at authoring time. Docs only — no application code changed.*
+*Updated against the local hardening implementation on 2026-07-16. The work remains local until exact-commit review and authorization.*

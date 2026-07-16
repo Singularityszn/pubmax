@@ -99,7 +99,11 @@ describe("Plan public HTTP contract", () => {
       }),
     }));
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Choose venues from the Venue Dataset." });
+    expect(await response.json()).toEqual({
+      error: "Choose venues from the Venue Dataset.",
+      code: "PLAN_VENUES_INVALID",
+      retryable: false,
+    });
   });
 
   it("lets anyone holding the unguessable Plan link view it without an account", async () => {
