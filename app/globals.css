@@ -59,6 +59,7 @@
   --color-surface: var(--paper); /* page base */
   --color-surface-panel: var(--panel); /* recessed panel */
   --color-surface-raised: var(--panel-raised); /* cards, inputs */
+  --color-surface-overlay: var(--panel-overlay); /* 4th elevation step: popovers, floating panels */
   --color-surface-inverse: var(--ink-deep); /* brand-mark / stamp-dark chrome */
   --color-text: var(--ink);
   --color-text-soft: var(--ink-soft);

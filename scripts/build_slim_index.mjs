@@ -391,9 +391,19 @@ function buildCurationHints(prices) {
   // curation (getVenueCuration). Mirror that here so the build-time slim
   // `hasStory` flag matches the runtime heritage filter — otherwise the map's
   // heritage lens under-counts the Wikipedia-listed pubs.
-  const wikipediaListed = prices.some((price) =>
+  //
+  // This MUST stay in lock-step with `hasWikipediaList` in lib/curation.ts: a
+  // matching row alone is not enough — it also needs a renderable heritage note
+  // (a resolvable Wikipedia URL / non-empty citation in `comment`). Without the
+  // URL check the slim index sets hasStory=true for venues that render no
+  // heritage note, so the flag and the note disagree.
+  const wikipediaRow = prices.find((price) =>
     String(price.source_datasets ?? "").includes("wikipedia_london_list"),
   );
+  const wikipediaUrl =
+    wikipediaRow?.comment?.match(/https:\/\/en\.wikipedia\.org\/wiki\/\S+/)?.[0] ??
+    wikipediaRow?.comment?.replace(/^Wikipedia:\s*/i, "").trim();
+  const wikipediaListed = Boolean(wikipediaRow && wikipediaUrl);
 
   return {
     nearWater: explicit.nearWater ?? WATER_TERMS.some((term) => haystack.includes(term)),
@@ -563,7 +573,11 @@ async function main() {
   console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+export { buildCurationHints };
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

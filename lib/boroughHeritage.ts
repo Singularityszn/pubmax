@@ -25,7 +25,7 @@ export type BoroughHeritage = {
 };
 
 // Up to this many pubs surface in the notable shortlist.
-const NOTABLE_CAP = 6;
+export const NOTABLE_CAP = 6;
 
 // Rank a listed grade by architectural importance so the shortlist can prefer
 // the more significant buildings: Grade I → II* → II. Anything ungraded (null)
