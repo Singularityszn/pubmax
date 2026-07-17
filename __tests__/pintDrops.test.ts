@@ -213,6 +213,17 @@ describe("POST /api/pint-drops (create)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("rejects a sub-£1 price as an outlier (fat-fingered entry)", async () => {
+    const res = await post({ venueId: VENUE, handle: "ale", priceGbp: 0.45 });
+    expect(res.status).toBe(400);
+    // validatePintDrop is the trust boundary — check it directly too.
+    const result = validatePintDrop({ venueId: VENUE, handle: "ale", priceGbp: 0.99 });
+    expect(result.ok).toBe(false);
+    // Exactly £1 is the honest floor and must pass.
+    const atFloor = validatePintDrop({ venueId: VENUE, handle: "ale", priceGbp: 1 });
+    expect(atFloor.ok).toBe(true);
+  });
+
   it("rejects a missing handle", async () => {
     const res = await post({ venueId: VENUE, priceGbp: 4.2 });
     expect(res.status).toBe(400);
@@ -230,6 +241,36 @@ describe("POST /api/pint-drops (create)", () => {
       last = await post({ venueId: VENUE, handle: "flooder", priceGbp: 4 });
     }
     expect(last!.status).toBe(429);
+  });
+});
+
+describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", () => {
+  it("409s a second PRICED drop at the same venue by the same handle the same day", async () => {
+    const first = await post({ venueId: "dedupe-pub", handle: "reg", priceGbp: 4.5 });
+    expect(first.status).toBe(201);
+
+    const second = await post({ venueId: "dedupe-pub", handle: "reg", priceGbp: 4.6 });
+    expect(second.status).toBe(409);
+
+    // Handle normalisation applies: "@Reg" is the same identity as "reg".
+    const third = await post({ venueId: "dedupe-pub", handle: "@Reg", priceGbp: 5 });
+    expect(third.status).toBe(409);
+  });
+
+  it("allows the same handle to price a DIFFERENT venue the same day", async () => {
+    expect((await post({ venueId: "pub-a", handle: "reg", priceGbp: 4.5 })).status).toBe(201);
+    expect((await post({ venueId: "pub-b", handle: "reg", priceGbp: 4.5 })).status).toBe(201);
+  });
+
+  it("allows a DIFFERENT handle to price the same venue the same day", async () => {
+    expect((await post({ venueId: "shared-pub", handle: "reg", priceGbp: 4.5 })).status).toBe(201);
+    expect((await post({ venueId: "shared-pub", handle: "other", priceGbp: 4.6 })).status).toBe(201);
+  });
+
+  it("does not block a note-only anecdote after a priced drop (a memory isn't a price)", async () => {
+    expect((await post({ venueId: "note-pub", handle: "reg", priceGbp: 4.5 })).status).toBe(201);
+    const note = await post({ venueId: "note-pub", handle: "reg", passedDownNote: "my old local" });
+    expect(note.status).toBe(201);
   });
 });
 

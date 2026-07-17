@@ -33,6 +33,7 @@ import {
   type Visibility,
 } from "@/lib/pintDropShared";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
+import { londonDayKey } from "@/lib/pintContributions";
 import {
   checkRateLimitDurableDetailed,
   isSupabaseConfigured,
@@ -98,6 +99,11 @@ const MAX_HANDLE = 40;
 const MAX_DRINK = 60;
 const MAX_ERA = 40;
 const MAX_PRICE = 20; // a £40 "pint" is a typo or abuse, not a data point.
+// Outlier FLOOR (feat/price-drops-v2): a sub-£1 "pint" is a fat-fingered entry
+// (£4.50 typed as £0.45) or deliberate noise, never a real London price — reject
+// it server-side just like the > £20 ceiling. Mirrored by the DB CHECK in
+// migration 0039 (defence in depth) and by the composer's inputMode UI.
+const MIN_PRICE = 1;
 
 function clean(value: unknown, cap: number): string {
   if (typeof value !== "string") return "";
@@ -133,8 +139,8 @@ export function validatePintDrop(input: unknown): ValidationResult {
   if (raw.priceGbp !== undefined && raw.priceGbp !== null && raw.priceGbp !== "") {
     const parsed = Number(raw.priceGbp);
     if (!Number.isFinite(parsed)) return { ok: false, error: "Price must be a number." };
-    if (parsed <= 0 || parsed > MAX_PRICE) {
-      return { ok: false, error: `Price must be between £0 and £${MAX_PRICE}.` };
+    if (parsed < MIN_PRICE || parsed > MAX_PRICE) {
+      return { ok: false, error: `Price must be between £${MIN_PRICE} and £${MAX_PRICE}.` };
     }
     priceGbp = Math.round(parsed * 100) / 100;
   }
@@ -273,6 +279,33 @@ export async function isLimited(
 
 export function addPintDrop(drop: PintDrop): void {
   drops.set(drop.venueId, [drop, ...(drops.get(drop.venueId) ?? [])]);
+}
+
+/**
+ * Duplicate guard (feat/price-drops-v2): has this identity already logged a
+ * PRICED drop at this venue on the same London calendar day? One priced
+ * observation per venue+identity+day keeps the price signal honest — a single
+ * actor can't stack ten "£3 pint" rows at one pub to skew its median. Scans the
+ * ORGANIC store only (demo seeds are read-only liveliness, never a dedupe
+ * subject) and ignores note-only anecdotes (a memory isn't a price observation).
+ * The Supabase backend enforces the same rule against its own rows; this is the
+ * in-memory mirror, exactly like the report ledger's two-backend pattern.
+ */
+export function hasPricedDropToday(
+  venueId: string,
+  handle: string,
+  now: Date = new Date(),
+): boolean {
+  const who = normalizeViewerHandle(handle);
+  if (!who) return false;
+  const today = londonDayKey(now);
+  return (drops.get(venueId) ?? []).some(
+    (d) =>
+      d.priceGbp !== null &&
+      d.status !== "hidden" &&
+      normalizeViewerHandle(d.handle) === who &&
+      londonDayKey(d.createdAt) === today,
+  );
 }
 
 /** Public read: newest-first, visible-only. Demo seeds merge in here — the one

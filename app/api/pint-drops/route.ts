@@ -266,6 +266,31 @@ export async function POST(request: Request): Promise<Response> {
   const unavailable = productionStorageUnavailable();
   if (unavailable) return unavailable;
 
+  // Duplicate guard (feat/price-drops-v2): one PRICED observation per
+  // venue+identity+London-day. A second priced drop at the same pub the same day
+  // is a 409, not a silent overwrite — the first observation is kept, and one
+  // actor can't stack rows to skew a venue's median. Note-only anecdotes are
+  // exempt (a passed-down memory isn't a price observation). A store hiccup here
+  // must not block an otherwise-good drop, so a lookup failure fails OPEN and the
+  // create proceeds (the create path still has its own error handling below).
+  if (dropPayload.priceGbp !== null) {
+    try {
+      if (await pintDropsStore().hasPricedDropToday(dropPayload.venueId, ownership.handle)) {
+        return jsonNoStore(
+          {
+            error: "You've already logged a price here today — thanks! Come back tomorrow to keep your streak.",
+          },
+          { status: 409 },
+        );
+      }
+    } catch (err) {
+      log("warn", "pint_drops.dedupe_check_failed", {
+        route: "POST /api/pint-drops",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   try {
     const drop = await pintDropsStore().create(dropPayload, photos);
     // Fire-and-forget: the profile bootstrap must never delay or fail the drop
