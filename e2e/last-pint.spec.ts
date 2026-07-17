@@ -214,6 +214,10 @@ test.describe("Last Pint card — decision states (mocked /api/last-train)", () 
         await expect(card.locator("ul").first()).toBeVisible();
       }
 
+      // "Send to crew" share renders in every decision state (the Guardian's
+      // WhatsApp-ready hand-off).
+      await expect(card.getByRole("button", { name: "Send to crew" })).toBeVisible();
+
       // The 3 nearest pubs "by the platform" always render for a resolved
       // station, mocked or not.
       await expect(card).toContainText("One more by the platform");
@@ -223,6 +227,48 @@ test.describe("Last Pint card — decision states (mocked /api/last-train)", () 
       expect(errors).toEqual([]);
     });
   }
+
+  test("send to crew: shares a home-logistics message via the native share sheet", async ({
+    page,
+  }) => {
+    // Stub navigator.share so the click resolves deterministically (no popup /
+    // real share sheet) and capture the composed message text for assertions.
+    await page.addInitScript(() => {
+      (window as unknown as { __sharedText?: string }).__sharedText = undefined;
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: (data: { text?: string }) => {
+          (window as unknown as { __sharedText?: string }).__sharedText = data.text;
+          return Promise.resolve();
+        },
+      });
+    });
+
+    await page.route("**/api/last-train**", async (route: Route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(fixtureFor("settle_up_now")),
+      });
+    });
+
+    await openGettingHomeTab(page);
+    const card = page.getByLabel("Last Pint");
+    await card.getByRole("button", { name: "Send to crew" }).click();
+
+    // Button confirms it was sent, and the shared message is home-logistics
+    // framed (never a nudge to drink more).
+    await expect(card.getByRole("button", { name: "Sent to crew" })).toBeVisible();
+    const sharedText = await page.evaluate(
+      () => (window as unknown as { __sharedText?: string }).__sharedText,
+    );
+    expect(sharedText).toContain("Last train home");
+    expect(sharedText).toContain("Arnos Grove");
+    expect(sharedText).toContain("Leave by");
+    expect(sharedText).toContain("Time to settle up.");
+    expect(sharedText).toContain("via PUBMAXXING");
+    expect(sharedText?.toLowerCase()).not.toContain("another round");
+  });
 
   test("train_risk: the disruption summary is surfaced", async ({ page }) => {
     await page.route("**/api/last-train**", async (route: Route) => {
