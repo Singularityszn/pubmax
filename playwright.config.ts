@@ -58,6 +58,17 @@ export default defineConfig({
         launchOptions: {
           args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
         },
+        // OfflineReady (components/OfflineReady.tsx) only registers public/sw.js
+        // in production, and this project's webServer runs a production build —
+        // so without this, the SW's stale-while-revalidate tile cache serves
+        // tiles.openfreemap.org responses from cache, bypassing page.route()
+        // network interception entirely (SW fetch handling happens outside
+        // Playwright's request interception). That silently defeated the
+        // "delayed tiles" scenario in map-gl.spec.ts (pin-reveal reason came
+        // back "tiles" instead of the expected "timeout"). Blocking SW
+        // registration for this project keeps every route()-based delay/failure
+        // simulation honest.
+        serviceWorkers: "block",
       },
     },
     {
