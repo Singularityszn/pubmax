@@ -8,6 +8,7 @@ import MobileTabBar from "@/components/nav/MobileTabBar";
 import NightModeCard from "@/components/night/NightModeCard";
 import OfflineReady from "@/components/OfflineReady";
 import FirstRunTour from "@/components/onboarding/FirstRunTour";
+import A2HSInstallPrompt from "@/components/pwa/A2HSInstallPrompt";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
@@ -259,6 +260,11 @@ export default async function RootLayout({
             {/* One-time first-run onboarding tour — renders nothing on the
                 server / for returning users (gated on hasSeenTour). */}
             <FirstRunTour />
+            {/* Add-to-Home-Screen install prompt (Cycle-4 Wave-C) — renders
+                nothing until PROVEN VALUE (second visit day or first completed
+                night) and only when the shared prompt budget is free, so it
+                never stacks on the first-run tour. */}
+            <A2HSInstallPrompt />
             {/* Silent offline SW registration (issue #32) — renders nothing,
                 production-only, registers after load. */}
             <OfflineReady />
