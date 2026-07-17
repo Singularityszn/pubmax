@@ -25,7 +25,8 @@ recap, and return. London is deepest; the other eight cities degrade honestly.
 - [ ] Establish PostHog/Vercel dashboards; the durable PNC query seam is implemented
   in `pnc_qualified_completions`, while provider-side certification remains open.
 - [ ] Remove streak telemetry and prove alcohol quantity cannot create progress.
-- [ ] Certify risk-tiered rate limits for public writes.
+- [x] Certify risk-tiered rate limits for public writes through the closed 60-route
+  CI inventory, production atomic-denial check, and dual-project env verification.
 
 **Gate:** observable failures, valid PNC, no unlimited anonymous writes.
 
