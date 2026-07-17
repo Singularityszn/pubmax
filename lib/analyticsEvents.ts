@@ -94,6 +94,9 @@ export const ANALYTICS_EVENTS = {
   pwa_install_prompt_available: ["platform"],
   pwa_install_completed: ["platform"],
   pwa_standalone_launch: ["platform"],
+  // Native shell (Capacitor) — contextual push pre-permission explainer.
+  native_push_prompt_enable: [],
+  native_push_prompt_later: [],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
