@@ -16,6 +16,7 @@ import { CHEERS_GATE_PROMPT } from "@/lib/optimisticToggle";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import prefetchVenue from "@/lib/prefetchVenue";
+import { buildPintDropShareText } from "@/lib/shareArtifacts";
 // Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
@@ -510,9 +511,11 @@ export default function FeedCard({
             <ShareBar
               url={`/p/${item.id}`}
               title={`${shownHandle}'s pint at ${item.venueName}`}
-              text={`${shownHandle} found a pint at ${item.venueName}${
-                typeof item.priceGbp === "number" ? ` — ${formatGbp(item.priceGbp)}` : ""
-              }. Every pint has a story.`}
+              text={buildPintDropShareText({
+                venueName: item.venueName,
+                priceGbp: item.priceGbp,
+                handle: shownHandle,
+              })}
             />
           </div>
         ) : null}

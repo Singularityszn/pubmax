@@ -7,6 +7,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import VenueRatingPanel from "@/components/ratings/VenueRatingPanel";
 import ShareBar from "@/components/share/ShareBar";
 import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } from "@/lib/feed";
+import { buildBarTabShareText } from "@/lib/shareArtifacts";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
@@ -154,7 +155,7 @@ export default async function BarTabPage({ params }: PageProps) {
           <ShareBar
             url={shareUrl}
             title={`The Bar Tab at ${venue.name}`}
-            text={`Recent pints at ${venue.name}. Every pint has a story.`}
+            text={buildBarTabShareText({ venueName: venue.name })}
           />
         </div>
 

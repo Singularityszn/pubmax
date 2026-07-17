@@ -1,3 +1,4 @@
+import { buildPlanInviteShareText } from "@/lib/shareArtifacts";
 import type { PlanState } from "@/lib/plan";
 
 function startLabel(startTime: string): string {
@@ -21,8 +22,14 @@ export function planViewModel(state: PlanState) {
 
 export function shareCopyForPlan(state: PlanState): string {
   const view = planViewModel(state);
-  const stopWord = view.stops.length === 1 ? "stop" : "stops";
-  return `${view.title} · ${view.stops.length} ${stopWord} · Starts ${view.startLabel} — see the plan and tap I'm in.`;
+  // An unparseable start time is omitted from the invite (honest data), while
+  // the on-page view still shows "Time to be confirmed" via startLabel.
+  const parsed = Date.parse(state.plan.startTime);
+  return buildPlanInviteShareText({
+    title: view.title,
+    stopCount: view.stops.length,
+    startClock: Number.isFinite(parsed) ? view.startLabel : null,
+  });
 }
 
 export function stopsFromConcierge(

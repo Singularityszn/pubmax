@@ -12,15 +12,16 @@
 //   texting the group, closed with the brand line where the object is a story
 //   artifact ("Every pint has a story.").
 //
-// Current shareable night objects (audit, 2026-07-17):
-//   plan invite  app/plan/[id]        → ShareBar (shareCopyForPlan)
-//   pint drop    app/p/[id] + FeedCard → ShareBar (inline copy, duplicated)
-//   crawl story  app/crawls/[slug]    → ShareBar (inline copy)
-//   bar tab      app/bar-tab/[id]     → ShareBar (inline copy)
-//   venue        map VenueInspector   → useVenueShare ("PUBMAXXING — name")
-//   passport     PintPassport         → ShareBar (inline copy)
-//   saved list   SavedListDetail      → ShareBar (inline copy)
-//   historic pub app/historic/[slug]  → ShareBar (hook or fallback)
+// Current shareable night objects (audit, 2026-07-17) — every call site now
+// builds its message here:
+//   plan invite  app/plan/[id]        → ShareBar (via shareCopyForPlan)
+//   pint drop    app/p/[id] + FeedCard → ShareBar (one builder, both cards)
+//   crawl story  app/crawls/[slug]    → ShareBar
+//   bar tab      app/bar-tab/[id]     → ShareBar
+//   venue        map VenueInspector   → useVenueShare
+//   passport     PintPassport         → ShareBar
+//   saved list   SavedListDetail      → ShareBar
+//   historic pub app/historic/[slug]  → ShareBar
 
 // £-formatting shared by every builder: only a real, positive, finite number
 // becomes a price string — anything else is treated as "price unknown".

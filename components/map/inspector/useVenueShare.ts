@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 
+import { buildVenueShareText } from "@/lib/shareArtifacts";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { isUserCancelledShare, type ShareFeedback } from "@/lib/venueShare";
 import type { Venue } from "@/lib/venues";
@@ -33,7 +34,11 @@ export function useVenueShare(venue: Venue) {
     setShareFeedback(null);
     if (typeof nav?.share === "function") {
       try {
-        await nav.share({ title, url, text: `PUBMAXXING — ${title}` });
+        await nav.share({
+          title,
+          url,
+          text: buildVenueShareText({ name: title, cheapestPintGbp: venue.cheapestPrice }),
+        });
         return;
       } catch (error) {
         if (isUserCancelledShare(error)) return;
@@ -48,7 +53,7 @@ export function useVenueShare(venue: Venue) {
       "Link copied.",
       "Sharing and clipboard are unavailable. Copy the page URL.",
     );
-  }, [venue.id, venue.name]);
+  }, [venue.id, venue.name, venue.cheapestPrice]);
 
   return { currentShareFeedback, shareVenue };
 }
