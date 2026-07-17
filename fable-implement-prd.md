@@ -103,7 +103,8 @@ Owner asleep from ~23:00. Every overnight action appended here with the why. Sta
 - **~23:15 — GNHF review run FAILED**: codex backend exited code 1 ("Reading additional input from stdin") on all 3 iterations, zero output. Codex CLI not headless-ready on this machine. Why not retried: broken backend, not a flaky run. Note: several PRs show Greptile "trial credit limit" review spam — ignore, not real reviews.
 - **~23:20 — Replacement**: spawned `e2e-verifier` (Opus 4.8, worktree) to do the highest-value slice GNHF was meant to cover — actually EXECUTE the e2e specs flagged as authored-but-unrun in #297/#302/#304/#305/#307 (APFS-clone node_modules trick from perf-lane), verdict table to `docs/E2E_VERIFICATION_2026-07-18.md` on branch `verify/e2e-overnight`. No source changes, no pushes.
 - **#307 (feed card slim) CI: green + CLEAN.** All 13 open PRs now CI-green.
-- Still running: instant-answer lane (Opus), borough-coverage lane (Opus), e2e-verifier (Opus).
+- **PR #308 opened** (borough coverage, Opus 4.8): 78% of 1246 venues priced; outer ring hollow (Barking&Dagenham 1 priced pub, Kingston 4, Hounslow 5). ZERO rows added — honest: seeds exhausted, price fetch is a stub, Firecrawl harvesters off-metric, OSM scoped non-London. Next-cycle levers logged in PR: sourced outer-borough seeds, per-row observedAt, seed-dedup coordinate-drift bug, core geo≠stored borough mismatch (Camden 89).
+- Still running: instant-answer lane (Opus), e2e-verifier (Opus).
 
 ## Owner queue (unchanged)
 
