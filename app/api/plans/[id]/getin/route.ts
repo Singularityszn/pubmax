@@ -3,6 +3,13 @@
 // /api/plans/[id]. Wraps lib/planGetIn's pure mapping around the real Plan
 // state and venue detail lookup so every field stays an honest estimate —
 // never a guarantee of entry.
+//
+// Push note: a get-in "update" is a plan-scoped notification event, but this
+// route is READ-ONLY (GET) — a get-in estimate has no server write moment to
+// hook, and firing on every read would spam. The get-in-changed push therefore
+// rides the plan mutation that caused the shift (see the decision route's
+// notifyPlanUpdate call) rather than this endpoint. Both use the same dormant
+// plan-scoped seam in lib/pushSender.ts (no identity on tokens yet).
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";

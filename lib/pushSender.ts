@@ -1,0 +1,216 @@
+// Server-side push fan-out. Resolves target tokens from the push-token registry
+// (lib/pushTokenStore.ts), hands them to the selected provider
+// (lib/pushProvider.ts), summarises the per-token results, and prunes any token
+// the provider reports invalid (APNs 410 / BadDeviceToken).
+//
+// ── IDENTITY LIMITATION (read before adding a plan-scoped send) ──────────────
+// Push tokens are registered PRE-AUTH (lib/nativePush.ts posts on shell boot),
+// so a token row carries NO user/plan identity. Plan-scoped targeting — "notify
+// only this Plan's crew" — is therefore impossible today. Two consequences:
+//   • Broadcast (night-signal "went live") CAN send: every token is a valid
+//     target, so broadcastNightSignalLive() fans out to store.list() wholesale.
+//   • Plan-scoped events (proposal decision, get-in change) CANNOT target, so
+//     resolvePlanTokens() returns [] and notifyPlanUpdate() is a plumbed no-op
+//     behind the PLAN-SCOPED SEAM below. It activates unchanged the day tokens
+//     gain identity — wire resolvePlanTokens() to a token→plan lookup then.
+// Sending to ALL tokens for a plan-scoped event would be a privacy leak (crew A
+// gets crew B's Plan updates), so that path stays closed until identity exists.
+
+import {
+  PerTokenResult,
+  PushPayload,
+  selectPushProvider,
+} from "@/lib/pushProvider";
+import { pushTokenStore } from "@/lib/pushTokenStore";
+
+/** A signal freshly promoted into the live snapshot — the broadcast payload. */
+export type NightSignalHighlight = {
+  id: string;
+  /** Notification title, e.g. the venue / area name. */
+  title: string;
+  /** Notification body, e.g. the claim text. */
+  body: string;
+  /** Night-signal entity id, for deep-linking (rides APNs custom data). */
+  entityId: string;
+};
+
+/** Reason a plan changed — decode target once tokens gain identity. */
+export type PlanUpdateReason = "proposal_accepted" | "proposal_rejected" | "getin_changed";
+
+/** Plan-scoped notification payload. Plumbed now, dispatched once tokens carry
+ *  identity (see PLAN-SCOPED SEAM). */
+export type PlanUpdatePayload = {
+  planId: string;
+  reason: PlanUpdateReason;
+  title: string;
+  body: string;
+};
+
+/** Outcome of one fan-out, aggregated across tokens. */
+export type PushDispatchSummary = {
+  /** Tokens the send targeted (0 when no provider work was needed). */
+  targeted: number;
+  sent: number;
+  skipped: number;
+  /** Invalid tokens the provider reported — these were pruned from the store. */
+  pruned: number;
+  errors: number;
+  results: PerTokenResult[];
+};
+
+const EMPTY_SUMMARY: PushDispatchSummary = {
+  targeted: 0,
+  sent: 0,
+  skipped: 0,
+  pruned: 0,
+  errors: 0,
+  results: [],
+};
+
+/**
+ * Core send: deliver `payload` to `tokens`, prune any the provider marks
+ * invalid, and summarise. Never throws for a per-token failure (the provider
+ * returns those as results); a provider-level throw is caught and surfaced as
+ * an all-error summary so callers (fire-and-forget) never see a rejection.
+ */
+async function dispatch(
+  tokens: readonly string[],
+  payload: PushPayload,
+): Promise<PushDispatchSummary> {
+  if (tokens.length === 0) return { ...EMPTY_SUMMARY };
+  const provider = selectPushProvider();
+
+  let results: PerTokenResult[];
+  try {
+    results = await provider.send(tokens, payload);
+  } catch (err) {
+    console.error(
+      `[pushSender] provider send failed for ${tokens.length} token(s):`,
+      err instanceof Error ? err.message : String(err),
+    );
+    return {
+      targeted: tokens.length,
+      sent: 0,
+      skipped: 0,
+      pruned: 0,
+      errors: tokens.length,
+      results: tokens.map((token) => ({ token, status: "error", reason: "provider_threw" })),
+    };
+  }
+
+  const invalid = results.filter((r) => r.status === "invalid");
+  if (invalid.length > 0) {
+    const store = pushTokenStore();
+    await Promise.allSettled(invalid.map((r) => store.delete(r.token)));
+  }
+
+  return {
+    targeted: tokens.length,
+    sent: results.filter((r) => r.status === "sent").length,
+    skipped: results.filter((r) => r.status === "skipped").length,
+    pruned: invalid.length,
+    errors: results.filter((r) => r.status === "error").length,
+    results,
+  };
+}
+
+/**
+ * Broadcast newly-live night signals to EVERY registered device. This is the
+ * one launch event that can send today: a night signal going live is public,
+ * so wholesale delivery to store.list() is correct (not a privacy leak).
+ */
+export async function broadcastNightSignalLive(
+  highlights: readonly NightSignalHighlight[],
+): Promise<PushDispatchSummary> {
+  if (highlights.length === 0) return { ...EMPTY_SUMMARY };
+  const tokens = (await pushTokenStore().list()).map((t) => t.token);
+  const lead = highlights[0];
+  const extra = highlights.length - 1;
+  const payload: PushPayload = {
+    title: highlights.length === 1 ? "New tonight" : `${highlights.length} new signals tonight`,
+    body: extra > 0 ? `${lead.body} + ${extra} more` : lead.body,
+    threadId: "night-signals",
+    data: {
+      kind: "night_signal_live",
+      entityId: lead.entityId,
+      signalId: lead.id,
+      count: String(highlights.length),
+    },
+  };
+  return dispatch(tokens, payload);
+}
+
+// In-process dedup so the broadcast fires at most once per snapshot version per
+// server instance. The night-signal snapshot is a static import that only
+// changes on deploy, so the first read after a new deploy is the "went live"
+// moment; every later read of the same version is a no-op.
+const broadcastedVersions = new Set<string>();
+
+/**
+ * Fire the night-signal broadcast once per snapshot version. Safe to call on
+ * every read of the night-signals route — subsequent calls for an
+ * already-broadcast version return an empty summary without touching tokens.
+ */
+export async function maybeBroadcastNightSignalLive(
+  version: string,
+  highlights: readonly NightSignalHighlight[],
+): Promise<PushDispatchSummary> {
+  if (!version || broadcastedVersions.has(version)) return { ...EMPTY_SUMMARY };
+  broadcastedVersions.add(version);
+  return broadcastNightSignalLive(highlights);
+}
+
+/** Test-only: forget which snapshot versions have broadcast. */
+export function __resetNightSignalBroadcasts(): void {
+  broadcastedVersions.clear();
+}
+
+// ── PLAN-SCOPED SEAM (dormant until tokens gain identity) ────────────────────
+
+/**
+ * Resolve the device tokens for a Plan's crew. Returns [] today because tokens
+ * carry no identity — see the IDENTITY LIMITATION at the top of this file.
+ * TODO(push-identity): once a token row can be linked to a member/plan, look up
+ * this plan's tokens here; notifyPlanUpdate() then delivers with no other
+ * change. Do NOT fall back to store.list() — that would leak Plan A's updates
+ * to Plan B's devices.
+ */
+async function resolvePlanTokens(planId: string): Promise<string[]> {
+  void planId; // Dormant: no token→plan link exists yet (see IDENTITY LIMITATION).
+  return [];
+}
+
+/**
+ * Notify a Plan's crew that the Plan changed (a proposal decision applied, or
+ * get-in estimates shifted). Plumbed end-to-end now; dispatches nothing until
+ * resolvePlanTokens() can target (see PLAN-SCOPED SEAM). Fire-and-forget at the
+ * call site — it never throws.
+ */
+export async function notifyPlanUpdate(
+  payload: PlanUpdatePayload,
+): Promise<PushDispatchSummary> {
+  const tokens = await resolvePlanTokens(payload.planId);
+  if (tokens.length === 0) return { ...EMPTY_SUMMARY };
+  return dispatch(tokens, {
+    title: payload.title,
+    body: payload.body,
+    threadId: `plan:${payload.planId}`,
+    data: { kind: "plan_update", planId: payload.planId, reason: payload.reason },
+  });
+}
+
+/**
+ * Fire a push send without blocking the caller. Swallows every failure — a push
+ * is best-effort (a dropped notification just means no notification). Use at
+ * request handlers so the HTTP response never waits on delivery.
+ */
+export function fireAndForgetPush(run: () => Promise<unknown>): void {
+  void Promise.resolve()
+    .then(run)
+    .catch((err) => {
+      console.error(
+        "[pushSender] fire-and-forget push failed:",
+        err instanceof Error ? err.message : String(err),
+      );
+    });
+}
