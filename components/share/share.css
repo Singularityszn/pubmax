@@ -54,16 +54,12 @@
   transform: scale(0.97);
 }
 
-/* Compact mode (feed card single action row) — one quiet 36px icon at rest;
-   the channel buttons only exist in the DOM once expanded, so folded state
-   costs almost no width. */
+/* Compact mode (feed card single action row) — the channel buttons only exist
+   in the DOM once expanded, so the folded state costs almost no width. Tap
+   target stays the full 44px (repo rule, verified by e2e/mobile-feed-actions);
+   only the gap tightens. */
 .shareBar--compact {
   gap: 6px;
-}
-
-.shareBar--compact .shareBar__btn {
-  width: 36px;
-  height: 36px;
 }
 
 .shareBar__toggle[aria-expanded="true"] {
