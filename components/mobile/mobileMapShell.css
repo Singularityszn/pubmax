@@ -116,6 +116,8 @@
   .mobileSheetPortal { position: fixed; inset: 0; z-index: var(--z-overlay-top); }
   .mobileSheetScrim { position: absolute; inset: 0; width: 100%; border: 0; background: color-mix(in srgb, var(--ink-deep) 32%, transparent); }
   .mobileSharedSheet.mapDrawer {
+    --mobile-sheet-visible-height: 55dvh;
+    --mobile-sheet-header-height: 64px;
     display: flex;
     flex-direction: column;
     position: fixed;
@@ -132,17 +134,23 @@
     will-change: transform;
     transition: transform var(--duration-slow) var(--ease-out);
   }
-  .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { transform: translateY(78dvh); }
-  .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { transform: translateY(45dvh); }
-  .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { transform: translateY(8dvh); }
+  .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { --mobile-sheet-visible-height: 22dvh; transform: translateY(78dvh); }
+  .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { --mobile-sheet-visible-height: 55dvh; transform: translateY(45dvh); }
+  .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { --mobile-sheet-visible-height: 92dvh; transform: translateY(8dvh); }
   .mobileSharedSheetHeader { position: relative; min-height: 64px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 12px 4px; touch-action: none; }
   .mobileSharedSheetHeader h2 { grid-column: 2; margin: 0; text-align: center; font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: var(--tracking-tight); }
   .mobileSharedSheetDetent { position: absolute; top: 0; left: 50%; z-index: 1; width: 52px; height: 44px; border: 0; background: transparent; transform: translateX(-50%); }
   .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
   .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
   .mobileSharedSheetClose { grid-column: 3; }
-  .mobileSharedSheetBody { flex: 1; min-height: 0; overflow: hidden; padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
-  .mobileSharedSheetBody.isScrollable { overflow-y: auto; overscroll-behavior: contain; }
+  .mobileSharedSheetBody {
+    flex: 0 0 auto;
+    min-height: 0;
+    height: calc(var(--mobile-sheet-visible-height) - var(--mobile-sheet-header-height) - var(--mobile-map-dock-clearance));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
 
   .mobileMapFilters { display: grid; gap: 18px; }
   .mobilePlannerIntent { display: grid; gap: 14px; margin: 0 0 18px; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
