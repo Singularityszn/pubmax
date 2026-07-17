@@ -93,6 +93,14 @@ const nextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders },
       {
+        // Apple universal-links manifest (Capacitor iOS wrap). The file lives
+        // in public/ with NO extension, so Next would otherwise serve it as
+        // application/octet-stream — Apple's CDN requires application/json.
+        // Content + TEAMID placeholder: docs/CAPACITOR_WRAP.md.
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+      {
         // The pub-price dataset is ~6 MB and effectively static between deploys.
         // These files live in public/ so their URLs are fixed and UNHASHED, and
         // several fetch sites (PubMapCanvas tfl_lines, PubMap price_updates) live
