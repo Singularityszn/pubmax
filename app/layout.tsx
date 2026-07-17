@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
+import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
@@ -246,10 +246,10 @@ export default async function RootLayout({
             <PerformanceVitals />
           </CommandPaletteProvider>
         </AuthProvider>
-        {/* Vercel Web Analytics (R3) — cookie-less pageview + custom-event
-            tracking (see lib/analytics.ts for the typed trackEvent rail).
+        {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
+            events use the separately allow-listed rail in lib/analytics.ts.
             Outside AuthProvider on purpose: it's app infra, not identity. */}
-        <Analytics />
+        <ConsentAwareVercelAnalytics />
       </body>
     </html>
   );

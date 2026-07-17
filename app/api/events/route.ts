@@ -20,6 +20,7 @@
 // check.
 
 import { sanitizeEvent } from "@/lib/analyticsEvents";
+import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent } from "@/lib/posthogServer";
 
@@ -90,6 +91,11 @@ export async function POST(req: Request): Promise<Response> {
       props && typeof props === "object" ? (props as Record<string, unknown>) : undefined,
     );
     if (!event) return noContent();
+    // Consent is required for every destination, including the structured
+    // release log. A direct POST cannot bypass the browser consent gate.
+    if (analyticsConsent !== true || !isAnonymousAnalyticsId(anonymousId)) {
+      return noContent();
+    }
 
     // Coarse path only (own-origin pathname), no query, capped — never a URL
     // that could carry a token.

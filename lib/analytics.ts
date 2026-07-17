@@ -86,6 +86,20 @@ function doNotTrack(): boolean {
 }
 
 /**
+ * One consent gate shared by the self-owned event rail and Vercel pageviews.
+ * It never creates an identifier and fails closed when browser storage is
+ * unavailable unless the person explicitly granted consent in this session.
+ */
+export function analyticsCollectionAllowed(): boolean {
+  if (typeof window === "undefined" || doNotTrack()) return false;
+  try {
+    return window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
+  } catch {
+    return inMemoryConsentGranted;
+  }
+}
+
+/**
  * Record a product event. No-ops on the server, under Do-Not-Track, or for an
  * unknown/invalid event name. Never throws.
  */
@@ -95,17 +109,18 @@ export function trackEvent(
 ): void {
   try {
     if (typeof window === "undefined") return;
-    if (doNotTrack()) return;
+    if (!analyticsCollectionAllowed()) return;
     const event = sanitizeEvent(name, props);
     if (!event) return;
 
     const anonymousId = anonymousAnalyticsId();
+    if (!anonymousId) return;
     const payload = JSON.stringify({
       name: event.name,
       props: event.props,
       path: window.location?.pathname ?? null,
       anonymousId,
-      analyticsConsent: anonymousId !== null,
+      analyticsConsent: true,
       ts: Date.now(),
     });
 
