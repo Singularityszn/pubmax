@@ -92,6 +92,27 @@ function CrawlsPageInner() {
     [slimVenues],
   );
 
+  // ONE featured crawl up top (full card, route viz) + the rest as compact
+  // scannable rows grouped by crawlStyle theme — the "wall of 15 identical
+  // cards" from the mobile audit read as generated filler. Every crawl stays
+  // reachable (featured + every group row), nothing is dropped, no repeated
+  // full-card layout.
+  const featuredCrawl = visibleCrawls[0];
+  const remainingCrawls = visibleCrawls.slice(1);
+  const compactGroups = useMemo<[string, CuratedCrawl[]][]>(() => {
+    const order: string[] = [];
+    const byLabel = new Map<string, CuratedCrawl[]>();
+    for (const crawl of remainingCrawls) {
+      const label = styleLabel(crawl.crawlStyle);
+      if (!byLabel.has(label)) {
+        byLabel.set(label, []);
+        order.push(label);
+      }
+      byLabel.get(label)!.push(crawl);
+    }
+    return order.map((label) => [label, byLabel.get(label)!]);
+  }, [remainingCrawls]);
+
   const [copied, setCopied] = useState(false);
   async function copyShareLink() {
     try {
@@ -151,63 +172,33 @@ function CrawlsPageInner() {
             ) : null}
           </nav>
 
-          <ul className="curatedGrid" aria-label="Curated crawls worth walking">
-            {visibleCrawls.map((crawl) => {
-              const originName = startLandmarkName(crawl);
-              const placeStory = crawl.placeStoryBandId
-                ? bandById(crawl.placeStoryBandId)
-                : undefined;
-              // HONEST route metrics from the slim index (E4). Undefined until
-              // the index loads or when a crawl's stops don't resolve — the card
-              // then shows only its existing stop-count line, never a fake shape,
-              // walk time, or price.
-              const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
-              const priceRange = crawlPriceRange(crawl.venueIds, slimById);
-              return (
-                <li key={crawl.id} id={crawl.id} className="curatedCard">
-                  <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
-                  <h2 className="curatedName">{crawl.name}</h2>
-                  <p className="curatedBlurb">{crawl.blurb}</p>
-                  {routeSummary ? (
-                    <div className="curatedRoute">
-                      <RouteThumbnail
-                        points={routeSummary.points}
-                        className="curatedRouteThumb"
-                      />
-                      <span className="curatedRouteMeta">
-                        {formatCrawlRouteSummary(routeSummary)}
-                      </span>
-                    </div>
-                  ) : null}
-                  {priceRange ? (
-                    <span className="curatedPriceFrom">
-                      Pints from {formatPriceRange(priceRange)}
-                    </span>
-                  ) : null}
-                  {originName ? (
-                    <span className="curatedOriginChip">
-                      <Flag size={12} aria-hidden="true" /> Starts at {originName}
-                    </span>
-                  ) : null}
-                  {placeStory ? (
-                    <span className="curatedOriginChip curatedPlaceStoryChip">
-                      Place story · {placeStory.title}
-                    </span>
-                  ) : null}
-                  <p className="curatedMeta">
-                    {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
-                  </p>
-                  <Link
-                    href={curatedCrawlMapHref(crawl)}
-                    className="curatedLink curatedPlanBtn"
-                    aria-label={`Plan the ${crawl.name} crawl on the map`}
+          {featuredCrawl ? (
+            <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} />
+          ) : null}
+
+          {compactGroups.length ? (
+            <div className="crawlCompactGroups">
+              {compactGroups.map(([groupLabel, crawlsInGroup]) => (
+                <section
+                  key={groupLabel}
+                  className="crawlCompactGroup"
+                  aria-labelledby={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
+                >
+                  <h3
+                    id={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
+                    className="crawlCompactGroupHeading"
                   >
-                    Plan this crawl →
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                    {groupLabel}
+                  </h3>
+                  <ul className="crawlCompactList" aria-label={`${groupLabel} crawls`}>
+                    {crawlsInGroup.map((crawl) => (
+                      <CompactCrawlRow key={crawl.id} crawl={crawl} slimById={slimById} />
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          ) : null}
 
           <RoundStarter />
 
@@ -220,6 +211,100 @@ function CrawlsPageInner() {
         </section>
       )}
     </main>
+  );
+}
+
+// The one full-width card at the top of the empty state — keeps the route
+// thumbnail + honest metrics that made the old grid nice, minus the
+// repetition of shipping 15 of them.
+function FeaturedCrawlCard({
+  crawl,
+  slimById,
+}: {
+  crawl: CuratedCrawl;
+  slimById: ReadonlyMap<string, SlimVenue>;
+}) {
+  const originName = startLandmarkName(crawl);
+  const placeStory = crawl.placeStoryBandId ? bandById(crawl.placeStoryBandId) : undefined;
+  const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
+  const priceRange = crawlPriceRange(crawl.venueIds, slimById);
+
+  return (
+    <div className="curatedFeaturedWrap">
+      <p className="crawlEyebrow curatedFeaturedEyebrow">Featured crawl</p>
+      <article key={crawl.id} id={crawl.id} className="curatedCard curatedFeaturedCard">
+        <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
+        <h2 className="curatedName">{crawl.name}</h2>
+        <p className="curatedBlurb">{crawl.blurb}</p>
+        {routeSummary ? (
+          <div className="curatedRoute">
+            <RouteThumbnail points={routeSummary.points} className="curatedRouteThumb" />
+            <span className="curatedRouteMeta">{formatCrawlRouteSummary(routeSummary)}</span>
+          </div>
+        ) : null}
+        {priceRange ? (
+          <span className="curatedPriceFrom">Pints from {formatPriceRange(priceRange)}</span>
+        ) : null}
+        {originName ? (
+          <span className="curatedOriginChip">
+            <Flag size={12} aria-hidden="true" /> Starts at {originName}
+          </span>
+        ) : null}
+        {placeStory ? (
+          <span className="curatedOriginChip curatedPlaceStoryChip">
+            Place story · {placeStory.title}
+          </span>
+        ) : null}
+        <p className="curatedMeta">
+          {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+        </p>
+        <Link
+          href={curatedCrawlMapHref(crawl)}
+          className="curatedLink curatedPlanBtn"
+          aria-label={`Plan the ${crawl.name} crawl on the map`}
+        >
+          Plan this crawl →
+        </Link>
+      </article>
+    </div>
+  );
+}
+
+// Compact scannable row for every other curated crawl — name, area (the
+// landmark it starts at, when known), stop count, price range. One line,
+// tap anywhere to open the crawl on the map (its existing "detail" surface —
+// curated crawls have no standalone detail page; /crawls/[slug] is reserved
+// for durable, user-shared Crawl Stories, a different id namespace).
+function CompactCrawlRow({
+  crawl,
+  slimById,
+}: {
+  crawl: CuratedCrawl;
+  slimById: ReadonlyMap<string, SlimVenue>;
+}) {
+  const originName = startLandmarkName(crawl);
+  const priceRange = crawlPriceRange(crawl.venueIds, slimById);
+  const stopCount = crawl.venueIds.length;
+
+  return (
+    <li className="crawlCompactRow">
+      <Link
+        href={curatedCrawlMapHref(crawl)}
+        className="crawlCompactLink"
+        aria-label={`Plan the ${crawl.name} crawl on the map`}
+      >
+        <span className="crawlCompactName">{crawl.name}</span>
+        <span className="crawlCompactMetaRow">
+          {originName ? <span className="crawlCompactArea">{originName}</span> : null}
+          <span className="crawlCompactStops">
+            {stopCount} stop{stopCount === 1 ? "" : "s"}
+          </span>
+          <span className="crawlCompactPrice">
+            {priceRange ? formatPriceRange(priceRange) : "—"}
+          </span>
+        </span>
+      </Link>
+    </li>
   );
 }
 

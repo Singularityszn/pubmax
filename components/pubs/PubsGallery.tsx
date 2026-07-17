@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { ExternalLink, MapPinned } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ExternalLink, MapPinned } from "lucide-react";
 
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import VenueImage from "@/components/media/VenueImage";
@@ -74,6 +74,18 @@ function DrinkArt({
   );
 }
 
+// Progressive disclosure over the already-loaded, server-rendered pub index
+// (E: mobile audit — 119 cards in one unbounded list, ~46,000px tall). The
+// full <ul> below still maps EVERY pub — the SEO text for every card ships in
+// the server-rendered HTML regardless of JS/hydration state — only cards
+// beyond `revealedCount` get a `pubsCardFold` class that CSS-collapses them
+// (display: none) until "Show more" is clicked. That keeps full-list SEO
+// while killing the scroll wall for a real visitor. Chunked client-side
+// slicing (never rendering the tail at all) was ruled out: it would drop
+// those pubs from the HTML a crawler sees on first load.
+const INITIAL_VISIBLE_PUBS = 30;
+const REVEAL_CHUNK = 30;
+
 export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
   const [filter, setFilter] = useState<FilterKey>("all");
 
@@ -93,6 +105,69 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
     for (const pub of pubs) next[pub.source] += 1;
     return next;
   }, [pubs]);
+
+  // `count` is how many cards are shown; `from` is where the previous reveal
+  // batch ended, so the just-revealed slice gets a one-shot fade-in. Kept as
+  // one state value (not a ref) — both are read during render for the
+  // per-card fold/enter class, and refs can't be read during render.
+  const [revealed, setRevealed] = useState({ count: INITIAL_VISIBLE_PUBS, from: INITIAL_VISIBLE_PUBS });
+  const pendingScrollIdRef = useRef<string | null>(null);
+
+  // A filter change re-slices `visible` — reset the fold back to the first
+  // page rather than carrying over an unrelated reveal count. Adjusted during
+  // render (React's documented pattern for resetting state on a prop/derived
+  // change) instead of an effect, so there's no extra render pass.
+  const [prevFilter, setPrevFilter] = useState(filter);
+  if (filter !== prevFilter) {
+    setPrevFilter(filter);
+    setRevealed({ count: INITIAL_VISIBLE_PUBS, from: INITIAL_VISIBLE_PUBS });
+  }
+
+  useEffect(() => {
+    const id = pendingScrollIdRef.current;
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ block: "start", behavior: "smooth" });
+      pendingScrollIdRef.current = null;
+    }
+  }, [revealed.count]);
+
+  function showMore() {
+    setRevealed((prev) => ({
+      from: prev.count,
+      count: Math.min(prev.count + REVEAL_CHUNK, visible.length),
+    }));
+  }
+
+  // Sticky lightweight area jump — boroughs in the order they first appear in
+  // the current (filtered) list. Jumping past the fold reveals up to that
+  // pub, then scrolls it into view.
+  const boroughJumpTargets = useMemo(() => {
+    const seen = new Set<string>();
+    const targets: { borough: string; index: number }[] = [];
+    visible.forEach((pub, index) => {
+      const borough = pub.borough.trim();
+      if (!borough || seen.has(borough)) return;
+      seen.add(borough);
+      targets.push({ borough, index });
+    });
+    return targets;
+  }, [visible]);
+
+  function jumpToBorough(index: number) {
+    const target = visible[index];
+    if (!target) return;
+    const anchorId = `pubsCard-${target.id}`;
+    if (index >= revealed.count) {
+      pendingScrollIdRef.current = anchorId;
+      setRevealed((prev) => ({ from: prev.count, count: index + 1 }));
+      return;
+    }
+    document.getElementById(anchorId)?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
+  const remaining = visible.length - revealed.count;
 
   return (
     <div className="pubsGallery">
@@ -122,16 +197,46 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
         {filter === "all" ? " from our scrapes" : ` · ${SCRAPED_SOURCE_LABELS[filter]}`}
       </p>
 
+      {boroughJumpTargets.length > 1 ? (
+        <nav className="pubsJumpNav" aria-label="Jump to area">
+          {boroughJumpTargets.map(({ borough, index }) => (
+            <button
+              key={borough}
+              type="button"
+              className="pubsJumpChip"
+              onClick={() => jumpToBorough(index)}
+            >
+              {borough}
+            </button>
+          ))}
+        </nav>
+      ) : null}
+
       <ul className="pubsGrid">
-        {visible.map((pub) => {
+        {visible.map((pub, index) => {
           const booking = resolveBookingAction({
             name: pub.name,
             bookingUrl: pub.bookingUrl,
             menuUrl: pub.menuUrl,
             areaHint: pub.borough,
           });
+          const isFolded = index >= revealed.count;
+          const isEntering = !isFolded && index >= revealed.from;
+          const cardClassName = isFolded
+            ? "pubsCard pubsCardFold"
+            : isEntering
+              ? "pubsCard isEntering"
+              : "pubsCard";
+          const enterDelayMs = isEntering
+            ? Math.min((index - revealed.from) * 30, 240)
+            : undefined;
           return (
-          <li key={pub.id} className="pubsCard">
+          <li
+            key={pub.id}
+            id={`pubsCard-${pub.id}`}
+            className={cardClassName}
+            style={enterDelayMs !== undefined ? { animationDelay: `${enterDelayMs}ms` } : undefined}
+          >
             <DrinkArt
               accent={pub.drinkAccent}
               shelf={pub.drinkShelf}
@@ -188,6 +293,15 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
           );
         })}
       </ul>
+
+      {remaining > 0 ? (
+        <div className="pubsShowMoreWrap">
+          <button type="button" className="pubsShowMoreBtn" onClick={showMore}>
+            Show {Math.min(remaining, REVEAL_CHUNK)} more
+            <ChevronDown size={15} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
 
       {visible.length === 0 ? (
         <p className="pubsEmpty">No scraped pubs in this filter yet.</p>
