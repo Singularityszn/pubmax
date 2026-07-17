@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 describe("plan ending selection migration", () => {
   const sql = readFileSync(
-    new URL("../supabase/migrations/20260716213000_0038_plan_ending_selection.sql", import.meta.url),
+    new URL("../supabase/migrations/20260717065012_0038_plan_ending_selection.sql", import.meta.url),
     "utf8",
   );
 

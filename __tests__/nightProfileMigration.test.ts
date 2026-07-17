@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 describe("night_profiles migration", () => {
   it("keeps rows account-owned under RLS and stores only a Pal foreign key", () => {
     const sql = readFileSync(
-      new URL("../supabase/migrations/20260716210000_0037_night_profiles.sql", import.meta.url),
+      new URL("../supabase/migrations/20260717065003_0037_night_profiles.sql", import.meta.url),
       "utf8",
     );
     expect(sql).toContain("owner_id uuid primary key references auth.users(id)");
