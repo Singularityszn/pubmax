@@ -114,6 +114,10 @@ Owner asleep from ~23:00. Every overnight action appended here with the why. Sta
 - **PR #311** header consistency (Opus 4.8): killed mobile pill-box + landing badge outliers; one wordmark/bar idiom. CI green.
 - **PR #312** identity nudges (Opus 4.8): sign-in offers after first plan action / first moment draft, 7-day cooldown, never gates browsing; ordered ahead of native push prompt. CI green.
 
+- **PR #313** A2HS install flow (Opus 4.8): proven-value gate (2nd day / first completed night), Android beforeinstallprompt + iOS instruction sheet, NEW lib/promptBudget.ts (one prompt per session, adoptable by tour/identity). CI green.
+- **PR #314** WhatsApp share artifacts (GNHF Claude run, 5/5 iterations): pure builders for 8 night objects, 9 call sites unified behind native-sheet-first/wa.me flow, Bar Tab OG card added. CI green. Merge after #307.
+- **#302 e2e fixed** (Opus 4.8): 4/9 failures were webServer cold-start vs default 30s timeout, not code — 90s timeout per suite convention, proof 18/18 repeat-each=2. Pushed e5dbd244 + PR comment.
+
 ## CYCLE 4 PRD (overnight, owner directive: maximize parallel Opus 4.8 lanes)
 
 Backlog drawn from logged findings; four non-colliding lanes, all Opus 4.8, worktrees, separate PRs:
