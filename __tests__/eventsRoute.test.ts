@@ -35,6 +35,8 @@ describe("POST /api/events", () => {
           name: "tonight_filter_select",
           props: { kind: "gig", secret: "drop-me" },
           path: "/tonight?ref=x",
+          anonymousId: "anon_0123456789abcdef",
+          analyticsConsent: true,
           ts: 123,
         }),
       ),
@@ -73,7 +75,11 @@ describe("POST /api/events", () => {
 
   it("drops the 121st event from the same IP within a minute (204, no log)", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
-    const body = JSON.stringify({ name: "tonight_screen_view" });
+    const body = JSON.stringify({
+      name: "tonight_screen_view",
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    });
     const headers = { "x-forwarded-for": "203.0.113.9" };
 
     for (let i = 0; i < 120; i++) {
@@ -138,14 +144,15 @@ describe("POST /api/events", () => {
     expect(analyticsSurfaceFromPath("/unknown/private-value")).toBeNull();
   });
 
-  it("does not forward to PostHog when analytics consent is absent", async () => {
+  it("does not log or forward when analytics consent is absent", async () => {
     process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await POST(post(JSON.stringify({ name: "tonight_screen_view", path: "/tonight" })));
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
   });
 
   it("fails soft when PostHog is unavailable", async () => {
