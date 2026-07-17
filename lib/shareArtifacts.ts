@@ -25,6 +25,11 @@
 //
 // Delivery plumbing is unified in lib/shareSheet.ts (native sheet first,
 // wa.me fallback); ShareBar leads with the native button for the same reason.
+//
+// OG cards: every shared URL now carries one — /p/[id], /historic/[slug],
+// /u/[handle] (+ saved lists via /api/list-card), plan via /api/plan-card,
+// crawl via /api/crawl-card + /api/chaos-card, venue via the map/city cards,
+// and bar tab via app/bar-tab/[id]/opengraph-image.tsx (ogBrand kit).
 
 // £-formatting shared by every builder: only a real, positive, finite number
 // becomes a price string — anything else is treated as "price unknown".
