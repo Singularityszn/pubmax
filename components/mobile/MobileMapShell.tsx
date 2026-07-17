@@ -19,6 +19,7 @@ const SHEET_TITLES: Partial<Record<MapOverlay, string>> = {
   layers: "Map layers",
   "pub-pal": "Pub Pal",
   moment: "Choose a pub",
+  "near-me": "Cheapest pints near you",
 };
 
 const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
@@ -28,6 +29,7 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "layers",
   "pub-pal",
   "moment",
+  "near-me",
 ];
 
 function PalSignalAvatar() {
@@ -44,7 +46,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, filtersActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent }: {
+export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, filtersActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent }: {
   cityLabel: string;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
@@ -68,13 +70,14 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
   layersContent: React.ReactNode;
   palContent: React.ReactNode;
   momentContent: React.ReactNode;
+  nearMeContent: React.ReactNode;
 }) {
   const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
   const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;
-  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : palContent;
+  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : palContent;
 
   return (
     <>
@@ -114,7 +117,7 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
     </>
   );
 }

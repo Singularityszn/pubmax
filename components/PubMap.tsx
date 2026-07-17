@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
@@ -122,6 +123,11 @@ import {
   type MapSeed,
   type VenueDetailStatus,
 } from "@/lib/pubMap";
+
+// The "Near me now" instant-answer cards (Cycle 3, Lane 1). Loaded lazily so it
+// never rides in the eager map chunk (perf budget, PR #306) — it only mounts
+// when the Near-me sheet opens, and answers from the already-loaded venues.
+const NearMeNow = dynamic(() => import("@/components/nearme/NearMeNow"), { ssr: false });
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -1109,7 +1115,9 @@ export default function PubMap({
           strategy: withinRadius.length >= 20 ? "within-radius" : "nearest-20",
         });
         setNearbyLoading(false);
-        setMapOverlay("none");
+        // Highlight nearby pins AND present the instant-answer cards (Lane 1):
+        // the chip now yields an ANSWER, not just a recentre.
+        setMapOverlay("near-me");
       },
       () => {
         setNearbyLoading(false);
@@ -1725,6 +1733,23 @@ export default function PubMap({
               }}
               onResetFilters={resetLogIntentFilters}
             />
+          }
+          nearMeContent={
+            mapOverlay === "near-me" ? (
+              <NearMeNow
+                cityId={cityId}
+                onSelectVenue={selectVenue}
+                initialLocation={userLocation}
+                venues={filteredVenues.map((venue) => ({
+                  id: venue.id,
+                  name: venue.name,
+                  lat: venue.latitude,
+                  lng: venue.longitude,
+                  cheapestPrice: venue.cheapestPrice,
+                  borough: venue.primaryBorough,
+                }))}
+              />
+            ) : null
           }
         />
 

@@ -9,6 +9,7 @@ import {
   Camera,
   Coins,
   Compass,
+  LocateFixed,
   MapPin,
   MessageSquareText,
   Route,
@@ -122,11 +123,11 @@ export default function LandingPage() {
             <h1 id="hero-title">Make tonight worth remembering.</h1>
             <p className="lpHeroLede">Real prices, live plans and unexpected places—built for better nights with your people.</p>
             <div className="lpHeroActions">
-              <Link className="lpButton lpButtonPrimary" href={primaryCtaHref} {...warmProps}>
-                Open the map <ArrowRight size={18} aria-hidden="true" />
+              <Link className="lpButton lpButtonPrimary" href="/near">
+                <LocateFixed size={18} aria-hidden="true" /> Find my pint
               </Link>
-              <Link className="lpButton lpButtonQuiet" href="#wedge">
-                <Sparkles size={17} aria-hidden="true" /> How it works
+              <Link className="lpButton lpButtonQuiet" href={primaryCtaHref} {...warmProps}>
+                <MapPin size={17} aria-hidden="true" /> Open the map
               </Link>
               <Link className="lpButton lpButtonQuiet" href="/pal">
                 <MessageSquareText size={17} aria-hidden="true" /> Meet your Pub Pal
