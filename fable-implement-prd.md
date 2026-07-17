@@ -52,6 +52,24 @@ Remote main `5e1252df` already contained Sol's overnight lanes: H1 rate-limit is
 - Firecrawl API key installed + validated; mcporter installed + configured (Chrome attach still failing — extension reconnect pending); browser-use skill's wrong-user path fixed.
 - Auto-compact at 70% (~140k) set globally; statusline now shows model/dir/branch (verified: `Fable 5 / pubmax [main]`).
 
+## CYCLE 2 — Mobile-web love (grilled + locked 2026-07-17, evening)
+
+Owner directive: mobile WEB only. App/store/Apple work is owner-scheduled, later — users must love the site and beg for the app first. Decisions locked in grilling:
+
+- **Metrics**: funnel of four, all first-class — nights planned/week, invites per planner, return rate (measured daily, not weekend-bound — people drink every day), A2HS installs. No single tiebreaker.
+- **Daily hook**: utility first (Tonight + live pint prices earn the random-Tuesday open), companion layered on top; feed waits for density.
+- **Identity**: push harder — account prompt after first plan or first moment, early email capture. Browsing/map/prices never gated (SEO + first touch).
+- **USP bets — all four**: (1) last-train/last-orders guardian (TfL, issue #45), (2) gamified pint-price drops (one-tap submission, proof, streaks, borough leaderboards — deepens the data moat daily), (3) live buzz layer (BLOCKED on EXA_API_KEY), (4) group ledger polish.
+- **Beg-for-app mechanics**: A2HS prompt after second visit or first completed night (installed iOS PWAs gain web push — reachability without an app); email digest + WhatsApp-native share artifacts (recap, invite, price drop).
+
+### Waves (mobile web)
+
+- **Wave A — measure + speed (first)**: metrics funnel instrumentation (consent-gated, PostHog server lib exists); perf budget pass on the map loop (LCP < 2.5s mid-tier 4G, instant back-nav, no sheet jank). Nothing ships without moving/measuring the funnel.
+- **Wave B — USP**: B1 guardian; B2 price drops (new mutating surface — full write-surface certification, anti-abuse, provenance gates per Pint Index rules); B3 ledger polish; B4 buzz when EXA lands.
+- **Wave C — reach**: identity nudges; weekly email digest; WhatsApp-native share artifacts on every night object; A2HS flow (iOS share-sheet instruction sheet + Android beforeinstallprompt).
+
+Planned lanes (worktrees; Fable reviews, Sol merges): guardian + price drops = Opus 4.8; funnel, A2HS/share, ledger, digest = Sonnet 5; mechanical chores = Haiku 4.5.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
