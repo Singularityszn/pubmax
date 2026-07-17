@@ -8,6 +8,7 @@ import ShareBar from "@/components/share/ShareBar";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { displayHandle } from "@/lib/handleDisplay";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
+import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
 
 import "./permalink.css";
@@ -142,9 +143,10 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
 
   // Share lockup: a nostalgic one-liner that carries the pint into a group chat.
   const shareTitle = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${price ? ` — ${price}` : ""}`;
-  const shareText = price
-    ? `Found a proper pint at ${drop.venueName} — ${price}. Every pint has a story.`
-    : `Found a proper pint at ${drop.venueName}. Every pint has a story.`;
+  const shareText = buildPintDropShareText({
+    venueName: drop.venueName,
+    priceGbp: drop.priceGbp,
+  });
 
   return (
     <main className="permalink">

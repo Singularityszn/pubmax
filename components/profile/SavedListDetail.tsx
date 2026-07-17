@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
 import { normalizeHandle } from "@/lib/profiles";
+import { buildSavedListShareText } from "@/lib/shareArtifacts";
 import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
 
 type SavedListCounts = {
@@ -64,11 +65,11 @@ export default function SavedListDetail({
 
   const canFollow = viewer !== "" && viewer !== owner;
   const shareUrl = listUrl(owner, listType);
-  const shareText = `${owner}'s ${listType} saved list — ${formatCount(
-    counts.savedPubs,
-    "pub",
-    "pubs",
-  )}, ${formatCount(counts.followers, "follower", "followers")}. Every pint has a story.`;
+  const shareText = buildSavedListShareText({
+    owner,
+    listType,
+    pubCount: counts.savedPubs,
+  });
 
   useEffect(() => {
     if (viewerHandle) return;

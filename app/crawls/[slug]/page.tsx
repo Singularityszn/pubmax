@@ -7,6 +7,7 @@ import CrawlStoryOwnerControls from "@/components/crawl/CrawlStoryOwnerControls"
 import ShareBar from "@/components/share/ShareBar";
 import { computeChaosScore } from "@/lib/chaosScore";
 import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
+import { buildCrawlShareText } from "@/lib/shareArtifacts";
 
 import "./story.css";
 
@@ -118,9 +119,11 @@ export default async function CrawlStoryPage({ params }: PageProps) {
   const stopCount = story.stops.length;
 
   // Share lockup — a nostalgic one-liner so the crawl travels into a group chat.
-  const shareText = `${story.title} — ${stopCount} stop${stopCount === 1 ? "" : "s"}${
-    total > 0 ? `, ${formatGbp(total)} a round` : ""
-  }. Every pint has a story.`;
+  const shareText = buildCrawlShareText({
+    title: story.title,
+    stopCount,
+    totalGbp: total,
+  });
 
   // Chaos Score + meme export (issue #30) — optional, playful, computed once
   // here so the on-page badge and the shared card always agree.
