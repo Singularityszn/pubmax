@@ -56,8 +56,10 @@ describe("Plan Completion", () => {
     expect(sql).toContain("candidate.created_at <= completion.completed_at");
     expect(sql).toContain("on delete no action");
     expect(sql).toContain("deferrable initially deferred");
-    expect(sql).toContain("not valid");
-    expect(sql).toContain("validate constraint plan_completions_qualifying_arrival_shape");
+    const shapeConstraint = /add constraint plan_completions_qualifying_arrival_shape check \([\s\S]*?\)\s+not valid;/i.exec(sql);
+    expect(shapeConstraint).not.toBeNull();
+    const validateIndex = sql.indexOf("validate constraint plan_completions_qualifying_arrival_shape");
+    expect(validateIndex).toBeGreaterThan((shapeConstraint?.index ?? -1) + (shapeConstraint?.[0].length ?? 0));
     expect(sql).not.toContain("on delete set null");
     expect(sql).not.toContain("on delete cascade");
   });

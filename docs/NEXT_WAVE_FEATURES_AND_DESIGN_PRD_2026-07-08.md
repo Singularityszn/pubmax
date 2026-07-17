@@ -130,7 +130,8 @@ We will follow these principles on every new surface:
 **Week 5: Gamification & All-Drinks**
 - Pint Passport stamps + shareable passport image.
 - Dry Crawl filters and non-alcoholic routes.
-- Chaos Score + meme export.
+- **Rejected historical item:** Chaos Score and its meme export are not delivery
+  guidance; current progression cannot reward consumption or drinking frequency.
 
 **Week 6: Security Hardening + Viral Polish**
 - EXIF stripping + private Storage enforcement.
