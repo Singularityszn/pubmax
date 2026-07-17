@@ -23,6 +23,9 @@ Remote main `5e1252df` already contained Sol's overnight lanes: H1 rate-limit is
 | #276 | About/founder story + press kit — conflicts vs redesigned landing resolved; CodeRabbit MAJOR fixed (aboutStats counts only venues with accepted price observations); stylelint + test fixes | Fable 5 subagent (inherited, pre-tiering rule) | CI green + CLEAN |
 | #295 | Capacitor iOS wrap foundation: remote-URL shell, `ios/` scaffold (SPM), native seams (`lib/nativePlatform/nativeCamera/nativePush.ts`), `POST /api/push-tokens` + `lib/pushTokenStore.ts` + migration `0039_push_tokens`, AASA universal links (`/plan/*`, `/rounds/*`, `/p/*`), breakpoint hoist `lib/breakpoints.ts`. Architect review forced 5 fixes (rate limit, error envelope, webDir stub, AASA comment, write-surface certification as route 61). Cursor security MEDIUM (forwarded-header rotation) fixed with global backstop bucket 300/h + regression test (301 requests / 250 rotating IPs) | Fable 5 subagent (inherited, pre-tiering rule) | CI green + CLEAN, security re-passed |
 | #296 | First-run WELCOME tour gated to `/map` surfaces only (`shouldShowFirstRunTour` in `lib/firstRunTour.ts`, 21-assertion test). Once-per-device persistence already existed; surface gate was the real bug | **Sonnet 5** | CI green + CLEAN |
+| #298 | e2e: `serviceWorkers: "block"` on chromium-gl — `public/sw.js` tile cache bypassed Playwright `page.route()`, silently defeating the delayed-tiles scenario (pre-existing main failure, now fixed; test-infra only) | **Sonnet 5** (claude-sonnet-5) | CI green + CLEAN |
+| #299 | (stacked on #295) Contextual push permission prompt — sequence-gated after first plan action (join/start/confirm), "Later" re-offers only after next qualifying action; native first-run redirect landing→map, once ever, never over existing city preference. 11 new gate tests, full suite 3118 green | **Sonnet 5** (claude-sonnet-5) | CI green + CLEAN (CodeRabbit skips stacked base) |
+| #300 | (stacked on #295) Push SENDING pipeline behind APNs-ready provider seam (noop until env keys), fan-out + invalid-token pruning, night-signal go-live broadcast with DURABLE at-most-once dedup (budget-of-1 isLimited claim keyed on snapshot generatedAt — Fable review caught the original per-instance Set flaw), plan-scoped sends dormant behind identity seam (privacy: pre-auth tokens have no identity) | **Opus 4.8** (claude-opus-4-8) | CI green + CLEAN |
 | #297 | Map first-frame watchdog: WebGL context GRANTED but zero frames painted → `style.load` settled the scene into permanent blank white with no fallback. Watchdog on MapLibre `render` event, 10s visible-tab timeout → honest `no-frame` fallback with Retry + cheapest-pubs venue rows + `/pubs` link. e2e under SwiftShader with stubbed rAF | Fable 5 subagent (launched pre-tiering rule) | CI pending at handoff |
 
 ## Mobile audit findings (live 390×844 captures via Firecrawl)
@@ -31,6 +34,10 @@ Remote main `5e1252df` already contained Sol's overnight lanes: H1 rate-limit is
 - **Welcome modal on every surface** — fixed by #296.
 - **Pint Index page says "Public release pending"** — OWNER DECISION: copy/timing vs press launch.
 - Feed/Tonight healthy; Tonight honestly thin until signals ingestion gets EXA_API_KEY.
+
+## Suggested merge order
+
+#295 → #299 → #300 (stack; retarget #299/#300 to main after #295 lands if preferred — CodeRabbit will then review them). #276, #296, #297, #298 independent, any order.
 
 ## For Sol — beyond the PR queue
 
