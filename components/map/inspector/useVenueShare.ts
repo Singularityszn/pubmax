@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
 
 import { buildVenueShareText } from "@/lib/shareArtifacts";
+import { shareNightObject } from "@/lib/shareSheet";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { isUserCancelledShare, type ShareFeedback } from "@/lib/venueShare";
+import type { ShareFeedback } from "@/lib/venueShare";
 import type { Venue } from "@/lib/venues";
 
 export function useVenueShare(venue: Venue) {
@@ -14,45 +15,34 @@ export function useVenueShare(venue: Venue) {
     if (typeof window === "undefined") return;
     const url = new URL(venueMapUrl(venue.id), window.location.origin).toString();
     const title = venue.name;
-    const nav = typeof navigator === "undefined" ? undefined : navigator;
     const setShareStatus = (tone: ShareFeedback["tone"], text: string) => {
       setShareFeedback({ venueId: venue.id, tone, text });
     };
-    const copyToClipboard = async (successText: string, unavailableText: string) => {
-      if (!nav?.clipboard?.writeText) {
-        setShareStatus("error", unavailableText);
-        return;
-      }
-      try {
-        await nav.clipboard.writeText(url);
-        setShareStatus("ok", successText);
-      } catch {
-        setShareStatus("error", "Couldn't copy the link. Copy it from your browser bar.");
-      }
-    };
 
     setShareFeedback(null);
-    if (typeof nav?.share === "function") {
-      try {
-        await nav.share({
-          title,
-          url,
-          text: buildVenueShareText({ name: title, cheapestPintGbp: venue.cheapestPrice }),
-        });
-        return;
-      } catch (error) {
-        if (isUserCancelledShare(error)) return;
-        await copyToClipboard(
-          "Share failed, but the link was copied.",
-          "Share failed and clipboard is unavailable. Copy the page URL.",
-        );
-        return;
-      }
+    // Native sheet first, wa.me fallback — the shared night-object flow.
+    const outcome = await shareNightObject({
+      title,
+      text: buildVenueShareText({ name: title, cheapestPintGbp: venue.cheapestPrice }),
+      url,
+    });
+    if (outcome === "shared" || outcome === "cancelled") return;
+    if (outcome === "whatsapp") {
+      setShareStatus("ok", "Opened WhatsApp to share the link.");
+      return;
     }
-    await copyToClipboard(
-      "Link copied.",
-      "Sharing and clipboard are unavailable. Copy the page URL.",
-    );
+    // Neither the sheet nor WhatsApp worked — last resort is the clipboard.
+    const nav = typeof navigator === "undefined" ? undefined : navigator;
+    if (!nav?.clipboard?.writeText) {
+      setShareStatus("error", "Sharing and clipboard are unavailable. Copy the page URL.");
+      return;
+    }
+    try {
+      await nav.clipboard.writeText(url);
+      setShareStatus("ok", "Share failed, but the link was copied.");
+    } catch {
+      setShareStatus("error", "Couldn't copy the link. Copy it from your browser bar.");
+    }
   }, [venue.id, venue.name, venue.cheapestPrice]);
 
   return { currentShareFeedback, shareVenue };

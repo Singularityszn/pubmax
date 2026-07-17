@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 import "./share.css";
 
@@ -102,8 +103,7 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
   const tweetHref = (absolute: string) =>
     `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(absolute)}`;
 
-  const whatsappHref = (absolute: string) =>
-    `https://wa.me/?text=${encodeURIComponent(`${shareText} ${absolute}`)}`;
+  const whatsappHref = (absolute: string) => whatsappShareHref(shareText, absolute);
 
   return (
     <div className="shareBar" role="group" aria-label="Share this">
@@ -111,25 +111,24 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
         Share
       </span>
 
-      {/* X / Twitter — server-rendered as a real anchor so it works without JS;
-          onClick upgrades it to build the absolute url at click time. */}
-      <a
-        className="shareBar__btn"
-        href={tweetHref(url)}
-        onClick={(event) => {
-          event.preventDefault();
-          trackPlanInvite("x");
-          openIntent(tweetHref);
-        }}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Share on X"
-        title="Share on X"
-      >
-        <XMark />
-      </a>
+      {/* Native share leads the strip when the Web Share API is supported —
+          sheet-first is the one night-object share flow (the OS picker is
+          where WhatsApp actually lives on phones); the wa.me button right
+          after it is the standing fallback for everyone else. */}
+      {canNativeShare ? (
+        <button
+          type="button"
+          className="shareBar__btn"
+          onClick={handleNativeShare}
+          aria-label="Share to another app"
+          title="Share to another app"
+        >
+          <ShareMark />
+        </button>
+      ) : null}
 
-      {/* WhatsApp — same progressive-enhancement shape. */}
+      {/* WhatsApp — server-rendered as a real anchor so it works without JS;
+          onClick upgrades it to build the absolute url at click time. */}
       <a
         className="shareBar__btn"
         href={whatsappHref(url)}
@@ -146,6 +145,23 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
         <WhatsAppMark />
       </a>
 
+      {/* X / Twitter — same progressive-enhancement shape. */}
+      <a
+        className="shareBar__btn"
+        href={tweetHref(url)}
+        onClick={(event) => {
+          event.preventDefault();
+          trackPlanInvite("x");
+          openIntent(tweetHref);
+        }}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Share on X"
+        title="Share on X"
+      >
+        <XMark />
+      </a>
+
       {/* Copy link — confirms with "Copied!" for a beat, then quietly resets. */}
       <button
         type="button"
@@ -156,19 +172,6 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
       >
         {copied ? <CheckMark /> : <LinkMark />}
       </button>
-
-      {/* Native share — only when the Web Share API is actually supported. */}
-      {canNativeShare ? (
-        <button
-          type="button"
-          className="shareBar__btn"
-          onClick={handleNativeShare}
-          aria-label="Share to another app"
-          title="Share to another app"
-        >
-          <ShareMark />
-        </button>
-      ) : null}
 
       {/* Polite live confirmation for screen readers when a link is copied. */}
       <span className="shareBar__confirm" role="status" aria-live="polite">
