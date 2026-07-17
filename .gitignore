@@ -27,6 +27,7 @@ scratch-*.mjs
 
 # Local agent / skill / MCP tooling — never part of the app, machine-specific
 .agents/
+.claude-flow/
 .cursor/*
 !.cursor/mcp.json
 .claude/

@@ -42,7 +42,6 @@ export async function generateMetadata({ params, searchParams }: CityMapPageProp
     twitter: { card: "summary_large_image", title, description, ...(image ? { images: [image] } : {}) },
   };
 }
-
 export default async function CityMapPage({ params }: CityMapPageProps) {
   const { city: raw } = await params;
   const cityId = parseCityId(raw);

@@ -50,7 +50,6 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
     }],
   };
 }
-
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "Europe/London" }).format(new Date(value));
 }
