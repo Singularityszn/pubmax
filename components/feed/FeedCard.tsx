@@ -43,6 +43,36 @@ function formatGbp(price: number): string {
   return `£${price.toFixed(2)}`;
 }
 
+// One reaction chip — pulled out of FeedCard (taste fix, feed card slim) so
+// the row's per-key branching lives here instead of inflating FeedCard's own
+// complexity. Same markup/behaviour as before, just its own small component.
+function ReactionChip({
+  meta,
+  on,
+  count,
+  onClick,
+}: {
+  meta: { label: string; emoji: string };
+  on: boolean;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`feedReactBtn${on ? " isOn" : ""}`}
+      aria-pressed={on}
+      aria-label={count ? `${meta.label}, ${count}` : meta.label}
+      title={meta.label}
+      onClick={onClick}
+    >
+      <span aria-hidden="true">{meta.emoji}</span>
+      <span className="feedReactLabel">{meta.label}</span>
+      {count > 0 ? <span className="feedReactCount">{count}</span> : null}
+    </button>
+  );
+}
+
 // U2 — inline failure feedback for the reaction row. When a toggle reports it
 // didn't save (anonymous store gating answers 503, or the network dropped),
 // the row shows the claim-a-handle prompt for a few seconds. Same quiet shape
@@ -181,6 +211,9 @@ export default function FeedCard({
   // (or a rejection) is its honest signal that the POST failed and the counts
   // were rolled back — the viewer must hear WHY, not see nothing.
   const { gatePrompt, showGatePrompt } = useCheersGatePrompt();
+  // Taste fix (feed card slim) — Map/Drop/Pub live behind this single "…"
+  // toggle instead of a permanent full-width action bar.
+  const [moreOpen, setMoreOpen] = useState(false);
   function handleReaction(reaction: ReactionKey) {
     void Promise.resolve(onToggleReaction(item.id, reaction))
       .then((ok) => (ok === false ? showGatePrompt() : undefined))
@@ -289,27 +322,24 @@ export default function FeedCard({
               </span>
               <div className="feedSpillWhoText">
                 <span className="feedSpillHandle">{shownHandle}</span>
+                {/* Pub identity anchor (taste fix, feed card slim): its own
+                    bold line, ahead of the timestamp — the price stamp stays
+                    prominent but stops being the only thing that reads at a
+                    glance. */}
+                <Link
+                  className="feedSpillVenueLink"
+                  href={item.venueMapUrl}
+                  onPointerEnter={() => prefetchVenue(item.venueId)}
+                >
+                  {item.venueName}
+                </Link>
                 <span className="feedSpillMeta">
-                  <Link
-                    className="feedSpillVenueLink"
-                    href={item.venueMapUrl}
-                    onPointerEnter={() => prefetchVenue(item.venueId)}
-                  >
-                    {item.venueName}
-                  </Link>
-                  {ago ? (
-                    <>
-                      {" · "}
-                      <time dateTime={item.createdAt}>{ago}</time>
-                    </>
-                  ) : null}
+                  {ago ? <time dateTime={item.createdAt}>{ago}</time> : null}
+                  {ago && trainBadge ? " · " : null}
                   {trainBadge ? (
-                    <>
-                      {" · "}
-                      <span className="feedTrainBadge" data-tone={trainBadge.tone}>
-                        {trainBadge.label}
-                      </span>
-                    </>
+                    <span className="feedTrainBadge" data-tone={trainBadge.tone}>
+                      {trainBadge.label}
+                    </span>
                   ) : null}
                 </span>
               </div>
@@ -346,16 +376,24 @@ export default function FeedCard({
             </span>
             <div className="feedWho">
               <span className="feedHandle">{shownHandle}</span>
-              {ago ? (
-                <time className="feedTime" dateTime={item.createdAt}>
-                  {ago}
-                </time>
-              ) : null}
-              {trainBadge ? (
-                <span className="feedTrainBadge" data-tone={trainBadge.tone}>
-                  {trainBadge.label}
-                </span>
-              ) : null}
+              {/* Pub identity is the card's anchor (taste fix: it used to only
+                  surface in a buried line under the receipt, well below the
+                  price). It sits right under the handle, one tap from the map. */}
+              <Link
+                className="feedVenueLink feedVenueLinkHead"
+                href={item.venueMapUrl}
+                onPointerEnter={() => prefetchVenue(item.venueId)}
+              >
+                {item.venueName}
+              </Link>
+              <span className="feedMetaLine">
+                {ago ? <time dateTime={item.createdAt}>{ago}</time> : null}
+                {trainBadge ? (
+                  <span className="feedTrainBadge" data-tone={trainBadge.tone}>
+                    {trainBadge.label}
+                  </span>
+                ) : null}
+              </span>
             </div>
             <span className={`feedProv feedProv-${item.provenance}`}>{provLabel}</span>
           </header>
@@ -415,52 +453,61 @@ export default function FeedCard({
             body only repeats them for the text-only receipt card. */}
         {!hero && item.caption ? <p className="feedCaption">{item.caption}</p> : null}
 
-        {!hero ? (
-          // The pub name (never the raw venue id) links to the map with this
-          // venue selected, plus a cross-link to the venue's Bar Tab grid.
-          <p className="feedVenue">
-            {item.drink ? <span className="feedDrink">{item.drink}</span> : null}
-            <span className="feedVenueAt">at</span>
-            <Link
-              className="feedVenueLink"
-              href={item.venueMapUrl}
-              onPointerEnter={() => prefetchVenue(item.venueId)}
-            >
-              {item.venueName}
-            </Link>
-            <Link
-              className="feedVenueBarTab"
-              href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
-            >
-              See the bar tab
-            </Link>
-          </p>
-        ) : null}
-
-        {/* ONE reaction surface per card: the chip row (cheers is its first
-            chip). The old standalone Cheers button above this row duplicated
-            the same "cheers" reaction key and confused the card. */}
+        {/* Taste fix (feed card slim, 2026-07): the three full-width chrome
+            rows (reactions / Map-Drop-Pub + share strip / comments bar) are
+            folded into ONE compact row. Nothing is removed — Map/Drop/Pub move
+            behind the "…" overflow, share folds to one icon (ShareBar
+            `compact`), and the comment count becomes a small tappable pill
+            (CommentThread `variant="compact"`) instead of an always-open bar.
+            Every action is still one honest tap away. */}
         {!isOptimistic ? (
-          <div className="feedReactions" role="group" aria-label="React to this pint">
-            {REACTION_KEYS.map((key) => {
-              const meta = REACTION_META[key];
-              const on = mine.has(key);
-              const count = summary.counts[key] ?? 0;
-              return (
-                <button
+          <div className="feedActionRow">
+            <div className="feedReactions" role="group" aria-label="React to this pint">
+              {REACTION_KEYS.map((key) => (
+                <ReactionChip
                   key={key}
-                  type="button"
-                  className={`feedReactBtn${on ? " isOn" : ""}`}
-                  aria-pressed={on}
-                  aria-label={count ? `${meta.label}, ${count}` : meta.label}
+                  meta={REACTION_META[key]}
+                  on={mine.has(key)}
+                  count={summary.counts[key] ?? 0}
                   onClick={() => handleReaction(key)}
-                >
-                  <span aria-hidden="true">{meta.emoji}</span>
-                  <span className="feedReactLabel">{meta.label}</span>
-                  {count > 0 ? <span className="feedReactCount">{count}</span> : null}
-                </button>
-              );
-            })}
+                />
+              ))}
+            </div>
+
+            <span className="feedActionSpacer" aria-hidden="true" />
+
+            <div className="feedMoreWrap">
+              <button
+                type="button"
+                className="feedActionIconBtn"
+                aria-expanded={moreOpen}
+                aria-label={moreOpen ? "Hide pub actions" : "More pub actions"}
+                title="More"
+                onClick={() => setMoreOpen((v) => !v)}
+              >
+                <MoreGlyph />
+              </button>
+            </div>
+
+            <Link
+              className="feedPermalink feedPermalinkIcon"
+              href={`/p/${item.id}`}
+              aria-label="Open pint"
+              title="Open pint"
+            >
+              <OpenGlyph />
+            </Link>
+
+            <ShareBar
+              compact
+              url={`/p/${item.id}`}
+              title={`${shownHandle}'s pint at ${item.venueName}`}
+              text={`${shownHandle} found a pint at ${item.venueName}${
+                typeof item.priceGbp === "number" ? ` — ${formatGbp(item.priceGbp)}` : ""
+              }. Every pint has a story.`}
+            />
+
+            <CommentThread dropId={item.id} variant="compact" />
           </div>
         ) : null}
 
@@ -472,57 +519,53 @@ export default function FeedCard({
           </p>
         ) : null}
 
-        {/* Every pint is its own shareable post: open the standalone permalink
-            or fire it into X / WhatsApp / a group chat. */}
-        {!isOptimistic ? (
-          <div className="feedCardFooter">
-            <nav className="feedCardActions" aria-label="Pub actions">
-              <Link
-                className="feedCardAction"
-                href={item.venueMapUrl || venueMapUrl(item.venueId)}
-                onPointerEnter={() => prefetchVenue(item.venueId)}
-              >
-                Map
-              </Link>
-              {item.venueId ? (
-                <Link
-                  className="feedCardAction"
-                  href={`${venueMapUrl(item.venueId)}&log=1`}
-                  onPointerEnter={() => prefetchVenue(item.venueId)}
-                >
-                  Drop
-                </Link>
-              ) : null}
-              <Link
-                className="feedCardAction"
-                href={
-                  item.venueId
-                    ? `/bar-tab/${encodeURIComponent(item.venueId)}`
-                    : item.venueMapUrl || "/map"
-                }
-              >
-                Pub
-              </Link>
-            </nav>
-            <Link className="feedPermalink" href={`/p/${item.id}`}>
-              Open pint
-            </Link>
-            <ShareBar
-              url={`/p/${item.id}`}
-              title={`${shownHandle}'s pint at ${item.venueName}`}
-              text={`${shownHandle} found a pint at ${item.venueName}${
-                typeof item.priceGbp === "number" ? ` — ${formatGbp(item.priceGbp)}` : ""
-              }. Every pint has a story.`}
-            />
-          </div>
+        {/* Map / Drop / Pub — the second-tier venue actions, reached through
+            the row's "…" toggle rather than a permanent full-width bar. */}
+        {!isOptimistic && moreOpen ? (
+          <PubOverflowActions
+            venueId={item.venueId}
+            venueMapUrl={item.venueMapUrl}
+            onPrefetch={() => prefetchVenue(item.venueId)}
+          />
         ) : null}
-
-        {/* Comments continue the drop's story. Collapsed by default; the thread
-            lazily mounts + fetches only when expanded. A comment API error stays
-            inside CommentThread and never breaks feed rendering. */}
-        {!isOptimistic ? <CommentThread dropId={item.id} /> : null}
       </div>
     </article>
+  );
+}
+
+// Map / Drop / Pub — pulled out of FeedCard (taste fix, feed card slim) so the
+// venue-id branching lives here rather than inflating FeedCard's own
+// complexity. Only mounted while the "…" toggle is open.
+function PubOverflowActions({
+  venueId,
+  venueMapUrl: mapUrl,
+  onPrefetch,
+}: {
+  venueId: string;
+  venueMapUrl: string;
+  onPrefetch: () => void;
+}) {
+  return (
+    <nav className="feedCardActions feedCardActionsExpanded" aria-label="Pub actions">
+      <Link className="feedCardAction" href={mapUrl || venueMapUrl(venueId)} onPointerEnter={onPrefetch}>
+        Map
+      </Link>
+      {venueId ? (
+        <Link
+          className="feedCardAction"
+          href={`${venueMapUrl(venueId)}&log=1`}
+          onPointerEnter={onPrefetch}
+        >
+          Drop
+        </Link>
+      ) : null}
+      <Link
+        className="feedCardAction"
+        href={venueId ? `/bar-tab/${encodeURIComponent(venueId)}` : mapUrl || "/map"}
+      >
+        Pub
+      </Link>
+    </nav>
   );
 }
 
@@ -549,6 +592,40 @@ function ProvenanceCheck() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+// "…" — the single icon that unfolds the second-tier Map / Drop / Pub actions
+// (taste fix: feed card slim). Three dots, nothing louder.
+function MoreGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </svg>
+  );
+}
+
+// Open-the-permalink glyph — a quiet external-link mark standing in for the
+// old "Open pint" text link, now icon-only in the slim action row.
+function OpenGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
     </svg>
   );
 }

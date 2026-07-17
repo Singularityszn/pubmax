@@ -72,7 +72,18 @@ function writeStoredHandle(handle: string): void {
   }
 }
 
-export default function CommentThread({ dropId }: { dropId: string }) {
+export default function CommentThread({
+  dropId,
+  variant = "default",
+}: {
+  dropId: string;
+  // Taste fix (feed card slim, 2026-07): the feed card folds this thread's
+  // toggle into its single compact action row — a small tappable count pill
+  // instead of the always-full-width bar the standalone permalink still uses.
+  // "compact" only changes the OUTER shape (button + where the panel breaks to
+  // its own line); the fetch/post/live-subscribe behaviour above is identical.
+  variant?: "default" | "compact";
+}) {
   const [restoredDraft] = useState(() => readCommentDraft(dropId));
   const [open, setOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -232,19 +243,36 @@ export default function CommentThread({ dropId }: { dropId: string }) {
   );
 
   const count = comments.length;
+  const isCompact = variant === "compact";
 
-  return (
-    <section className="commentThread" aria-label="Comments">
-      <button
-        type="button"
-        className="commentToggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open ? "Hide comments" : loaded && count ? `Comments (${count})` : "Comments"}
-      </button>
+  // Compact toggle (feed card): a small tappable count pill — "💬" alone until
+  // the thread has ever loaded a number, then "💬 N". The full sentence stays
+  // in aria-label so it still reads correctly to a screen reader.
+  const toggleButton = isCompact ? (
+    <button
+      type="button"
+      className="commentToggleCompact"
+      aria-expanded={open}
+      aria-label={
+        open ? "Hide comments" : loaded && count ? `${count} comments` : "Comments"
+      }
+      onClick={() => setOpen((v) => !v)}
+    >
+      <span aria-hidden="true">💬</span>
+      {loaded && count > 0 ? <span className="commentToggleCompactCount">{count}</span> : null}
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="commentToggle"
+      aria-expanded={open}
+      onClick={() => setOpen((v) => !v)}
+    >
+      {open ? "Hide comments" : loaded && count ? `Comments (${count})` : "Comments"}
+    </button>
+  );
 
-      {open ? (
+  const panelBody = open ? (
         <div className="commentPanel">
           {loading && !loaded ? <p className="commentStatus">Loading comments…</p> : null}
 
@@ -346,7 +374,25 @@ export default function CommentThread({ dropId }: { dropId: string }) {
             </p>
           ) : null}
         </div>
-      ) : null}
+  ) : null;
+
+  if (isCompact) {
+    // No wrapping <section> — this renders as a direct flex child inside the
+    // feed card's single action row, with the panel (when open) carrying
+    // `flex: 1 1 100%` in CSS so it honestly breaks to its own full-width line
+    // under the row instead of squeezing into whatever space is left.
+    return (
+      <>
+        {toggleButton}
+        {panelBody ? <div className="commentPanelWrap">{panelBody}</div> : null}
+      </>
+    );
+  }
+
+  return (
+    <section className="commentThread" aria-label="Comments">
+      {toggleButton}
+      {panelBody}
     </section>
   );
 }

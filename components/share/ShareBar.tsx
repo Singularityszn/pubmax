@@ -27,6 +27,12 @@ type ShareBarProps = {
   title: string;
   // Optional nostalgic one-liner; falls back to the title when omitted.
   text?: string;
+  // Taste fix (feed card slim, 2026-07): the feed card's single action row
+  // wants ONE quiet share icon, not a permanently-open strip of four buttons.
+  // Compact mode swaps the "Share" caption for a single toggle stamp; every
+  // existing channel (X, WhatsApp, copy, native) still lives one tap away —
+  // nothing is removed, it just starts folded.
+  compact?: boolean;
 };
 
 // Resolve a possibly-relative url to an absolute one, lazily, at click time.
@@ -41,8 +47,13 @@ function toAbsoluteUrl(url: string): string {
   }
 }
 
-export default function ShareBar({ url, title, text }: ShareBarProps) {
+export default function ShareBar({ url, title, text, compact = false }: ShareBarProps) {
   const [copied, setCopied] = useState(false);
+  // Compact mode starts folded — the toggle reveals the exact same channel
+  // buttons below. Non-compact ("default") mode never folds, unchanged from
+  // before this prop existed (every other ShareBar call site is unaffected).
+  const [expanded, setExpanded] = useState(false);
+  const showChannels = !compact || expanded;
   // Feature-detect native share once, lazily — never assumed. On the server and
   // on browsers without the Web Share API this stays false and the button is
   // simply not rendered.
@@ -106,68 +117,89 @@ export default function ShareBar({ url, title, text }: ShareBarProps) {
     `https://wa.me/?text=${encodeURIComponent(`${shareText} ${absolute}`)}`;
 
   return (
-    <div className="shareBar" role="group" aria-label="Share this">
-      <span className="shareBar__label" aria-hidden="true">
-        Share
-      </span>
-
-      {/* X / Twitter — server-rendered as a real anchor so it works without JS;
-          onClick upgrades it to build the absolute url at click time. */}
-      <a
-        className="shareBar__btn"
-        href={tweetHref(url)}
-        onClick={(event) => {
-          event.preventDefault();
-          trackPlanInvite("x");
-          openIntent(tweetHref);
-        }}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Share on X"
-        title="Share on X"
-      >
-        <XMark />
-      </a>
-
-      {/* WhatsApp — same progressive-enhancement shape. */}
-      <a
-        className="shareBar__btn"
-        href={whatsappHref(url)}
-        onClick={(event) => {
-          event.preventDefault();
-          trackPlanInvite("whatsapp");
-          openIntent(whatsappHref);
-        }}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Share on WhatsApp"
-        title="Share on WhatsApp"
-      >
-        <WhatsAppMark />
-      </a>
-
-      {/* Copy link — confirms with "Copied!" for a beat, then quietly resets. */}
-      <button
-        type="button"
-        className="shareBar__btn"
-        onClick={handleCopy}
-        aria-label={copied ? "Link copied" : "Copy link"}
-        title={copied ? "Copied!" : "Copy link"}
-      >
-        {copied ? <CheckMark /> : <LinkMark />}
-      </button>
-
-      {/* Native share — only when the Web Share API is actually supported. */}
-      {canNativeShare ? (
+    <div
+      className={`shareBar${compact ? " shareBar--compact" : ""}`}
+      role="group"
+      aria-label="Share this"
+    >
+      {compact ? (
         <button
           type="button"
-          className="shareBar__btn"
-          onClick={handleNativeShare}
-          aria-label="Share to another app"
-          title="Share to another app"
+          className="shareBar__btn shareBar__toggle"
+          aria-expanded={expanded}
+          aria-label={expanded ? "Hide share options" : "Share this"}
+          title={expanded ? "Hide share options" : "Share"}
+          onClick={() => setExpanded((v) => !v)}
         >
           <ShareMark />
         </button>
+      ) : (
+        <span className="shareBar__label" aria-hidden="true">
+          Share
+        </span>
+      )}
+
+      {showChannels ? (
+        <>
+          {/* X / Twitter — server-rendered as a real anchor so it works without JS;
+              onClick upgrades it to build the absolute url at click time. */}
+          <a
+            className="shareBar__btn"
+            href={tweetHref(url)}
+            onClick={(event) => {
+              event.preventDefault();
+              trackPlanInvite("x");
+              openIntent(tweetHref);
+            }}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Share on X"
+            title="Share on X"
+          >
+            <XMark />
+          </a>
+
+          {/* WhatsApp — same progressive-enhancement shape. */}
+          <a
+            className="shareBar__btn"
+            href={whatsappHref(url)}
+            onClick={(event) => {
+              event.preventDefault();
+              trackPlanInvite("whatsapp");
+              openIntent(whatsappHref);
+            }}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Share on WhatsApp"
+            title="Share on WhatsApp"
+          >
+            <WhatsAppMark />
+          </a>
+
+          {/* Copy link — confirms with "Copied!" for a beat, then quietly resets. */}
+          <button
+            type="button"
+            className="shareBar__btn"
+            onClick={handleCopy}
+            aria-label={copied ? "Link copied" : "Copy link"}
+            title={copied ? "Copied!" : "Copy link"}
+          >
+            {copied ? <CheckMark /> : <LinkMark />}
+          </button>
+
+          {/* Native share — only when the Web Share API is actually supported. */}
+          {canNativeShare ? (
+            <button
+              type="button"
+              className="shareBar__btn"
+              onClick={handleNativeShare}
+              aria-label="Share to another app"
+              title="Share to another app"
+            >
+              <ShareMark />
+            </button>
+          ) : null}
+        </>
       ) : null}
 
       {/* Polite live confirmation for screen readers when a link is copied. */}

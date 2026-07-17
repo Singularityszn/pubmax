@@ -67,7 +67,7 @@ test("feed shows real pub names, is shareable, and links to the map (§9/§11)",
     // Every pint is its own shareable post: a permalink (/p/…) + a share strip.
     const permalink = first.locator(".feedPermalink").first();
     await expect(permalink).toHaveAttribute("href", /^\/p\//);
-    await expect(first.locator(".feedCardFooter .shareBar").first()).toBeVisible();
+    await expect(first.locator(".feedActionRow .shareBar").first()).toBeVisible();
   } else {
     // Empty DB is a valid state — assert the social empty state, never fail.
     // The empty state is the shared EmptyState component (components/EmptyState.tsx);

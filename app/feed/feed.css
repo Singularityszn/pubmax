@@ -403,7 +403,9 @@
   max-width: var(--feed-card-max);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  /* Taste fix (feed card slim): tighter rhythm so more than ~1.2 cards fit a
+     mobile viewport instead of one dominating the fold. */
+  gap: 14px;
 }
 
 /* ── Card ─────────────────────────────────────────────────────────────── */
@@ -488,7 +490,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 15px 16px 12px;
+  padding: 12px 14px 10px;
 }
 
 .feedAvatar {
@@ -509,6 +511,7 @@
 .feedWho {
   display: flex;
   flex-direction: column;
+  gap: 1px;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -522,6 +525,40 @@
 }
 
 .feedTime {
+  color: var(--muted, #8a8577);
+  font-size: 0.74rem;
+}
+
+/* Pub identity anchor (taste fix, feed card slim) — the pub name sits right
+   under the handle, ahead of the timestamp, so it reads before the price does
+   rather than getting buried in a line at the bottom of the card. */
+.feedVenueLinkHead {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: var(--river);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.18s ease;
+}
+
+.feedVenueLinkHead:hover {
+  border-bottom-color: var(--river);
+}
+
+.feedVenueLinkHead:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.feedMetaLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--muted, #8a8577);
   font-size: 0.74rem;
 }
@@ -585,15 +622,19 @@
   /* view-transition-name must be unique per card — set inline on FeedCard. */
 }
 
-/* Receipt fallback — a typographic card when there is no photo. */
+/* Receipt fallback — a typographic card when there is no photo. Taste fix
+   (feed card slim): the price used to be the ONLY thing you saw at a glance
+   (3.05rem, centre stage); the pub identity now anchors the header above, so
+   the price can read as prominent-but-not-alone rather than dominant. Aspect
+   also tightened (1.6 → 1.9) so a text-only card doesn't out-weigh a photo one. */
 .feedReceipt {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  aspect-ratio: 1.6;
-  padding: 28px 20px;
+  gap: 6px;
+  aspect-ratio: 1.9;
+  padding: 20px 20px;
   background:
     linear-gradient(112deg, transparent 0 18%, color-mix(in srgb, var(--river) 9%, transparent) 18% 19%, transparent 19%),
     linear-gradient(154deg, transparent 0 74%, color-mix(in srgb, var(--amber) 10%, transparent) 74% 75%, transparent 75%),
@@ -610,7 +651,7 @@
 
 .feedReceiptPrice {
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
-  font-size: 3.05rem;
+  font-size: 2.35rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -637,8 +678,8 @@
 .feedCardBody {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding: 12px 14px 14px;
 }
 
 .feedVibes {
@@ -682,26 +723,9 @@
   line-height: 1.55;
 }
 
-.feedVenue {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0;
-  color: var(--muted, #8a8577);
-  font-size: 0.82rem;
-}
-
-.feedDrink {
-  color: var(--ink-soft);
-  font-weight: 600;
-}
-
-.feedVenueAt {
-  color: var(--muted, #8a8577);
-}
-
-/* The pub name — a link to the map (?sel). Never the raw venue id. */
+/* The pub name — a link to the map (?sel). Never the raw venue id. Now the
+   card's identity anchor, rendered up in the header (see .feedVenueLinkHead
+   above) rather than a separate line buried at the bottom of the body. */
 .feedVenueLink {
   color: var(--river);
   font-weight: 700;
@@ -716,26 +740,6 @@
 
 .feedVenueLink:focus-visible {
   outline: 2px solid var(--river);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-/* A cross-link to the venue's Bar Tab grid (issue #36), sat quietly after the
-   pub name on the text-receipt card. */
-.feedVenueBarTab {
-  color: var(--muted, #8a8577);
-  font-weight: 600;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-}
-
-.feedVenueBarTab:hover {
-  color: var(--amber);
-  border-bottom-color: var(--amber);
-}
-
-.feedVenueBarTab:focus-visible {
-  outline: 2px solid var(--amber);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -814,25 +818,28 @@
   line-height: 1;
 }
 
-/* Price stamp — dominant pressed-ink signature on the photo (Wave J3). */
+/* Price stamp — a pressed-ink signature on the photo (Wave J3). Taste fix
+   (feed card slim): trimmed a notch from "dominant" so the venue-name anchor
+   in the scrim below gets a fair fight for attention — still the biggest
+   single mark on the card, just not the ONLY one. */
 .feedSpillPrice {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 2;
-  padding: 8px 14px;
+  padding: 6px 12px;
   border: var(--ink-stamp-border, 1.5px solid var(--brass));
   border-radius: var(--ink-stamp-radius, 6px);
   background: color-mix(in srgb, var(--panel-raised) 94%, var(--pint) 6%);
   color: color-mix(in srgb, var(--pint) 78%, var(--ink));
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
-  font-size: 1.28rem;
+  font-size: 1.08rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   transform: rotate(var(--ink-stamp-tilt, -1.5deg));
   box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.28),
+    0 8px 18px rgba(0, 0, 0, 0.24),
     var(--ink-stamp-shadow, inset 0 1px 2px rgba(22, 18, 42, 0.28));
 }
 
@@ -882,6 +889,7 @@
 .feedSpillWhoText {
   display: flex;
   flex-direction: column;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -939,10 +947,19 @@
   margin-left: 6px;
 }
 
+/* Pub identity anchor on the photo (taste fix, feed card slim): its own bold
+   line between the handle and the time/train meta, so the venue reads before
+   the price stamp does rather than getting lost as inline meta text. */
 .feedSpillVenueLink {
+  display: block;
   color: var(--river-bright, #29b6f6);
-  font-weight: 700;
+  font-size: 0.98rem;
+  font-weight: 800;
   text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
   border-bottom: 1px solid transparent;
 }
 
@@ -993,21 +1010,42 @@
   border-radius: 2px;
 }
 
-/* Reactions */
+/* ── Single compact action row (taste fix, feed card slim) ──────────────────
+   Reactions, share, "…" venue actions, the permalink and the comment count
+   all live on ONE row now instead of three stacked full-width bars. The row
+   wraps (flex-wrap) rather than overflow — on a narrow phone the reaction
+   chips can spill to a second visual line, but it's still one logical control
+   cluster, not three separate bordered sections. */
+.feedActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft, var(--line));
+}
+
+.feedActionSpacer {
+  flex: 1 1 auto;
+}
+
+.feedMoreWrap {
+  display: inline-flex;
+}
+
 .feedReactions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 4px;
-  border-top: 1px solid var(--line-soft, var(--line));
+  gap: 6px;
 }
 
 .feedReactBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
-  padding: 7px 12px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-raised);
@@ -1015,12 +1053,20 @@
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    transform var(--duration-press, 0.13s) var(--ease-out-strong, ease-out);
 }
 
 .feedReactBtn:hover {
   border-color: var(--brass);
   color: var(--ink);
+}
+
+.feedReactBtn:active {
+  transform: scale(0.97);
 }
 
 /* Pressed "on" token — a warm brass fill with a slightly firmer ring so the
@@ -1035,6 +1081,75 @@
 .feedReactBtn:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+/* A single quiet icon-shaped control shared by the "…" overflow, the icon
+   permalink and (via share.css) the compact ShareBar toggle — same size,
+   same brass-on-hover language, so the row reads as one family of controls. */
+.feedActionIconBtn,
+.feedPermalinkIcon,
+.commentToggleCompact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 0.98rem;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform var(--duration-press, 0.13s) var(--ease-out-strong, ease-out);
+}
+
+.feedActionIconBtn:hover,
+.feedPermalinkIcon:hover,
+.commentToggleCompact:hover {
+  color: var(--brass);
+  border-color: var(--brass);
+  background: var(--panel-raised);
+}
+
+.feedActionIconBtn:active,
+.feedPermalinkIcon:active,
+.commentToggleCompact:active {
+  transform: scale(0.97);
+}
+
+.feedActionIconBtn:focus-visible,
+.feedPermalinkIcon:focus-visible,
+.commentToggleCompact:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.feedActionIconBtn[aria-expanded="true"],
+.commentToggleCompact[aria-expanded="true"] {
+  color: var(--brass);
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
+}
+
+.commentToggleCompactCount {
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The comment panel, opened from the compact pill, honestly breaks to its own
+   full-width line under the action row (flex-basis: 100% forces the wrap)
+   rather than squeezing into whatever space the icons left. */
+.commentPanelWrap {
+  flex: 1 1 100%;
 }
 
 .feedReactLabel {
@@ -1247,15 +1362,9 @@
     );
   }
 
-  .feedCardFooter .shareBar {
-    width: 100%;
-    margin-left: 0;
-    justify-content: space-between;
-  }
-
   .feedSpillPrice {
-    font-size: 1.2rem;
-    padding: 7px 12px;
+    font-size: 1.02rem;
+    padding: 6px 11px;
   }
 }
 
@@ -1553,29 +1662,27 @@
   outline-offset: 2px;
 }
 
-/* Per-card footer: open the standalone permalink + the share row. The permalink
-   anchors the left, the share strip drifts to the right, so the card ends on a
-   tidy, balanced line. */
-.feedCardFooter {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line-soft, var(--line));
-}
-.feedCardFooter .shareBar {
-  margin-left: auto;
-}
-
-/* Loop 2: compact Map / Drop / Pub action row — full-width on its own line so
-   it doesn't fight the permalink + share strip, with 44px touch targets. */
+/* The "…" overflow — Map / Drop / Pub, unfolded on demand instead of a
+   permanent full-width bar. Same 44px touch targets as before; it now only
+   costs layout space while a viewer actually wants it. */
 .feedCardActions {
   display: flex;
   width: 100%;
   gap: 8px;
-  margin: 0 0 4px;
+  margin: 10px 0 0;
+}
+.feedCardActionsExpanded {
+  animation: feedCardActionsIn 0.18s var(--ease-out-strong, ease-out);
+}
+@keyframes feedCardActionsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .feedCardAction {
   flex: 1 1 0;
@@ -1594,36 +1701,32 @@
   background: color-mix(in srgb, var(--brass) 8%, transparent);
   transition:
     background 0.15s ease,
-    border-color 0.15s ease;
+    border-color 0.15s ease,
+    transform var(--duration-press, 0.13s) var(--ease-out-strong, ease-out);
 }
 .feedCardAction:hover {
   background: color-mix(in srgb, var(--brass) 16%, transparent);
   border-color: var(--brass);
+}
+.feedCardAction:active {
+  transform: scale(0.97);
 }
 .feedCardAction:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
+/* The permalink is now the icon-only control in the action row (see
+   .feedPermalinkIcon above) — this base class only carries the href/aria
+   contract forward; sizing/hover come from the shared icon-button rule. */
 .feedPermalink {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 4px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--brass);
   text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.18s ease;
 }
-.feedPermalink:hover {
-  border-bottom-color: var(--brass);
-}
-.feedPermalink:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-  border-radius: 2px;
+
+@media (prefers-reduced-motion: reduce) {
+  .feedCardActionsExpanded {
+    animation: none;
+  }
 }
 
 /* ── A4: primary one-tap Cheers placement ─────────────────────────────────
