@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Camera, ImagePlus, LockKeyhole, MapPin, Sparkles, X } from "lucide-react";
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -13,6 +13,8 @@ import { safeMomentReturnTo } from "@/components/nav/navigationModel";
 import { trackEvent } from "@/lib/analytics";
 import { recordMomentNudgeTrigger } from "@/lib/identityNudge";
 import { authedFetch } from "@/lib/authedFetch";
+import { captureNativePhoto } from "@/lib/nativeCamera";
+import { isNativeApp } from "@/lib/nativePlatform";
 import {
   createMomentDraft,
   deleteMomentDraft,
@@ -155,6 +157,20 @@ export default function MomentCapture(): React.JSX.Element {
   function chooseMedia(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
+    addFiles(files);
+  }
+
+  // Inside the Capacitor shell the picker label routes through the native
+  // camera seam (lib/nativeCamera.ts) instead of the file input; on the web
+  // this handler is a no-op and the label opens the input as before.
+  async function chooseNativeMedia(event: ReactMouseEvent<HTMLLabelElement>) {
+    if (!isNativeApp()) return;
+    event.preventDefault();
+    const file = await captureNativePhoto();
+    if (file) addFiles([file]);
+  }
+
+  function addFiles(files: File[]) {
     if (!files.length) return;
     const invalid = files.find((file) => !PHOTO_TYPES.has(file.type) || file.size > MAX_PHOTO_BYTES);
     if (invalid) {
@@ -307,7 +323,7 @@ export default function MomentCapture(): React.JSX.Element {
               </figure>
             ))}
             {draft.media.length < 4 ? (
-              <label className="momentMediaPicker">
+              <label className="momentMediaPicker" onClick={chooseNativeMedia}>
                 <ImagePlus size={28} aria-hidden="true" />
                 <strong>{draft.media.length ? "Add another" : "Take a photo"}</strong>
                 <span>Camera or library</span>
