@@ -4,14 +4,17 @@ PUBMAXX ships to the App Store as a Capacitor shell around the production PWA.
 The Next.js app is **server-rendered** — there is no static export — so the
 shell runs in **remote-URL mode**: `capacitor.config.ts` points
 `server.url` at `https://pubmaxxing.com` and the WKWebView loads the live site.
-Do not attempt `next export`; `webDir: "public"` exists only to satisfy the
-CLI's copy step and is never served inside the shell.
+Do not attempt `next export`; `webDir: "native/web-stub"` (a one-file
+placeholder page) exists only to satisfy the CLI's copy step and is never
+served inside the shell — pointing webDir at `public/` would bake its ~6 MB of
+datasets/screenshots into the iOS binary as dead weight, so don't.
 
 ## What's in the repo
 
 | Piece | File(s) |
 | --- | --- |
 | Capacitor config (remote-URL mode) | `capacitor.config.ts` |
+| webDir stub (keeps public/ out of the binary) | `native/web-stub/index.html` |
 | Native Xcode project (SPM, no CocoaPods) | `ios/` (`npx cap add ios` output; `ios/.gitignore` excludes generated copies) |
 | Platform detection seam | `lib/nativePlatform.ts` (`isNativeApp()` / `nativePlatform()`) |
 | Native camera seam | `lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx` |
