@@ -118,6 +118,8 @@ Owner asleep from ~23:00. Every overnight action appended here with the why. Sta
 - **PR #314** WhatsApp share artifacts (GNHF Claude run, 5/5 iterations): pure builders for 8 night objects, 9 call sites unified behind native-sheet-first/wa.me flow, Bar Tab OG card added. CI green. Merge after #307.
 - **#302 e2e fixed** (Opus 4.8): 4/9 failures were webServer cold-start vs default 30s timeout, not code — 90s timeout per suite convention, proof 18/18 repeat-each=2. Pushed e5dbd244 + PR comment.
 
+- **#304 fixed — REAL production bug found** (Sonnet 5 fix loop): MapLibre constructor inserts canvas DOM before GL validation; on throw, orphaned canvases sit over the fallback and swallow all clicks (real users too). Fix: replaceChildren() in constructor catch + React-controlled disclosure. map-fallback 5/5. Merge-order note posted: #297 first, then #304.
+
 ## CYCLE 4 PRD (overnight, owner directive: maximize parallel Opus 4.8 lanes)
 
 Backlog drawn from logged findings; four non-colliding lanes, all Opus 4.8, worktrees, separate PRs:
