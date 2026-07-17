@@ -21,12 +21,19 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 18px;
-  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--river) 24%);
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
-  box-shadow: 0 18px 60px color-mix(in srgb, var(--ink-deep) 13%, transparent);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  /* Taste — header consistency: these are the exact bar tokens from SiteNav's
+     .siteNavBar (border / stadium radius / glass gradient / shadow / backdrop)
+     so the landing bar and every in-app bar read as one header, not three
+     apps. Only the fixed floating position + width below stays landing-specific
+     (the bar overlays the hero here). */
+  border: 1px solid color-mix(in srgb, var(--line) 82%, var(--brass) 18%);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 96%, transparent), color-mix(in srgb, var(--surface-tint-river) 62%, transparent)),
+    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  box-shadow: 0 16px 36px rgba(44, 30, 62, 0.12), 0 5px 14px rgba(255, 90, 95, 0.05);
+  backdrop-filter: blur(14px) saturate(1.06);
+  -webkit-backdrop-filter: blur(14px) saturate(1.06);
   transform: translateX(-50%);
 }
 
@@ -40,20 +47,6 @@
   letter-spacing: -.02em;
   text-decoration: none;
 }
-
-.lpMark {
-  width: 35px;
-  height: 35px;
-  display: grid;
-  place-items: center;
-  border-radius: 11px;
-  background: var(--ink-deep);
-  color: var(--color-on-inverse);
-  font: 800 17px/1 var(--font-display);
-  letter-spacing: -.12em;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 18%, transparent);
-}
-.lpMark span { color: var(--brass-bright); font-size: 7px; letter-spacing: -.18em; }
 
 .lpPrimaryNav { display: flex; justify-content: center; align-items: center; gap: 2px; }
 .lpPrimaryNav a {
@@ -253,7 +246,7 @@
 }
 
 @media (max-width: 700px) {
-  .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 8px 6px 12px; gap: 8px; border-radius: 17px; }.lpWordmark { font-size: 12px; }.lpMark { width: 32px; height: 32px; }
+  .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 10px; gap: 8px; }.lpWordmark { font-size: 12px; }
   .lpHero { padding: 106px 18px 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
   .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
@@ -270,7 +263,6 @@
 }
 
 @media (max-width: 420px) {
-  .lpMark { display: none; }
   .thamesHeroPhoto { min-height: 0; }.thamesHeroPin:nth-child(n+4) { display: none; }
   .lpMemoryActions { align-items: stretch; flex-direction: column; }.lpMemoryActions .lpTextLink { justify-content: center; }
 }
