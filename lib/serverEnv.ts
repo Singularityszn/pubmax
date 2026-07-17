@@ -18,6 +18,9 @@
 // Production target enforces durable-store + secret requirements.
 
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { isDeployedProduction } from "@/lib/deploymentEnv";
+
+export { isDeployedProduction } from "@/lib/deploymentEnv";
 
 /** Dev default for RATE_LIMIT_SALT — must not be used in production. */
 export const DEV_RATE_LIMIT_SALT = "pubmax-rate-limit";
@@ -49,13 +52,6 @@ function shouldSkipProductionEnvAssertions(): boolean {
  * On Vercel, only `VERCEL_ENV=production` counts — Preview builds share
  * NODE_ENV=production but typically omit Production-only env vars.
  */
-export function isDeployedProduction(): boolean {
-  const vercelEnv = process.env.VERCEL_ENV;
-  if (vercelEnv === "production") return true;
-  if (vercelEnv === "preview" || vercelEnv === "development") return false;
-  return process.env.NODE_ENV === "production";
-}
-
 /**
  * In production, throw a clear FATAL error when moderation or rate-limit
  * secrets are missing or still at dev defaults. Safe to call more than once.

@@ -15,6 +15,15 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+});
+
 async function dismissOnboardingIfPresent(page: Page): Promise<void> {
   const dismiss = page.getByRole("button", { name: "Dismiss / explore the map" });
   if ((await dismiss.count()) > 0) {
@@ -98,12 +107,12 @@ test.describe("map / story bands (#15)", () => {
 
 // ---------------------------------------------------------------------------
 // Venue sheet tabs (components/map/VenueInspector.tsx). Six tabs (Overview,
-// Drops, Drinks, Story, Ask, Last train) behind role="tablist"/role="tab", with
+// Drinks, Stories, Lore, Ask, Last train) behind role="tablist"/role="tab", with
 // roving-tabindex arrow-key navigation per the APG tabs pattern. Deep-link
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
 // never depends on a canvas pin click.
 test.describe("map / venue sheet tabs", () => {
-  test("all six tabs render; each switches its panel; Drops shows the price block", async ({
+  test("all six tabs render; each switches its panel; Stories shows the price block", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -114,17 +123,18 @@ test.describe("map / venue sheet tabs", () => {
     const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
     await expect(tablist).toBeVisible();
 
-    const expectedTabs = ["Overview", "Drops", "Drinks", "Story", "Ask", "Last train"];
+    const expectedTabs = ["Overview", "Drinks", "Stories", "Lore", "Ask", "Last train"];
     const tabs = tablist.getByRole("tab");
     await expect(tabs).toHaveCount(6);
     for (const label of expectedTabs) {
       await expect(tablist.getByRole("tab", { name: label, exact: true })).toBeVisible();
     }
 
-    // Drops is the default tab (VenueInspector's DEFAULT_TAB) — its panel is
-    // visible immediately, and the pintDrops section (the price/community block)
-    // renders inside it.
-    const pintsTab = tablist.getByRole("tab", { name: "Drops", exact: true });
+    // Overview is the default. Stories owns community prices and Moments.
+    const overviewTab = tablist.getByRole("tab", { name: "Overview", exact: true });
+    await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+    const pintsTab = tablist.getByRole("tab", { name: "Stories", exact: true });
+    await pintsTab.click();
     await expect(pintsTab).toHaveAttribute("aria-selected", "true");
     const pintsPanel = page.locator("#venuePanel-pints");
     await expect(pintsPanel).toBeVisible();
@@ -135,11 +145,12 @@ test.describe("map / venue sheet tabs", () => {
     for (const [label, panelId] of [
       ["Overview", "venuePanel-overview"],
       ["Drinks", "venuePanel-menu"],
-      ["Story", "venuePanel-story"],
+      ["Lore", "venuePanel-story"],
       ["Ask", "venuePanel-ask"],
       ["Last train", "venuePanel-getting-home"],
     ] as const) {
       const tab = tablist.getByRole("tab", { name: label, exact: true });
+      await expect(tab).toBeVisible();
       await tab.click();
       await expect(tab).toHaveAttribute("aria-selected", "true");
       await expect(pintsTab).toHaveAttribute("aria-selected", "false");
@@ -152,11 +163,11 @@ test.describe("map / venue sheet tabs", () => {
   test("arrow-key navigation moves the roving tab selection", async ({ page }) => {
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
     const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
-    const pintsTab = tablist.getByRole("tab", { name: "Drops", exact: true });
-    await expect(pintsTab).toHaveAttribute("aria-selected", "true");
-    await pintsTab.focus();
+    const overviewTab = tablist.getByRole("tab", { name: "Overview", exact: true });
+    await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+    await overviewTab.focus();
 
-    // ArrowRight from Drops (index 1) moves to Drinks (index 2) and moves focus
+    // ArrowRight from Overview moves to Drinks and moves focus
     // with it (roving tabindex — VenueInspector's selectTab calls .focus()).
     await page.keyboard.press("ArrowRight");
     const menuTab = tablist.getByRole("tab", { name: "Drinks", exact: true });
@@ -164,21 +175,20 @@ test.describe("map / venue sheet tabs", () => {
     await expect(menuTab).toBeFocused();
     await expect(page.locator("#venuePanel-menu")).toBeVisible();
 
-    // ArrowLeft moves back to Drops.
+    // ArrowLeft moves back to Overview.
     await page.keyboard.press("ArrowLeft");
-    await expect(pintsTab).toHaveAttribute("aria-selected", "true");
-    await expect(pintsTab).toBeFocused();
+    await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+    await expect(overviewTab).toBeFocused();
 
     // Wrap-around: ArrowLeft from the first tab (Overview) wraps to the last
     // (Last train).
-    const overviewTab = tablist.getByRole("tab", { name: "Overview", exact: true });
     await overviewTab.click();
     await page.keyboard.press("ArrowLeft");
     const gettingHomeTab = tablist.getByRole("tab", { name: "Last train", exact: true });
     await expect(gettingHomeTab).toHaveAttribute("aria-selected", "true");
   });
 
-  test("the community-price freshness note renders when a contributor price exists, and Drops stays well-formed when absent", async ({
+  test("the community-price freshness note renders when a contributor price exists, and Overview stays well-formed when absent", async ({
     page,
   }) => {
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
@@ -195,7 +205,7 @@ test.describe("map / venue sheet tabs", () => {
     if (blockCount > 0) {
       await expect(contributorBlock.locator("strong")).toBeVisible();
       await expect(contributorBlock.locator(".communityPriceNote")).toContainText(
-        /community-updated/i,
+        /community-updated|not a live tonight feed/i,
       );
     } else {
       // Absent gracefully: the Overview panel still renders a coherent surface
@@ -205,7 +215,7 @@ test.describe("map / venue sheet tabs", () => {
   });
 
   // "The Spill" composer (issue #24): visibility segmented control. Deep-link
-  // to Drops (the composer's tab), open it via the sticky "Log a Pint Drop"
+  // to Stories (the composer's tab), open it via the sticky "Log a Pint Drop"
   // button, and assert the four-option visibility radiogroup renders with
   // Public selected by default — a cheap DOM check, no submit/network needed.
   test("opening the composer renders the visibility control, defaulted to Public", async ({
@@ -214,6 +224,7 @@ test.describe("map / venue sheet tabs", () => {
     const errors = watchPageErrors(page);
 
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+    await page.getByRole("tab", { name: "Stories", exact: true }).click();
     const pintsPanel = page.locator("#venuePanel-pints");
     await expect(pintsPanel).toBeVisible();
 

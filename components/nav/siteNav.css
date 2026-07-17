@@ -68,17 +68,17 @@
 /* ── Wordmark ──────────────────────────────────────────────────────────── */
 .siteNavBrand {
   flex: 0 0 auto;
-  font-family: var(--font-garamond, var(--serif, Georgia, "Times New Roman", serif));
+  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
   font-size: 1.02rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-weight: 750;
+  letter-spacing: -0.025em;
   color: var(--ink);
   text-decoration: none;
   white-space: nowrap;
-  /* 44px keyboard/touch target without inflating the bar's height. */
+  /* 44px keyboard/touch target; the links beside it already set the bar height. */
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
+  min-height: 44px;
   padding: 0 2px;
   border-radius: 6px;
 }
@@ -98,6 +98,10 @@
 .siteNavBrandMobile {
   display: none;
   gap: 6px;
+}
+
+.siteNavMapUtility {
+  display: none;
 }
 
 .siteNavBrand:focus-visible {
@@ -158,6 +162,7 @@
 .siteNavLink {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   /* 44px target height. */
   min-height: 44px;
   padding: 0 12px;
@@ -166,7 +171,7 @@
   font-size: 0.84rem;
   font-weight: 600;
   text-decoration: none;
-  min-width: 0;
+  min-width: 44px;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -227,7 +232,8 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  height: 30px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -274,8 +280,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   border-radius: 999px;
   color: var(--ink-soft);
@@ -354,7 +360,7 @@
   }
 
   .siteNavLink {
-    min-height: 38px;
+    min-height: 44px;
     padding: 0 9px;
     font-size: 0.78rem;
   }
@@ -381,8 +387,8 @@
   }
 
   .siteNavBell {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -394,7 +400,7 @@
   .siteNavBar {
     gap: 6px;
     padding: 4px 8px;
-    min-height: 40px;
+    min-height: 52px;
     background: var(--panel-raised);
     box-shadow: var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12));
     backdrop-filter: none;
@@ -420,40 +426,35 @@
   .siteNavBrand {
     flex: 0 0 auto;
     width: auto;
-    min-width: 58px;
-    min-height: 28px;
-    height: 28px;
+    min-width: 104px;
+    min-height: 44px;
+    height: 44px;
     justify-content: center;
     align-items: center;
     padding: 0 9px;
-    border-radius: 999px;
-    background: linear-gradient(135deg, var(--brass), var(--river));
-    color: var(--color-on-accent);
-    font-size: 0.65rem;
-    font-family: var(--font-data, system-ui, sans-serif);
-    font-weight: 900;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--panel-raised);
+    color: var(--ink);
+    font-size: 0.72rem;
+    font-family: var(--font-display, system-ui, sans-serif);
+    font-weight: 800;
     line-height: 1;
     overflow: hidden;
-    box-shadow: 0 3px 8px color-mix(in srgb, var(--brass) 14%, transparent);
+    box-shadow: 0 3px 8px color-mix(in srgb, var(--ink-deep) 8%, transparent);
   }
 
-  .siteNavBrandMobile {
+  .siteNavBrand .pubmaxxWordmark { line-height: 1; }
+
+  /* The map's price key belongs with the map identity, not in the constrained
+     bottom action lane. It gets the flexible middle of the top bar while the
+     brand and utility icons keep stable touch targets. */
+  .siteNavBarFloating .siteNavMapUtility {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
     align-items: center;
-    gap: 4px;
-    line-height: 1;
-  }
-
-  .siteNavBrandMobile svg {
-    display: block;
-    flex-shrink: 0;
-  }
-
-  .siteNavBrandFull {
-    display: none;
-  }
-
-  .siteNavBrandMobile {
-    display: inline-flex;
+    justify-content: flex-start;
   }
 
   /* The actions cluster holds its shape — the brand is the only flexible part
@@ -464,15 +465,15 @@
   }
 
   .siteNavBell {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .siteNavBar .themeToggle {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
   }
 
   .siteNavBar .authUser {
@@ -483,6 +484,22 @@
      ⌘K hint would only add noise. Hide it (the shortcut and provider remain). */
   .siteNavCmdk {
     display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .siteNavBarFloating {
+    gap: 3px;
+    padding-inline: 5px;
+  }
+
+  .siteNavBarFloating .siteNavBrand {
+    min-width: 90px;
+    padding-inline: 5px;
+  }
+
+  .siteNavBarFloating .siteNavActions {
+    gap: 2px;
   }
 }
 

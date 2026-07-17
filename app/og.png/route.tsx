@@ -7,14 +7,15 @@ const size = {
   height: 630,
 };
 
-// Brand palette (matches the app's "printed guidebook" aesthetic)
-const PAPER = "#12100c"; // deep charcoal-green paper
-const CREAM = "#ece3d2"; // warm cream ink
-const CREAM_DIM = "#a99f8b"; // faded ink for supporting text
-const BRASS = "#d3a44a"; // single accent
-const RIVER = "#3f5566"; // muted Thames blue
+// Current PUBMAXX palette. Keep the social card on the same coral/peach
+// identity as the product so shared links never fall back to the retired
+// green field-guide brand.
+const PAPER = "#fff1e6";
+const INK = "#1c1412";
+const INK_DIM = "#685d59";
+const CORAL = "#ff5a5f";
+const RIVER = "#6687a7";
 
-const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
 // A small pint-glass glyph built from inline SVG (no external asset, no font emoji).
@@ -23,14 +24,14 @@ function PintGlyph() {
     <svg width="52" height="60" viewBox="0 0 52 60" fill="none">
       <path
         d="M11 5 H41 L37 51 Q36 55 32 55 H20 Q16 55 15 51 Z"
-        stroke={PAPER}
+        stroke={INK}
         strokeWidth="3"
         fill="none"
       />
       {/* the pour line */}
-      <path d="M13 22 H39" stroke={PAPER} strokeWidth="3" />
+      <path d="M13 22 H39" stroke={INK} strokeWidth="3" />
       {/* foam head */}
-      <path d="M11 5 H41 L40 13 H12 Z" fill={PAPER} />
+      <path d="M11 5 H41 L40 13 H12 Z" fill={INK} />
     </svg>
   );
 }
@@ -46,7 +47,7 @@ export async function GET() {
           flexDirection: "column",
           justifyContent: "space-between",
           background: PAPER,
-          color: CREAM,
+          color: INK,
           padding: 68,
           fontFamily: sans,
           position: "relative",
@@ -60,8 +61,8 @@ export async function GET() {
             left: 28,
             right: 28,
             bottom: 28,
-            border: `2px solid rgba(211,164,74,0.42)`,
-            borderRadius: 6,
+            border: `2px solid rgba(255,90,95,0.28)`,
+            borderRadius: 28,
             display: "flex",
           }}
         />
@@ -83,7 +84,7 @@ export async function GET() {
           />
           <path
             d="M120 545 C 340 500, 470 588, 700 540 S 1010 470, 1120 512"
-            stroke={BRASS}
+            stroke={CORAL}
             strokeWidth="3"
             strokeDasharray="2 14"
             strokeLinecap="round"
@@ -91,9 +92,9 @@ export async function GET() {
             opacity="0.9"
           />
           {/* three price pins along the brass route */}
-          <circle cx="230" cy="521" r="7" fill={BRASS} />
-          <circle cx="700" cy="540" r="7" fill={BRASS} />
-          <circle cx="1088" cy="509" r="7" fill={BRASS} />
+          <circle cx="230" cy="521" r="7" fill={CORAL} />
+          <circle cx="700" cy="540" r="7" fill={CORAL} />
+          <circle cx="1088" cy="509" r="7" fill={CORAL} />
         </svg>
 
         {/* Header: wordmark lockup + edition line */}
@@ -103,7 +104,6 @@ export async function GET() {
             alignItems: "center",
             justifyContent: "space-between",
             width: "100%",
-            zIndex: 1,
           }}
         >
           <div style={{ display: "flex", alignItems: "center" }}>
@@ -115,7 +115,7 @@ export async function GET() {
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 14,
-                background: BRASS,
+                background: CORAL,
                 marginRight: 26,
               }}
             >
@@ -123,7 +123,6 @@ export async function GET() {
             </div>
             <div
               style={{
-                fontFamily: serif,
                 fontSize: 46,
                 fontWeight: 700,
                 letterSpacing: 0.5,
@@ -134,22 +133,20 @@ export async function GET() {
           </div>
           <div
             style={{
-              fontFamily: serif,
-              fontStyle: "italic",
-              color: BRASS,
+              color: CORAL,
               fontSize: 24,
               letterSpacing: 2,
             }}
           >
-            A London Field Guide
+            London is live
           </div>
         </div>
 
         {/* Center: headline + tagline */}
-        <div style={{ display: "flex", flexDirection: "column", zIndex: 1 }}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
-              color: BRASS,
+              color: CORAL,
               fontSize: 22,
               fontWeight: 700,
               letterSpacing: 6,
@@ -157,32 +154,31 @@ export async function GET() {
               marginBottom: 22,
             }}
           >
-            Price-aware · Story-led · London
+            Real prices · Live plans · Side quests
           </div>
           <div
             style={{
               display: "flex",
-              fontFamily: serif,
               maxWidth: 960,
               fontSize: 88,
               lineHeight: 1.02,
               fontWeight: 700,
             }}
           >
-            Every real pint price in London, on a living map.
+            Make tonight worth remembering.
           </div>
           <div
             style={{
               display: "flex",
               maxWidth: 780,
-              color: CREAM_DIM,
+              color: INK_DIM,
               fontSize: 30,
               lineHeight: 1.4,
               marginTop: 26,
             }}
           >
-            Plan a crawl by price and story — heritage stops, live Pint Drops,
-            and a route worth walking.
+            Find the right place for your mood, meet your Pub Pal, and turn a
+            spontaneous night into a story worth keeping.
           </div>
         </div>
 
@@ -192,24 +188,21 @@ export async function GET() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            zIndex: 1,
           }}
         >
           <div
             style={{
-              fontFamily: serif,
-              fontStyle: "italic",
-              color: CREAM,
+              color: INK,
               fontSize: 30,
             }}
           >
-            Every pint has a story.
+            Your night. Your people. Your story.
           </div>
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              color: BRASS,
+              color: CORAL,
               fontSize: 26,
               fontWeight: 700,
               letterSpacing: 1,
@@ -219,7 +212,7 @@ export async function GET() {
               style={{
                 width: 46,
                 height: 2,
-                background: BRASS,
+                background: CORAL,
                 marginRight: 18,
               }}
             />

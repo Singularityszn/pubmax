@@ -109,4 +109,17 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [onStyleLoad] = [...(handlers.get("style.load") ?? [])];
     expect(() => onStyleLoad()).not.toThrow();
   });
+
+  it("keeps mobile clusters in stable MapLibre layers instead of a render-synced DOM marker loop", () => {
+    const { map } = makeFakeMap();
+    // Regression: iOS Safari visibly flickers when source/render churn removes
+    // and recreates the city-wide DOM donut markers. Mobile must leave the
+    // always-present GL cluster + count layers as the only renderer.
+    createDonutClusterSync(map as unknown as maplibregl.Map, () => {}, {
+      enabled: false,
+    });
+
+    expect(map.on).not.toHaveBeenCalled();
+    expect(map.setLayoutProperty).not.toHaveBeenCalled();
+  });
 });

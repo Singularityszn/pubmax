@@ -59,6 +59,9 @@ const nextConfig = {
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  images: {
+    qualities: [75, 78],
+  },
   outputFileTracingIncludes: {
     // App Router dynamic segment — must match app/api/venue/[id]/route.ts.
     "/api/venue/[id]": [

@@ -97,6 +97,105 @@
 
 .planSummary { min-height: 500px; padding: clamp(26px, 5vw, 52px); overflow: hidden; }
 .planSummary__heading { margin-left: 72px; }
+.planSummary__headingRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.planSummary__edit,
+.planSummary__swap,
+.planSummary__save,
+.planSummary__cancel {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.planSummary__edit:hover,
+.planSummary__swap:hover,
+.planSummary__cancel:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+.planSummary__edit:disabled,
+.planSummary__swap:disabled,
+.planSummary__save:disabled,
+.planSummary__cancel:disabled { opacity: 0.56; cursor: wait; }
+.planSummary__editor {
+  display: grid;
+  gap: 10px;
+  margin: 30px 0 0 72px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 34%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--plan-accent) 6%, var(--panel));
+}
+.planSummary__editor h3 { margin: 0; font-size: 1.05rem; }
+.planSummary__editor > p,
+.planSummary__editorNote { margin: 0; color: var(--muted); font-size: 0.8rem; line-height: 1.45; }
+.planSummary__editStops { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.planSummary__editStops li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 9px; align-items: center; min-height: 56px; }
+.planSummary__editStops li > span:nth-child(2) { min-width: 0; display: grid; gap: 2px; }
+.planSummary__editStops strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planSummary__editStops small { color: var(--muted); font-size: 0.7rem; }
+.planSummary__editMarker { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--plan-accent); color: #fff; font-size: 0.75rem; font-weight: 850; }
+.planSummary__editorActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.planSummary__save { border-color: var(--plan-accent); background: var(--plan-accent); color: #fff; }
+.planSummary__status { margin: 18px 0 0 72px; color: var(--ink-soft); font-size: 0.8rem; line-height: 1.4; }
+.planCollab {
+  display: grid;
+  gap: 16px;
+  margin: 30px 0 0 72px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+.planCollab__heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.planCollab__heading h3 { margin: 0; font-family: var(--display, var(--serif)); font-size: 1.35rem; }
+.planCollab__heading > span { padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel)); color: var(--plan-accent-strong); font-size: 0.7rem; font-weight: 850; text-transform: uppercase; }
+.planCollab button,
+.planCollab input,
+.planCollab select,
+.planCollab textarea { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-raised); color: var(--ink); font: inherit; }
+.planCollab button { padding: 9px 13px; border-color: var(--plan-accent); background: var(--plan-accent); color: #fff; font-size: 0.76rem; font-weight: 850; cursor: pointer; }
+.planCollab button:disabled { opacity: 0.55; cursor: wait; }
+.planCollab .planCollab__quiet { border-color: var(--line); background: var(--panel-raised); color: var(--ink-soft); }
+.planCollab__invite { display: flex; flex-wrap: wrap; gap: 8px; }
+.planCollab__invite output { flex-basis: 100%; overflow-wrap: anywhere; color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
+.planCollab__activeInvite { flex-basis: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.planCollab__activeInvite small { color: var(--muted); font-size: 0.7rem; }
+.planCollab__form { display: grid; gap: 9px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.planCollab__form > strong,
+.planCollab__proposals > strong { font-size: 0.82rem; }
+.planCollab__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.planCollab input,
+.planCollab select,
+.planCollab textarea { width: 100%; padding: 9px 11px; font-size: 0.8rem; }
+.planCollab textarea { min-height: 78px; resize: vertical; }
+.planCollab__inputRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.planCollab fieldset { display: grid; gap: 7px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }
+.planCollab legend { padding: 0 5px; color: var(--muted); font-size: 0.72rem; }
+.planCollab fieldset label { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 0.75rem; }
+.planCollab fieldset input { width: 20px; min-height: 20px; }
+.planCollab__constraints { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.planCollab__constraints li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.78rem; }
+.planCollab__constraints small { color: var(--muted); text-align: right; }
+.planCollab__provenance { display: grid; gap: 3px; margin-top: 5px; }
+.planCollab__provenance a { color: var(--plan-accent-strong); font-size: 0.68rem; text-underline-offset: 2px; }
+.planCollab__source { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line-soft); border-radius: 12px; }
+.planCollab__source > strong { font-size: 0.75rem; }
+.planCollab__proposals { display: grid; gap: 10px; }
+.planCollab__proposals article { display: grid; gap: 9px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; }
+.planCollab__proposals p,
+.planCollab__proposals ol { margin: 0; }
+.planCollab__proposals ol { padding-left: 18px; color: var(--ink-soft); font-size: 0.75rem; }
+.planCollab__proposals small,
+.planCollab__status { color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
+.planCollab__evidenceNote { margin: 0; color: var(--color-caution); font-size: 0.74rem; line-height: 1.45; }
+.planCollab__blocked { padding: 9px 10px; border-radius: 10px; background: color-mix(in srgb, var(--color-caution) 10%, transparent); color: var(--ink-soft); font-size: 0.74rem; }
+.planCollab__blocked ul { margin: 5px 0 0; padding-left: 18px; }
+.planCollab__actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.planCollab__actions button[aria-pressed="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 28%, transparent); }
 .planSummary__heading h2,
 .planCrew h2,
 .planShare h2 { margin: 0; font-size: clamp(1.65rem, 4vw, 2.8rem); line-height: 1; }
@@ -337,7 +436,45 @@
 .planComposer__conciergeInput button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--plan-accent); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 .planComposer__conciergeInput button:disabled { opacity: 0.58; cursor: wait; }
 .planComposer__concierge > p { margin: 12px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
+.planComposer__conciergeStatus:empty { display: none; }
+.planComposer__conciergeStatus { min-height: 1.4em; }
+.planComposer__routeStale { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px; border: 1px solid color-mix(in srgb, var(--color-caution) 50%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--color-caution) 10%, var(--panel)); }
+.planComposer__routeStale > div { display: grid; gap: 2px; min-width: 0; }
+.planComposer__routeStale strong { font-size: 0.84rem; }
+.planComposer__routeStale span { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.35; }
+.planComposer__regenerate { flex: 0 0 auto; min-height: 44px; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--plan-accent); color: #fff; font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
+.planComposer__regenerate:disabled { opacity: 0.58; cursor: wait; }
+.planComposer__context { margin: 18px 0 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.planComposer__context legend { width: 100%; margin-bottom: 2px; }
+.planComposer__contextNote { width: 100%; margin: 0 0 2px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+.planComposer__context label { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+.planComposer__context select, .planComposer__context input { min-width: 0; max-width: 100%; width: auto; min-height: 44px; padding: 4px; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 760; }
+.planComposer__context input { width: 54px; }
 .planComposer__srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.planComposer__coverage { grid-column: 1 / -1; margin: -4px 0 2px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.planComposer__coverage summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; color: var(--ink); font-size: 0.92rem; font-weight: 800; cursor: pointer; list-style: none; }
+.planComposer__coverage summary::-webkit-details-marker { display: none; }
+.planComposer__coverage summary::after { content: "+"; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 50%; color: var(--plan-accent-strong); font-size: 1.05rem; line-height: 1; }
+.planComposer__coverage details[open] summary::after { content: "−"; }
+.planComposer__coverage summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 3px; border-radius: 6px; }
+.planComposer__coverageMeta { color: var(--muted); font-size: 0.76rem; font-weight: 700; text-align: right; }
+.planComposer__coverageIntro { max-width: 680px; margin: 0 0 16px; color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
+.planComposer__coverageGroups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-bottom: 18px; }
+.planComposer__coverageGroups section { min-width: 0; padding: 14px; border: 1px solid var(--line-soft); border-radius: 14px; background: color-mix(in srgb, var(--panel) 68%, transparent); }
+.planComposer__coverageGroups h3 { margin: 0 0 10px; color: var(--ink-soft); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.planComposer__coverageGroups ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.planComposer__coverageGroups li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; }
+.planComposer__coverageGroups li:last-child { border-bottom: 0; padding-bottom: 0; }
+.planComposer__coverageGroups li > div { min-width: 0; display: grid; gap: 2px; }
+.planComposer__coverageGroups li strong { color: var(--ink); font-size: 0.82rem; }
+.planComposer__coverageGroups li small { color: var(--muted); line-height: 1.35; }
+.planComposer__coverageGroups li .planComposer__coverageMetaLine { color: var(--ink-soft); font-size: 0.7rem; }
+.planComposer__coverageActions { justify-items: end; align-content: start; gap: 2px !important; }
+.planComposer__coverageActions > span { color: var(--muted); font-size: 0.68rem; font-weight: 800; text-align: right; }
+.planComposer__coverageGroups li[data-tone="ready"] .planComposer__coverageActions > span { color: var(--color-positive); }
+.planComposer__coverageGroups li[data-tone="paused"] .planComposer__coverageActions > span { color: var(--color-negative); }
+.planComposer__coverageMapLink { display: inline-flex; min-height: 44px; align-items: center; color: var(--plan-accent-strong); font-size: 0.72rem; font-weight: 800; text-underline-offset: 3px; white-space: nowrap; }
+.planComposer__coverageMapLink:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; border-radius: 5px; }
 .planComposer__field { display: grid; gap: 8px; }
 .planComposer__field--wide { grid-column: 1 / -1; }
 .planComposer label,
@@ -347,6 +484,12 @@
 .planComposer__stops legend { padding: 0 10px 0 0; color: var(--plan-accent-strong); text-transform: uppercase; letter-spacing: 0.12em; }
 .planComposer__stop { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 14px; }
 .planComposer__stop > div { display: grid; gap: 6px; }
+.planComposer__stopActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: 6px; }
+.planComposer__swap { min-height: 44px; border: 1px solid color-mix(in srgb, var(--plan-accent) 45%, var(--line)); border-radius: 999px; padding: 8px 12px; background: color-mix(in srgb, var(--plan-accent) 8%, var(--panel)); color: var(--plan-accent-strong); font: inherit; font-size: 0.76rem; font-weight: 800; cursor: pointer; }
+.planComposer__swap:disabled { opacity: 0.48; cursor: not-allowed; }
+.planComposer__previewLabel { margin-left: 8px; color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: none; }
+.planComposer__routeStatus { min-height: 1.35em; margin: 0 0 18px 56px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+.planComposer__stopReason { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
 .planComposer__number { align-self: center; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--plan-accent) 15%, var(--panel)); color: var(--plan-accent-strong); font-weight: 850; }
 .planComposer__remove { color: var(--muted); }
 .planComposer__add { margin-top: 6px; }
@@ -374,17 +517,29 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
 
 @media (max-width: 760px) {
   .planPage__grid { grid-template-columns: 1fr; }
+  .planPage__side { order: -1; }
   .planPage__hero { margin-top: 50px; }
   .planPage__intro h1,
   .planPage__hero h1 { font-size: clamp(3rem, 16vw, 5rem); }
   .planComposer { grid-template-columns: 1fr; }
   .planComposer__concierge { grid-column: 1; }
   .planComposer__conciergeInput { grid-template-columns: 1fr; }
+  .planComposer__context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planComposer__context legend,
+  .planComposer__contextNote,
+  .planComposer__context label:first-of-type { grid-column: 1 / -1; }
+  .planComposer__context label { border-radius: 12px; padding: 0 8px; }
+  .planComposer__coverage summary { align-items: flex-start; padding: 10px 0; }
+  .planComposer__coverageMeta { max-width: 10.5rem; }
+  .planComposer__coverageGroups { grid-template-columns: 1fr; gap: 10px; }
+  .planComposer__coverageGroups section { padding: 12px; }
+  .planComposer__coverageGroups li { grid-template-columns: 1fr; gap: 2px; }
+  .planComposer__coverageActions { grid-auto-flow: column; align-items: center; justify-content: space-between; width: 100%; }
   .planComposer__field,
   .planComposer__field--wide { grid-column: 1; }
   .planComposer__stop { grid-template-columns: 38px 1fr; }
   .planComposer__stop > div,
-  .planComposer__remove { grid-column: 2; }
+  .planComposer__stopActions { grid-column: 2; justify-content: start; }
   .planComposer__stops,
   .planComposer__submit,
   .planComposer__trust,
@@ -392,8 +547,16 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   .planSummary { padding: 26px 20px; }
   .planSummary__rail { left: 43px; top: 105px; }
   .planSummary__heading { margin-left: 57px; }
+  .planSummary__headingRow { align-items: flex-start; }
+  .planSummary__editor { margin-left: 0; }
+  .planSummary__status { margin-left: 0; }
+  .planCollab { margin-left: 0; padding: 15px; }
+  .planCollab__fields { grid-template-columns: 1fr; }
   .planSummary__stops li { grid-template-columns: 48px 1fr; gap: 14px; }
   .planSummary__marker { width: 42px; height: 42px; box-shadow: 0 0 0 5px var(--panel-raised); }
+  .planComposer__routeStale { align-items: stretch; flex-direction: column; }
+  .planComposer__regenerate { width: 100%; }
+  .planComposer__routeStatus { margin-left: 0; }
 }
 
 /* Entrances live only inside no-preference so the base state is fully visible —

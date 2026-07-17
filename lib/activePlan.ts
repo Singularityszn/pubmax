@@ -4,17 +4,18 @@
 // plan is live — not just on /plan/[id].
 //
 // This is a CLIENT pointer, never a backend change: the id + startTime are
-// already known to the browser (the plan screen holds the route param and the
-// creator's sessionStorage member token). We record them here on the plan page
+// already known to the browser (the plan screen holds the route param; private
+// mutation authority lives in a path-scoped HttpOnly session). We record them here on the plan page
 // so the shell can detect "there is a plan on tonight" without a server round
 // trip. The card fetches the real plan state (/api/plans/[id]) itself.
 //
 // Mirrors lib/activeRound.ts's idiom (same-tab custom event + cross-tab storage
 // + focus), so the two "what's live right now" pointers behave identically.
 
-import { isPlanId } from "@/lib/plan";
+import { isPlanId, type CrawlEnding, type PlanMemberRole } from "@/lib/plan";
 
 export const ACTIVE_PLAN_KEY = "pubmax_active_plan";
+export const ACTIVE_PLAN_VERSION = 1 as const;
 
 // The plan is only "on tonight" for a bounded window around its start time, so
 // the card never haunts the shell days later off a stale pointer. Generous on
@@ -28,10 +29,17 @@ const DISMISS_EVENT = "pubmax:night-mode-dismiss";
 const DISMISS_PREFIX = "pubmax:night-mode-dismissed:";
 
 export type ActivePlanRef = {
+  version?: typeof ACTIVE_PLAN_VERSION;
   id: string;
   startTime: string;
   /** User-advanced "which stop are we at" cursor — never inferred, only tapped. */
   stopIndex: number;
+  /** Safe continuity only; never grants host/guest mutation authority. */
+  role?: PlanMemberRole | null;
+  /** A preview selection, not a completed ending. Server confirmation remains required. */
+  endingPreview?: CrawlEnding | null;
+  /** Companion identity only. No conversation, memory, voice, or location data. */
+  palContext?: { id: string; name: string } | null;
 };
 
 function hasLocal(): boolean {
@@ -87,13 +95,28 @@ export function parseActivePlan(raw: string | null | undefined): ActivePlanRef |
   }
   if (!parsed || typeof parsed !== "object") return null;
   const row = parsed as Record<string, unknown>;
+  if (row.version !== undefined && row.version !== ACTIVE_PLAN_VERSION) return null;
   if (!isPlanId(row.id)) return null;
   if (typeof row.startTime !== "string" || Number.isNaN(Date.parse(row.startTime))) return null;
-  return { id: row.id, startTime: row.startTime, stopIndex: cleanStopIndex(row.stopIndex) };
+  const role = row.role === "host" || row.role === "guest" ? row.role : null;
+  const endingPreview = row.endingPreview === "food" || row.endingPreview === "get_home" || row.endingPreview === "keep_going" ? row.endingPreview : null;
+  const rawPal = row.palContext && typeof row.palContext === "object" ? row.palContext as Record<string, unknown> : null;
+  const palContext = rawPal && typeof rawPal.id === "string" && rawPal.id.length <= 120 && typeof rawPal.name === "string" && rawPal.name.length <= 80
+    ? { id: rawPal.id, name: rawPal.name }
+    : null;
+  return { version: ACTIVE_PLAN_VERSION, id: row.id, startTime: row.startTime, stopIndex: cleanStopIndex(row.stopIndex), role, endingPreview, palContext };
 }
 
 export function serializeActivePlan(ref: ActivePlanRef): string {
-  return JSON.stringify({ id: ref.id, startTime: ref.startTime, stopIndex: cleanStopIndex(ref.stopIndex) });
+  return JSON.stringify({
+    version: ACTIVE_PLAN_VERSION,
+    id: ref.id,
+    startTime: ref.startTime,
+    stopIndex: cleanStopIndex(ref.stopIndex),
+    role: ref.role === "host" || ref.role === "guest" ? ref.role : null,
+    endingPreview: ref.endingPreview === "food" || ref.endingPreview === "get_home" || ref.endingPreview === "keep_going" ? ref.endingPreview : null,
+    palContext: ref.palContext && ref.palContext.id.length <= 120 && ref.palContext.name.length <= 80 ? ref.palContext : null,
+  });
 }
 
 /**
@@ -142,7 +165,7 @@ export function markActivePlan(id: string, startTime: string, now: number = Date
   // NOW (which would hide the live Night Mode card). Only replace the pointer
   // when there's no stored plan, it's the same plan, the stored plan is no
   // longer in its active window, or the incoming plan is itself active now.
-  const candidate: ActivePlanRef = { id, startTime, stopIndex: 0 };
+  const candidate: ActivePlanRef = { version: ACTIVE_PLAN_VERSION, id, startTime, stopIndex: 0, role: null, endingPreview: null, palContext: null };
   if (
     current &&
     current.id !== id &&
@@ -151,8 +174,10 @@ export function markActivePlan(id: string, startTime: string, now: number = Date
   ) {
     return;
   }
-  const stopIndex = current && current.id === id ? current.stopIndex : 0;
-  writeActivePlan({ id, startTime, stopIndex });
+  const continuity = current && current.id === id
+    ? { stopIndex: current.stopIndex, role: current.role ?? null, endingPreview: current.endingPreview ?? null, palContext: current.palContext ?? null }
+    : { stopIndex: 0, role: null, endingPreview: null, palContext: null };
+  writeActivePlan({ version: ACTIVE_PLAN_VERSION, id, startTime, ...continuity });
 }
 
 /** Persist a new stop cursor for the active plan (the "here now" tap). */
@@ -160,6 +185,24 @@ export function setActivePlanStopIndex(index: number): void {
   const current = readActivePlan();
   if (!current) return;
   writeActivePlan({ ...current, stopIndex: cleanStopIndex(index) });
+}
+
+export function setActivePlanRole(planId: string, role: PlanMemberRole | null): void {
+  const current = readActivePlan();
+  if (!current || current.id !== planId) return;
+  writeActivePlan({ ...current, role });
+}
+
+export function setActivePlanEndingPreview(planId: string, endingPreview: CrawlEnding | null): void {
+  const current = readActivePlan();
+  if (!current || current.id !== planId) return;
+  writeActivePlan({ ...current, endingPreview });
+}
+
+export function setActivePlanPalContext(palContext: ActivePlanRef["palContext"]): void {
+  const current = readActivePlan();
+  if (!current) return;
+  writeActivePlan({ ...current, palContext: palContext ?? null });
 }
 
 /**
@@ -183,12 +226,15 @@ export function clearActivePlan(onlyIfId?: string): void {
 export function subscribeActivePlan(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => undefined;
   const handler = () => onChange();
+  const storageHandler = (event: StorageEvent) => {
+    if (event.storageArea === window.localStorage && event.key === ACTIVE_PLAN_KEY) onChange();
+  };
   window.addEventListener(CHANGE_EVENT, handler);
-  window.addEventListener("storage", handler);
+  window.addEventListener("storage", storageHandler);
   window.addEventListener("focus", handler);
   return () => {
     window.removeEventListener(CHANGE_EVENT, handler);
-    window.removeEventListener("storage", handler);
+    window.removeEventListener("storage", storageHandler);
     window.removeEventListener("focus", handler);
   };
 }

@@ -1,142 +1,104 @@
 "use client";
 
-// First-class "Tonight" screen (Wave A · A2). A full-page, scannable answer to
-// "what's on near me tonight" so the viewer never has to hunt the map:
-//   - one fetch of the CityMCP London `things_to_do` tonight window (the same
-//     grounded live layer the Discover "Tonight nearby" lane already uses),
-//   - kind filter chips derived from the kinds actually present (not a fixed
-//     taxonomy), and
-//   - one row per opportunity: title, venue + area, when, price when known,
-//     an optional "~N min walk" estimate once the viewer shares their location,
-//     and a tap target into the map (or the upstream source).
+// First-class "Tonight" screen — PRIMARY What's-On spine (/api/whats-on),
+// same source as the map Tonight lane (W1). CityMCP things-to-do stays a
+// secondary Discover overlay; this page must never disagree with the lane.
 //
-// Honest by construction: unknown ≠ invented (missing fields are omitted, thin
-// nights are labelled thin), a fetch failure lands an explicit error state
-// rather than a blank screen, and provenance ("Checked <date> · via CityMCP
-// London") rides the header. Walk time is a straight-line haversine estimate
-// (see lib/tonight.walkMinutes) — deterministic and clearly labelled "~".
-//
-// React 19 safe: every state write is deferred with Promise.resolve().then so
-// nothing fires setState synchronously inside an effect body, and an
-// AbortController cancels the in-flight fetch on unmount.
+// Kind chips, provenance, and map deep-links mirror the lane. Walk time is a
+// straight-line haversine estimate once the viewer shares location (labelled "~").
+// React 19 safe: settle() defers setState out of the effect body.
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, ExternalLink, Footprints, MapPin } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ArrowUpRight,
+  CalendarClock,
+  ExternalLink,
+  Footprints,
+  LocateFixed,
+  MapPin,
+  RefreshCw,
+  Tv,
+  X,
+} from "lucide-react";
 
 import SiteNav from "@/components/nav/SiteNav";
+import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
+import { walkLabel, walkMinutes } from "@/lib/tonight";
+import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import {
-  coverageLabel,
-  deriveKindFacets,
-  filterByKind,
-  labelForKind,
-  opportunityMapHref,
-  provenanceLabel,
-  walkLabel,
-  walkMinutes,
-  type TonightOpportunity,
-} from "@/lib/tonight";
+  checkedLabel,
+  filterLaneRows,
+  laneKindFacets,
+  laneTimeLabel,
+  WHATS_ON_KIND_META,
+} from "@/lib/whatsOnBadges";
 
 import "./tonight.css";
 
-type ApiResponse = {
-  window?: string;
-  area?: string | null;
-  asOf?: string | null;
-  opportunities?: TonightOpportunity[];
-  error?: string;
-};
-
-type LoadState = "loading" | "ready" | "empty" | "error";
-
 type Origin = { lat: number; lng: number };
+type LocationStatus = "idle" | "requesting" | "unavailable";
 
-function opportunityLink(
-  op: TonightOpportunity,
-): { href: string; external: boolean } | null {
-  const mapHref = opportunityMapHref(op);
-  if (mapHref) return { href: mapHref, external: false };
-  const url = firstHttp(op.source?.url);
+function rowHref(row: WhatsOnRow): { href: string; external: boolean } | null {
+  if (typeof row.venueId === "string" && row.venueId.length > 0) {
+    return { href: `/map?sel=${encodeURIComponent(row.venueId)}`, external: false };
+  }
+  const url = firstHttp(row.source?.url);
   if (url) return { href: url, external: true };
   return null;
 }
 
+function coverageLabel(count: number): string {
+  if (count === 0) return "Quiet night";
+  if (count === 1) return "1 listing tonight";
+  return `${count} listings tonight`;
+}
+
 export default function TonightClient() {
-  const [ops, setOps] = useState<TonightOpportunity[]>([]);
-  const [asOf, setAsOf] = useState<string | null>(null);
-  const [state, setState] = useState<LoadState>("loading");
-  const [activeKind, setActiveKind] = useState<string | null>(null);
+  const { rows, asOf, status, retry } = useWhatsOnTonight(true);
+  const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
 
-  // Load tonight's opportunities.
-  useEffect(() => {
-    const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch(
-          "/api/citymcp/things-to-do?window=tonight&limit=20",
-          { signal: controller.signal, headers: { accept: "application/json" } },
-        );
-        if (!res.ok) {
-          settle(() => setState("error"), controller);
-          return;
-        }
-        const body = (await res.json()) as ApiResponse;
-        const list = Array.isArray(body.opportunities)
-          ? body.opportunities.filter(
-              (o) => o && typeof o.title === "string" && o.title.length > 0,
-            )
-          : [];
-        settle(() => {
-          setAsOf(body.asOf ?? null);
-          setOps(list);
-          setState(list.length === 0 ? "empty" : "ready");
-        }, controller);
-      } catch {
-        settle(() => setState("error"), controller);
-      }
-    })();
-    return () => controller.abort();
-  }, []);
-
-  // D0: the headline Wave A metric — the screen was opened. Fired once on
-  // mount, independent of whether the upstream had anything tonight.
   useEffect(() => {
     trackEvent("tonight_screen_view");
   }, []);
 
-  // Progressive enhancement: once (and only if) the viewer shares their
-  // location, walk-time estimates fill in. Never blocks the list; a denial or
-  // missing API simply leaves walk time off.
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
-    let cancelled = false;
+  const requestLocation = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationStatus("unavailable");
+      return;
+    }
+    setLocationStatus("requesting");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        if (cancelled) return;
         const { latitude, longitude } = pos.coords;
-        void Promise.resolve().then(() => {
-          if (!cancelled) setOrigin({ lat: latitude, lng: longitude });
-        });
+        setOrigin({ lat: latitude, lng: longitude });
+        setLocationStatus("idle");
       },
-      () => {
-        /* denied / unavailable — walk time stays hidden */
-      },
+      () => setLocationStatus("unavailable"),
       { enableHighAccuracy: false, maximumAge: 300_000, timeout: 8_000 },
     );
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
-  const facets = useMemo(() => deriveKindFacets(ops), [ops]);
+  const clearLocation = useCallback(() => {
+    setOrigin(null);
+    setLocationStatus("idle");
+  }, []);
+
+  const facets = useMemo(() => laneKindFacets(rows), [rows]);
   const visible = useMemo(
-    () => filterByKind(ops, activeKind),
-    [ops, activeKind],
+    () => filterLaneRows(rows, activeKind),
+    [rows, activeKind],
   );
+
+  const ready = status === "ready";
+  const empty = status === "empty";
+  const errored = status === "error";
+  const loading = status === "idle";
 
   return (
     <main className="tonightPage" data-testid="tonight-screen">
@@ -149,39 +111,83 @@ export default function TonightClient() {
         </div>
         <h1 className="tonightTitle">What&rsquo;s on near you, right now.</h1>
         <p className="tonightLede">
-          A grounded read of London tonight — via CityMCP London. No invented
-          listings; thin nights are labelled thin.
+          Quiz, sport, deals, and live music from sourced listings — the same
+          spine as the map. No invented nights; thin nights stay thin.
         </p>
-        {state === "ready" || state === "empty" ? (
+        {ready || empty ? (
           <p className="tonightProvenance">
-            {coverageLabel(ops.length)}
+            {coverageLabel(rows.length)}
             <span aria-hidden="true"> · </span>
-            {provenanceLabel(asOf)} · via CityMCP London
+            {checkedLabel(asOf)} · via what&rsquo;s-on
           </p>
+        ) : null}
+        {ready && rows.some((row) => typeof row.lat === "number" && typeof row.lng === "number") ? (
+          <div className="tonightLocation">
+            <p className="tonightLocationCopy">
+              Walk times are optional. Your location stays on this page and is not
+              sent or saved.
+            </p>
+            {origin ? (
+              <button
+                type="button"
+                className="tonightLocationButton"
+                onClick={clearLocation}
+              >
+                <X size={15} aria-hidden="true" />
+                Remove location
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="tonightLocationButton"
+                onClick={requestLocation}
+                disabled={locationStatus === "requesting"}
+              >
+                <LocateFixed size={15} aria-hidden="true" />
+                {locationStatus === "requesting"
+                  ? "Finding your location…"
+                  : locationStatus === "unavailable"
+                    ? "Try location again"
+                    : "Share location for walk times"}
+              </button>
+            )}
+            <span className="tonightSrOnly" role="status" aria-live="polite">
+              {locationStatus === "requesting"
+                ? "Finding your location."
+                : locationStatus === "unavailable"
+                  ? "Location unavailable. You can try again."
+                  : origin
+                    ? "Walk times are now shown."
+                    : ""}
+            </span>
+          </div>
         ) : null}
       </header>
 
-      {state === "loading" ? (
+      {loading ? (
         <p className="tonightStatus" role="status">
           Reading tonight&rsquo;s listings…
         </p>
       ) : null}
 
-      {state === "error" ? (
-        <p className="tonightStatus tonightStatusError" role="status">
-          Couldn&rsquo;t reach tonight&rsquo;s listings just now. Try again
-          shortly.
-        </p>
+      {errored ? (
+        <div className="tonightStatus tonightStatusError">
+          <p role="status">Couldn&rsquo;t reach tonight&rsquo;s listings just now.</p>
+          <button type="button" className="tonightRetry" onClick={retry}>
+            <RefreshCw size={15} aria-hidden="true" />
+            Retry listings
+          </button>
+        </div>
       ) : null}
 
-      {state === "empty" ? (
+      {empty ? (
         <p className="tonightStatus" role="status">
           Nothing confirmed in London tonight yet — we only show what the
           upstream actually returns. Check back later.
         </p>
       ) : null}
 
-      {state === "ready" ? (
+      {ready ? (
         <>
           {facets.length > 1 ? (
             <div
@@ -197,7 +203,7 @@ export default function TonightClient() {
                 onClick={() => setActiveKind(null)}
               >
                 All
-                <span className="tonightChipCount">{ops.length}</span>
+                <span className="tonightChipCount">{rows.length}</span>
               </button>
               {facets.map((facet) => (
                 <button
@@ -205,6 +211,7 @@ export default function TonightClient() {
                   type="button"
                   className="tonightChip"
                   data-active={activeKind === facet.kind}
+                  data-kind={facet.kind}
                   aria-pressed={activeKind === facet.kind}
                   onClick={() => {
                     setActiveKind(facet.kind);
@@ -219,34 +226,33 @@ export default function TonightClient() {
           ) : null}
 
           <ul className="tonightList" data-testid="tonight-list">
-            {visible.map((op, idx) => {
-              const link = opportunityLink(op);
-              const kindLabel = labelForKind(op.kind);
-              const area = op.place?.area ?? op.areas?.[0];
-              const when = op.timeEvidence ?? op.availability;
-              const loc = op.place?.location;
-              const walk = walkLabel(walkMinutes(origin, loc));
+            {visible.map((row) => {
+              const link = rowHref(row);
+              const meta = WHATS_ON_KIND_META[row.kind];
+              const when = laneTimeLabel(row) ?? meta.badgeLabel;
+              const walk =
+                typeof row.lat === "number" && typeof row.lng === "number"
+                  ? walkLabel(walkMinutes(origin, { lat: row.lat, lng: row.lng }))
+                  : null;
+              const KindIcon = row.kind === "sport" ? Tv : CalendarClock;
               const RowInner = (
                 <>
                   <div className="tonightRowMeta">
-                    {kindLabel ? (
-                      <span className="tonightRowKind">{kindLabel}</span>
-                    ) : null}
-                    {op.price ? (
-                      <span className="tonightRowPrice">{op.price}</span>
+                    <span className="tonightRowKind" data-kind={row.kind}>
+                      <KindIcon size={12} aria-hidden="true" />
+                      {meta.label}
+                    </span>
+                    {typeof row.priceGbp === "number" ? (
+                      <span className="tonightRowPrice">
+                        £{row.priceGbp.toFixed(2)}
+                      </span>
                     ) : null}
                   </div>
-                  <h2 className="tonightRowTitle">{op.title}</h2>
-                  {op.place?.name || area ? (
-                    <p className="tonightRowPlace">
-                      <MapPin size={13} aria-hidden="true" />
-                      <span>
-                        {op.place?.name ?? ""}
-                        {op.place?.name && area ? " · " : ""}
-                        {area ?? ""}
-                      </span>
-                    </p>
-                  ) : null}
+                  <h2 className="tonightRowTitle">{row.title}</h2>
+                  <p className="tonightRowPlace">
+                    <MapPin size={13} aria-hidden="true" />
+                    <span>{row.placeName}</span>
+                  </p>
                   <div className="tonightRowFacts">
                     {when ? <span className="tonightRowWhen">{when}</span> : null}
                     {walk ? (
@@ -255,12 +261,13 @@ export default function TonightClient() {
                         {walk}
                       </span>
                     ) : null}
+                    <span className="tonightRowSource">via {row.source.label}</span>
                   </div>
                   {link ? (
                     <span className="tonightRowCta">
                       {link.external ? (
                         <>
-                          {op.source?.label ?? "Details"}
+                          {row.source.label}
                           <ExternalLink size={13} aria-hidden="true" />
                         </>
                       ) : (
@@ -275,9 +282,9 @@ export default function TonightClient() {
               );
               return (
                 <li
-                  key={`${op.title}-${idx}`}
+                  key={row.id}
                   className="tonightRow"
-                  data-kind={op.kind ?? "other"}
+                  data-kind={row.kind}
                   data-testid="tonight-row"
                 >
                   {link ? (
@@ -305,7 +312,8 @@ export default function TonightClient() {
 
           {visible.length === 0 ? (
             <p className="tonightStatus" role="status">
-              No {labelForKind(activeKind ?? "") ?? "matching"} listings tonight.{" "}
+              No {activeKind ? WHATS_ON_KIND_META[activeKind].label.toLowerCase() : "matching"}{" "}
+              listings tonight.{" "}
               <button
                 type="button"
                 className="tonightInlineReset"
@@ -315,15 +323,15 @@ export default function TonightClient() {
               </button>
             </p>
           ) : null}
+
+          <p className="tonightFoot">
+            <Link href="/map" className="tonightFootLink">
+              See them on the map
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </Link>
+          </p>
         </>
       ) : null}
     </main>
   );
-}
-
-/** Defer a state write out of the effect body and skip it if unmounted. */
-function settle(fn: () => void, controller: AbortController): void {
-  void Promise.resolve().then(() => {
-    if (!controller.signal.aborted) fn();
-  });
 }

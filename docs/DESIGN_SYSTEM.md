@@ -362,6 +362,10 @@ its text should not flip dark.
 - Don't use gradients as decoration — the two gradients in this codebase
   (`.writerCard`, `.landlordAnswer`) are subtle, single-hue surface tints, not
   a visual flourish; don't add a rainbow/hero gradient elsewhere.
+  Authored Pub Pal materials are the narrow exception: a gradient may model
+  chrome, glass, or hologram depth inside the character portrait only. It must
+  use one Signal affinity plus semantic surface tokens and must never become a
+  page, card, button, or navigation background.
 - Don't add glassmorphism beyond the existing, narrow `backdrop-filter: blur()`
   uses on floating chrome (toolbar, legend, onboarding scrim) — those are
   functional (legibility over the map), not aesthetic.

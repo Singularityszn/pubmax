@@ -69,7 +69,9 @@ export function lastRideFetchUrl(cityId: CityId, lat: number, lng: number): stri
 export function lastRideTabLabel(lastRideLabel: string): string {
   const trimmed = lastRideLabel.trim();
   if (trimmed.toLowerCase().startsWith("last ")) {
-    return trimmed.slice(5).trim() || trimmed;
+    const mode = trimmed.slice(5).trim();
+    if (!mode) return trimmed;
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
   }
   return trimmed;
 }

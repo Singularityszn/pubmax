@@ -1,28 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Map, CirclePlus, User, Compass, Beer } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Map, CirclePlus, UserRound, Images, CalendarClock } from "lucide-react";
 import { useCallback, useSyncExternalStore, type CSSProperties } from "react";
-import { useAuth } from "@/components/auth/AuthProvider";
 import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { MOMENT_NAV_ACTION, PRIMARY_NAV_ITEMS, momentHref, type PrimaryNavKey } from "@/components/nav/navigationModel";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
 // desktop it is display:none so the existing desktop navs are untouched.
 //
-// Log is the emphasized centre action — larger, brass — linking to the map with
-// the composer opened (?log=1). The other four are plain destinations.
+// Moment is the emphasized centre action and opens the private-first camera
+// composer. Pint Drop remains an explicit action inside Moment and the map.
 //
 // No effects: usePathname() is enough to mark the active tab, which keeps this
 // clear of react-hooks/set-state-in-effect.
 
 type Tab = {
+  key: PrimaryNavKey | typeof MOMENT_NAV_ACTION.key;
   href: string;
   label: string;
   Icon: typeof Map;
@@ -34,24 +35,24 @@ type Tab = {
 
 const warmedTabs = new Set<string>();
 
-// The Profile tab's destination is the only auth-aware bit: signed-in users go
-// to /u/<their handle>, everyone else keeps the demo /u/you. `match: ["/u"]`
-// marks the tab active for any profile route in either case.
-// Map + Pubs + Discover; Drop stays the centre action; You for profile.
-// Map / Drop hrefs follow the preferred city (null → /map).
-function buildTabs(profileHref: string, mapHref: string, dropHref: string): Tab[] {
+// Map follows the preferred city (null → /map); every other route is canonical.
+function buildTabs(mapHref: string, pathname: string): Tab[] {
+  const icons = { map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
+  const destinations = PRIMARY_NAV_ITEMS.map((item) => ({
+    ...item,
+    href: item.key === "map" ? mapHref : item.href,
+    Icon: icons[item.key],
+  }));
   return [
-    { href: mapHref, label: "Map", Icon: Map, match: ["/map"] },
-    { href: "/pubs", label: "Pubs", Icon: Beer, match: ["/pubs"] },
-    { href: dropHref, label: "Pint Drop", Icon: CirclePlus, primary: true },
-    { href: "/discover", label: "Pint stories", Icon: Compass, match: ["/discover", "/feed", "/crawls", "/borough"] },
-    { href: profileHref, label: "You", Icon: User, match: ["/u"] },
+    ...destinations.slice(0, 2),
+    { ...MOMENT_NAV_ACTION, href: momentHref(pathname), match: [], Icon: icons.moment, primary: true },
+    ...destinations.slice(2),
   ];
 }
 
 function isActive(pathname: string, tab: Tab): boolean {
-  // The Log tab points at /map?log=1 — a mode of the map, not its own page — so
-  // it is never marked as the current page (the Map tab owns /map).
+  // The primary Moment action is intentionally not painted as a persistent
+  // active tab; its raised shape communicates creation rather than location.
   if (tab.primary) return false;
   const prefixes = tab.match ?? [tab.href];
   return prefixes.some(
@@ -61,9 +62,8 @@ function isActive(pathname: string, tab: Tab): boolean {
 
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
+  const searchParams = useSearchParams();
   const router = useRouter();
-  // Signed-in → their derived handle; signed-out (or still loading) → demo /you.
-  const { handle } = useAuth();
   // Preference may be null → /map. useSyncExternalStore: SSR/hydration stay on
   // /map, then re-read after mount (and when CitySwitcher writes).
   const mapHref = useSyncExternalStore(
@@ -71,12 +71,8 @@ export default function MobileTabBar() {
     preferredCityMapHref,
     () => "/map",
   );
-  const dropHref = useSyncExternalStore(
-    subscribePreferredCity,
-    () => preferredCityMapHref(new URLSearchParams({ log: "1" })),
-    () => "/map?log=1",
-  );
-  const tabs = buildTabs(handle ? `/u/${handle}` : "/u/you", mapHref, dropHref);
+  const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
+  const tabs = buildTabs(mapHref, returnTo);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the five tabs own) hides it via CSS rather than pinning it
   // to a wrong tab.
@@ -97,8 +93,6 @@ export default function MobileTabBar() {
   const markDropTap = useCallback((primary?: boolean) => {
     if (primary) markPubmaxTiming("pubmax:drop-tap");
   }, []);
-
-  if (pathname === "/") return null;
 
   return (
     <nav className="mobileTabBar" role="navigation" aria-label="Primary">

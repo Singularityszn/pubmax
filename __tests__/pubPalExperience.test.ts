@@ -1,0 +1,78 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const experience = readFileSync(join(process.cwd(), "components/pal/PalExperience.tsx"), "utf8");
+const portrait = readFileSync(join(process.cwd(), "components/pal/PalPortrait.tsx"), "utf8");
+const voice = readFileSync(join(process.cwd(), "components/pubpal/PubPalVoice.tsx"), "utf8");
+const css = readFileSync(join(process.cwd(), "app/pal/pal.css"), "utf8");
+
+describe("Pub Pal first meeting and onboarding", () => {
+  it("offers all three Pal forms and a five-part resumable flow", () => {
+    expect(experience).toContain("PAL_ONBOARDING_SPECIES.map");
+    expect(experience).toContain("step + 1} of 5");
+    expect(experience).toContain("writePalOnboardingDraft");
+    expect(experience).toContain("Meet your Pub Pal");
+  });
+
+  it("keeps account persistence gated while leaving a character-free route", () => {
+    expect(experience).toContain("if (!user) return;");
+    expect(experience).toContain("Use PUBMAXX without a Pal");
+    expect(experience).toContain("Nothing is saved to an account yet");
+  });
+
+  it("exposes appearance, voice, personality, memory and visibility controls", () => {
+    for (const label of ["Appearance", "Personality", "Voice", "Allow memory proposals", "Show Pal shortcuts", "Export my context", "Save correction", "Route proposals"]) {
+      expect(experience).toContain(label);
+    }
+    expect(experience).toContain("/api/pub-pal");
+    expect(experience).toContain("/api/pub-pal/memories/export");
+    expect(experience).toContain("/api/pub-pal/memories/${encodeURIComponent(memory.id)}");
+  });
+
+  it("keeps the chooser behind a useful route and opens the existing planner", () => {
+    expect(experience).toContain("hasPalRouteActivation");
+    expect(experience).toContain("Route before character");
+    expect(experience).toContain('href="/map?plan=1"');
+  });
+
+  it("clears account-owned context and serializes proposal controls", () => {
+    expect(experience).toContain("activeOwnerRef.current = ownerId");
+    expect(experience).toContain("setMemories([])");
+    expect(experience).toContain("pal.ownerId === user.id");
+    expect(experience).toContain("controller.abort()");
+    expect(experience).toContain("ownerTransitioning");
+    expect(experience).toContain("controlSavingRef.current");
+    expect(experience).toContain("controlSavingRef.current === lock");
+    expect(experience).toContain("disabled={controlSaving || saving}");
+  });
+
+  it("renders an accessible Pal image and supports motion, transparency and contrast preferences", () => {
+    expect(portrait).toContain('role="img"');
+    expect(portrait).toContain("aria-label");
+    expect(css).toContain("prefers-reduced-motion: reduce");
+    expect(css).toContain("prefers-reduced-transparency: reduce");
+    expect(css).toContain("prefers-contrast: more");
+    expect(portrait).toContain("palRigGreyhound");
+    expect(portrait).toContain("palRigCat");
+    expect(portrait).toContain("palRigRaven");
+    expect(portrait).toContain("palRigFox");
+    expect(portrait).toContain("palRigPigeon");
+    expect(portrait).toContain("palRigBadger");
+    expect(portrait).toContain("palRigCorgi");
+  });
+
+  it("drives every visual state from real Pal interactions", () => {
+    for (const state of ["idle", "noticing", "listening", "thinking", "speaking", "celebrating", "sleeping", "error"]) {
+      expect(`${experience}\n${voice}`).toContain(`\"${state}\"`);
+    }
+    expect(voice).toContain("onStateChange");
+    expect(experience).toContain("palAnimationState");
+  });
+
+  it("keeps controls thumb-sized and avoids unstable viewport height", () => {
+    expect(css).toContain("min-height: 100dvh");
+    expect(css).toMatch(/\.palChoice\s*{[\s\S]*?min-height:\s*4\.75rem/);
+    expect(css).not.toContain("100vh");
+  });
+});

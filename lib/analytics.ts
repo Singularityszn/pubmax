@@ -8,8 +8,9 @@
 //
 // Privacy-first: honours Do-Not-Track, sends only registry-known events with
 // allow-listed primitive props (validated again here as defence in depth), and
-// carries NO identifier — just the event, its props, the coarse path, and a
-// timestamp. Fire-and-forget: uses navigator.sendBeacon so it survives a page
+// carries a stable pseudonymous identifier only after explicit analytics
+// consent; without consent the server does not forward the event to PostHog.
+// Fire-and-forget: uses navigator.sendBeacon so it survives a page
 // unload/navigation, falls back to keepalive fetch, and swallows every error so
 // analytics can never break a user flow.
 
@@ -18,8 +19,61 @@ import {
   type AnalyticsEventName,
   type AnalyticsProps,
 } from "@/lib/analyticsEvents";
+import {
+  ANONYMOUS_ANALYTICS_STORAGE_KEY,
+  ANALYTICS_CONSENT_STORAGE_KEY,
+  isAnonymousAnalyticsId,
+} from "@/lib/analyticsIdentity";
 
 const ENDPOINT = "/api/events";
+let inMemoryAnonymousId: string | null = null;
+let inMemoryConsentGranted = false;
+
+function newAnonymousAnalyticsId(): string {
+  const random = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
+  return `anon_${random}`;
+}
+
+/**
+ * Stable, pseudonymous keyless funnel id. It contains no account, handle,
+ * contact, or location data and is never created during server rendering.
+ */
+export function anonymousAnalyticsId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    if (window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) !== "granted") return null;
+    inMemoryConsentGranted = true;
+    const existing = window.localStorage.getItem(ANONYMOUS_ANALYTICS_STORAGE_KEY);
+    if (isAnonymousAnalyticsId(existing)) return existing;
+    const created = newAnonymousAnalyticsId();
+    window.localStorage.setItem(ANONYMOUS_ANALYTICS_STORAGE_KEY, created);
+    return created;
+  } catch {
+    if (!inMemoryConsentGranted) return null;
+    if (!inMemoryAnonymousId) inMemoryAnonymousId = newAnonymousAnalyticsId();
+    return inMemoryAnonymousId;
+  }
+}
+
+export function setAnalyticsConsent(granted: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (granted) {
+      inMemoryConsentGranted = true;
+      window.localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, "granted");
+    } else {
+      inMemoryConsentGranted = false;
+      window.localStorage.removeItem(ANALYTICS_CONSENT_STORAGE_KEY);
+      window.localStorage.removeItem(ANONYMOUS_ANALYTICS_STORAGE_KEY);
+      inMemoryAnonymousId = null;
+    }
+  } catch {
+    inMemoryConsentGranted = granted;
+    if (!granted) inMemoryAnonymousId = null;
+  }
+}
 
 function doNotTrack(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -32,6 +86,20 @@ function doNotTrack(): boolean {
 }
 
 /**
+ * One consent gate shared by the self-owned event rail and Vercel pageviews.
+ * It never creates an identifier and fails closed when browser storage is
+ * unavailable unless the person explicitly granted consent in this session.
+ */
+export function analyticsCollectionAllowed(): boolean {
+  if (typeof window === "undefined" || doNotTrack()) return false;
+  try {
+    return window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
+  } catch {
+    return inMemoryConsentGranted;
+  }
+}
+
+/**
  * Record a product event. No-ops on the server, under Do-Not-Track, or for an
  * unknown/invalid event name. Never throws.
  */
@@ -41,14 +109,18 @@ export function trackEvent(
 ): void {
   try {
     if (typeof window === "undefined") return;
-    if (doNotTrack()) return;
+    if (!analyticsCollectionAllowed()) return;
     const event = sanitizeEvent(name, props);
     if (!event) return;
 
+    const anonymousId = anonymousAnalyticsId();
+    if (!anonymousId) return;
     const payload = JSON.stringify({
       name: event.name,
       props: event.props,
       path: window.location?.pathname ?? null,
+      anonymousId,
+      analyticsConsent: true,
       ts: Date.now(),
     });
 

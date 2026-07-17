@@ -90,8 +90,15 @@ Dashboard → Authentication → URL Configuration:
 
 | Setting | Value |
 |---|---|
-| Site URL | `https://pubmaxxing.com` (production) |
-| Redirect URLs | `https://pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback`, plus any preview hosts you use |
+| Site URL | `https://pubmaxxing.com` (canonical production apex) |
+| Redirect URLs | `https://pubmaxxing.com/auth/callback`, `https://www.pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback`, plus any preview hosts you use |
+
+Vercel must attach both `pubmaxxing.com` and `www.pubmaxxing.com` to the same production project, with `www.pubmaxxing.com` permanently redirecting to the canonical apex. After an explicitly authorised deployment, verify that the apex returns the release, the `www` redirect preserves the path and query string, and both TLS certificates are valid:
+
+```sh
+curl -sSIL https://pubmaxxing.com/map
+curl -sSIL 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'
+```
 
 #### Google
 

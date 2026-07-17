@@ -7,6 +7,7 @@ import {
   SHEET_SNAP_FRACTIONS,
   SHEET_SNAP_ORDER,
   SHEET_SNAP_TRANSLATE_FRACTIONS,
+  mobileSelectCameraOffset,
 } from "@/lib/sheetSnap";
 
 const VH = 800; // a plausible phone viewport height in px
@@ -15,7 +16,7 @@ describe("SHEET_SNAP_TRANSLATE_FRACTIONS", () => {
   it("is 1 − revealed fraction for every snap (CSS vh source of truth)", () => {
     expect(SHEET_SNAP_TRANSLATE_FRACTIONS.full).toBeCloseTo(0.08);
     expect(SHEET_SNAP_TRANSLATE_FRACTIONS.half).toBeCloseTo(0.45);
-    expect(SHEET_SNAP_TRANSLATE_FRACTIONS.peek).toBeCloseTo(0.86);
+    expect(SHEET_SNAP_TRANSLATE_FRACTIONS.peek).toBeCloseTo(0.78);
     for (const snap of SHEET_SNAP_ORDER) {
       expect(SHEET_SNAP_TRANSLATE_FRACTIONS[snap]).toBeCloseTo(
         1 - SHEET_SNAP_FRACTIONS[snap],
@@ -38,6 +39,21 @@ describe("sheetTranslateY", () => {
     expect(sheetTranslateY("full", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.full);
     expect(sheetTranslateY("half", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.half);
     expect(sheetTranslateY("peek", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.peek);
+  });
+});
+
+describe("mobileSelectCameraOffset", () => {
+  it("offsets downward so the pin sits in the visible band above a half sheet", () => {
+    const [x, y] = mobileSelectCameraOffset(VH, "half");
+    expect(x).toBe(0);
+    // Visible mid ≈ (1 - 0.55) / 2 = 0.225 from top → offset ≈ 0.275 * VH
+    expect(y).toBe(Math.round((0.5 - (1 - SHEET_SNAP_FRACTIONS.half) / 2) * VH));
+    expect(y).toBeGreaterThan(0);
+  });
+
+  it("returns [0,0] for invalid heights", () => {
+    expect(mobileSelectCameraOffset(0)).toEqual([0, 0]);
+    expect(mobileSelectCameraOffset(-10)).toEqual([0, 0]);
   });
 });
 

@@ -26,6 +26,12 @@ type MapToolbarProps = {
   onTogglePlanning: () => void;
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
+  /** True once the slim venue index has settled, including a failed/empty load. */
+  searchSettled: boolean;
+  /** Count after the query and all current map filters have been applied. */
+  filteredVenueCount: number;
+  /** Number of venues available to search; zero means the index is unavailable/empty. */
+  searchableVenueCount: number;
   /** Active city for the map switcher (defaults to London). */
   cityId?: CityId;
 };
@@ -42,6 +48,9 @@ export default function MapToolbar({
   onTogglePlanning,
   filters,
   onFiltersChange,
+  searchSettled,
+  filteredVenueCount,
+  searchableVenueCount,
   cityId = DEFAULT_CITY_ID,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
@@ -69,6 +78,12 @@ export default function MapToolbar({
   // light the Drinks control as if a drink filter were applied.
   const drinksActive =
     filters.requireCocktails || Boolean(drinkCategory) || Boolean(favoritePint);
+  const trimmedQuery = query.trim();
+  const showNoSearchMatches =
+    searchSettled &&
+    searchableVenueCount > 0 &&
+    Boolean(trimmedQuery) &&
+    filteredVenueCount === 0;
 
   return (
     <div className="mapToolbar" role="search">
@@ -136,6 +151,26 @@ export default function MapToolbar({
 
         <CitySwitcher cityId={cityId} />
       </div>
+
+      {showNoSearchMatches ? (
+        <div
+          className="mapToolbarSearchStatus"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span className="mapToolbarSearchStatusCopy">
+            No pubs match ‘{trimmedQuery}’ with your current filters.
+          </span>
+          <button
+            type="button"
+            className="mapToolbarSearchRecovery"
+            onClick={() => onQueryChange("")}
+          >
+            Clear search
+          </button>
+        </div>
+      ) : null}
 
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
         {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}

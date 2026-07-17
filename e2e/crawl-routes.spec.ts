@@ -30,11 +30,31 @@ function watchPageErrors(page: Page): string[] {
 // fails first — here we just tolerate their absence.
 const SEEDED_PUBS = "venue-1ufn31x,venue-1t8siin,venue-xiesdn";
 
+async function prepareMobileMap(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+}
+
+async function openPlanner(page: Page) {
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+  const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+  if ((await planner.count()) === 0) await page.locator(".mobilePlanActivation").click();
+  await expect(planner).toBeVisible();
+  await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
+  return planner;
+}
+
 test.describe("crawl routes — walk-time leg annotations", () => {
   test("a URL-seeded crawl opens the planner with per-leg walk-time annotations and a total", async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const errors = watchPageErrors(page);
+    await prepareMobileMap(page);
 
     // Deep-link straight into build mode with the crawl pre-loaded. This is the
     // same ?mode=build&pubs=… state that "start a crawl here" and shared crawl
@@ -43,9 +63,9 @@ test.describe("crawl routes — walk-time leg annotations", () => {
     const response = await page.goto(`/map?mode=build&pubs=${SEEDED_PUBS}`);
     expect(response?.status()).toBe(200);
 
-    // The planner drawer opens on arrival when the URL carries a crawl.
-    const routePanel = page.locator(".routePanel");
-    await expect(routePanel).toBeVisible();
+    // The URL opens the one coordinated planner sheet on arrival.
+    const planner = await openPlanner(page);
+    const routePanel = planner.locator(".routePanel");
 
     // The ordered stop list is the route surface. Give the client fetch that
     // resolves builtIds -> venues a chance to populate before branching.
@@ -84,13 +104,15 @@ test.describe("crawl routes — walk-time leg annotations", () => {
   });
 
   test("the walk/run pace toggle re-labels the legs as running", async ({ page }) => {
+    test.setTimeout(90_000);
     const errors = watchPageErrors(page);
+    await prepareMobileMap(page);
 
     const response = await page.goto(`/map?mode=build&pubs=${SEEDED_PUBS}`);
     expect(response?.status()).toBe(200);
 
-    const routePanel = page.locator(".routePanel");
-    await expect(routePanel).toBeVisible();
+    const planner = await openPlanner(page);
+    const routePanel = planner.locator(".routePanel");
 
     const stops = routePanel.locator("ol.routeList > li");
     await expect

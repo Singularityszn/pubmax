@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
+
 import { buildCityRivalrySnapshot } from "@/lib/cityRivalry";
 import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 
 import DiscoverPageClient from "./DiscoverPageClient";
+
+// /discover is the canonical of the /drinks → /discover 308 redirect, so it
+// pins its own canonical URL (Wave S1.4).
+export const metadata: Metadata = {
+  alternates: { canonical: "/discover" },
+};
 
 export default async function DiscoverPage() {
   const rivalry = buildCityRivalrySnapshot();

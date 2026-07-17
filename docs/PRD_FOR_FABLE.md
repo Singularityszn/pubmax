@@ -1,14 +1,18 @@
 # PRD for Fable — PUBMAXXING: make the London night-out instrument unforgettable
 
+> **AUTHORITATIVE DESIGN APPENDIX:** [`MASTER_PRD.md`](./MASTER_PRD.md) is the
+> canonical roadmap. This brief supplies visual evidence, not roadmap authority.
+
 **Role for Fable:** design lead. The engineering spine is strong and shipping; the
 product now needs a **distinctive, pub-native visual identity and a finished UI** —
 plus the next wave of features that turn a beautiful map into a reason to fall in love
 with London. This doc gathers *everything* built and discussed across all sessions and
-worktrees into one brief. Companion: `docs/PRD_CANONICAL.md` (the engineering roadmap).
+worktrees into one brief. Companion: `docs/MASTER_PRD.md` (the canonical roadmap).
 
-Domain glossary (use throughout): **Pint Drop** (a logged pint: price + photo + passed-down
-note + vibe tags + provenance), **Crawl Story** (a shareable pub route), **PUBMAXXER**
-(the grounded heritage Q&A guide), **Last Pint** (nearest-station + last-train decision),
+Historical glossary (do not use where it conflicts with `CONTEXT.md`): **Pint Drop**
+(a logged pint: price + photo + passed-down note + vibe tags + provenance), **Crawl Story**
+(a shareable pub route), **PUBMAXXER** (obsolete here; now a community member),
+**Last Pint** (nearest-station + last-train decision),
 **Pint Passport** (collectible profile stats/badges), **provenance** (sourced / contributor
 / anecdote / demo — *never flattened*), **story pub**, **landmark**, **POI**, **borough page**,
 **favourite pint**, **presence** ("I'm here tonight").
@@ -235,7 +239,8 @@ is excellent.
 
 ## Further Notes
 
-- **Do not re-build shipped work** (see `docs/PRD_CANONICAL.md` "Current state — BUILT"): the
+- **Do not re-build shipped work** (verify current state against the repository and
+  `docs/MASTER_PRD.md`): the
   premium basemap, landmark markers + photos, coloured TfL network, 296 POIs across typed
   categories, non-alcoholic filter, tabbed venue sheet, Last Pint card, the full social spine,
   and Epic-B hardening (slim index, CSP, quality gate, governance) are done.

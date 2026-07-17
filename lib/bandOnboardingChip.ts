@@ -43,9 +43,10 @@ export function shouldShowBandOnboardingChip(input: {
  * surface) must win first paint over the "Start with a story" card — a
  * first-run visitor with live tonight rows should see them immediately, not
  * have them occluded by the onboarding overlay. So when the lane has loaded
- * rows to show, onboarding stays suppressed until the visitor dismisses or
- * interacts with the lane (tracked by the caller via `tonightLaneHasRows`,
- * which should go false again once the lane is dismissed/interacted with).
+ * rows to show (or while its first fetch is pending), onboarding stays
+ * suppressed until the visitor dismisses or interacts with the lane (tracked by
+ * the caller via `tonightLaneHasRows`, which should go false again once the
+ * lane is dismissed/interacted with).
  */
 export function shouldShowCuratedOnboarding(input: {
   loaded: boolean;
@@ -61,10 +62,12 @@ export function shouldShowCuratedOnboarding(input: {
   /** Tonight lane has rows ready to show and hasn't been dismissed/interacted
    * with yet — the lane wins first paint, so onboarding waits. */
   tonightLaneHasRows?: boolean;
+  /** Tonight lane is still resolving; it also wins first paint while pending. */
+  tonightLanePending?: boolean;
 }): boolean {
   if (input.showBandChip) return false;
   if ((input.curatedCrawlCount ?? 0) <= 0) return false;
-  if (input.tonightLaneHasRows) return false;
+  if (input.tonightLaneHasRows || input.tonightLanePending) return false;
   return (
     input.loaded &&
     !input.onboardingDismissed &&

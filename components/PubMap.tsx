@@ -1,25 +1,38 @@
 "use client";
 
-import { MapPinned, X } from "lucide-react";
+import { MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
+import ThemeToggle from "@/components/ThemeToggle";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 
 import {
   buildCrawlRoute,
+  formatPrice,
   mergeVenueDrops,
   type Filters,
   type Venue,
 } from "@/lib/venues";
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
-import { nearestVenueIds } from "@/lib/nearby";
+import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
 import PubMapCanvas from "@/components/PubMapCanvas";
-import ControlRail, { type CrawlMode } from "@/components/map/ControlRail";
+import MobileMapShell from "@/components/mobile/MobileMapShell";
+import { Sheet } from "@/components/ui/sheet";
+import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
+import { SearchField } from "@/components/ui/search-field";
+import { Button } from "@/components/ui/button";
+import { MobilePlanActivation, type GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DrinkShapeChips from "@/components/map/DrinkShapeChips";
+import FavoritePintPicker from "@/components/map/FavoritePintPicker";
+import MapLayersControl from "@/components/map/MapLayersControl";
+import ControlRail from "@/components/map/ControlRail";
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
 import { landmarksForCity } from "@/lib/cityLandmarks";
@@ -32,11 +45,11 @@ import MapToolbar from "@/components/map/MapToolbar";
 import MapPriceControl from "@/components/map/MapPriceControl";
 import CitySuggestBanner from "@/components/map/CitySuggestBanner";
 import CityStatusBanner from "@/components/map/CityStatusBanner";
-import TonightOverlayChip from "@/components/map/TonightOverlayChip";
 import { useCrawlJourneys } from "@/components/map/useCrawlJourneys";
 import { useTonightOpportunities } from "@/components/map/useTonightOpportunities";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import TonightLane from "@/components/map/TonightLane";
+import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import MapConciergeAsk from "@/components/map/MapConciergeAsk";
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
@@ -53,6 +66,7 @@ import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
 import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
 import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
+import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
@@ -72,7 +86,6 @@ import {
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { slimVenuesToPins } from "@/lib/slimPins";
-import { buildRouteLegs } from "@/lib/routeLegs";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -82,12 +95,23 @@ import {
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
 } from "@/lib/bandOnboardingChip";
-import { shouldFitCityBoundsOnArrival, shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import { shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import { getNightArea, nearestNightAreaForViewport, nightAreaForMapQuery } from "@/lib/nightAreas";
+import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
+import {
+  readMobileMapSession,
+  writeMobileMapSession,
+  type MobileShellState,
+  type MapOverlay,
+  type MapViewportSnapshot,
+  type NearbyMapResult,
+} from "@/lib/mobileShell";
 import {
   hasCrawlArrivalParams,
   filtersForCuratedCrawl,
@@ -120,6 +144,16 @@ function currentSearch(): string {
 
 function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
+}
+
+function subscribeMobileViewport(onChange: () => void): () => void {
+  const query = window.matchMedia("(max-width: 640px)");
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function mobileViewportSnapshot(): boolean {
+  return isMobileViewport();
 }
 
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
@@ -206,6 +240,11 @@ export default function PubMap({
   cityId?: CityId;
 }) {
   const city = getCity(cityId);
+  const mobileViewport = useSyncExternalStore(
+    subscribeMobileViewport,
+    mobileViewportSnapshot,
+    () => false,
+  );
   const isLondon = cityId === "london";
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
@@ -229,6 +268,11 @@ export default function PubMap({
   // crawl from localStorage on a clean /map tab click (that bloated the address
   // bar with stale ?mode=build&pubs=… every time someone returned to Map).
   const [seed] = useState<MapSeed>(() => buildMapSeed(currentSearch(), cityId));
+  const [restoredMobileSession] = useState(() => {
+    if (currentSearch()) return null;
+    const saved = readMobileMapSession();
+    return saved?.cityId === cityId ? saved : null;
+  });
   // Freeze arrival search with the seed so fit-on-arrival does not flip when the
   // user later maps a route or the address bar syncs.
   const [arrivalSearch] = useState(() => currentSearch());
@@ -242,6 +286,10 @@ export default function PubMap({
   // `loaded` means the slim map index has settled. The full price dataset is no
   // longer fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
+  // Pair settlement with its city. On a client-side city switch there is one
+  // render before the loading effect clears old pins; this prevents that prior
+  // city's index from producing a transient, dishonest search result.
+  const [loadedCityId, setLoadedCityId] = useState<CityId | null>(null);
   // Wave K2 — WebGL style + scene ready. Keep loading chrome until both slim
   // pins and the basemap have arrived (warmup can make slim arrive first).
   // Canvas owns hang recovery (reportMapError lifts this via onMapReady).
@@ -260,11 +308,43 @@ export default function PubMap({
   const [detailStatusById, setDetailStatusById] = useState<Map<string, VenueDetailStatus>>(
     () => new Map(),
   );
-  const [selectedVenueId, setSelectedVenueId] = useState<string>(seed.selectedVenueId);
-  const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("pints");
-  const [filters, setFilters] = useState<Filters>(seed.filters);
-  const [mode, setMode] = useState<CrawlMode>(seed.mode);
-  const [builtIds, setBuiltIds] = useState<string[]>(seed.builtIds);
+  const [selectedVenueId, setSelectedVenueId] = useState<string>(
+    seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
+  );
+  const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
+  const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
+  const [mapOverlay, setMapOverlay] = useState<MapOverlay>(() => {
+    const restored = restoredMobileSession?.openSheet;
+    return restored && !["venue", "planner"].includes(restored) ? restored : "none";
+  });
+  const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(
+    restoredMobileSession?.viewport ?? city.mapView,
+  );
+  const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
+  const [mobileLayersTab, setMobileLayersTab] = useState<"layers" | "prices" | "events" | "transit">("layers");
+  const tflStatus = useMobileTflStatus();
+  const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
+  const {
+    mode,
+    setMode,
+    builtIds,
+    setBuiltIds,
+    routeMapped,
+    setRouteMapped,
+    planningOpen,
+    setPlanningOpen,
+    plannedNightArea,
+    activateGeneratedPlan,
+  } = useMapPlanCoordinator({
+    mode: seed.mode,
+    builtIds: seed.builtIds,
+    routeMapped: seed.routeMapped,
+    nightArea: restoredMobileSession?.nightArea ?? null,
+    planningOpen: !seed.selectedVenueId &&
+      restoredMobileSession?.openSheet !== "venue" &&
+      (restoredMobileSession?.openSheet === "planner" ||
+        shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch())),
+  });
   // Issue #15 story bands: the active band id ("" = none), seeded from the URL
   // and synced back so a band link reproduces. The band overlay + picker live
   // inside PubMapCanvas; PubMap only owns the shareable state.
@@ -275,13 +355,9 @@ export default function PubMap({
   // Map-first layout: the planner (left drawer) is hidden until the user asks
   // for it. Curated crawl arrivals stay map-first (polyline + chip); other
   // shared/restored crawl links still open straight into planning.
-  const [planningOpen, setPlanningOpen] = useState<boolean>(() =>
-    shouldOpenPlanningInitially(seed.builtIds, seed.mode, currentSearch()),
-  );
   // Explicit route mapping: a suggested crawl can exist without drawing on the
   // clean first map. Once the user chooses "Map route" (or a curated/nearby
   // crawl), keep the line visible even if the mobile planner closes.
-  const [routeMapped, setRouteMapped] = useState<boolean>(seed.routeMapped);
   // Lights ActiveRoundChip immediately after Plan-drawer Start Round (stay-on-map).
   const [activeRoundStartedCode, setActiveRoundStartedCode] = useState<string | null>(null);
   // Favorite pint: re-prices the map to one beer. Persisted per-device.
@@ -305,6 +381,13 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  // Purpose-limited copy used only after the viewer explicitly asks for travel
+  // times. A location granted for "Pubs near me" must not silently become a
+  // precise journey request for every venue they inspect.
+  const [venueJourneyLocation, setVenueJourneyLocation] =
+    useState<UserLocation | null>(null);
+  const [locationRequestStatus, setLocationRequestStatus] =
+    useState<LocationRequestStatus>("idle");
   // The curated crawl whose blurb is shown under the route title. Seeded from
   // ?crawl= / matching pubs= on curated arrival; cleared when the user mutates stops.
   const [activeCrawl, setActiveCrawl] = useState<CuratedCrawl | null>(seed.activeCrawl);
@@ -327,6 +410,8 @@ export default function PubMap({
   const [tonightDismissed, setTonightDismissed] = useState<boolean>(
     readTonightOverlayDismissed,
   );
+  // W2: the live-events lane is map-first — a compact top chip until requested.
+  const [tonightLaneOpen, setTonightLaneOpen] = useState(false);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
@@ -349,7 +434,9 @@ export default function PubMap({
   // open/pick handlers re-assert it below.
   const dismissSheet = useCallback(() => {
     setSelectedVenueId("");
+    setMapOverlay("none");
     closeComposer();
+    if (hasMapLogIntent(currentSearch())) setLogIntentFallbackVisible(true);
   }, [closeComposer, setSelectedVenueId]);
   const {
     sheetSnap,
@@ -380,6 +467,7 @@ export default function PubMap({
 
   const closePlanning = useCallback(() => {
     setPlanningOpen(false);
+    setMapOverlay("none");
     setPlannerSheetSnap("half");
     setPlannerSheetDragY(null);
   }, [setPlannerSheetDragY, setPlannerSheetSnap]);
@@ -396,6 +484,7 @@ export default function PubMap({
       setSheetSnap("half");
       setSheetDragY(null);
     }
+    setMapOverlay("none");
     setPlanningOpen(true);
     setPlannerSheetSnap("half");
     setPlannerSheetDragY(null);
@@ -424,6 +513,7 @@ export default function PubMap({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setLoaded(false);
+      setLoadedCityId(null);
       setSlimPins([]);
     });
     loadSlimVenuesForCity(cityId)
@@ -438,7 +528,10 @@ export default function PubMap({
         // state instead of falling back to the full 6 MB client payload.
       })
       .finally(() => {
-        if (!cancelled) setLoaded(true);
+        if (!cancelled) {
+          setLoadedCityId(cityId);
+          setLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -526,9 +619,19 @@ export default function PubMap({
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
+  const nearbyVenueIds = useMemo(
+    () => nearbyMapResult ? new Set(nearbyMapResult.venueIds) : null,
+    [nearbyMapResult],
+  );
+  const mapMembershipVenues = useMemo(
+    () => nearbyVenueIds
+      ? filteredVenues.filter((venue) => nearbyVenueIds.has(venue.id))
+      : filteredVenues,
+    [filteredVenues, nearbyVenueIds],
+  );
   const canvasVenues = useMemo(
-    () => withForcedVenue(filteredVenues, venueById, selectedVenueId),
-    [filteredVenues, venueById, selectedVenueId],
+    () => withForcedVenue(mapMembershipVenues, venueById, selectedVenueId),
+    [mapMembershipVenues, venueById, selectedVenueId],
   );
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams);
@@ -537,17 +640,6 @@ export default function PubMap({
     () => (shouldBuildSuggestedRoute ? buildCrawlRoute(filteredVenues, filters) : EMPTY_ROUTE),
     [shouldBuildSuggestedRoute, filteredVenues, filters],
   );
-  const builtRoute = useMemo(
-    () => builtIds.map((id) => venueById.get(id)).filter((v): v is Venue => Boolean(v)),
-    [builtIds, venueById],
-  );
-  const route = mode === "suggest" ? suggestedRoute : builtRoute;
-  const {
-    byToIndex: journeyByToIndex,
-    loading: journeyLoading,
-    totalMinutes: journeyTotalMinutes,
-  } = useCrawlJourneys(route, isLondon);
-  const routeMappedActive = routeMapped && route.length >= 2;
   // C2 — a plan that's "on tonight" (lib/activePlan) draws on the map through
   // the SAME route paint the crawl planner uses. useActivePlanRoute carries the
   // live plan's stops; planStopsToRouteVenues resolves them (ordered, deduped,
@@ -558,14 +650,21 @@ export default function PubMap({
     () => planStopsToRouteVenues(activePlanStops, venueById),
     [activePlanStops, venueById],
   );
-  // An explicitly mapped crawl always wins (it's the user's direct action);
-  // otherwise the ambient active plan fills the same `route` prop → route-line +
-  // numbered route-stops, framed by the existing routeKey→fitRoute effect.
-  const routeForMap = useMemo(
-    () => (routeMappedActive ? route : activePlanRoute),
-    [routeMappedActive, route, activePlanRoute],
-  );
-  const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
+  const { route, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
+    mode,
+    builtIds,
+    routeMapped,
+    suggestedRoute,
+    activePlanRoute,
+    venueById,
+  });
+  // A suggested route exists behind the clean map, but its TfL legs are only
+  // useful once the planner is open or the viewer explicitly maps it.
+  const {
+    byToIndex: journeyByToIndex,
+    loading: journeyLoading,
+    totalMinutes: journeyTotalMinutes,
+  } = useCrawlJourneys(route, isLondon && (planningOpen || routeMappedActive));
   const distanceFromUserKm = useMemo(() => {
     const firstStop = route[0];
     if (!firstStop || !userLocation) return null;
@@ -636,9 +735,11 @@ export default function PubMap({
   useBuiltIdsPersistence(builtIds, BUILT_STORAGE_KEY);
 
   const selectVenue = useCallback(
-    (id: string, initialTab: TabKey = "pints") => {
+    (id: string, initialTab: TabKey = "overview") => {
       if (!id) return;
       prefetchVenue(id);
+      setTonightLaneOpen(false);
+      setMapOverlay("none");
       if (isMobileViewport()) closePlanning();
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
@@ -765,7 +866,7 @@ export default function PubMap({
   const firstRouteId = route[0]?.id ?? "";
   const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
   const focusMapSearch = useCallback(() => {
-    const search = document.getElementById("mapSearchInput") as HTMLInputElement | null;
+    const search = (document.getElementById("mobileMapSearchInput") ?? document.getElementById("mapSearchInput")) as HTMLInputElement | null;
     if (search) search.focus();
   }, []);
 
@@ -779,6 +880,7 @@ export default function PubMap({
 
   const openComposerForLog = useCallback(() => {
     closePlanning();
+    setVenueInitialTab("pints");
     setSheetSnap("full");
     setSheetDragY(null);
     dismissOnboarding();
@@ -906,6 +1008,33 @@ export default function PubMap({
   // "Pubs near me": ask for location, build a crawl from the nearest matching
   // venues. Event handler (not an effect) so setState here is fine. Degrades
   // gracefully — feature-detect geolocation, catch denial, never throws.
+  const requestVenueLocation = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationRequestStatus("unavailable");
+      return;
+    }
+
+    setLocationRequestStatus("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setVenueJourneyLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationRequestStatus("idle");
+      },
+      () => {
+        setLocationRequestStatus("unavailable");
+      },
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
+    );
+  }, []);
+
+  const clearVenueLocation = useCallback(() => {
+    setVenueJourneyLocation(null);
+    setLocationRequestStatus("idle");
+  }, []);
+
   const startNearbyCrawl = useCallback(() => {
     setNearbyError(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -951,6 +1080,45 @@ export default function PubMap({
     showLoadedRoute,
   ]);
 
+  const showNearbyMap = useCallback(() => {
+    setNearbyError(null);
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setNearbyError("Location isn't available in this browser.");
+      return;
+    }
+    setNearbyLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        const nearby = nearbyVenuesForMap(location.lat, location.lng, filteredVenues, {
+          radiusKm: 2.5,
+          minCount: 20,
+          maxCount: Math.max(20, filteredVenues.length),
+        });
+        const withinRadius = nearby.filter(
+          (venue) => haversineKm([location.lng, location.lat], [venue.longitude, venue.latitude]) <= 2.5,
+        );
+        setUserLocation(location);
+        setNearbyMapResult({
+          location,
+          venueIds: nearby.map((venue) => venue.id),
+          radiusKm: 2.5,
+          strategy: withinRadius.length >= 20 ? "within-radius" : "nearest-20",
+        });
+        setNearbyLoading(false);
+        setMapOverlay("none");
+      },
+      () => {
+        setNearbyLoading(false);
+        setNearbyError("Couldn't get your location. Grant access and try again.");
+      },
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 },
+    );
+  }, [filteredVenues]);
+
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
     setRouteMapped(true);
@@ -970,6 +1138,66 @@ export default function PubMap({
   }, [closePlanning, route, selectVenue]);
 
   const detailOpen = Boolean(selectedVenueId && selectedVenue);
+  const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
+    (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
+  [cityId, filters.query, plannedNightArea]);
+  const suggestedPlanArea = useMemo(
+    () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
+    [activeNightArea, cityId, mapViewport.center],
+  );
+  const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
+    const ids = generated.stops.map((stop) => stop.venueId);
+    activateGeneratedPlan(generated.context.nightArea, ids);
+    markPalRouteActivation();
+    setActiveCrawl(null);
+    if (generated.context.nightArea) {
+      trackEvent("night_description_submitted", {
+        area: generated.context.nightArea,
+        daypart: generated.context.daypart,
+      });
+    }
+  }, [activateGeneratedPlan, setActiveCrawl]);
+  const coordinatedMobileOverlay: MapOverlay = logIntentFallbackVisible
+    ? "moment"
+    : detailOpen
+      ? "venue"
+      : planningOpen
+        ? "planner"
+        : mapOverlay;
+  const mobileShellState: MobileShellState = {
+    overlay: coordinatedMobileOverlay,
+    viewport: mapViewport,
+    selectedVenueId: selectedVenueId || null,
+    cityId,
+    nightArea: activeNightArea?.slug ?? null,
+  };
+
+  const changeMapOverlay = useCallback((next: MapOverlay) => {
+    if (next !== "moment") setLogIntentFallbackVisible(false);
+    if (next !== "none" && isMobileViewport()) {
+      setPlanningOpen(false);
+      setSelectedVenueId("");
+      closeComposer();
+    }
+    setMapOverlay(next);
+  }, [closeComposer]);
+
+  useEffect(() => {
+    writeMobileMapSession({
+      viewport: mapViewport,
+      filters,
+      cityId,
+      nightArea: activeNightArea?.slug ?? null,
+      selectedVenueId: selectedVenueId || null,
+      openSheet: detailOpen
+        ? "venue"
+        : planningOpen
+          ? "planner"
+          : mapOverlay !== "none" && mapOverlay !== "search" && mapOverlay !== "moment"
+            ? mapOverlay
+            : null,
+    });
+  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
@@ -1012,6 +1240,7 @@ export default function PubMap({
   // onboarding is free to show as before.
   const tonightLaneHasRows =
     isLondon && whatsOnTonight.status === "ready" && whatsOnTonight.rows.length > 0;
+  const tonightLanePending = isLondon && whatsOnTonight.status === "idle";
   const showOnboarding = shouldShowCuratedOnboarding({
     loaded,
     onboardingDismissed,
@@ -1023,9 +1252,153 @@ export default function PubMap({
     showBandChip,
     curatedCrawlCount: cityCuratedCrawls.length,
     tonightLaneHasRows,
+    tonightLanePending,
   });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
+
+  const plannerPanel = planningOpen ? (
+    <>
+      {mobileViewport && isLondon && suggestedPlanArea ? (
+        <MobilePlanActivation
+          cityId={cityId}
+          initialNightArea={suggestedPlanArea.slug}
+          onGenerated={applyGeneratedMobilePlan}
+        />
+      ) : null}
+      {!mobileViewport ? <button type="button" className="plannerMapButton" onClick={closePlanning}>
+        <MapPinned size={16} aria-hidden="true" />
+        View {city.displayName} map
+      </button> : null}
+      <ControlRail
+        mode={mode}
+        onModeChange={setMode}
+        filters={filters}
+        onFiltersChange={setFilters}
+        filteredVenues={filteredVenues}
+        builtCount={builtIds.length}
+        onClearBuilt={clearBuilt}
+        onLoadCrawl={loadCuratedCrawl}
+        onNearbyCrawl={startNearbyCrawl}
+        nearbyLoading={nearbyLoading}
+        nearbyError={nearbyError}
+        savedOnly={savedOnly}
+        onSavedOnlyChange={changeSavedOnly}
+        curatedCrawls={cityCuratedCrawls}
+        cityDisplayName={city.displayName}
+        cityId={cityId}
+      />
+      <RoutePanel
+        mode={mode}
+        crawlStyle={filters.crawlStyle}
+        altStyle={altStyle}
+        onAltStyleChange={setAltStyle}
+        route={route}
+        filteredVenues={filteredVenues}
+        builtIds={builtIds}
+        activeVenueId={selectedVenue?.id}
+        venueSignals={venueSignals}
+        crawlBlurb={activeCrawl?.blurb}
+        crawlName={activeCrawl?.name}
+        crawlId={activeCrawl?.id}
+        routeMapped={routeMappedActive}
+        originDistanceKm={distanceFromUserKm}
+        onMapRoute={mapCurrentRoute}
+        onHideRoute={hideMappedRoute}
+        onCheckLastTrain={checkLastTrainAtRouteEnd}
+        onSelectVenue={selectVenue}
+        onToggleStop={toggleBuiltStop}
+        onReverseRoute={reverseRoute}
+        journeyByToIndex={journeyByToIndex}
+        journeyLoading={journeyLoading}
+        journeyTotalMinutes={journeyTotalMinutes}
+        cityDisplayName={city.displayName}
+        cityId={cityId}
+        poisPath={city.poisPath}
+        onRoundStarted={setActiveRoundStartedCode}
+      >
+        {loaded && filteredVenues.length === 0 ? (
+          savedOnly && savedIds.size === 0 ? (
+            <section className="venueInspector" style={{ textAlign: "center" }}>
+              <p className="description" style={{ marginTop: 0 }}>
+                No saved pubs yet — tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
+                back on to see just your list.
+              </p>
+              <button type="button" className="addStopBtn" onClick={() => changeSavedOnly(false)}>
+                Show all pubs
+              </button>
+            </section>
+          ) : (
+            <section className="venueInspector" style={{ textAlign: "center" }}>
+              <p className="description" style={{ marginTop: 0 }}>
+                No pubs match these filters — try widening your price or clearing your story filters.
+              </p>
+              <button type="button" className="addStopBtn" onClick={() => setFilters(seedCrawlState("").filters)}>
+                Clear filters
+              </button>
+            </section>
+          )
+        ) : null}
+      </RoutePanel>
+    </>
+  ) : null;
+
+  const venuePanel = detailOpen && selectedVenue ? (
+    <>
+      <div className="mobileVenuePeekSummary" aria-label="Selected pub summary">
+        <span>
+          <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
+          <small>current recorded price</small>
+        </span>
+        <span>
+          <strong>
+            {userLocation
+              ? `${Math.max(1, Math.ceil(haversineKm(
+                  [userLocation.lng, userLocation.lat],
+                  [selectedVenue.longitude, selectedVenue.latitude],
+                ) * 12.5))} min`
+              : "Near me"}
+          </strong>
+          <small>{userLocation ? "walk" : "for walk time"}</small>
+        </span>
+        <button
+          type="button"
+          aria-pressed={builtIds.includes(selectedVenue.id)}
+          onClick={() => toggleBuiltStop(selectedVenue.id)}
+        >
+          {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
+        </button>
+      </div>
+      {selectedDetailStatus === "loading" ? <VenueSheetSkeleton /> : null}
+      {selectedDetailStatus === "unavailable" ? (
+        <div style={DETAIL_WARNING_STYLE} role="status">
+          Showing fast map details. Full pub notes are unavailable right now.
+        </div>
+      ) : null}
+      <VenueInspector
+        venue={selectedVenue}
+        mode={mode}
+        inCrawl={builtIds.includes(selectedVenue.id)}
+        latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
+        onToggleStop={toggleBuiltStop}
+        onSelectVenue={selectVenue}
+        initialTab={venueInitialTab}
+        pintDrops={pintDrops}
+        onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
+        onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
+        onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
+        onTabSelect={handleInspectorTabSelect}
+        cityLandmarks={cityLandmarks}
+        cityStoryBands={cityStoryBands}
+        cityCuratedCrawls={cityCuratedCrawls}
+        cityId={cityId}
+        userLocation={venueJourneyLocation}
+        locationRequestStatus={locationRequestStatus}
+        onRequestLocation={requestVenueLocation}
+        onClearLocation={clearVenueLocation}
+      />
+    </>
+  ) : null;
 
   return (
     <main
@@ -1049,7 +1422,18 @@ export default function PubMap({
         (showOnboarding ? " onboarding-open" : "")
       }
     >
-      <SiteNav active="map" />
+      {!mobileViewport ? (
+        <SiteNav
+          active="map"
+          mobileMapUtility={
+            <MapPriceControl
+              placement="header"
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
+          }
+        />
+      ) : null}
 
       {/* Full-bleed map is the base layer; every panel slides in over it. */}
       <section className="mapStage">
@@ -1101,13 +1485,10 @@ export default function PubMap({
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
           onMapReady={setMapCanvasReady}
           onMapErrored={setMapCanvasErrored}
-          mapView={city.mapView}
+          mapView={restoredMobileSession?.viewport ?? city.mapView}
           maxBounds={cityBounds}
-          fitCityOnArrival={shouldFitCityBoundsOnArrival(
-            arrivalSearch,
-            seed.routeMapped,
-          )}
           fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
+          userLocation={userLocation}
           poisPath={city.poisPath}
           transitLinesPath={city.transitLinesPath}
           cityLandmarks={cityLandmarks}
@@ -1116,8 +1497,12 @@ export default function PubMap({
           tonightOpportunities={tonightOpportunities}
           tonightOverlayVisible={isLondon && tonightOverlayVisible && !tonightDismissed}
           onTonightOpportunityClick={handleTonightOpportunityClick}
+          poiHidden={poiHidden}
+          onPoiHiddenChange={setPoiHidden}
+          hideLayersControl={mobileViewport}
+          onViewportChange={setMapViewport}
         />
-        <MapToolbar
+        {!mobileViewport ? <MapToolbar
           query={filters.query}
           onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
           favoritePint={favoritePint}
@@ -1138,31 +1523,38 @@ export default function PubMap({
           onTogglePlanning={togglePlanning}
           filters={filters}
           onFiltersChange={setFilters}
+          searchSettled={loaded && loadedCityId === cityId}
+          filteredVenueCount={filteredVenues.length}
+          searchableVenueCount={venues.length}
           cityId={cityId}
-        />
-        <CitySuggestBanner cityId={cityId} />
-        {isLondon ? <CityStatusBanner cityId={cityId} /> : null}
-        {isLondon && tonightStatus === "ready" && !tonightDismissed ? (
-          <TonightOverlayChip
-            count={tonightOpportunities.length}
-            active={tonightOverlayVisible}
-            onToggle={() => setTonightOverlayVisible((visible) => !visible)}
-            onDismiss={dismissTonightOverlay}
-          />
-        ) : null}
+        /> : null}
+        {!mobileViewport ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
+        {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its
             sibling CSS lifts the lane above the collapsed pill (no collision). */}
-        <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} />
-        {isLondon ? (
+        {!mobileViewport ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
+        {!mobileViewport && isLondon ? (
           <TonightLane
             rows={whatsOnTonight.rows}
             asOf={whatsOnTonight.asOf}
             status={whatsOnTonight.status}
+            open={tonightLaneOpen}
+            onOpenChange={setTonightLaneOpen}
             onSelectVenue={(id) => selectVenue(id)}
+            overlayCount={
+              tonightStatus === "ready" && !tonightDismissed
+                ? tonightOpportunities.length
+                : 0
+            }
+            overlayActive={tonightOverlayVisible}
+            onToggleOverlay={() =>
+              setTonightOverlayVisible((visible) => !visible)
+            }
+            onDismissOverlay={dismissTonightOverlay}
           />
         ) : null}
-        {logIntentFallbackVisible ? (
+        {!mobileViewport && logIntentFallbackVisible ? (
           <LogIntentFallback
             candidates={logNearbyCandidates}
             hasUserLocation={Boolean(userLocation)}
@@ -1173,8 +1565,8 @@ export default function PubMap({
             onResetFilters={resetLogIntentFilters}
           />
         ) : null}
-        <ActiveRoundChip refreshKey={activeRoundStartedCode} />
-        {routeMappedActive ? (
+        {!mobileViewport ? <ActiveRoundChip refreshKey={activeRoundStartedCode} /> : null}
+        {!mobileViewport && routeMappedActive ? (
           <MappedRouteChip
             stopCount={route.length}
             totalKm={routeForMapLegs.totalKm}
@@ -1187,7 +1579,7 @@ export default function PubMap({
         {/* G3: Place story deep-link chip — corridor title + one-line copy when
             `?band=` resolves. Distinct dismiss key from curated onboarding;
             suppresses that overlay while visible. */}
-        {showBandChip && activeBand ? (
+        {!mobileViewport && showBandChip && activeBand ? (
           <BandOnboardingChip
             title={activeBand.title}
             copy={activeBand.copy}
@@ -1195,15 +1587,152 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {/* Wave J declutter: Prices control owns the key on all viewports
-            (pin colours + popover). Static mid-map legend removed. */}
-        <MapPriceControl filters={filters} onFiltersChange={setFilters} />
+        {/* Desktop retains the expanded price filter. On phones the compact key
+            lives beside the PUBMAXXING wordmark so the bottom action lane can
+            breathe above primary navigation. */}
+        {!mobileViewport ? (
+          <MapPriceControl
+            placement="map"
+            filters={filters}
+            onFiltersChange={setFilters}
+          />
+        ) : null}
+
+        <MobileMapShell
+          cityLabel={activeNightArea?.name ?? city.displayName}
+          overlay={mobileShellState.overlay}
+          onOverlayChange={changeMapOverlay}
+          onNearMe={showNearbyMap}
+          nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResult ? "ready" : nearbyError ? "error" : "idle"}
+          nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
+          tonightCount={whatsOnTonight.rows.length}
+          tflCount={tflStatus.issueCount}
+          tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
+          priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
+          filtersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails || filters.maxPrice < 10)}
+          planOpen={planningOpen}
+          planActive={routeMappedActive || activePlanRoute.length >= 2}
+          planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
+          planInteractive={mobileViewport}
+          onPlan={openPlanning}
+          searchContent={
+            <SearchField
+              id="mobileMapSearchInput"
+              value={filters.query}
+              onChange={(query) => setFilters((current) => ({ ...current, query }))}
+              placeholder={`Search ${city.displayName} pubs or areas`}
+              autoFocus
+            />
+          }
+          filtersContent={
+            <div className="mobileMapFilters">
+              <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
+              <FavoritePintPicker
+                value={favoritePint}
+                onChange={changeFavoritePint}
+                drinkCategory={filters.drinkCategory}
+                drinkBrand={filters.drinkBrand}
+                onDrinkLensChange={({ drinkCategory, drinkBrand }) =>
+                  setFilters((current) => ({
+                    ...current,
+                    drinkCategory,
+                    drinkBrand,
+                    requireCocktails: drinkCategory === "cocktail",
+                  }))
+                }
+              />
+              <fieldset className="mobilePriceChoices">
+                <legend>Maximum pint price</legend>
+                {[10, 7, 6, 5.5].map((price) => (
+                  <button
+                    type="button"
+                    key={price}
+                    className={filters.maxPrice === price ? "isActive" : ""}
+                    aria-pressed={filters.maxPrice === price}
+                    onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}
+                  >
+                    {price === 10 ? "Any" : `£${price.toFixed(2)}`}
+                  </button>
+                ))}
+              </fieldset>
+            </div>
+          }
+          tflContent={<MobileTflPanel status={tflStatus} />}
+          tonightContent={
+            <TonightLane
+              rows={whatsOnTonight.rows}
+              asOf={whatsOnTonight.asOf}
+              status={whatsOnTonight.status}
+              open
+              onOpenChange={() => undefined}
+              onSelectVenue={selectVenue}
+              overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0}
+              overlayActive={tonightOverlayVisible}
+              onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)}
+              onDismissOverlay={dismissTonightOverlay}
+            />
+          }
+          layersContent={
+            <Tabs className="mobileLayersPanel" value={mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
+              <TabsList aria-label="Layer settings sections">
+                <TabsTrigger value="layers">Layers</TabsTrigger>
+                <TabsTrigger value="prices">Prices</TabsTrigger>
+                <TabsTrigger value="events">Events</TabsTrigger>
+                <TabsTrigger value="transit">Transit</TabsTrigger>
+              </TabsList>
+              <TabsContent value="layers" className="mobileLayersPanel">
+                <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
+                  <MapPinned size={18} aria-hidden="true" />
+                  Plan tonight
+                </Button>
+                {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
+                <div className="mobileLayersTheme">
+                  <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
+                  <ThemeToggle />
+                </div>
+                <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
+              </TabsContent>
+              <TabsContent value="prices" className="mobileMapFilters">
+                <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
+                <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, requireCocktails: drinkCategory === "cocktail" }))} />
+                <fieldset className="mobilePriceChoices"><legend>Maximum pint price</legend>{[10, 7, 6, 5.5].map((price) => <button type="button" key={price} className={filters.maxPrice === price ? "isActive" : ""} aria-pressed={filters.maxPrice === price} onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}>{price === 10 ? "Any" : `£${price.toFixed(2)}`}</button>)}</fieldset>
+              </TabsContent>
+              <TabsContent value="events">
+                <TonightLane rows={whatsOnTonight.rows} asOf={whatsOnTonight.asOf} status={whatsOnTonight.status} open onOpenChange={() => undefined} onSelectVenue={selectVenue} overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0} overlayActive={tonightOverlayVisible} onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)} onDismissOverlay={dismissTonightOverlay} />
+              </TabsContent>
+              <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent>
+            </Tabs>
+          }
+          palContent={
+            <div className="mobilePalSummon">
+              <Sparkles size={28} aria-hidden="true" />
+              <h3>Your Pub Pal is ready</h3>
+              <p>Ask for a grounded pub pick, a bit of lore, or help shaping tonight.</p>
+              <Link href="/pal">Open Pub Pal</Link>
+              <small><ShieldCheck size={14} aria-hidden="true" /> It never changes a plan or posts a memory without confirmation.</small>
+            </div>
+          }
+          momentContent={
+            <LogIntentFallback
+              candidates={logNearbyCandidates}
+              hasUserLocation={Boolean(userLocation)}
+              filteredVenueCount={filteredVenueCount}
+              onPickVenue={pickLogNearbyVenue}
+              onPrefetchVenue={prefetchVenueDetail}
+              onFocusSearch={() => {
+                changeMapOverlay("search");
+                requestAnimationFrame(focusMapSearch);
+              }}
+              onResetFilters={resetLogIntentFilters}
+            />
+          }
+        />
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
             offers curated crawls on a clean first paint. It's the mobile
             onboarding (control rail is hidden on small screens) and never blocks
             the map — the backdrop and the link both close it. */}
-        {showOnboarding ? (
+        {!mobileViewport && showOnboarding ? (
           <MapOnboardingOverlay
             crawls={onboardingCrawls}
             onLoadCrawl={loadCuratedCrawl}
@@ -1212,12 +1741,24 @@ export default function PubMap({
         ) : null}
       </section>
 
+      {mobileViewport ? (
+        <Sheet
+          kind={detailOpen ? "venue" : planningOpen ? "planner" : null}
+          title={detailOpen ? selectedVenue?.name ?? "Pub detail" : "Plan tonight"}
+          initialSnap="half"
+          requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
+          onClose={detailOpen ? dismissSheet : closePlanning}
+        >
+          {detailOpen ? venuePanel : plannerPanel}
+        </Sheet>
+      ) : null}
+
       {/* Left drawer: the whole crawl planner, on demand.
           On mobile (≤640px) this is a drag bottom-sheet with the same snap
           points as the venue sheet (peek/half/full — lib/sheetSnap.ts). Opens
           at half so the map stays partially visible. Desktop is unchanged —
           side drawer, no gesture. */}
-      <div
+      {!mobileViewport ? <div
         className={
           (planningOpen ? "mapDrawer left open" : "mapDrawer left") +
           (planningOpen ? ` sheet-${plannerSheetSnap}` : "") +
@@ -1247,98 +1788,8 @@ export default function PubMap({
             <span className="venueSheetGrab" />
           </span>
         </div>
-        {planningOpen ? (
-          <>
-            <button
-              type="button"
-              className="plannerMapButton"
-              onClick={closePlanning}
-            >
-              <MapPinned size={16} aria-hidden="true" />
-              View {city.displayName} map
-            </button>
-            <ControlRail
-              mode={mode}
-              onModeChange={setMode}
-              filters={filters}
-              onFiltersChange={setFilters}
-              filteredVenues={filteredVenues}
-              builtCount={builtIds.length}
-              onClearBuilt={clearBuilt}
-              onLoadCrawl={loadCuratedCrawl}
-              onNearbyCrawl={startNearbyCrawl}
-              nearbyLoading={nearbyLoading}
-              nearbyError={nearbyError}
-              savedOnly={savedOnly}
-              onSavedOnlyChange={changeSavedOnly}
-              curatedCrawls={cityCuratedCrawls}
-              cityDisplayName={city.displayName}
-              cityId={cityId}
-            />
-            <RoutePanel
-              mode={mode}
-              crawlStyle={filters.crawlStyle}
-              altStyle={altStyle}
-              onAltStyleChange={setAltStyle}
-              route={route}
-              filteredVenues={filteredVenues}
-              builtIds={builtIds}
-              activeVenueId={selectedVenue?.id}
-              venueSignals={venueSignals}
-              crawlBlurb={activeCrawl?.blurb}
-              crawlName={activeCrawl?.name}
-              crawlId={activeCrawl?.id}
-              routeMapped={routeMappedActive}
-              originDistanceKm={distanceFromUserKm}
-              onMapRoute={mapCurrentRoute}
-              onHideRoute={hideMappedRoute}
-              onCheckLastTrain={checkLastTrainAtRouteEnd}
-              onSelectVenue={selectVenue}
-              onToggleStop={toggleBuiltStop}
-              onReverseRoute={reverseRoute}
-              journeyByToIndex={journeyByToIndex}
-              journeyLoading={journeyLoading}
-              journeyTotalMinutes={journeyTotalMinutes}
-              cityDisplayName={city.displayName}
-              cityId={cityId}
-              poisPath={city.poisPath}
-              onRoundStarted={setActiveRoundStartedCode}
-            >
-              {loaded && filteredVenues.length === 0 ? (
-                savedOnly && savedIds.size === 0 ? (
-                  <section className="venueInspector" style={{ textAlign: "center" }}>
-                    <p className="description" style={{ marginTop: 0 }}>
-                      No saved pubs yet — tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
-                      back on to see just your list.
-                    </p>
-                    <button
-                      type="button"
-                      className="addStopBtn"
-                      onClick={() => changeSavedOnly(false)}
-                    >
-                      Show all pubs
-                    </button>
-                  </section>
-                ) : (
-                  <section className="venueInspector" style={{ textAlign: "center" }}>
-                    <p className="description" style={{ marginTop: 0 }}>
-                      No pubs match these filters — try widening your price or clearing your story
-                      filters.
-                    </p>
-                    <button
-                      type="button"
-                      className="addStopBtn"
-                      onClick={() => setFilters(seedCrawlState("").filters)}
-                    >
-                      Clear filters
-                    </button>
-                  </section>
-                )
-              ) : null}
-            </RoutePanel>
-          </>
-        ) : null}
-      </div>
+        {plannerPanel}
+      </div> : null}
 
       {/* Right drawer: the selected pub's detail — opens only on an explicit pick.
           On mobile (≤640px) this is a true drag bottom-sheet with snap points
@@ -1348,7 +1799,7 @@ export default function PubMap({
           hand-picked pixel position. Desktop ignores both — no drag handlers
           fire above the gesture breakpoint, and the extra classes/attrs are
           no-ops there (see venueSheet.css / globals.css .mapDrawer rules). */}
-      <div
+      {!mobileViewport ? <div
         className={
           (detailOpen ? "mapDrawer right open" : "mapDrawer right") +
           (detailOpen ? ` sheet-${sheetSnap}` : "") +
@@ -1382,44 +1833,14 @@ export default function PubMap({
             ref={drawerCloseButtonRef}
             type="button"
             className="drawerClose"
-            onClick={() => {
-              setSelectedVenueId("");
-              closeComposer();
-            }}
+            onClick={dismissSheet}
             aria-label="Close pub detail"
           >
             <X size={16} />
           </button>
         </div>
-        {detailOpen && selectedVenue ? (
-          <>
-            {selectedDetailStatus === "loading" ? <VenueSheetSkeleton /> : null}
-            {selectedDetailStatus === "unavailable" ? (
-              <div style={DETAIL_WARNING_STYLE} role="status">
-                Showing fast map details. Full pub notes are unavailable right now.
-              </div>
-            ) : null}
-            <VenueInspector
-              venue={selectedVenue}
-              mode={mode}
-              inCrawl={builtIds.includes(selectedVenue.id)}
-              latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
-              onToggleStop={toggleBuiltStop}
-              onSelectVenue={selectVenue}
-              initialTab={venueInitialTab}
-              pintDrops={pintDrops}
-              onGrabDragStart={onSheetDragStart}
-              onGrabDragMove={onSheetDragMove}
-              onGrabDragEnd={onSheetDragEnd}
-              onTabSelect={handleInspectorTabSelect}
-              cityLandmarks={cityLandmarks}
-              cityStoryBands={cityStoryBands}
-              cityCuratedCrawls={cityCuratedCrawls}
-              cityId={cityId}
-            />
-          </>
-        ) : null}
-      </div>
+        {venuePanel}
+      </div> : null}
     </main>
   );
 }

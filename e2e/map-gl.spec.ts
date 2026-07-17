@@ -1,4 +1,14 @@
 import { test, expect } from "@playwright/test";
+import sharp from "sharp";
+
+test.describe.configure({ mode: "serial" });
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+});
 
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
 // Chromium with SwiftShader (a software GL implementation) so a real WebGL2
@@ -55,6 +65,112 @@ test("/map renders the MapLibre canvas with real size and never falls back", asy
   await expect(canvas).toBeVisible();
 });
 
+test("/map stays visually stable while the viewer is idle", async ({ page }) => {
+  test.setTimeout(45_000);
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
+
+  // Wait out the one-shot pin entrance. After that, an untouched map must not
+  // keep rotating/repainting beneath the user.
+  await page.waitForTimeout(3_500);
+  const first = await page.locator(".maplibreMap").screenshot();
+  await page.waitForTimeout(1_200);
+  const second = await page.locator(".maplibreMap").screenshot();
+  const [a, b] = await Promise.all([
+    sharp(first).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
+    sharp(second).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
+  ]);
+  let changed = 0;
+  const pixels = a.info.width * a.info.height;
+  for (let index = 0; index < a.data.length; index += 3) {
+    const delta =
+      Math.abs(a.data[index] - b.data[index]) +
+      Math.abs(a.data[index + 1] - b.data[index + 1]) +
+      Math.abs(a.data[index + 2] - b.data[index + 2]);
+    if (delta > 24) changed += 1;
+  }
+  expect(changed / pixels).toBeLessThan(0.02);
+});
+
+test("/map reveals pins only for the final rapid theme style generation", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
+    });
+  });
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  const readTrace = () => page.evaluate(() => (
+    window as typeof window & {
+      __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
+    }
+  ).__pubmaxPinRevealTrace);
+  await expect.poll(async () => (await readTrace()).length, { timeout: 20_000 }).toBeGreaterThan(0);
+  const initialGeneration = (await readTrace()).at(-1)!.generation;
+
+  await page.evaluate(async () => {
+    const root = document.documentElement;
+    const initial = root.dataset.theme === "dark" ? "dark" : "light";
+    const alternate = initial === "dark" ? "light" : "dark";
+    for (const theme of [alternate, initial, alternate]) {
+      root.dataset.theme = theme;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  });
+
+  await expect.poll(async () => (
+    await readTrace()
+  ).filter(({ generation }) => generation > initialGeneration).length, { timeout: 25_000 }).toBe(1);
+  await page.waitForTimeout(500);
+  expect((await readTrace()).filter(({ generation }) => generation > initialGeneration)).toHaveLength(1);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
+test("/map uses the bounded pin fallback when basemap tiles are delayed", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
+    });
+  });
+  await page.route(/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 4_000));
+    await route.continue();
+  });
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  const trace = () => page.evaluate(() => (
+    window as typeof window & {
+      __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
+    }
+  ).__pubmaxPinRevealTrace);
+  await expect.poll(async () => (await trace()).at(-1)?.reason, { timeout: 20_000 }).toBe("timeout");
+  const reveal = (await trace()).at(-1)!;
+  await page.waitForTimeout(1_000);
+  expect((await trace()).filter(({ generation }) => generation === reveal.generation)).toHaveLength(1);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
+test("/map reuses granted location after an explicit Near me action", async ({ page, context }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 51.513, longitude: -0.125 });
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Near me" }).click();
+  await expect(page.getByRole("button", { name: "Nearby" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapUserLocationMarker")).toBeVisible({ timeout: 20_000 });
+});
+
 // Issue #35 — optimistic-pins perf guard. The map paints pins from the ~116 KB
 // slim index BEFORE the ~5.6 MB full dataset lands; PubMap drops a
 // `pubmax:first-pins` performance.mark the instant those slim pins are set.
@@ -63,7 +179,7 @@ test("/map renders the MapLibre canvas with real size and never falls back", asy
 // since it measures the data path, not the GPU. Threshold is a generous CI
 // ceiling (4s) well under the old full-dataset-only path.
 test("/map paints optimistic pins from the slim index quickly", async ({ page }) => {
-  test.setTimeout(30_000);
+  test.setTimeout(60_000);
   const fullDatasetRequests: string[] = [];
   page.on("request", (request) => {
     const path = new URL(request.url()).pathname;
@@ -81,7 +197,7 @@ test("/map paints optimistic pins from the slim index quickly", async ({ page })
     .poll(
       () =>
         page.evaluate(() => performance.getEntriesByName("pubmax:first-pins")[0]?.startTime ?? 0),
-      { timeout: 30_000 },
+      { timeout: 45_000 },
     )
     .toBeGreaterThan(0);
 

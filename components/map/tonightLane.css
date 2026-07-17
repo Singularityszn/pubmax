@@ -1,16 +1,10 @@
-/* W1 Tonight lane — bottom-anchored, horizontally scrollable card row above
-   the tab bar. Hidden while a venue sheet or the planner is open so it never
-   fights those surfaces. Both themes via design tokens. */
+/* W1/W2 Tonight lane — a quiet, top-anchored chip until the viewer asks for
+   the bottom card sheet. Hidden while a venue sheet or planner owns the map. */
 .tonightLane {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  top: calc(var(--map-top-clearance, 0px) + 60px);
+  left: max(12px, env(safe-area-inset-left, 0px));
   z-index: 512;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0 12px;
   pointer-events: none;
 }
 
@@ -18,29 +12,211 @@
   pointer-events: auto;
 }
 
-body:has(.appShell.detail-open) .tonightLane,
-body:has(.appShell.planning-open) .tonightLane {
+.appShell.detail-open .tonightLane,
+.appShell.planning-open .tonightLane {
   display: none;
+}
+
+.tonightLaneCollapsed {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: min(360px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brass) 52%, var(--line));
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--brass) 12%, var(--panel-raised)),
+      color-mix(in srgb, var(--amber) 7%, var(--panel-raised))
+    ),
+    var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow-tight);
+  color: var(--ink);
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+}
+
+.tonightLaneCollapsedMain {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 15px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tonightLaneCollapsedMain[role="status"] {
+  cursor: default;
+}
+
+.tonightLaneCollapsedTitle {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 850;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.tonightLaneCollapsedChecked {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.tonightLane--open {
+  top: auto;
+  right: auto;
+  bottom: calc(var(--mobile-tab-clearance, 58px) + 26px);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(760px, calc(100vw - 24px));
+  max-height: min(62vh, 520px);
+  padding: 14px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--brass) 7%, var(--panel-raised)),
+      color-mix(in srgb, var(--panel-raised) 95%, transparent)
+    ),
+    var(--panel-raised);
+  box-shadow: 0 16px 42px color-mix(in srgb, var(--ink-deep) 24%, transparent);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.tonightLane--error {
+  max-width: calc(100vw - 24px);
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 92%, var(--amber) 8%);
+  box-shadow: var(--map-overlay-shadow-tight);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+@media (max-width: 640px) {
+  /* Tonight and TfL are peers in one compact live rail. They no longer stack
+     into three full-width banners above the map. */
+  .tonightLaneCollapsed { max-width: calc(100vw - 158px); border-color: var(--line); background: color-mix(in srgb, var(--panel-raised) 94%, transparent); }
+  .tonightLaneCollapsedChecked { display: none; }
 }
 
 .tonightLaneHead {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: min(96vw, 720px);
+  min-width: 0;
 }
 
 .tonightLaneTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tonightLaneTitleMeta {
   display: inline-flex;
   align-items: baseline;
+  flex: 1 1 auto;
+  min-width: 0;
   gap: 10px;
-  align-self: flex-start;
-  padding: 4px 12px;
+}
+
+.tonightLaneTitleActions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.tonightLaneOverlayToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 5px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-raised) 90%, var(--amber) 10%);
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--amber) 30%);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 14%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tonightLaneCollapsed .tonightLaneOverlayToggle {
+  align-self: stretch;
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--brass) 7%, transparent);
+}
+
+.tonightLaneOverlayToggle[data-active="true"] {
+  background: color-mix(in srgb, var(--amber) 20%, var(--panel-raised));
+  color: color-mix(in srgb, var(--amber) 58%, var(--ink));
+}
+
+.tonightLaneOverlayCount {
+  min-width: 15px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 0.6rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.tonightLaneOverlayDismiss,
+.tonightLaneClose {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px -8px -8px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tonightLaneOverlayDismiss {
+  margin: 0;
+}
+
+.tonightLaneCollapsed .tonightLaneOverlayDismiss {
+  align-self: stretch;
+  border-left: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-radius: 0;
 }
 
 .tonightLaneTitle {
@@ -61,9 +237,11 @@ body:has(.appShell.planning-open) .tonightLane {
 .tonightLaneChips {
   display: flex;
   gap: 6px;
+  min-width: 0;
   overflow-x: auto;
   padding-bottom: 2px;
   scrollbar-width: none;
+  overscroll-behavior-x: contain;
 }
 
 .tonightLaneChips::-webkit-scrollbar {
@@ -87,6 +265,7 @@ body:has(.appShell.planning-open) .tonightLane {
   font-weight: 700;
   white-space: nowrap;
   backdrop-filter: blur(6px);
+  cursor: pointer;
 }
 
 .tonightLaneChip[data-active="true"] {
@@ -104,10 +283,13 @@ body:has(.appShell.planning-open) .tonightLane {
 .tonightLaneScroll {
   display: flex;
   gap: 10px;
+  min-height: 0;
   margin: 0;
   padding: 2px 0 4px;
   list-style: none;
   overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -239,7 +421,68 @@ body:has(.appShell.planning-open) .tonightLane {
   background: color-mix(in srgb, var(--brass) 20%, transparent);
 }
 
+.tonightLaneCollapsed:hover,
+.tonightLaneCollapsed:has(:focus-visible) {
+  border-color: var(--brass);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--brass) 18%, var(--panel-raised)),
+      color-mix(in srgb, var(--amber) 11%, var(--panel-raised))
+    ),
+    var(--panel-raised);
+}
+
+.tonightLaneOverlayToggle:hover,
+.tonightLaneOverlayDismiss:hover,
+.tonightLaneClose:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+}
+
+.tonightLaneCollapsedMain:focus-visible,
+.tonightLaneOverlayToggle:focus-visible,
+.tonightLaneOverlayDismiss:focus-visible,
+.tonightLaneClose:focus-visible,
+.tonightLaneChip:focus-visible,
+.tonightLaneCardTap:focus-visible,
+.tonightLanePlan:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.tonightLaneCollapsedMain:focus-visible,
+.tonightLaneCollapsed .tonightLaneOverlayToggle:focus-visible {
+  outline-offset: -3px;
+}
+
+@media (max-width: 420px) {
+  .tonightLaneCollapsedChecked {
+    display: none;
+  }
+
+  .tonightLaneTitleRow {
+    gap: 6px;
+  }
+
+  .tonightLaneTitleMeta {
+    gap: 6px;
+  }
+
+  .tonightLaneChecked {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .tonightLane--collapsed {
+    animation: tonightLaneChipIn 140ms ease-out both;
+  }
+
+  .tonightLane--open {
+    animation: tonightLaneSheetIn 180ms ease-out both;
+  }
+
   .tonightLaneCard {
     transition: transform 160ms ease, box-shadow 160ms ease;
   }
@@ -253,5 +496,27 @@ body:has(.appShell.planning-open) .tonightLane {
   }
   .tonightLaneChip:active {
     transform: scale(0.96);
+  }
+}
+
+@keyframes tonightLaneChipIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tonightLaneSheetIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 }

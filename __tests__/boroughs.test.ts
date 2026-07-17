@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import {
+  canonicalBorough,
+  LONDON_BOROUGHS,
   slugifyBorough,
   boroughFromSlug,
   listBoroughs,
@@ -43,10 +48,15 @@ describe("slugifyBorough / boroughFromSlug round-trip", () => {
     v({ id: "3", name: "C", cheapestPrice: 4, primaryBorough: "Kensington & Chelsea" }),
   ];
 
-  it("reverses a slug back to the canonical dataset name", () => {
-    for (const borough of ["Camden", "City of London", "Kensington & Chelsea"]) {
+  it("reverses a slug back to the canonical borough name", () => {
+    for (const borough of ["Camden", "City of London"]) {
       expect(boroughFromSlug(slugifyBorough(borough), venues)).toBe(borough);
     }
+    // Dataset spellings normalise to the canonical LONDON_BOROUGHS name:
+    // "Kensington & Chelsea" renders as "Kensington and Chelsea".
+    expect(boroughFromSlug(slugifyBorough("Kensington & Chelsea"), venues)).toBe(
+      "Kensington and Chelsea",
+    );
   });
 
   it("is case-insensitive on the incoming slug", () => {
@@ -136,5 +146,54 @@ describe("pubsInBorough", () => {
     expect(pubsInBorough(venues, "narnia")).toEqual([]);
     expect(pubsInBorough(venues, "")).toEqual([]);
     expect(pubsInBorough([], "camden")).toEqual([]);
+  });
+});
+
+describe("LONDON_BOROUGHS canonical list (SEO integrity)", () => {
+  it("matches the point-in-polygon GeoJSON source exactly", () => {
+    const geo = JSON.parse(
+      readFileSync(
+        path.join(process.cwd(), "data", "london_boroughs_simplified.json"),
+        "utf8",
+      ),
+    ) as { features: { properties: { name: string } }[] };
+    const geoNames = geo.features.map((f) => f.properties.name).sort();
+    expect([...LONDON_BOROUGHS].sort()).toEqual(geoNames);
+    expect(LONDON_BOROUGHS).toHaveLength(33);
+  });
+});
+
+describe("canonicalBorough (SEO integrity)", () => {
+  it("accepts real boroughs and normalises ceremonial prefixes", () => {
+    expect(canonicalBorough(v({ id: "t", name: "T", cheapestPrice: null, primaryBorough: "Camden" }))).toBe("Camden");
+    expect(canonicalBorough(v({ id: "t", name: "T", cheapestPrice: null, primaryBorough: "Royal Borough of Greenwich" }))).toBe(
+      "Greenwich",
+    );
+    expect(canonicalBorough(v({ id: "t", name: "T", cheapestPrice: null, primaryBorough: "London Borough of Hackney" }))).toBe(
+      "Hackney",
+    );
+    expect(canonicalBorough(v({ id: "t", name: "T", cheapestPrice: null, primaryBorough: "Kensington & Chelsea" }))).toBe(
+      "Kensington and Chelsea",
+    );
+  });
+
+  it("rejects neighbourhoods and junk — Soho is not a borough", () => {
+    for (const notABorough of ["Soho", "Mayfair", "Victoria", "Covent Garden", "London", ""]) {
+      expect(canonicalBorough(v({ id: "t", name: "T", cheapestPrice: null, primaryBorough: notABorough }))).toBeNull();
+    }
+  });
+
+  it("never falls back to visibleBoroughs", () => {
+    const venue = v({ id: "t", name: "T", cheapestPrice: null, primaryBorough: "", visibleBoroughs: ["Westminster"] });
+    expect(canonicalBorough(venue)).toBeNull();
+  });
+
+  it("keeps non-borough venues out of listings and borough pages", () => {
+    const venues = [
+      v({ id: "1", name: "Real", cheapestPrice: 5, primaryBorough: "Camden" }),
+      v({ id: "2", name: "SohoPub", cheapestPrice: 4, primaryBorough: "Soho" }),
+    ];
+    expect(listBoroughs(venues).map((b) => b.name)).toEqual(["Camden"]);
+    expect(pubsInBorough(venues, "soho")).toEqual([]);
   });
 });

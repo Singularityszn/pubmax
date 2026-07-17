@@ -1,0 +1,41 @@
+.pubmaxxWordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: .025em;
+  color: currentColor;
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: -.045em;
+  white-space: nowrap;
+}
+
+.pubmaxxDoubleX {
+  display: inline-flex;
+  align-items: center;
+  gap: .005em;
+  margin-inline: .015em .03em;
+}
+
+.pubmaxxDoubleX svg {
+  width: .78em;
+  height: .78em;
+  display: block;
+  overflow: visible;
+  fill: currentColor;
+}
+
+.pubmaxxDoubleX svg:nth-child(2) {
+  color: var(--brass);
+}
+
+.pubmaxxWordmarkSr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

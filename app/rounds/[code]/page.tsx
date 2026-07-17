@@ -273,10 +273,20 @@ function RoundBoard({
         <h1 className="roundTitle">{round.title}</h1>
         <div className="roundCodeRow">
           <span className="roundCodeLabel">Tell your mates</span>
-          <button type="button" className="roundCode" onClick={copyCode} aria-label={`Copy the Round code ${round.code}`}>
+          <button
+            type="button"
+            className="roundCode"
+            onClick={copyCode}
+            aria-label={copied ? `Round code ${round.code} copied` : `Copy the Round code ${round.code}`}
+          >
             {round.code}
             {copied ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
           </button>
+          {copied ? (
+            <span className="roundCopyFeedback" role="status">
+              Code copied.
+            </span>
+          ) : null}
         </div>
         <p className="roundStatus" role="status">
           {closed ? "This Round has been called — it's closed." : `${members.length} out · still going`}

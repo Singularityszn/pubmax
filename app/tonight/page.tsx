@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 
 import TonightClient from "./TonightClient";
 
-// First-class "Tonight" screen (Wave A · A2). The client component owns the
-// live CityMCP `things_to_do` fetch and all interactivity; this server shell
-// only carries route metadata.
+// First-class "Tonight" screen. The client owns the PRIMARY What's-On spine
+// (/api/whats-on — same as the map Tonight lane) and all interactivity; this
+// server shell only carries route metadata.
 export const metadata: Metadata = {
   title: "Tonight in London · PUBMAXXING",
   description:
-    "What's on in London tonight — a grounded, upstream-sourced read via CityMCP London. No invented listings.",
+    "What's on in London tonight — quiz, sport, deals, and live music from sourced listings. Same spine as the map. No invented nights.",
+  alternates: { canonical: "/tonight" },
 };
 
 export default function TonightPage() {

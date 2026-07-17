@@ -69,6 +69,29 @@ async function seed(page: Page, theme: "light" | "dark"): Promise<void> {
       body: JSON.stringify({ rows: tonightRows(), asOf: new Date().toISOString() }),
     });
   });
+  await page.route("**/api/citymcp/things-to-do?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        window: "tonight",
+        asOf: new Date().toISOString(),
+        opportunities: [
+          {
+            title: "Late museum opening",
+            kind: "exhibition",
+            place: {
+              id: "w1-shot-opportunity",
+              name: "Somerset House",
+              area: "Strand",
+              location: { lat: 51.5111, lng: -0.1172 },
+            },
+            source: { label: "Venue site", url: "https://www.somersethouse.org.uk/" },
+          },
+        ],
+      }),
+    });
+  });
 }
 
 const VIEWPORTS = [
@@ -96,11 +119,42 @@ for (const viewport of VIEWPORTS) {
         const response = await page.goto("/map");
         expect(response?.status()).toBe(200);
         await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 30000 });
-        await page.locator(".tonightLane").waitFor({ state: "visible", timeout: 15000 });
+        const chip = page.getByTestId("tonight-lane-chip");
+        await chip.waitFor({ state: "visible", timeout: 15000 });
+        const overlayToggle = page.getByTestId("tonight-overlay-toggle");
+        await expect(overlayToggle).toBeVisible();
+        await expect(overlayToggle).toHaveAttribute("aria-pressed", "true");
+        await expect(
+          page.getByRole("button", { name: "Dismiss tonight map pins" }),
+        ).toBeVisible();
+        await overlayToggle.click();
+        await expect(overlayToggle).toHaveAttribute("aria-pressed", "false");
+        await overlayToggle.click();
+        await expect(overlayToggle).toHaveAttribute("aria-pressed", "true");
+        if (viewport.width <= 640) {
+          const tonightBox = await page.locator(".tonightLane--collapsed").boundingBox();
+          const askBox = await page.locator(".mapConciergeAskPill").boundingBox();
+          expect(tonightBox).not.toBeNull();
+          expect(askBox).not.toBeNull();
+          expect((tonightBox?.y ?? 0) + (tonightBox?.height ?? 0)).toBeLessThan(
+            askBox?.y ?? 0,
+          );
+        }
+        await chip.click();
+        const lane = page.getByTestId("tonight-lane");
+        await lane.waitFor({ state: "visible" });
+        await expect(overlayToggle).toBeVisible();
         await page.waitForTimeout(2500); // let tiles + pins paint
         await page.screenshot({
           path: `${DOCS_DIR}/w1-tonight-lane-${theme}-${viewport.name}.png`,
         });
+        await page.getByRole("button", { name: "Collapse on tonight" }).click();
+        await expect(chip).toBeVisible();
+        await expect(lane).toHaveCount(0);
+        await chip.click();
+        await lane.locator(".tonightLaneCardTap").first().click();
+        await expect(page.locator(".appShell")).toHaveClass(/detail-open/);
+        await expect(lane).toHaveCount(0);
       });
 
       test(`venue sheet with whats-on chips (${theme}, ${viewport.name})`, async ({ page }) => {

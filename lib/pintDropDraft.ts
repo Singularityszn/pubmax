@@ -14,6 +14,7 @@ export type PintDropDraft = {
   vibeTags: VibeTag[];
   updatedAt: string;
 };
+type PintDropDraftV2 = PintDropDraft & { version: 2 };
 
 const DRAFT_KEY_PREFIX = "pubmax_pint_drop_draft:";
 const MAX_FIELD_LENGTH = 500;
@@ -62,6 +63,7 @@ export function pintDropDraftStorageKey(venueId: string): string {
 export function normalisePintDropDraft(value: unknown): PintDropDraft | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as {
+    version?: unknown;
     form?: Partial<Record<keyof PintDropDraftForm, unknown>>;
     visibility?: unknown;
     vibeTags?: unknown;
@@ -72,7 +74,7 @@ export function normalisePintDropDraft(value: unknown): PintDropDraft | null {
     form: {
       price: cleanField(form.price),
       drink: cleanField(form.drink),
-      note: cleanField(form.note),
+      note: raw.version === 2 ? cleanField(form.note) : "",
       era: cleanField(form.era),
       withWho: cleanField(form.withWho),
     },
@@ -120,11 +122,18 @@ export function writePintDropDraft(
       storage.removeItem(key);
       return;
     }
-    storage.setItem(key, JSON.stringify(draft));
+    storage.setItem(key, JSON.stringify({ ...draft, version: 2 } satisfies PintDropDraftV2));
   } catch {
     // Storage can be unavailable or full in private/locked-down contexts. Draft
     // persistence is a convenience; the composer must still work without it.
   }
+}
+
+/** Voice transcripts are never written; only the pre-dictation typed note is recoverable. */
+export function pintDropDraftForPersistence(draft: PintDropDraft, transientVoiceNoteBaseline: string | null): PintDropDraft {
+  return transientVoiceNoteBaseline === null
+    ? draft
+    : { ...draft, form: { ...draft.form, note: transientVoiceNoteBaseline } };
 }
 
 export function clearPintDropDraft(

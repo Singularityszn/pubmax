@@ -12,7 +12,9 @@ import {
   pinEntranceIconSizeExpr,
   pinEntranceIconOpacityExpr,
   PIN_ICON_SIZE_EXPR,
+  selectedPinIconSizeExpr,
 } from "@/components/map/canvas/filters";
+import { SELECTED_PIN_SIZE_SCALE } from "@/components/map/canvas/easing";
 import {
   GLOW_PULSE_PERIOD_MS,
   GLOW_PULSE_MIN_OPACITY,
@@ -248,7 +250,7 @@ describe("pinEntranceIconSizeExpr / pinEntranceIconOpacityExpr (M7 selection gua
     expect(expr[2]).toEqual(PIN_ICON_SIZE_EXPR);
   });
 
-  it("size: the selected pin bypasses the ramp entirely (M1 spotlight wins)", () => {
+  it("size: the selected pin bypasses the ramp at boosted spotlight size", () => {
     const expr = pinEntranceIconSizeExpr(
       0,
       "pub-1",
@@ -258,7 +260,7 @@ describe("pinEntranceIconSizeExpr / pinEntranceIconOpacityExpr (M7 selection gua
     ) as unknown as ["case", unknown, unknown, unknown];
     expect(expr[0]).toBe("case");
     expect(expr[1]).toEqual(["==", ["get", "id"], "pub-1"]);
-    expect(expr[2]).toEqual(PIN_ICON_SIZE_EXPR);
+    expect(expr[2]).toEqual(["*", PIN_ICON_SIZE_EXPR, SELECTED_PIN_SIZE_SCALE]);
   });
 
   it("opacity: the selected pin keeps pubIconOpacityExpr's value, not the ramped one", () => {
@@ -271,5 +273,20 @@ describe("pinEntranceIconSizeExpr / pinEntranceIconOpacityExpr (M7 selection gua
     ) as unknown as ["case", unknown, unknown, unknown];
     expect(expr[0]).toBe("case");
     expect(expr[2]).toEqual(pubIconOpacityExpr("pub-1"));
+  });
+});
+
+describe("selectedPinIconSizeExpr", () => {
+  it("returns baseline size with no selection", () => {
+    expect(selectedPinIconSizeExpr("")).toEqual(PIN_ICON_SIZE_EXPR);
+  });
+
+  it("scales the matching id and leaves others at baseline", () => {
+    expect(selectedPinIconSizeExpr("pub-1")).toEqual([
+      "case",
+      ["==", ["get", "id"], "pub-1"],
+      ["*", PIN_ICON_SIZE_EXPR, SELECTED_PIN_SIZE_SCALE],
+      PIN_ICON_SIZE_EXPR,
+    ]);
   });
 });

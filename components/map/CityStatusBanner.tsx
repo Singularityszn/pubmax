@@ -57,20 +57,34 @@ type CityStatusBannerProps = {
 const DISMISS_KEY = "pubmax:cityStatusDismiss:v1";
 
 function readDismissed(): boolean {
-  if (typeof window === "undefined" || !window.sessionStorage) return false;
+  if (typeof window === "undefined") return false;
   try {
-    return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+    return window.localStorage.getItem(DISMISS_KEY) === "1";
   } catch {
-    return false;
+    try {
+      return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+    } catch {
+      return false;
+    }
   }
 }
 
 function writeDismissed(): void {
-  if (typeof window === "undefined" || !window.sessionStorage) return;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DISMISS_KEY, "1");
+  } catch {
+    try {
+      window.sessionStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      // ignore
+    }
+    return;
+  }
   try {
     window.sessionStorage.setItem(DISMISS_KEY, "1");
   } catch {
-    // ignore
+    // Best-effort mirror; localStorage is the durable source.
   }
 }
 
@@ -271,6 +285,10 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
 
   const signalCount = data.signals?.length ?? 0;
   const hasSignals = signalCount > 0;
+  const affectedLines = (data.tubeLines ?? []).filter(
+    (line) => line.line && line.status && line.status.toLowerCase() !== "good service",
+  );
+  const hasDetails = hasSignals || affectedLines.length > 0;
   const groups = groupSignalsByKind(data.signals);
 
   const content = (
@@ -280,6 +298,9 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
       </span>
       <span className="cityStatusBannerCopy" title={headline.text}>
         {headline.text}
+      </span>
+      <span className="cityStatusBannerMobileCopy">
+        TfL live{affectedLines.length > 0 ? ` · ${affectedLines.length}` : ""}
       </span>
     </>
   );
@@ -292,7 +313,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
       role="status"
       aria-live="polite"
     >
-      {headline.kind === "signal" && hasSignals ? (
+      {hasDetails ? (
         /* A4: a signal headline now opens the FULL feed rather than jumping to
            one source; identical class/children so the pill looks unchanged at
            rest. Per-signal source links live inside the sheet. */
@@ -328,7 +349,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
         <X size={12} strokeWidth={2.25} aria-hidden="true" />
       </button>
     </div>
-      {expanded && hasSignals ? (
+      {expanded && hasDetails ? (
         <div
           id="cityStatusSignalSheet"
           className="cityStatusSignalSheet"
@@ -336,7 +357,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
           aria-label="Tonight in London — all signals"
         >
           <div className="cityStatusSignalSheetHead">
-            <strong>Tonight in London</strong>
+            <strong>London live</strong>
             <span className="cityStatusSignalSheetMeta">{formatAsOfLabel(data.asOf)}</span>
             <button
               type="button"
@@ -347,6 +368,23 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
               <X size={14} strokeWidth={2.25} aria-hidden="true" />
             </button>
           </div>
+          {affectedLines.length > 0 ? (
+            <div className="cityStatusSignalGroup">
+              <h4 className="cityStatusSignalGroupLabel">TfL line updates</h4>
+              <ul className="cityStatusSignalList">
+                {affectedLines.map((line) => (
+                  <li className="cityStatusSignalRow" key={`${line.line}-${line.status}`}>
+                    <span className="cityStatusSignalRowIcon" aria-hidden="true"><TrainFront size={14} /></span>
+                    <div className="cityStatusSignalRowBody">
+                      <p className="cityStatusSignalRowHeadline">{line.line}</p>
+                      <p className="cityStatusSignalRowMeta">{line.status}</p>
+                      {line.disruption ? <p className="cityStatusSignalRowMeta">{line.disruption}</p> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {groups.map((group) => (
             <div className="cityStatusSignalGroup" key={group.kind}>
               <h4 className="cityStatusSignalGroupLabel">{group.label}</h4>

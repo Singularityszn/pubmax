@@ -1,0 +1,11 @@
+import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
+import { getNightArea, isNightAreaRouteReady } from "@/lib/nightAreas";
+import { isNightAreaSlug } from "@/lib/nightPlanning";
+
+export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }): Promise<Response> {
+  const { slug } = await context.params;
+  if (!isNightAreaSlug(slug)) return publicApiError("Night Area not found.", "NIGHT_AREA_NOT_FOUND", 404);
+  const area = getNightArea(slug);
+  return jsonNoStore({ ...area, routeReady: isNightAreaRouteReady(area) });
+}

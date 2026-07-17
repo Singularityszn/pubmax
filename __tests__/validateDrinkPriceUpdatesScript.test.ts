@@ -31,20 +31,37 @@ function setupScratch(files: Record<string, unknown>): string {
   const scratchData = join(scratchRoot, "public", "data");
   const scratchGeneratedData = join(scratchRoot, "data", "generated");
   mkdirSync(scratchScripts, { recursive: true });
+  mkdirSync(join(scratchScripts, "lib"), { recursive: true });
   mkdirSync(scratchData, { recursive: true });
   mkdirSync(scratchGeneratedData, { recursive: true });
   // Copy the real script (unmodified) and the real bundled datasets it also
   // validates, so the run reflects production data validation end-to-end.
   cpSync(SCRIPT, join(scratchScripts, "validate-data.mjs"));
+  cpSync(
+    join(ROOT, "scripts", "lib", "validateLateFoodEvidence.mjs"),
+    join(scratchScripts, "lib", "validateLateFoodEvidence.mjs"),
+  );
   for (const f of [
     "london_pois.json",
     "tfl_lines.json",
     "pint_prices_app_dataset.json",
     "venues_slim.json",
     "pubmaxxing_seed_snapshot.json",
+    "pint_index_snapshot.json",
+    "late_food_evidence.json",
   ]) {
     cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
   }
+  mkdirSync(join(scratchData, "night_signals"), { recursive: true });
+  cpSync(
+    join(ROOT, "public", "data", "night_signals", "latest.json"),
+    join(scratchData, "night_signals", "latest.json"),
+  );
+  mkdirSync(join(scratchData, "weather"), { recursive: true });
+  cpSync(
+    join(ROOT, "public", "data", "weather", "latest.json"),
+    join(scratchData, "weather", "latest.json"),
+  );
   for (const f of ["venue_detail_index.json", "venue_details.jsonl"]) {
     cpSync(join(ROOT, "data", "generated", f), join(scratchGeneratedData, f));
   }
@@ -139,6 +156,39 @@ describe("validate-data.mjs drink-price-update extension", () => {
     const { code, stdout } = runValidate(scriptsDir);
     expect(code).toBe(0);
     expect(stdout).toContain("SKIP public/data/drink_price_updates/: no .json files present");
+  });
+
+  it("validates an official-publisher Pint Index source without relying on empty coverage", () => {
+    const scriptsDir = setupScratch({});
+    const snapshotPath = join(scriptsDir, "..", "public", "data", "pint_index_snapshot.json");
+    const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+    snapshot.status = "partial";
+    snapshot.observationWindow = {
+      start: "2026-07-01T00:00:00.000Z",
+      end: "2026-07-15T23:59:59.000Z",
+    };
+    snapshot.sources = [{
+      id: "official-pub-1",
+      kind: "official_publisher",
+      publisher: "Example Pub",
+      publisherType: "pub",
+      officialDomain: "example.com",
+      sourceUrl: "https://www.example.com/drinks",
+      licence: null,
+    }];
+    snapshot.observations = [{
+      venueId: "venue-example",
+      pubName: "Example Pub",
+      boroughCode: "hackney",
+      boroughName: "Hackney",
+      pricePence: 600,
+      observedAt: "2026-07-10T12:00:00.000Z",
+      sourceId: "official-pub-1",
+    }];
+    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).toBe(0);
+    expect(stdout).toContain("PASS public/data/pint_index_snapshot.json: 1 public observations");
   });
 
   it("passes a well-formed drink-price-update file", () => {

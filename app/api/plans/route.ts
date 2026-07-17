@@ -1,8 +1,11 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { isLimited } from "@/lib/pintDrops";
 import { planStore } from "@/lib/planStore";
+import { attachPlanMemberSession } from "@/lib/planMemberCapability";
+import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -13,15 +16,17 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = await request.json() as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
+  const idempotencyKey = planMutationIdempotencyKey(request, body);
+  if (!idempotencyKey) return publicApiError(PLAN_IDEMPOTENCY_ERROR.error, PLAN_IDEMPOTENCY_ERROR.code, 400);
   const limiterKey = `plan-create:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey)) {
-    return jsonNoStore({ error: "Too many Plans, slow down." }, { status: 429 });
+  if (await isLimited(limiterKey, limiterKey, undefined, undefined, { failClosed: true })) {
+    return publicApiError("Too many Plans, slow down.", "PLAN_CREATE_RATE_LIMITED", 429, { retryable: true });
   }
   const rawCity = typeof body.cityId === "string" ? body.cityId : undefined;
   const cityId = rawCity ? parseCityId(rawCity) : DEFAULT_CITY_ID;
-  if (!cityId) return jsonNoStore({ error: "cityId is invalid." }, { status: 400 });
+  if (!cityId) return publicApiError("cityId is invalid.", "CITY_INVALID", 400);
   const submittedStops = Array.isArray(body.stops) ? body.stops : [];
   const venues = await loadConciergeVenues(cityId);
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
@@ -31,14 +36,23 @@ export async function POST(request: Request): Promise<Response> {
     return venue ? { venueId: venue.id, venueName: venue.name } : null;
   });
   if (stops.some((stop) => stop === null)) {
-    return jsonNoStore({ error: "Choose venues from the Venue Dataset." }, { status: 400 });
+    return publicApiError("Choose venues from the Venue Dataset.", "PLAN_VENUES_INVALID", 400);
   }
-  const result = await planStore().create({ ...body, stops });
+  const result = await planStore().create({ ...body, stops }, { idempotencyKey });
   if (!result.ok) {
-    return jsonNoStore(
-      { error: result.error === "invalid" ? "Add a start time, your name, and at least one venue." : "Could not create the Plan." },
-      { status: result.error === "invalid" ? 400 : 503 },
+    return publicApiError(
+      result.error === "invalid" ? "Add a start time, your name, and at least one venue."
+        : result.error === "conflict" ? "That request key was already used for a different Plan."
+          : "Could not create the Plan.",
+      result.error === "invalid" ? "PLAN_CREATE_INVALID" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_CREATE_UNAVAILABLE",
+      result.error === "invalid" ? 400 : result.error === "conflict" ? 409 : 503,
+      { retryable: result.error === "error" },
     );
   }
-  return jsonNoStore({ plan: result.plan, memberToken: result.memberToken }, { status: 201 });
+  return attachPlanMemberSession(
+    jsonNoStore({ plan: result.plan, memberToken: result.memberToken, role: result.role }, { status: 201 }),
+    request,
+    result.plan.plan.id,
+    result.memberToken,
+  );
 }

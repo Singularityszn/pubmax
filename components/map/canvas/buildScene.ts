@@ -456,9 +456,10 @@ export function buildPubs(ctx: SceneCtx) {
       type: "geojson",
       data: pubsData,
       cluster: true,
-      // Tighter clusters + earlier uncluster so drink silhouettes (pint /
-      // wine / cocktail / spirits) dominate sooner — MAP_MARKERS_PLAN.
-      clusterRadius: 22,
+      // Mobile-first density: aggregate nearby venues into fewer, calmer
+      // clusters at city zoom. Drink silhouettes still appear at the same
+      // honest uncluster boundary once the user moves in.
+      clusterRadius: 42,
       // -1: clusters render up to AND INCLUDING clusterMaxZoom, so this
       // must sit one below the pin layers' minzoom or both draw at 12.x.
       clusterMaxZoom: PIN_UNCLUSTER_ZOOM - 1,

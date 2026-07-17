@@ -20,8 +20,12 @@ import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
+import VenueGettingThere, {
+  type LocationRequestStatus,
+} from "@/components/map/VenueGettingThere";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
+import type { JourneyPoint } from "@/lib/venueJourney";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
@@ -36,6 +40,10 @@ export default function VenueOverviewTab({
   onToggleStop,
   presenceState,
   markPresenceHere,
+  userLocation,
+  locationRequestStatus,
+  onRequestLocation,
+  onClearLocation,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -46,6 +54,10 @@ export default function VenueOverviewTab({
   onToggleStop: (id: string) => void;
   presenceState: PresenceState;
   markPresenceHere: () => void;
+  userLocation: JourneyPoint | null;
+  locationRequestStatus: LocationRequestStatus;
+  onRequestLocation: () => void;
+  onClearLocation: () => void;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -79,6 +91,14 @@ export default function VenueOverviewTab({
       hidden={tab !== "overview"}
     >
       <p className="venueAddress">{venue.address}</p>
+      <VenueGettingThere
+        userLocation={userLocation}
+        venueLocation={{ lat: venue.latitude, lng: venue.longitude }}
+        londonTransit={cityId === "london"}
+        locationRequestStatus={locationRequestStatus}
+        onRequestLocation={onRequestLocation}
+        onClearLocation={onClearLocation}
+      />
       <VenueActionStrip venue={venue} />
       <CityPlaceStrip
         venueId={venue.id}

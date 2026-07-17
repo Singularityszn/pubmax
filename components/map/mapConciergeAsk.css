@@ -1,9 +1,6 @@
-/* F3 concierge-as-map-home. Bottom-anchored, sitting in the same map-home lane
-   as the W1 Tonight lane but never overlapping it: the collapsed pill takes the
-   lowest slot (just above the tab bar) and the Tonight lane is bumped up by the
-   sibling rule below. When the ask panel is open the Tonight lane is hidden so
-   the two never fight. Hidden entirely while a venue sheet or the planner is
-   open. Both themes via design tokens; 44px targets; mobile-first. */
+/* F3 concierge-as-map-home. Bottom-anchored below W2's top Tonight chip. When
+   either panel opens, the other surface yields so they never fight. Hidden
+   entirely while a venue sheet or planner is open. */
 .mapConciergeAsk {
   position: absolute;
   left: 0;
@@ -16,22 +13,28 @@
   pointer-events: none;
 }
 
+@media (max-width: 640px) {
+  .mapConciergeAsk {
+    bottom: calc(var(--mobile-tab-clearance, 72px) + 28px);
+  }
+}
+
 .mapConciergeAsk > * {
   pointer-events: auto;
 }
 
-/* Lift the Tonight lane above the collapsed concierge pill so both read in one
-   clean stack. When the ask panel is open, the lane steps aside entirely. */
-.mapConciergeAsk--collapsed ~ .tonightLane {
+/* Only the expanded Tonight sheet needs to clear the bottom concierge pill;
+   its collapsed chip now lives under the map toolbar. */
+.mapConciergeAsk--collapsed ~ .tonightLane--open {
   bottom: calc(84px + env(safe-area-inset-bottom, 0px) + 52px);
 }
 
-body:has(.mapConciergeAsk--open) .tonightLane {
+.mapConciergeAsk--open ~ .tonightLane {
   display: none;
 }
 
-body:has(.appShell.detail-open) .mapConciergeAsk,
-body:has(.appShell.planning-open) .mapConciergeAsk {
+.appShell.detail-open .mapConciergeAsk,
+.appShell.planning-open .mapConciergeAsk {
   display: none;
 }
 
@@ -43,8 +46,8 @@ body:has(.appShell.planning-open) .mapConciergeAsk {
   min-height: 44px;
   padding: 0 18px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--line) 66%, var(--amber) 34%);
-  background: color-mix(in srgb, var(--panel-raised) 88%, var(--amber) 12%);
+  border: 1px solid color-mix(in srgb, var(--line) 66%, var(--brass) 34%);
+  background: color-mix(in srgb, var(--panel-raised) 92%, var(--brass) 8%);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--ink-deep) 16%, transparent);
   backdrop-filter: blur(8px);
   color: var(--ink);
@@ -54,7 +57,7 @@ body:has(.appShell.planning-open) .mapConciergeAsk {
 }
 
 .mapConciergeAskPill svg {
-  color: color-mix(in srgb, var(--amber) 62%, var(--ink));
+  color: var(--brass);
 }
 
 /* ── Open panel ───────────────────────────────────────────────────────────*/
@@ -71,8 +74,8 @@ body:has(.appShell.planning-open) .mapConciergeAsk {
   overflow-y: auto;
   padding: 14px;
   border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--amber) 30%);
-  background: color-mix(in srgb, var(--panel-raised) 94%, var(--amber) 6%);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  background: color-mix(in srgb, var(--panel-raised) 94%, var(--brass) 6%);
   box-shadow: 0 14px 40px color-mix(in srgb, var(--ink-deep) 24%, transparent);
   backdrop-filter: blur(12px);
 }
@@ -92,7 +95,7 @@ body:has(.appShell.planning-open) .mapConciergeAsk {
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--amber) 55%, var(--ink));
+  color: color-mix(in srgb, var(--brass) 70%, var(--ink));
 }
 
 .mapConciergeAskClose {
@@ -125,7 +128,7 @@ body:has(.appShell.planning-open) .mapConciergeAsk {
 }
 
 .mapConciergeAskInput:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--amber) 60%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--brass) 60%, transparent);
   outline-offset: 1px;
 }
 
@@ -135,8 +138,8 @@ body:has(.appShell.planning-open) .mapConciergeAsk {
   padding: 0 18px;
   border-radius: 12px;
   border: 0;
-  background: var(--amber);
-  color: var(--ink-deep, #1a1206);
+  background: var(--brass);
+  color: var(--color-on-accent);
   font-size: 0.86rem;
   font-weight: 800;
 }

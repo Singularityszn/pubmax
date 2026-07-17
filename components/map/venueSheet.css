@@ -266,7 +266,7 @@
    widths, but we still scope by media query as a hard belt-and-braces cut). */
 @media (max-width: 640px) {
   /* Resting transforms must match lib/sheetSnap.ts SHEET_SNAP_FRACTIONS
-     (revealed: peek 0.14 / half 0.55 / full 0.92 → translateY 86vh / 45vh /
+     (revealed: peek 0.22 / half 0.55 / full 0.92 → translateY 78vh / 45vh /
      8vh). The sheet is viewport-tall (height: 100vh below); translateY pushes
      it down so only the revealed fraction stays on-screen. globals.css's
      closed/open base transforms still apply when the drawer is closed; these
@@ -285,8 +285,8 @@
 
   .mapDrawer.left.open.sheet-peek,
   .mapDrawer.right.open.sheet-peek {
-    /* Reveal ~14vh — grabber + title row, per the PRD's "peek" spec. */
-    transform: translateY(86vh);
+    /* Reveal ~22vh — grabber plus the useful venue summary and action. */
+    transform: translateY(78vh);
   }
 
   /* Viewport-tall so translateY(vh) reveals exactly SHEET_SNAP_FRACTIONS. */
@@ -409,6 +409,13 @@
       color-mix(in srgb, var(--panel) 92%, transparent) 28%,
       var(--panel) 55%
     );
+  }
+
+  /* A full sheet is translated down by 8vh; its scrollport therefore extends
+     that far below the physical viewport. Offset the sticky command bar by the
+     same amount so short tab panels cannot strand actions below the fold. */
+  .mapDrawer.right.sheet-full .venueSheetStickyBar {
+    bottom: calc(8vh + 8px);
   }
 
   .venueSheetStickyPrimary,
@@ -804,6 +811,7 @@ html[data-legacy="1"] .venueTabPanel::before {
 .venueTabPanel .placeStoryWalk {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--ink);
@@ -821,6 +829,7 @@ html[data-legacy="1"] .venueTabPanel::before {
 .venueTabPanel .placeStoryCrawl {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--brass);
@@ -835,6 +844,7 @@ html[data-legacy="1"] .venueTabPanel::before {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--brass);
@@ -922,7 +932,8 @@ html[data-legacy="1"] .venueTabPanel::before {
   }
 
   .venueTab {
-    min-height: 36px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 7px 10px;
     font-size: 0.8rem;
     /* Tighter tracking (not just a smaller size) buys back a couple of px per
@@ -1030,11 +1041,11 @@ html[data-legacy="1"] .venueTabPanel::before {
    is roughly here) rather than the 641px mobile-gesture cut above, which only
    tells us the drag-sheet is off; a narrow tablet width still wants the
    mobile-shaped strip. Scoped to the right drawer that actually hosts the
-   venue inspector (`:has`) so the planner's left drawer — a different, already
+   open right drawer so the planner's left drawer — a different, already
    desktop-plain side panel — is untouched. Everything here is presentation
    only: no gesture/tab logic changes, and nothing below 1024px is affected. */
 @media (min-width: 1024px) {
-  .mapDrawer.right:has(.venueInspector) {
+  .mapDrawer.right.open {
     /* Wide enough for the two-column Pints layout below without feeling like
        a full takeover — still clearly a docked side panel, not the map. */
     width: 640px;
@@ -1176,6 +1187,11 @@ html[data-legacy="1"] .venueTabPanel::before {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+.venueTabPanel .landlordSuggest button,
+.venueTabPanel .citationChip {
+  min-height: 44px;
 }
 
 .venueTabPanel .heritageFollowUp {

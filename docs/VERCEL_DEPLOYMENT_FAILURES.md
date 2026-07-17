@@ -1,13 +1,13 @@
 # Why Vercel deployments keep failing
 
-**Status:** Diagnosed 2026-07-14 · Fix shipped on `cursor/map-pinpoint-tonight-chip-fdb7` (PR #264)  
+**Status:** Diagnosed 2026-07-14 · Fix prepared on `cursor/map-pinpoint-tonight-chip-fdb7` (PR #264)
 **Project:** `pubmax69/pubmax` · Production host: `pubmaxxing.com`
 
 ---
 
 ## Short answer
 
-**No — the map-pinpoint / Tonight-chip PR is not on Vercel Production.**  
+**No — the map-pinpoint / Tonight-chip PR is not on Vercel Production.**
 Preview builds for PR branches were failing at `next build` with:
 
 ```text
@@ -122,5 +122,5 @@ Optional hardening:
 | `dpl_BuswuFt8ALCY65jDeZYqCgc5CaRD` | same PR, earlier sha | ERROR | same |
 | `dpl_4a3KAxmJygPt7fiW364y598TQLjP` | `cursor/tonight-parity-gatez-fdb7` #263 | ERROR | same pattern |
 
-Inspector (latest #264 failure):  
-https://vercel.com/pubmax69/pubmax/4GY8MPCBcnoGsCVB8xPwcuJAszPh
+Inspector (latest #264 failure):
+[Vercel deployment details](https://vercel.com/pubmax69/pubmax/4GY8MPCBcnoGsCVB8xPwcuJAszPh)

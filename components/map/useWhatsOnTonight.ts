@@ -15,7 +15,7 @@
 // CityMCP things-to-do layer (useTonightOpportunities) stays a secondary
 // city-events overlay.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
 import {
@@ -32,6 +32,7 @@ export type WhatsOnTonight = {
   summary: Map<string, VenueWhatsOnSummary>;
   asOf: string | null;
   status: WhatsOnTonightStatus;
+  retry: () => void;
 };
 
 /** Abort a hung /api/whats-on request after this long — then report "error". */
@@ -72,6 +73,9 @@ export async function loadWhatsOnTonight(
     });
     if (!res.ok) return { rows: [], asOf: null, status: "error" };
     const body = (await res.json()) as ApiResponse;
+    if (typeof body.error === "string" && body.error.trim().length > 0) {
+      return { rows: [], asOf: body.asOf ?? null, status: "error" };
+    }
     const rows = Array.isArray(body.rows)
       ? body.rows.filter((r): r is WhatsOnRow => isValidWhatsOnRow(r))
       : [];
@@ -95,6 +99,11 @@ export function useWhatsOnTonight(enabled: boolean): WhatsOnTonight {
   const [rows, setRows] = useState<WhatsOnRow[]>([]);
   const [asOf, setAsOf] = useState<string | null>(null);
   const [status, setStatus] = useState<WhatsOnTonightStatus>("idle");
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const retry = useCallback(() => {
+    setStatus("idle");
+    setRetryAttempt((attempt) => attempt + 1);
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
@@ -116,12 +125,12 @@ export function useWhatsOnTonight(enabled: boolean): WhatsOnTonight {
       });
     });
     return () => controller.abort();
-  }, [enabled]);
+  }, [enabled, retryAttempt]);
 
   const summary = useMemo(
     () => (rows.length === 0 ? EMPTY_SUMMARY : summariseWhatsOnByVenue(rows)),
     [rows],
   );
 
-  return { rows, summary, asOf, status };
+  return { rows, summary, asOf, status, retry };
 }

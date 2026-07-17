@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { displayHandle } from "@/lib/handleDisplay";
 import { subscribeToComments } from "@/lib/realtime";
 import { relativeTime } from "@/lib/relativeTime";
+import { readCommentDraft, subscribeCommentDraft, writeCommentDraft } from "@/lib/socialDrafts";
 
 // The comment thread under a Pint Drop — where a drop's story continues after
 // the night (cc_plan2 §4), now with one-level THREADED replies (issue #37) and
@@ -72,6 +73,7 @@ function writeStoredHandle(handle: string): void {
 }
 
 export default function CommentThread({ dropId }: { dropId: string }) {
+  const [restoredDraft] = useState(() => readCommentDraft(dropId));
   const [open, setOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,12 +83,23 @@ export default function CommentThread({ dropId }: { dropId: string }) {
   // Handle is read from storage exactly once (lazy init); the textarea below is
   // the working draft.
   const [handle, setHandle] = useState<string>(() => readStoredHandle());
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(restoredDraft.body);
   const [posting, setPosting] = useState(false);
   // Which top-level comment the reply composer is currently attached to (null =
   // the top-level composer). One reply composer is open at a time.
-  const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [replyBody, setReplyBody] = useState("");
+  const [replyTo, setReplyTo] = useState<string | null>(restoredDraft.replyTo);
+  const [replyBody, setReplyBody] = useState(restoredDraft.replyBody);
+
+  useEffect(() => {
+    writeCommentDraft(dropId, { body, replyTo, replyBody });
+  }, [body, dropId, replyBody, replyTo]);
+
+  useEffect(() => subscribeCommentDraft(dropId, () => {
+    const next = readCommentDraft(dropId);
+    setBody(next.body);
+    setReplyTo(next.replyTo);
+    setReplyBody(next.replyBody);
+  }), [dropId]);
 
   // A ref to the latest fetch routine so the realtime subscription (set up in a
   // separate effect keyed only on open/dropId) can trigger a refetch without

@@ -49,6 +49,20 @@ describe("loadWhatsOnTonight (W1 primary-spine loader)", () => {
     expect(result.rows).toHaveLength(0);
   });
 
+  it("returns error for the route's fail-soft HTTP 200 envelope", async () => {
+    const result = await loadWhatsOnTonight({
+      fetchImpl: async () =>
+        jsonResponse({
+          rows: [],
+          asOf: "2026-07-12T10:00:00.000Z",
+          error: "Store unavailable",
+        }),
+    });
+    expect(result.status).toBe("error");
+    expect(result.rows).toEqual([]);
+    expect(result.asOf).toBe("2026-07-12T10:00:00.000Z");
+  });
+
   it("returns error when fetch throws", async () => {
     const result = await loadWhatsOnTonight({
       fetchImpl: async () => {

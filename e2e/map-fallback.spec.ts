@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { mkdir } from "node:fs/promises";
 
 // No-WebGL contract. Runs only under the `chromium-no-gl` project, which launches
 // Chromium with `--disable-webgl --disable-webgl2` so the MapLibre constructor
@@ -13,6 +14,12 @@ import { test, expect } from "@playwright/test";
 test("/map surfaces an honest fallback with a detail line when WebGL is disabled", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
@@ -36,4 +43,9 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
 
   // The canvas must NOT be present — this is the true no-GL path.
   await expect(page.locator(".maplibreMap canvas")).toHaveCount(0);
+  if (process.env.PUBMAX_GATE_Z_SHOTS) {
+    const directory = "docs/screenshots/the-local-gate-z";
+    await mkdir(directory, { recursive: true });
+    await page.screenshot({ path: `${directory}/webgl-fallback-390x844-light.png` });
+  }
 });

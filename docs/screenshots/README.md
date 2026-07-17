@@ -1,10 +1,16 @@
 # PubMaxing Screenshots
 
-Reference screenshots for the mobile demo gate (Loop 0). Captured at **390×844**
-and **430×932** in light and dark themes via:
+Reference screenshots for the Gate-Z visual baseline. The required gate captures
+**390×844** and **1440×900** in light and dark themes via:
 
 ```sh
-PW_SCREENSHOTS=1 npx playwright test --project=screenshots
+npm run shots
+```
+
+The extended breakpoint audit adds **430×932** and **1280×800**:
+
+```sh
+npm run shots:extended
 ```
 
 ## Core loop (light, 390)
@@ -46,6 +52,7 @@ PW_SCREENSHOTS=1 npx playwright test --project=screenshots
 Each of the surfaces above is also saved for:
 
 - light / dark
-- 390×844 / 430×932
+- 390×844 / 430×932 / 1280×800 / 1440×900
+- shared Planned Night and active-night lifecycle states
 
-Filenames follow `{surface}-{theme}-{390|430}.png`.
+Filenames follow `{surface}-{theme}-{390|430|1280|1440}.png`.

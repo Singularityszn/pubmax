@@ -11,7 +11,19 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
-test("landing / serves, shows hero + Demo honesty label + a working /map CTA", async ({
+async function dismissMapFirstRunTour(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+}
+
+test.beforeEach(async ({ page }) => {
+  await dismissMapFirstRunTour(page);
+});
+
+test("landing / serves, shows hero + Demo honesty label + a working city-first map CTA", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -20,17 +32,19 @@ test("landing / serves, shows hero + Demo honesty label + a working /map CTA", a
   expect(response?.status()).toBe(200);
 
   // Hero headline (stable id in components/landing/LandingPage.tsx).
-  await expect(page.locator("#hero-title")).toContainText("Bring back");
+  await expect(page.locator("#hero-title")).toContainText("Make tonight");
 
   // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
   // provenance vocabulary — see lib/provenanceLabels.ts).
   await expect(page.getByText("Demo").first()).toBeVisible();
 
-  // A working CTA to the planner. There are several "Open the map" links; take
-  // the first and assert it points at /map, then that following it lands there.
+  // First entry is city-first so the app never assumes location or silently
+  // chooses a city. Choose London explicitly, then verify the canonical map.
   const cta = page.getByRole("link", { name: /open the map/i }).first();
-  await expect(cta).toHaveAttribute("href", /\/map/);
+  await expect(cta).toHaveAttribute("href", "/choose-city");
   await cta.click();
+  await expect(page).toHaveURL(/\/choose-city$/);
+  await page.getByRole("link", { name: /^London .*Open map\.$/i }).click();
   await expect(page).toHaveURL(/\/map/);
 
   expect(errors).toEqual([]);
@@ -89,6 +103,7 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
 
 test("/feed exposes the For You lane control (issue #36)", async ({ page }) => {
   const errors = watchPageErrors(page);
+  await dismissMapFirstRunTour(page);
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
   // The lane switcher is always rendered (FeedFilters), independent of feed
@@ -131,12 +146,12 @@ test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /pubs with a drink/i })).toBeVisible();
   await expect(page.locator(".pubsCard").first()).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Pubs" }),
+    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Stories" }),
   ).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Pubs" }),
+    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight" }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -147,7 +162,7 @@ test("/u/[handle] renders a public profile for any handle without crashing", asy
   expect(response?.status()).toBe(200);
   // Dynamic route: the scaffold always mounts even for an unknown handle
   // (friendly empty state), so assert the site nav is present.
-  await expect(page.getByRole("link", { name: "Home", exact: true }).first()).toBeVisible();
+  await expect(page.getByLabel("Open PUBMAXX landing page").first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -188,30 +203,33 @@ test("nav does not overflow at 390px — sign-in button never clips (GH #18)", a
   }
 });
 
-test("mobile map toolbar controls stay inside the search card at 390px", async ({ page }) => {
+test("mobile map shell controls stay inside the coordinated chrome at 390px", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await dismissMapFirstRunTour(page);
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  const toolbar = page.locator(".mapToolbar").first();
-  await expect(toolbar).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mobileMapRail")).toBeVisible();
 
-  const toolbarBox = await toolbar.boundingBox();
-  expect(toolbarBox).not.toBeNull();
-  if (!toolbarBox) return;
-
-  for (const selector of [".mapToolbarSearch", ".favoritePintPicker", ".planBtn"]) {
-    const control = page.locator(selector).first();
+  for (const selector of [".mobileMapTopbar", ".mobileMapRail"]) {
+    const control = page.locator(selector);
     await expect(control).toBeVisible();
-    const box = await control.boundingBox();
-    expect(box, `${selector} has a box`).not.toBeNull();
-    if (!box) continue;
-    expect(box.x, `${selector} left edge`).toBeGreaterThanOrEqual(toolbarBox.x - 1);
+    const box = await control.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, width: rect.width };
+    });
+    expect(box.x, `${selector} left edge`).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width, `${selector} right edge`).toBeLessThanOrEqual(
-      toolbarBox.x + toolbarBox.width + 1,
+      391,
     );
   }
+
+  await page.getByRole("button", { name: "Drinks" }).click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
+  await expect(sheet).toHaveCount(1);
+  await expect(sheet.getByRole("heading", { name: "Drinks and price" })).toBeVisible();
 });
 
 // Mirrors lib/venues.ts venueGroupingKey + stableVenueIdFromKey exactly (a
@@ -249,6 +267,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   // iPhone-class width — the same viewport the nav-overflow test above uses,
   // and the width the drag bottom-sheet gesture is scoped to (≤640px).
   await page.setViewportSize({ width: 390, height: 844 });
+  await dismissMapFirstRunTour(page);
 
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
@@ -260,41 +279,85 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   // while still proving the sheet-open contract that peek/half/full build on.
   const sheet = page.locator(".mapDrawer.right");
   await expect(sheet).toHaveClass(/open/);
-  await expect(page.locator(".mapDrawer.left")).not.toHaveClass(/open/);
+  await expect(page.locator(".mapDrawer.left")).toHaveCount(0);
 
   // The grab handle (the drag affordance itself) is visible and — even
   // without simulating a real pointer-drag — present in the DOM as the
   // documented gesture surface (components/map/VenueInspector.tsx).
-  await expect(page.locator(".venueSheetGrab")).toBeVisible();
+  await expect(sheet.locator(".mobileSharedSheetGrab")).toBeVisible();
 
   // The sheet stays fully usable with no gesture at all: the close button and
   // tabs are reachable and functional (a11y contract from the spec).
-  await expect(page.locator(".drawerClose")).toBeVisible();
+  const closeButton = page.getByRole("button", { name: "Close pub detail" });
+  await expect(closeButton).toBeVisible();
   const tabs = page.getByRole("tab");
   await expect(tabs.first()).toBeVisible();
 
   const mobileNav = page.locator(".mobileTabBar");
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
+  const goldenThreadPrice = page.locator(".vpsPriceValue").first();
   await expect(mobileNav).toBeVisible();
   await expect(tablist).toBeVisible();
+  await expect(goldenThreadPrice).toHaveText("£5.50");
 
-  const [navBox, closeBox, tabsBox, horizontalOverflow] = await Promise.all([
+  const [navBox, closeBox, tabsBox, horizontalOverflow, goldenThreadPriceStyle] = await Promise.all([
     mobileNav.boundingBox(),
-    page.locator(".drawerClose").boundingBox(),
+    closeButton.boundingBox(),
     tablist.boundingBox(),
     page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+    goldenThreadPrice.evaluate((node) => {
+      const style = window.getComputedStyle(node);
+      return {
+        fontFamily: style.fontFamily,
+        letterSpacing: style.letterSpacing,
+      };
+    }),
   ]);
   expect(navBox).not.toBeNull();
   expect(closeBox).not.toBeNull();
   expect(tabsBox).not.toBeNull();
+  expect(goldenThreadPriceStyle.fontFamily).toContain("Inter");
+  expect(goldenThreadPriceStyle.letterSpacing).not.toBe("normal");
   expect(horizontalOverflow).toBeLessThanOrEqual(1);
   expect(navBox!.x).toBeGreaterThanOrEqual(0);
   expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(390);
   expect(closeBox!.y + closeBox!.height).toBeLessThan(navBox!.y);
   expect(tabsBox!.y + tabsBox!.height).toBeLessThan(navBox!.y);
 
-  await page.locator(".drawerClose").click();
-  await expect(sheet).not.toHaveClass(/open/);
+  await closeButton.click();
+  await expect(sheet).toHaveCount(0);
+});
+
+test("mobile venue sheet sticky actions switch to Train and Drop without desktop tabs", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+  });
+
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+  expect(response?.status()).toBe(200);
+
+  const sheet = page.locator(".mapDrawer.right");
+  await expect(sheet).toHaveClass(/open/);
+  await page.getByRole("tab", { name: "Stories", exact: true }).click();
+  await expect(sheet).toHaveClass(/sheet-full/);
+
+  const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
+  await expect(stickyActions).toBeVisible();
+
+  await stickyActions.getByRole("button", { name: "Check last train" }).click();
+  const gettingHomeTab = page.getByRole("tab", { name: "Last train", exact: true });
+  await expect(gettingHomeTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
+
+  await stickyActions.getByRole("button", { name: /log a pint drop/i }).click();
+  const dropsTab = page.getByRole("tab", { name: "Stories", exact: true });
+  await expect(dropsTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#venuePanel-pints")).toBeVisible();
+  await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Post Pint Drop" })).toBeVisible();
 });
 
 test("theme toggle flips html[data-theme], persists to localStorage, survives reload", async ({
@@ -302,17 +365,18 @@ test("theme toggle flips html[data-theme], persists to localStorage, survives re
 }) => {
   // The floating ThemeToggle lives on /map. The no-flash inline script sets
   // data-theme before hydration, so an initial value always exists.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dismissMapFirstRunTour(page);
   await page.goto("/map");
+  await page.getByRole("button", { name: "More map controls" }).click();
 
   const html = page.locator("html");
   const before = await html.getAttribute("data-theme");
   expect(before === "light" || before === "dark").toBe(true);
 
-  // force: the floating toggle can sit under the route header in headless
-  // layout; we're asserting the toggle's behaviour contract, not hit-testing.
   await page
     .getByRole("button", { name: /switch to (dark|light) theme/i })
-    .click({ force: true });
+    .click();
 
   const after = await html.getAttribute("data-theme");
   expect(after).not.toBe(before);

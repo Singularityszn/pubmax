@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
+import {
+  analyticsCollectionAllowed,
+  anonymousAnalyticsId,
+  laneSourceFromSearch,
+  setAnalyticsConsent,
+  trackEvent,
+} from "@/lib/analytics";
+import { consentAwareBeforeSend } from "@/components/ConsentAwareVercelAnalytics";
 
 type FakeNavigator = Partial<Navigator> & {
   sendBeacon?: (url: string, data?: BodyInit | null) => boolean;
@@ -8,6 +15,7 @@ type FakeNavigator = Partial<Navigator> & {
 };
 
 function setWindow(navigatorOverrides: FakeNavigator = {}): void {
+  const values = new Map<string, string>();
   const nav: FakeNavigator = {
     sendBeacon: vi.fn().mockReturnValue(true),
     ...navigatorOverrides,
@@ -15,11 +23,26 @@ function setWindow(navigatorOverrides: FakeNavigator = {}): void {
   (globalThis as { navigator?: unknown }).navigator = nav;
   (globalThis as { window?: unknown }).window = {
     location: { pathname: "/tonight" },
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => values.delete(key),
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+  };
+}
+
+function makeStorageThrow(): void {
+  const fail = () => { throw new Error("storage blocked"); };
+  (globalThis as { window: { localStorage: unknown } }).window.localStorage = {
+    getItem: fail,
+    removeItem: fail,
+    setItem: fail,
   };
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
+  if ((globalThis as { window?: unknown }).window) setAnalyticsConsent(false);
   delete (globalThis as { window?: unknown }).window;
   delete (globalThis as { navigator?: unknown }).navigator;
 });
@@ -31,6 +54,7 @@ describe("trackEvent", () => {
 
   it("sends a known event via sendBeacon with allow-listed props", () => {
     setWindow();
+    setAnalyticsConsent(true);
     trackEvent("booking_click", { venueId: "venue-1", tier: "direct" });
     const beacon = (globalThis as { navigator: FakeNavigator }).navigator
       .sendBeacon as ReturnType<typeof vi.fn>;
@@ -40,8 +64,37 @@ describe("trackEvent", () => {
     expect(blob).toBeInstanceOf(Blob);
   });
 
+  it("creates no persistent id before consent and clears it after revocation", () => {
+    setWindow();
+    expect(anonymousAnalyticsId()).toBeNull();
+
+    setAnalyticsConsent(true);
+    const first = anonymousAnalyticsId();
+    const second = anonymousAnalyticsId();
+
+    expect(first).toMatch(/^anon_[a-f0-9-]{16,64}$/);
+    expect(second).toBe(first);
+    expect(first).not.toContain("@");
+
+    setAnalyticsConsent(false);
+    expect(anonymousAnalyticsId()).toBeNull();
+  });
+
+  it("fails closed when storage is blocked unless consent was explicitly granted in memory", () => {
+    setWindow();
+    makeStorageThrow();
+    expect(anonymousAnalyticsId()).toBeNull();
+
+    setAnalyticsConsent(true);
+    expect(anonymousAnalyticsId()).toMatch(/^anon_[a-f0-9-]{16,64}$/);
+
+    setAnalyticsConsent(false);
+    expect(anonymousAnalyticsId()).toBeNull();
+  });
+
   it("forwards with empty props when none are given", () => {
     setWindow();
+    setAnalyticsConsent(true);
     trackEvent("tour_complete");
     const beacon = (globalThis as { navigator: FakeNavigator }).navigator
       .sendBeacon as ReturnType<typeof vi.fn>;
@@ -61,6 +114,7 @@ describe("trackEvent", () => {
 
   it("honors Do-Not-Track and never calls sendBeacon", () => {
     setWindow({ doNotTrack: "1" });
+    setAnalyticsConsent(true);
     trackEvent("plan_created", { count: 3 });
     const beacon = (globalThis as { navigator: FakeNavigator }).navigator
       .sendBeacon as ReturnType<typeof vi.fn>;
@@ -73,11 +127,13 @@ describe("trackEvent", () => {
         throw new Error("blocked by adblocker");
       }),
     });
+    setAnalyticsConsent(true);
     expect(() => trackEvent("tour_complete", { completed: true })).not.toThrow();
   });
 
   it("fires lane_to_plan event with source + stops props via sendBeacon", () => {
     setWindow();
+    setAnalyticsConsent(true);
     trackEvent("lane_to_plan", { source: "tonight-lane", stops: 3 });
     const beacon = (globalThis as { navigator: FakeNavigator }).navigator
       .sendBeacon as ReturnType<typeof vi.fn>;
@@ -85,6 +141,28 @@ describe("trackEvent", () => {
     const [url, blob] = beacon.mock.calls[0];
     expect(url).toBe("/api/events");
     expect(blob).toBeInstanceOf(Blob);
+  });
+
+  it("sends nothing to any analytics destination before consent", () => {
+    setWindow();
+    expect(analyticsCollectionAllowed()).toBe(false);
+    trackEvent("tonight_screen_view");
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).not.toHaveBeenCalled();
+    expect(consentAwareBeforeSend({ type: "pageview", url: "/tonight" })).toBeNull();
+  });
+
+  it("allows Vercel pageviews only after consent and still honors DNT", () => {
+    setWindow();
+    setAnalyticsConsent(true);
+    const event = { type: "pageview" as const, url: "/tonight" };
+    expect(analyticsCollectionAllowed()).toBe(true);
+    expect(consentAwareBeforeSend(event)).toBe(event);
+
+    (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
+    expect(analyticsCollectionAllowed()).toBe(false);
+    expect(consentAwareBeforeSend(event)).toBeNull();
   });
 });
 

@@ -43,6 +43,7 @@ export type ConciergeVenue = {
     food: boolean;
     liveSports: boolean;
     liveMusic: boolean;
+    nonAlcoholic?: boolean;
   };
   nearWater: boolean;
   hasStory: boolean;

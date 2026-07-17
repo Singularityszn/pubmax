@@ -61,8 +61,8 @@
     transform: none;
   }
 
-  body:has(.appShell.detail-open) .tonightOverlayChip,
-  body:has(.appShell.planning-open) .tonightOverlayChip {
+  .appShell.detail-open .tonightOverlayChip,
+  .appShell.planning-open .tonightOverlayChip {
     display: none;
   }
 }

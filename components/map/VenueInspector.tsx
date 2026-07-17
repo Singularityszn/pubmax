@@ -11,6 +11,8 @@ import { STORY_BANDS, type StoryBand } from "@/lib/storyBands";
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { DEFAULT_TAB, tabsForCity, type TabKey } from "@/lib/venueInspectorTabs";
+import type { JourneyPoint } from "@/lib/venueJourney";
+import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 
 import { useInspectorTabs } from "./inspector/useInspectorTabs";
 import { usePresence } from "./inspector/usePresence";
@@ -56,6 +58,10 @@ type VenueInspectorProps = {
   cityCuratedCrawls?: CuratedCrawl[];
   /** Active map city — drives Last Pint / Last Tram provider. Defaults to London. */
   cityId?: CityId;
+  userLocation: JourneyPoint | null;
+  locationRequestStatus: LocationRequestStatus;
+  onRequestLocation: () => void;
+  onClearLocation: () => void;
 };
 
 export default function VenueInspector({
@@ -75,6 +81,10 @@ export default function VenueInspector({
   cityStoryBands = STORY_BANDS,
   cityCuratedCrawls,
   cityId = DEFAULT_CITY_ID,
+  userLocation,
+  locationRequestStatus,
+  onRequestLocation,
+  onClearLocation,
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
@@ -144,6 +154,10 @@ export default function VenueInspector({
         onToggleStop={onToggleStop}
         presenceState={presenceState}
         markPresenceHere={markPresenceHere}
+        userLocation={userLocation}
+        locationRequestStatus={locationRequestStatus}
+        onRequestLocation={onRequestLocation}
+        onClearLocation={onClearLocation}
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}

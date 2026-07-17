@@ -27,15 +27,28 @@ test.describe("alt crawl styles + calendar export", () => {
   test("a URL-seeded crawl shows the style picker and the .ics affordance", async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const errors = watchPageErrors(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
 
     // Deep-link into build mode with a coffee-style crawl pre-loaded. The ?alt=
     // param is round-tripped by lib/crawlUrl.
     const response = await page.goto(`/map?mode=build&pubs=${SEEDED_PUBS}&alt=coffee`);
     expect(response?.status()).toBe(200);
 
-    const routePanel = page.locator(".routePanel");
-    await expect(routePanel).toBeVisible();
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+    if ((await planner.count()) === 0) {
+      await page.locator(".mobilePlanActivation").click();
+    }
+    await expect(planner).toBeVisible();
+    await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
+    const routePanel = planner.locator(".routePanel");
 
     // The alt-style picker always renders (it's not data-dependent). It carries
     // one radio per style, and the URL-seeded "coffee" is pre-selected.

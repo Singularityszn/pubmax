@@ -13,7 +13,7 @@
 // resolver doesn't need to know actual pixel heights of viewport or sheet —
 // callers convert to px against their own measured viewport height.
 export const SHEET_SNAP_FRACTIONS = {
-  peek: 0.14,
+  peek: 0.22,
   half: 0.55,
   full: 0.92,
 } as const;
@@ -22,6 +22,25 @@ export type SheetSnap = keyof typeof SHEET_SNAP_FRACTIONS;
 
 // Ordered peek → full so callers can walk "the next snap up/down".
 export const SHEET_SNAP_ORDER: SheetSnap[] = ["peek", "half", "full"];
+
+/**
+ * MapLibre easeTo `offset` (px) so a selected pub sits in the visible map band
+ * above the mobile bottom sheet — not under it. Positive Y moves the camera
+ * center down, so the target appears higher on screen.
+ *
+ * Default assumes the sheet opens at `half` (selectVenue always does).
+ */
+export function mobileSelectCameraOffset(
+  viewportHeight: number,
+  snap: SheetSnap = "half",
+): [number, number] {
+  const h = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
+  if (h <= 0) return [0, 0];
+  // Midpoint of the uncovered band (0 … 1 - sheetFraction).
+  const visibleMid = (1 - SHEET_SNAP_FRACTIONS[snap]) / 2;
+  const y = Math.round((0.5 - visibleMid) * h);
+  return [0, Math.max(0, y)];
+}
 
 /**
  * Resting translateY as a fraction of viewport height (DOWN from a full-

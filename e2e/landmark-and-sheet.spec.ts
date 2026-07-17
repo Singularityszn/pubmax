@@ -14,11 +14,9 @@ import { test, expect, type Page } from "@playwright/test";
 //     We deep-link to a known seed pub via ?sel= (mirrors smoke/map-story) and
 //     assert that story surface: heritage copy, and — when the pub carries
 //     sourced claims — a credited source link + a provenance badge.
-//   • The mobile drag-sheet's snap points (peek/half/full) are ONLY reachable by
-//     a pointer-drag gesture — no button/keyboard affordance — so per the brief
-//     we assert the grabber's presence + the sheet's accessible expanded states
-//     (it opens at peek; peek is NOT a modal dialog; the close control is
-//     reachable) rather than simulating a flaky synthetic drag.
+//   • The mobile drag-sheet's snap points (peek/half/full) support both pointer
+//     drag and a keyboard-operable detent. We assert its non-modal half state,
+//     modal full state, background inerting and contained keyboard traversal.
 //
 // House style (e2e/social-loop.spec.ts): read-only, `.count()`-guarded,
 // WebGL-agnostic, web-first assertions, no waitForTimeout.
@@ -141,8 +139,7 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
 
-  // The sheet opens on the Drops tab; Overview carries the journey entry from
-  // this pub, so switch to it the way a user would — via its tab.
+  // The sheet opens on Overview, which carries the journey entry from this pub.
   await page.locator("#venueTab-overview").click();
   const overviewPanel = page.locator("#venuePanel-overview");
   await expect(overviewPanel).toBeVisible();
@@ -174,12 +171,11 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
 // selected-pub detail is a drag sheet with peek/half/full snaps. A fresh pick
 // opens at the READABLE mid-height "half" snap (PubMap.tsx: peek would hide the
 // primary CTA, full feels heavy — see the SHEET_SNAP comment). The snaps are
-// pointer-drag-only (no button/keyboard affordance), so — per the brief — we
-// assert the grabber + the sheet's accessible EXPANDED states rather than a
-// flaky synthetic drag.
-test("mobile drag-sheet opens at the half snap with a grabber and an accessible non-modal state (#17)", async ({
+// pointer drag and keyboard detent both share the same snap state.
+test("mobile drag-sheet supports non-modal half and focus-contained full states (#17)", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const errors = watchPageErrors(page);
 
   // A phone viewport is what turns the detail drawer into the drag sheet.
@@ -191,16 +187,16 @@ test("mobile drag-sheet opens at the half snap with a grabber and an accessible 
   // The right drawer opens as the drag sheet for the selected pub. (detailOpen
   // gates on the map's `loaded` flag, so wait web-first for the open class.)
   const sheet = page.locator(".mapDrawer.right.open");
-  await expect(sheet).toBeVisible();
+  await expect(sheet).toBeVisible({ timeout: 30_000 });
 
   // A fresh pick rests at the "half" snap on open (the class drives the CSS
   // transform). We assert the mounted-snap class the sheet actually opens with.
   await expect(sheet).toHaveClass(/sheet-half/);
 
-  // The grabber (the primary drag surface) is present inside the sheet — the
-  // affordance a user grabs to expand/collapse it. It's decorative-by-role
-  // (aria-hidden) but must exist so the gesture has a target.
-  await expect(sheet.locator(".venueSheetGrab")).toHaveCount(1);
+  // The detent is a full touch target and a keyboard-operable counterpart to
+  // dragging the grabber.
+  const detent = sheet.getByRole("button", { name: "Expand sheet" });
+  await expect(detent).toBeVisible();
 
   // At half the sheet is deliberately NOT a modal dialog — enough of the map
   // stays visible/reachable that trapping focus would be wrong. role="dialog" +
@@ -217,6 +213,22 @@ test("mobile drag-sheet opens at the half snap with a grabber and an accessible 
   await expect(
     sheet.getByRole("tablist", { name: "Venue detail sections" }),
   ).toBeVisible();
+
+  await detent.click();
+  await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveAttribute("role", "dialog");
+  await expect(sheet).toHaveAttribute("aria-modal", "true");
+  await expect(page.locator("body > [inert]")).not.toHaveCount(0);
+
+  const collapse = sheet.getByRole("button", { name: "Collapse sheet" });
+  await collapse.focus();
+  await page.keyboard.press("Shift+Tab");
+  expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+
+  await collapse.click();
+  await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(sheet).not.toHaveAttribute("aria-modal", "true");
+  await expect(page.locator("body > [inert]")).toHaveCount(0);
 
   expect(errors).toEqual([]);
 });

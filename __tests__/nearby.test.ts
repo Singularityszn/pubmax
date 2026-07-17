@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { nearestVenueIds } from "@/lib/nearby";
+import { nearbyVenuesForMap, nearestVenueIds } from "@/lib/nearby";
 import type { Venue } from "@/lib/venues";
 
 // nearestVenueIds only reads id/latitude/longitude; a partial cast keeps the
@@ -35,5 +35,26 @@ describe("nearestVenueIds", () => {
 
   it("returns [] for empty venues", () => {
     expect(nearestVenueIds(point.lat, point.lng, [], 5)).toEqual([]);
+  });
+});
+
+describe("nearbyVenuesForMap", () => {
+  it("frames every pub inside the local radius, nearest first", () => {
+    const local = nearbyVenuesForMap(point.lat, point.lng, venues, {
+      radiusKm: 1,
+      minCount: 1,
+      maxCount: 10,
+    });
+    expect(local.map((venue) => venue.id)).toEqual(["nearest", "near", "mid"]);
+  });
+
+  it("tops up sparse areas and caps dense results", () => {
+    expect(
+      nearbyVenuesForMap(point.lat, point.lng, venues, {
+        radiusKm: 0.01,
+        minCount: 2,
+        maxCount: 2,
+      }).map((venue) => venue.id),
+    ).toEqual(["nearest", "near"]);
   });
 });

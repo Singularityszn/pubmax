@@ -130,10 +130,10 @@ export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePa
       park: withAlpha(tokens.parkTint, 0.32),
       // Warmed massing (M4) — lifted well above land so footprints read, now
       // with a dusk-lamp warmth instead of the old cool blue-gray.
-      building: tokens.buildingEmissive,
-      water: tokens.river,
-      road: withAlpha(tokens.ink, 0.88),
-      roadMajor: withAlpha(tokens.amber, 0.96),
+      building: mixHex(tokens.buildingEmissive, tokens.inkDeep, 0.42),
+      water: withAlpha(tokens.river, 0.58),
+      road: withAlpha(tokens.line, 0.72),
+      roadMajor: withAlpha(mixHex(tokens.line, tokens.ink, 0.26), 0.82),
     };
   }
   // Light-theme hierarchy audit (M4): calmer water (was the saturated
@@ -251,7 +251,7 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
     tryPaint(map, id, "fill-opacity", dark ? 0.92 : 0.7);
     // OFM dark outline is rgb(27,27,29) — lift it so edges separate from land.
     if (dark) {
-      tryPaint(map, id, "fill-outline-color", "#9aa3b5");
+      tryPaint(map, id, "fill-outline-color", "rgba(154,163,181,0.28)");
     }
   }
 
@@ -283,7 +283,7 @@ function paintDiscoveredFill(
     tryPaint(map, layerId, "fill-color", palette.building);
     tryPaint(map, layerId, "fill-opacity", dark ? 0.92 : 0.7);
     if (dark) {
-      tryPaint(map, layerId, "fill-outline-color", "#9aa3b5");
+      tryPaint(map, layerId, "fill-outline-color", "rgba(154,163,181,0.28)");
     }
     return;
   }
@@ -344,7 +344,7 @@ function paintDiscoveredSymbol(
   tryPaint(map, layerId, "text-color", text);
   tryPaint(map, layerId, "text-halo-color", halo);
   tryPaint(map, layerId, "text-halo-width", dark ? 1.4 : 1.1);
-  tryPaint(map, layerId, "text-opacity", dark ? 0.92 : 0.88);
+  tryPaint(map, layerId, "text-opacity", dark ? 0.76 : 0.88);
 }
 
 /** All layer IDs handled explicitly by paintKnownLayers — skip these in the

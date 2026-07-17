@@ -54,12 +54,14 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     expect(dark.land).toBe(darkTokens.inkDeep);
     expect(dark.land).not.toBe(darkTokens.ink);
     expect(light.land).toBe(tokens.paper);
-    // Streets must stay luminous against night land.
-    expect(dark.road).toContain("255, 244, 232"); // cream ink rgb
-    expect(dark.roadMajor).toContain("255, 194, 71"); // amber
+    // Streets remain legible without turning the whole basemap into white
+    // linework; major roads retain the warmer transport hierarchy.
+    expect(dark.road).toContain("65, 58, 52"); // neutral line rgb
+    expect(dark.roadMajor).not.toContain("240, 160, 26"); // never amber road soup
     // Buildings: M4 warmed emissive massing — readable on near-black land,
     // still desaturated (never a literal brass/coral wash).
-    expect(dark.building).toBe(darkTokens.buildingEmissive);
+    expect(dark.building).not.toBe(darkTokens.inkDeep);
+    expect(dark.building).not.toBe(darkTokens.buildingEmissive);
     expect(dark.building).not.toBe(darkTokens.brass);
     expect(dark.building).not.toContain("255, 107, 122"); // old brass coral
   });
@@ -144,7 +146,7 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     ).toBe(0.92);
     expect(
       paints.find(([id, prop]) => id === "building" && prop === "fill-outline-color")?.[2],
-    ).toBe("#9aa3b5");
+    ).toBe("rgba(154,163,181,0.28)");
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
     ).toBe(true);
@@ -449,6 +451,16 @@ describe("muteOpacityExpr (issue #222 — mute must only ever attenuate)", () =>
     const expr = muteOpacityExpr(0, SELECTION_MUTE_OPACITY) as [string, number, number];
     expect(expr).toEqual(["min", 0, SELECTION_MUTE_OPACITY]);
     expect(expr[1]).toBe(0); // the pre-mute original, verbatim — never rewritten upward
+  });
+
+  it("preserves a zoom-ramp original expression verbatim inside min()", () => {
+    const original = ["interpolate", ["linear"], ["zoom"], 12.4, 0, 13.1, 1];
+
+    expect(muteOpacityExpr(original, SELECTION_MUTE_OPACITY)).toEqual([
+      "min",
+      original,
+      SELECTION_MUTE_OPACITY,
+    ]);
   });
 
   it("still attenuates a plain original that sits above the mute floor", () => {

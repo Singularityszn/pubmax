@@ -20,6 +20,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { usePathname } from "next/navigation";
 
 import {
   getTourSeenServerSnapshot,
@@ -83,6 +84,7 @@ function prefersReducedMotion(): boolean {
 }
 
 export default function FirstRunTour(): React.JSX.Element | null {
+  const pathname = usePathname() ?? "";
   const seen = useSyncExternalStore(
     subscribeTour,
     getTourSeenSnapshot,
@@ -107,7 +109,11 @@ export default function FirstRunTour(): React.JSX.Element | null {
     void Promise.resolve().then(() => setMounted(true));
   }, []);
 
-  const active = mounted && !seen;
+  // Pub Pal and You have their own focused onboarding. Stacking the generic
+  // map tour over either surface obscures consent, identity controls, and the
+  // mobile tab bar, so the general tour waits until the user leaves them.
+  const hasDedicatedOnboarding = pathname === "/pal" || pathname.startsWith("/u/");
+  const active = mounted && !seen && !hasDedicatedOnboarding;
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.

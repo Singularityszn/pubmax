@@ -81,9 +81,9 @@ describe("city config paths and labels", () => {
     expect(CITIES.london.poisPath).toBe("/data/london_pois.json");
     expect(CITIES.london.transitLinesPath).toBe("/data/tfl_lines.json");
     expect(CITIES.london.lastRideLabel).toBe("Last Pint");
-    expect(CITIES.london.mapView.zoom).toBe(10.7);
-    expect(CITIES.london.mapView.pitch).toBe(42);
-    expect(CITIES.london.mapView.bearing).toBe(-12);
+    expect(CITIES.london.mapView.zoom).toBe(11.5);
+    expect(CITIES.london.mapView.pitch).toBe(38);
+    expect(CITIES.london.mapView.bearing).toBe(-8);
   });
 
   it("puts other cities under /data/cities/{id}/ with city-specific last-ride labels", () => {

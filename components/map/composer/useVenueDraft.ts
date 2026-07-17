@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { readPintDropDraft, writePintDropDraft } from "@/lib/pintDropDraft";
+import { pintDropDraftForPersistence, readPintDropDraft, writePintDropDraft } from "@/lib/pintDropDraft";
+import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
@@ -13,6 +14,7 @@ type UseVenueDraftArgs = {
   dropForm: PintDropsState["dropForm"];
   visibility: PintDropsState["visibility"];
   vibeTags: PintDropsState["vibeTags"];
+  transientVoiceNoteBaseline: string | null;
 };
 
 /**
@@ -29,6 +31,7 @@ export function useVenueDraft({
   dropForm,
   visibility,
   vibeTags,
+  transientVoiceNoteBaseline,
 }: UseVenueDraftArgs): boolean {
   const [draftReadyVenueId, setDraftReadyVenueId] = useState<string | null>(null);
   if (draftReadyVenueId !== null && draftReadyVenueId !== venueId) {
@@ -49,9 +52,11 @@ export function useVenueDraft({
       if (!active) return;
       resetComposer();
       if (draft) {
+        writePintDropDraft(window.sessionStorage, venueId, draft);
         setDropForm(draft.form);
         setVisibility(draft.visibility);
         setVibeTags(draft.vibeTags);
+        trackEvent("draft_recovered", { kind: "pint-drop", surface: "map" });
       }
       setDraftReadyVenueId(venueId);
     }
@@ -66,14 +71,14 @@ export function useVenueDraft({
     writePintDropDraft(
       typeof window === "undefined" ? null : window.sessionStorage,
       venueId,
-      {
+      pintDropDraftForPersistence({
         form: dropForm,
         visibility,
         vibeTags,
         updatedAt: new Date().toISOString(),
-      },
+      }, transientVoiceNoteBaseline),
     );
-  }, [venueId, draftReadyVenueId, dropForm, visibility, vibeTags]);
+  }, [venueId, draftReadyVenueId, dropForm, transientVoiceNoteBaseline, visibility, vibeTags]);
 
   useEffect(() => {
     if (draftReady) markPubmaxTiming("pubmax:composer-interactive");

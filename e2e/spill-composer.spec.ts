@@ -40,18 +40,34 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
   ].join("|"),
 );
 
-// Open the composer inside the Pints panel and return the panel + form locators.
+// Open the composer inside the Stories panel and return the panel + form locators.
 async function openComposer(page: Page) {
   await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-  const pintsPanel = page.locator("#venuePanel-pints");
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible();
+  const pintsPanel = venueSheet.locator("#venuePanel-pints");
+  await venueSheet.getByRole("tab", { name: "Stories", exact: true }).click();
+  await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+  await venueSheet
+    .getByRole("toolbar", { name: "Venue actions" })
+    .getByRole("button", { name: /log a pint drop/i })
+    .click();
   await expect(pintsPanel).toBeVisible();
-  await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
   const form = page.locator("form.dropComposer");
   await expect(form).toBeVisible();
   return { pintsPanel, form };
 }
 
 test.describe("camera-first Spill composer", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+  });
+
   test("on a 390px viewport the camera action leads without blocking price fields", async ({
     page,
   }) => {
@@ -84,6 +100,29 @@ test.describe("camera-first Spill composer", () => {
         name: "Tonight",
       }),
     ).toBeVisible();
+
+    expect(errors).toEqual([]);
+  });
+
+  test("mobile camera actions keep rear-camera and selfie capture semantics", async ({ page }) => {
+    const errors = watchPageErrors(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const { form } = await openComposer(page);
+
+    const cameraStep = form.locator('[data-testid="spill-camera-step"]');
+    await expect(cameraStep.getByText("Snap the pour")).toBeVisible();
+    await expect(cameraStep.getByText("Flip — you at the bar")).toBeVisible();
+
+    const pintCapture = cameraStep.getByLabel(/snap the pour/i);
+    await expect(pintCapture).toHaveAttribute("type", "file");
+    await expect(pintCapture).toHaveAttribute("accept", "image/*");
+    await expect(pintCapture).toHaveAttribute("capture", "environment");
+
+    const selfieCapture = cameraStep.getByLabel(/you at the bar/i);
+    await expect(selfieCapture).toHaveAttribute("type", "file");
+    await expect(selfieCapture).toHaveAttribute("accept", "image/*");
+    await expect(selfieCapture).toHaveAttribute("capture", "user");
 
     expect(errors).toEqual([]);
   });
@@ -141,6 +180,29 @@ test.describe("camera-first Spill composer", () => {
     expect(errors).toEqual([]);
   });
 
+  test("mobile submit posts a Pint Drop and inserts the story into the Pints panel", async ({
+    page,
+  }) => {
+    const errors = watchPageErrors(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const { pintsPanel, form } = await openComposer(page);
+    const story = `codex mobile submit ${Date.now()}`;
+    const handle = `codex_mobile_${Date.now()}`;
+
+    await form.getByLabel("Handle").fill(`@${handle}`);
+    await form.getByRole("group", { name: /quick-add price/i }).getByRole("button").first().click();
+    await form.getByLabel("Drink").fill("Codex test pint");
+    await form.getByLabel("Story").fill(story);
+
+    await form.getByRole("button", { name: "Post Pint Drop" }).click();
+
+    await expect(form).toHaveCount(0);
+    await expect(pintsPanel).toContainText(story);
+
+    expect(errors).toEqual([]);
+  });
+
   test("large-text / Legacy Mode keeps the composer usable at 390px", async ({ page }) => {
     const errors = watchPageErrors(page);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -165,16 +227,27 @@ test.describe("camera-first Spill composer", () => {
     expect(errors).toEqual([]);
   });
 
-  test("/map?log=1 opens the mobile composer without the full pint dataset", async ({ page }) => {
+  test("/map?log=1 opens the safe mobile log picker without the full pint dataset", async ({ page }) => {
     const errors = watchPageErrors(page);
     const requests: string[] = [];
     page.on("request", (request) => requests.push(new URL(request.url()).pathname));
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
 
     const response = await page.goto("/map?log=1");
     expect(response?.status()).toBe(200);
 
+    const fallback = page.locator(".logIntentFallback");
     const form = page.locator("form.dropComposer");
+    await expect.poll(async () => Number(await fallback.isVisible()) + Number(await form.isVisible())).toBeGreaterThan(0);
+    if (await fallback.isVisible()) {
+      await expect(fallback).toContainText("Pick a pub to log a Pint Drop");
+      await fallback.getByRole("button").first().click();
+    }
     await expect(form).toBeVisible({ timeout: 10_000 });
     await expect(form.locator('[data-testid="spill-camera-step"]')).toBeVisible();
     await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
@@ -189,7 +262,6 @@ test.describe("camera-first Spill composer", () => {
       [
         "pubmax:map-chunk-ready",
         "pubmax:slim-venues-ready",
-        "pubmax:drop-route-ready",
         "pubmax:composer-mounted",
         "pubmax:composer-interactive",
       ].map((name) => ({ name, count: performance.getEntriesByName(name).length })),
@@ -199,5 +271,36 @@ test.describe("camera-first Spill composer", () => {
     expect(requests).not.toContain("/data/pint_prices_app_dataset.json");
 
     expect(errors).toEqual([]);
+  });
+
+  test("mobile Pint Drop selection returns to the visible picker when the venue closes", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+
+    const response = await page.goto("/map?log=1");
+    expect(response?.status()).toBe(200);
+
+    const fallback = page.locator(".logIntentFallback");
+    const form = page.locator("form.dropComposer");
+    await expect.poll(async () => Number(await fallback.isVisible()) + Number(await form.isVisible())).toBeGreaterThan(0);
+    if (await fallback.isVisible()) await fallback.getByRole("button").first().click();
+
+    const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const sheet = venueSheet.locator(".mobileSharedSheet");
+    await expect(sheet).toHaveClass(/open/);
+    await expect(form).toBeVisible({ timeout: 10_000 });
+
+    await venueSheet.getByRole("button", { name: "Close pub detail" }).click();
+
+    await expect(page).toHaveURL(/\/map\?log=1$/);
+    await expect(sheet).toHaveCount(0);
+    await expect(fallback).toBeVisible();
+    await expect(fallback).toContainText("Pick a pub to log a Pint Drop");
   });
 });

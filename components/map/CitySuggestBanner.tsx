@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
 
 import {
@@ -16,6 +16,7 @@ import "./citySuggestBanner.css";
 
 type CitySuggestBannerProps = {
   cityId: CityId;
+  onLocationFound?: (location: { lat: number; lng: number }) => void;
 };
 
 const DISMISS_KEY = "pubmax:citySuggestDismiss:v1";
@@ -100,7 +101,7 @@ function subscribeClientFlags(onStoreChange: () => void): () => void {
  * Fail-soft (permission denied / timeout / no geo) → no switch offer.
  * Kept below the CitySwitcher dropdown in z-order so city picks stay tappable.
  */
-export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
+export default function CitySuggestBanner({ cityId, onLocationFound }: CitySuggestBannerProps) {
   const dismissed = useSyncExternalStore(
     subscribeDismiss,
     readDismissed,
@@ -114,6 +115,7 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
 
   const [suggested, setSuggested] = useState<CityId | null>(null);
   const [checking, setChecking] = useState(false);
+  const [locatedHere, setLocatedHere] = useState(false);
   const [sessionDismissed, setSessionDismissed] = useState(false);
   const checkGen = useRef(0);
 
@@ -134,15 +136,23 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (gen !== checkGen.current) return;
+        const location = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
         const nearest = nearestEnabledCity(
-          pos.coords.latitude,
-          pos.coords.longitude,
+          location.lat,
+          location.lng,
         );
         void Promise.resolve().then(() => {
           if (gen !== checkGen.current) return;
           setChecking(false);
           if (nearest && nearest !== cityId) {
             setSuggested(nearest);
+            setLocatedHere(false);
+          } else if (nearest === cityId) {
+            setLocatedHere(true);
+            onLocationFound?.(location);
           }
         });
       },
@@ -154,7 +164,23 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
       },
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
     );
-  }, [cityId]);
+  }, [cityId, onLocationFound]);
+
+  // Reuse an already-granted permission without prompting again. A first-time
+  // visitor still has to tap Near me, preserving the Home Area privacy boundary.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("permissions" in navigator)) return;
+    let cancelled = false;
+    navigator.permissions
+      .query({ name: "geolocation" })
+      .then((permission) => {
+        if (!cancelled && permission.state === "granted") checkNearby();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [checkNearby]);
 
   if (dismissed || sessionDismissed || flags.saveData || !flags.geoAvailable) {
     return null;
@@ -191,7 +217,11 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
   return (
     <div className="citySuggestBanner" role="status">
       <p className="citySuggestBannerCopy">
-        {checking ? "Checking nearby city…" : "Visiting another city?"}
+        {checking
+          ? "Finding pubs near you…"
+          : locatedHere
+            ? "Showing pubs near you"
+            : "Visiting another city?"}
       </p>
       <button
         type="button"
@@ -199,7 +229,7 @@ export default function CitySuggestBanner({ cityId }: CitySuggestBannerProps) {
         disabled={checking}
         onClick={checkNearby}
       >
-        {checking ? "Checking…" : "Near me?"}
+        {checking ? "Checking…" : locatedHere ? "Refresh" : "Near me?"}
       </button>
       <button
         type="button"

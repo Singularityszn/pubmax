@@ -38,8 +38,74 @@
   gap: clamp(24px, 4vw, 40px);
 }
 
+/* The owner route behaves like a social profile: identity first, a stable
+   content switcher second, and account machinery below the content. */
+.profilePage .youIdentityIntro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(16px, 3vw, 28px);
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+}
+
+.profilePage .youIdentityAvatar {
+  width: 92px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--ink-deep), var(--river));
+  color: var(--color-on-inverse);
+  font: 750 1.05rem/1 var(--font-data);
+  letter-spacing: .08em;
+}
+
+.profilePage .youIdentityIntro h1 { margin: .25rem 0 .45rem; font: 700 clamp(1.8rem, 4vw, 3rem)/1 var(--font-display); }
+.profilePage .youIdentityIntro p { margin: 0; color: var(--ink-soft); line-height: 1.5; }
+.profilePage .youIdentityActions { display: grid; gap: 8px; }
+.profilePage .youIdentityActions a,
+.profilePage .profilePalLink {
+  min-height: 44px;
+  padding: 10px 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: .86rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.profilePage .youIdentityActions a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
+
+.profilePage .youProfileTabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block: 1px solid var(--line);
+}
+.profilePage .youProfileTabs a {
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+  font-size: .78rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+.profilePage .youProfileTabs a:first-child { color: var(--ink); box-shadow: inset 0 -2px var(--ink); }
+
 /* Follow/edit action slot rides at the far end of the identity row. */
 .profilePage .profileActions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
   margin-left: auto;
   align-self: flex-start;
   flex: 0 0 auto;
@@ -538,7 +604,8 @@
 
 /* ── Owner actions: edit toggle + claim ──────────────────────────────── */
 .profilePage .profileEditToggle,
-.profilePage .profileClaimBtn {
+.profilePage .profileClaimBtn,
+.profilePage .profilePalLink {
   min-height: 44px;
   padding: 10px 16px;
   border-radius: var(--radius-sm);
@@ -694,23 +761,30 @@
     padding-bottom: calc(var(--mobile-tab-clearance, 104px) + 16px + env(safe-area-inset-bottom, 0px));
   }
 
-  .profilePage .profileIdentity {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-  }
+  .profilePage .profileIdentity { flex-direction: column; gap: 14px; align-items: flex-start; }
+  .profilePage .youProfileIdentity .profileIdentity { flex-direction: row; flex-wrap: wrap; align-items: center; }
+
+  .profilePage .profileAvatar { width: 76px; height: 76px; }
+
+  .profilePage .profileDisplayName { font-size: 1.45rem; }
+
+  .profilePage .youIdentityIntro { grid-template-columns: auto 1fr; }
+  .profilePage .youIdentityAvatar { width: 72px; }
+  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
 
   /* In a stacked column, margin-left:auto would shove the actions to the far
      edge on their own line — reset it so they sit naturally under the name. */
-  .profilePage .profileActions {
-    margin-left: 0;
-    width: 100%;
-  }
+  .profilePage .profileActions { margin-left: 0; width: 100%; justify-content: flex-start; }
+  .profilePage .youProfileIdentity .profileActions { flex-basis: 100%; }
+  .profilePage .youProfileIdentity .profileActions > * { flex: 1 1 140px; }
 
   /* Two-up stat cards read better than one long column on a phone. */
-  .profilePage .profileStat {
-    flex: 1 1 44%;
-  }
+  .profilePage .youProfileIdentity .profileHeader { padding: 18px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .profilePage .profileStat { flex: 1 1 44%; }
+  .profilePage .youProfileIdentity .profileStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .profilePage .youProfileIdentity .profileStat { padding: 9px 6px; border: 0; background: transparent; text-align: center; }
+  .profilePage .youProfileIdentity .profileStat dt { font-size: .65rem; }
+  .profilePage .youProfileIdentity .profileStat dd { font-size: 1.12rem; }
 }
 
 @media (max-width: 380px) {
@@ -859,6 +933,8 @@
 .profilePage .passportCta {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 44px;
   padding: 9px 16px;
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm, 8px);
@@ -1099,4 +1175,108 @@
   .profilePage .passportQuestProgressText {
     text-align: left;
   }
+}
+.accountHub {
+  margin: 1rem 0 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--panel);
+}
+.accountHub h2 { margin: .25rem 0 1rem; }
+.accountHubGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.accountHubGrid > * { display: grid; align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
+.accountHubGrid input, .accountHubGrid button { min-height: 44px; border-radius: 12px; }
+.accountHubGrid input { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.accountHubGrid button { padding: .65rem .8rem; border: 0; background: var(--ink); color: var(--paper); font-weight: 700; }
+.accountHubActions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.accountHubMessage { margin-top: .75rem; }
+.accountHubMerge { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+.accountHubMerge h3, .accountHubMerge p, .accountHubNightProfile { margin: 0; }
+.accountHubMerge button { min-height: 44px; padding: .65rem .8rem; border: 0; border-radius: 12px; background: var(--ink); color: var(--paper); font-weight: 700; }
+.accountHubNightProfile { margin-bottom: .75rem; color: var(--ink-muted); }
+.accountHubNightProfileEditor { display: grid; gap: 1rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+.accountHubNightProfileEditor h3, .accountHubNightProfileEditor p { margin: 0; }
+.accountHubNightProfileEditor > div:first-child { display: grid; gap: .25rem; }
+.accountHubNightProfileEditor > div:first-child > p:last-child { color: var(--ink-muted); }
+.accountHubNightProfileGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.accountHubNightProfileGrid label { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
+.accountHubNightProfileGrid input, .accountHubNightProfileGrid select { width: 100%; min-height: 44px; padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
+.accountHubNightProfileSave { min-height: 44px; justify-self: start; padding: .65rem .9rem; border: 0; border-radius: 12px; background: var(--ink); color: var(--paper); font-weight: 750; }
+.accountHubNightProfileSaved { color: var(--ink-muted); font-size: .85rem; }
+.accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
+.accountHubSignIn p { margin: 0; max-width: 42rem; }
+@media (max-width: 760px) { .accountHubGrid { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .accountHubNightProfileGrid { grid-template-columns: 1fr; } .accountHubSignIn { align-items: stretch; flex-direction: column; } }
+
+.memoryStudio {
+  margin-top: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+.memoryStudioHeader { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.memoryStudioHeader h3 { margin: .2rem 0 0; font-size: clamp(1.2rem, 2vw, 1.6rem); }
+.memoryStudioHeader > p { max-width: 34rem; margin: 0; color: var(--muted); }
+.memoryCaptureLink { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); font-weight: 750; text-decoration: none; white-space: nowrap; }
+.memoryCaptureLink:hover { border-color: var(--brass); color: var(--brass); }
+.memoryStudioFlow { display: grid; grid-template-columns: .8fr 1.15fr 1fr; gap: .75rem; }
+.memoryStudioFlow form { position: relative; display: grid; align-content: start; gap: .7rem; padding: 1rem; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--panel-raised); }
+.memoryStudioFlow h4 { margin: 0; padding-right: 2.5rem; font-size: 1rem; }
+.memoryStudioStep { position: absolute; top: .85rem; right: .9rem; display: grid; width: 2rem; height: 2rem; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font-family: var(--font-data); font-size: .75rem; }
+.memoryStudioFlow label { display: grid; gap: .35rem; color: var(--ink-soft); font-size: .82rem; font-weight: 700; }
+.memoryStudioFlow label small { color: var(--muted); font-weight: 500; }
+.memoryStudioFlow input, .memoryStudioFlow select, .memoryStudioFlow textarea { width: 100%; min-height: 44px; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
+.memoryStudioFlow textarea { resize: vertical; }
+.memoryStudioFlow button { min-height: 44px; padding: .65rem .8rem; border: 0; border-radius: 12px; background: var(--ink); color: var(--paper); font-weight: 750; }
+.memoryStudioFlow button:disabled { cursor: not-allowed; opacity: .55; }
+.memoryStudioShelf { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; }
+.memoryStudioShelf > div { display: flex; align-items: baseline; gap: .4rem; padding: .55rem .75rem; border: 1px solid var(--line-soft); border-radius: 12px; }
+.memoryStudioShelf strong { font-family: var(--font-data); }
+.memoryStudioShelf span { color: var(--muted); font-size: .8rem; }
+.memoryStoryList { display: grid; gap: .35rem; margin: .75rem 0 0; padding: 0; list-style: none; }
+.memoryStoryList li { border-bottom: 1px solid var(--line-soft); }
+.memoryStoryList li[data-active] { border-color: var(--brass); }
+.memoryStoryList__select { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; gap: 1rem; padding: .65rem .25rem; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.memoryStoryList__select:disabled { cursor: default; opacity: .8; }
+.memoryStoryList__invite { display: flex; flex-wrap: wrap; gap: .45rem; padding: 0 0 .65rem; }
+.memoryStoryList__invite button { min-width: 88px; min-height: 44px; padding: .55rem .8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: .78rem; font-weight: 750; }
+.memoryStoryList small { color: var(--muted); }
+.memoryStoryReview { display: grid; gap: 1rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+.memoryStoryReview__header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.memoryStoryReview__header h4 { margin: .15rem 0 0; font-size: 1.2rem; }
+.memoryStoryReview__privacy { display: inline-flex; min-height: 32px; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 999px; background: color-mix(in srgb, var(--brass) 12%, transparent); color: var(--ink-soft); font-size: .76rem; white-space: nowrap; }
+.memoryStoryReview__copy, .memoryStoryReview__contribution, .memoryStoryReview__controls, .memoryStoryReview__publish, .memoryStoryReview__controls form { display: grid; gap: .7rem; }
+.memoryStoryReview__contribution { padding: .8rem; border: 1px solid var(--line-soft); border-radius: 14px; background: color-mix(in srgb, var(--brass) 6%, var(--paper)); }
+.memoryStoryReview__contribution > div { display: grid; gap: .25rem; }
+.memoryStoryReview__contribution p { margin: 0; color: var(--muted); font-size: .8rem; }
+.memoryStoryReview label { display: grid; gap: .35rem; color: var(--ink-soft); font-size: .82rem; font-weight: 700; }
+.memoryStoryReview input, .memoryStoryReview textarea, .memoryStoryReview select { width: 100%; min-height: 44px; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
+.memoryStoryReview textarea { resize: vertical; }
+.memoryStoryReview button { min-height: 44px; padding: .65rem .8rem; border: 0; border-radius: 12px; background: var(--ink); color: var(--paper); font: inherit; font-weight: 750; cursor: pointer; }
+.memoryStoryReview button:disabled { cursor: not-allowed; opacity: .55; }
+.memoryStoryReview__moments { display: grid; gap: .65rem; padding-top: .8rem; border-top: 1px solid var(--line-soft); }
+.memoryStoryReview__moments > div { display: flex; justify-content: space-between; gap: 1rem; }
+.memoryStoryReview__moments > div span, .memoryStoryReview__moments p { color: var(--muted); font-size: .8rem; }
+.memoryStoryReview__moments ul { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.memoryStoryReview__moments li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .65rem; padding: .65rem; border: 1px solid var(--line-soft); border-radius: 12px; }
+.memoryStoryReview__moments li label { display: flex; align-items: center; gap: .65rem; }
+.memoryStoryReview__moments li input { flex: 0 0 auto; width: 20px; min-height: 20px; }
+.memoryStoryReview__moments li label span { display: grid; min-width: 0; }
+.memoryStoryReview__moments li label small { color: var(--muted); font-weight: 500; }
+.memoryStoryReview__moments li button { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); font-size: .75rem; }
+.memoryStoryReview__controls { grid-template-columns: 1fr 1fr; padding-top: .8rem; border-top: 1px solid var(--line-soft); }
+.memoryStoryReview__controls label > span { display: inline-flex; align-items: center; gap: .35rem; }
+.memoryStoryReview__confirmation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .75rem; padding: .8rem; border: 1px solid var(--brass); border-radius: 14px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
+.memoryStoryReview__confirmation p { margin: .2rem 0 0; color: var(--ink-soft); font-size: .8rem; }
+.memoryStoryReview__confirmation .memoryStoryReview__cancel { border: 1px solid var(--line); background: transparent; color: var(--ink); }
+@media (max-width: 900px) { .memoryStudioFlow { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .memoryStudioHeader { align-items: start; flex-direction: column; }
+  .memoryStudioFlow form { border-radius: 16px; }
+  .memoryStoryReview { padding: .8rem; border-radius: 16px; }
+  .memoryStoryReview__header { flex-direction: column; }
+  .memoryStoryReview__controls { grid-template-columns: 1fr; }
+  .memoryStoryReview__moments li { grid-template-columns: 1fr; }
+  .memoryStoryReview__confirmation { grid-template-columns: auto minmax(0, 1fr); }
+  .memoryStoryReview__confirmation button { grid-column: 1 / -1; width: 100%; }
 }

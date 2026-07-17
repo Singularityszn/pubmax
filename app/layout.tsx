@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
+import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
@@ -10,6 +10,37 @@ import OfflineReady from "@/components/OfflineReady";
 import FirstRunTour from "@/components/onboarding/FirstRunTour";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
+import PubPalSummon from "@/components/pubpal/PubPalSummon";
+import PerformanceVitals from "@/components/PerformanceVitals";
+import JsonLd from "@/components/seo/JsonLd";
+
+// Site-wide structured data (Wave S1.3). WebSite + Organization only — the
+// identity graph Google reads for the brand panel and AI engines read to know
+// what pubmaxxing.com IS. No SearchAction/potentialAction: the only on-site
+// search is the client-rendered WebGL map (/map?q=), which is not a crawlable
+// results page, so advertising a sitelinks search box would be schema for
+// something we can't prove (PRD non-negotiable). logo is an absolute URL to a
+// shipped icon asset (public/icon-512.png).
+const SITE_JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://pubmaxxing.com/#website",
+    name: "PUBMAXXING",
+    alternateName: "PUBMAXX",
+    url: "https://pubmaxxing.com",
+    description:
+      "A price-aware, provenance-first London pub map and crawl planner — real observed pint prices and cited historic pubs.",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://pubmaxxing.com/#organization",
+    name: "PUBMAXXING",
+    url: "https://pubmaxxing.com",
+    logo: "https://pubmaxxing.com/icon-512.png",
+  },
+];
 
 // Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
@@ -58,39 +89,39 @@ const dataMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxxing.com"),
   title: {
-    default: "PUBMAXXING — Every pint has a story",
-    template: "%s | PUBMAXXING",
+    default: "PUBMAXX — Make tonight worth remembering",
+    template: "%s | PUBMAXX",
   },
   description:
-    "Every pint has a story. PUBMAXXING is a price-aware, story-led London pub-crawl planner — real pint prices, heritage pubs, and community Pint Drops.",
+    "PUBMAXX is a price-aware nightlife map for real pint prices, live plans, side quests, and stories worth remembering.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "PubMax",
+    title: "PUBMAXX",
     statusBarStyle: "black-translucent",
   },
   openGraph: {
-    title: "PUBMAXXING — Every pint has a story",
+    title: "PUBMAXX — Make tonight worth remembering",
     description:
-      "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
+      "Real prices, live plans and unexpected places—built for better nights with your people.",
     url: "https://pubmaxxing.com",
-    siteName: "PUBMAXXING",
+    siteName: "PUBMAXX",
     type: "website",
     images: [
       {
-        url: "/og.png",
+        url: "/og.png?v=20260715-coral",
         width: 1200,
         height: 630,
-        alt: "PUBMAXXING — London pub crawl planner",
+        alt: "PUBMAXX nightlife map and planner",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "PUBMAXXING — Every pint has a story",
+    title: "PUBMAXX — Make tonight worth remembering",
     description:
-      "Cheap pints, chaotic nights, and the crawl stories worth passing down. Plan London pub crawls by price, story, and community Pint Drops.",
-    images: ["/og.png"],
+      "Real prices, live plans and unexpected places—built for better nights with your people.",
+    images: ["/og.png?v=20260715-coral"],
   },
   icons: {
     icon: [
@@ -163,6 +194,7 @@ export default async function RootLayout({
         <script
           type="speculationrules"
           nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               prerender: [
@@ -182,6 +214,9 @@ export default async function RootLayout({
             }),
           }}
         />
+        {/* Site-wide JSON-LD (WebSite + Organization). Carries the nonce like
+            every other inline script under the nonce CSP (proxy.ts). */}
+        <JsonLd data={SITE_JSON_LD} nonce={nonce} />
       </head>
       <body>
         {/* AuthProvider is additive: it establishes identity for signed-in users
@@ -200,19 +235,21 @@ export default async function RootLayout({
             {/* Night Mode (Wave E2) — the "during the night" surface. A
                 persistent bottom card that appears across every screen while a
                 plan is on tonight; renders nothing otherwise. */}
-            <NightModeCard />
+          <NightModeCard />
+          <PubPalSummon />
             {/* One-time first-run onboarding tour — renders nothing on the
                 server / for returning users (gated on hasSeenTour). */}
             <FirstRunTour />
             {/* Silent offline SW registration (issue #32) — renders nothing,
                 production-only, registers after load. */}
             <OfflineReady />
+            <PerformanceVitals />
           </CommandPaletteProvider>
         </AuthProvider>
-        {/* Vercel Web Analytics (R3) — cookie-less pageview + custom-event
-            tracking (see lib/analytics.ts for the typed trackEvent rail).
+        {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
+            events use the separately allow-listed rail in lib/analytics.ts.
             Outside AuthProvider on purpose: it's app infra, not identity. */}
-        <Analytics />
+        <ConsentAwareVercelAnalytics />
       </body>
     </html>
   );

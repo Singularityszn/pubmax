@@ -4,8 +4,9 @@ import { defineConfig, devices } from "@playwright/test";
 // serves a production build on a fixed port (kept off 3000 so it won't collide
 // with a hand-run `next dev`). Assertions are WebGL-agnostic so headless boxes
 // with no GPU don't false-fail — see e2e/smoke.spec.ts.
-const PORT = 3100;
+const PORT = Number(process.env.PW_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
+const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -18,14 +19,15 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
+    video: process.env.PUBMAX_GATE_Z_VIDEO ? "on" : "off",
   },
   // Screenshots are design-QA artifacts, not assertions: kept out of the
   // `chromium` project (testIgnore below) and out of `playwright test`'s
   // project list entirely by default — Playwright runs every configured
   // project when no --project filter is given, so the "screenshots" project
-  // below is only added to the array when PW_SCREENSHOTS=1 is set. Invoke
-  // explicitly:
-  //   PW_SCREENSHOTS=1 npx playwright test --project=screenshots
+  // below are only added to the array when PW_SCREENSHOTS=1 is set. Each
+  // device/theme combination is a real Playwright project so `npm run shots`
+  // exercises (and reports) the complete design-QA matrix explicitly.
   projects: [
     {
       name: "chromium",
@@ -73,20 +75,45 @@ export default defineConfig({
     },
     ...(process.env.PW_SCREENSHOTS
       ? [
-          {
-            name: "screenshots",
-            use: { ...devices["Desktop Chrome"] },
-            testMatch: "**/screenshots.spec.ts",
-          },
+          ...(["light", "dark"] as const).flatMap((theme) =>
+            [
+              { width: 390, height: 844, formFactor: "mobile" },
+              { width: 430, height: 932, formFactor: "mobile" },
+              { width: 1280, height: 800, formFactor: "desktop" },
+              { width: 1440, height: 900, formFactor: "desktop" },
+            ].map(({ width, height, formFactor }) => ({
+              name: `shots-${width}-${theme}`,
+              metadata: {
+                screenshotTheme: theme,
+                screenshotFormFactor: formFactor,
+                screenshotViewport: String(width),
+              },
+              use: {
+                ...(formFactor === "mobile" ? devices["iPhone 13"] : devices["Desktop Chrome"]),
+                browserName: "chromium" as const,
+                viewport: { width, height },
+                ...(formFactor === "desktop"
+                  ? {
+                      launchOptions: {
+                        args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+                      },
+                    }
+                  : {}),
+              },
+              testMatch: "**/screenshots.spec.ts",
+            })),
+          ),
         ]
       : []),
   ],
   webServer: {
-    command: `npm run build && npm run start -- --port ${PORT}`,
+    command: SCREENSHOT_RUN
+      ? `PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`
+      : `NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build && NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`,
     url: BASE_URL,
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
     // Production build can take a while cold; give it room in CI.
-    timeout: 180_000,
+    timeout: 600_000,
     stdout: "pipe",
     stderr: "pipe",
   },

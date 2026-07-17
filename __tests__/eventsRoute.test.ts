@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { POST } from "@/app/api/events/route";
+import { analyticsSurfaceFromPath, POST } from "@/app/api/events/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 function post(body: string, headers: Record<string, string> = {}): Request {
@@ -18,6 +18,7 @@ function post(body: string, headers: Record<string, string> = {}): Request {
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.POSTHOG_PROJECT_API_KEY;
   __resetPintDrops();
 });
 
@@ -34,6 +35,8 @@ describe("POST /api/events", () => {
           name: "tonight_filter_select",
           props: { kind: "gig", secret: "drop-me" },
           path: "/tonight?ref=x",
+          anonymousId: "anon_0123456789abcdef",
+          analyticsConsent: true,
           ts: 123,
         }),
       ),
@@ -72,7 +75,11 @@ describe("POST /api/events", () => {
 
   it("drops the 121st event from the same IP within a minute (204, no log)", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
-    const body = JSON.stringify({ name: "tonight_screen_view" });
+    const body = JSON.stringify({
+      name: "tonight_screen_view",
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    });
     const headers = { "x-forwarded-for": "203.0.113.9" };
 
     for (let i = 0; i < 120; i++) {
@@ -93,5 +100,73 @@ describe("POST /api/events", () => {
     );
     expect(res.status).toBe(204);
     expect(log).not.toHaveBeenCalled();
+  });
+
+  it("forwards a sanitized event to PostHog EU when configured", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const res = await POST(post(JSON.stringify({
+      name: "plan_created",
+      props: { count: 3, freeText: "do not forward" },
+      path: "/plan?memberToken=secret",
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(res.status).toBe(204);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://eu.i.posthog.com/capture/");
+    const payload = JSON.parse(String(init.body)) as {
+      api_key: string;
+      event: string;
+      properties: Record<string, unknown>;
+    };
+    expect(payload.api_key).toBe("phc_test_project");
+    expect(payload.event).toBe("plan_created");
+    expect(payload.properties).toMatchObject({
+      count: 3,
+      path: "/plan",
+      distinct_id: "anon_0123456789abcdef",
+      $process_person_profile: false,
+    });
+    expect(JSON.stringify(payload)).not.toContain("memberToken");
+    expect(JSON.stringify(payload)).not.toContain("freeText");
+  });
+
+  it("templates dynamic paths before logging or forwarding", async () => {
+    expect(analyticsSurfaceFromPath("/u/night_owl?token=secret")).toBe("/u/[handle]");
+    expect(analyticsSurfaceFromPath("/plan/6ab5ca40-836b-4970-9477-d1779fdd31ab")).toBe("/plan/[id]");
+    expect(analyticsSurfaceFromPath("/messages/private-thread")).toBe("/messages/[id]");
+    expect(analyticsSurfaceFromPath("/unknown/private-value")).toBeNull();
+  });
+
+  it("does not log or forward when analytics consent is absent", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await POST(post(JSON.stringify({ name: "tonight_screen_view", path: "/tonight" })));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it("fails soft when PostHog is unavailable", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const res = await POST(post(JSON.stringify({
+      name: "tonight_screen_view",
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(res.status).toBe(204);
+    expect(log).toHaveBeenCalledTimes(1);
   });
 });

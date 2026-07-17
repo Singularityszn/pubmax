@@ -63,8 +63,15 @@ export type DonutClusterSync = {
  *  clicking the bubble it replaced. */
 export function createDonutClusterSync(
   map: maplibregl.Map,
-  cinematic: (options: maplibregl.EaseToOptions) => void,
+  cinematic: (options: maplibregl.EaseToOptions, kind?: "cluster" | "venue" | "landmark") => void,
+  { enabled = true }: { enabled?: boolean } = {},
 ): DonutClusterSync {
+  // Mobile Safari is especially sensitive to DOM markers being reconciled
+  // while vector-source tiles settle. The permanent MapLibre cluster/count
+  // layers already carry the same interaction and remain GPU-composited, so
+  // mobile/coarse-pointer callers disable this decorative DOM enhancement.
+  if (!enabled) return { destroy: () => {} };
+
   const markers = new Map<number, MarkerEntry>();
   let donutsActive = false;
   let lastRenderAt = 0;
@@ -95,7 +102,7 @@ export function createDonutClusterSync(
     source
       .getClusterExpansionZoom(clusterId)
       .then((zoom) => {
-        cinematic({ center: coordinates, zoom, duration: 700 });
+        cinematic({ center: coordinates, zoom, duration: 700 }, "cluster");
       })
       .catch(() => {
         // A cluster can dissolve between the click and this resolving

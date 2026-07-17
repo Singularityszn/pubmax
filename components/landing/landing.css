@@ -1,1881 +1,295 @@
-/* PUBMAXXING landing page — vivid London pub-crawl styling.
-   All colour comes from tokens in globals.css so this flips light/dark for free.
-   Scoped under .lp so nothing leaks into the /map app shell. */
-
 .lp {
-  --lp-measure: 1180px;
-  --lp-gap: clamp(72px, 11vw, 148px);
-
-  background: var(--gradient-party);
+  --lp-max: 1240px;
+  --lp-pad: clamp(18px, 4vw, 52px);
+  min-height: 100dvh;
+  overflow: clip;
+  background: var(--paper);
   color: var(--ink);
-  font-family: var(--font-geist, Inter), ui-sans-serif, system-ui, sans-serif;
-  overflow-x: hidden;
 }
 
-.lp::before {
-  content: "";
+.lp *, .lp *::before, .lp *::after { box-sizing: border-box; }
+
+.lpNav {
   position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image:
-    linear-gradient(90deg, color-mix(in srgb, var(--river) 7%, transparent) 1px, transparent 1px),
-    linear-gradient(0deg, color-mix(in srgb, var(--brass) 6%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, black, transparent 78%);
-}
-
-.lp *,
-.lp *::before,
-.lp *::after {
-  box-sizing: border-box;
-}
-
-.lp .lpSerif {
-  font-family: var(--font-display, var(--serif));
-  font-weight: 600;
-  font-optical-sizing: auto;
-}
-
-.lp .container {
-  width: 100%;
-  max-width: var(--lp-measure);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 5vw, 48px);
-}
-
-/* ── Top bar ─────────────────────────────────────────────────────────── */
-.lp .topbar {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-float);
-  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
-  backdrop-filter: blur(18px) saturate(1.2);
-  border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--brass) 30%);
-}
-
-.lp .topbarInner {
-  display: flex;
+  top: 14px;
+  left: 50%;
+  z-index: 720;
+  width: min(var(--lp-max), calc(100vw - 28px));
+  min-height: 64px;
+  padding: 8px 10px 8px 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  min-height: 68px;
+  gap: 18px;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--river) 24%);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  box-shadow: 0 18px 60px color-mix(in srgb, var(--ink-deep) 13%, transparent);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  transform: translateX(-50%);
 }
 
-.lp .wordmark {
+.lpWordmark {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
-  gap: 11px;
-  text-decoration: none;
+  gap: 9px;
   color: var(--ink);
+  font: 750 15px/1 var(--font-display);
+  letter-spacing: -.02em;
+  text-decoration: none;
 }
 
-.lp .brandGlyph {
-  width: 38px;
-  aspect-ratio: 1;
+.lpMark {
+  width: 35px;
+  height: 35px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--brass), var(--river));
-  color: var(--color-on-accent);
-  border-radius: 14px;
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 24%, transparent);
+  border-radius: 11px;
+  background: var(--ink-deep);
+  color: var(--color-on-inverse);
+  font: 800 17px/1 var(--font-display);
+  letter-spacing: -.12em;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 18%, transparent);
 }
+.lpMark span { color: var(--brass-bright); font-size: 7px; letter-spacing: -.18em; }
 
-.lp .wordmark .wordmarkText {
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.34rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.lp .navLinks {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.lp .navLinks a {
-  position: relative;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: color 0.18s ease, background 0.18s ease;
-}
-
-/* Quiet brass underline that grows from the centre on hover/focus. */
-.lp .navLinks a:not(.topbarCta)::after {
-  content: "";
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 5px;
-  height: 1.5px;
-  background: var(--brass);
-  transform: scaleX(0);
-  transform-origin: center;
-  opacity: 0.7;
-  transition: transform 0.2s ease;
-}
-
-.lp .navLinks a:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-}
-
-.lp .navLinks a:not(.topbarCta):hover::after,
-.lp .navLinks a:not(.topbarCta):focus-visible::after {
-  transform: scaleX(1);
-}
-
-.lp .navLinks a:not(.topbarCta):focus-visible {
-  color: var(--ink);
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-/* buttons ------------------------------------------------------------- */
-.lp .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+.lpPrimaryNav { display: flex; justify-content: center; align-items: center; gap: 2px; }
+.lpPrimaryNav a {
   min-height: 44px;
-  padding: 0 20px;
-  border-radius: var(--radius-pill);
-  font-size: 0.94rem;
-  font-weight: 600;
-  text-decoration: none;
-  border: 1px solid transparent;
-  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease,
-    border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
-}
-
-/* Brass focus ring on every landing button (wins over the zero-specificity
-   :where() rule in globals.css). */
-.lp .btn:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-.lp .btnPrimary {
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
-  box-shadow: 0 14px 30px color-mix(in srgb, var(--brass) 30%, transparent);
-}
-
-/* Non-motion feedback stays available to everyone (incl. reduced-motion). */
-.lp .btnPrimary:hover {
-  filter: brightness(1.18);
-}
-
-.lp .btnGhost {
-  background: color-mix(in srgb, var(--panel-raised) 72%, transparent);
-  color: var(--ink);
-  border-color: color-mix(in srgb, var(--line) 70%, var(--river) 30%);
-}
-
-.lp .btnGhost:hover {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-  color: var(--ink);
-}
-
-.lp .topbar .btn {
-  min-height: 40px;
-  padding: 0 16px;
-}
-
-/* The topbar CTA is a solid ink-deep primary sitting inside .navLinks, so the
-   generic link colour (ink-soft — near-invisible on the dark fill) must never
-   win. Fixed-contrast token: cream on ink-deep clears AA in both themes. */
-.lp .navLinks a.topbarCta {
-  color: var(--color-on-inverse);
-}
-
-.lp .navLinks a.topbarCta:hover {
-  color: var(--color-on-inverse);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  filter: brightness(1.18);
-}
-
-/* ── Section scaffolding ─────────────────────────────────────────────── */
-.lp main > section {
-  padding-block: var(--lp-gap);
-}
-
-.lp .eyebrow {
+  padding: 0 13px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 14px;
-  color: var(--brass);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-.lp .eyebrow::before {
-  content: "";
-  width: 22px;
-  height: 1px;
-  background: var(--brass);
-  opacity: 0.6;
-}
-
-.lp .sectionHead {
-  max-width: 640px;
-  margin-bottom: 48px;
-}
-
-.lp .sectionHead h2 {
-  font-family: var(--font-display, var(--serif));
-  font-weight: 600;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
-  font-size: clamp(1.9rem, 3.6vw, 2.7rem);
-  line-height: 1.06;
-  letter-spacing: -0.02em;
-  margin: 0 0 14px;
-}
-
-.lp .sectionHead p {
-  margin: 0;
+  border-radius: 999px;
   color: var(--ink-soft);
-  font-size: 1.06rem;
-  line-height: 1.6;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
 }
+.lpPrimaryNav a:hover { color: var(--ink); background: color-mix(in srgb, var(--brass) 8%, transparent); }
+.lpNavActions { display: flex; align-items: center; gap: 7px; }
 
-/* ── Hero: full-bleed photo + brand-first composition ─────────────────── */
-.lp .hero {
+.lp :where(a, button):focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
+
+.lpHero {
   position: relative;
-  padding-top: clamp(28px, 5vw, 56px);
-  padding-bottom: clamp(36px, 6vw, 72px);
+  min-height: 100dvh;
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: clamp(106px, 12vh, 142px) var(--lp-pad) clamp(62px, 8vh, 96px);
+  display: grid;
+  grid-template-columns: minmax(0, .92fr) minmax(460px, 1.08fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 78px);
   isolation: isolate;
 }
 
-/* Edge-to-edge photographic plane behind the first viewport. */
-.lp .heroPhoto::before {
+.lpHero::before {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: -2;
+  z-index: -3;
   background:
-    url("/landing/hero-thames.jpg") center 42% / cover no-repeat;
+    linear-gradient(90deg, var(--paper) 0%, color-mix(in srgb, var(--paper) 92%, transparent) 42%, color-mix(in srgb, var(--paper) 55%, transparent) 100%),
+    url("/landing/hero-thames.jpg") 70% 45% / cover no-repeat;
+  opacity: .96;
 }
 
-.lp .heroPhoto::after {
+.lpHero::after {
   content: "";
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26%;
   z-index: -1;
-  /* Keep the copy column on a dark scrim so --color-on-photo stays readable;
-     only fade to paper below the first viewport. */
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--ink-deep) 72%, transparent) 0%,
-      color-mix(in srgb, var(--ink-deep) 58%, transparent) 42%,
-      color-mix(in srgb, var(--ink-deep) 38%, transparent) 68%,
-      color-mix(in srgb, var(--paper) 70%, transparent) 88%,
-      var(--paper) 100%
-    ),
-    linear-gradient(
-      105deg,
-      color-mix(in srgb, var(--ink-deep) 45%, transparent) 0%,
-      color-mix(in srgb, var(--brass) 18%, transparent) 28%,
-      transparent 58%
-    );
-  pointer-events: none;
+  background: linear-gradient(transparent, var(--paper));
 }
 
-.lp .heroGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: clamp(28px, 5vw, 64px);
-  align-items: center;
-}
+.lpHeroAtmosphere { position: absolute; inset: 0; z-index: -2; pointer-events: none; }
+.lpOrbit { position: absolute; border: 1px solid color-mix(in srgb, var(--river) 28%, transparent); border-radius: 50%; }
+.lpOrbitOne { width: min(62vw, 840px); aspect-ratio: 1; right: -18%; top: -24%; }
+.lpOrbitTwo { width: min(40vw, 540px); aspect-ratio: 1; left: -18%; bottom: -25%; border-color: color-mix(in srgb, var(--brass) 22%, transparent); }
+.lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--river) 40%, transparent), transparent); }
 
-.lp .heroBrand {
-  font-family: var(--font-display, var(--serif));
-  font-weight: 700;
-  font-size: clamp(3.1rem, 9vw, 5.4rem);
-  line-height: 0.92;
-  letter-spacing: -0.045em;
-  margin: 0 0 12px;
-  color: var(--ink);
-  text-wrap: balance;
-}
-
-.lp .heroTagline {
-  max-width: 26ch;
-  margin: 0 0 14px;
-  color: var(--ink-soft);
-  font-size: clamp(1.15rem, 2.4vw, 1.45rem);
-  font-style: normal;
-  font-weight: 500;
-  line-height: 1.28;
-  letter-spacing: -0.01em;
-  text-wrap: balance;
-}
-
-/* Shared lede class — default ink for paper sections (landlord / drops).
-   Photo-hero overrides below keep white text only on the dark scrim. */
-.lp .heroLede {
-  max-width: 36ch;
-  margin: 0 0 22px;
-  color: color-mix(in srgb, var(--ink) 88%, transparent);
-  font-size: clamp(0.98rem, 2vw, 1.1rem);
-  line-height: 1.55;
-  text-wrap: pretty;
-}
-
-.lp .heroPhoto .heroBrand {
-  color: var(--color-on-photo);
-  text-shadow: 0 12px 36px color-mix(in srgb, var(--ink-deep) 55%, transparent);
-  animation: lpBrandIn var(--duration-slow) var(--ease-out) both;
-}
-
-.lp .heroPhoto .heroTagline {
-  color: color-mix(in srgb, var(--color-on-photo) 94%, var(--brass-bright));
-  text-shadow: 0 8px 24px color-mix(in srgb, var(--ink-deep) 45%, transparent);
-  animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.06s both;
-}
-
-.lp .heroPhoto .heroLede {
-  color: color-mix(in srgb, var(--color-on-photo) 96%, transparent);
-  text-shadow:
-    0 1px 2px color-mix(in srgb, var(--ink-deep) 65%, transparent),
-    0 8px 20px color-mix(in srgb, var(--ink-deep) 50%, transparent);
-  animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.1s both;
-}
-
-@keyframes lpBrandIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.lp .heroActions {
+.lpHeroCopy { position: relative; z-index: 2; max-width: 610px; }
+.lpHeroKicker {
+  width: fit-content;
+  margin: 0 0 20px;
+  padding: 7px 10px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 8px;
-  animation: lpBrandIn var(--duration-slow) var(--ease-out) 0.14s both;
-}
-
-/* Airbnb-clean: one primary CTA in the hero; secondary is a quiet text link. */
-.lp .heroActions .btnGhost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--ink-soft);
-  backdrop-filter: none;
-  box-shadow: none;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  padding-inline: 4px;
-}
-
-.lp .heroActions .btnGhost:hover {
-  background: transparent;
-  border-color: transparent;
-  color: var(--ink);
-}
-
-.lp .heroPhoto .heroActions .btnGhost {
-  color: color-mix(in srgb, var(--color-on-photo) 92%, transparent);
-  text-shadow: 0 1px 2px color-mix(in srgb, var(--ink-deep) 55%, transparent);
-}
-
-.lp .heroPhoto .heroActions .btnGhost:hover {
-  color: var(--color-on-photo);
-}
-
-.lp .heroPhoto .btnGhost {
-  background: color-mix(in srgb, var(--panel-raised) 42%, transparent);
-  color: var(--color-on-photo);
-  border-color: color-mix(in srgb, var(--color-on-photo) 48%, transparent);
-  /* Wave J2 — solid wash over photo (no frost stack). */
-  text-shadow: 0 1px 2px color-mix(in srgb, var(--ink-deep) 40%, transparent);
-}
-
-.lp .heroPhoto .btnGhost:hover {
-  /* Hover must read denser than the 42% default wash (not thinner). */
-  background: color-mix(in srgb, var(--panel-raised) 54%, transparent);
-  border-color: var(--brass-bright);
-  color: var(--color-on-photo);
-}
-
-.lp .heroFigure {
-  position: relative;
-  padding: 0;
-  border: 1px solid color-mix(in srgb, var(--color-on-photo) 18%, transparent);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--ink-deep) 35%, transparent);
-  box-shadow:
-    0 28px 64px color-mix(in srgb, var(--ink-deep) 42%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--brass) 18%, transparent);
-  overflow: hidden;
-}
-
-/* Interactive photo plane with drink-shaped pubs */
-.lp .thamesHeroPhoto {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 560 / 400;
-  min-height: 280px;
-  overflow: hidden;
-  background: var(--ink-deep);
-}
-
-.lp .thamesHeroImg {
-  object-fit: cover;
-  object-position: center 40%;
-  transform: scale(1.02);
-  animation: lpHeroKen 18s ease-in-out infinite alternate;
-}
-
-.lp .thamesHeroScrim {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--brass) 22%, transparent), transparent 55%),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--ink-deep) 18%, transparent) 0%,
-      color-mix(in srgb, var(--ink-deep) 55%, transparent) 100%
-    );
-  pointer-events: none;
-}
-
-.lp .thamesHeroHint {
-  position: absolute;
-  left: 14px;
-  top: 12px;
-  z-index: 2;
-  margin: 0;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ink-deep) 55%, transparent);
-  color: var(--color-on-photo);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  backdrop-filter: blur(6px);
-  pointer-events: none;
-}
-
-/* Pointer-aware verb: default (touch/no media support) reads "Tap"; a
-   mouse-driven pointer swaps in "Choose" so desktop never claims tapping. */
-.lp .thamesHeroHintPointer {
-  display: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .lp .thamesHeroHintTouch {
-    display: none;
-  }
-
-  .lp .thamesHeroHintPointer {
-    display: inline;
-  }
-}
-
-.lp .thamesHeroPins {
-  position: absolute;
-  /* Inset the pin coordinate space so percentage-placed glyph tiles never hug
-     the rounded card edge or collide with the .thamesHeroHint header pill:
-     top band clears the hint, side + bottom gutters keep tiles off the corners. */
-  inset: 46px 16px 18px 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lp .thamesHeroPin {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  animation: lpPinFloat 3.6s ease-in-out infinite;
-  animation-delay: calc(var(--pin-i, 0) * 0.28s);
-}
-
-.lp .thamesHeroPinLink {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  min-width: 72px;
-  text-decoration: none;
-  color: var(--color-on-photo);
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 0.18s ease;
-}
-
-.lp .thamesHeroPinLink:hover,
-.lp .thamesHeroPinLink:focus-visible {
-  transform: translateY(-3px) scale(1.04);
-}
-
-.lp .thamesHeroPinLink:focus-visible {
-  outline: 2px solid var(--brass-bright);
-  outline-offset: 4px;
-  border-radius: 14px;
-}
-
-.lp .thamesHeroPinLink:active {
-  transform: translateY(0) scale(0.97);
-}
-
-.lp .thamesHeroPinGlyph {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--panel-raised) 88%, transparent), color-mix(in srgb, var(--panel-raised) 72%, transparent));
-  border: 2px solid color-mix(in srgb, var(--brass-bright) 55%, transparent);
-  box-shadow:
-    0 10px 22px color-mix(in srgb, var(--ink-deep) 45%, transparent),
-    0 0 0 4px color-mix(in srgb, var(--brass) 18%, transparent);
-  transition: box-shadow 0.18s ease, border-color 0.18s ease;
-}
-
-.lp .thamesHeroPinLink:hover .thamesHeroPinGlyph,
-.lp .thamesHeroPinLink:focus-visible .thamesHeroPinGlyph {
-  border-color: var(--brass-bright);
-  box-shadow:
-    0 14px 28px color-mix(in srgb, var(--ink-deep) 50%, transparent),
-    0 0 0 5px color-mix(in srgb, var(--brass) 28%, transparent);
-}
-
-.lp .thamesHeroPinMeta {
-  display: grid;
-  gap: 1px;
-  justify-items: center;
-  padding: 5px 8px 6px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--ink-deep) 62%, transparent);
-  backdrop-filter: blur(8px);
-  max-width: 110px;
-  text-align: center;
-}
-
-.lp .thamesHeroPinCat {
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--brass-bright);
-}
-
-.lp .thamesHeroPinPlace {
-  font-family: var(--font-display, var(--serif));
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.15;
-  color: var(--color-on-photo);
-}
-
-.lp .thamesHeroPinPrice {
-  font-size: 0.68rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--color-on-photo) 78%, transparent);
-}
-
-.lp .figCaption {
-  margin: 0;
-  padding: 10px 14px 12px;
-  color: color-mix(in srgb, var(--color-on-photo) 78%, transparent);
-  font-size: 0.76rem;
-  font-style: italic;
-  background: color-mix(in srgb, var(--ink-deep) 55%, transparent);
-}
-
-@keyframes lpHeroKen {
-  from {
-    transform: scale(1.02);
-  }
-  to {
-    transform: scale(1.06);
-  }
-}
-
-@keyframes lpPinFloat {
-  0%,
-  100% {
-    transform: translate(-50%, -50%);
-  }
-  50% {
-    transform: translate(-50%, calc(-50% - 5px));
-  }
-}
-
-.lp .illustrative {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-style: italic;
-  margin: 14px 0 0;
-}
-
-/* ── The wedge: three value cards ────────────────────────────────────── */
-.lp .cardGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.lp .wedgeCard {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 26px 24px;
-  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--lp-cat, var(--brass)) 24%);
-  border-radius: 22px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--lp-cat, var(--brass)) 12%, var(--panel-raised)), var(--panel-raised) 62%),
-    var(--panel-raised);
-  transition: border-color 0.18s ease, transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-/* Warm-up (border + shadow) for everyone; the lift is gated below. */
-.lp .wedgeCard:hover {
-  border-color: color-mix(in srgb, var(--lp-cat, var(--brass)) 56%, var(--line));
-  box-shadow: 0 18px 38px color-mix(in srgb, var(--lp-cat, var(--brass)) 18%, transparent);
-}
-
-.lp .wedgeIcon {
-  width: 44px;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--lp-cat, var(--brass)) 36%, var(--line));
-  background: color-mix(in srgb, var(--lp-cat, var(--brass)) 15%, var(--panel-raised));
-  color: var(--lp-cat, var(--brass));
-}
-
-.lp .wedgeCard h3 {
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.4rem;
-  margin: 0;
-}
-
-.lp .wedgeCard p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.98rem;
-  line-height: 1.55;
-}
-
-.lp .wedgeNumber {
-  margin-top: auto;
-  padding-top: 8px;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── The Landlord ────────────────────────────────────────────────────── */
-.lp .landlordSection {
-  border-top: 1px solid var(--line-soft);
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.lp .splitGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: clamp(32px, 5vw, 72px);
-  align-items: center;
-}
-
-.lp .chatMock {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.lp .chatBar {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 13px 16px;
-  background: var(--ink-deep);
-  color: var(--brass-bright);
-  font-size: 0.86rem;
-  font-weight: 600;
-}
-
-.lp .chatBody {
-  padding: 18px 18px 20px;
-  display: grid;
-  gap: 12px;
-}
-
-.lp .chatQuestion {
-  justify-self: end;
-  max-width: 82%;
-  padding: 10px 13px;
-  border-radius: var(--radius-sm) var(--radius-sm) 2px var(--radius-sm);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  color: var(--ink);
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-.lp .chatAnswer {
-  max-width: 92%;
-  padding: 13px 15px;
-  border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 2px;
-  border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
-  background: color-mix(in srgb, var(--brass) 5%, transparent);
-}
-
-.lp .chatAnswer p {
-  margin: 0;
-  color: var(--ink);
-  font-size: 0.94rem;
-  line-height: 1.58;
-}
-
-.lp .chatAnswer .clarify {
-  margin-top: 8px;
-  color: var(--brass);
-  font-style: italic;
-}
-
-.lp .sourceChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 12px;
-}
-
-.lp .sourceChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-raised);
-  color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 600;
-  transition: border-color 0.18s ease, color 0.18s ease;
-}
-
-.lp .sourceChip:hover {
-  border-color: var(--brass);
-  color: var(--ink);
-}
-
-.lp .sourceChip::before {
-  content: "";
-  width: 6px;
-  aspect-ratio: 1;
-  border-radius: 999px;
-  background: var(--river);
-}
-
-/* ── Pint Drops ──────────────────────────────────────────────────────── */
-.lp .dropsGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: clamp(36px, 5.5vw, 80px);
-  align-items: center;
-}
-
-/* Copy column: readable hierarchy on paper (not photo-scrim white). */
-.lp .dropsCopy .lpSerif {
-  font-size: clamp(1.85rem, 3.4vw, 2.55rem);
-  line-height: 1.1;
-  letter-spacing: -0.022em;
-  text-wrap: balance;
-  margin: 0 0 16px;
-  color: var(--ink);
-}
-
-.lp .dropsCopy .heroLede {
-  max-width: 36ch;
-  margin: 0 0 14px;
-  /* Readable on paper: ink at ~0.82, not photo-scrim white / washed muted. */
-  color: color-mix(in srgb, var(--ink) 88%, transparent);
-  font-size: clamp(1.02rem, 1.8vw, 1.1rem);
-  font-weight: 450;
-  line-height: 1.65;
-  text-wrap: pretty;
-  text-shadow: none;
-  animation: none;
-}
-
-.lp .dropsCopy .dropsHanddown {
-  margin: 0 0 22px;
-  max-width: 34ch;
-  color: color-mix(in srgb, var(--ink) 80%, transparent);
-  font-size: 0.98rem;
-  line-height: 1.65;
-}
-
-.lp .dropsCta {
-  display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 10px 2px;
-  color: var(--brass);
-  font-size: 0.95rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  text-decoration: none;
-  transition:
-    color var(--duration-base, 0.18s) var(--ease-out),
-    gap var(--duration-base, 0.18s) var(--ease-out);
-}
-
-.lp .dropsCta:hover {
-  color: var(--brass-bright);
-  gap: 12px;
-}
-
-.lp .dropsCta:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 4px;
-  border-radius: 4px;
-}
-
-/* Vertical timeline: cards + connectors share one axis (generational hand-down). */
-.lp .dropTimeline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  width: 100%;
-  max-width: 420px;
-}
-
-.lp .dropTimelineItem {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  margin: 0;
-  padding: 0;
-}
-
-.lp .dropTimelineConnector {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  height: 42px;
-  margin: 0;
-  position: relative;
-}
-
-.lp .dropTimelineLine {
-  width: 1.5px;
-  flex: 1 1 auto;
-  min-height: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--river) 30%);
   border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--brass) 70%, transparent),
-    color-mix(in srgb, var(--pint) 65%, transparent)
-  );
+  background: color-mix(in srgb, var(--panel-raised) 78%, transparent);
+  color: var(--ink-soft);
+  font: 650 11px/1 var(--font-data);
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
-
-.lp .dropTimelineArrow {
-  width: 10px;
-  height: 10px;
-  margin-top: -1px;
-  border-right: 2px solid color-mix(in srgb, var(--pint) 55%, var(--brass));
-  border-bottom: 2px solid color-mix(in srgb, var(--pint) 55%, var(--brass));
-  transform: rotate(45deg);
-  flex-shrink: 0;
-  opacity: 0.9;
-}
-
-.lp .dropSample {
-  display: flex;
-  flex-direction: column;
-  min-height: 168px;
-  padding: 18px 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-raised);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 4%, transparent);
-  transition:
-    border-color var(--duration-base, 0.18s) var(--ease-out),
-    background var(--duration-base, 0.18s) var(--ease-out),
-    box-shadow var(--duration-base, 0.18s) var(--ease-out),
-    transform var(--duration-fast, 0.12s) var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .lp .dropSample:hover {
-    border-color: var(--brass);
-    box-shadow: 0 12px 28px color-mix(in srgb, var(--brass) 14%, transparent);
-  }
-}
-
-.lp .dropSample .dropTop {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  flex-shrink: 0;
-}
-
-.lp .dropSample .dropWho {
-  font-weight: 700;
-  font-size: 0.92rem;
-  color: var(--ink);
-  letter-spacing: -0.01em;
-}
-
-.lp .dropSample .dropPrice {
-  font-family: var(--font-display, var(--serif));
-  font-weight: 600;
-  font-size: 1.2rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--pint);
-  letter-spacing: -0.02em;
-}
-
-.lp .dropSample .dropNote {
+.lpHeroKicker span { width: 7px; height: 7px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brass) 14%, transparent); }
+.lpHero h1 {
+  max-width: 9ch;
   margin: 0;
-  flex: 1 1 auto;
-  color: color-mix(in srgb, var(--ink) 78%, transparent);
-  font-family: var(--font-display, var(--serif));
-  font-weight: 450;
-  font-size: 1.02rem;
-  line-height: 1.55;
-  letter-spacing: -0.01em;
-  text-wrap: pretty;
+  font: 720 clamp(52px, 7.1vw, 104px)/.9 var(--font-display);
+  letter-spacing: -.066em;
+  text-wrap: balance;
 }
-
-.lp .dropSample small {
-  display: block;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.lp .dropSample .dropMeta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: auto;
-  padding-top: 14px;
-  flex-shrink: 0;
-}
-
-.lp .dropSample .dropMeta small {
-  margin-top: 0;
-}
-
-/* Honest labelling: sample content is marked, never passed off as live. */
-.lp .exampleTag {
+.lpHeroLede { max-width: 520px; margin: 25px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.6vw, 20px); line-height: 1.55; }
+.lpHeroActions { width: min(100%, 680px); margin-top: 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 10px; }
+.lpButton {
+  min-height: 54px;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 22px;
-  padding: 3px 9px;
-  border: 1px solid color-mix(in srgb, var(--ink-soft) 28%, transparent);
-  border-radius: var(--radius-sm, 6px);
-  background: color-mix(in srgb, var(--ink) 5%, var(--panel));
-  color: var(--ink-soft);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.lp .dropSample .exampleTag {
-  border-color: color-mix(in srgb, var(--pint) 35%, var(--line));
-  background: color-mix(in srgb, var(--pint) 10%, var(--panel-raised));
-  color: color-mix(in srgb, var(--pint) 72%, var(--ink));
-}
-
-.lp .chatBar .exampleTag {
-  margin: 0 0 0 auto;
-  color: var(--brass-bright);
-  border-color: rgba(255, 255, 255, 0.28);
-  background: transparent;
-}
-
-/* ── Live Pint Drops strip ───────────────────────────────────────────────
-   Horizontal scrollable rail of the newest community drops. Sober surface —
-   the vibrancy lives in the golden-days editorial, not here. */
-.lp .dropStrip {
-  margin-top: 44px;
-  padding-top: 32px;
-  border-top: 1px solid var(--line-soft);
-}
-
-.lp .dropStripHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
-}
-
-.lp .dropStripHead .eyebrow {
-  margin: 0;
-}
-
-.lp .dropStripHint {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.lp .dropStripRail {
-  display: flex;
-  gap: 14px;
-  margin: 0;
-  padding: 4px 4px 14px;
-  list-style: none;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  scroll-padding-left: 4px;
-  /* Keep the swipe inside the rail — no accidental page-back on phones. */
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-}
-
-.lp .dropStripRail::-webkit-scrollbar {
-  height: 8px;
-}
-
-.lp .dropStripRail::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 999px;
-}
-
-.lp .dropStripCard {
-  scroll-snap-align: start;
-  flex: 0 0 clamp(240px, 66vw, 288px);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease,
-    transform 0.18s ease;
-}
-
-.lp .dropStripCard:hover {
-  border-color: var(--brass);
-  box-shadow: 0 10px 24px rgba(154, 106, 36, 0.12);
-}
-
-.lp .dropStripTop {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.lp .dropStripWho {
-  font-weight: 700;
-  font-size: 0.9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lp .dropStripPrice {
-  font-family: var(--font-display, var(--serif));
-  font-weight: 600;
-  font-size: 1.14rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--pint);
-  white-space: nowrap;
-}
-
-.lp .dropStripNote {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-.lp .dropStripMeta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: auto;
-  padding-top: 4px;
-}
-
-.lp .dropStripEra {
-  color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lp .dropStripEraMuted {
-  font-style: italic;
-}
-
-/* Provenance chip — sober, monochrome-leaning; contributor gets a quiet brass
-   accent so priced drops read as the trustworthy default. */
-.lp .provChip {
-  display: inline-block;
-  flex: 0 0 auto;
-  padding: 2px 9px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-raised);
-  color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.lp .provChip-contributor {
-  border-color: color-mix(in srgb, var(--brass) 45%, transparent);
-  color: var(--brass);
-}
-
-.lp .provChip-sourced {
-  border-color: var(--line);
-  color: var(--ink-soft);
-}
-
-/* Loading skeleton — quiet shimmer; static under reduced motion (gated below). */
-.lp .dropStripCardSkeleton {
-  gap: 12px;
-  border-style: dashed;
-  border-color: var(--line-soft);
-}
-
-.lp .dropStripCardSkeleton .skelLine {
-  display: block;
-  height: 11px;
-  border-radius: 6px;
-  background: var(--line-soft);
-}
-
-.lp .dropStripCardSkeleton .skelLineTop {
-  width: 55%;
-  height: 14px;
-}
-
-.lp .dropStripCardSkeleton .skelLineShort {
-  width: 40%;
-}
-
-.lp .dropStripEmpty {
-  padding: 22px 20px;
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  color: var(--ink-soft);
-  font-size: 0.94rem;
-  line-height: 1.55;
-}
-
-/* ── Golden days: editorial nostalgia ────────────────────────────────────
-   The one loud, warm section — cheap pints, chaotic nights, colliding lives.
-   Provenance/moderation surfaces stay sober; the energy is here. */
-.lp .goldenSection {
-  border-top: 1px solid var(--line-soft);
-}
-
-.lp .goldenGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.lp .goldenCard {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 26px 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--brass) 9%, var(--panel)) 0%,
-    var(--panel) 62%
-  );
-  transition: border-color 0.18s ease, box-shadow 0.18s ease,
-    transform 0.18s ease;
-}
-
-.lp .goldenCard:hover {
-  border-color: var(--brass);
-  box-shadow: 0 14px 30px rgba(154, 106, 36, 0.16);
-}
-
-.lp .goldenKicker {
-  align-self: flex-start;
-  padding: 3px 10px;
-  border: 1px solid color-mix(in srgb, var(--brass) 45%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
-  color: var(--brass);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-variant-numeric: tabular-nums;
-}
-
-.lp .goldenCard h3 {
-  font-family: var(--font-display, var(--serif));
-  font-weight: 600;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
-  font-size: 1.42rem;
-  line-height: 1.12;
-  margin: 0;
-}
-
-.lp .goldenCard p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.98rem;
-  line-height: 1.58;
-}
-
-/* ── Generational unity ──────────────────────────────────────────────── */
-.lp .unitySection {
-  background: var(--panel);
-  border-top: 1px solid var(--line-soft);
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.lp .unityInner {
-  max-width: 760px;
-  margin-inline: auto;
-  text-align: center;
-}
-
-.lp .unityInner blockquote {
-  margin: 0 0 22px;
-  font-family: var(--font-display, var(--serif));
-  font-weight: 600;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
-  font-size: clamp(1.7rem, 3.4vw, 2.5rem);
-  line-height: 1.2;
-  letter-spacing: -0.015em;
-}
-
-.lp .unityInner blockquote em {
-  font-style: italic;
-  color: var(--brass);
-}
-
-.lp .unityInner p {
-  margin: 0 auto;
-  max-width: 56ch;
-  color: var(--ink-soft);
-  font-size: 1.08rem;
-  line-height: 1.62;
-}
-
-.lp .genRow {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 30px;
-}
-
-.lp .genRow span {
-  padding: 7px 14px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-raised);
-  color: var(--ink-soft);
-  font-size: 0.84rem;
-  font-weight: 600;
-  transition: border-color 0.18s ease, color 0.18s ease;
-}
-
-.lp .genRow span:hover {
-  border-color: var(--brass);
-  color: var(--ink);
-}
-
-/* ── Final CTA band ──────────────────────────────────────────────────── */
-.lp .ctaBand {
-  text-align: center;
-}
-
-.lp .ctaInner {
-  max-width: 720px;
-  margin-inline: auto;
-  padding: clamp(40px, 6vw, 64px) clamp(28px, 5vw, 56px);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--ink-deep);
-  color: #fdfaf2;
-  box-shadow: var(--shadow);
-}
-
-.lp .ctaInner h2 {
-  font-family: var(--font-display, var(--serif));
-  font-weight: 600;
-  font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 0;
-  font-size: clamp(2rem, 4.4vw, 3rem);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  margin: 0 0 16px;
-  color: #fdfaf2;
-}
-
-.lp .ctaInner p {
-  margin: 0 auto 28px;
-  max-width: 46ch;
-  color: rgba(253, 250, 242, 0.78);
-  font-size: 1.08rem;
-  line-height: 1.55;
-}
-
-.lp .ctaInner .btnPrimary {
-  background: var(--brass);
-  color: var(--ink-deep);
-}
-
-.lp .ctaInner .btnPrimary:hover {
-  filter: brightness(1.06);
-}
-
-/* Ghost button on the ink-deep band: the base ghost colours (ink text, line
-   border) vanish on the dark fill, so flip to the inverse-surface pairing —
-   cream text + a cream-mixed border, warming to brass-bright on hover. */
-.lp .ctaInner .btnGhost {
-  color: var(--color-on-inverse);
-  border-color: color-mix(in srgb, var(--color-on-inverse) 45%, transparent);
-}
-
-.lp .ctaInner .btnGhost:hover {
-  color: var(--brass-bright);
-  border-color: var(--brass-bright);
-  background: color-mix(in srgb, var(--brass-bright) 12%, transparent);
-}
-
-/* ── Footer ──────────────────────────────────────────────────────────── */
-.lp .footer {
-  border-top: 1px solid var(--line-soft);
-  padding-block: 48px;
-}
-
-.lp .footerGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.lp .footer .wordmark .wordmarkText {
-  font-size: 1.18rem;
-}
-
-.lp .footerMeta {
-  max-width: 44ch;
-  color: var(--muted);
-  font-size: 0.86rem;
-  line-height: 1.6;
-}
-
-.lp .footerMeta a {
-  color: var(--brass);
+  gap: 9px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 750;
   text-decoration: none;
-  font-weight: 600;
+  white-space: nowrap;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+.lpButton:active { transform: scale(.98); }
+.lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); box-shadow: 0 14px 34px color-mix(in srgb, var(--brass) 24%, transparent); }
+.lpButtonPrimary:hover { background: var(--brass-bright); }
+.lpButtonQuiet { background: color-mix(in srgb, var(--panel-raised) 78%, transparent); border-color: var(--line); color: var(--ink); }
+.lpButtonQuiet:hover { border-color: var(--brass); }
+.lpLiveReadout { margin-top: 30px; display: flex; align-items: center; gap: 18px; color: var(--ink-soft); font: 600 11px/1.2 var(--font-data); }
+.lpLiveReadout span { display: inline-flex; align-items: center; gap: 6px; }
+.lpLiveReadout svg { color: var(--river); }
+
+.lpHeroMap { position: relative; margin: 0; min-width: 0; }
+.lpHeroMap::before { content: ""; position: absolute; inset: -12px; border: 1px solid color-mix(in srgb, var(--river) 28%, transparent); border-radius: 38px; transform: rotate(2deg); }
+.lpHeroMap figcaption { margin: 12px 4px 0; color: var(--ink-soft); font: 550 10px/1.4 var(--font-data); text-align: right; }
+.thamesHeroPhoto { position: relative; width: 100%; min-height: 0; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 32px; background: var(--ink-deep); box-shadow: 0 34px 90px color-mix(in srgb, var(--ink-deep) 28%, transparent); }
+.thamesHeroImg { object-fit: cover; object-position: 50% 50%; }
+.thamesHeroScrim { position: absolute; inset: 0; background: linear-gradient(145deg, color-mix(in srgb, var(--ink-deep) 10%, transparent), color-mix(in srgb, var(--ink-deep) 60%, transparent)); }
+.thamesHeroHint { position: absolute; left: 18px; top: 18px; z-index: 2; max-width: 230px; margin: 0; padding: 8px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(8,12,20,.62); color: white; font-size: 10px; font-weight: 650; backdrop-filter: blur(8px); }
+.thamesHeroHintPointer { display: none; }
+.thamesHeroPins { position: absolute; inset: 0; z-index: 2; margin: 0; padding: 0; list-style: none; }
+.thamesHeroPin { position: absolute; transform: translate(-50%, -50%); }
+.thamesHeroPinLink { min-width: 44px; min-height: 44px; display: flex; align-items: center; gap: 7px; color: white; text-decoration: none; }
+.thamesHeroPinGlyph { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 16px; background: rgba(7,11,18,.68); box-shadow: 0 9px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); transition: transform 180ms ease; }
+.thamesHeroPinLink:hover .thamesHeroPinGlyph { transform: translateY(-3px) scale(1.04); }
+.thamesHeroPinMeta { padding: 7px 9px; display: grid; gap: 1px; border-radius: 11px; background: rgba(7,11,18,.76); backdrop-filter: blur(8px); }
+.thamesHeroPinCat { color: rgba(255,255,255,.7); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.thamesHeroPinPlace { font-size: 10px; font-weight: 700; white-space: nowrap; }
+.thamesHeroPinPrice { color: #fff; font: 700 10px/1.2 var(--font-data); }
+
+.lpSignalSection, .lpProofSection { width: min(var(--lp-max), calc(100% - 2 * var(--lp-pad))); margin: 0 auto; padding: clamp(86px, 10vw, 144px) 0; }
+.lpSectionIntro { max-width: 700px; }
+.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { margin: 0; font: 700 clamp(40px, 5vw, 72px)/.96 var(--font-display); letter-spacing: -.052em; text-wrap: balance; }
+.lpSectionIntro > p, .lpMemoryCopy > p { max-width: 610px; margin: 20px 0 0; color: var(--ink-soft); font-size: 17px; line-height: 1.65; }
+.lpSignalGrid { margin-top: 58px; display: grid; grid-template-columns: 1.12fr .94fr .94fr; border-block: 1px solid var(--line); }
+.lpSignalGrid article { min-height: 330px; padding: 28px clamp(22px, 3vw, 38px) 32px; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: flex-end; }
+.lpSignalGrid article:first-child { background: color-mix(in srgb, var(--surface-tint-river) 62%, transparent); }
+.lpSignalGrid article:last-child { border-right: 0; }
+.lpSignalTopline { margin-bottom: auto; display: flex; justify-content: space-between; color: var(--ink-soft); font: 600 10px/1 var(--font-data); }
+.lpSignalTopline svg { color: var(--river); }
+.lpSignalGrid h3 { max-width: 12ch; margin: 0; font: 680 clamp(24px, 2.5vw, 35px)/1 var(--font-display); letter-spacing: -.035em; }
+.lpSignalGrid p { margin: 16px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.65; }
+
+.lpMemorySection { padding: clamp(76px, 8vw, 124px) var(--lp-pad); background: var(--ink-deep); color: var(--color-on-inverse); }
+.lpMemoryCanvas { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: .92fr 1.08fr; gap: clamp(44px, 8vw, 110px); align-items: center; }
+.lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 10px/1 var(--font-data); letter-spacing: .12em; text-transform: uppercase; }
+.lpMemoryCopy > p { color: color-mix(in srgb, var(--color-on-inverse) 70%, transparent); }
+.lpMemoryActions { margin-top: 28px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.lpMemorySection .lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); }
+.lpTextLink { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; color: inherit; font-size: 14px; font-weight: 700; text-underline-offset: 5px; }
+.lpMemorySteps { margin: 0; padding: 0; list-style: none; border-top: 1px solid rgba(255,255,255,.15); }
+.lpMemorySteps li { padding: 24px 0; display: grid; grid-template-columns: 48px 1fr; gap: 17px; border-bottom: 1px solid rgba(255,255,255,.15); }
+.lpStepIcon { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 14px; color: var(--brass-bright); background: rgba(255,255,255,.05); }
+.lpMemorySteps li div > span { color: rgba(255,255,255,.46); font: 600 9px/1 var(--font-data); }
+.lpMemorySteps h3 { margin: 6px 0 0; font: 650 20px/1.1 var(--font-display); }
+.lpMemorySteps p { margin: 7px 0 0; color: rgba(255,255,255,.65); font-size: 13px; line-height: 1.5; }
+
+.lpProofIntro { max-width: none; display: grid; grid-template-columns: 1.2fr .8fr; gap: 48px; align-items: end; }
+.lpProofIntro h2 { max-width: 13ch; }
+.lpProofIntro > p { margin-bottom: 4px; }
+.dropStrip { margin-top: 48px; }
+.dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-data); }
+.dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+.dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-data); }
+.dropStripPrice { font: 750 24px/1 var(--font-data); }
+.dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: 14px; line-height: 1.55; }
+.dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-data); }
+.provChip { padding: 5px 7px; border-radius: 999px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
+.dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
+.dropStripCardSkeleton { gap: 15px; }
+.skelLine { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--line) 72%, transparent); animation: lpSkeleton 1.4s ease-in-out infinite alternate; }
+.skelLineTop { width: 45%; height: 18px; }.skelLineShort { width: 62%; }
+@keyframes lpSkeleton { to { opacity: .42; } }
+
+.lpPalCallout { margin-top: 28px; padding: 22px 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; border: 1px solid color-mix(in srgb, var(--line) 72%, var(--river) 28%); border-radius: 20px; background: color-mix(in srgb, var(--surface-tint-river) 48%, var(--panel-raised)); }
+.lpPalIcon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 15px; background: var(--ink-deep); color: var(--color-on-inverse); }
+.lpPalCallout h3 { margin: 0; font: 680 20px/1.1 var(--font-display); }.lpPalCallout p { margin: 6px 0 0; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
+
+.lpCityChooser { padding: 28px var(--lp-pad) 90px; background: var(--paper); }
+.lpFinalCta { position: relative; min-height: 66vh; padding: 90px var(--lp-pad); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; background: var(--ink-deep); color: var(--color-on-inverse); }
+.lpFinalCta > p { margin: 0 0 20px; color: rgba(255,255,255,.58); font: 600 10px/1 var(--font-data); letter-spacing: .1em; text-transform: uppercase; }
+.lpFinalCta h2 { max-width: 10ch; }
+.lpFinalCta .lpButton { margin-top: 30px; background: var(--brass); color: var(--color-on-accent); }
+.lpFinalLines { position: absolute; inset: 0; pointer-events: none; }
+.lpFinalLines span { position: absolute; left: 50%; bottom: -70%; width: min(1100px, 120vw); aspect-ratio: 1; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; transform: translateX(-50%); }
+.lpFinalLines span:nth-child(2) { width: min(820px, 90vw); bottom: -54%; }.lpFinalLines span:nth-child(3) { width: min(540px, 62vw); bottom: -35%; }
+
+@media (hover: hover) and (pointer: fine) { .thamesHeroHintTouch { display: none; }.thamesHeroHintPointer { display: inline; } }
+
+@media (max-width: 960px) {
+  .lpNav { grid-template-columns: auto 1fr; }.lpPrimaryNav { display: none; }.lpNavActions { justify-self: end; }
+  .lpHero { grid-template-columns: 1fr; min-height: auto; padding-top: 118px; }.lpHeroCopy { max-width: 690px; }.lpHero h1 { max-width: 10ch; font-size: clamp(56px, 11vw, 88px); }
+  .lpHeroMap { width: min(720px, 100%); }
+  .lpMemoryCanvas, .lpProofIntro { grid-template-columns: 1fr; }.lpProofIntro { gap: 18px; }
 }
 
-.lp .footerMeta a:hover {
-  text-decoration: underline;
+@media (max-width: 700px) {
+  .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 8px 6px 12px; gap: 8px; border-radius: 17px; }.lpWordmark { font-size: 12px; }.lpMark { width: 32px; height: 32px; }
+  .lpHero { padding: 106px 18px 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
+  .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
+  .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 0; aspect-ratio: 4 / 5; border-radius: 22px; }.thamesHeroImg { object-position: 52% 50%; }.thamesHeroPinMeta { display: none; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
+  .thamesHeroPin:nth-child(1) { left: 18% !important; top: 24% !important; }
+  .thamesHeroPin:nth-child(2) { left: 34% !important; top: 66% !important; }
+  .thamesHeroPin:nth-child(3) { left: 70% !important; top: 28% !important; }
+  .thamesHeroPin:nth-child(4) { left: 80% !important; top: 70% !important; }
+  .lpSignalSection, .lpProofSection { width: calc(100% - 36px); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
+  .lpSignalGrid { margin-top: 38px; grid-template-columns: 1fr; }.lpSignalGrid article { min-height: 230px; border-right: 0; border-bottom: 1px solid var(--line); }.lpSignalGrid article:last-child { border-bottom: 0; }
+  .lpMemorySection { padding: 76px 18px; }.lpMemoryCanvas { gap: 48px; }.lpMemorySteps li { grid-template-columns: 44px 1fr; }
+  .dropStripRail { width: calc(100vw - 18px); grid-auto-columns: min(82vw, 310px); }.lpPalCallout { grid-template-columns: auto 1fr; align-items: start; }.lpPalCallout > a { grid-column: 2; }
+  .lpCityChooser { padding-inline: 18px; }.lpFinalCta { min-height: 72vh; padding-inline: 18px; }
 }
 
-.lp .footerCols {
-  display: flex;
-  gap: 48px;
-  flex-wrap: wrap;
+@media (max-width: 420px) {
+  .lpMark { display: none; }
+  .thamesHeroPhoto { min-height: 0; }.thamesHeroPin:nth-child(n+4) { display: none; }
+  .lpMemoryActions { align-items: stretch; flex-direction: column; }.lpMemoryActions .lpTextLink { justify-content: center; }
 }
 
-.lp .footerCol h4 {
-  margin: 0 0 10px;
-  color: var(--ink-soft);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-.lp .footerCol a,
-.lp .footerCol span {
-  display: block;
-  padding: 3px 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-
-.lp .footerCol a:hover {
-  color: var(--ink);
-}
-
-.lp .footerColophon {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 28px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.82rem;
-  letter-spacing: 0.02em;
-}
-
-.lp .footerSocials {
-  display: inline-flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.lp .footerSocials a {
-  display: inline-flex;
-  color: var(--ink-soft);
-  transition: color 0.18s ease;
-}
-
-.lp .footerSocials a:hover {
-  color: var(--brass);
-}
-
-.lp .footerSocials a:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 3px;
-  border-radius: 3px;
-}
-
-.lp .footerSocials svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-/* ── Reveal-on-scroll (progressive; no JS = fully visible) ─────────────
-   Content is VISIBLE BY DEFAULT. The hidden-then-animate initial state only
-   applies once the useReveal effect has both wired up the IntersectionObserver
-   AND added .jsEnhanced to the root (.lp). So before JS runs, with JS disabled,
-   in crawlers, and in full-page screenshots that never trip the observer for
-   off-screen sections, every .reveal band is fully painted — never a blank
-   band. Once enhanced, JS adds .isVisible as each section scrolls in. The
-   .jsEnhanced prefix keeps this at higher specificity than the hidden rule
-   below so a revealed section always wins. */
-.lp.jsEnhanced .reveal {
-  opacity: 0;
-  /* Start from a slight rise + scale(.96) (never from nothing / scale(0)) so
-     entrances feel like they settle into place rather than pop in. */
-  transform: translate3d(0, 14px, 0) scale(0.96);
-  transition:
-    opacity 0.6s var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)),
-    transform 0.6s var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
-}
-
-.lp.jsEnhanced .reveal.isVisible {
-  opacity: 1;
-  transform: none;
-}
-
-/* Reveal stagger — grid children cascade ~60ms apart as a row scrolls in, so
-   the cards settle one after another instead of all at once. Gated behind
-   allowed motion; the reduced-motion block below zeroes the delay. */
-@media (prefers-reduced-motion: no-preference) {
-  .lp.jsEnhanced .cardGrid > .reveal:nth-child(2),
-  .lp.jsEnhanced .goldenGrid > .reveal:nth-child(2) {
-    transition-delay: 60ms;
-  }
-
-  .lp.jsEnhanced .cardGrid > .reveal:nth-child(3),
-  .lp.jsEnhanced .goldenGrid > .reveal:nth-child(3) {
-    transition-delay: 120ms;
-  }
-}
-
-/* SVG motif entrance */
-.lp .thamesLine {
-  animation: lpDraw 2.4s ease forwards 0.3s;
-}
-
-.lp .crawlRoute {
-  opacity: 0;
-  animation: lpFade 0.8s ease forwards 1.6s;
-}
-
-.lp .mapPin {
-  opacity: 0;
-  animation: lpPinIn 0.5s ease forwards;
-  animation-delay: calc(1.9s + var(--pin-i, 0) * 0.18s);
-}
-
-@keyframes lpDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes lpFade {
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes lpPinIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* ── Responsive ──────────────────────────────────────────────────────── */
-@media (max-width: 920px) {
-  .lp .heroGrid,
-  .lp .splitGrid,
-  .lp .dropsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .lp .heroFigure {
-    order: 0;
-  }
-
-  .lp .heroBrand {
-    font-size: clamp(2.6rem, 10vw, 3.6rem);
-  }
-
-  .lp .dropsGrid {
-    gap: clamp(28px, 6vw, 48px);
-  }
-
-  .lp .dropsGrid .dropsCopy {
-    order: -1;
-  }
-
-  .lp .dropTimeline {
-    max-width: none;
-    width: 100%;
-  }
-
-  .lp .dropsCopy .heroLede,
-  .lp .dropsCopy .dropsHanddown {
-    max-width: none;
-  }
-
-  .lp .cardGrid,
-  .lp .goldenGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 620px) {
-  .lp .navLinks a:not(.topbarCta) {
-    display: none;
-  }
-
-  /* The hero keeps the primary "Open the map" CTA on phones. Keeping a second
-     copy in the sticky topbar crowds auth/theme controls and clips at 390px. */
-  .lp .navLinks a.topbarCta {
-    display: none;
-  }
-
-  .lp .footerCols {
-    gap: 32px;
-  }
-}
-
-/* ── Phone ─────────────────────────────────────────────────────────────────
-   At phone widths the copy should lead (the ≤920px rule floats the figure up
-   for tablets; here we put copy first as asked), grids are already single-col,
-   and the top bar + footer condense without losing the CTA or theme toggle. */
-@media (max-width: 560px) {
-  /* On phones: brand + CTA first, then the interactive drink field. */
-  .lp .heroFigure {
-    order: 0;
-  }
-
-  .lp .hero {
-    padding-top: clamp(20px, 6vw, 36px);
-    padding-bottom: clamp(28px, 8vw, 48px);
-  }
-
-  .lp .heroPhoto::after {
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ink-deep) 78%, transparent) 0%,
-        color-mix(in srgb, var(--ink-deep) 62%, transparent) 48%,
-        color-mix(in srgb, var(--ink-deep) 40%, transparent) 72%,
-        color-mix(in srgb, var(--paper) 78%, transparent) 90%,
-        var(--paper) 100%
-      ),
-      linear-gradient(
-        105deg,
-        color-mix(in srgb, var(--ink-deep) 42%, transparent) 0%,
-        color-mix(in srgb, var(--brass) 22%, transparent) 36%,
-        transparent 62%
-      );
-  }
-
-  .lp .heroActions .btn {
-    flex: 1 1 auto; /* full-width, thumb-friendly primary + ghost */
-  }
-
-  .lp .thamesHeroPhoto {
-    min-height: 300px;
-    aspect-ratio: 390 / 340;
-  }
-
-  .lp .thamesHeroPinGlyph {
-    width: 48px;
-    height: 48px;
-  }
-
-  .lp .thamesHeroPinMeta {
-    padding: 4px 7px 5px;
-    max-width: 96px;
-  }
-
-  .lp .thamesHeroPinPlace {
-    font-size: 0.72rem;
-  }
-
-  .lp .thamesHeroPinPrice {
-    font-size: 0.64rem;
-  }
-
-  .lp .thamesHeroHint {
-    font-size: 0.68rem;
-    max-width: calc(100% - 28px);
-  }
-
-  /* Reserve a taller top band (the hint can wrap to two lines at 390px) plus
-     side/bottom gutters, so the four visible glyph tiles sit cleanly inside the
-     rounded card with clear breathing room below the header. */
-  .lp .thamesHeroPins {
-    inset: 58px 12px 14px 12px;
-  }
-
-  /* Hide the two densest pins on narrow phones so shapes stay tappable. */
-  .lp .thamesHeroPin:nth-child(5),
-  .lp .thamesHeroPin:nth-child(6) {
-    display: none;
-  }
-
-  /* Nav condenses to wordmark + CTA + theme toggle; keep the CTA reachable. */
-  .lp .topbarInner {
-    gap: 12px;
-    min-height: 60px;
-  }
-
-  .lp .navLinks {
-    gap: 4px;
-  }
-
-  .lp .wordmark .wordmarkText {
-    font-size: 1.18rem;
-  }
-
-  /* Section rhythm tightens so the page isn't endless scroll on a phone. */
-  .lp .sectionHead {
-    margin-bottom: 32px;
-  }
-
-  /* Pint Drops: copy leads, then timeline with generous vertical rhythm. */
-  .lp #drops {
-    padding-block: clamp(56px, 12vw, 96px);
-  }
-
-  .lp .dropsGrid {
-    gap: 32px;
-  }
-
-  .lp .dropsCopy .lpSerif {
-    font-size: clamp(1.7rem, 7.2vw, 2.15rem);
-    margin-bottom: 14px;
-  }
-
-  .lp .dropsCopy .heroLede {
-    font-size: 1.02rem;
-    line-height: 1.68;
-    margin-bottom: 12px;
-  }
-
-  .lp .dropsCopy .dropsHanddown {
-    margin-bottom: 18px;
-  }
-
-  .lp .dropTimelineConnector {
-    height: 40px;
-  }
-
-  .lp .dropSample {
-    min-height: 0;
-    padding: 18px 18px;
-  }
-
-  .lp .dropSample .dropNote {
-    font-size: 1rem;
-  }
-
-  .lp .dropsCta {
-    min-height: 48px;
-  }
-
-  /* Footer columns stack under the brand block. */
-  .lp .footerGrid {
-    flex-direction: column;
-    gap: 28px;
-  }
-
-  .lp .footerCols {
-    width: 100%;
-    gap: 28px 32px;
-  }
-}
-
-@media (max-width: 380px) {
-  /* Smallest phones: let the two hero CTAs stack rather than squash. */
-  .lp .heroActions {
-    flex-direction: column;
-  }
-
-  .lp .heroActions .btn {
-    width: 100%;
-  }
-
-}
-
-/* ── Motion (gated) ───────────────────────────────────────────────────
-   Every transform/lift lives here so reduced-motion users get static,
-   fully-visible content with colour/shadow feedback only. */
-@media (prefers-reduced-motion: no-preference) {
-  /* CTA + card + chip lifts and presses. */
-  .lp .btnPrimary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 18px 34px rgba(24, 34, 26, 0.18);
-  }
-
-  .lp .btnGhost:hover {
-    transform: translateY(-1px);
-  }
-
-  .lp .btn:active {
-    transform: translateY(0) scale(0.97);
-    filter: brightness(0.98);
-  }
-
-  .lp .wedgeCard:hover {
-    transform: translateY(-3px);
-  }
-
-  .lp .statChip:hover,
-  .lp .dropSample:hover,
-  .lp .dropStripCard:hover,
-  .lp .goldenCard:hover {
-    transform: translateY(-2px);
-  }
-
-  /* Skeleton shimmer — only under allowed motion; static otherwise. */
-  .lp .dropStripCardSkeleton .skelLine {
-    background: linear-gradient(
-      90deg,
-      var(--line-soft) 25%,
-      var(--line) 50%,
-      var(--line-soft) 75%
-    );
-    background-size: 200% 100%;
-    animation: lpShimmer 1.4s ease-in-out infinite;
-  }
-
-  /* In-nav theme toggle: subtle press to match the buttons (hover/focus
-     handled in theme.css; this only adds the active feedback). */
-  .lp .navLinks .themeToggle:active {
-    transform: translateY(1px);
-  }
-}
-
-@keyframes lpShimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
+@media (max-width: 350px) {
+  .lpNavActions .authUserNav { display: none; }
+  .lpHeroActions { grid-template-columns: 1fr; }
+  .lpHeroActions .lpButton:first-child { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp *,
-  .lp *::before,
-  .lp *::after {
-    animation-duration: 0.001ms !important;
-    animation-delay: 0ms !important;
-    transition-duration: 0.001ms !important;
-  }
+  .lp *, .lp *::before, .lp *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+}
 
-  .lp .reveal,
-  .lp.jsEnhanced .reveal {
-    opacity: 1;
-    transform: none;
-    transition-delay: 0ms;
-  }
+@media (prefers-reduced-transparency: reduce) {
+  .lpNav, .thamesHeroHint, .thamesHeroPinGlyph, .thamesHeroPinMeta { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--panel-raised); color: var(--ink); }
+}
 
-  .lp .thamesHeroImg {
-    animation: none !important;
-    transform: none;
-  }
-
-  .lp .thamesHeroPin {
-    animation: none !important;
-  }
+@media (prefers-contrast: more) {
+  .lpNav, .lpSignalGrid, .dropStripCard, .lpPalCallout { border-color: currentColor; }
+  .lpButtonQuiet, .thamesHeroPinGlyph { border-width: 2px; }
 }

@@ -233,6 +233,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 44px;
   border-radius: var(--radius-sm);
   padding: 11px 18px;
   font-size: 15px;

@@ -1,5 +1,5 @@
 ---
-name: PubMax
+name: PUBMAXX
 description: Nights-out-with-friends crawl planner — Candle Coral light, Night Out dark
 colors:
   ink: "#1c1412"
@@ -52,13 +52,13 @@ spacing:
   12: "48px"
 ---
 
-# Design System: PubMax
+# Design System: PUBMAXX
 
 ## 1. Overview
 
 **Creative North Star: "Nights Out With Friends"**
 
-PubMax is a map-first crawl planner that should feel like planning Saturday with your mates — warm candle paper by day, street-amber energy by night. The UI serves the product: Plan, Stop, Venue, Friend, Route. Brand moments (display type, coral/amber CTA) punch through; chrome stays calm enough to navigate under street light or kitchen lamp.
+PUBMAXX is a map-first crawl planner that should feel like planning Saturday with your mates — warm candle paper by day, street-amber energy by night. The UI serves the product: Plan, Stop, Venue, Friend, Route. Brand moments (display type, coral/amber CTA) punch through; chrome stays calm enough to navigate under street light or kitchen lamp.
 
 Light theme ships **Direction A Candle Coral** (warm peach paper + coral Plan CTA). Dark theme ships **Direction B Night Out** (deep ink + amber route/CTA + pint neon go). Field Guide hues (`river` / `pint` / `brick`) keep semantic jobs for pins and prices — they do not steal the primary CTA.
 

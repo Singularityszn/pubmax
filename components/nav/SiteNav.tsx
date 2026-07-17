@@ -2,18 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home } from "lucide-react";
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SignInButton from "@/components/auth/SignInButton";
+import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
+import { PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
 
 import "./siteNav.css";
 
@@ -22,7 +30,7 @@ import "./siteNav.css";
 // drifts page-to-page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar — Map/Pubs/Drop/Discover/You). Repeating the full link list up
+// (MobileTabBar — Map/Tonight/Moment/Stories/You). Repeating the full link list up
 // top there caused the old `.appNav` pill to overflow the viewport (Admin +
 // theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
 // bar — just the wordmark + theme toggle + sign-in — and hides the full link
@@ -52,29 +60,15 @@ type NavLink = {
   label: string;
   /** Path prefixes that should mark this link active (defaults to href). */
   match: string[];
-  /** Optional category tint for the active/hover state. */
-  accent?: "beer" | "wine" | "whisky" | "gin" | "vodka" | "rum" | "cocktail" | "shot" | "other";
 };
 
 // Consumer nav only. Staff moderation lives at /admin (URL + token) and is
 // intentionally absent from every public nav so demos never look like an
 // admin console.
-const LINKS: NavLink[] = [
-  { key: "map", href: "/map", label: "Map", match: ["/map"], accent: "beer" },
-  { key: "pubs", href: "/pubs", label: "Pubs", match: ["/pubs"], accent: "whisky" },
-  { key: "tonight", href: "/tonight", label: "Tonight", match: ["/tonight"], accent: "other" },
-  { key: "historic", href: "/historic", label: "Historic", match: ["/historic"], accent: "wine" },
-  // Desktop carries the same five core concepts as the mobile tab bar (C1);
-  // Pint Drop opens the composer on the preferred city's map. match is a
-  // never-matching sentinel: /map belongs to the Map link, so this one never
-  // shows as active.
-  { key: "drop", href: "/map?log=1", label: "Pint Drop", match: ["/__never__"], accent: "shot" },
-  { key: "feed", href: "/feed", label: "Feed", match: ["/feed"], accent: "cocktail" },
-  { key: "discover", href: "/discover", label: "Pint stories", match: ["/discover"], accent: "gin" },
-  { key: "borough", href: "/borough", label: "Boroughs", match: ["/borough"], accent: "wine" },
-  { key: "crawls", href: "/crawls", label: "Crawls", match: ["/crawls"], accent: "rum" },
-  { key: "profile", href: "/u/you", label: "You", match: ["/u"], accent: "vodka" },
-];
+const LINKS: NavLink[] = PRIMARY_NAV_ITEMS.map((item) => ({
+  ...item,
+  key: item.key === "stories" ? "discover" : item.key === "you" ? "profile" : item.key,
+}));
 
 function matchesPath(pathname: string, link: NavLink): boolean {
   return link.match.some((prefix) =>
@@ -83,17 +77,30 @@ function matchesPath(pathname: string, link: NavLink): boolean {
   );
 }
 
+function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
+  if (active === "feed" || active === "crawls" || active === "borough") return "discover";
+  if (active === "home") return undefined;
+  if (active === "pubs" || active === "historic") return undefined;
+  return active;
+}
+
 // Gliding active-link indicator (siteNav.css .siteNavIndicator). Links are
 // variable-width labels, not equal columns like the mobile tab bar, so the
 // indicator's geometry has to be measured off the real DOM node rather than
 // derived from an index. Kept to a thin underline (not a repaint of the
-// existing `.siteNavLink.isActive` pill) so it never has to duplicate the
-// category-tint (data-cat) logic already owned by that pill.
+// existing `.siteNavLink.isActive` pill) so it stays geometrically stable.
 type IndicatorRect = { x: number; width: number; visible: boolean };
 const HIDDEN_INDICATOR: IndicatorRect = { x: 0, width: 0, visible: false };
 
-export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Element {
+export default function SiteNav({
+  active,
+  mobileMapUtility,
+}: {
+  active?: NavKey;
+  mobileMapUtility?: ReactNode;
+}): React.JSX.Element {
   const pathname = usePathname() ?? "";
+  const primaryActive = primaryKeyForLegacyActive(active);
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
@@ -106,10 +113,6 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
   );
   const links = LINKS.map((link) => {
     if (link.key === "map") return { ...link, href: mapHref };
-    if (link.key === "drop") {
-      // Same city-aware base as the Map link, with the composer flag.
-      return { ...link, href: `${mapHref}${mapHref.includes("?") ? "&" : "?"}log=1` };
-    }
     return link;
   });
 
@@ -120,7 +123,7 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
     active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
   const activeKey = links.find((link) =>
-    active ? active === link.key : matchesPath(pathname, link),
+    primaryActive ? primaryActive === link.key : matchesPath(pathname, link),
   )?.key;
 
   const linkRefs = useRef<Partial<Record<NavKey, HTMLAnchorElement>>>({});
@@ -151,13 +154,13 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
       aria-label="Site navigation"
     >
       {/* Wordmark: the compact-mobile anchor + the desktop home affordance. */}
-      <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXXING landing page">
-        <span className="siteNavBrandFull">PUBMAXXING</span>
-        <span className="siteNavBrandMobile" aria-hidden="true">
-          <Home size={13} strokeWidth={2.25} />
-          <span>Home</span>
-        </span>
+      <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXX landing page">
+        <PubmaxxWordmark />
       </Link>
+
+      {isMap && mobileMapUtility ? (
+        <div className="siteNavMapUtility">{mobileMapUtility}</div>
+      ) : null}
 
       {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}
       <ul className="siteNavLinks">
@@ -189,7 +192,6 @@ export default function SiteNav({ active }: { active?: NavKey }): React.JSX.Elem
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={link.label}
-                data-cat={link.accent}
                 title={link.label}
               >
                 {link.label}

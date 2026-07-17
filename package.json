@@ -1,5 +1,5 @@
 {
-  "name": "pubmaxing",
+  "name": "pubmaxxing",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -15,8 +15,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "shots": "PW_SCREENSHOTS=1 playwright test --project=screenshots",
-    "coverage": "vitest run --coverage",
+    "shots": "PUBMAX_E2E_KEYLESS=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-1440-light shots-390-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
+    "shots:extended": "PUBMAX_E2E_KEYLESS=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-430-light shots-1280-light shots-1440-light shots-390-dark shots-430-dark shots-1280-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
+    "coverage": "vitest run --coverage --maxWorkers=4",
     "prevalidate-data": "npm run build:slim && npm run build:pubmaxxing-seed",
     "validate-data": "node scripts/validate-data.mjs",
     "export:data": "python3 scripts/export_app_dataset_json.py",
@@ -30,25 +31,35 @@
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
     "whats-on-refresh": "node scripts/refresh_whats_on.mjs",
+    "refresh:night-signals": "node scripts/refresh_night_signal_claims.mjs",
+    "refresh:weather": "node scripts/refresh_weather_snapshots.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && npm audit --audit-level=high",
     "ci": "npm run verify && npm run build",
+    "ci:isolated": "node scripts/run-with-restored-next-env.mjs npm run ci",
     "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'",
     "merge:london-chains": "node scripts/merge_london_chain_scrapes.mjs",
     "deadcode": "knip"
   },
   "dependencies": {
+    "@elevenlabs/react": "^1.10.0",
+    "@radix-ui/react-slot": "^1.3.0",
     "@supabase/supabase-js": "^2.110.0",
     "@vercel/analytics": "^2.0.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "convex": "^1.42.2",
     "lucide-react": "^0.468.0",
     "maplibre-gl": "^5.24.0",
     "next": "^16.0.10",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@tailwindcss/postcss": "^4.3.2",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
@@ -57,6 +68,7 @@
     "eslint": "^9.17.0",
     "eslint-config-next": "^16.0.10",
     "knip": "^5.30.0",
+    "tailwindcss": "^4.3.2",
     "typescript": "^5.7.2",
     "vitest": "^4.1.9"
   },

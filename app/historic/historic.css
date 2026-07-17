@@ -382,3 +382,79 @@
     to { opacity: 1; transform: none; }
   }
 }
+
+/* "Oldest pubs by borough" cross-link rail (Wave S3.4). A server-rendered
+   region below the interactive list — plain <Link> hrefs so crawlers can walk
+   /historic → each borough's cited heritage section. Tokens only; both themes
+   track. Mirrors the historic card idiom (hairline borders, brass links). */
+.historicBoroughRegion {
+  max-width: 1080px;
+  margin: 8px auto 0;
+  padding: 24px 16px calc(64px + env(safe-area-inset-bottom, 0px));
+  color: var(--ink);
+}
+
+.historicBoroughTitle {
+  margin: 0 0 6px;
+  font-family: var(--font-garamond, var(--serif));
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.historicBoroughDek {
+  margin: 0 0 16px;
+  max-width: 62ch;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.historicBoroughList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.historicBoroughCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.historicBoroughLink {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.historicBoroughLink:hover {
+  text-decoration: underline;
+}
+
+.historicBoroughLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.historicBoroughMeta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .historicBoroughList {
+    grid-template-columns: 1fr;
+  }
+}

@@ -656,15 +656,15 @@ export default function FeedPage() {
       <SiteNav active="feed" />
 
       <header className="feedHeader">
-        <p className="feedEyebrow">Pint stories</p>
+        <p className="feedEyebrow">Pubmaxxer stories</p>
         <h1 className="feedTitle">The Pint Feed</h1>
         <p className="feedLede">
-          Every pint logged in London tonight — prices, selfies, and the stories
-          handed down over the bar.
+          Moments, prices, people and side quests from nights worth remembering.
         </p>
-        <Link href="/map?log=1" className="feedDropCta">
-          Drop a pint
-        </Link>
+        <div className="feedComposeActions" aria-label="Create">
+          <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>
+          <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
+        </div>
       </header>
 
       {/* N4: two wrapper divs only — display:contents below 1024px means they

@@ -1,7 +1,11 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
 /* ────────────────────────────────────────────────────────────────────────
    PUBMAXXING token scale — see DESIGN.md + docs/DESIGN_SYSTEM.md.
-   Light default = Direction A Candle Coral (PRODUCT.md color decision).
-   Dark overrides = Direction B Night Out in app/theme.css.
+   Light default = neutral paper with a focused coral action colour.
+   Dark overrides preserve the same semantic identity in app/theme.css.
 
    Every token name below that already existed keeps working unchanged (35+
    components and the map's readTokens() read these directly). New tokens are
@@ -9,18 +13,17 @@
    fork of the existing system.
    ──────────────────────────────────────────────────────────────────────── */
 :root {
-  /* — Colour: Candle Coral (warm paper + coral Plan CTA). Neutrals tinted
-       peach-candle, not flat cream DTC (#F4F1EA). See DESIGN.md §2. */
-  --ink: #1c1412;
-  --ink-soft: #4a3632;
-  --muted: #7a5c55;
-  --line: #efcfc4;
-  --line-soft: #f5e0d6;
-  --paper: #fff1e6; /* candle peach — warmer than flat cream */
-  --panel: #fffaf6;
-  --panel-raised: #ffffff;
-  --panel-overlay: #ffffff; /* light default for the dark elevation ladder's 4th step (theme.css) */
-  --ink-deep: #16122a;
+  /* — Colour: neutral editorial paper + coral actions. */
+  --ink: #17171a;
+  --ink-soft: #3f3f46;
+  --muted: #6b6b73;
+  --line: #dedcdf;
+  --line-soft: #ece9eb;
+  --paper: #faf8f5;
+  --panel: #f5f2ef;
+  --panel-raised: #fffdfb;
+  --panel-overlay: #ffffff;
+  --ink-deep: #0b0b0d;
 
   --pint: #18a76d; /* cheap pint / positive — Field Guide semantic */
   --amber: #f2a71b; /* mid price / lager-gold */
@@ -141,6 +144,8 @@
   --duration-base: 0.15s;
   --duration-slow: 0.28s;
   --duration-ambient: 1.4s;
+  --duration-pal-gaze: 6.5s;
+  --duration-pal-idle: 7.2s;
   --duration-press: 0.13s; /* button press-in / release */
   --ease-standard: ease;
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
@@ -920,8 +925,8 @@ input[type="range"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  min-width: 32px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -1161,8 +1166,8 @@ input[type="range"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-raised);
@@ -1844,6 +1849,46 @@ input[type="range"] {
   width: 100%;
   height: 100%;
   background: var(--ink-deep);
+}
+
+.mapUserLocationMarker {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--paper);
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--color-accent) 22%, transparent),
+    0 5px 16px color-mix(in srgb, var(--ink-deep) 32%, transparent);
+}
+
+.mapUserLocationMarker::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border: 2px solid color-mix(in srgb, var(--color-accent) 52%, transparent);
+  border-radius: inherit;
+  animation: mapLocationSignal 1.8s var(--ease-out) infinite;
+}
+
+@keyframes mapLocationSignal {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.68);
+  }
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapUserLocationMarker::after {
+    animation: none;
+    opacity: 0.45;
+  }
 }
 
 /* Landmark history card — a sourced note pinned over the map. */
@@ -4172,7 +4217,7 @@ button:disabled {
 
   .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
-    transform: translateY(86vh) !important;
+    transform: translateY(78vh) !important;
   }
 
   .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
@@ -4192,6 +4237,14 @@ button:disabled {
 
   .appShell.planning-open .mapDrawer.left.open {
     z-index: var(--z-nav);
+  }
+
+  .appShell.detail-open .mapDrawer.right.open {
+    /* When planning + venue detail are both open on phones, both drawers become
+       bottom sheets. The venue sheet owns the visible sticky actions, so it must
+       sit above the planner sheet instead of letting planner content intercept
+       taps on Share/Crawl/Drop/Train. */
+    z-index: calc(var(--z-nav) + 1);
   }
 
   .plannerMapButton {
@@ -4285,7 +4338,7 @@ button:disabled {
     );
     --map-overlay-top: calc(var(--map-top-clearance) + 46px);
     /* Stack FABs clearly above the compact tab bar; chips one row higher. */
-    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 18px);
+    --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 28px);
     --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);
   }
 

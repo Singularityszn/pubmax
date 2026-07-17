@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+  });
+});
+
 // Social-loop E2E (cc_plan2 §8/§9/§11). A READ-ONLY journey through the durable
 // social surfaces — feed, pint permalink, crawl poster. It asserts the loop
 // RENDERS correctly (real pub names, shareable posts, working cross-links)
@@ -436,9 +442,9 @@ test("desktop map control rail exposes the 'Saved only' filter checkbox", async 
   // un-hydrated DOM. WebGL-agnostic — canvas or fallback, either is fine.
   await expect(page.locator(".mapCanvasWrap")).toBeVisible();
 
-  // The control rail renders unconditionally inside the (collapsed-by-default)
-  // planning drawer, so it's in the DOM on desktop even before the planner is
-  // opened. Web-first (auto-retrying) so hydration timing can't false-fail it.
+  // The reset keeps planner controls out of the map until explicitly requested.
+  // Open the desktop planner, then verify the saved-only entry remains present.
+  await page.getByRole("button", { name: "Plan tonight" }).click();
   const rail = page.locator(".controlRail");
   await expect(rail).toHaveCount(1);
 
@@ -540,6 +546,47 @@ test("mobile feed reveals more cards on scroll without clicking 'Load more' (§2
   // never touch the "Load more" button — its presence on mobile would itself be
   // the bug, but we assert the count-growth (the user-visible contract) directly.
   await expect.poll(async () => cards.count()).toBeGreaterThan(initial);
+
+  expect(errors).toEqual([]);
+});
+
+test("mobile feed lane controls keep thumb-sized targets without page overflow", async ({ page }) => {
+  const errors = watchPageErrors(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const response = await page.goto("/feed");
+  expect(response?.status()).toBe(200);
+  await expect(page.locator(".feedTitle")).toBeVisible();
+
+  const result = await page.evaluate(() => {
+    const rail = document.querySelector<HTMLElement>(".feedFilters");
+    const chips = Array.from(document.querySelectorAll<HTMLElement>(".feedFilterChip"))
+      .filter((el) => el.offsetParent !== null)
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          height: rect.height,
+          width: rect.width,
+          left: rect.left,
+          right: rect.right,
+        };
+      });
+
+    return {
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      railScrollsInternally: rail ? rail.scrollWidth > rail.clientWidth : false,
+      chips,
+    };
+  });
+
+  expect(result.overflow).toBeLessThanOrEqual(1);
+  expect(result.railScrollsInternally).toBe(true);
+  expect(result.chips.length).toBeGreaterThanOrEqual(5);
+  for (const chip of result.chips) {
+    expect(chip.height).toBeGreaterThanOrEqual(44);
+    expect(chip.width).toBeGreaterThan(44);
+  }
 
   expect(errors).toEqual([]);
 });

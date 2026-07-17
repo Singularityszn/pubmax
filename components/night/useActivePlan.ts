@@ -10,6 +10,7 @@ import {
   subscribeNightModeDismiss,
   type ActivePlanRef,
 } from "@/lib/activePlan";
+import { restorePlanCapability } from "@/lib/planSessionCapability";
 
 // How often we re-check the time window, so a plan that ages out of its active
 // span (start + POST) retires the card without a navigation. 60s is plenty —
@@ -56,6 +57,10 @@ export function useActivePlan(): NightModeState {
       window.clearInterval(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (state.ref?.id) void restorePlanCapability(state.ref.id).catch(() => undefined);
+  }, [state.ref?.id]);
 
   return state;
 }

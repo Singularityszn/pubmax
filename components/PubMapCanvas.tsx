@@ -42,7 +42,7 @@ import { formatPrice, type Venue } from "@/lib/venues";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, LONDON_BOUNDS,
-  ORBIT_DEG_PER_SEC, ORBIT_RESUME_MS, DASH_SEQ,
+  DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
   readTokens,
@@ -55,7 +55,8 @@ import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
-  PIN_ICON_SIZE_EXPR, pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
+  pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
+  selectedPinIconSizeExpr,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
@@ -64,12 +65,16 @@ import {
 } from "@/components/map/canvas/hoverCard";
 import { assembleScene } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
+import { createPinRevealCoordinator } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
 import { useMapCamera } from "@/components/map/canvas/useMapCamera";
-import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
+import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
+import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
+import { nearbyVenuesForMap } from "@/lib/nearby";
+import type { MapViewportSnapshot } from "@/lib/mobileShell";
 
 
 type PubMapCanvasProps = {
@@ -134,11 +139,6 @@ type PubMapCanvasProps = {
    */
   maxBounds?: [[number, number], [number, number]];
   /**
-   * Clean city arrival (no drink/crawl/pubs/route intent): fit city bounds once
-   * after style/load so Bristol/Oxford/etc. land framed, not on a default zoom.
-   */
-  fitCityOnArrival?: boolean;
-  /**
    * Optional POI JSON path from CityConfig.poisPath. `null` skips the London
    * POI fetch so non-London cities do not 404 on `/data/london_pois.json`.
    * Omit / undefined keeps the London default for back-compat.
@@ -172,13 +172,17 @@ type PubMapCanvasProps = {
    * style/load so outer-London places land framed, not on the city default.
    */
   fitQueryOnArrival?: boolean;
+  /** Precise location retained only in memory after explicit permission. */
+  userLocation?: { lat: number; lng: number } | null;
+  poiHidden?: Record<PoiCategory, boolean>;
+  onPoiHiddenChange?: (next: Record<PoiCategory, boolean>) => void;
+  hideLayersControl?: boolean;
+  onViewportChange?: (viewport: MapViewportSnapshot) => void;
 };
 
 
-// Hard ceiling on the tile-paint gate: if the map never reaches `idle` (the
-// ambient orbit nudges the camera every frame, which on a slow tile connection
-// can starve the idle event indefinitely), reveal the pins anyway — a
-// briefly-bare basemap beats a permanently pinless map.
+// Hard ceiling on the tile-paint gate: slow or incomplete community tiles must
+// never leave the pub layer hidden indefinitely.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
 // Every pub-source layer, gated together so pin paint can be withheld until the
 // basemap has actually painted (see the tile-paint gate in buildSceneBody).
@@ -217,7 +221,6 @@ export default function PubMapCanvas({
   onMapErrored,
   mapView = LONDON_VIEW,
   maxBounds = LONDON_BOUNDS,
-  fitCityOnArrival = false,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
   cityLandmarks = londonLandmarks,
@@ -227,6 +230,11 @@ export default function PubMapCanvas({
   tonightOverlayVisible = false,
   onTonightOpportunityClick,
   fitQueryOnArrival = false,
+  userLocation = null,
+  poiHidden: controlledPoiHidden,
+  onPoiHiddenChange,
+  hideLayersControl = false,
+  onViewportChange,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
@@ -242,6 +250,17 @@ export default function PubMapCanvas({
   const landmarksGeoJSON = useMemo(
     () => landmarksToGeoJSON(cityLandmarks),
     [cityLandmarks],
+  );
+  const nearbyMapVenues = useMemo(
+    () =>
+      userLocation
+        ? nearbyVenuesForMap(userLocation.lat, userLocation.lng, venues, {
+            radiusKm: 2.5,
+            minCount: 20,
+            maxCount: 20,
+          })
+        : [],
+    [userLocation, venues],
   );
   // Refs for camera/bounds + landmark seed so the MapLibre mount effect does not
   // tear down on parent re-renders that only change object identity.
@@ -316,9 +335,14 @@ export default function PubMapCanvas({
   // all-hidden, while mobile first paint stays clean (all categories off).
   // Only rewrite defaults when the viewport band actually changes — never on
   // every mount tick (a fresh object would re-filter layers and look like flicker).
-  const [poiHidden, setPoiHidden] = useState<Record<PoiCategory, boolean>>(
+  const [internalPoiHidden, setInternalPoiHidden] = useState<Record<PoiCategory, boolean>>(
     defaultPoiHiddenForViewport,
   );
+  const poiHidden = controlledPoiHidden ?? internalPoiHidden;
+  const setPoiHidden = useCallback((next: Record<PoiCategory, boolean>) => {
+    if (onPoiHiddenChange) onPoiHiddenChange(next);
+    else setInternalPoiHidden(next);
+  }, [onPoiHiddenChange]);
   const poiViewportMobileRef = useRef<boolean | null>(null);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
@@ -333,7 +357,7 @@ export default function PubMapCanvas({
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
-  }, []);
+  }, [setPoiHidden]);
   // Open when a band is already active (e.g. `?band=` deep link). Layers owns
   // the corridor picker UI; canvas only paints the active corridor.
   const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
@@ -343,6 +367,7 @@ export default function PubMapCanvas({
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
   const onTonightOpportunityClickRef = useRef(onTonightOpportunityClick);
+  const onViewportChangeRef = useRef(onViewportChange);
   const cityLandmarksRef = useRef(cityLandmarks);
   const tonightOpportunitiesRef = useRef(tonightOpportunities);
   const tonightOverlayVisibleRef = useRef(tonightOverlayVisible);
@@ -358,6 +383,7 @@ export default function PubMapCanvas({
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
     onTonightOpportunityClickRef.current = onTonightOpportunityClick;
+    onViewportChangeRef.current = onViewportChange;
     cityLandmarksRef.current = cityLandmarks;
   }, [
     onVenueClick,
@@ -365,6 +391,7 @@ export default function PubMapCanvas({
     onVenuePrefetch,
     onLandmarkSelect,
     onTonightOpportunityClick,
+    onViewportChange,
     cityLandmarks,
   ]);
 
@@ -483,10 +510,6 @@ export default function PubMapCanvas({
     }
   }, []);
 
-  // Orbit state: the loop only drifts the bearing when now > holdUntil, so any
-  // interaction or programmatic camera move simply pushes the hold forward —
-  // the orbit never fights an easeTo.
-  const holdUntilRef = useRef(0);
   const reducedRef = useRef(false);
   const blurredRef = useRef(false);
   const themeRef = useRef<"dark" | "light">("dark");
@@ -501,9 +524,8 @@ export default function PubMapCanvas({
 
   // Camera helpers (cinematic + fit*) — extracted to useMapCamera; empty-dep
   // callbacks over live refs (see the hook for why the deps must stay empty).
-  const { cinematic, fitRoute, fitCityBounds, fitQueryVenues } = useMapCamera({
+  const { cinematic, fitRoute, fitCityBounds, fitQueryVenues, fitNearby } = useMapCamera({
     mapRef,
-    holdUntilRef,
     reducedRef,
     mapViewRef,
     maxBoundsRef,
@@ -520,11 +542,8 @@ export default function PubMapCanvas({
     if (!initialLandmarkId || !mapReady) return;
     const landmark = landmarkById(initialLandmarkId);
     if (!landmark) return;
-    const map = mapRef.current;
-    if (map) {
-      map.easeTo({ center: landmark.coordinates, zoom: 15, duration: 800 });
-    }
-  }, [initialLandmarkId, mapReady, landmarkById]);
+    cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark");
+  }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
 
   useEffect(() => {
     if (!hoveredVenueId) return;
@@ -759,6 +778,15 @@ export default function PubMapCanvas({
     }
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     mapRef.current = map;
+    map.on("moveend", () => {
+      const center = map.getCenter();
+      onViewportChangeRef.current?.({
+        center: [center.lng, center.lat],
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      });
+    });
 
     // The upstream OpenFreeMap styles reference sprite images we never render
     // at our zoom/layers (liberty's "wood-pattern"), and MapLibre warns on
@@ -776,14 +804,50 @@ export default function PubMapCanvas({
     // buildSceneBody delegates the full source/layer assembly to assembleScene
     // (components/map/canvas/buildScene.ts); the wrapper keeps only the D2
     // tile-paint gate and the pendingUpdatesRef flush, which own component state.
-    // Fallback timer for the tile-paint gate (see buildSceneBody); lives at
-    // construct scope so a theme-swap rebuild replaces the previous timer and
-    // teardown can clear it.
-    let pinRevealTimer: ReturnType<typeof setTimeout> | undefined;
-    // Companion rAF handle for the already-loaded-source reveal below — retained
-    // so a theme-swap rebuild or teardown can cancel a stale frame that would
-    // otherwise reveal pins for a scene that no longer exists.
-    let pinRevealRaf: ReturnType<typeof requestAnimationFrame> | undefined;
+    // One generation-scoped gate owns every pin reveal callback. A theme swap
+    // cancels the previous generation before setStyle, so a late render/frame
+    // from the old style can never mutate the new one.
+    const pinRevealCoordinator = createPinRevealCoordinator({
+      timeoutMs: PIN_REVEAL_TIMEOUT_MS,
+      areTilesLoaded: () => {
+        const basemapSourceIds = Object.entries(map.getStyle().sources ?? {})
+          .filter(([, source]) => (
+            source.type === "vector" || source.type === "raster" || source.type === "raster-dem"
+          ))
+          .map(([id]) => id);
+        if (basemapSourceIds.length === 0 || !map.areTilesLoaded()) return false;
+        try {
+          return basemapSourceIds.every((id) => map.isSourceLoaded(id));
+        } catch {
+          return false;
+        }
+      },
+      setPinsVisible: (visible) => {
+        for (const id of PUB_PIN_LAYERS) {
+          if (map.getLayer(id)) {
+            map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+          }
+        }
+      },
+      subscribeRender: (listener) => {
+        map.on("render", listener);
+        return () => map.off("render", listener);
+      },
+      subscribeIdle: (listener) => {
+        map.on("idle", listener);
+        return () => map.off("idle", listener);
+      },
+      requestFrame: (callback) => requestAnimationFrame(callback),
+      cancelFrame: (id) => cancelAnimationFrame(id),
+      setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
+      clearTimer: (handle) => window.clearTimeout(handle),
+      onReveal: (reason, generation) => {
+        window.dispatchEvent(new CustomEvent("pubmax:pin-reveal", {
+          detail: { reason, generation },
+        }));
+        startPinEntrance();
+      },
+    });
     const buildScene = () => {
       // Stale-event guard. A style.load can arrive from a style that a rapid
       // setStyle() just superseded (e.g. two theme flips inside one style-fetch
@@ -805,6 +869,7 @@ export default function PubMapCanvas({
         buildSceneBody();
         settleSceneReady();
       } catch (error) {
+        pinRevealCoordinator.cancel();
         console.error("[pubmap] buildScene failed", error);
         const detail =
           error instanceof Error ? error.message : "Scene build threw unexpectedly";
@@ -873,70 +938,15 @@ export default function PubMapCanvas({
       // Liberty/Positron style, which has no dark background to mask it; the dark
       // style just hid the same race). Hold every pub layer hidden until the pub
       // data is actually paintable, then reveal them together. Applies on the
-      // initial load AND every theme swap. Skipped when tiles are already loaded
-      // (cached / a duplicate build) so there is no needless flash.
+      // initial load AND every theme swap. Cached tiles still cross one frame
+      // boundary, avoiding a same-frame full-opacity flash.
       //
-      // Reveal trigger (P1 dark-pins fix): the PRIMARY signal is the `pubs`
-      // GeoJSON source finishing its load — that source is THEME-INDEPENDENT and
-      // carries the pins' own data, so pin reveal no longer waits on the
-      // basemap's vector tiles. The dark ("dark") and light ("liberty") styles
-      // fetch different tile/sprite/glyph endpoints at different speeds, so
-      // gating on basemap readiness let whichever style was slower (or being
-      // rate-limited) strand its theme on a pinless map showing only landmarks.
-      // `idle` stays as a same-frame reveal when the basemap IS quick, but it is
-      // routinely starved (the ambient orbit nudges the camera every frame, so
-      // the map may never go idle), and PIN_REVEAL_TIMEOUT_MS is the hard
-      // backstop. Whichever fires first reveals the pins and disarms the rest.
-      if (!map.areTilesLoaded()) {
-        if (pinRevealRaf !== undefined) {
-          cancelAnimationFrame(pinRevealRaf);
-          pinRevealRaf = undefined;
-        }
-        for (const id of PUB_PIN_LAYERS) {
-          if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
-        }
-        // Reveal the instant the pub source itself is loaded — independent of
-        // the basemap, so dark and light reveal pins symmetrically even when one
-        // style's tiles are slow/rate-limited. Declared before revealPins so the
-        // reveal can detach it by reference (revealPins is hoisted).
-        const onPubsSourceData = (e: maplibregl.MapSourceDataEvent) => {
-          if (e.sourceId === "pubs" && e.isSourceLoaded) revealPins();
-        };
-        function revealPins() {
-          clearTimeout(pinRevealTimer);
-          pinRevealTimer = undefined;
-          if (pinRevealRaf !== undefined) {
-            cancelAnimationFrame(pinRevealRaf);
-            pinRevealRaf = undefined;
-          }
-          map.off("idle", revealPins);
-          map.off("sourcedata", onPubsSourceData);
-          for (const id of PUB_PIN_LAYERS) {
-            if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
-          }
-          // M7 — this is the true "first pin reveal" when the gate was armed:
-          // settleSceneReady already ran (and deferred) while pins were still
-          // hidden, so kick the entrance off here instead. Fire-once inside
-          // startPinEntrance, so theme-swap rebuilds re-running this reveal
-          // can never replay the entrance.
-          startPinEntrance();
-        }
-        // If the pub source already parsed before this listener attached (its
-        // `sourcedata` would not fire again), reveal on the next frame so we
-        // never strand pins waiting on an event that has passed.
-        if (map.getSource("pubs") && map.isSourceLoaded("pubs")) {
-          pinRevealRaf = requestAnimationFrame(() => {
-            pinRevealRaf = undefined;
-            if (pinRevealTimer !== undefined) revealPins();
-          });
-        }
-        map.on("sourcedata", onPubsSourceData);
-        map.once("idle", revealPins);
-        // A theme-swap rebuild re-arms the gate; drop the previous build's timer
-        // so only the latest reveal pair is live.
-        clearTimeout(pinRevealTimer);
-        pinRevealTimer = setTimeout(revealPins, PIN_REVEAL_TIMEOUT_MS);
-      }
+      // The local `pubs` GeoJSON can finish before any basemap vector tile has
+      // painted. Gate every pin layer as one style generation and reveal only
+      // after tile readiness crosses a paint frame. The timeout deliberately
+      // degrades to usable pins over the themed container when community tiles
+      // are partial/offline instead of leaving the product invisible.
+      pinRevealCoordinator.arm();
 
       // Flush any mutations that arrived while the style was mid-load (initial
       // load or a theme swap). buildScene has just re-seeded every source/layer
@@ -1012,7 +1022,7 @@ export default function PubMapCanvas({
         duration: 250,
         delay: 0,
       });
-      map.setLayoutProperty("pubs-point", "icon-size", PIN_ICON_SIZE_EXPR);
+      map.setLayoutProperty("pubs-point", "icon-size", selectedPinIconSizeExpr(selectedIdRef.current));
       map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
     };
     // Fired once per mount, at the FIRST moment pins are actually visible:
@@ -1083,6 +1093,7 @@ export default function PubMapCanvas({
     const swapToBasemapFallback = () => {
       if (styleLoaded || usingFallback) return;
       usingFallback = true;
+      pinRevealCoordinator.cancel();
       map.setStyle(FALLBACK_STYLES[themeRef.current], { diff: false });
       hardFailTimer = setTimeout(() => {
         if (!styleLoaded) {
@@ -1151,36 +1162,21 @@ export default function PubMapCanvas({
     // see donutClusters.ts). Syncs off the map's own render/moveend/
     // sourcedata events, so it adds no second RAF loop; click reuses the
     // same cluster-expansion-zoom behaviour as the plain circle layer.
-    const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic);
-    // --- Idle orbit + dash animation: one RAF loop, no React re-renders.
-    // User input (incl. the nav control) pushes holdUntil forward; the orbit
-    // resumes after ORBIT_RESUME_MS of stillness. Reduced motion disables both.
-    holdUntilRef.current = performance.now() + 2500; // let the first paint settle
-    const onInteract = () => {
-      holdUntilRef.current = Math.max(
-        holdUntilRef.current,
-        performance.now() + ORBIT_RESUME_MS,
-      );
-    };
-    const interactionTarget = map.getContainer();
-    const interactionEvents: (keyof HTMLElementEventMap)[] = [
-      "pointerdown",
-      "wheel",
-      "touchstart",
-      "keydown",
-    ];
-    for (const eventName of interactionEvents) {
-      interactionTarget.addEventListener(eventName, onInteract, { passive: true });
-    }
-
+    const useDomDonutClusters = !window.matchMedia(
+      "(max-width: 640px), (pointer: coarse)",
+    ).matches;
+    const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic, {
+      enabled: useDomDonutClusters,
+    });
+    // One RAF loop for motivated feedback only: pin entrance, route direction,
+    // and the selected-pin pulse. The old perpetual camera orbit changed the
+    // whole canvas every frame while idle, forcing tile churn that read as
+    // flicker and fought the user's spatial memory.
     let rafId = 0;
-    let last = performance.now();
     let dashStep = 0;
     let dashAt = 0;
     const frame = (now: number) => {
       rafId = requestAnimationFrame(frame);
-      const dt = Math.min(now - last, 100);
-      last = now;
       // M7 pin entrance — progressed ahead of the big early-return below so
       // it isn't starved by a hidden/blurred tab (a background tab still
       // ticks rAF, just throttled; the elapsed-time check below simply
@@ -1226,9 +1222,6 @@ export default function PubMapCanvas({
         !map.getLayer("pubs-point")
       )
         return;
-      if (now >= holdUntilRef.current) {
-        map.setBearing(map.getBearing() - (ORBIT_DEG_PER_SEC * dt) / 1000);
-      }
       if (now - dashAt > 90 && map.getLayer("route-line-dash")) {
         dashAt = now;
         dashStep = (dashStep + 1) % DASH_SEQ.length;
@@ -1261,6 +1254,7 @@ export default function PubMapCanvas({
       // and style.load always fires, so buildScene deterministically rebuilds
       // every layer with the new theme's tokens (a successful diff would keep
       // stale-themed layers and skip style.load entirely).
+      pinRevealCoordinator.cancel();
       map.setStyle(MAP_STYLES[next], { diff: false });
     });
     themeObserver.observe(document.documentElement, {
@@ -1276,17 +1270,11 @@ export default function PubMapCanvas({
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
-      if (pinRevealTimer) clearTimeout(pinRevealTimer);
-      pinRevealTimer = undefined;
-      if (pinRevealRaf !== undefined) cancelAnimationFrame(pinRevealRaf);
-      pinRevealRaf = undefined;
+      pinRevealCoordinator.dispose();
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
-      for (const eventName of interactionEvents) {
-        interactionTarget.removeEventListener(eventName, onInteract);
-      }
       donutSync.destroy();
       map.remove();
       mapRef.current = null;
@@ -1449,7 +1437,12 @@ export default function PubMapCanvas({
         // loop takes over from here again next frame if a venue is selected,
         // and a deselect leaves the ring at this baseline (not mid-pulse).
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
-        map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", GLOW_BASE_STROKE_WIDTH);
+        // Slightly fatter ring while selected so the pinpoint reads under the sheet.
+        map.setPaintProperty(
+          "pubs-selected-glow",
+          "circle-stroke-width",
+          selectedIdRef.current ? GLOW_BASE_STROKE_WIDTH + 1.2 : GLOW_BASE_STROKE_WIDTH,
+        );
       }
       if (map.getLayer("pubs-selected")) {
         map.setFilter("pubs-selected", selectedFilter);
@@ -1457,6 +1450,11 @@ export default function PubMapCanvas({
       // M1 selection spotlight — dim every non-selected pub pin; the selected
       // pin stays fully opaque. Deselect restores the plain serves-based dim.
       if (map.getLayer("pubs-point")) {
+        map.setLayoutProperty(
+          "pubs-point",
+          "icon-size",
+          selectedPinIconSizeExpr(selectedIdRef.current),
+        );
         map.setPaintProperty(
           "pubs-point",
           "icon-opacity",
@@ -1473,21 +1471,10 @@ export default function PubMapCanvas({
     });
   }, [route, selectedVenueId, mapReady, applyToMap, applyRouteData]);
 
-  // Clean city arrival: frame the city's maxBounds once after style/load.
-  // Drink / crawl / pubs / mapped-route arrivals own the camera elsewhere —
-  // see shouldFitCityBoundsOnArrival. Ref guards against effect re-runs.
-  const didFitOnArrivalRef = useRef(false);
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {
-    didFitOnArrivalRef.current = false;
     didFitQueryOnArrivalRef.current = false;
   }, [cityId]);
-  useEffect(() => {
-    if (!mapReady || !fitCityOnArrival) return;
-    if (didFitOnArrivalRef.current) return;
-    didFitOnArrivalRef.current = true;
-    fitCityBounds();
-  }, [mapReady, fitCityOnArrival, fitCityBounds]);
 
   useEffect(() => {
     if (!mapReady || !fitQueryOnArrival) return;
@@ -1499,6 +1486,35 @@ export default function PubMapCanvas({
     fitQueryVenues();
   }, [mapReady, fitQueryOnArrival, venues.length, selectedVenueId, fitQueryVenues]);
 
+  // A granted location is a temporary map aid, not a persisted Home Area.
+  // Frame the local pub cloud once, then leave the camera entirely under the
+  // user's control. Active routes own their own framing and take precedence.
+  const didFitUserLocationRef = useRef("");
+  useEffect(() => {
+    if (!mapReady || !userLocation || route.length >= 2 || nearbyMapVenues.length === 0) return;
+    const key = `${userLocation.lat.toFixed(5)},${userLocation.lng.toFixed(5)}`;
+    if (didFitUserLocationRef.current === key) return;
+    didFitUserLocationRef.current = key;
+    fitNearby(userLocation, nearbyMapVenues);
+  }, [mapReady, userLocation, route.length, nearbyMapVenues, fitNearby]);
+
+  // DOM marker survives basemap style swaps and stays crisp above clustered
+  // symbols. Its pulse is CSS-only and reduced-motion aware.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !userLocation) return;
+    const element = document.createElement("div");
+    element.className = "mapUserLocationMarker";
+    element.setAttribute("role", "img");
+    element.setAttribute("aria-label", "Your approximate location");
+    const marker = new maplibregl.Marker({ element, anchor: "center" })
+      .setLngLat([userLocation.lng, userLocation.lat])
+      .addTo(map);
+    return () => {
+      marker.remove();
+    };
+  }, [mapReady, userLocation]);
+
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere
   // selection change produce the same key, so the camera stays put while a user
@@ -1509,8 +1525,10 @@ export default function PubMapCanvas({
   const routeKey = route.map((venue) => venue.id).join(">");
   useEffect(() => {
     if (!mapReady) return;
+    // An active selection owns the camera — don't let route framing yank out.
+    if (selectedVenueId) return;
     fitRoute();
-  }, [routeKey, mapReady, fitRoute]);
+  }, [routeKey, mapReady, fitRoute, selectedVenueId]);
 
   // Cinematic fly-to on venue selection (after the route framing above).
   // `selectedPresent` closes the ?sel= deep-link race: on first load the
@@ -1533,15 +1551,17 @@ export default function PubMapCanvas({
     if (!map || !mapReady || !selectedPresent) return;
     const venue = venuesRef.current.find((item) => item.id === selectedVenueId);
     if (!venue) return;
-    // M3: pub-select lean-in — 35-45deg pitch, ease-out, 600-800ms. Reduced
-    // motion collapses the duration to 0 inside cinematic() (see useMapCamera),
-    // so this always degrades to an instant jump under prefers-reduced-motion.
+    // Mobile: offset the camera so the pin sits in the visible band above the
+    // half-sheet (not under it); soften pitch so 3D buildings don't bury it.
+    const isPhone = window.matchMedia("(max-width: 640px)").matches;
+    const offset = isPhone ? mobileSelectCameraOffset(window.innerHeight, "half") : undefined;
     cinematic({
       center: [venue.longitude, venue.latitude],
       zoom: Math.max(map.getZoom(), 14),
-      pitch: PUB_SELECT_PITCH,
+      pitch: isPhone ? PUB_SELECT_PITCH_MOBILE : PUB_SELECT_PITCH,
       duration: PUB_SELECT_DURATION_MS,
       easing: easeOutCubic,
+      ...(offset ? { offset } : {}),
     });
   }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark]);
 
@@ -1685,7 +1705,7 @@ export default function PubMapCanvas({
   const cityDisplayName = getCity(cityId).displayName;
 
   return (
-    <div className="mapCanvasWrap" data-route-stops={route.length}>
+    <div className="mapCanvasWrap" data-route-stops={route.length} data-venue-count={venues.length}>
       <div ref={containerRef} className="maplibreMap" />
       {/* Camera fit for the active city — not a city switcher (toolbar owns that). */}
       <div className="mapCameraControls" aria-label="Map camera controls">
@@ -1873,14 +1893,16 @@ export default function PubMapCanvas({
       {/* Wave J declutter: one Layers control on all viewports (Airbnb-clean).
           Desktop mid-map POI strip + Place stories stack removed — same content
           lives in the Layers popover. Do not rebuild #63 structure. */}
-      <MapLayersControl
-        poiHidden={poiHidden}
-        onPoiHiddenChange={setPoiHidden}
-        activeBandId={activeBandId}
-        onBandChange={onBandChange}
-        storyBands={cityStoryBands}
-        cityId={cityId}
-      />
+      {!hideLayersControl ? (
+        <MapLayersControl
+          poiHidden={poiHidden}
+          onPoiHiddenChange={setPoiHidden}
+          activeBandId={activeBandId}
+          onBandChange={onBandChange}
+          storyBands={cityStoryBands}
+          cityId={cityId}
+        />
+      ) : null}
       {activePoi ? (
         <div className="poiLabelCard" role="status">
           <span

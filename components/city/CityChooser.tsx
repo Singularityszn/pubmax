@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useState, useTransition } from "react";
 import { Beer, LocateFixed } from "lucide-react";
+import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 
 import {
   getCity,
@@ -100,7 +101,7 @@ export default function CityChooser({
               <span className="cityChooserBrandMark" aria-hidden="true">
                 <Beer size={18} strokeWidth={1.5} />
               </span>
-              <span className="cityChooserBrandText">PUBMAXXING</span>
+              <PubmaxxWordmark className="cityChooserBrandText" />
             </Link>
           ) : (
             <p className="cityChooserEyebrow">Cities</p>

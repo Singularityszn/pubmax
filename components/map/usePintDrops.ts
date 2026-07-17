@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedFetch } from "@/lib/authedFetch";
+import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 import type { PintDropDTO } from "@/lib/feed";
@@ -431,6 +432,7 @@ export function usePintDrops(cityId: CityId = "london") {
         markFailed(data.error ?? "Could not save that drop.");
         return;
       }
+      trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
 
       const reconciledDrop = {
         ...(data.drop as PintDropDTO),

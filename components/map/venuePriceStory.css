@@ -49,6 +49,14 @@
 
 .vpsPriceValue {
   padding: 4px 10px;
+  /* The shared PriceBadge uses the mono data face, which looks great in compact
+     tables but leaves an exaggerated decimal gap at this larger Golden Thread
+     size on mobile (e.g. "£5. 50"). Use the app text face here while preserving
+     tabular numeric alignment. */
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "kern" 0;
+  letter-spacing: -0.01em;
   font-size: 1rem;
   min-inline-size: 4.9rem;
 }

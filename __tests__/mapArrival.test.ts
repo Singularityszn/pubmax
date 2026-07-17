@@ -4,7 +4,6 @@ import {
   isBoroughBrowseArrival,
   isCuratedCrawlArrival,
   isDrinkShapeArrival,
-  shouldFitCityBoundsOnArrival,
   shouldFitQueryVenuesOnArrival,
   shouldOpenPlanningInitially,
 } from "@/lib/mapArrival";
@@ -47,24 +46,6 @@ describe("isBoroughBrowseArrival", () => {
   });
 });
 
-describe("shouldFitCityBoundsOnArrival", () => {
-  it("fits clean city arrivals (no crawl/drink/route/borough-browse intent)", () => {
-    expect(shouldFitCityBoundsOnArrival("")).toBe(true);
-    expect(shouldFitCityBoundsOnArrival("?band=subcrawl")).toBe(true);
-  });
-
-  it("skips drink, crawl, pubs, borough-browse, and mapped-route arrivals", () => {
-    expect(shouldFitCityBoundsOnArrival("?drink=wine")).toBe(false);
-    expect(shouldFitCityBoundsOnArrival("?cocktails=1")).toBe(false);
-    expect(shouldFitCityBoundsOnArrival("?crawl=victorian-soho")).toBe(false);
-    expect(shouldFitCityBoundsOnArrival("?mode=build&pubs=a,b")).toBe(false);
-    expect(shouldFitCityBoundsOnArrival("?pubs=a,b")).toBe(false);
-    expect(shouldFitCityBoundsOnArrival("?q=Barnet")).toBe(false);
-    expect(shouldFitCityBoundsOnArrival("?q=Barnet&mode=suggest")).toBe(false);
-    expect(shouldFitCityBoundsOnArrival("", true)).toBe(false);
-  });
-});
-
 describe("shouldFitQueryVenuesOnArrival", () => {
   it("fits query venues for borough browse only", () => {
     expect(shouldFitQueryVenuesOnArrival("?q=Barnet")).toBe(true);
@@ -76,6 +57,11 @@ describe("shouldFitQueryVenuesOnArrival", () => {
 });
 
 describe("shouldOpenPlanningInitially", () => {
+  it("opens for the explicit primary planning intent", () => {
+    expect(shouldOpenPlanningInitially([], "suggest", "?plan=1")).toBe(true);
+    expect(shouldOpenPlanningInitially([], "suggest", "?drink=beer&plan=1")).toBe(true);
+  });
+
   it("keeps borough browse (?q=) on the clean map without opening the planner", () => {
     expect(shouldOpenPlanningInitially([], "suggest", "?q=Barnet")).toBe(false);
     expect(shouldOpenPlanningInitially([], "suggest", "?q=Croydon")).toBe(false);
@@ -109,10 +95,9 @@ describe("shouldOpenPlanningInitially", () => {
     expect(shouldOpenPlanningInitially([], "suggest", "?mode=build")).toBe(true);
   });
 
-  it("borough browse with mode=suggest: planner closed, city fit false, query fit true", () => {
+  it("borough browse with mode=suggest: planner closed and query fit true", () => {
     const search = "?q=Barnet&mode=suggest";
     expect(shouldOpenPlanningInitially([], "suggest", search)).toBe(false);
-    expect(shouldFitCityBoundsOnArrival(search)).toBe(false);
     expect(shouldFitQueryVenuesOnArrival(search)).toBe(true);
   });
 
@@ -121,7 +106,6 @@ describe("shouldOpenPlanningInitially", () => {
     expect(isDrinkShapeArrival(search)).toBe(true);
     expect(isBoroughBrowseArrival(search)).toBe(false);
     expect(shouldOpenPlanningInitially([], "suggest", search)).toBe(false);
-    expect(shouldFitCityBoundsOnArrival(search)).toBe(false);
     expect(shouldFitQueryVenuesOnArrival(search)).toBe(false);
   });
 });

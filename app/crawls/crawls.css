@@ -435,13 +435,16 @@
 .crawlSecondaryBtn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  min-height: 44px;
   padding: 11px 18px;
   border-radius: 10px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  box-sizing: border-box;
 }
 
 .crawlPrimaryBtn {
