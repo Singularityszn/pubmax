@@ -19,6 +19,15 @@ function watchPageErrors(page: Page): string[] {
 }
 
 test.beforeEach(async ({ page }) => {
+  // Every test here drives the heavy `/map` route (MapLibre + large bundles).
+  // On a freshly-built production server the first requests pay a real
+  // cold-start cost that can exceed the default 30s per-test budget — which is
+  // why the map-driving specs in this suite (accessible-filters, crawl-routes,
+  // map-console-health, …) all raise their timeout. Without this, the first
+  // few tests in file order flake with an empty-locator timeout on a cold
+  // webServer while everything after them (server now warm) passes. 90s matches
+  // the established convention and is absorbed instantly once warm.
+  test.setTimeout(90_000);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
