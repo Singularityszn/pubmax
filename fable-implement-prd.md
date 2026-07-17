@@ -106,6 +106,11 @@ Owner asleep from ~23:00. Every overnight action appended here with the why. Sta
 - **PR #308 opened** (borough coverage, Opus 4.8): 78% of 1246 venues priced; outer ring hollow (Barking&Dagenham 1 priced pub, Kingston 4, Hounslow 5). ZERO rows added — honest: seeds exhausted, price fetch is a stub, Firecrawl harvesters off-metric, OSM scoped non-London. Next-cycle levers logged in PR: sourced outer-borough seeds, per-row observedAt, seed-dedup coordinate-drift bug, core geo≠stored borough mismatch (Camden 89).
 - Still running: instant-answer lane (Opus), e2e-verifier (Opus).
 
+### Night log (contd.)
+
+- **PR #309 opened + CI green** — "Near me now" instant answer (Opus 4.8): geolocate → 3–5 cheapest priced pubs in a 12-min walk; landing hero "Find my pint"; map Near-me chip opens answer sheet; borough-picker fallback. THE persona fix.
+- **PR #310 opened — e2e truth table** (Opus 4.8 verifier): #305 verified clean (25/25); **#304 fails its own disclosure spec; #302 4/9 mocked cases never render the card; #307 regressed tap targets (36px) + removed pub-name links.** Fixes dispatched back to the three owning lanes; Sol must read #310 before merging those. GNHF-claude lane launched for WhatsApp share artifacts. Cycle-4 lanes (osm/identity/a2hs/header) running.
+
 ## CYCLE 4 PRD (overnight, owner directive: maximize parallel Opus 4.8 lanes)
 
 Backlog drawn from logged findings; four non-colliding lanes, all Opus 4.8, worktrees, separate PRs:
