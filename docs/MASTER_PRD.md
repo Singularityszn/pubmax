@@ -147,6 +147,9 @@ another completion.
 The idempotent `plan_completions` row is the authoritative PNC event. Browser
 telemetry is never the counter because a committed write can outlive a lost response.
 PostHog may receive PNC only through a future server outbox keyed by completion ID.
+Operators aggregate the service-role-only `pnc_qualified_completions` view described
+in `docs/PNC_OBSERVABILITY_RUNBOOK.md`; it excludes legacy rows that lack a qualifying
+arrival or explicit ending selection and exposes no user identity or free text.
 
 ### Supporting metrics
 
