@@ -75,6 +75,7 @@ describe("Plan Completion", () => {
     expect(sql).toContain("actor_id <> host_id");
     expect(sql).toContain("stop.position = action.stop_position");
     expect(sql).toContain("candidate.created_at <= completion.completed_at");
+    expect(sql.match(/action\.created_at <= p_completed_at/g)).toHaveLength(2);
     expect(sql).toContain("on delete no action");
     expect(sql).toContain("deferrable initially deferred");
     expect(sql).toContain("p_ending_selection jsonb");

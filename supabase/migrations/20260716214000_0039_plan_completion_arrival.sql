@@ -99,6 +99,7 @@ begin
   from public.plan_actions action
   where action.plan_id = p_plan_id
     and action.type = 'arrived'
+    and action.created_at <= p_completed_at
     and exists (
       select 1 from public.plan_stops stop
       where stop.plan_id = p_plan_id and stop.position = action.stop_position
@@ -186,6 +187,7 @@ begin
   from public.plan_actions action
   where action.plan_id = p_plan_id
     and action.type = 'arrived'
+    and action.created_at <= p_completed_at
     and exists (
       select 1 from public.plan_stops stop
       where stop.plan_id = p_plan_id and stop.position = action.stop_position
