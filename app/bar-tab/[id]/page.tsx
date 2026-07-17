@@ -79,8 +79,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
+    // The card image comes from the sibling opengraph-image.tsx (Next file
+    // convention injects og:image / twitter:image automatically).
     openGraph: { title, description, type: "website" },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
