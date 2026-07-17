@@ -10,7 +10,9 @@
 // keeps the first client render null (matches the SSR "seen" snapshot, so no
 // hydration mismatch). Once dismissed we play an exit animation, then
 // markTourSeen() — which flips the store and unmounts. Renders nothing on the
-// server or for returning users.
+// server, for returning users, or off the /map surfaces (see
+// shouldShowFirstRunTour in lib/firstRunTour.ts) — the tour spotlights the
+// map + mobile tab bar, so landing/tonight/feed/pint-index/etc. render clean.
 
 import {
   useCallback,
@@ -26,6 +28,7 @@ import {
   getTourSeenServerSnapshot,
   getTourSeenSnapshot,
   markTourSeen,
+  shouldShowFirstRunTour,
   subscribeTour,
 } from "@/lib/firstRunTour";
 import { trackEvent } from "@/lib/analytics";
@@ -109,11 +112,11 @@ export default function FirstRunTour(): React.JSX.Element | null {
     void Promise.resolve().then(() => setMounted(true));
   }, []);
 
-  // Pub Pal and You have their own focused onboarding. Stacking the generic
-  // map tour over either surface obscures consent, identity controls, and the
-  // mobile tab bar, so the general tour waits until the user leaves them.
-  const hasDedicatedOnboarding = pathname === "/pal" || pathname.startsWith("/u/");
-  const active = mounted && !seen && !hasDedicatedOnboarding;
+  // Map-only, one-time gate (see lib/firstRunTour.ts): the tour spotlights
+  // the map + mobile tab bar, so it only makes sense on /map surfaces, and
+  // never on landing/tonight/feed/pint-index/etc. (must render clean for
+  // SEO/press/first-tap), nor over Pub Pal / You's own dedicated onboarding.
+  const active = shouldShowFirstRunTour({ mounted, seen, pathname });
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.

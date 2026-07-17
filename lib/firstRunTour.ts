@@ -85,3 +85,37 @@ export function getTourSeenSnapshot(): boolean {
 export function getTourSeenServerSnapshot(): boolean {
   return true;
 }
+
+/**
+ * Whether `pathname` is a map surface (/map, /map/[city]) — the only place
+ * the tour is allowed to render. It spotlights the map + mobile tab bar, so
+ * it's meaningless everywhere else, and landing/tonight/feed/pint-index/etc.
+ * must render clean on first paint for SEO, press, and first-tap.
+ */
+export function isTourEligiblePathname(pathname: string): boolean {
+  return pathname === "/map" || pathname.startsWith("/map/");
+}
+
+/**
+ * Pub Pal and You have their own focused onboarding. Stacking the generic
+ * tour over either surface obscures consent, identity controls, and the
+ * mobile tab bar.
+ */
+export function hasDedicatedOnboarding(pathname: string): boolean {
+  return pathname === "/pal" || pathname.startsWith("/u/");
+}
+
+/** Full gate: whether the first-run tour overlay should render. */
+export function shouldShowFirstRunTour(params: {
+  mounted: boolean;
+  seen: boolean;
+  pathname: string;
+}): boolean {
+  const { mounted, seen, pathname } = params;
+  return (
+    mounted &&
+    !seen &&
+    isTourEligiblePathname(pathname) &&
+    !hasDedicatedOnboarding(pathname)
+  );
+}
