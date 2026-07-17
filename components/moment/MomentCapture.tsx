@@ -11,6 +11,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";
 import { trackEvent } from "@/lib/analytics";
+import { recordMomentNudgeTrigger } from "@/lib/identityNudge";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   createMomentDraft,
@@ -74,6 +75,11 @@ export default function MomentCapture(): React.JSX.Element {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [savedMemoryId, setSavedMemoryId] = useState<string | null>(null);
   const previewUrls = useRef<Set<string>>(new Set());
+  // Arm the identity nudge once per composer visit, the first time a signed-out
+  // guest has a Moment draft worth keeping. The server save path requires auth,
+  // so a signed-out capture is always a local draft — exactly when "own your
+  // memories" is honest. The gate (lib/identityNudge.ts) still self-guards.
+  const momentNudgeArmed = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +107,10 @@ export default function MomentCapture(): React.JSX.Element {
     if (!hydrated) return;
     const timer = window.setTimeout(() => {
       void saveMomentDraft(draft);
+      if (!user && !momentNudgeArmed.current && (draft.caption.trim() || draft.media.length)) {
+        momentNudgeArmed.current = true;
+        recordMomentNudgeTrigger();
+      }
       if (typeof BroadcastChannel !== "undefined") {
         const channel = new BroadcastChannel(MOMENT_DRAFT_CHANNEL);
         channel.postMessage({ ownerKey: draft.ownerKey, revision: draft.revision });
@@ -108,7 +118,7 @@ export default function MomentCapture(): React.JSX.Element {
       }
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [draft, hydrated]);
+  }, [draft, hydrated, user]);
 
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;

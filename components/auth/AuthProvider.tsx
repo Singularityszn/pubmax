@@ -27,6 +27,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 
 import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
+import IdentityNudge from "@/components/identity/IdentityNudge";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
@@ -431,6 +432,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {/* Signed-out account nudge after a high-intent action. Self-gates on
+          auth + a pending trigger, so it renders nothing until armed. */}
+      <IdentityNudge />
       {claimPreview ? (
         <ClaimNightDialog
           preview={claimPreview}
