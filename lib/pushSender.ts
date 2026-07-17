@@ -16,6 +16,7 @@
 // Sending to ALL tokens for a plan-scoped event would be a privacy leak (crew A
 // gets crew B's Plan updates), so that path stays closed until identity exists.
 
+import { isLimited } from "@/lib/pintDrops";
 import {
   PerTokenResult,
   PushPayload,
@@ -140,27 +141,58 @@ export async function broadcastNightSignalLive(
   return dispatch(tokens, payload);
 }
 
-// In-process dedup so the broadcast fires at most once per snapshot version per
-// server instance. The night-signal snapshot is a static import that only
-// changes on deploy, so the first read after a new deploy is the "went live"
-// moment; every later read of the same version is a no-op.
+// In-process dedup — a CHEAP FIRST CHECK ONLY, never the authority. It is
+// per-instance state (empty on every cold start and on every fresh serverless
+// instance), so on its own a single snapshot version would broadcast once PER
+// INSTANCE = duplicate pushes to every device. The durable claim below is the
+// authority; this Set only saves a redundant durable round trip on the hot path
+// within one warm instance.
 const broadcastedVersions = new Set<string>();
 
+// The durable claim: a budget-of-1 rate-limit bucket keyed on the snapshot
+// version — the same atomic mechanism every rate-limited route uses
+// (lib/pintDrops.isLimited → Supabase RPC, with an in-memory fallback when
+// Supabase is unconfigured). The first caller across ALL instances spends the
+// single unit and broadcasts; every other caller is "limited" and skips, so a
+// version broadcasts at most once globally. The window is long because a
+// snapshot version (its generatedAt) is monotonic and never recurs — the claim
+// only has to outlive the deploy generation, not forever.
+const BROADCAST_CLAIM_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function claimNightSignalBroadcast(version: string): Promise<boolean> {
+  const key = `night-signal-broadcast:${version}`;
+  // isLimited records the attempt atomically and returns false for the FIRST
+  // unit (the winning claim), true once the budget of 1 is spent. Same key for
+  // the local + durable arg, exactly like the push-tokens route.
+  return !(await isLimited(key, key, 1, BROADCAST_CLAIM_WINDOW_MS));
+}
+
 /**
- * Fire the night-signal broadcast once per snapshot version. Safe to call on
- * every read of the night-signals route — subsequent calls for an
- * already-broadcast version return an empty summary without touching tokens.
+ * Fire the night-signal broadcast at most once per snapshot version, GLOBALLY.
+ * Safe to call on every read of the night-signals route: the durable claim
+ * (not the per-instance Set) guarantees a single broadcast even across cold
+ * starts and concurrent instances.
+ *
+ * AT-MOST-ONCE: the claim is consumed BEFORE the send. If the send then fails
+ * (provider outage), the claim is deliberately NOT released — a dropped
+ * broadcast is acceptable; a duplicate to every device is not.
  */
 export async function maybeBroadcastNightSignalLive(
   version: string,
   highlights: readonly NightSignalHighlight[],
 ): Promise<PushDispatchSummary> {
   if (!version || broadcastedVersions.has(version)) return { ...EMPTY_SUMMARY };
+  const won = await claimNightSignalBroadcast(version);
+  // Mark the in-process Set regardless of outcome so a LOSING instance also
+  // short-circuits its own future reads cheaply.
   broadcastedVersions.add(version);
+  if (!won) return { ...EMPTY_SUMMARY };
   return broadcastNightSignalLive(highlights);
 }
 
-/** Test-only: forget which snapshot versions have broadcast. */
+/** Test-only: forget which snapshot versions THIS INSTANCE has seen. Does not
+ *  clear the durable claim (that is the whole point — it survives an instance
+ *  reset), so a post-reset call for the same version still loses the claim. */
 export function __resetNightSignalBroadcasts(): void {
   broadcastedVersions.clear();
 }

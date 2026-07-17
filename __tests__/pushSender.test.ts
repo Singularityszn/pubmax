@@ -28,6 +28,10 @@ import {
   __listMemoryPushTokens,
   __resetMemoryPushTokens,
 } from "@/lib/pushTokenStore";
+// The durable broadcast claim uses the real in-memory limiter (Supabase is
+// unconfigured in tests) — reset its bucket state between cases so a version
+// key never leaks across tests.
+import { __resetPintDrops } from "@/lib/pintDrops";
 
 async function seed(...tokens: string[]): Promise<void> {
   for (const token of tokens) await memoryPushTokenStore.save({ token, platform: "ios" });
@@ -36,6 +40,7 @@ async function seed(...tokens: string[]): Promise<void> {
 beforeEach(() => {
   __resetMemoryPushTokens();
   __resetNightSignalBroadcasts();
+  __resetPintDrops();
   sendMock.mockReset();
   sendMock.mockImplementation(async (tokens) =>
     tokens.map((token) => ({ token, status: "sent" }) as PerTokenResult),
@@ -112,6 +117,47 @@ describe("maybeBroadcastNightSignalLive", () => {
     await maybeBroadcastNightSignalLive("v1", [HIGHLIGHT]);
     await maybeBroadcastNightSignalLive("v2", [HIGHLIGHT]);
     expect(sendMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("broadcasts exactly once across fresh instances — the durable claim, not the per-instance Set, is the authority", async () => {
+    await seed("tok-a");
+    const version = "2026-07-17T09:00:00.000Z";
+
+    // Instance A: wins the durable claim and sends.
+    const a = await maybeBroadcastNightSignalLive(version, [HIGHLIGHT]);
+
+    // Simulate a cold start / a second serverless instance: the per-instance
+    // dedup Set is empty again. If the Set were the authority this would send a
+    // duplicate — the durable claim must stop it.
+    __resetNightSignalBroadcasts();
+
+    const b = await maybeBroadcastNightSignalLive(version, [HIGHLIGHT]);
+
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(a.sent).toBe(1);
+    expect(b.targeted).toBe(0);
+  });
+
+  it("collapses concurrent instances of the same version to one send", async () => {
+    await seed("tok-a", "tok-b");
+    const version = "2026-07-17T10:00:00.000Z";
+
+    // Two callers race on the same version. The durable claim is atomic, so
+    // exactly one wins — regardless of scheduling.
+    const [x, y] = await Promise.all([
+      (async () => {
+        __resetNightSignalBroadcasts();
+        return maybeBroadcastNightSignalLive(version, [HIGHLIGHT]);
+      })(),
+      (async () => {
+        __resetNightSignalBroadcasts();
+        return maybeBroadcastNightSignalLive(version, [HIGHLIGHT]);
+      })(),
+    ]);
+
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    const winners = [x, y].filter((s) => s.targeted > 0);
+    expect(winners).toHaveLength(1);
   });
 });
 

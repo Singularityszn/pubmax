@@ -81,10 +81,16 @@ CommandLineTools).
 user/plan identity**. Consequences, enforced in code:
 
 - **Night-signal "went live" broadcast — ACTIVE.** `GET /api/night-signals`
-  fires `maybeBroadcastNightSignalLive()` (fire-and-forget, deduped per snapshot
-  `generatedAt` so it sends at most once per deploy per server instance). A live
-  signal is public, so wholesale delivery to `pushTokenStore().list()` is
-  correct — this is the one launch event that can target today.
+  fires `maybeBroadcastNightSignalLive()` (fire-and-forget). Dedup is **durable**,
+  not per-instance: it claims a budget-of-1 rate-limit bucket keyed
+  `night-signal-broadcast:${generatedAt}` via `lib/pintDrops.isLimited` (the
+  shared Supabase RPC limiter, in-memory fallback when unconfigured), so a
+  snapshot version broadcasts **at most once globally** even across cold starts
+  and concurrent serverless instances. A per-instance `Set` is only a cheap
+  first check. The claim is consumed before the send (**at-most-once**: a failed
+  send is dropped, never retried into a duplicate). A live signal is public, so
+  wholesale delivery to `pushTokenStore().list()` is correct — this is the one
+  launch event that can target today.
 - **Plan-scoped sends (proposal decision, get-in change) — DORMANT.** The
   proposal-decision route wires `notifyPlanUpdate()` fire-and-forget, but
   `resolvePlanTokens()` returns `[]` (the PLAN-SCOPED SEAM) because there is no
