@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 describe("Night Profile RPC hardening migration", () => {
   it("moves Pal ownership validation behind a non-callable trigger", () => {
     const sql = readFileSync(
-      new URL("../supabase/migrations/20260716215000_0040_night_profile_rpc_hardening.sql", import.meta.url),
+      new URL("../supabase/migrations/20260717072119_night_profile_rpc_hardening.sql", import.meta.url),
       "utf8",
     );
     expect(sql).toContain("create trigger night_profiles_validate_pal");

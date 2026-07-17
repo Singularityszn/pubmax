@@ -70,7 +70,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("Plan Completion", () => {
   it("pins the durable RPC to the canonical host and an in-route arrival", () => {
-    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260716214000_0039_plan_completion_arrival.sql"), "utf8");
+    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260717071841_plan_completion_arrival_ending_selection.sql"), "utf8");
     expect(sql).toContain("order by joined_at, id limit 1");
     expect(sql).toContain("actor_id <> host_id");
     expect(sql).toContain("stop.position = action.stop_position");
