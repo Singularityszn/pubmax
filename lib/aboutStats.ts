@@ -47,14 +47,20 @@ export function computeAboutStats(
 ): AboutStats {
   const safeRows = Array.isArray(rows) ? rows : [];
 
-  // "Pubs tracked" uses the same grouping the app uses everywhere else, so the
-  // number on /about matches what a user would count on the map.
-  const pubsTracked = groupVenuePrices(safeRows).length;
-
   // A price observation is any row with a usable positive numeric price.
-  const prices = safeRows
-    .map((r) => r.price_gbp)
-    .filter((p): p is number => typeof p === "number" && Number.isFinite(p) && p > 0);
+  const pricedRows = safeRows.filter(
+    (row) =>
+      typeof row.price_gbp === "number" &&
+      Number.isFinite(row.price_gbp) &&
+      row.price_gbp > 0,
+  );
+
+  // "Pubs tracked" uses the same grouping the app uses everywhere else, so the
+  // number on /about matches what a user would count on the map — but only
+  // venues carrying at least one accepted price observation qualify.
+  const pubsTracked = groupVenuePrices(pricedRows).length;
+
+  const prices = pricedRows.map((row) => row.price_gbp as number);
 
   const pintPricesObserved = prices.length;
   const cheapestPint = prices.length ? Math.min(...prices) : null;

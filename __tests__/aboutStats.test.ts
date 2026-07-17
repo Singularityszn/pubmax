@@ -39,12 +39,15 @@ describe("computeAboutStats", () => {
       // Ignored: null / zero / negative are not observations.
       row({ pub_name: "D", address: "4", price_gbp: null }),
       row({ pub_name: "E", address: "5", price_gbp: 0 }),
+      row({ pub_name: "F", address: "6", price_gbp: -1 }),
     ];
     const s = computeAboutStats(rows, { historicPubsCited: 0, citiesCovered: 0 });
     expect(s.cheapestPint).toBe(4);
     expect(s.dearestPint).toBe(8);
     expect(s.averagePint).toBe(6);
     expect(s.pintPricesObserved).toBe(3);
+    // Venues with only null/zero/negative readings never count as tracked.
+    expect(s.pubsTracked).toBe(3);
   });
 
   it("rounds the average to pence", () => {

@@ -244,7 +244,7 @@
 
 .aboutLink:hover,
 .aboutLink:focus-visible {
-  border-bottom-color: currentColor;
+  border-bottom-color: currentcolor;
 }
 
 /* ── Closing CTA ────────────────────────────────────────────── */
