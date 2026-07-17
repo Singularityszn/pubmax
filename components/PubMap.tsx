@@ -24,6 +24,7 @@ import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/pr
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
 import { buildMapVenueListModel } from "@/lib/mapVenueList";
 import { useFocusTrap } from "@/lib/useFocusTrap";
+import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import MobileMapShell from "@/components/mobile/MobileMapShell";
 import { Sheet } from "@/components/ui/sheet";
@@ -205,11 +206,11 @@ function currentSearch(): string {
 // hasCrawlArrivalParams (pure §4.5 deep-link probe) now lives in @/lib/pubMap.
 
 function isMobileViewport(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
+  return typeof window !== "undefined" && window.matchMedia(MOBILE_MEDIA_QUERY).matches;
 }
 
 function subscribeMobileViewport(onChange: () => void): () => void {
-  const query = window.matchMedia("(max-width: 640px)");
+  const query = window.matchMedia(MOBILE_MEDIA_QUERY);
   query.addEventListener("change", onChange);
   return () => query.removeEventListener("change", onChange);
 }

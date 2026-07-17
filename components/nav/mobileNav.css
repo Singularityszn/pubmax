@@ -2,7 +2,9 @@
    Colour comes from the shared tokens (globals.css / theme.css) so it flips
    light/dark for free and reads correctly over both the paper landing and the
    dark map shell. Fixed to the bottom on phones only; display:none above 640px
-   so the desktop navs are entirely unaffected. */
+   so the desktop navs are entirely unaffected.
+   640px is the shared mobile breakpoint — CSS can't import it, so this file
+   mirrors MOBILE_MAX_WIDTH in lib/breakpoints.ts by hand; keep them in sync. */
 
 /* Single source of truth for the tab-bar's reserved height. The body's
    bottom clearance (below) must always match the bar so map/feed content never
