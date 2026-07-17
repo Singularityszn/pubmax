@@ -3,6 +3,11 @@ export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 export type SocialConnectionMode = "oauth" | "manual";
 export type SocialAccountKind = "personal" | "professional";
 
+export type SocialProviderAvailability = Record<
+  SocialProvider,
+  { oauth: boolean; manual: boolean }
+>;
+
 export function isSocialProvider(value: unknown): value is SocialProvider {
   return typeof value === "string" && SOCIAL_PROVIDERS.includes(value as SocialProvider);
 }

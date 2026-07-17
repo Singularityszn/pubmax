@@ -24,7 +24,11 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
       memberToken: created.memberToken,
       expectedRouteRevision: 1,
       ending: "get_home",
-      terminalVenueId: venues[2]!.id,
+      endingSelection: {
+        kind: "get_home",
+        optionId: "transport:nearest-station",
+        evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+      },
     },
   });
   expect(completionResponse.ok()).toBe(true);

@@ -251,12 +251,19 @@ The release-defining journey is:
 - Account-owned immutable user IDs remain the root of identity truth. Handles and
   aliases are account-owned but mutable under the canonical rename and alias-retention
   policy; connected providers never become identity authorities.
+- A versioned Night Profile stores account-owned planning preferences without precise
+  location history, voice content, secrets, or unapproved Pal memories. Anonymous
+  preferences remain device-local; bringing them into an account always requires an
+  explicit merge choice and an optimistic-concurrency token.
 - You presents identity and social proof before account machinery.
 - Night Memories are private by default. Night Stories are deliberate publications.
 - Contributor likeness and Moments require affirmative consent; withdrawal removes
   the material from future public renders without deleting the private original.
 - X, Instagram, and TikTok use a provider capability matrix: public link, compliant
   connection, consented discovery, permitted publishing, and native share fallback.
+- Provider availability is derived server-side from complete credential configuration.
+  The client never guesses that an OAuth capability exists; manual profile links remain
+  separate from provider authentication.
 - No password capture, browser automation, or silent cross-posting.
 - Retention uses responses, friends, collections, quests, mastery, lore, memories,
   and next-night commitments. Alcohol quantity never creates progress.
@@ -319,6 +326,10 @@ evidence flags. Promote a pinned commit only after both production hostnames pas
 the live walkthrough and release evidence is attached to the Wayfinder map.
 
 ## 12. Public interfaces
+
+Public product APIs use the flat, no-store `PublicApiError` contract: `error`, `code`,
+`retryable`, and optional structured `details`. Legacy Heritage responses retain their
+documented compatibility shape until a separately versioned migration.
 
 - `CityCapabilityProfile` — city, release tier, feature evidence states, freshness.
 - `PlannedNightCompletion` — Plan, actor, ending, time, qualifying arrival, route

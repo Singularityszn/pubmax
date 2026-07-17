@@ -10,16 +10,19 @@ export type GroundedPlanExtension = {
 };
 
 function foodOption(terminal: LateFoodTerminal): PlanEndingOption {
+  const distance = terminal.walkingDetour.minutes === null
+    ? "distance from final stop unavailable"
+    : `${terminal.walkingDetour.minutes} min direct-distance estimate`;
   return {
     id: terminal.id,
     label: terminal.name,
-    detail: `${terminal.category} · ${terminal.walkingDetour.minutes} min detour · verify tonight's hours`,
-    walkingMinutes: terminal.walkingDetour.minutes,
-    closingConfidence: "unknown",
+    detail: `${terminal.category} · ${distance} · verify tonight's hours`,
+    ...(terminal.walkingDetour.minutes === null ? {} : { walkingMinutes: terminal.walkingDetour.minutes }),
+    closingConfidence: terminal.openAtRequestedTime === true ? "listed" : "unknown",
     provenance: [{
       kind: "night_signal",
-      label: terminal.provenance.source,
-      asOf: terminal.provenance.reviewedAt,
+      label: `${terminal.provenance.source}: published service hours`,
+      asOf: terminal.provenance.observedAt,
     }],
   };
 }

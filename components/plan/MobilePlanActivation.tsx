@@ -5,12 +5,14 @@ import { startTransition, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useTransientSpeechInput } from "@/components/plan/useTransientSpeechInput";
 import type { CityId } from "@/lib/cities";
 import { getNightAreasForCity, type NightAreaSlug } from "@/lib/nightAreas";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { shouldWarmMapIntent } from "@/lib/mapWarmup";
+import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 
 type GeneratedStop = { venueId: string; venueName: string };
 
@@ -45,6 +47,7 @@ export function MobilePlanActivation({
   initialNightArea: NightAreaSlug;
   onGenerated: (plan: GeneratedMobilePlan) => void;
 }) {
+  const { user } = useAuth();
   const areas = getNightAreasForCity(cityId);
   const [query, setQuery] = useState("");
   const [area, setArea] = useState<NightAreaSlug>(initialNightArea);
@@ -151,6 +154,7 @@ export function MobilePlanActivation({
         routeTotals: generated.routeTotals,
         endings: generated.endings,
       });
+      if (!user) writeDeviceNightContext(generated.context, cityId);
       // Keep the planner result responsive while the map derives and paints
       // the route layers. Route activation is non-urgent and remains ordered.
       startTransition(() => onGenerated(generated));

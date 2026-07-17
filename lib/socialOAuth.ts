@@ -1,6 +1,9 @@
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 
-import { type SocialProvider } from "@/lib/socialConnections";
+import {
+  type SocialProvider,
+  type SocialProviderAvailability,
+} from "@/lib/socialConnections";
 import { type OAuthConnectionInput } from "@/lib/socialConnectionStore";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -17,6 +20,28 @@ const CLIENT_KEYS: Record<SocialProvider, string> = {
   instagram: "INSTAGRAM_CLIENT_ID",
   tiktok: "TIKTOK_CLIENT_KEY",
 };
+
+const SECRET_KEYS: Record<SocialProvider, string> = {
+  x: "X_CLIENT_SECRET",
+  instagram: "INSTAGRAM_CLIENT_SECRET",
+  tiktok: "TIKTOK_CLIENT_SECRET",
+};
+
+/**
+ * Server-derived capabilities. A client id alone is not enough to complete an
+ * OAuth connection, so the UI only advertises providers with the full secret
+ * and encryption configuration required by the callback path.
+ */
+export function socialProviderAvailability(): SocialProviderAvailability {
+  const encrypted = (process.env.SOCIAL_CONNECTION_ENCRYPTION_KEY?.length ?? 0) >= 32;
+  const oauthReady = (provider: SocialProvider) =>
+    Boolean(process.env[CLIENT_KEYS[provider]] && process.env[SECRET_KEYS[provider]] && encrypted);
+  return {
+    x: { oauth: oauthReady("x"), manual: false },
+    instagram: { oauth: oauthReady("instagram"), manual: true },
+    tiktok: { oauth: oauthReady("tiktok"), manual: false },
+  };
+}
 
 const AUTHORIZE_URLS: Record<SocialProvider, string> = {
   x: "https://twitter.com/i/oauth2/authorize",
@@ -90,6 +115,9 @@ export async function createSocialOAuthStart(input: {
   provider: SocialProvider;
   origin: string;
 }): Promise<{ authorizeUrl: string }> {
+  if (!socialProviderAvailability()[input.provider].oauth) {
+    throw new Error(`${input.provider} OAuth is not configured.`);
+  }
   const clientId = process.env[CLIENT_KEYS[input.provider]];
   if (!clientId) throw new Error(`${input.provider} OAuth is not configured.`);
   const redirectUri = `${input.origin}/api/social-connections/${input.provider}/callback`;
@@ -134,8 +162,7 @@ const TOKEN_URLS: Record<SocialProvider, string> = {
 };
 
 function clientSecret(provider: SocialProvider): string {
-  const env = provider === "x" ? "X_CLIENT_SECRET" : provider === "instagram" ? "INSTAGRAM_CLIENT_SECRET" : "TIKTOK_CLIENT_SECRET";
-  const secret = process.env[env];
+  const secret = process.env[SECRET_KEYS[provider]];
   if (!secret) throw new Error(`${provider} OAuth is not configured.`);
   return secret;
 }

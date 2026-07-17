@@ -24,6 +24,30 @@ export type CrawlEnding = "food" | "get_home" | "keep_going";
 export type PlanMemberRole = "host" | "guest";
 export type PlanActionDTO = { id: string; type: "arrived" | "skipped" | "swapped" | "ending"; stopPosition: number | null; ending: CrawlEnding | null; createdAt: string };
 
+export type EndingEvidenceSnapshot = {
+  label: string;
+  confidence: "high" | "medium" | "low" | "unknown";
+  source?: string;
+  observedAt?: string;
+  warnings?: string[];
+};
+
+/**
+ * The exact option a host confirmed at the end of a Plan. `terminalVenueId`
+ * remains the final canonical pub for compatibility; this additive snapshot
+ * preserves the selected food, transport, or extension instead of replacing
+ * it with that pub id.
+ */
+type EndingSelectionBase = {
+  optionId: string;
+  evidenceSnapshot: EndingEvidenceSnapshot;
+};
+
+export type EndingSelection =
+  | (EndingSelectionBase & { kind: "food"; externalPlaceId: string })
+  | (EndingSelectionBase & { kind: "get_home" })
+  | (EndingSelectionBase & { kind: "keep_going"; venueId: string });
+
 const PLAN_TRANSITIONS: Record<PlannedNightStatus, readonly PlannedNightStatus[]> = {
   draft: ["ready", "abandoned"], ready: ["draft", "active", "abandoned"], active: ["ending", "completed", "abandoned"],
   ending: ["active", "completed", "abandoned"], completed: [], abandoned: [],
@@ -60,6 +84,7 @@ export type PlanCompletionDTO = {
   planId: string;
   ending: CrawlEnding;
   terminalVenueId: string | null;
+  endingSelection?: EndingSelection | null;
   finalPintDropId: string | null;
   routeRevision: number;
   routeSnapshot: PlanStopDTO[];
@@ -67,6 +92,43 @@ export type PlanCompletionDTO = {
   qualifyingArrival: PlanQualifyingArrivalDTO | null;
   completedAt: string;
 };
+
+const ENDING_CONFIDENCE = ["high", "medium", "low", "unknown"] as const;
+
+export function cleanEndingSelection(value: unknown, ending?: CrawlEnding): EndingSelection | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const kind = row.kind === "food" || row.kind === "get_home" || row.kind === "keep_going" ? row.kind : null;
+  if (!kind || (ending && kind !== ending)) return null;
+  const optionId = cleanText(row.optionId, 120);
+  const venueId = cleanText(row.venueId, PLAN_VENUE_ID_MAX);
+  const externalPlaceId = cleanText(row.externalPlaceId, 120);
+  const evidence = row.evidenceSnapshot && typeof row.evidenceSnapshot === "object" && !Array.isArray(row.evidenceSnapshot)
+    ? row.evidenceSnapshot as Record<string, unknown>
+    : null;
+  const label = cleanText(evidence?.label, 160);
+  const confidence = ENDING_CONFIDENCE.includes(evidence?.confidence as (typeof ENDING_CONFIDENCE)[number])
+    ? evidence?.confidence as EndingEvidenceSnapshot["confidence"]
+    : null;
+  if (!optionId || !label || !confidence) return null;
+  const source = cleanText(evidence?.source, 240);
+  const observedAt = typeof evidence?.observedAt === "string" && Number.isFinite(Date.parse(evidence.observedAt))
+    ? new Date(evidence.observedAt).toISOString()
+    : undefined;
+  const warnings = Array.isArray(evidence?.warnings)
+    ? evidence.warnings.map((warning) => cleanText(warning, 200)).filter(Boolean).slice(0, 6)
+    : [];
+  const evidenceSnapshot: EndingEvidenceSnapshot = {
+      label,
+      confidence,
+      ...(source ? { source } : {}),
+      ...(observedAt ? { observedAt } : {}),
+      ...(warnings.length ? { warnings } : {}),
+  };
+  if (kind === "food") return externalPlaceId ? { kind, optionId, externalPlaceId, evidenceSnapshot } : null;
+  if (kind === "keep_going") return venueId ? { kind, optionId, venueId, evidenceSnapshot } : null;
+  return { kind, optionId, evidenceSnapshot };
+}
 
 export type CreatePlanInput = {
   title?: unknown;

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Plan completion has both durable and keyless backends. Pin this unit test to
 // the keyless seam so Vercel credentials cannot turn it into a live database
@@ -23,7 +23,7 @@ import { POST as CREATE } from "@/app/api/plans/route";
 import { GET as GET_PLAN } from "@/app/api/plans/[id]/route";
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
 import { GET as GET_COMPLETION, POST as COMPLETE } from "@/app/api/plans/[id]/complete/route";
-import { __resetMemoryPlans } from "@/lib/planStore";
+import { __resetMemoryPlans, planStore } from "@/lib/planStore";
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 
@@ -35,27 +35,52 @@ async function createPlan() {
       startTime: "2026-07-15T18:00:00.000Z",
       creatorName: "Terra",
       stops: [
-        { venueId: "venue-xjf3n0" },
-        { venueId: "venue-1f5ygjb" },
-        { venueId: "venue-3h52h" },
+        { venueId: "venue-7tarkc" },
+        { venueId: "venue-122cuu1" },
+        { venueId: "venue-s2ppfm" },
       ],
     }),
   }));
   expect(response.status).toBe(201);
-  return await response.json() as { plan: { plan: { id: string; routeRevision: number } }; memberToken: string };
+  const created = await response.json() as { plan: { plan: { id: string; routeRevision: number } }; memberToken: string };
+  const updated = await planStore().update(created.plan.plan.id, created.memberToken, {
+    context: {
+      nightArea: "piccadilly-soho",
+      daypart: "late_night",
+      partyType: "friends",
+      groupSize: 2,
+      budget: "value",
+      budgetLimitPence: null,
+      atmosphere: [],
+      foodNeeds: [],
+      accessibility: [],
+      transportConstraints: [],
+      zeroProof: false,
+    },
+  });
+  expect(updated.ok).toBe(true);
+  return created;
 }
 
-beforeEach(() => __resetMemoryPlans());
+beforeEach(() => {
+  __resetMemoryPlans();
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-16T23:00:00.000Z"));
+});
+afterEach(() => vi.restoreAllMocks());
 
 describe("Plan Completion", () => {
   it("pins the durable RPC to the canonical host and an in-route arrival", () => {
-    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260716210000_0037_plan_completion_arrival.sql"), "utf8");
+    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260716214000_0039_plan_completion_arrival.sql"), "utf8");
     expect(sql).toContain("order by joined_at, id limit 1");
     expect(sql).toContain("actor_id <> host_id");
     expect(sql).toContain("stop.position = action.stop_position");
     expect(sql).toContain("candidate.created_at <= completion.completed_at");
     expect(sql).toContain("on delete no action");
     expect(sql).toContain("deferrable initially deferred");
+    expect(sql).toContain("p_ending_selection jsonb");
+    expect(sql).toContain("terminal_venue_id, ending_selection");
+    expect(sql).toContain("qualifying_arrival_action_id, qualifying_arrival_stop_position");
+    expect(sql).toContain("uuid, text, integer, uuid, uuid, text, text, jsonb, timestamptz");
     const shapeConstraint = /add constraint plan_completions_qualifying_arrival_shape check \([\s\S]*?\)\s+not valid;/i.exec(sql);
     expect(shapeConstraint).not.toBeNull();
     const validateIndex = sql.indexOf("validate constraint plan_completions_qualifying_arrival_shape");
@@ -67,7 +92,16 @@ describe("Plan Completion", () => {
   it("completes against the expected canonical route revision exactly once and redacts actor ids", async () => {
     const created = await createPlan();
     const id = created.plan.plan.id;
-    const payload = { expectedRouteRevision: 1, ending: "food", terminalVenueId: "venue-3h52h" };
+    const endingSelection = {
+      kind: "food",
+      optionId: "late-food-evidence-piccadilly-soho-balans-no-60",
+      externalPlaceId: "late-food-evidence-piccadilly-soho-balans-no-60",
+      evidenceSnapshot: {
+        label: "Client-provided label is replaced",
+        confidence: "low",
+      },
+    };
+    const payload = { expectedRouteRevision: 1, ending: "food", terminalVenueId: "venue-s2ppfm", endingSelection };
     const request = () => new Request(`http://localhost/api/plans/${id}/complete`, {
       method: "POST",
       headers: { authorization: `Bearer ${created.memberToken}` },
@@ -97,15 +131,22 @@ describe("Plan Completion", () => {
     expect(firstBody).toMatchObject({
       plan: { plan: { status: "completed", routeRevision: 1 }, ending: "food" },
       created: true,
-      completion: { planId: id, routeRevision: 1, qualifyingArrival: { stopPosition: 0 }, routeSnapshot: [
-        { venueId: "venue-xjf3n0", position: 0 },
-        { venueId: "venue-1f5ygjb", position: 1 },
-        { venueId: "venue-3h52h", position: 2 },
+      completion: { planId: id, routeRevision: 1, endingSelection: {
+        kind: "food",
+        optionId: "late-food-evidence-piccadilly-soho-balans-no-60",
+        evidenceSnapshot: { label: "Balans No.60", source: expect.stringContaining("balans.co.uk") },
+      }, qualifyingArrival: { stopPosition: 0 }, routeSnapshot: [
+        { venueId: "venue-7tarkc", position: 0 },
+        { venueId: "venue-122cuu1", position: 1 },
+        { venueId: "venue-s2ppfm", position: 2 },
       ] },
     });
     expect(firstBody.completion).not.toHaveProperty("actorMemberId");
     expect(JSON.stringify(firstBody)).not.toContain(created.memberToken);
 
+    // Replays use the stored, host-confirmed completion. Current food evidence
+    // may expire between a successful response and a network retry.
+    vi.mocked(Date.now).mockReturnValue(Date.parse("2027-07-16T23:00:00.000Z"));
     const retry = await COMPLETE(request(), ctx(id));
     expect(retry.status).toBe(200);
     expect(await retry.json()).toMatchObject({ created: false, completion: firstBody.completion });
@@ -115,12 +156,58 @@ describe("Plan Completion", () => {
     expect(await get.json()).toEqual({ completion: firstBody.completion });
   });
 
+  it("rejects an ending snapshot whose kind does not match the confirmed ending", async () => {
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const response = await COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}` },
+      body: JSON.stringify({
+        expectedRouteRevision: 1,
+        ending: "food",
+        terminalVenueId: "venue-s2ppfm",
+        endingSelection: {
+          kind: "keep_going",
+          optionId: "venue-extra",
+          evidenceSnapshot: { label: "Extra pub", confidence: "low" },
+        },
+      }),
+    }), ctx(id));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: expect.any(String) });
+    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    expect(await completion.json()).toEqual({ completion: null });
+  });
+
+  it("requires one explicit ending option before completion", async () => {
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const response = await COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}` },
+      body: JSON.stringify({ expectedRouteRevision: 1, ending: "get_home" }),
+    }), ctx(id));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "PLAN_ENDING_SELECTION_INVALID" });
+    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    expect(await completion.json()).toEqual({ completion: null });
+  });
+
   it("rejects a stale route revision without recording a partial ending action or completion", async () => {
     const created = await createPlan();
     const id = created.plan.plan.id;
     const response = await COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
       method: "POST",
-      body: JSON.stringify({ memberToken: created.memberToken, expectedRouteRevision: 2, ending: "food", terminalVenueId: "venue-3h52h" }),
+      body: JSON.stringify({
+        memberToken: created.memberToken,
+        expectedRouteRevision: 2,
+        ending: "get_home",
+        endingSelection: {
+          kind: "get_home",
+          optionId: "transport:nearest-station",
+          evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+        },
+      }),
     }), ctx(id));
     expect(response.status).toBe(409);
 

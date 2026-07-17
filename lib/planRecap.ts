@@ -1,4 +1,4 @@
-import { isPlanId, type CrawlEnding, type PlanCompletionDTO } from "@/lib/plan";
+import { cleanEndingSelection, isPlanId, type CrawlEnding, type EndingSelection, type PlanCompletionDTO } from "@/lib/plan";
 
 export const PENDING_PLAN_RECAP_VERSION = 1 as const;
 const KEY_PREFIX = "pubmaxx.pending-plan-recap.v1:";
@@ -23,6 +23,7 @@ export type PendingPlanRecap = {
   completionId: string;
   title: string;
   ending: CrawlEnding;
+  endingSelection?: EndingSelection | null;
   completedAt: string;
   routeRevision: number;
   stops: PendingPlanRecapStop[];
@@ -59,6 +60,8 @@ export function validatePendingPlanRecap(value: unknown): PendingPlanRecap | nul
   if (row.version !== PENDING_PLAN_RECAP_VERSION || !isPlanId(row.planId)) return null;
   if (typeof row.completionId !== "string" || row.completionId.length > 80 || !row.completionId) return null;
   if (row.ending !== "food" && row.ending !== "get_home" && row.ending !== "keep_going") return null;
+  const endingSelection = cleanEndingSelection(row.endingSelection, row.ending);
+  if (row.endingSelection !== undefined && row.endingSelection !== null && !endingSelection) return null;
   if (typeof row.routeRevision !== "number" || !Number.isInteger(row.routeRevision) || row.routeRevision < 1) return null;
   if (typeof row.completedAt !== "string" || !Number.isFinite(Date.parse(row.completedAt))) return null;
   if (typeof row.savedAt !== "string" || !Number.isFinite(Date.parse(row.savedAt))) return null;
@@ -81,6 +84,7 @@ export function validatePendingPlanRecap(value: unknown): PendingPlanRecap | nul
     completionId: row.completionId,
     title,
     ending: row.ending,
+    endingSelection,
     completedAt: new Date(row.completedAt).toISOString(),
     routeRevision: row.routeRevision,
     stops: stops as PendingPlanRecapStop[],
@@ -99,6 +103,7 @@ export function pendingPlanRecapFromCompletion(
     completionId: completion.id,
     title: title.trim().slice(0, 120) || "Tonight's Memory",
     ending: completion.ending,
+    endingSelection: completion.endingSelection ?? null,
     completedAt: completion.completedAt,
     routeRevision: completion.routeRevision,
     stops: completion.routeSnapshot

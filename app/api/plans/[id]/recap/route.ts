@@ -1,4 +1,5 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { createNightMemoryFromPlanRecap } from "@/lib/nightMemoryStore";
 import { isPlanId } from "@/lib/plan";
@@ -9,7 +10,7 @@ import { validatePendingPlanRecap } from "@/lib/planRecap";
 type Context = { params: Promise<{ id: string }> };
 
 function error(error: string, code: string, status: number, retryable = false): Response {
-  return jsonNoStore({ error, code, retryable }, { status });
+  return publicApiError(error, code, status, { retryable });
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
@@ -39,6 +40,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   const canonicalStops = completion.routeSnapshot.slice().sort((left, right) => left.position - right.position);
   const matchesCanonical = recap.completionId === completion.id
     && recap.ending === completion.ending
+    && JSON.stringify(recap.endingSelection) === JSON.stringify(completion.endingSelection ?? null)
     && recap.routeRevision === completion.routeRevision
     && recap.completedAt === completion.completedAt
     && recap.stops.length === canonicalStops.length
@@ -54,6 +56,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   const saved = await createNightMemoryFromPlanRecap(ownerId, {
     ...recap,
     ending: completion.ending,
+    endingSelection: completion.endingSelection ?? null,
     completedAt: completion.completedAt,
     routeRevision: completion.routeRevision,
     stops: canonicalStops.map((stop, index) => ({

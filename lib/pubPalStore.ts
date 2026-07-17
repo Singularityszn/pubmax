@@ -28,6 +28,18 @@ function palFromRow(row: Record<string, unknown>): PubPal {
   return { id: String(row.id), ownerId: String(row.owner_id), name: String(row.name), adultAttestedAt: String(row.adult_attested_at), appearance: { ...appearance, species: compatiblePalSpecies(appearance?.species) ?? "greyhound" }, personality: row.personality as PubPal["personality"], voice: row.voice as PubPal["voice"], muted: Boolean(row.muted), hidden: Boolean(row.hidden), proposalPreferences: proposalPreferences(row.proposal_preferences), masteryPoints: Number(row.mastery_points ?? 0), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
 }
 
+function memoryFromRow(row: Record<string, unknown>): PubPalMemory {
+  return {
+    id: String(row.id),
+    palId: String(row.pal_id),
+    kind: row.kind as PubPalMemoryKind,
+    value: String(row.value),
+    provenance: row.provenance as PubPalMemory["provenance"],
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
+  };
+}
+
 export async function getPubPalResult(ownerId: string): Promise<PubPalStoreResult<PubPal | null>> {
   if (!isSupabaseConfigured()) return { ok: true, value: pals.get(ownerId) ?? null };
   try {
@@ -89,11 +101,6 @@ export async function updatePubPalResult(ownerId: string, raw: unknown): Promise
   }
 }
 
-export async function updatePubPal(ownerId: string, raw: unknown): Promise<PubPal | null> {
-  const result = await updatePubPalResult(ownerId, raw);
-  return result.ok ? result.value : null;
-}
-
 export async function deletePubPalResult(ownerId: string): Promise<PubPalStoreResult<true>> {
   if (!isSupabaseConfigured()) {
     const pal = pals.get(ownerId);
@@ -111,10 +118,6 @@ export async function deletePubPalResult(ownerId: string): Promise<PubPalStoreRe
   }
 }
 
-export async function deletePubPal(ownerId: string): Promise<boolean> {
-  return (await deletePubPalResult(ownerId)).ok;
-}
-
 export async function listPalMemoriesResult(ownerId: string): Promise<PubPalStoreResult<PubPalMemory[]>> {
   const palResult = await getPubPalResult(ownerId);
   if (!palResult.ok) return palResult;
@@ -124,15 +127,10 @@ export async function listPalMemoriesResult(ownerId: string): Promise<PubPalStor
   try {
     const { data, error } = await requireSupabaseAdmin().from("pub_pal_memories").select("*").eq("pal_id", pal.id).order("created_at", { ascending: false });
     if (error || !data) return { ok: false, error: "error" };
-    return { ok: true, value: data.map(row => ({ id: String(row.id), palId: String(row.pal_id), kind: row.kind as PubPalMemoryKind, value: String(row.value), provenance: row.provenance as PubPalMemory["provenance"], createdAt: String(row.created_at), updatedAt: String(row.updated_at ?? row.created_at) })) };
+    return { ok: true, value: data.map((row) => memoryFromRow(row as Record<string, unknown>)) };
   } catch {
     return { ok: false, error: "error" };
   }
-}
-
-export async function listPalMemories(ownerId: string): Promise<PubPalMemory[]> {
-  const result = await listPalMemoriesResult(ownerId);
-  return result.ok ? result.value : [];
 }
 
 export async function confirmPalMemoryResult(ownerId: string, raw: unknown): Promise<PubPalStoreResult<PubPalMemory>> {
@@ -151,11 +149,6 @@ export async function confirmPalMemoryResult(ownerId: string, raw: unknown): Pro
   } catch {
     return { ok: false, error: "error" };
   }
-}
-
-export async function confirmPalMemory(ownerId: string, raw: unknown): Promise<PubPalMemory | null> {
-  const result = await confirmPalMemoryResult(ownerId, raw);
-  return result.ok ? result.value : null;
 }
 
 export async function updatePalMemoryResult(ownerId: string, memoryId: string, raw: unknown): Promise<PubPalStoreResult<PubPalMemory>> {
@@ -184,16 +177,11 @@ export async function updatePalMemoryResult(ownerId: string, memoryId: string, r
       .maybeSingle();
     if (error) return { ok: false, error: "error" };
     return data
-      ? { ok: true, value: { id: String(data.id), palId: String(data.pal_id), kind: data.kind as PubPalMemoryKind, value: String(data.value), provenance: data.provenance as PubPalMemory["provenance"], createdAt: String(data.created_at), updatedAt: String(data.updated_at ?? data.created_at) } }
+      ? { ok: true, value: memoryFromRow(data as Record<string, unknown>) }
       : { ok: false, error: "not_found" };
   } catch {
     return { ok: false, error: "error" };
   }
-}
-
-export async function updatePalMemory(ownerId: string, memoryId: string, raw: unknown): Promise<PubPalMemory | null> {
-  const result = await updatePalMemoryResult(ownerId, memoryId, raw);
-  return result.ok ? result.value : null;
 }
 
 export async function deletePalMemoryResult(ownerId: string, memoryId: string): Promise<PubPalStoreResult<true>> {
@@ -219,10 +207,6 @@ export async function deletePalMemoryResult(ownerId: string, memoryId: string): 
   } catch {
     return { ok: false, error: "error" };
   }
-}
-
-export async function deletePalMemory(ownerId: string, memoryId: string): Promise<boolean> {
-  return (await deletePalMemoryResult(ownerId, memoryId)).ok;
 }
 
 export async function addMasteryEvent(ownerId: string, raw: unknown): Promise<MasteryEvent | null> {
