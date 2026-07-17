@@ -70,6 +70,25 @@ Owner directive: mobile WEB only. App/store/Apple work is owner-scheduled, later
 
 Planned lanes (worktrees; Fable reviews, Sol merges): guardian + price drops = Opus 4.8; funnel, A2HS/share, ledger, digest = Sonnet 5; mechanical chores = Haiku 4.5.
 
+## STANDING LOOP — iterate until excellent (owner directive, 2026-07-17 night)
+
+Owner mandate: keep iterating on the mobile web product in a continuous loop until it stops reading as AI slop and the journey is excellent. Rules: Fable audits (screenshots of live + Vercel PR previews), writes each cycle's PRD here so Sol reviews with full intent, delegates to **Opus 4.8 agents** in isolated worktrees, separate branch + separate PR per lane, Fable reviews, **Sol merges — never Fable**. London only; every borough matters.
+
+**The judging persona (every cycle, every surface):** a 9-to-5 worker leaving the office, any night of the week, wants a cheap good pint near where they are. If they can't get from open → answer in seconds, the cycle failed.
+
+### Cycle 3 PRD (this cycle)
+
+Audit basis: live 390×844 captures + Cycle-2 PR previews. Two failures against the persona:
+
+1. **No instant answer.** Opening the site, the persona meets: landing marketing OR a map needing pan/tap/filter work. Nowhere is there a one-tap "cheapest pints near me right now" answer. The map is a tool; the persona wants an ANSWER first, tool second. → Lane `feat/instant-answer` (Opus 4.8): a "Near me now" instant surface — geolocate, show the 3–5 cheapest quality pubs within walking distance as immediate cards (price, walk minutes, open-late flag), one tap from everywhere (map, landing, tab bar treatment TBD by lane research), full map one tap deeper. Reuse slim index + existing geolocation + venue sheet; no new backend if possible.
+2. **Borough coverage is hollow.** "Every single area in London" — /pubs gallery holds ~119 scraped pubs; the persona in Croydon or Barnet may find nothing near them. → Lane `data/borough-coverage` (Opus 4.8): coverage report per borough (pubs with usable price data ÷ borough), then expand via the EXISTING scrape/canonicalize scripts (`fetch:city-pubs`, `canonicalize:venues`, `refresh:prices` — read them first); provenance rules absolute (no invented prices); output = data PR + honest coverage table in the PRD for the next cycle's audit.
+
+Carried follow-ups for later cycles (from PR #306 audit): first-map-paint ~4.2s (maplibre-bound, post-#297), Supabase eager on /map, sheet-drag/back-nav trace pass, header consistency, feed card slimming (in flight).
+
+### Loop mechanics
+
+Each cycle: capture screenshots (live + preview URLs of open PRs) → judge as persona → append Cycle N PRD here → launch Opus lanes → Fable reviews diffs → separate PRs → next cycle. Loop sustains across sessions via this file + memory.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
