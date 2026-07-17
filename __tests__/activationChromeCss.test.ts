@@ -34,4 +34,12 @@ describe("activation chrome CSS", () => {
       /\.mobilePlanActivation\s*{[\s\S]*?min-height:\s*48px;[\s\S]*?bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 10px\);/,
     );
   });
+
+  it("keeps every mobile sheet detent scrollable above the bottom dock", () => {
+    expect(mobileMapShellCss).toMatch(
+      /\.mobileSharedSheetBody\s*{[\s\S]*?height:\s*calc\(var\(--mobile-sheet-visible-height\) - var\(--mobile-sheet-header-height\) - var\(--mobile-map-dock-clearance\)\);[\s\S]*?overflow-y:\s*auto;/,
+    );
+    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-half[^}]*--mobile-sheet-visible-height:\s*55dvh;/);
+    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-full[^}]*--mobile-sheet-visible-height:\s*92dvh;/);
+  });
 });
