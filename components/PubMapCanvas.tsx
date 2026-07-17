@@ -1680,7 +1680,10 @@ export default function PubMapCanvas({
             The pub list and crawl planner beside it still work as ever.
           </p>
           {mapError.detail ? (
-            <small className="mapFallbackDetail">{mapError.detail}</small>
+            <details className="mapFallbackDisclosure">
+              <summary>Technical details</summary>
+              <small className="mapFallbackDetail">{mapError.detail}</small>
+            </details>
           ) : null}
           {mapError.noWebgl ? null : (
             <button

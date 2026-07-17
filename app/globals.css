@@ -2216,11 +2216,45 @@ input[type="range"] {
   color: var(--muted);
 }
 
+/* The technical diagnostic now lives behind a collapsed disclosure — never
+   shown by default, still one tap away for a bug report. */
+.mapFallbackDisclosure {
+  margin: 2px auto 0;
+  max-width: 340px;
+  text-align: left;
+}
+
+.mapFallbackDisclosure summary {
+  max-width: 340px;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--brass);
+  opacity: 0.85;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mapFallbackDisclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.mapFallbackDisclosure summary:hover,
+.mapFallbackDisclosure summary:focus-visible {
+  opacity: 1;
+}
+
+.mapFallbackDisclosure summary:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 /* The technical diagnostic — a printer's-mark footnote: monospaced, dim, so it
    reads as a stamp rather than prose. Wraps so long statusMessages don't clip. */
 .mapFallbackDetail {
+  display: block;
   max-width: 340px;
-  margin: 2px auto 0;
+  margin: 6px auto 0;
   font-family: var(--mono, ui-monospace, "SFMono-Regular", Menlo, monospace);
   font-size: 0.68rem;
   letter-spacing: 0.02em;
