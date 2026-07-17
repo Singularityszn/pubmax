@@ -1,0 +1,72 @@
+import { beforeEach, describe, expect, it } from "vitest";
+
+// Exercise validation + the in-memory push-token store directly — no live
+// Supabase, no env keys. This is the same backend the route uses when Supabase
+// is unconfigured; the Supabase path shares validatePushToken and the DTO shape.
+import {
+  MAX_TOKEN_LENGTH,
+  memoryPushTokenStore,
+  validatePushToken,
+  __listMemoryPushTokens,
+  __resetMemoryPushTokens,
+} from "@/lib/pushTokenStore";
+
+beforeEach(() => {
+  __resetMemoryPushTokens();
+});
+
+describe("validatePushToken", () => {
+  it("accepts a trimmed token with a known platform", () => {
+    const result = validatePushToken({ token: "  apns-abc123  ", platform: "ios" });
+    expect(result).toEqual({ ok: true, input: { token: "apns-abc123", platform: "ios" } });
+  });
+
+  it("rejects a missing / blank / non-string token", () => {
+    for (const token of [undefined, "", "   ", 42, null]) {
+      const result = validatePushToken({ token, platform: "ios" });
+      expect(result.ok).toBe(false);
+    }
+  });
+
+  it("rejects a token over the length cap", () => {
+    const result = validatePushToken({
+      token: "x".repeat(MAX_TOKEN_LENGTH + 1),
+      platform: "ios",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects unknown platforms", () => {
+    for (const platform of [undefined, "web", "IOS", 1]) {
+      const result = validatePushToken({ token: "tok", platform });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toMatch(/ios or android/);
+    }
+  });
+});
+
+describe("memoryPushTokenStore", () => {
+  it("saves a token and returns the public DTO shape", async () => {
+    const dto = await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    expect(Object.keys(dto).sort()).toEqual(
+      ["createdAt", "lastSeenAt", "platform", "token"].sort(),
+    );
+    expect(dto.token).toBe("tok-1");
+    expect(dto.platform).toBe("ios");
+    expect(typeof dto.createdAt).toBe("string");
+  });
+
+  it("re-registering the same token upserts (no duplicate rows)", async () => {
+    const first = await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    const second = await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    expect(__listMemoryPushTokens()).toHaveLength(1);
+    // Original registration time survives; last_seen refreshes.
+    expect(second.createdAt).toBe(first.createdAt);
+  });
+
+  it("stores distinct tokens independently", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await memoryPushTokenStore.save({ token: "tok-2", platform: "android" });
+    expect(__listMemoryPushTokens().map((t) => t.token)).toEqual(["tok-1", "tok-2"]);
+  });
+});
