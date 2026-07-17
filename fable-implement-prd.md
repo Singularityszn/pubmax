@@ -89,6 +89,17 @@ Carried follow-ups for later cycles (from PR #306 audit): first-map-paint ~4.2s 
 
 Each cycle: capture screenshots (live + preview URLs of open PRs) → judge as persona → append Cycle N PRD here → launch Opus lanes → Fable reviews diffs → separate PRs → next cycle. Loop sustains across sessions via this file + memory.
 
+## NIGHT LOG — 2026-07-17 overnight (running record for morning review)
+
+Owner asleep from ~23:00. Every overnight action appended here with the why. State at handoff:
+
+- **13 open PRs** (#276, #295–#307) — all Fable-reviewed, CI-green, awaiting Sol. Stack: #295→#299/#300.
+- **Running**: GNHF Companion run (Codex, worktree, 15-iteration cap) deep-reviewing all open PRs + executing the e2e specs worktree lanes couldn't run; verdict doc lands on `review/sol-queue-20260717`. Two Opus 4.8 Cycle-3 lanes: `feat/instant-answer` (near-me cheapest-pint instant surface), `data/borough-coverage` (33-borough coverage report + honest expansion).
+- Loop heartbeat armed; each completed lane gets Fable review → separate PR → logged here.
+
+### Overnight events
+<!-- appended as they happen -->
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
