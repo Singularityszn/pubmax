@@ -189,7 +189,11 @@ export type PlanCollaborationStore = {
   revokeInvite(planId: string, token: unknown, inviteId: string, key: string, now?: Date): Promise<{ ok: true; invite: PlanInvite } | Failure>;
   consumeInvite(planId: string, token: unknown, now?: Date): Promise<{ ok: true; inviteId: string; role: "guest" } | Failure>;
   redeemInviteAndJoin(planId: string, token: unknown, name: string, now?: Date, options?: { idempotencyKey?: string }): Promise<{ ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } | Failure | { ok: false; error: "full" }>;
-  upgradeMemberInvite(planId: string, memberToken: unknown, inviteToken: unknown, now?: Date): Promise<{ ok: true; collaborationAuthorized: true } | Failure>;
+  // inviteId is the invite's own (non-secret) row id, surfaced only so the
+  // caller can emit a metrics event linking invite_created -> invite_redeemed
+  // for k-factor; null when the redemption is a replay of an already-
+  // authorized session and the originating invite can't be identified.
+  upgradeMemberInvite(planId: string, memberToken: unknown, inviteToken: unknown, now?: Date): Promise<{ ok: true; collaborationAuthorized: true; inviteId: string | null } | Failure>;
   addConstraint(planId: string, token: unknown, input: { kind: PlanConstraintKind; value: string; priority: PlanConstraint["priority"]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
   resolveConstraint(planId: string, token: unknown, constraintId: string, input: { evidence: PlanConstraintEvidence; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
   createProposal(planId: string, token: unknown, input: { reason: string; expectedRouteRevision: number; stops: PlanStopDTO[]; resolvedConstraintIds: string[]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>;
@@ -278,7 +282,7 @@ const memoryStore: PlanCollaborationStore = {
   async upgradeMemberInvite(planId, rawMemberToken, rawInviteToken, now = new Date()) {
     const identity = await planMemberIdentity(planId, rawMemberToken);
     if (!identity || identity.role !== "guest") return { ok: false, error: "forbidden" };
-    if (identity.collaborationAuthorized) return { ok: true, collaborationAuthorized: true };
+    if (identity.collaborationAuthorized) return { ok: true, collaborationAuthorized: true, inviteId: null };
     if (typeof rawInviteToken !== "string" || !rawInviteToken.trim()) return { ok: false, error: "invalid" };
     const invite = [...memory.invites.values()].find((candidate) => candidate.planId === planId && candidate.tokenHash === inviteHash(rawInviteToken.trim()));
     if (!invite) return { ok: false, error: "not_found" };
@@ -287,7 +291,7 @@ const memoryStore: PlanCollaborationStore = {
     if (Date.parse(invite.expiresAt) <= now.getTime()) return { ok: false, error: "expired" };
     if (!grantMemoryPlanCollaboration(planId, rawMemberToken)) return { ok: false, error: "error" };
     invite.redeemedAt = now.toISOString();
-    return { ok: true, collaborationAuthorized: true };
+    return { ok: true, collaborationAuthorized: true, inviteId: invite.id };
   },
 
   async addConstraint(planId, token, input) {
@@ -484,14 +488,25 @@ const supabaseStore: PlanCollaborationStore = {
 
   async upgradeMemberInvite(planId, rawMemberToken, rawInviteToken, now = new Date()) {
     if (!isPlanId(planId) || typeof rawMemberToken !== "string" || typeof rawInviteToken !== "string") return { ok: false, error: "invalid" };
-    const { data, error } = await requireSupabaseAdmin().rpc("upgrade_plan_member_invite_atomic", {
+    const admin = requireSupabaseAdmin();
+    const tokenHash = inviteHash(rawInviteToken.trim());
+    const { data, error } = await admin.rpc("upgrade_plan_member_invite_atomic", {
       p_plan_id: planId,
-      p_invite_token_hash: inviteHash(rawInviteToken.trim()),
+      p_invite_token_hash: tokenHash,
       p_member_token_hash: hashPlanMemberToken(rawMemberToken.trim()),
       p_redeemed_at: now.toISOString(),
     });
     if (error) return { ok: false, error: "error" };
-    return data === "upgraded" || data === "already_authorized" ? { ok: true, collaborationAuthorized: true } : { ok: false, error: data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "replayed" ? "replayed" : data === "forbidden" ? "forbidden" : "not_found" };
+    if (data !== "upgraded" && data !== "already_authorized") {
+      return { ok: false, error: data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "replayed" ? "replayed" : data === "forbidden" ? "forbidden" : "not_found" };
+    }
+    // Read-only lookup, no schema/RPC change: the atomic function only
+    // returns a status string, so the invite's own row id (safe to emit —
+    // see CUSTOM_PROP_VALIDATORS.inviteId in lib/analyticsEvents.ts) is
+    // fetched separately purely for the invite_redeemed metrics event.
+    const found = await admin.from(INVITES).select("id").eq("plan_id", planId).eq("token_hash", tokenHash).maybeSingle();
+    const inviteId = found.data ? String((found.data as Record<string, unknown>).id) : null;
+    return { ok: true, collaborationAuthorized: true, inviteId };
   },
 
   async addConstraint(planId, token, input) {

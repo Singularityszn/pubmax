@@ -106,6 +106,13 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
       .then(({ response, body }) => {
         if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not unlock crew decisions.");
         writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true, role: "guest" });
+        // body.inviteId is the invite's own row id (see upgradeMemberInvite in
+        // lib/planCollaborationStore.ts) — links back to invite_created for
+        // k-factor; null on a replayed/already-authorized redemption, so no
+        // event fires (an already-counted invite should not double count).
+        if (typeof body?.inviteId === "string" && body.inviteId) {
+          trackEvent("invite_redeemed", { inviteId: body.inviteId });
+        }
         history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       })
       .catch((caught) => {
