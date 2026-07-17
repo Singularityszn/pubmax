@@ -22,6 +22,9 @@
 //   passport     PintPassport         → ShareBar
 //   saved list   SavedListDetail      → ShareBar
 //   historic pub app/historic/[slug]  → ShareBar
+//
+// Delivery plumbing is unified in lib/shareSheet.ts (native sheet first,
+// wa.me fallback); ShareBar leads with the native button for the same reason.
 
 // £-formatting shared by every builder: only a real, positive, finite number
 // becomes a price string — anything else is treated as "price unknown".
