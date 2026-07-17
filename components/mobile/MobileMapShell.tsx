@@ -114,7 +114,7 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "tonight" || sheetKind === "tfl" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
     </>
   );
 }

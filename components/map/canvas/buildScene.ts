@@ -5,7 +5,7 @@ import {
   clusterCircleColorExpr,
   buildingMassingColorExpr,
 } from "@/lib/mapBasemapTaste";
-import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
+import { resolveTransitNetworkVisibility } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import type { IconTokens } from "@/lib/mapIcons";
 import {
@@ -45,6 +45,7 @@ export type SceneCtx = {
   textFont: string[];
   addLayerOnce: (...args: Parameters<maplibregl.Map["addLayer"]>) => void;
   poiHidden: Record<PoiCategory, boolean>;
+  transitNetworkVisible?: boolean;
   transitLinesPath: string | null;
   showLandmarks: boolean;
   landmarksGeoJSON: GeoJSON.FeatureCollection;
@@ -166,7 +167,7 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
 }
 
 export function buildTransitLines(ctx: SceneCtx) {
-  const { map, tokens, dark, textFont, addLayerOnce, transitLinesPath, poiHidden } = ctx;
+  const { map, tokens, dark, textFont, addLayerOnce, transitLinesPath, poiHidden, transitNetworkVisible } = ctx;
   // --- Transit lines (London TfL by default). Non-London cities pass
   // transitLinesPath=null so we skip the source entirely (no 404).
   if (!transitLinesPath) return;
@@ -177,9 +178,7 @@ export function buildTransitLines(ctx: SceneCtx) {
       attribution: "Rail lines © TfL / OpenStreetMap contributors (ODbL)",
     });
   }
-  const tubeVisibility: "none" | "visible" = isTransitNetworkVisible(poiHidden)
-    ? "visible"
-    : "none";
+  const tubeVisibility = resolveTransitNetworkVisibility(poiHidden, transitNetworkVisible);
   addLayerOnce({
     id: "tube-lines-casing",
     type: "line",

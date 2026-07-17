@@ -41,6 +41,7 @@ describe("mobile map session adapter", () => {
       nightArea: "shoreditch",
       selectedVenueId: "pub-1",
       openSheet: "venue",
+      transitNetworkVisible: true,
     });
     const raw = window.localStorage.getItem(MOBILE_MAP_SESSION_KEY) ?? "";
     expect(raw).not.toContain("location");
@@ -50,6 +51,7 @@ describe("mobile map session adapter", () => {
       nightArea: "shoreditch",
       selectedVenueId: "pub-1",
       openSheet: "venue",
+      transitNetworkVisible: true,
       filters,
     });
   });

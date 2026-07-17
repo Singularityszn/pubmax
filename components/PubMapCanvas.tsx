@@ -31,7 +31,7 @@ import {
   defaultPoiHidden,
   defaultPoiHiddenForViewport,
   defaultPoiHiddenMobile,
-  isTransitNetworkVisible,
+  resolveTransitNetworkVisibility,
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import type { CityId } from "@/lib/cities";
@@ -149,6 +149,8 @@ type PubMapCanvasProps = {
    * skips TfL tube-line layers. Omit / undefined keeps London TfL default.
    */
   transitLinesPath?: string | null;
+  /** Optional independent visibility for the coloured transit network. */
+  transitNetworkVisible?: boolean;
   /**
    * City landmark catalog (from landmarksForCity). Defaults to London.
    * Empty array skips the landmark layer entirely.
@@ -198,7 +200,10 @@ const PUB_PIN_LAYERS = [
   "cluster-count",
 ] as const;
 
-
+/** MapLibre's structural mutation guard; unlike isStyleLoaded, it does not wait for tiles. */
+function isStyleStructureLoaded(map: maplibregl.Map): boolean {
+  return (map.style as unknown as { _loaded?: boolean } | undefined)?._loaded === true;
+}
 
 export default function PubMapCanvas({
   venues,
@@ -223,6 +228,7 @@ export default function PubMapCanvas({
   maxBounds = LONDON_BOUNDS,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
+  transitNetworkVisible,
   cityLandmarks = londonLandmarks,
   cityStoryBands = LONDON_STORY_BANDS,
   cityId = DEFAULT_CITY_ID,
@@ -275,6 +281,7 @@ export default function PubMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [renderedStationCount, setRenderedStationCount] = useState(0);
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
@@ -332,7 +339,7 @@ export default function PubMapCanvas({
   const hoverDetailsRef = useRef(hoverDetails);
   const [failedHoverImage, setFailedHoverImage] = useState<FailedHoverImage | null>(null);
   // POI layer visibility — seed from the live viewport so desktop doesn't flash
-  // all-hidden, while mobile first paint stays clean (all categories off).
+  // all-hidden, while mobile keeps only its zoom-gated Tube/Rail skeleton on.
   // Only rewrite defaults when the viewport band actually changes — never on
   // every mount tick (a fresh object would re-filter layers and look like flicker).
   const [internalPoiHidden, setInternalPoiHidden] = useState<Record<PoiCategory, boolean>>(
@@ -444,6 +451,10 @@ export default function PubMapCanvas({
   const pinEntranceStartRef = useRef(0);
   // buildScene reads this on every (re)build so a theme swap keeps the toggles.
   const poiHiddenRef = useRef(poiHidden);
+  const transitNetworkVisibleRef = useRef(transitNetworkVisible);
+  useEffect(() => {
+    transitNetworkVisibleRef.current = transitNetworkVisible;
+  }, [transitNetworkVisible]);
   // M2 — pre-mute paint originals for the POI-at-initiation selection mute
   // (layerId::prop → value). Owned here so it survives buildScene rebuilds; a
   // theme setStyle wipes the live layers, so buildScene clears + re-applies it.
@@ -455,8 +466,8 @@ export default function PubMapCanvas({
   // setStyle({diff:false}) swap window, during which `mapReady` is still true.
   // The data effects fire on their own React cadence (slim→full venues, live
   // drops, selection, filters), so any can arrive in that window. `applyToMap`
-  // runs the mutation now when the style is loaded, else queues it (keyed, so a
-  // rapid churn collapses to the latest write) to flush on the next style.load.
+  // runs the mutation once the style STRUCTURE is loaded, else queues it (keyed,
+  // so rapid churn collapses to the latest write) for the next style.load.
   // This is the honest fix for the race: no update is dropped, none races the
   // swap. buildScene re-seeds SOURCES from the data refs on style.load, so the
   // queue only needs to carry post-build mutations (filters/paint/visibility)
@@ -466,7 +477,7 @@ export default function PubMapCanvas({
     (key: string, fn: (map: maplibregl.Map) => void) => {
       const map = mapRef.current;
       if (!map) return;
-      if (map.isStyleLoaded()) {
+      if (isStyleStructureLoaded(map)) {
         fn(map);
       } else {
         pendingUpdatesRef.current.set(key, fn);
@@ -474,6 +485,24 @@ export default function PubMapCanvas({
     },
     [],
   );
+
+  // GeoJSON setData is safe as soon as the style structure and target source
+  // exist; unlike paint/layout mutations, it must not wait for every basemap
+  // tile. `isStyleLoaded()` remains false during that tile window and would
+  // otherwise queue late-arriving POIs for a style.load that never comes.
+  const applyGeoJsonData = useCallback((
+    key: string,
+    sourceId: string,
+    data: GeoJSON.GeoJSON | string,
+  ) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const run = (current: maplibregl.Map) => {
+      (current.getSource(sourceId) as maplibregl.GeoJSONSource | undefined)?.setData(data);
+    };
+    if (map.getSource(sourceId)) run(map);
+    else pendingUpdatesRef.current.set(key, run);
+  }, []);
 
   // Route sources (route-line + route-stops) get a MORE PERMISSIVE readiness gate
   // than applyToMap. `isStyleLoaded()` also waits on basemap tiles/sprite, which
@@ -500,8 +529,7 @@ export default function PubMapCanvas({
         routeStopsRef.current,
       );
     };
-    const styleLoaded = (map.style as unknown as { _loaded?: boolean } | undefined)?._loaded;
-    if (styleLoaded && map.getSource("route-stops")) {
+    if (isStyleStructureLoaded(map) && map.getSource("route-stops")) {
       run(map);
     } else {
       // Style still swapping: the imminent style.load re-seeds these sources from
@@ -859,8 +887,7 @@ export default function PubMapCanvas({
       // at style.load). Dropping the stale event is lossless — the new style's
       // own style.load re-runs buildScene, and pendingUpdatesRef carries any
       // queued data writes across to that build.
-      const currentStyle = map.style as unknown as { _loaded?: boolean } | undefined;
-      if (!currentStyle || currentStyle._loaded === false) return;
+      if (!isStyleStructureLoaded(map)) return;
 
       // Wave K2: style.load already flipped `styleLoaded`, so the tile hard-fail
       // timer will never fire. Any throw below must still lift the parent
@@ -915,6 +942,7 @@ export default function PubMapCanvas({
         textFont,
         addLayerOnce,
         poiHidden: poiHiddenRef.current,
+        transitNetworkVisible: transitNetworkVisibleRef.current,
         transitLinesPath,
         showLandmarks,
         landmarksGeoJSON: landmarksGeoJSONRef.current,
@@ -1193,11 +1221,9 @@ export default function PubMapCanvas({
       // then sat un-progressed until the map fully quiesced — pins invisible
       // for the whole window. `_loaded` only goes false across a genuine
       // setStyle swap, which is the case this guard exists for.
-      const frameStyle = map.style as unknown as { _loaded?: boolean } | undefined;
       if (
         pinEntranceActiveRef.current &&
-        frameStyle &&
-        frameStyle._loaded !== false &&
+        isStyleStructureLoaded(map) &&
         map.getLayer("pubs-point")
       ) {
         if (reducedRef.current) {
@@ -1344,12 +1370,8 @@ export default function PubMapCanvas({
       whatsOnByVenue,
     );
     if (!mapReady) return;
-    applyToMap("pubs:data", (map) => {
-      (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
-        pubsDataRef.current,
-      );
-    });
-  }, [venues, venueSignals, favoritePint, drinkCategory, whatsOnByVenue, mapReady, applyToMap]);
+    applyGeoJsonData("pubs:data", "pubs", pubsDataRef.current);
+  }, [venues, venueSignals, favoritePint, drinkCategory, whatsOnByVenue, mapReady, applyGeoJsonData]);
 
   // CityMCP tonight opportunities → source data + overlay visibility. Kept out
   // of the mount effect deps so live opportunity refreshes never remount MapLibre.
@@ -1358,16 +1380,14 @@ export default function PubMapCanvas({
     tonightOpportunitiesRef.current = tonightOpportunities;
     tonightOverlayVisibleRef.current = tonightOverlayVisible;
     if (!mapReady) return;
-    applyToMap("tonight:data+visibility", (map) => {
-      (map.getSource("tonight-opportunities") as maplibregl.GeoJSONSource | undefined)?.setData(
-        tonightDataRef.current,
-      );
+    applyGeoJsonData("tonight:data", "tonight-opportunities", tonightDataRef.current);
+    applyToMap("tonight:visibility", (map) => {
       const visibility: "visible" | "none" = tonightOverlayVisible ? "visible" : "none";
       for (const layer of TONIGHT_OPPORTUNITY_LAYERS) {
         if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visibility);
       }
     });
-  }, [tonightOpportunities, tonightOverlayVisible, mapReady, applyToMap]);
+  }, [tonightOpportunities, tonightOverlayVisible, mapReady, applyGeoJsonData, applyToMap]);
 
   // POIs load once (client fetch) and feed the "pois" source.
   // Non-London cities pass poisPath=null → empty layer, no 404.
@@ -1377,11 +1397,7 @@ export default function PubMapCanvas({
       .then((pois) => {
         if (cancelled) return;
         poisDataRef.current = poisToGeoJSON(pois);
-        applyToMap("pois:data", (map) => {
-          (map.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
-            poisDataRef.current,
-          );
-        });
+        applyGeoJsonData("pois:data", "pois", poisDataRef.current);
       })
       .catch(() => {
         // ponytail: POIs are ambient garnish — a fetch failure just leaves the
@@ -1390,7 +1406,7 @@ export default function PubMapCanvas({
     return () => {
       cancelled = true;
     };
-  }, [mapReady, applyToMap, poisPath]);
+  }, [mapReady, applyGeoJsonData, poisPath]);
 
   // POI category toggles → layer filters (kept in a ref for theme rebuilds).
   // Transport layers filter by category+rank; ambient dots by category only.
@@ -1409,12 +1425,59 @@ export default function PubMapCanvas({
       setFilter("pois-transport-minor", transportFilter(poiHidden, false));
       setFilter("pois-transport-label", transportAll);
       // The coloured tube-line network toggles with Tube only (stations stay independent).
-      const tubeVisibility = isTransitNetworkVisible(poiHidden) ? "visible" : "none";
+      const tubeVisibility = resolveTransitNetworkVisibility(poiHidden, transitNetworkVisible);
       for (const layer of ["tube-lines-casing", "tube-lines-color", "tube-lines-label"]) {
         if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
       }
     });
-  }, [poiHidden, mapReady, applyToMap]);
+  }, [poiHidden, transitNetworkVisible, mapReady, applyToMap]);
+
+  // Publish a real rendered-feature diagnostic, not just source/layer setup.
+  // This lets the mobile matrix catch missing station icons, collision regressions,
+  // stale style reloads, or filters that claim Tube/Rail are on while painting none.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+    let frame = 0;
+    const publishRenderedStations = () => {
+      const layers = ["pois-transport-major", "pois-transport-minor"]
+        .filter((layer) => Boolean(map.getLayer(layer)));
+      if (layers.length === 0) {
+        setRenderedStationCount(0);
+        return;
+      }
+      const renderedStations = map.queryRenderedFeatures({ layers });
+      const sourceStations = map.querySourceFeatures("pois")
+        .filter((feature) => feature.properties?.category === "tube" || feature.properties?.category === "rail");
+      setRenderedStationCount(renderedStations.length);
+      window.dispatchEvent(new CustomEvent("pubmax:transport-scene", {
+        detail: {
+          renderedStationCount: renderedStations.length,
+          sourceStationCount: sourceStations.length,
+          zoom: map.getZoom(),
+        },
+      }));
+    };
+    const schedulePublish = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(publishRenderedStations);
+    };
+    const handleSourceData = (event: maplibregl.MapSourceDataEvent) => {
+      if (event.sourceId === "pois") schedulePublish();
+    };
+    map.on("idle", schedulePublish);
+    map.on("moveend", schedulePublish);
+    map.on("style.load", schedulePublish);
+    map.on("sourcedata", handleSourceData);
+    schedulePublish();
+    return () => {
+      cancelAnimationFrame(frame);
+      map.off("idle", schedulePublish);
+      map.off("moveend", schedulePublish);
+      map.off("style.load", schedulePublish);
+      map.off("sourcedata", handleSourceData);
+    };
+  }, [mapReady]);
 
   // Route + selection ring → sources/filter.
   useEffect(() => {
@@ -1705,7 +1768,12 @@ export default function PubMapCanvas({
   const cityDisplayName = getCity(cityId).displayName;
 
   return (
-    <div className="mapCanvasWrap" data-route-stops={route.length} data-venue-count={venues.length}>
+    <div
+      className="mapCanvasWrap"
+      data-route-stops={route.length}
+      data-venue-count={venues.length}
+      data-rendered-station-count={renderedStationCount}
+    >
       <div ref={containerRef} className="maplibreMap" />
       {/* Camera fit for the active city — not a city switcher (toolbar owns that). */}
       <div className="mapCameraControls" aria-label="Map camera controls">

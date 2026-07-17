@@ -1,5 +1,9 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+import {
+  expectContainedInSheetBody,
+  mockScrollableMobileSheets,
+} from "./support/mobileMapSheets";
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -10,7 +14,7 @@ const VIEWPORTS = [
 
 const THEMES = ["light", "dark"] as const;
 
-test.setTimeout(90_000);
+test.setTimeout(150_000);
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => Math.max(
@@ -75,6 +79,7 @@ for (const viewport of VIEWPORTS) {
           },
         });
       }, theme);
+      await mockScrollableMobileSheets(page);
 
       const response = await page.goto("/map");
       expect(response?.status()).toBe(200);
@@ -161,6 +166,35 @@ for (const viewport of VIEWPORTS) {
       await expect(filtersSheet.getByRole("heading", { name: "Drinks and price" })).toBeVisible();
       await expectNoHorizontalOverflow(page);
       await saveShot(page, `filters-${viewport.width}x${viewport.height}-${theme}`);
+      await filtersSheet.getByRole("button", { name: "Close Drinks and price" }).click();
+
+      // Exercise the repaired transition path with motion enabled: the sheet
+      // must be full-width only after its detent animation has settled.
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.getByRole("button", { name: /Tonight/ }).click();
+      const tonightSheet = page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]');
+      await expect(tonightSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+      const tonightBody = tonightSheet.locator(".mobileSharedSheetBody");
+      const tonightLane = tonightBody.locator(".tonightLane--open");
+      await expect(tonightLane).toBeVisible();
+      await expectContainedInSheetBody(tonightLane);
+      const tonightScroll = tonightSheet.locator(".tonightLaneScroll");
+      await tonightScroll.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
+      await expect.poll(() => tonightScroll.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+      await expectNoHorizontalOverflow(page);
+      await tonightSheet.getByRole("button", { name: "Close Tonight" }).click();
+
+      await page.getByRole("button", { name: /TfL/ }).click();
+      const tflSheet = page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]');
+      await expect(tflSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+      const tflBody = tflSheet.locator(".mobileSharedSheetBody");
+      await expect(tflBody).toHaveCSS("overflow-y", "auto");
+      await expect.poll(() => tflBody.evaluate((node) => node.scrollHeight - node.clientHeight)).toBeGreaterThan(0);
+      await tflBody.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+      await expect(tflSheet.getByText("Test line 14")).toBeInViewport();
+      await expectNoHorizontalOverflow(page);
+      await tflSheet.getByRole("button", { name: "Close TfL live" }).click();
+      await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
     });
   }
 }
@@ -271,6 +305,11 @@ for (const theme of THEMES) {
         const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: { zoom?: number } } | null;
         return raw?.viewport?.zoom ?? -1;
       })).toBeCloseTo(zoom, 1);
+      if (zoom === 14) {
+        await expect.poll(async () => Number(
+          await page.locator(".mapCanvasWrap").getAttribute("data-rendered-station-count") ?? "0",
+        )).toBeGreaterThan(0);
+      }
       await saveShot(page, `map-z${zoom}-390x844-${theme}`);
     }
   });

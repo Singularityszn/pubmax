@@ -35,10 +35,11 @@ describe("activation chrome CSS", () => {
     );
   });
 
-  it("keeps every mobile sheet detent scrollable above the bottom dock", () => {
+  it("keeps full mobile sheets scrollable above the bottom dock", () => {
     expect(mobileMapShellCss).toMatch(
-      /\.mobileSharedSheetBody\s*{[\s\S]*?height:\s*calc\(var\(--mobile-sheet-visible-height\) - var\(--mobile-sheet-header-height\) - var\(--mobile-map-dock-clearance\)\);[\s\S]*?overflow-y:\s*auto;/,
+      /\.mobileSharedSheetBody\s*{[\s\S]*?height:\s*calc\(var\(--mobile-sheet-visible-height\) - var\(--mobile-sheet-header-height\) - var\(--mobile-map-dock-clearance\)\);[\s\S]*?overflow:\s*hidden;/,
     );
+    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheetBody\.isScrollable\s*{[\s\S]*?overflow-y:\s*auto;[\s\S]*?touch-action:\s*pan-y;/);
     expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-half[^}]*--mobile-sheet-visible-height:\s*55dvh;/);
     expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-full[^}]*--mobile-sheet-visible-height:\s*92dvh;/);
   });

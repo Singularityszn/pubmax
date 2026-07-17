@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import { MapPinned, ShieldCheck, Sparkles, TrainFront, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
@@ -27,6 +27,7 @@ import { Sheet } from "@/components/ui/sheet";
 import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
 import { SearchField } from "@/components/ui/search-field";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { MobilePlanActivation, type GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
@@ -322,6 +323,9 @@ export default function PubMap({
   );
   const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
   const [mobileLayersTab, setMobileLayersTab] = useState<"layers" | "prices" | "events" | "transit">("layers");
+  const [mobileTransitNetworkVisible, setMobileTransitNetworkVisible] = useState(
+    restoredMobileSession?.transitNetworkVisible ?? false,
+  );
   const tflStatus = useMobileTflStatus();
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
   const {
@@ -1170,6 +1174,7 @@ export default function PubMap({
     selectedVenueId: selectedVenueId || null,
     cityId,
     nightArea: activeNightArea?.slug ?? null,
+    transitNetworkVisible: mobileTransitNetworkVisible,
   };
 
   const changeMapOverlay = useCallback((next: MapOverlay) => {
@@ -1189,6 +1194,7 @@ export default function PubMap({
       cityId,
       nightArea: activeNightArea?.slug ?? null,
       selectedVenueId: selectedVenueId || null,
+      transitNetworkVisible: mobileTransitNetworkVisible,
       openSheet: detailOpen
         ? "venue"
         : planningOpen
@@ -1197,7 +1203,7 @@ export default function PubMap({
             ? mapOverlay
             : null,
     });
-  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId]);
+  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, mobileTransitNetworkVisible, planningOpen, selectedVenueId]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
@@ -1491,6 +1497,7 @@ export default function PubMap({
           userLocation={userLocation}
           poisPath={city.poisPath}
           transitLinesPath={city.transitLinesPath}
+          transitNetworkVisible={mobileViewport ? mobileTransitNetworkVisible : undefined}
           cityLandmarks={cityLandmarks}
           cityStoryBands={cityStoryBands}
           cityId={cityId}
@@ -1670,6 +1677,7 @@ export default function PubMap({
               overlayActive={tonightOverlayVisible}
               onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)}
               onDismissOverlay={dismissTonightOverlay}
+              embedded
             />
           }
           layersContent={
@@ -1698,9 +1706,22 @@ export default function PubMap({
                 <fieldset className="mobilePriceChoices"><legend>Maximum pint price</legend>{[10, 7, 6, 5.5].map((price) => <button type="button" key={price} className={filters.maxPrice === price ? "isActive" : ""} aria-pressed={filters.maxPrice === price} onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}>{price === 10 ? "Any" : `£${price.toFixed(2)}`}</button>)}</fieldset>
               </TabsContent>
               <TabsContent value="events">
-                <TonightLane rows={whatsOnTonight.rows} asOf={whatsOnTonight.asOf} status={whatsOnTonight.status} open onOpenChange={() => undefined} onSelectVenue={selectVenue} overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0} overlayActive={tonightOverlayVisible} onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)} onDismissOverlay={dismissTonightOverlay} />
+                <TonightLane rows={whatsOnTonight.rows} asOf={whatsOnTonight.asOf} status={whatsOnTonight.status} open onOpenChange={() => undefined} onSelectVenue={selectVenue} overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0} overlayActive={tonightOverlayVisible} onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)} onDismissOverlay={dismissTonightOverlay} embedded />
               </TabsContent>
-              <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent>
+              <TabsContent value="transit" className="mobileLayersPanel">
+                <div className="mobileTransitSettings">
+                  <Chip
+                    aria-pressed={mobileTransitNetworkVisible}
+                    className={mobileTransitNetworkVisible ? "isActive" : undefined}
+                    onClick={() => setMobileTransitNetworkVisible((visible) => !visible)}
+                  >
+                    <TrainFront size={18} aria-hidden="true" />
+                    Tube network
+                  </Chip>
+                  <p>Show coloured Tube lines. Station symbols remain controlled in Layers.</p>
+                </div>
+                <MobileTflPanel status={tflStatus} />
+              </TabsContent>
             </Tabs>
           }
           palContent={

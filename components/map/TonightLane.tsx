@@ -42,6 +42,8 @@ type TonightLaneProps = {
   overlayActive?: boolean;
   onToggleOverlay?: () => void;
   onDismissOverlay?: () => void;
+  /** Neutral presentation when the shared mobile sheet owns framing and close. */
+  embedded?: boolean;
 };
 
 export default function TonightLane({
@@ -55,6 +57,7 @@ export default function TonightLane({
   overlayActive = false,
   onToggleOverlay,
   onDismissOverlay,
+  embedded = false,
 }: TonightLaneProps) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [internalOpen, setInternalOpen] = useState(false);
@@ -75,6 +78,15 @@ export default function TonightLane({
   // Honest outage state: the PRIMARY spine failed — say so quietly instead of
   // pretending it's a quiet night. Badges are simply absent in this state.
   if (status === "error" && !toggleOverlay) {
+    if (embedded) {
+      return (
+        <section className="tonightLane tonightLane--embedded mobileSheetEmpty" role="status">
+          <MoonStar aria-hidden="true" />
+          <strong>Tonight&rsquo;s listings are unavailable.</strong>
+          <p>The map and venue details still work.</p>
+        </section>
+      );
+    }
     return (
       <section
         className="tonightLane tonightLane--error"
@@ -92,7 +104,15 @@ export default function TonightLane({
     );
   }
 
-  if (rows.length === 0 && !toggleOverlay) return null;
+  if (rows.length === 0 && !toggleOverlay) {
+    return embedded ? (
+      <section className="tonightLane tonightLane--embedded mobileSheetEmpty" role="status">
+        <MoonStar aria-hidden="true" />
+        <strong>Nothing listed nearby tonight.</strong>
+        <p>Try another area or check back later.</p>
+      </section>
+    ) : null;
+  }
 
   if (!isOpen) {
     return (
@@ -139,13 +159,13 @@ export default function TonightLane({
 
   return (
     <section
-      className="tonightLane tonightLane--open"
+      className={`tonightLane tonightLane--open${embedded ? " tonightLane--embedded" : ""}`}
       aria-label="On tonight near you"
     >
       <div className="tonightLaneHead">
         <div className="tonightLaneTitleRow">
           <div className="tonightLaneTitleMeta">
-            <h2 className="tonightLaneTitle">On tonight</h2>
+            {!embedded ? <h2 className="tonightLaneTitle">On tonight</h2> : null}
             <span className="tonightLaneChecked">{checkedLabel(asOf)}</span>
           </div>
           <div className="tonightLaneTitleActions">
@@ -161,14 +181,16 @@ export default function TonightLane({
                 ) : null}
               </>
             ) : null}
-            <button
-              type="button"
-              className="tonightLaneClose pressable"
-              aria-label="Collapse on tonight"
-              onClick={() => changeOpen(false)}
-            >
-              <X size={17} aria-hidden="true" />
-            </button>
+            {!embedded ? (
+              <button
+                type="button"
+                className="tonightLaneClose pressable"
+                aria-label="Collapse on tonight"
+                onClick={() => changeOpen(false)}
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
         </div>
         {facets.length > 1 ? (

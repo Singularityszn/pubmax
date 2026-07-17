@@ -98,12 +98,12 @@ export function defaultPoiHidden(): Record<PoiCategory, boolean> {
   };
 }
 
-// Mobile default: every POI layer hidden so the map mid-field stays clean.
-// Viewers opt in via the corner Layers control.
+// Mobile default: keep the transport skeleton visible for orientation while
+// leaving denser ambient layers opt-in. Zoom gates prevent station clutter.
 export function defaultPoiHiddenMobile(): Record<PoiCategory, boolean> {
   return {
-    tube: true,
-    rail: true,
+    tube: false,
+    rail: false,
     bus: true,
     river: true,
     park: true,
@@ -145,4 +145,12 @@ export function togglePoiGroup(
 /** Coloured tube-line network follows the Tube chip only (Rail is stations). */
 export function isTransitNetworkVisible(hidden: Record<PoiCategory, boolean>): boolean {
   return !hidden.tube;
+}
+
+/** One resolver for initial scene assembly and subsequent layer updates. */
+export function resolveTransitNetworkVisibility(
+  hidden: Record<PoiCategory, boolean>,
+  override?: boolean,
+): "visible" | "none" {
+  return (override ?? isTransitNetworkVisible(hidden)) ? "visible" : "none";
 }

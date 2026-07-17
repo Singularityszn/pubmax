@@ -44,7 +44,7 @@
     align-items: center;
     gap: 2px;
     padding: 4px 5px 4px 12px;
-    border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 62%, transparent);
     border-radius: var(--radius-lg);
     background: color-mix(in srgb, var(--color-surface-raised) 94%, transparent);
     box-shadow: var(--shadow-sm);
@@ -52,9 +52,9 @@
     pointer-events: auto;
   }
 
-  .mobileMapBrand { min-width: 0; overflow: hidden; color: var(--color-text); font-size: .7rem; text-decoration: none; }
+  .mobileMapBrand { min-width: 0; overflow: hidden; color: var(--color-text); font-size: .76rem; text-decoration: none; }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
-  .mobileMapCity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: 7px; font-size: .72rem; font-weight: 700; color: var(--color-text-soft); }
+  .mobileMapCity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: 7px; font-size: .76rem; font-weight: 700; color: var(--color-text-soft); }
   .mobileMapTopbar > button { border: 0; background: transparent; }
   .mobileMapPalButton { color: var(--color-accent); }
   .mobilePalAvatar { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--color-accent) 58%, var(--color-border)); border-radius: 50%; background: radial-gradient(circle at 38% 30%, color-mix(in srgb, white 20%, transparent), transparent 34%), color-mix(in srgb, var(--color-accent) 13%, var(--color-surface)); overflow: hidden; }
@@ -82,7 +82,7 @@
     scroll-snap-type: x proximity;
   }
   .mobileMapRail::-webkit-scrollbar { display: none; }
-  .mobileMapRail > button { min-height: 44px; scroll-snap-align: start; box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent); }
+  .mobileMapRail > button { min-height: 44px; scroll-snap-align: start; border-color: color-mix(in srgb, var(--color-border) 62%, transparent); box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 10%, transparent); }
   .mobileMapRail > button[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-accent); }
   .mobileMapChipCount { min-width: 1.2rem; height: 1.2rem; display: grid; place-items: center; border-radius: 999px; background: var(--color-accent); color: var(--color-on-accent); font-family: var(--font-data); font-size: .68rem; }
 
@@ -127,7 +127,7 @@
     height: 100dvh;
     max-height: none;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    border: 1px solid var(--color-border);
+    border: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent);
     background: var(--color-surface-raised);
     box-shadow: var(--shadow);
     overflow: hidden;
@@ -146,10 +146,21 @@
   .mobileSharedSheetBody {
     flex: 0 0 auto;
     min-height: 0;
+    min-width: 0;
     height: calc(var(--mobile-sheet-visible-height) - var(--mobile-sheet-header-height) - var(--mobile-map-dock-clearance));
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
     padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    line-height: 1.45;
+  }
+  .mobileSharedSheetBody.isScrollable {
+    overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
   }
 
   .mobileMapFilters { display: grid; gap: 18px; }
@@ -201,7 +212,44 @@
     margin: 0;
     transform: none;
   }
-  .mobileSheetPortal .tonightLane { inset: auto; box-shadow: none; }
+  .mobileSheetPortal .tonightLane--open {
+    inset: auto;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    max-height: none;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    animation: none;
+    transform: none;
+  }
+  .mobileSheetPortal .tonightLaneHead,
+  .mobileSheetPortal .tonightLaneTitleRow,
+  .mobileSheetPortal .tonightLaneScroll { width: 100%; min-width: 0; max-width: 100%; }
+  .mobileSheetPortal .tonightLaneScroll { overflow-x: auto; overflow-y: hidden; touch-action: pan-x; }
+  .mobileSheetPortal .tonightLane--embedded .tonightLaneTitleMeta { flex: 0 1 auto; }
+  .mobileSheetPortal .tonightLaneCard {
+    border-color: color-mix(in srgb, var(--color-border) 58%, transparent);
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-surface-raised));
+    box-shadow: var(--shadow-sm);
+  }
+  .mobileSheetPortal .tonightLane--embedded .tonightLaneTitle,
+  .mobileSheetPortal .tonightLane--embedded .tonightLaneCardTitle { font-size: var(--text-sm); line-height: 1.35; }
+  .mobileSheetPortal .tonightLane--embedded .tonightLaneChecked,
+  .mobileSheetPortal .tonightLane--embedded .tonightLaneCardKind,
+  .mobileSheetPortal .tonightLane--embedded .tonightLaneCardPlace,
+  .mobileSheetPortal .tonightLane--embedded .tonightLaneCardWhen,
+  .mobileSheetPortal .tonightLane--embedded .tonightLaneCardSource { font-size: var(--text-xs); line-height: 1.4; }
   .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; }
   .mobileSheetPortal .logIntentFallback { position: static; inset: auto; width: 100%; max-width: none; margin: 0; box-shadow: none; }
   .mobileLayersPanel { display: grid; gap: 16px; }
@@ -211,14 +259,18 @@
   .mobileLayersTheme > div { min-width: 0; display: grid; gap: 3px; }
   .mobileLayersTheme small { color: var(--color-text-muted); line-height: 1.35; }
   .mobileLayersTheme .themeToggle { flex: 0 0 44px; width: 44px; height: 44px; }
+  .mobileTransitSettings { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mobileTransitSettings .isActive { border-color: color-mix(in srgb, var(--river) 72%, var(--color-border)); background: color-mix(in srgb, var(--river) 14%, var(--color-surface-raised)); color: var(--river); }
+  .mobileTransitSettings p { min-width: 0; margin: 0; color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.4; }
 
   .mobileTflGroups { display: grid; gap: 16px; }
-  .mobileTflGroups section { min-width: 0; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
-  .mobileTflGroups h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: var(--text-md); }
+  .mobileTflGroups section { min-width: 0; padding: 14px; border: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent); border-radius: var(--radius); background: color-mix(in srgb, var(--color-surface) 90%, var(--color-surface-raised)); }
+  .mobileTflGroups h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-family: var(--font-display); font-size: var(--text-md); letter-spacing: 0; }
   .mobileTflGroups ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-  .mobileTflGroups li { min-width: 0; display: grid; gap: 3px; padding-block: 8px; border-top: 1px solid var(--color-border); overflow-wrap: anywhere; }
+  .mobileTflGroups li { min-width: 0; display: grid; gap: 3px; padding-block: 10px; border-top: 1px solid color-mix(in srgb, var(--color-border) 52%, transparent); overflow-wrap: anywhere; }
   .mobileTflGroups li:first-child { border-top: 0; }
-  .mobileTflGroups p { margin: 0; color: var(--color-text-soft); }
+  .mobileTflGroups strong { font-size: var(--text-sm); line-height: 1.35; }
+  .mobileTflGroups p { margin: 0; color: var(--color-text-soft); font-size: var(--text-sm); line-height: 1.45; }
   .mobileTflGroups span { color: var(--color-text-muted); font-size: var(--text-xs); }
   .mobileSheetEmpty, .mobileSheetSkeleton { min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; }
   .mobileSheetEmpty p { margin: 0; color: var(--color-text-soft); }

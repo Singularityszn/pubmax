@@ -38,6 +38,7 @@ export type MobileShellState = {
   selectedVenueId: string | null;
   cityId: CityId;
   nightArea: NightAreaSlug | null;
+  transitNetworkVisible: boolean;
 };
 
 export type MobileMapSessionV1 = {
@@ -49,6 +50,7 @@ export type MobileMapSessionV1 = {
   nightArea: NightAreaSlug | null;
   selectedVenueId: string | null;
   openSheet: MapSheetKind | null;
+  transitNetworkVisible: boolean;
 };
 
 export const MOBILE_MAP_SESSION_KEY = "pubmaxx.mobile-map-session.v1";
@@ -141,6 +143,9 @@ export function readMobileMapSession(): MobileMapSessionV1 | null {
       cityId,
       nightArea: isNightAreaSlug(raw.nightArea) ? raw.nightArea : null,
       selectedVenueId: typeof raw.selectedVenueId === "string" ? raw.selectedVenueId : null,
+      transitNetworkVisible: typeof raw.transitNetworkVisible === "boolean"
+        ? raw.transitNetworkVisible
+        : false,
       openSheet: typeof raw.openSheet === "string" && RESTORABLE_SHEETS.has(raw.openSheet as MapSheetKind)
         ? (raw.openSheet as MapSheetKind)
         : null,

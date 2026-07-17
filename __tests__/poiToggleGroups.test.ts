@@ -6,6 +6,7 @@ import {
   defaultPoiHiddenMobile,
   isPoiGroupOn,
   isTransitNetworkVisible,
+  resolveTransitNetworkVisibility,
   togglePoiGroup,
 } from "@/lib/poiToggleGroups";
 
@@ -29,11 +30,15 @@ describe("poiToggleGroups", () => {
     expect(hidden.historic).toBe(true);
   });
 
-  it("hides every POI layer on mobile by default", () => {
+  it("keeps Tube and Rail visible on mobile while hiding denser ambient POIs", () => {
     const hidden = defaultPoiHiddenMobile();
-    for (const value of Object.values(hidden)) {
-      expect(value).toBe(true);
-    }
+    expect(hidden.tube).toBe(false);
+    expect(hidden.rail).toBe(false);
+    expect(hidden.bus).toBe(true);
+    expect(hidden.park).toBe(true);
+    expect(isTransitNetworkVisible(hidden)).toBe(true);
+    expect(resolveTransitNetworkVisibility(hidden, false)).toBe("none");
+    expect(resolveTransitNetworkVisibility(hidden, true)).toBe("visible");
   });
 
   it("toggles Tube independently of Rail; lines follow Tube only", () => {
