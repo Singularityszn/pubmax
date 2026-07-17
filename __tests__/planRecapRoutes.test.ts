@@ -36,7 +36,11 @@ describe("completed Plan recap promotion", () => {
     const completed = await planStore().complete(created.plan.plan.id, created.memberToken, {
       expectedRouteRevision: 1,
       ending: "get_home",
-      terminalVenueId: "venue-c",
+      endingSelection: {
+        kind: "get_home",
+        optionId: "transport:nearest-station",
+        evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+      },
     });
     if (!completed.ok) throw new Error("completion fixture failed");
     return { ...created, completion: completed.completion };

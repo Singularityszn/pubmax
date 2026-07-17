@@ -72,7 +72,10 @@ describe("social connection APIs", () => {
     );
     expect(response.status).toBe(204);
     response = await listConnections(request("/api/social-connections"));
-    expect(await response.json()).toEqual({ connections: [] });
+    expect(await response.json()).toMatchObject({
+      connections: [],
+      providers: { instagram: { manual: true, oauth: false } },
+    });
   });
 
   it("returns OAuth outcomes to the canonical You surface", async () => {

@@ -34,7 +34,7 @@ import {
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
-import type { CrawlEnding, PlanCompletionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
+import type { CrawlEnding, EndingSelection, PlanCompletionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
 import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
 import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
@@ -88,13 +88,58 @@ export function completePlanPayload(
   ending: CrawlEnding,
   terminalVenueId: string,
   expectedRouteRevision: PlanRouteRevision,
+  endingSelection?: EndingSelection,
   finalPintDropId?: string,
-): Record<string, string | number> {
+): Record<string, unknown> {
   return {
     ending,
     terminalVenueId,
     expectedRouteRevision,
+    ...(endingSelection ? { endingSelection } : {}),
     ...(finalPintDropId ? { finalPintDropId } : {}),
+  };
+}
+
+export function foodEndingSelection(terminal: LateFoodTerminal): Extract<EndingSelection, { kind: "food" }> {
+  return {
+    kind: "food",
+    optionId: terminal.id,
+    externalPlaceId: terminal.id,
+    evidenceSnapshot: {
+      label: terminal.name,
+      confidence: terminal.confidence,
+      source: `${terminal.provenance.source} · ${terminal.provenance.sourceUrl}`,
+      observedAt: terminal.provenance.observedAt,
+      warnings: [terminal.hours.service],
+    },
+  };
+}
+
+export function getHomeEndingSelection(stationName: string | null, leaveByIso: string | null): Extract<EndingSelection, { kind: "get_home" }> {
+  const label = stationName?.trim() || "Nearest transport anchor";
+  return {
+    kind: "get_home",
+    optionId: `transport:${label.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "nearest"}`,
+    evidenceSnapshot: {
+      label,
+      confidence: leaveByIso ? "medium" : "unknown",
+      source: leaveByIso ? "TfL journey and last-service signal" : "PUBMAXX transport anchor",
+      ...(!leaveByIso ? { warnings: ["Live leave-by evidence was unavailable when this ending was confirmed."] } : {}),
+    },
+  };
+}
+
+export function keepGoingEndingSelection(extension: KeepGoingExtension): Extract<EndingSelection, { kind: "keep_going" }> {
+  return {
+    kind: "keep_going",
+    optionId: extension.id,
+    venueId: extension.id,
+    evidenceSnapshot: {
+      label: extension.name,
+      confidence: "low",
+      source: "PUBMAXX venue index",
+      warnings: ["Closing time was unverified when this extension was confirmed."],
+    },
   };
 }
 
@@ -306,26 +351,6 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     };
   }, []);
 
-  useEffect(() => {
-    const area = plan?.context?.nightArea;
-    if (!area) {
-      void Promise.resolve().then(() => setLateFood([]));
-      return;
-    }
-    let active = true;
-    fetch(`/api/late-food?area=${encodeURIComponent(area)}&limit=3`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body: LateFoodApiResponse | null) => {
-        if (active) setLateFood(Array.isArray(body?.terminals) ? body.terminals : []);
-      })
-      .catch(() => {
-        if (active) setLateFood([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [plan?.context?.nightArea]);
-
   const stops = plan?.stops ?? [];
   const cursor = clampStopIndex(stopIndex, stops.length);
   const currentStop = stops[cursor] ?? null;
@@ -340,6 +365,34 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     if (!currentStop || !coords) return null;
     return coords.find((v) => v.id === currentStop.venueId) ?? null;
   }, [currentStop, coords]);
+
+  useEffect(() => {
+    const area = plan?.context?.nightArea;
+    if (!area) {
+      void Promise.resolve().then(() => setLateFood([]));
+      return;
+    }
+    const params = new URLSearchParams({ area, limit: "3", at: new Date().toISOString() });
+    if (currentCoord) {
+      params.set("fromLat", String(currentCoord.lat));
+      params.set("fromLng", String(currentCoord.lng));
+    }
+    let active = true;
+    const controller = new AbortController();
+    fetch(`/api/late-food?${params}`, { cache: "no-store", signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body: LateFoodApiResponse | null) => {
+        if (active) setLateFood(Array.isArray(body?.terminals) ? body.terminals : []);
+      })
+      .catch(() => {
+        if (active) setLateFood([]);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [currentCoord, plan?.context?.nightArea]);
+
   const keepGoingExtensions = useMemo<KeepGoingExtension[]>(() => {
     if (!currentCoord || !coords) return [];
     const routeIds = new Set(stops.map((stop) => stop.venueId));
@@ -389,7 +442,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     setActivePlanStopIndex(clampStopIndex(cursor + 1, stops.length));
   }, [cursor, stops.length]);
 
-  const completeEnding = useCallback(async (ending: CrawlEnding, terminalVenueId: string) => {
+  const completeEnding = useCallback(async (ending: CrawlEnding, terminalVenueId: string, endingSelection: EndingSelection) => {
     if (!plan || endingSavingRef.current) return;
     endingSavingRef.current = true;
     setEndingSaving(true);
@@ -415,7 +468,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
           "content-type": "application/json",
           authorization: `Bearer ${memberToken}`,
         },
-        body: JSON.stringify(completePlanPayload(ending, terminalVenueId, expectedRouteRevision)),
+        body: JSON.stringify(completePlanPayload(ending, terminalVenueId, expectedRouteRevision, endingSelection)),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
@@ -617,14 +670,14 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
             <p className="nightCard__endingError" role="alert">{endingError}</p>
           ) : null}
           {chosenEnding === "food" && !activeEnding ? (
-            <FoodEndingPicker terminals={lateFood} saving={endingSaving} onChoose={() => completeEnding("food", currentStop.venueId)} />
+            <FoodEndingPicker terminals={lateFood} saving={endingSaving} onChoose={(terminal) => completeEnding("food", currentStop.venueId, foodEndingSelection(terminal))} />
           ) : null}
           {chosenEnding === "get_home" && !activeEnding ? (
             <GetHomeEndingConfirmation
               saving={endingSaving}
               stationName={currentTrain?.station?.name ?? null}
               leaveByIso={lastTrainLeaveBy}
-              onConfirm={() => completeEnding("get_home", currentStop.venueId)}
+              onConfirm={() => completeEnding("get_home", currentStop.venueId, getHomeEndingSelection(currentTrain?.station?.name ?? null, lastTrainLeaveBy))}
             />
           ) : null}
           {chosenEnding === "keep_going" && !activeEnding ? (
@@ -633,7 +686,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
               saving={endingSaving}
               onChoose={(extension) => {
                 setChosenExtension(extension);
-                void completeEnding("keep_going", currentStop.venueId);
+                void completeEnding("keep_going", currentStop.venueId, keepGoingEndingSelection(extension));
               }}
             />
           ) : null}
@@ -689,7 +742,7 @@ function FoodEndingPicker({
 }: {
   terminals: LateFoodTerminal[];
   saving: boolean;
-  onChoose: () => void;
+  onChoose: (terminal: LateFoodTerminal) => void;
 }) {
   if (terminals.length === 0) {
     return <p className="nightCard__endingHint">Reviewed nearby food recommendations are not available for this route yet.</p>;
@@ -704,12 +757,12 @@ function FoodEndingPicker({
               type="button"
               className="nightCard__endingLink"
               style={{ width: "100%", justifyContent: "space-between", border: 0, font: "inherit", textAlign: "left", cursor: saving ? "wait" : "pointer" }}
-              onClick={onChoose}
+              onClick={() => onChoose(terminal)}
               disabled={saving}
               aria-label={`Choose Food ending; ${terminal.name} is a nearby recommendation`}
             >
               <span>{terminal.name}</span>
-              <small>{terminal.walkingDetour.minutes} min detour · {terminal.confidence} confidence · recommendation only</small>
+              <small>{terminal.walkingDetour.minutes === null ? "distance pending" : `${terminal.walkingDetour.minutes} min direct-distance estimate`} · {terminal.confidence} confidence · recommendation only</small>
             </button>
           </li>
         ))}
@@ -849,7 +902,7 @@ function NightEndingResult({
               <li key={terminal.id}>
                 <span>{terminal.name}</span>
                 <small>
-                  {terminal.category} · {terminal.walkingDetour.minutes} min detour ·{" "}
+                  {terminal.category} · {terminal.walkingDetour.minutes === null ? "distance pending" : `${terminal.walkingDetour.minutes} min direct-distance estimate`} ·{" "}
                   {terminal.confidence} confidence
                 </small>
               </li>

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "r
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
@@ -13,6 +14,7 @@ import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
+import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 
 export type RouteRevision = string | number;
 export type RouteAlternative = { venueId: string; venueName: string };
@@ -324,6 +326,7 @@ function PlanComposerForm({
   recoveredRouteDraft: StoredRouteDraft | null;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
   const areaGroups = nightAreaSelectorGroups();
   const readyAreas = areaGroups[0]?.areas ?? [];
   const areasInProgress = areaGroups[1]?.areas ?? [];
@@ -416,6 +419,7 @@ function PlanComposerForm({
       setRouteStatus("Route needs refreshing after that context change.");
     }
     setNightContext(next);
+    if (!user) writeDeviceNightContext(next);
   }
 
   function swapStop(key: number) {
@@ -447,7 +451,11 @@ function PlanComposerForm({
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
       if (!suggested.length) throw new Error("No grounded venues matched that request. Try a nearby area or a broader mood.");
       setStops(suggested);
-      if (body.inferredContext) setNightContext(body.inferredContext as NightContext);
+      if (body.inferredContext) {
+        const inferredContext = body.inferredContext as NightContext;
+        setNightContext(inferredContext);
+        if (!user) writeDeviceNightContext(inferredContext);
+      }
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
       markPalRouteActivation();

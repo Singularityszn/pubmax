@@ -1,7 +1,9 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage } from "@/lib/nightAreas";
+import { haversineKm } from "@/lib/haversine";
 import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { buildPlanEndingRecommendations } from "@/lib/planEndings";
@@ -15,10 +17,11 @@ import {
 	claimsForEntity,
 	type NightSignalClaim,
 } from "@/lib/nightSignalClaims";
-import type { PublicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { clientIp, hashIp } from "@/lib/supabase";
+import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
+import { planningWeatherForArea, type PlanningWeather } from "@/lib/weatherSnapshots";
+import weatherSnapshot from "@/public/data/weather/latest.json";
 
 assertServerEnv();
 
@@ -29,14 +32,8 @@ function baselineTonight(now: number): WhatsOnRow[] {
   return filterTonight(baselineWhatsOn, now);
 }
 
-function publicError(error: string, code: string, retryable = false, details?: Record<string, unknown>): PublicApiError {
-  return { error, code, retryable, ...(details ? { details } : {}) };
-}
-
 function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const latKm = (a.lat - b.lat) * 111;
-  const lngKm = (a.lng - b.lng) * 111 * Math.cos(a.lat * Math.PI / 180);
-  return Math.hypot(latKm, lngKm);
+	return haversineKm([a.lng, a.lat], [b.lng, b.lat]);
 }
 
 function mergeContext(inferred: NightContext, raw: unknown): NightContext {
@@ -52,6 +49,7 @@ function scoreVenueForContext(
 	distance: number,
 	tonightEvents: readonly WhatsOnRow[],
 	signalClaims: readonly NightSignalClaim[],
+	weather: PlanningWeather | null,
 ): { score: number; reasons: string[] } {
 	const reasons: string[] = [];
 	const price = venue.cheapestPrice;
@@ -108,8 +106,16 @@ function scoreVenueForContext(
 		reasons.push("historic character");
 	}
 	if (context.atmosphere.includes("garden") && venue.amenities.beerGarden) {
-		score += 2;
-		reasons.push("beer garden on record; weather still needs checking");
+		if (weather?.kind === "warm-dry") {
+			score += 2;
+			reasons.push(`beer garden on record; cached ${weather.source.publisher} weather supports it`);
+		} else if (weather?.kind === "rainy" || weather?.kind === "cold") {
+			score -= 1.5;
+			reasons.push(`beer garden on record; cached weather is ${weather.kind}`);
+		} else {
+			score += 0.75;
+			reasons.push("beer garden on record; weather evidence is unavailable or inconclusive");
+		}
 	}
 	if (context.atmosphere.includes("sports") && venue.amenities.liveSports) {
 		score += 1.5;
@@ -169,20 +175,22 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
-  try { body = await request.json() as Record<string, unknown>; } catch { return jsonNoStore(publicError("Malformed request body.", "MALFORMED_REQUEST"), { status: 400 }); }
-  if (await isLimited(`plan-generate:${hashIp(clientIp(request))}`, "plan-generate")) return jsonNoStore(publicError("Too many requests.", "RATE_LIMITED", true), { status: 429 });
+  try { body = await request.json() as Record<string, unknown>; } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
+  const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });
   const query = typeof body.query === "string" ? body.query.trim() : "";
-  if (!query && !body.context) return jsonNoStore(publicError("Describe the night or provide Night Context.", "NIGHT_CONTEXT_REQUIRED"), { status: 400 });
+  if (!query && !body.context) return publicApiError("Describe the night or provide Night Context.", "NIGHT_CONTEXT_REQUIRED", 400);
   const inferred = inferNightContext(query);
   const context = mergeContext(inferred.context, body.context);
-  if (!context.nightArea) return jsonNoStore(publicError("Choose a Night Area.", "NIGHT_AREA_REQUIRED"), { status: 422 });
+  if (!context.nightArea) return publicApiError("Choose a Night Area.", "NIGHT_AREA_REQUIRED", 422);
   const cityId = typeof body.cityId === "string" ? parseCityId(body.cityId) : DEFAULT_CITY_ID;
-  if (!cityId) return jsonNoStore(publicError("cityId is invalid.", "CITY_INVALID"), { status: 400 });
+  if (!cityId) return publicApiError("cityId is invalid.", "CITY_INVALID", 400);
   const area = getNightArea(context.nightArea);
-  if (area.cityId !== cityId) return jsonNoStore(publicError("The selected Night Area is not available in this city.", "NIGHT_AREA_CITY_MISMATCH"), { status: 422 });
+  if (area.cityId !== cityId) return publicApiError("The selected Night Area is not available in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
 	const routeReady = isNightAreaRouteReady(area);
 	const coverage = publicNightAreaCoverage(area);
 	const requestNow = Date.now();
+	const planningWeather = planningWeatherForArea(weatherSnapshot, area.slug, requestNow);
 	const tonightRows = baselineTonight(requestNow);
 	const reviewedSignalClaims = activeNightSignalClaims(nightSignalSnapshot, requestNow);
 	const tonightByVenue = new Map<string, WhatsOnRow[]>();
@@ -197,13 +205,13 @@ export async function POST(request: Request): Promise<Response> {
 	      const distance = distanceKm(area.centre, venue);
 	      const tonightEvents = tonightByVenue.get(venue.id) ?? [];
 	      const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
-	      const scored = scoreVenueForContext(venue, context, distance, tonightEvents, signalClaims);
+	      const scored = scoreVenueForContext(venue, context, distance, tonightEvents, signalClaims, planningWeather);
 	      return { venue, distance, tonightEvents, signalClaims, ...scored };
 	    })
     .filter(({ distance }) => distance <= area.radiusKm)
     .sort((a, b) => b.score - a.score);
   const chosen = candidates.slice(0, 3);
-  if (chosen.length < 3) return jsonNoStore(publicError(`Not enough grounded venues are available in ${area.name} yet.`, "GROUNDED_VENUES_INSUFFICIENT", false, { nightArea: area.slug, availableVenueCount: chosen.length }), { status: 422 });
+  if (chosen.length < 3) return publicApiError(`Not enough grounded venues are available in ${area.name} yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length } });
 	const contextEvidenceGaps = missingContextEvidence(context);
 	const operationalEvidenceGaps = ["current_opening_hours"];
 	if ((context.groupSize ?? 1) > 1) operationalEvidenceGaps.push("get_in_estimates");
@@ -211,7 +219,7 @@ export async function POST(request: Request): Promise<Response> {
 		context.atmosphere.some((value) => ["lively", "music", "sports"].includes(value)) &&
 		chosen.every(({ tonightEvents }) => tonightEvents.length === 0)
 	) operationalEvidenceGaps.push("tonight_event_evidence");
-	if (context.atmosphere.includes("garden")) operationalEvidenceGaps.push("live_weather");
+	if (context.atmosphere.includes("garden") && !planningWeather) operationalEvidenceGaps.push("live_weather");
 	if ((context.budgetLimitPence || context.budget === "value") && chosen.some(({ venue }) => venue.cheapestPrice === null)) {
 		contextEvidenceGaps.push("price_evidence");
 	}
@@ -230,6 +238,11 @@ export async function POST(request: Request): Promise<Response> {
 		provenance: [
 			{ kind: "venue_dataset", label: "PUBMAXX Venue Dataset" },
 			{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
+			...(planningWeather ? [{
+				kind: "night_signal" as const,
+				label: `${planningWeather.source.publisher}: ${planningWeather.condition}`,
+				asOf: planningWeather.observedAt,
+			}] : []),
 		],
 	};
 	const prices = chosen.map(({ venue }) => venue.cheapestPrice);
@@ -263,12 +276,10 @@ export async function POST(request: Request): Promise<Response> {
 		estimatedPintPricePence: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
 	}));
 	const lateFoodArea = normalizeLateFoodArea(area.slug);
-	const lateFood = lateFoodArea ? getLateFoodForArea(lateFoodArea) : [];
-	const rankedLateFood = context.foodNeeds.length === 0 ? lateFood : [...lateFood].sort((left, right) => {
-		const leftMatch = context.foodNeeds.some((need) => left.category === need || left.dietary.some((tag) => tag === need));
-		const rightMatch = context.foodNeeds.some((need) => right.category === need || right.dietary.some((tag) => tag === need));
-		return Number(rightMatch) - Number(leftMatch);
-	});
+	const rankedLateFood = lateFoodArea ? getLateFoodForArea(lateFoodArea, context.foodNeeds, {
+		from: lastStop ? { lat: lastStop.lat, lng: lastStop.lng } : null,
+		now: requestNow,
+	}) : [];
 	const endingRecommendations = buildPlanEndingRecommendations({
 		daypart: context.daypart,
 		foodRequested: context.foodNeeds.length > 0,
@@ -284,6 +295,7 @@ export async function POST(request: Request): Promise<Response> {
 		budgetSummary,
 		routeTotals,
 		endingRecommendations,
+		weatherEvidence: planningWeather,
 		nightArea,
 		// Back-compatible alias until every client has moved to Night Area.
 		district: nightArea,
@@ -300,6 +312,11 @@ export async function POST(request: Request): Promise<Response> {
 				{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
 				...tonightEvents.map((event) => ({ kind: "night_signal" as const, label: `${event.source.label}: ${event.title}`, asOf: event.observedAt })),
 				...signalClaims.map((signal) => ({ kind: "night_signal" as const, label: `${signal.publisher}: ${signal.claim}`, asOf: signal.observedAt })),
+				...(planningWeather ? [{
+					kind: "night_signal" as const,
+					label: `${planningWeather.source.publisher}: ${planningWeather.condition}`,
+					asOf: planningWeather.observedAt,
+				}] : []),
 			],
 	      reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
 	      alternatives: candidates
@@ -323,6 +340,7 @@ export async function POST(request: Request): Promise<Response> {
 	      ...(context.foodNeeds.length ? ["foodNeeds"] : []),
 			...(context.budgetLimitPence ? ["budgetLimitPence"] : []),
 			...(context.zeroProof ? ["zeroProof"] : []),
+			...(planningWeather ? ["weather"] : []),
 	    ],
 	    missingContextEvidence: contextEvidenceGaps,
 	    relevantSignals: area.recentSignals,

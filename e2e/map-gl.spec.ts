@@ -3,6 +3,13 @@ import sharp from "sharp";
 
 test.describe.configure({ mode: "serial" });
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+});
+
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
 // Chromium with SwiftShader (a software GL implementation) so a real WebGL2
 // context exists even on a GPU-less CI box. Where smoke.spec.ts asserts
@@ -86,13 +93,75 @@ test("/map stays visually stable while the viewer is idle", async ({ page }) => 
   expect(changed / pixels).toBeLessThan(0.02);
 });
 
+test("/map reveals pins only for the final rapid theme style generation", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
+    });
+  });
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  const readTrace = () => page.evaluate(() => (
+    window as typeof window & {
+      __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
+    }
+  ).__pubmaxPinRevealTrace);
+  await expect.poll(async () => (await readTrace()).length, { timeout: 20_000 }).toBeGreaterThan(0);
+  const initialGeneration = (await readTrace()).at(-1)!.generation;
+
+  await page.evaluate(async () => {
+    const root = document.documentElement;
+    const initial = root.dataset.theme === "dark" ? "dark" : "light";
+    const alternate = initial === "dark" ? "light" : "dark";
+    for (const theme of [alternate, initial, alternate]) {
+      root.dataset.theme = theme;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  });
+
+  await expect.poll(async () => (
+    await readTrace()
+  ).filter(({ generation }) => generation > initialGeneration).length, { timeout: 25_000 }).toBe(1);
+  await page.waitForTimeout(500);
+  expect((await readTrace()).filter(({ generation }) => generation > initialGeneration)).toHaveLength(1);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
+test("/map uses the bounded pin fallback when basemap tiles are delayed", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
+    });
+  });
+  await page.route(/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 4_000));
+    await route.continue();
+  });
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  const trace = () => page.evaluate(() => (
+    window as typeof window & {
+      __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
+    }
+  ).__pubmaxPinRevealTrace);
+  await expect.poll(async () => (await trace()).at(-1)?.reason, { timeout: 20_000 }).toBe("timeout");
+  const reveal = (await trace()).at(-1)!;
+  await page.waitForTimeout(1_000);
+  expect((await trace()).filter(({ generation }) => generation === reveal.generation)).toHaveLength(1);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
 test("/map reuses granted location after an explicit Near me action", async ({ page, context }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmax-tour-v1-done", "1");
-    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-  });
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 51.513, longitude: -0.125 });
   await page.goto("/map");

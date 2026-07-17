@@ -105,7 +105,16 @@ describe("Plan collaboration HTTP contract", () => {
     const guest = await joined.json() as { memberToken: string };
     const swapped = await ACTION(new Request(`${URL}/${host.plan.plan.id}/actions`, { method: "POST", headers: { "idempotency-key": "guest-swap-denied" }, body: JSON.stringify({ memberToken: guest.memberToken, type: "swapped", stopPosition: 1 }) }), ctx(host.plan.plan.id));
     expect(swapped.status).toBe(403);
-    const completed = await COMPLETE(new Request(`${URL}/${host.plan.plan.id}/complete`, { method: "POST", body: JSON.stringify({ memberToken: guest.memberToken, expectedRouteRevision: 1, ending: "get_home", terminalVenueId: "venue-xjf3n0" }) }), ctx(host.plan.plan.id));
+    const completed = await COMPLETE(new Request(`${URL}/${host.plan.plan.id}/complete`, { method: "POST", body: JSON.stringify({
+      memberToken: guest.memberToken,
+      expectedRouteRevision: 1,
+      ending: "get_home",
+      endingSelection: {
+        kind: "get_home",
+        optionId: "transport:nearest-station",
+        evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+      },
+    }) }), ctx(host.plan.plan.id));
     expect(completed.status).toBe(403);
   });
 

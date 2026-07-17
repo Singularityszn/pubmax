@@ -4,6 +4,9 @@ import {
   completePlanPayload,
   confirmedEndingForPlan,
   endingOptionsForSignals,
+  foodEndingSelection,
+  getHomeEndingSelection,
+  keepGoingEndingSelection,
   recommendedEndingForPlan,
   routeRevisionFromPlan,
 } from "@/components/night/NightModeCard";
@@ -91,6 +94,54 @@ describe("canonical route revision completion", () => {
       ending: "food",
       terminalVenueId: "canonical-current-pub",
       expectedRouteRevision: 7,
+    });
+  });
+
+  it("preserves the selected option separately from the current canonical pub", () => {
+    const selected = foodEndingSelection({
+      id: "late-food-evidence-balans-soho-no-60",
+      name: "Balans No.60",
+      area: "piccadilly-soho",
+      category: "restaurant",
+      dietary: [],
+      address: "60-62 Old Compton Street, London W1D 4UG",
+      coordinates: { lat: 51.5127668, lng: -0.1325587 },
+      hours: {
+        service: "Published service hours; verify tonight.",
+        verifyOnNight: true,
+        weekly: Object.fromEntries(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => [day, [{ open: "09:00", close: "22:30", closesNextDay: false }]])) as never,
+      },
+      walkingDetour: { minutes: 4, distanceKm: 0.3, basis: "straight-line-from-final-stop", note: "Near the final stop." },
+      provenance: {
+        kind: "official_operator",
+        source: "Balans Restaurants",
+        sourceUrl: "https://balans.co.uk/locations/soho-no-60/",
+        observedAt: "2026-07-16T21:13:30.000Z",
+        reviewedAt: "2026-07-16T21:13:30.000Z",
+        expiresAt: "2026-08-16T21:13:30.000Z",
+      },
+      confidence: "high",
+      openAtRequestedTime: true,
+    });
+    expect(completePlanPayload("food", "canonical-current-pub", 7, selected)).toEqual({
+      ending: "food",
+      terminalVenueId: "canonical-current-pub",
+      expectedRouteRevision: 7,
+      endingSelection: selected,
+    });
+    expect(selected.externalPlaceId).toBe("late-food-evidence-balans-soho-no-60");
+  });
+
+  it("builds typed transport and extension selections without mutating the plan", () => {
+    expect(getHomeEndingSelection("Clapham Common", null)).toMatchObject({
+      kind: "get_home",
+      optionId: "transport:clapham-common",
+      evidenceSnapshot: { confidence: "unknown" },
+    });
+    expect(keepGoingEndingSelection({ id: "venue-extra", name: "The Extra", lat: 0, lng: 0, cheapestPrice: 6, distanceKm: 0.4 })).toMatchObject({
+      kind: "keep_going",
+      optionId: "venue-extra",
+      venueId: "venue-extra",
     });
   });
 });

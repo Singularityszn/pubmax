@@ -49,7 +49,11 @@ describe("GET /api/night-areas", () => {
     const response = await LIST(new Request("http://localhost/api/night-areas?city=unknown-city"));
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "city is required and must be valid." });
+    expect(await response.json()).toEqual({
+      error: "city is required and must be valid.",
+      code: "CITY_INVALID",
+      retryable: false,
+    });
   });
 });
 
@@ -90,6 +94,10 @@ describe("GET /api/night-areas/:slug", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ error: "Night Area not found." });
+    expect(await response.json()).toEqual({
+      error: "Night Area not found.",
+      code: "NIGHT_AREA_NOT_FOUND",
+      retryable: false,
+    });
   });
 });
