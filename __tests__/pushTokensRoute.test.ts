@@ -105,6 +105,10 @@ describe("POST /api/push-tokens", () => {
     expect(String(localKey)).not.toContain("203.0.113.7");
     expect(limit).toBe(10);
     expect(windowMs).toBe(60 * 60 * 1000);
+    // Second boundary: the route-wide global backstop rides every request.
+    const [globalKey, , globalLimit] = isLimitedMock.mock.calls[1] ?? [];
+    expect(globalKey).toBe("push-tokens:global");
+    expect(globalLimit).toBe(300);
 
     isLimitedMock.mockResolvedValueOnce(true);
     const limited = await post({ token: "tok-b", platform: "ios" });
@@ -116,6 +120,39 @@ describe("POST /api/push-tokens", () => {
     });
     // A limited request never reaches the store.
     expect(__listMemoryPushTokens().map((t) => t.token)).toEqual(["tok-a"]);
+  });
+
+  it("429s on forwarded-header rotation once the global backstop trips", async () => {
+    // Faithful counting limiter: honours the per-key budget the route asks
+    // for, exactly like the real one. Rotating x-forwarded-for gives the
+    // attacker a FRESH per-IP key every request, so only the shared
+    // push-tokens:global bucket can stop the flood.
+    const counts = new Map<string, number>();
+    isLimitedMock.mockImplementation(async (localKey, _durable, limit = 10) => {
+      const next = (counts.get(localKey) ?? 0) + 1;
+      counts.set(localKey, next);
+      return next > limit;
+    });
+
+    let firstLimited: number | null = null;
+    for (let i = 0; i < 301 && firstLimited === null; i += 1) {
+      const res = await post(
+        { token: `tok-${i}`, platform: "ios" },
+        { "x-forwarded-for": `198.51.100.${i % 250}, 10.0.0.1` },
+      );
+      if (res.status === 429) {
+        firstLimited = i;
+        expect(await res.json()).toEqual({
+          error: "Too many registrations, slow down.",
+          code: "RATE_LIMITED",
+          retryable: true,
+        });
+      }
+    }
+    // Every per-IP key stayed under its own 10/hour budget (250 rotating IPs),
+    // yet the flood is stopped at the 300-request global ceiling.
+    expect(firstLimited).toBe(300);
+    expect(__listMemoryPushTokens()).toHaveLength(300);
   });
 
   it("skips the limiter entirely for invalid payloads", async () => {

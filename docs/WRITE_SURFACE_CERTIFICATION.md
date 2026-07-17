@@ -55,9 +55,13 @@ Plan member capability and use idempotency keys or atomic store operations.
   non-empty `token` ≤ 512 chars, `platform` ∈ {`ios`, `android`}; malformed or
   invalid payloads 400 in the flat public envelope before the limiter or store
   is touched.
-- **Rate limit:** durable per-IP `isLimited` with key
+- **Rate limit (dual boundary):** durable per-IP `isLimited` with key
   `push-tokens:${hashIp(clientIp(request))}` (raw IP never keyed), budget
-  10/hour — a device registers once per boot. Exceed → 429
+  10/hour — a device registers once per boot — PLUS a route-wide global
+  backstop (`push-tokens:global`, 300/hour across all callers). The per-IP key
+  derives from forwarding headers an attacker can rotate per-request where the
+  edge doesn't overwrite them; the global ceiling makes key rotation pointless
+  and is the table-growth bound. Either exceed → 429
   `{ error, code: "RATE_LIMITED", retryable: true }`. Fail-open on limiter
   outage (no anonymous paid spend behind this route).
 - **Auth stance:** deliberately anonymous — registration happens on shell boot,

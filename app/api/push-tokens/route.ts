@@ -3,9 +3,10 @@
 //   POST { token, platform }  →  { ok: true }
 //
 // The shell registers on boot, pre-auth, so the payload carries no identity —
-// only "this device token can receive pushes". Abuse boundary: per-IP durable
-// rate limit (a device registers once per boot, so 10/hour is generous while
-// capping table growth from a spammer). Errors use the flat public envelope
+// only "this device token can receive pushes". Abuse boundary is DUAL: a
+// per-IP durable rate limit (a device registers once per boot, so 10/hour is
+// generous) plus a global route-wide backstop, because the per-IP key is
+// derived from spoofable forwarding headers. Errors use the flat public envelope
 // (lib/apiError.ts). Validation and storage live in lib/pushTokenStore.ts
 // (memory + Supabase dual backend); server-side push SENDING is a later wave
 // and needs an APNs key (docs/CAPACITOR_WRAP.md).
@@ -20,6 +21,14 @@ import { clientIp, hashIp } from "@/lib/supabase";
 assertServerEnv();
 
 const RATE_LIMIT_MAX = 10;
+// Global backstop across ALL callers: clientIp() trusts forwarding headers,
+// which an attacker can rotate per-request wherever the edge doesn't overwrite
+// them — fresh per-IP keys every time. The route-wide ceiling makes rotation
+// pointless: total writes stay bounded regardless of key churn. 300/hour is
+// generous for a launch-day burst of real devices (each registers once per
+// boot) while capping abuse at ~7k rows/day worst case.
+const GLOBAL_RATE_LIMIT_MAX = 300;
+const GLOBAL_LIMITER_KEY = "push-tokens:global";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 export async function POST(request: Request): Promise<Response> {
@@ -39,6 +48,15 @@ export async function POST(request: Request): Promise<Response> {
   // (plan-generate) — the raw IP is hashed before it becomes a limiter key.
   const limiterKey = `push-tokens:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
+    return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+
+  // Second boundary: the global ceiling (see GLOBAL_RATE_LIMIT_MAX above).
+  // Checked after the per-IP budget so one noisy client trips its own limit
+  // before it can eat into everyone else's.
+  if (await isLimited(GLOBAL_LIMITER_KEY, GLOBAL_LIMITER_KEY, GLOBAL_RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
     return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, {
       retryable: true,
     });
