@@ -159,6 +159,49 @@ test("/map uses the bounded pin fallback when basemap tiles are delayed", async 
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
+// First-frame watchdog contract (the blank-white-map report). A browser can
+// GRANT a WebGL context (so the constructor succeeds and style.load fires,
+// retiring the loading chrome) while its render loop never produces a single
+// frame — dead software rasterizer, GPU-process crash after context creation,
+// stalled rAF. Before the watchdog, that user sat on a permanently blank white
+// map with no basemap, no pins, and no fallback. Stubbing rAF to never fire is
+// the deterministic stand-in for "the first basemap frame never arrives": this
+// project (SwiftShader) guarantees construction succeeds, so the only way the
+// fallback can appear is via the FIRST_FRAME_TIMEOUT_MS watchdog.
+test("/map degrades to the fallback when the renderer never draws a frame", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    // Frame loop never runs: rAF registers callbacks but never invokes them.
+    window.requestAnimationFrame = () => 1;
+    window.cancelAnimationFrame = () => {};
+  });
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  // The map constructs (context granted) — the canvas exists…
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+
+  // …but no frame ever renders, so the watchdog must surface the honest
+  // fallback (10s timeout + queueMicrotask + render slack).
+  const fallback = page.locator(".mapFallback");
+  await expect(fallback).toBeVisible({ timeout: 25_000 });
+  await expect(fallback).toContainText("Map couldn't draw");
+  await expect(page.locator(".mapFallbackDetail")).toContainText(/No basemap frame/i);
+
+  // A dead frame loop is retryable (a re-init can recover a crashed GPU
+  // process), so Retry stays visible — unlike the confirmed-no-WebGL case.
+  await expect(page.locator(".mapFallbackRetry")).toBeVisible();
+
+  // Venue content survives: static list rows + the directory link.
+  await expect(page.locator(".mapFallbackBrowse")).toBeVisible();
+  await expect
+    .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15_000 })
+    .toBeGreaterThan(0);
+});
+
 test("/map reuses granted location after an explicit Near me action", async ({ page, context }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });

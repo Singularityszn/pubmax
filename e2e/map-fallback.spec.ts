@@ -43,6 +43,15 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
 
   // The canvas must NOT be present — this is the true no-GL path.
   await expect(page.locator(".maplibreMap canvas")).toHaveCount(0);
+
+  // Venue content must survive the dead renderer: the fallback lists real pubs
+  // from the slim index (tappable rows) plus the full-directory link, so a
+  // no-WebGL browser is never a dead end for the actual product content.
+  await expect(page.locator(".mapFallbackBrowse")).toBeVisible();
+  await expect
+    .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15000 })
+    .toBeGreaterThan(0);
+  await expect(page.locator(".mapFallbackVenueName").first()).not.toBeEmpty();
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
     const directory = "docs/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
