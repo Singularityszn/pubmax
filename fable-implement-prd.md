@@ -106,6 +106,17 @@ Owner asleep from ~23:00. Every overnight action appended here with the why. Sta
 - **PR #308 opened** (borough coverage, Opus 4.8): 78% of 1246 venues priced; outer ring hollow (Barking&Dagenham 1 priced pub, Kingston 4, Hounslow 5). ZERO rows added — honest: seeds exhausted, price fetch is a stub, Firecrawl harvesters off-metric, OSM scoped non-London. Next-cycle levers logged in PR: sourced outer-borough seeds, per-row observedAt, seed-dedup coordinate-drift bug, core geo≠stored borough mismatch (Camden 89).
 - Still running: instant-answer lane (Opus), e2e-verifier (Opus).
 
+## CYCLE 4 PRD (overnight, owner directive: maximize parallel Opus 4.8 lanes)
+
+Backlog drawn from logged findings; four non-colliding lanes, all Opus 4.8, worktrees, separate PRs:
+
+1. **`data/outer-london-osm`** — the one real coverage lever coverage-lane identified: extend the keyless OSM/Overpass ingestion (currently scoped to non-London Wave-2 cities) to London venue PRESENCE for the worst-10 outer boroughs (Barking&Dagenham 1 priced pub today). Unpriced pins acceptable per Cycle-3 PRD; provenance-stamped seeds; also fix the seed-dedupe coordinate-drift bug found by coverage-lane (4-dp key rounding doubles pins).
+2. **`feat/identity-nudges`** — Cycle-2 locked decision not yet implemented: push identity harder. Account prompt after first plan action and after first moment capture (pattern: the sequence-gated prompt from #299), email capture on account create surfaces, "own your streak" nudge exists in #303 — this lane adds the two missing prompts. Browsing never gated.
+3. **`feat/a2hs-flow`** — Wave C: install-prompt UX. Android: custom install sheet on `beforeinstallprompt` after second visit or first completed night (day-bucket persistence idiom); iOS: share-sheet instruction sheet (no API exists). Events already defined in #301 — reuse those names, no registry edits.
+4. **`taste/header-consistency`** — last open taste finding: three different header treatments (landing pill vs map chrome vs tonight). Unify to one header idiom without breaking map's special chrome.
+
+Deferred (conflict-avoidance): Supabase-eager-on-/map (touches PubMap.tsx, would collide with #309), email digest (needs provider decision + inbox confirmation from owner).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
