@@ -2199,6 +2199,9 @@ input[type="range"] {
   text-align: center;
   background: var(--ink-deep);
   color: var(--paper);
+  /* The static venue list can outgrow a short viewport — scroll inside the
+     card rather than clipping the Retry button off-screen. */
+  overflow-y: auto;
 }
 
 .mapFallback strong {
