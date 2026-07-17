@@ -102,7 +102,7 @@ const MAX_PRICE = 20; // a £40 "pint" is a typo or abuse, not a data point.
 // Outlier FLOOR (feat/price-drops-v2): a sub-£1 "pint" is a fat-fingered entry
 // (£4.50 typed as £0.45) or deliberate noise, never a real London price — reject
 // it server-side just like the > £20 ceiling. Mirrored by the DB CHECK in
-// migration 0039 (defence in depth) and by the composer's inputMode UI.
+// migration 0040 (defence in depth) and by the composer's inputMode UI.
 const MIN_PRICE = 1;
 
 function clean(value: unknown, cap: number): string {

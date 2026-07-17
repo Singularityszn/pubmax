@@ -763,7 +763,7 @@ export const supabasePintDropStore: PintDropStore = {
   /**
    * Duplicate guard: the contributor's most recent PRICED drop at this venue,
    * compared against the current London day in JS. We read the single newest
-   * priced row (indexed by migration 0039's
+   * priced row (indexed by migration 0040's
    * (venue_id, handle, created_at) partial index) rather than computing a
    * London-day boundary in SQL — `timezone('Europe/London', ...)` is only STABLE,
    * not IMMUTABLE, so it can't anchor a durable unique index, and a one-row read
