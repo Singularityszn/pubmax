@@ -1,7 +1,10 @@
-# PUBMAXXING — Master Features & Roadmap PRD (Consolidated + Expanded)
+# PUBMAXXING — Master Features & Roadmap PRD (Historical)
+
+> **SUPERSEDED (2026-07-16)** by [`MASTER_PRD.md`](./MASTER_PRD.md). Retained for
+> historical feature provenance only.
 
 **Date:** 2026-07-07 (post latest pull)  
-**Status:** Single source of truth. Supersedes all previous PRDs (`glm_prd.md`, `cc_plan*.md`, `FABLE_*`, `FIRST_PRINCIPLES_*`, `THE_SPILL_*`, `CURRENT_IMPLEMENTED_STATE_*`, `BROAD_APPEAL_*`).
+**Status:** Superseded historical roadmap.
 
 This document combines:
 - Current implemented state (after `ea05b9d` pull)
@@ -94,7 +97,8 @@ This document combines:
 ### 5.4 Gamification & Retention
 - **Pint Passport**: Collect digital stamps for venues, crawls completed, eras visited. Shareable passport image.
 - **Chaos Score** + meme export for every Round.
-- Streaks ("3 nights in a row", "First legal pint anniversary").
+- **Rejected historical proposal:** streaks and drinking-frequency anniversaries are
+  not part of PUBMAXX; see [`MASTER_PRD.md`](./MASTER_PRD.md).
 - Leaderboards: Cheapest pint found this month, Most Spills in a borough, Best Passed-Down Note.
 
 ### 5.5 Accessibility & Boomer Legacy
@@ -169,8 +173,6 @@ This document combines:
 
 ---
 
-**This is the current master plan.** Every previous PRD is now superseded by this consolidated view.
-
-The combination of the latest code (map fixes, realtime, all-drinks, Space Grotesk) + the first-principles social layer (The Spill with generational modes) creates a clear, ambitious, and achievable path to make PUBMAXXING the default app for every generation that loves pubs.
-
-Ready to start coding the map loading skeleton + camera-first Spill composer?
+This document records the roadmap proposed on 2026-07-07 and is not an execution
+contract. Use [`MASTER_PRD.md`](./MASTER_PRD.md) for current priorities, vocabulary,
+gates, and implementation authority.

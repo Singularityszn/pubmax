@@ -1,10 +1,12 @@
 # PUBMAXX Unified Product Contract
 
-**Status:** Active implementation contract
+**Status:** Authoritative implementation appendix to [`MASTER_PRD.md`](./MASTER_PRD.md)
 **Date:** 2026-07-15
 **Scope:** Brand, mobile navigation, identity, connected accounts, Night Memories, Pub Pal, and activation telemetry
 
-This document refines the still-valid map, planning, price, provenance, moderation, and safety decisions in `PRD_CANONICAL.md`. Where naming or social-memory language conflicts, this contract wins.
+This appendix refines the still-valid map, planning, price, provenance,
+moderation, and safety decisions absorbed into `MASTER_PRD.md`. Where this
+historical text conflicts with the master contract, `MASTER_PRD.md` wins.
 
 ## Product promise
 

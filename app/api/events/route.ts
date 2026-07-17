@@ -3,15 +3,14 @@
 // The client beacon (lib/analytics.ts) posts a single registry-known event with
 // allow-listed primitive props. This route re-validates against the SAME
 // registry (never trust the client), drops anything unknown or unsafe, and
-// records the event. There is no third-party collector and no identifier is
-// read or stored — not the IP, not a cookie, nothing that ties an event to a
-// person.
+// records the event. When POSTHOG_PROJECT_API_KEY is configured, the same
+// sanitized event is forwarded to PostHog's EU ingest with a pseudonymous
+// browser-generated id and person-profile processing disabled. No IP, account,
+// handle, free text, query string, or precise location is added by this route.
 //
-// Durable storage is deferred to the Supabase re-auth gate; until then events
-// are emitted as a structured server log line (`[pubmax-analytics] …`) that
-// Vercel's log drain captures, which is enough to prove the metric spine works
-// end-to-end. Always fail-soft: malformed input returns 204, never a 4xx that
-// would tempt the client to retry.
+// Events are also emitted as a structured server log line
+// (`[pubmax-analytics] …`) for release diagnosis. Both sinks fail soft:
+// malformed input or a provider outage returns 204 and never breaks a journey.
 //
 // This is a public, unauthenticated endpoint, so it also carries its own
 // abuse guards: a per-hashed-IP rate limit (isEventsRateLimited) and a
@@ -22,11 +21,27 @@
 
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
+import { capturePosthogEvent } from "@/lib/posthogServer";
 
 export const runtime = "nodejs";
 
 // Beacon payloads are tiny; anything larger is not one of ours.
 const MAX_BODY_BYTES = 2_000;
+
+const STATIC_ANALYTICS_SURFACES = new Set([
+  "/", "/map", "/tonight", "/moment", "/stories", "/you", "/pal", "/plan",
+]);
+
+export function analyticsSurfaceFromPath(path: unknown): string | null {
+  if (typeof path !== "string" || !path.startsWith("/") || path.length > 120) return null;
+  const pathname = path.split("?")[0];
+  if (STATIC_ANALYTICS_SURFACES.has(pathname)) return pathname;
+  if (/^\/plan\/[^/]+$/.test(pathname)) return "/plan/[id]";
+  if (/^\/u\/[^/]+$/.test(pathname)) return "/u/[handle]";
+  if (/^\/messages\/[^/]+$/.test(pathname)) return "/messages/[id]";
+  if (/^\/rounds\/[^/]+$/.test(pathname)) return "/rounds/[code]";
+  return null;
+}
 
 function noContent(): Response {
   return new Response(null, {
@@ -61,10 +76,12 @@ export async function POST(req: Request): Promise<Response> {
     }
     if (!body || typeof body !== "object") return noContent();
 
-    const { name, props, path } = body as {
+    const { name, props, path, anonymousId, analyticsConsent } = body as {
       name?: unknown;
       props?: unknown;
       path?: unknown;
+      anonymousId?: unknown;
+      analyticsConsent?: unknown;
     };
     if (typeof name !== "string") return noContent();
 
@@ -76,10 +93,7 @@ export async function POST(req: Request): Promise<Response> {
 
     // Coarse path only (own-origin pathname), no query, capped — never a URL
     // that could carry a token.
-    const safePath =
-      typeof path === "string" && path.startsWith("/") && path.length <= 120
-        ? path.split("?")[0]
-        : null;
+    const safePath = analyticsSurfaceFromPath(path);
 
     // Structured, PII-free log line. Server owns the timestamp.
     console.log(
@@ -90,6 +104,10 @@ export async function POST(req: Request): Promise<Response> {
         ts: new Date().toISOString(),
       })}`,
     );
+
+    // A provider outage must not create retries or block navigation. Awaiting a
+    // short, bounded request keeps delivery reliable in serverless runtimes.
+    await capturePosthogEvent({ event, path: safePath, anonymousId, analyticsConsent });
 
     return noContent();
   } catch {

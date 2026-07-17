@@ -163,8 +163,12 @@ A price-verified drink Night Moment that contributes an observed price and prove
 _Avoid_: Generic post, alcohol-quantity counter, unverified live price
 
 **Connected Social Account**:
-An optional X, Instagram, or TikTok profile a Pubmaxxer links for display and user-initiated sharing. It proves control of that external account at connection time, not the person's identity, age, or trustworthiness.
-_Avoid_: Verified person, imported friend graph, automatic cross-posting
+An optional X, Instagram, or TikTok profile a Pubmaxxer links through a compliant provider flow or explicit public link. Provider-approved capabilities may include display, consented discovery, and user-confirmed publishing. Connection proves control of that external account at connection time, not the person's identity, age, or trustworthiness.
+_Avoid_: Verified person, provider account as PUBMAXX identity, password capture, browser automation, silent cross-posting
+
+**Social Provider Capability**:
+The reviewed set of actions PUBMAXX may offer for one connected provider: public profile link, compliant connection, consented friend discovery, permitted publishing, and native-share fallback. Capabilities are shown honestly per provider and may remain Preview until approved and certified.
+_Avoid_: Assumed API parity, scraped friend graph, hidden permission expansion
 
 **Crawl Ending**:
 The user's explicit choice after a Crawl Route: Food, Get Home, or Keep Going.
@@ -175,12 +179,16 @@ A user-owned digital companion that combines a customizable cyber familiar, plan
 _Avoid_: Independent recommender, drinking-pressure mechanic, source-of-truth narrator
 
 **Night Signal**:
-One of six cinematic adult holographic guides—Beer, Gin, Rum, Whisky, Brandy, or Vodka—that establishes a visual alcohol world. Selecting one changes atmosphere and cosmetics; it becomes a planning preference only after explicit confirmation.
-_Avoid_: Drink filter, real person, Pub Pal
+A non-humanoid atmospheric visual system for one of six drink worlds—Beer, Gin, Rum, Whisky, Brandy, or Vodka—expressed through spatial light, translucent materials, glassware, particles, and purposeful motion. Selecting one changes atmosphere and cosmetics; it becomes a planning preference only after explicit confirmation.
+_Avoid_: Humanoid guide, cyberpunk person, drink filter, real person, Pub Pal
 
 **Pal Memory**:
 A typed preference, correction, or completed-night outcome that the user has explicitly approved. Raw voice audio, transcripts, and generated character prose are never Pal Memory.
 _Avoid_: Chat history, inferred profile, hidden memory
+
+**Voice Session Grant**:
+A short-lived, server-issued credential that lets an authenticated adult start a user-initiated Pub Pal voice session without exposing the provider API key. It carries an expiry, allowance, connection type, privacy mode, and propose-then-confirm mutation policy.
+_Avoid_: ElevenLabs API key in the browser, always-listening session, durable transcript
 
 **Nightlife Mastery**:
 Cosmetic progression earned through planning, discovery, verified contribution, heritage learning, crew coordination, and completed-night capture. Alcohol quantity never contributes.

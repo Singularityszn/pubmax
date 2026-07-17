@@ -21,7 +21,7 @@ export async function POST(request: Request): Promise<Response> {
   const idempotencyKey = planMutationIdempotencyKey(request, body);
   if (!idempotencyKey) return publicApiError(PLAN_IDEMPOTENCY_ERROR.error, PLAN_IDEMPOTENCY_ERROR.code, 400);
   const limiterKey = `plan-create:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey)) {
+  if (await isLimited(limiterKey, limiterKey, undefined, undefined, { failClosed: true })) {
     return publicApiError("Too many Plans, slow down.", "PLAN_CREATE_RATE_LIMITED", 429, { retryable: true });
   }
   const rawCity = typeof body.cityId === "string" ? body.cityId : undefined;

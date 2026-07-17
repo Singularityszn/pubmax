@@ -1,6 +1,9 @@
 # PUBMAXXING — Current Implemented State PRD (2026-07-06)
 
-**Purpose:** Single source of truth for what has actually shipped and is running in production (or demo mode) right now. This document is generated from the live codebase, recent git history, and live site observation. It replaces the need to read 8+ old PRDs.
+> **SUPERSEDED SNAPSHOT (2026-07-16):** use [`MASTER_PRD.md`](./MASTER_PRD.md)
+> for roadmap authority and the repository plus production evidence for current state.
+
+**Historical purpose:** A 2026-07-06 snapshot of what appeared shipped or in demo mode.
 
 **Last Updated:** After reviewing git log (durable saved-pubs, Friends feed, mobile polish, E2E social loop) + full code inventory.
 
@@ -74,15 +77,12 @@ Based on what is actually built, the highest-leverage remaining work is:
 
 ---
 
-## 5. How to Use This Document
+## 5. Historical-snapshot boundary
 
-Any new agent (Opus, Codex, Fable, human) should:
-- Read this file first.
-- Assume everything listed in §1 is real and working.
-- Assume everything in §2 is still demo and should not be treated as production.
-- Update this file after every merge that moves a feature from demo → durable.
-
-**This is the single source of truth for the current state of PUBMAXXING.**
+This file is read-only historical evidence from 2026-07-06. Do not use it to direct
+implementation, infer current production state, or record later delivery. Use
+[`MASTER_PRD.md`](./MASTER_PRD.md) for current roadmap authority and verify all
+implementation claims against the repository and production evidence.
 
 ---
 

@@ -1,8 +1,11 @@
 # THE SPILL — First-Principles Social Layer for PUBMAXXING
 
+> **SUPERSEDED TERMINOLOGY (2026-07-16):** the Moment, Memory, and Story model in
+> [`MASTER_PRD.md`](./MASTER_PRD.md) replaces “The Spill.” Retained as research only.
+
 **Author:** Grok (first-principles breakdown in the style of Elon Musk / xAI)  
 **Date:** 2026-07-06  
-**Status:** Strategic vision + implementation blueprint. Can be handed to Fable or any agent as the north star for the social layer.
+**Status:** Historical strategic research; not an implementation north star.
 
 ---
 
@@ -70,7 +73,12 @@ These are not separate products. They are **different renderings and entry point
 
 ---
 
-## 4. Implementation Blueprint (Grounded in Current Codebase)
+## 4. Historical implementation blueprint (not active)
+
+This blueprint is retained as research provenance. Its Spill, Lock-In, and Chaos
+Score language must not be used as current implementation direction; translate any
+still-useful insight through the Moment → Memory → Story model and the active gates
+in [`MASTER_PRD.md`](./MASTER_PRD.md).
 
 **Existing Foundation (already built):**
 - `visit_reports` table + Supabase Storage for photos
@@ -142,7 +150,13 @@ All of this can be built on top of migration 0006 without breaking existing Pint
 
 ---
 
-## 7. Next Concrete Steps (for Fable or Implementation Agent)
+## 7. Historical next-step proposals (not active implementation work)
+
+The following list is retained only to explain the 2026-07-06 research direction.
+Spill, Chaos Score, and Lock-In are obsolete concepts, not current feature names or
+delivery instructions. Current work uses the Moment → Memory → Story model in
+[`MASTER_PRD.md`](./MASTER_PRD.md) and the gates in
+[`WAYFINDER_MASTER_V1.md`](./WAYFINDER_MASTER_V1.md).
 
 1. Extend the existing Pint Drop composer with voice input + visibility selector (1–2 days).
 2. Build the "Bar Tab" venue thread view (reuse existing venue inspector patterns).

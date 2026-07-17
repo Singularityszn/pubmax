@@ -42,7 +42,7 @@ export async function POST(request: Request, context: Context): Promise<Response
     const identityLookup = await planMemberIdentityResult(id, memberToken);
     if (!identityLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
     if (identityLookup.identity?.role !== "host") return publicApiError("That member capability cannot complete this Plan.", "PLAN_COMPLETION_FORBIDDEN", 403);
-    return jsonNoStore({ plan: planLookup.plan, completion: completionLookup.completion });
+    return jsonNoStore({ plan: planLookup.plan, completion: completionLookup.completion, created: false });
   }
   const canonicalSelection = await canonicalEndingSelection(planLookup.plan, endingSelection, terminalVenueId);
   if (!canonicalSelection) {
@@ -55,10 +55,10 @@ export async function POST(request: Request, context: Context): Promise<Response
     endingSelection: canonicalSelection,
   });
   if (!result.ok) return publicApiError(
-    result.error === "forbidden" ? "That member capability cannot complete this Plan." : result.error === "conflict" ? "That Crawl Route has changed. Refresh and try again." : result.error === "error" ? "Plan completion data is temporarily unavailable." : "Could not complete this Plan.",
-    result.error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : "PLAN_COMPLETION_INVALID",
+    result.error === "forbidden" ? "That member capability cannot complete this Plan." : result.error === "conflict" ? "That Crawl Route has changed. Refresh and try again." : result.error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : result.error === "error" ? "Plan completion data is temporarily unavailable." : "Could not complete this Plan.",
+    result.error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : result.error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" : "PLAN_COMPLETION_INVALID",
     result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : result.error === "error" ? 503 : 400,
     { retryable: result.error === "error" || result.error === "conflict" },
   );
-  return jsonNoStore({ plan: result.plan, completion: result.completion }, { status: result.created ? 201 : 200 });
+  return jsonNoStore({ plan: result.plan, completion: result.completion, created: result.created }, { status: result.created ? 201 : 200 });
 }

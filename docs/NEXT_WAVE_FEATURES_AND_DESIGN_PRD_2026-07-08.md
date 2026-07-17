@@ -1,5 +1,8 @@
 # PUBMAXXING — Next Wave Features & Design Principles PRD
 
+> **SUPERSEDED (2026-07-16)** by [`MASTER_PRD.md`](./MASTER_PRD.md). Retained as
+> design research; its streak proposals are explicitly rejected by the master contract.
+
 **Date:** 2026-07-08 (post latest pull `67a587a2`)  
 **Focus:** Forward-looking features, UI/UX design principles, and the next major iteration after the massive 2026-07-07 foundation.
 
@@ -83,7 +86,9 @@ We will follow these principles on every new surface:
 ### 3.6 Gamification & Belonging (Pint Passport)
 - Collectible digital stamps for venues visited, eras explored, Dry Crawls completed.
 - Shareable “Pint Passport” image (Instagram / X story ready).
-- Streaks, “First Legal Pint” anniversary, “Chaos Score” badges.
+- **Rejected historical proposals:** streaks, drinking-frequency anniversaries, and
+  consumption-coded Chaos Score progression. Current progression rules live in
+  [`MASTER_PRD.md`](./MASTER_PRD.md).
 - “Next Badge” progress chips (already partially built in `NextBadgeChips.tsx`).
 
 ### 3.7 All-Drinks & Dry Mode (Major expansion)
@@ -125,7 +130,8 @@ We will follow these principles on every new surface:
 **Week 5: Gamification & All-Drinks**
 - Pint Passport stamps + shareable passport image.
 - Dry Crawl filters and non-alcoholic routes.
-- Chaos Score + meme export.
+- **Rejected historical item:** Chaos Score and its meme export are not delivery
+  guidance; current progression cannot reward consumption or drinking frequency.
 
 **Week 6: Security Hardening + Viral Polish**
 - EXIF stripping + private Storage enforcement.
@@ -157,8 +163,6 @@ If the answer is not a clear “yes” to all four, we redesign or deprioritize.
 
 ---
 
-**This is the forward-looking Next Wave PRD.**
-
-It builds directly on the massive foundation that just landed (map skeleton + Spill composer) and charts the next 6 weeks of high-impact, generational, first-principles work.
-
-Ready to continue implementation on the Spill Composer or MapLoadingSkeleton integration?
+This section preserves the forward-looking proposal as it stood on 2026-07-08. It is
+not an instruction to continue obsolete Spill Composer or MapLoadingSkeleton work;
+use [`MASTER_PRD.md`](./MASTER_PRD.md) for the active execution programme.

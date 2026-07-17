@@ -47,6 +47,11 @@ const completion: PlanCompletionDTO = {
     { venueId: "venue-a", venueName: "First Pub", position: 0 },
     { venueId: "venue-c", venueName: "Third Pub", position: 2 },
   ],
+  qualifyingArrival: {
+    actionId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    stopPosition: 0,
+    arrivedAt: "2026-07-16T21:30:00.000Z",
+  },
   completedAt: "2026-07-16T23:00:00.000Z",
 };
 
