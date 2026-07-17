@@ -37,8 +37,8 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
   // honest copy up front, the raw diagnostic only a tap away for a bug report.
   const disclosure = page.locator(".mapFallbackDisclosure");
   await expect(disclosure).toBeVisible();
-  await expect(page.locator(".mapFallbackDetail")).toBeHidden();
-  await disclosure.locator("summary").click();
+  await expect(page.locator(".mapFallbackDetail")).toHaveCount(0);
+  await disclosure.getByRole("button", { name: "Technical details" }).click();
   await expect(page.locator(".mapFallbackDetail")).toBeVisible();
 
   // Retry is hidden in the confirmed-no-WebGL case: a re-init can't produce a
