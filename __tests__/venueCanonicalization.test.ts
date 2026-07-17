@@ -5,8 +5,10 @@ import {
   clusterHasPostcodeConflict,
   hasOperatorSuffix,
   mergeAliasMaps,
+  namesLikelySamePub,
   normalizeVenueIdentityName,
   postcodeOutward,
+  significantNameTokens,
   stableVenueIdFromKey,
   venueGroupingKey,
 } from "@/scripts/lib/venueCanonicalization.mjs";
@@ -313,6 +315,158 @@ describe("canonicalizeDataset — postcode-bridge over-merge guard", () => {
     // The two conflicting-postcode records must never share a canonical id.
     const resolve = (id: string) => aliases[id] ?? id;
     expect(resolve(aId)).not.toBe(resolve(cId));
+  });
+});
+
+describe("namesLikelySamePub + significantNameTokens", () => {
+  it("strips generic descriptor tokens", () => {
+    expect(significantNameTokens("kings head tavern")).toEqual(["kings", "head"]);
+    expect(significantNameTokens("the wine bar")).toEqual(["wine"]);
+    expect(significantNameTokens("ye olde cheshire cheese")).toEqual(["cheshire", "cheese"]);
+  });
+
+  it("matches identical names and rejects disjoint names", () => {
+    expect(namesLikelySamePub("moon on the hill", "moon on the hill")).toBe(true);
+    expect(namesLikelySamePub("red lion", "slug and lettuce")).toBe(false);
+  });
+
+  it("matches a name that is the other plus a qualifier suffix", () => {
+    expect(namesLikelySamePub("kings head", "kings head tavern")).toBe(true);
+    expect(namesLikelySamePub("coach and horses", "coach and horses pub")).toBe(true);
+    expect(namesLikelySamePub("old hat", "old hat ealing")).toBe(true); // locality suffix
+    expect(namesLikelySamePub("canonbury", "canonbury tavern")).toBe(true); // 1-token core + generic
+  });
+
+  it("rejects two distinct pubs sharing a locality but differing in type word", () => {
+    // The real false-merge from the dataset: "New Cross Inn" and "The New Cross
+    // House" are different pubs — neither full token set contains the other.
+    expect(namesLikelySamePub("new cross inn", "new cross house")).toBe(false);
+  });
+
+  it("keeps a single shared distinctive token from collapsing distinct pubs", () => {
+    // "The Bell" vs "The Bell and Crown" — the longer name adds a DISTINCTIVE
+    // token ("crown"), so they are treated as different pubs.
+    expect(namesLikelySamePub("bell", "bell and crown")).toBe(false);
+    expect(namesLikelySamePub("crown", "crown and anchor")).toBe(false);
+  });
+});
+
+describe("canonicalizeDataset — coordinate-drift + matching-ish name dedupe", () => {
+  // The exact repro coverage-lane filed: an existing canonical priced venue and
+  // an imported seed of the SAME pub whose coords drift ~56 m and round to a
+  // different 4-dp key, slipping past a rounded-coord dedup and doubling the pin.
+  const MOON_CANONICAL = makeRow({
+    app_price_id: "app_price_moon_canon",
+    pub_name: "The Moon on the Hill - JD Wetherspoon",
+    price_gbp: 2.49,
+    address: "373-375 Station Rd, Harrow HA1 2AW, UK",
+    latitude: 51.5794,
+    longitude: -0.3342,
+    primary_borough: "Harrow",
+    source_datasets: "canonical_borough_leaderboard_enriched|individual_pub_page",
+  });
+  const MOON_SEED = makeRow({
+    app_price_id: "app_price_moon_seed",
+    pub_name: "The Moon on the Hill",
+    price_gbp: null,
+    address: "Harrow, Greater London",
+    latitude: 51.5795,
+    longitude: -0.335,
+    primary_borough: "Harrow",
+    source_datasets: "outer_london_osm",
+  });
+
+  it("collapses the Moon on the Hill drift-duplicate into ONE venue", () => {
+    const seedId = stableVenueIdFromKey(venueGroupingKey(MOON_SEED));
+    const canonId = stableVenueIdFromKey(venueGroupingKey(MOON_CANONICAL));
+    expect(seedId).not.toBe(canonId); // two identities before canonicalization
+
+    const { aliases, stats, rows } = canonicalizeDataset([MOON_CANONICAL, MOON_SEED]);
+    expect(stats.duplicateClusters).toBe(1);
+    expect(stats.mergedRecords).toBe(1);
+    expect(stats.venueIdentitiesAfter).toBe(1);
+    // The clean, operator-suffix-free name wins as canonical (rule #1: never
+    // surface "- JD Wetherspoon" as the pub name), so the suffixed record folds
+    // onto the seed's clean identity — one venue either way.
+    expect(aliases).toEqual({ [canonId]: seedId });
+    expect(rows.every((r) => r.pub_name === "The Moon on the Hill")).toBe(true);
+    // Both price rows survive untouched — the £2.49 canonical price is never lost
+    // just because the unpriced seed row supplied the winning name.
+    expect(rows.map((r) => r.price_gbp).sort()).toEqual([2.49, null]);
+  });
+
+  it("merges a matching-ish name a few doors along (Kings Head ↔ Kings Head Tavern)", () => {
+    const a = makeRow({
+      pub_name: "The Kings Head",
+      address: "1 Market Pl, Kingston upon Thames",
+      latitude: 51.4105,
+      longitude: -0.3005,
+      price_gbp: 4.8,
+    });
+    const b = makeRow({
+      pub_name: "Kings Head Tavern",
+      address: "Kingston upon Thames, Greater London",
+      latitude: 51.41053,
+      longitude: -0.30045,
+      price_gbp: null,
+      source_datasets: "outer_london_osm",
+    });
+    const { stats } = canonicalizeDataset([a, b]);
+    expect(stats.duplicateClusters).toBe(1);
+    expect(stats.mergedRecords).toBe(1);
+  });
+
+  it("does NOT fuzzy-merge a matching-ish name that is FAR apart", () => {
+    // Same names as above but ~1 km apart — beyond the tight fuzzy radius.
+    const a = makeRow({ pub_name: "The Kings Head", latitude: 51.41, longitude: -0.3, price_gbp: 4.8 });
+    const b = makeRow({ pub_name: "Kings Head Tavern", latitude: 51.419, longitude: -0.3, price_gbp: null });
+    const { stats } = canonicalizeDataset([a, b]);
+    expect(stats.duplicateClusters).toBe(0);
+  });
+
+  it("does NOT fuzzy-merge two distinct nearby pubs sharing one generic-stripped token", () => {
+    // "The Bell" and "The Bell and Crown" 20 m apart are different pubs.
+    const bell = makeRow({ pub_name: "The Bell", latitude: 51.5, longitude: -0.1, price_gbp: 5 });
+    const bellCrown = makeRow({
+      pub_name: "The Bell and Crown",
+      latitude: 51.50018,
+      longitude: -0.1,
+      price_gbp: 5,
+    });
+    const { stats } = canonicalizeDataset([bell, bellCrown]);
+    expect(stats.duplicateClusters).toBe(0);
+  });
+
+  it("does NOT fuzzy-bridge two conflicting postcodes via a matching-ish name", () => {
+    // Near-name, ~20 m apart, but N16 vs W1D — genuinely distinct pubs.
+    const a = makeRow({
+      pub_name: "Kings Head",
+      address: "1 High St, London N16 0NY",
+      latitude: 51.5,
+      longitude: -0.1,
+      price_gbp: 4,
+    });
+    const b = makeRow({
+      pub_name: "Kings Head Tavern",
+      address: "1 High St, London W1D 5DH",
+      latitude: 51.50018,
+      longitude: -0.1,
+      price_gbp: null,
+    });
+    const aId = stableVenueIdFromKey(venueGroupingKey(a));
+    const bId = stableVenueIdFromKey(venueGroupingKey(b));
+    const { aliases } = canonicalizeDataset([a, b]);
+    const resolve = (id: string) => aliases[id] ?? id;
+    expect(resolve(aId)).not.toBe(resolve(bId));
+  });
+
+  it("re-running fuzzy canonicalization on its own output is a no-op", () => {
+    const first = canonicalizeDataset([MOON_CANONICAL, MOON_SEED]);
+    expect(first.stats.duplicateClusters).toBe(1);
+    const second = canonicalizeDataset(first.rows);
+    expect(second.stats.duplicateClusters).toBe(0);
+    expect(second.aliases).toEqual({});
+    expect(second.rows).toEqual(first.rows);
   });
 });
 

@@ -14,6 +14,8 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { boroughNameForPoint } from "../lib/londonBoroughPoint.mjs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
@@ -82,6 +84,43 @@ export const CITIES = /** @type {Record<string, CityDef>} */ ({
   },
 });
 
+/**
+ * London-borough OSM ingestion (Cycle-4 `data/outer-london-osm`).
+ *
+ * The city map above is scoped to the non-London Wave-2 cities. Greater London
+ * pins come from a different pipeline (`public/data/pint_prices_app_dataset.json`
+ * → canonicalize → build:slim), so London OSM pubs are fetched into a
+ * provenance-stamped SEED pack (`data/osm/outer_london_osm_pubs.json`) that
+ * `scripts/merge_outer_london_osm.mjs` folds into that dataset — never written
+ * as a city slim index.
+ *
+ * These are the worst-covered Outer London boroughs from
+ * docs/BOROUGH_COVERAGE_2026-07-17.md (the persona-hollow ring). Each borough is
+ * queried by the bounding box of its own polygon in
+ * data/london_boroughs_simplified.json, then every element is confirmed to fall
+ * INSIDE that borough's polygon (point-in-polygon) before it is kept — a bbox
+ * overlaps neighbours, the polygon does not. Borough names are exactly the
+ * classifier's names (lib/londonBoroughPoint.mjs).
+ */
+export const LONDON_TARGET_BOROUGHS = [
+  "Barking and Dagenham",
+  "Kingston upon Thames",
+  "Hounslow",
+  "Brent",
+  "Newham",
+  "Sutton",
+  "Waltham Forest",
+  "Haringey",
+  "Greenwich",
+  "Enfield",
+];
+
+const LONDON_BOUNDARIES_PATH = path.join(ROOT, "data", "london_boroughs_simplified.json");
+const LONDON_OSM_SEED_PATH = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.json");
+// Pad each borough bbox slightly so a pub sitting right on the boundary isn't
+// clipped by the Overpass query before the point-in-polygon filter can judge it.
+const LONDON_BBOX_PAD_DEG = 0.004;
+
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
@@ -94,12 +133,14 @@ function parseArgs(argv) {
   let city = null;
   let skipIfPresent = false;
   let fromRaw = false;
+  let london = false;
   for (const arg of argv) {
     if (arg.startsWith("--city=")) city = arg.slice("--city=".length).trim().toLowerCase();
     if (arg === "--skip-if-present") skipIfPresent = true;
     if (arg === "--from-raw") fromRaw = true;
+    if (arg === "--london") london = true;
   }
-  return { city, skipIfPresent, fromRaw };
+  return { city, skipIfPresent, fromRaw, london };
 }
 
 function sleep(ms) {
@@ -196,6 +237,7 @@ function normalizeElement(element, displayName) {
   return {
     osmId: `${element.type}/${element.id}`,
     name,
+    amenity: typeof tags.amenity === "string" ? tags.amenity : null,
     lat,
     lng,
     address: buildAddress(tags, displayName),
@@ -260,6 +302,136 @@ async function fileExists(filePath) {
   }
 }
 
+// --- London-borough ingestion ------------------------------------------------
+
+/** Bounding box [south, west, north, east] of a GeoJSON borough feature. */
+function featureBbox(feature) {
+  let south = 90;
+  let west = 180;
+  let north = -90;
+  let east = -180;
+  const polygons =
+    feature.geometry.type === "Polygon" ? [feature.geometry.coordinates] : feature.geometry.coordinates;
+  for (const rings of polygons) {
+    for (const [lng, lat] of rings[0]) {
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+      if (lng < west) west = lng;
+      if (lng > east) east = lng;
+    }
+  }
+  return [south, west, north, east];
+}
+
+/** Overpass query for amenity=pub AND amenity=bar (nodes + ways) in a bbox.
+ * Mirrors the city query taxonomy but widens it to `pub/bar` per the Cycle-4
+ * PRD — bars are legitimate cheap-pint venues and the mission is venue
+ * PRESENCE. `out center` gives ways a representative point. */
+function buildLondonOverpassQuery(bbox) {
+  const [south, west, north, east] = bbox;
+  const box = `${south},${west},${north},${east}`;
+  return `
+[out:json][timeout:90];
+(
+  node["amenity"="pub"](${box});
+  way["amenity"="pub"](${box});
+  node["amenity"="bar"](${box});
+  way["amenity"="bar"](${box});
+);
+out center tags;
+`.trim();
+}
+
+async function fetchLondonBoroughs(boundaries, { targets, fromRaw }) {
+  const rawDir = path.join(ROOT, "data", "osm");
+  await mkdir(rawDir, { recursive: true });
+
+  const featureByName = new Map(
+    boundaries.features.map((f) => [f?.properties?.name, f]).filter(([n]) => typeof n === "string"),
+  );
+  const allowed = new Set(targets);
+
+  const byBorough = {};
+  const seen = new Set();
+  const pubs = [];
+  let needDelay = false;
+
+  for (const boroughName of targets) {
+    const feature = featureByName.get(boroughName);
+    if (!feature) {
+      console.error(`  unknown borough "${boroughName}" — not in ${path.relative(ROOT, LONDON_BOUNDARIES_PATH)}`);
+      process.exit(1);
+    }
+    const [south, west, north, east] = featureBbox(feature);
+    const padded = [
+      south - LONDON_BBOX_PAD_DEG,
+      west - LONDON_BBOX_PAD_DEG,
+      north + LONDON_BBOX_PAD_DEG,
+      east + LONDON_BBOX_PAD_DEG,
+    ];
+    const rawPath = path.join(rawDir, `${boroughName.replace(/\s+/g, "_").toLowerCase()}_osm_raw.json`);
+
+    let raw;
+    if (fromRaw) {
+      if (!(await fileExists(rawPath))) {
+        throw new Error(`--from-raw requested but missing ${path.relative(ROOT, rawPath)}`);
+      }
+      raw = JSON.parse(await readFile(rawPath, "utf8"));
+      console.log(`normalizing ${boroughName} from existing raw …`);
+    } else {
+      if (needDelay) {
+        console.log(`  waiting ${INTER_CITY_DELAY_MS}ms before next borough (Overpass etiquette)…`);
+        await sleep(INTER_CITY_DELAY_MS);
+      }
+      console.log(`fetching ${boroughName} bbox=${padded.map((n) => n.toFixed(4)).join(",")} …`);
+      raw = await fetchOverpass(buildLondonOverpassQuery(padded));
+      await writeFile(rawPath, `${JSON.stringify(raw, null, 2)}\n`);
+      needDelay = true;
+    }
+
+    const elements = Array.isArray(raw?.elements) ? raw.elements : [];
+    let kept = 0;
+    for (const element of elements) {
+      const pub = normalizeElement(element, boroughName);
+      if (!pub) continue;
+      // A bbox overlaps neighbouring boroughs; the polygon does not. Only keep a
+      // pub whose point lands inside one of the TARGET borough polygons, and
+      // stamp that borough as its own (never the bbox's borough — a pub near the
+      // Kingston/Sutton line is classified by geometry, not by which query found it).
+      const borough = boroughNameForPoint(pub.lat, pub.lng, boundaries, allowed);
+      if (!borough) continue;
+      if (seen.has(pub.osmId)) continue; // padded bboxes overlap; dedupe by OSM id
+      seen.add(pub.osmId);
+      pubs.push({ ...pub, primary_borough: borough });
+      byBorough[borough] = (byBorough[borough] ?? 0) + 1;
+      kept += 1;
+    }
+    console.log(`  ${boroughName}: ${elements.length} elements → ${kept} pubs inside polygon`);
+  }
+
+  pubs.sort(
+    (a, b) =>
+      a.lat - b.lat || a.lng - b.lng || a.name.localeCompare(b.name) || a.osmId.localeCompare(b.osmId),
+  );
+
+  const seed = {
+    source: "OpenStreetMap Overpass",
+    license: "ODbL",
+    attribution: "© OpenStreetMap contributors",
+    fetchedAt: new Date().toISOString(),
+    classifier: "london-borough-point-v1",
+    taxonomy: ["amenity=pub", "amenity=bar"],
+    boroughs: targets,
+    count: pubs.length,
+    byBorough,
+    pubs,
+  };
+  await writeFile(LONDON_OSM_SEED_PATH, `${JSON.stringify(seed, null, 2)}\n`);
+  console.log(`wrote ${path.relative(ROOT, LONDON_OSM_SEED_PATH)} (${pubs.length} pubs)`);
+  console.log("by borough:", byBorough);
+  return seed;
+}
+
 /**
  * @returns {Promise<"fetched" | "from-raw" | "skipped">}
  */
@@ -297,7 +469,14 @@ async function fetchCity(city, { fromRaw = false, skipIfPresent = false } = {}) 
 }
 
 async function main() {
-  const { city: cityArg, skipIfPresent, fromRaw } = parseArgs(process.argv.slice(2));
+  const { city: cityArg, skipIfPresent, fromRaw, london } = parseArgs(process.argv.slice(2));
+
+  if (london) {
+    const boundaries = JSON.parse(await readFile(LONDON_BOUNDARIES_PATH, "utf8"));
+    await fetchLondonBoroughs(boundaries, { targets: LONDON_TARGET_BOROUGHS, fromRaw });
+    return;
+  }
+
   const targets = cityArg
     ? [CITIES[cityArg]].filter(Boolean)
     : Object.values(CITIES).filter((c) => c.enabled);
