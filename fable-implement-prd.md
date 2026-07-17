@@ -120,6 +120,8 @@ Owner asleep from ~23:00. Every overnight action appended here with the why. Sta
 
 - **#304 fixed — REAL production bug found** (Sonnet 5 fix loop): MapLibre constructor inserts canvas DOM before GL validation; on throw, orphaned canvases sit over the fallback and swallow all clicks (real users too). Fix: replaceChildren() in constructor catch + React-controlled disclosure. map-fallback 5/5. Merge-order note posted: #297 first, then #304.
 
+- **OSM lane done → PR opening**: +657 outer-London pubs (worst-10 boroughs 112→769), multi-mirror Overpass, zero invented prices, dedupe-drift fix with false-merge guard. FLAG for Sol: slim payload budget 600→900KB — borough-sharding follow-up for next cycle PRD.
+
 ## CYCLE 4 PRD (overnight, owner directive: maximize parallel Opus 4.8 lanes)
 
 Backlog drawn from logged findings; four non-colliding lanes, all Opus 4.8, worktrees, separate PRs:
