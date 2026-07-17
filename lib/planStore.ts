@@ -295,7 +295,9 @@ export const supabasePlanStore: PlanStore = {
     if (!identityResult.ok) return { ok: false, error: "error" };
     const identity = identityResult.identity;
     if (!identity?.collaborationAuthorized || (action.type === "swapped" && identity.role !== "host")) return { ok: false, error: "forbidden" };
-    const current = await this.get(id);
+    const currentResult = await planStateResult(id);
+    if (!currentResult.ok) return { ok: false, error: "error" };
+    const current = currentResult.plan;
     if (!current) return { ok: false, error: "not_found" };
     if (!Number.isInteger(action.stopPosition)
       || !current.stops.some((stop) => stop.position === action.stopPosition)) {

@@ -77,16 +77,12 @@ Based on what is actually built, the highest-leverage remaining work is:
 
 ---
 
-## 5. How to Use This Document
+## 5. Historical-snapshot boundary
 
-Any new agent (Opus, Codex, Fable, human) should:
-- Read this file first.
-- Assume everything listed in §1 is real and working.
-- Assume everything in §2 is still demo and should not be treated as production.
-- Update this file after every merge that moves a feature from demo → durable.
-
-**Historical snapshot:** use [`MASTER_PRD.md`](./MASTER_PRD.md) for current roadmap
-authority and verify implementation claims against the repository.
+This file is read-only historical evidence from 2026-07-06. Do not use it to direct
+implementation, infer current production state, or record later delivery. Use
+[`MASTER_PRD.md`](./MASTER_PRD.md) for current roadmap authority and verify all
+implementation claims against the repository and production evidence.
 
 ---
 

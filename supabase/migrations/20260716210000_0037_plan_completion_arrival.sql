@@ -17,6 +17,7 @@ where arrival.id = (
   from public.plan_actions candidate
   where candidate.plan_id = completion.plan_id
     and candidate.type = 'arrived'
+    and candidate.created_at <= completion.completed_at
     and exists (
       select 1 from public.plan_stops stop
       where stop.plan_id = completion.plan_id and stop.position = candidate.stop_position
@@ -54,7 +55,9 @@ alter table public.plan_completions
     (qualifying_arrival_action_id is not null
       and qualifying_arrival_stop_position between 0 and 7
       and qualifying_arrival_at is not null)
-  );
+  ) not valid;
+alter table public.plan_completions
+  validate constraint plan_completions_qualifying_arrival_shape;
 
 create or replace function public.complete_plan_atomic(
   p_plan_id uuid,

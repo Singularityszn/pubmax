@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const DOCS = join(process.cwd(), "docs");
@@ -14,12 +14,15 @@ describe("MASTER_PRD legacy crosswalk", () => {
         return statSync(absolute).isDirectory() ? walk(absolute, relative) : [relative];
       });
     const legacyDocuments = walk(DOCS)
-      .filter((name) => (
-        (name.toLowerCase().includes("prd") || name.startsWith("WAYFINDER"))
-        && name.endsWith(".md")
-        && name !== "MASTER_PRD.md"
-        && name !== "WAYFINDER_MASTER_V1.md"
-      ))
+      .filter((name) => {
+        const normalizedBasename = basename(name).toLowerCase();
+        return (
+          (normalizedBasename.includes("prd") || normalizedBasename.startsWith("wayfinder"))
+          && normalizedBasename.endsWith(".md")
+          && normalizedBasename !== "master_prd.md"
+          && normalizedBasename !== "wayfinder_master_v1.md"
+        );
+      })
       .sort();
 
     const missing = legacyDocuments.filter((name) => !MASTER.includes(`| \`${name}\` |`));

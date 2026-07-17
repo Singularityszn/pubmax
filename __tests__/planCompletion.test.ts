@@ -53,8 +53,11 @@ describe("Plan Completion", () => {
     expect(sql).toContain("order by joined_at, id limit 1");
     expect(sql).toContain("actor_id <> host_id");
     expect(sql).toContain("stop.position = action.stop_position");
+    expect(sql).toContain("candidate.created_at <= completion.completed_at");
     expect(sql).toContain("on delete no action");
     expect(sql).toContain("deferrable initially deferred");
+    expect(sql).toContain("not valid");
+    expect(sql).toContain("validate constraint plan_completions_qualifying_arrival_shape");
     expect(sql).not.toContain("on delete set null");
     expect(sql).not.toContain("on delete cascade");
   });

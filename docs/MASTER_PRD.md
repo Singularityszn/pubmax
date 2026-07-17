@@ -162,7 +162,12 @@ PostHog may receive PNC only through a future server outbox keyed by completion 
 PostHog EU is the product-interaction analytics authority; the durable completion
 ledger remains the PNC authority. Vercel owns deployment/runtime logs,
 pageviews, and Web Vitals. Arize Phoenix receives only redacted Pub Pal AI traces and
-evaluations. Analytics properties are closed, low-cardinality, and never contain
+evaluations. No anonymous identifier is created or persisted and no product event is
+forwarded to PostHog, Vercel Analytics, Arize, or any other analytics destination
+until the user explicitly consents. Withdrawing consent stops future persistence and
+forwarding, removes the local anonymous identifier, and exposes the documented
+provider process for deleting previously collected pseudonymous analytics data.
+Analytics properties are closed, low-cardinality, and never contain
 handles, names, email addresses, free text, messages, voice content, or precise
 coordinates.
 
@@ -218,8 +223,11 @@ flashes a blank canvas or repeatedly re-fits after the user begins interacting.
 
 ### Abuse and reliability
 
-- Consequential writes fail closed when durable rate limiting is unavailable.
-- Keyless Plan creation receives a small process-local fallback budget.
+- Consequential writes, including production Plan creation, fail closed when durable
+  rate limiting is unavailable.
+- Keyless Plan creation may use a process-local budget only in non-production,
+  Supabase-unconfigured development: at most eight attempts per hashed IP per rolling
+  60 seconds. This exception never applies to a configured or production outage.
 - Public reads remain available with bounded abuse controls.
 - Every provider integration has timeout, rate, quota, failure, disable, and native
   fallback behaviour.
@@ -240,8 +248,9 @@ The release-defining journey is:
 
 ## 9. Social identity and memories
 
-- Account-owned immutable IDs, handles, aliases, and canonical profile resolution
-  remain the source of identity truth.
+- Account-owned immutable user IDs remain the root of identity truth. Handles and
+  aliases are account-owned but mutable under the canonical rename and alias-retention
+  policy; connected providers never become identity authorities.
 - You presents identity and social proof before account machinery.
 - Night Memories are private by default. Night Stories are deliberate publications.
 - Contributor likeness and Moments require affirmative consent; withdrawal removes

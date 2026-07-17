@@ -252,10 +252,7 @@ If the answer to any is “no”, we redesign.
 
 ---
 
-**This is the complete, exhaustive, single PRD for PUBMAXXING.**
-
-It combines every idea from Fable, Opus, GLM 5.2, all prior agents, the massive 2026-07-07 pull, first-principles thinking from Elon Musk and Brian Chesky, and a relentless focus on generational love and X/TikTok/Instagram-quality UI.
-
-You can now release sub-agents with clear, scoped tasks from this document.
-
-Ready to begin implementation on the map loading skeleton + camera-first Spill composer?
+This file preserves the complete proposal assembled on 2026-07-07. It is historical,
+not the active PRD and not an instruction to begin implementation. Use
+[`MASTER_PRD.md`](./MASTER_PRD.md) for product authority and
+[`WAYFINDER_MASTER_V1.md`](./WAYFINDER_MASTER_V1.md) for gated execution.

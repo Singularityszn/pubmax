@@ -20,7 +20,7 @@ export async function POST(request: Request): Promise<Response> {
   const idempotencyKey = planMutationIdempotencyKey(request, body);
   if (!idempotencyKey) return jsonNoStore(PLAN_IDEMPOTENCY_ERROR, { status: 400 });
   const limiterKey = `plan-create:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey)) {
+  if (await isLimited(limiterKey, limiterKey, undefined, undefined, { failClosed: true })) {
     return jsonNoStore({ error: "Too many Plans, slow down." }, { status: 429 });
   }
   const rawCity = typeof body.cityId === "string" ? body.cityId : undefined;
