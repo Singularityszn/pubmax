@@ -7,12 +7,15 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import FeedCard from "@/components/feed/FeedCard";
 import FeedFilters from "@/components/feed/FeedFilters";
 import PresenceStrip from "@/components/feed/PresenceStrip";
+import SocialTabs, { type SocialTab } from "@/components/feed/SocialTabs";
 import SiteNav from "@/components/nav/SiteNav";
 import TonightConditionsStrip from "@/app/tonight/TonightConditionsStrip";
 import EmptyState from "@/components/EmptyState";
 import { getAnonId } from "@/lib/anonId";
+import type { CheckIn } from "@/lib/checkIn";
 import {
   applyFeedFilter,
+  normalizeCheckIn,
   normalizePintDrop,
   paginate,
   type FeedFilter,
@@ -133,6 +136,17 @@ export default function FeedPage() {
   // it seeds a sensible default lane, it doesn't hijack the switcher.
   const [filter, setFilter] = useState<FeedFilter>("latest");
   const laneTouched = useRef(false);
+  // The Social Loop top-level tab (Cycle 15 Lane C). "london" is the SSR-stable
+  // default (the existing public feed); "lot" (mutual friends) and "nearby"
+  // (area-level) layer their own data source in on top. The chip filters below
+  // stay available on the London tab; the tab IS the lane on Your lot / Nearby.
+  const [tab, setTab] = useState<SocialTab>("london");
+  // The viewer's "lot" — their mutual-follow handles (each side follows the
+  // other). null = not yet loaded; drives the Your lot drop filter + empty state.
+  const [lotHandles, setLotHandles] = useState<Set<string> | null>(null);
+  // Check-in FeedItems merged into the chronological feed for the active tab:
+  // friends-only "we're out" posts on Your lot, area-public ones on Nearby.
+  const [checkInItems, setCheckInItems] = useState<FeedItem[]>([]);
   // How many pages the user has revealed. "Load more" bumps this; changing the
   // filter resets it to 1. Cursor pagination is still the engine (below) — this
   // counter just says how many cursor-steps to walk from the top.
@@ -348,6 +362,68 @@ export default function FeedPage() {
     return () => controller.abort();
   }, [myHandle]);
 
+  // Social Loop data source (Cycle 15 Lane C). Fetch the tab's extra signal:
+  //  • "lot"    → the viewer's mutual-follow handles (/lot) AND their friends-only
+  //               check-ins (/check-ins?viewer=…, gated to the lot server-side).
+  //  • "nearby" → the area-public check-ins (/check-ins?scope=area). Friends-only
+  //               posts never come back on this path (privacy choke, lib/socialFeed).
+  //  • "london" → nothing extra; the public drop feed stands alone.
+  // Fail-soft: any error resolves to empty so the tab still renders. setState only
+  // runs inside the async callback (never the effect body) per react-hooks rules.
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadSocial() {
+      if (tab === "london") {
+        setLotHandles(null);
+        setCheckInItems([]);
+        return;
+      }
+      if (tab === "nearby") {
+        setLotHandles(null);
+        try {
+          const res = await fetch("/api/check-ins?scope=area", { signal: controller.signal });
+          const data = (await res.json()) as { checkIns?: CheckIn[] };
+          const items = Array.isArray(data.checkIns) ? data.checkIns.map(normalizeCheckIn) : [];
+          setCheckInItems(items);
+        } catch {
+          setCheckInItems([]);
+        }
+        return;
+      }
+      // tab === "lot": needs the viewer's handle. Anonymous → empty lot + prompt.
+      if (!myHandle) {
+        setLotHandles(new Set());
+        setCheckInItems([]);
+        return;
+      }
+      try {
+        const [lotRes, ciRes] = await Promise.all([
+          fetch(`/api/profiles/${encodeURIComponent(myHandle)}/lot`, { signal: controller.signal }),
+          fetch(`/api/check-ins?viewer=${encodeURIComponent(myHandle)}`, {
+            signal: controller.signal,
+          }),
+        ]);
+        const lotData = (await lotRes.json()) as { lot?: unknown };
+        const set = new Set<string>();
+        for (const h of Array.isArray(lotData.lot) ? lotData.lot : []) {
+          const norm = normalizeHandle(typeof h === "string" ? h : "");
+          if (norm) set.add(norm);
+        }
+        setLotHandles(set);
+        const ciData = (await ciRes.json()) as { checkIns?: CheckIn[] };
+        setCheckInItems(Array.isArray(ciData.checkIns) ? ciData.checkIns.map(normalizeCheckIn) : []);
+      } catch (err) {
+        if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+          return;
+        }
+        setLotHandles(new Set());
+        setCheckInItems([]);
+      }
+    }
+    void loadSocial();
+    return () => controller.abort();
+  }, [tab, myHandle]);
+
   // Seed the initial lane by view mode (Lock-In → for-you, Ledger → latest).
   // Runs once on mount, after the pre-hydration script has set html[data-mode],
   // and only while the viewer hasn't picked a lane themselves. setState fires
@@ -419,9 +495,10 @@ export default function FeedPage() {
     void Promise.resolve().then(() => setRankReactionCounts(liveReactionCounts));
   }, [pagesLoaded, liveReactionCounts]);
 
-  const filtered = useMemo(
-    () =>
-      applyFeedFilter(items, filter, {
+  const filtered = useMemo(() => {
+    // London tab: the existing public feed, chip filters and all.
+    if (tab === "london") {
+      return applyFeedFilter(items, filter, {
         followingHandles: followingHandles ?? undefined,
         // Wave G4: same follow set as Friends — modest For You boost for
         // followed authors when the set is non-empty (never a hard filter).
@@ -430,9 +507,28 @@ export default function FeedPage() {
           reactionCounts: rankReactionCounts,
           followingHandles: followingHandles ?? undefined,
         },
-      }),
-    [items, filter, followingHandles, forYouNow, rankReactionCounts],
-  );
+      });
+    }
+    // Nearby: area-level activity — the area-public check-ins merged with drops,
+    // strictly chronological (no ranking). Honestly a broad lane until real geo
+    // lands; check-ins carry the only area signal today.
+    if (tab === "nearby") {
+      return [...checkInItems, ...items].sort((a, b) =>
+        b.createdAt.localeCompare(a.createdAt),
+      );
+    }
+    // Your lot: mutual friends' drops (filtered to the lot) merged with the
+    // server-gated friends-only check-ins (already scoped to the lot + the viewer
+    // in lib/socialFeed), strictly chronological. The check-ins are NOT re-run
+    // through the friends filter — that would drop the viewer's own check-ins,
+    // which the choke deliberately includes.
+    const lotDrops = applyFeedFilter(items, "friends", {
+      followingHandles: lotHandles ?? undefined,
+    });
+    return [...checkInItems, ...lotDrops].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    );
+  }, [tab, items, checkInItems, filter, followingHandles, lotHandles, forYouNow, rankReactionCounts]);
   const { visible, nextCursor } = useMemo(() => {
     const acc: FeedItem[] = [];
     let pageCursor: string | null = null;
@@ -658,6 +754,11 @@ export default function FeedPage() {
     setPagesLoaded(1);
   }
 
+  function onTabChange(next: SocialTab) {
+    setTab(next);
+    setPagesLoaded(1);
+  }
+
   const isEmpty = status === "error" || (status === "ready" && filtered.length === 0);
   // The Friends lane gets its own prompt only when the *reason* it's empty is
   // that the viewer follows nobody (or is anonymous) — a route to /discover
@@ -667,10 +768,21 @@ export default function FeedPage() {
   // people to follow. Guarded on the following set having loaded, so we don't
   // flash it before the fetch resolves.
   const friendsEmpty =
+    tab === "london" &&
     filter === "friends" &&
     status === "ready" &&
     followingHandles !== null &&
     followingHandles.size === 0;
+
+  // The Your lot tab's own empty state: the viewer has no mutual follows AND no
+  // check-ins to show. A mutual follow (not a one-way follow) is what fills this
+  // tab, so the prompt sends them to add friends at the table.
+  const lotEmpty =
+    tab === "lot" &&
+    status === "ready" &&
+    lotHandles !== null &&
+    lotHandles.size === 0 &&
+    checkInItems.length === 0;
 
   return (
     <main className="feedShell">
@@ -680,11 +792,12 @@ export default function FeedPage() {
         <p className="feedEyebrow">Pubmaxxer stories</p>
         <h1 className="feedTitle">The Pint Feed</h1>
         <p className="feedLede">
-          Moments, prices, people and side quests from nights worth remembering.
+          Moments, prices and people from real London nights.
         </p>
         <div className="feedComposeActions" aria-label="Create">
           <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>
           <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
+          <Link href="/we-are-out" className="feedMomentCta">We&rsquo;re out</Link>
         </div>
       </header>
 
@@ -703,7 +816,13 @@ export default function FeedPage() {
 
           <PresenceStrip spillingNow={spillingNow} />
 
-          <FeedFilters active={filter} onChange={onFilterChange} />
+          <SocialTabs active={tab} onChange={onTabChange} />
+
+          {/* The chip filters refine the city-wide feed; on Your lot / Nearby the
+              tab itself is the lane, so the chips stand down. */}
+          {tab === "london" ? (
+            <FeedFilters active={filter} onChange={onFilterChange} />
+          ) : null}
         </div>
 
         <div className="feedMain">
@@ -731,6 +850,14 @@ export default function FeedPage() {
             </div>
           ))}
         </div>
+      ) : lotEmpty ? (
+        <EmptyState
+          className="feedEmpty"
+          eyebrow="Your lot"
+          title="Your lot is quiet."
+          body="Your lot is the people you both follow. Add a friend by their handle or share your link at the table, and their nights, drops and check-ins land here."
+          action={<Link href="/discover">Add your lot</Link>}
+        />
       ) : friendsEmpty ? (
         <EmptyState
           className="feedEmpty"

@@ -199,6 +199,25 @@ describe("pubsToGeoJSON", () => {
     expect(props?.bucket).toBe(priceBucket(6));
     expect(typeof props?.drinkKind).toBe("string");
   });
+
+  it("defaults a hintless pub to the pint glyph, never a synthetic accent (The Black Friar)", () => {
+    // venue-1sw9ofl's id hashes to the "cocktail" accent, which previously
+    // painted this ale-led heritage pub with a martini pin. With no recorded
+    // drinkCategories the resting pin must fall back to the honest pint glyph.
+    const venue = makeVenue({ id: "venue-1sw9ofl", cheapestPrice: 6 });
+    const props = pubsToGeoJSON([venue], signals, null).features[0]?.properties;
+    expect(props?.drinkKind).toBe("pint");
+  });
+
+  it("keeps a hintless pub on the pint glyph even when it serves cocktails", () => {
+    const venue = makeVenue({
+      id: "venue-1sw9ofl",
+      cheapestPrice: 6,
+      amenities: { ...makeVenue().amenities, cocktails: true },
+    });
+    const props = pubsToGeoJSON([venue], signals, null).features[0]?.properties;
+    expect(props?.drinkKind).toBe("pint");
+  });
 });
 
 describe("pubsToGeoJSON whats-on badge join (W1)", () => {

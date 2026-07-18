@@ -1,10 +1,10 @@
-import { isLimited } from "@/lib/pintDrops";
-import { clientIp, hashIp } from "@/lib/supabase";
+// Per-IP rate limiting for the last-ride surfaces (last-train / -tram / -subway /
+// -merseyrail). Each forwards to a transit upstream on an uncached miss, so a
+// per-IP floor stops an unauthenticated caller driving unbounded outbound
+// fan-out. The per-call `scope` sub-divides one tighter ~20/min budget by mode
+// (last-ride:<scope>:<ip>) so a burst against one ride surface can't exhaust the
+// others' allowance.
 
-const LAST_RIDE_RATE_LIMIT = 20;
-const LAST_RIDE_RATE_WINDOW_MS = 60_000;
+import { makeIpRateLimiter } from "@/lib/ipRateLimit";
 
-export async function isLastRideLimited(request: Request, scope: string): Promise<boolean> {
-  const key = `last-ride:${scope}:${hashIp(clientIp(request))}`;
-  return isLimited(key, key, LAST_RIDE_RATE_LIMIT, LAST_RIDE_RATE_WINDOW_MS);
-}
+export const isLastRideLimited = makeIpRateLimiter("last-ride", 20);

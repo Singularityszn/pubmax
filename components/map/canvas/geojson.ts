@@ -1,7 +1,6 @@
 import { priceForBeer } from "@/lib/beers";
 import { POI_CATEGORY_META, type Poi } from "@/lib/pois";
 import { drinkPinIconKey, drinkPinKindFromCategories, iconId } from "@/lib/mapIcons";
-import { drinkAccentForVenue } from "@/lib/scrapedPubs";
 import type { Landmark } from "@/lib/landmarks";
 import { bandAnchors, type StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
@@ -49,11 +48,17 @@ export function pubsToGeoJSON(
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
       const lens = drinkCategory?.trim().toLowerCase() ?? "";
+      // Only REAL recorded drink categories drive the resting (lens-off) pin
+      // glyph. When a venue has none (filterHints.drinkCategories absent/empty),
+      // the honest default for a pub is a pint glass — never the synthetic
+      // per-venue accent hash (drinkAccentForVenue stays decorative card art),
+      // which otherwise painted ale-led heritage pubs like The Black Friar with
+      // a hash-random martini glyph (owner audit). #372 fixed the amenity path;
+      // this closes the accent path. The cocktails amenity alone likewise never
+      // promotes a hintless pub to a martini pin — a pub that pours cocktails is
+      // still a pub. An explicit cocktail lens (below) is a user choice and does
+      // paint martinis, as intended.
       const hintCategories = venue.filterHints?.drinkCategories;
-      const accentCategories =
-        hintCategories && hintCategories.length > 0
-          ? hintCategories
-          : [drinkAccentForVenue(venue.id)];
       const drinkKind =
         lens === "beer"
           ? "pint"
@@ -64,11 +69,13 @@ export function pubsToGeoJSON(
                   Boolean(venue.amenities.cocktails) ||
                   Boolean(venue.filterHints?.amenities.cocktails),
               )
-            : drinkPinKindFromCategories(
-                accentCategories,
-                Boolean(venue.amenities.cocktails) ||
-                  Boolean(venue.filterHints?.amenities.cocktails),
-              );
+            : hintCategories && hintCategories.length > 0
+              ? drinkPinKindFromCategories(
+                  hintCategories,
+                  Boolean(venue.amenities.cocktails) ||
+                    Boolean(venue.filterHints?.amenities.cocktails),
+                )
+              : "pint";
       const scraped = Boolean(
         venue.filterHints?.scraped ||
           venue.sourceDatasets?.some((source) =>

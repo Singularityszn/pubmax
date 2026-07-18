@@ -181,7 +181,9 @@ describe("data/freshness_registry.json integrity", () => {
   });
 
   it("uses only known classes and coherent budget/stamp shapes", () => {
-    const classes = new Set(["cron", "episodic", "user-cadence", "live", "static"]);
+    // "snapshot" = a point-in-time captured dataset re-extracted on demand
+    // (area_news fresh-facts layer, Cycle 15 Lane A).
+    const classes = new Set(["cron", "episodic", "user-cadence", "live", "static", "snapshot"]);
     for (const d of registry.datasets) {
       expect(classes.has(d.class)).toBe(true);
       if (d.stalenessBudgetHours !== null) {

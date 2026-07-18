@@ -21,6 +21,8 @@ import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
+import AreaNewsList from "@/components/areanews/AreaNewsList";
+import { loadAreaNews, entriesForBorough, NEW_ROUND_HERE_CAP } from "@/lib/areaNews";
 
 import "./borough.css";
 import "@/components/seo/factLayer.css";
@@ -205,6 +207,13 @@ export default async function BoroughPage({ params }: PageProps) {
   // Honest stamp: the dataset's collection date, not the bundled file's mtime.
   const observedAt = PINT_DATASET_OBSERVED_AT;
   const boroughSlug = slugifyBorough(name);
+
+  // Fresh-facts layer (Cycle 15 Lane A): dated, sourced pub news for this
+  // borough. Renders nothing when the borough carries no facts (anti-slop).
+  const areaNews = entriesForBorough(boroughSlug, (await loadAreaNews()).entries).slice(
+    0,
+    NEW_ROUND_HERE_CAP,
+  );
   const factStats = pintFactStats(pubs, name, boroughSlug);
   const faq = faqItems(factStats, {
     monthYear: formatMonthYear(observedAt),
@@ -259,6 +268,8 @@ export default async function BoroughPage({ params }: PageProps) {
           ) : null}
         </div>
       </header>
+
+      <AreaNewsList areaLabel={name} entries={areaNews} headingId="boroughAreaNewsHeading" />
 
       {pubs.length === 0 ? (
         <EmptyState

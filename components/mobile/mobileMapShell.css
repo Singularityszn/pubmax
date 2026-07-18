@@ -33,8 +33,39 @@
   .appShell .mapStage > .tonightLane,
   .appShell .mapStage > .mapPriceControl,
   .appShell .mapStage .mapLayersControl,
-  .appShell .mapStage .mapCameraControls {
+  /* The camera stack's city-fit + recenter chips are re-homed into the mobile
+     top bar, so hide those two — but NOT the whole stack: the compass is the
+     only "back to north" recovery once the map is rotated (#367), and the
+     coordinator provides no replacement for it. */
+  .appShell .mapStage .mapCameraControls .mapFitLondonBtn,
+  .appShell .mapStage .mapCameraControls .mapRecenterBtn {
     display: none !important;
+  }
+
+  /* #367 compass recovery on mobile: keep the stack alive, drop it top-right
+     just under the mobile top bar, and let the compass button be the only child
+     that renders (it only mounts when the map is actually rotated). Still
+     cleared by the shared .sheet-full / .planning-open hide rules in globals so
+     it never fights a full sheet. */
+  .appShell .mapStage .mapCameraControls {
+    top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 8px);
+    right: 10px;
+    gap: 4px;
+  }
+
+  .appShell .mapStage .mapCompassBtn {
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+    padding: 7px 12px;
+    border-color: var(--color-accent);
+    background: var(--color-surface-raised);
+    color: var(--color-accent);
+  }
+
+  .appShell .mapStage .mapCompassBtn:hover {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
   }
 
   .mobileMapTopbar {

@@ -109,7 +109,11 @@ export default function MapLayersControl({
   useEffect(() => {
     if (!open) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") closePanel();
+      if (event.key === "Escape") {
+        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
+        event.preventDefault();
+        closePanel();
+      }
     }
     function onPointer(event: MouseEvent | TouchEvent) {
       const root = rootRef.current;

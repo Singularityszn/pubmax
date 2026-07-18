@@ -138,7 +138,7 @@ export default function VenueStoryTab({
         <p className="description">{description}</p>
       ) : heritageFacts.length === 0 ? (
         <p className="description muted">
-          No heritage note for {venue.name} yet. Log a Pint Drop below with a passed-down story
+          No heritage note for {venue.name}{" "}yet. Log a Pint Drop below with a passed-down story
           to be the first to give this pub some character.
         </p>
       ) : null}
@@ -172,7 +172,7 @@ export default function VenueStoryTab({
         <p className="placeStoriesLead">What should I know about this place?</p>
         {placeStories.length === 0 ? (
           <p className="description muted">
-            No Place stories pass through {venue.name} yet. Open Place stories
+            No Place stories pass through {venue.name}{" "}yet. Open Place stories
             on the map, or ask the PUBMAXXER.
           </p>
         ) : (

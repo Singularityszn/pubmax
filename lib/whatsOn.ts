@@ -134,11 +134,23 @@ export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): val
 // data files is deliberately avoided; the fix lives at the seam every row
 // passes through. The character class uses unicode escapes (U+2014 em,
 // U+2013 en) so this source file itself stays free of typographic dashes.
-export function normaliseEventTitle(title: string): string {
-  return title
+function foldDisplayDashes(value: string): string {
+  return value
     .replace(/\s*[\u2014\u2013]\s*/g, " - ")
     .replace(/ {2,}/g, " ")
     .trim();
+}
+
+export function normaliseEventTitle(title: string): string {
+  return foldDisplayDashes(title);
+}
+
+// The same dash leak (#373) reaches the provenance chip: a scraped source label
+// like "Skehan's [em dash] Live Music" renders as "via Skehan's \u2014 Live Music" on
+// Tonight. Fold the label at the same seam every displayed row passes through so
+// no typographic dash survives in the source chip either.
+export function normaliseSourceLabel(label: string): string {
+  return foldDisplayDashes(label);
 }
 
 // Normalise a raw row into the exact WhatsOnRow shape, dropping null optionals
@@ -150,7 +162,7 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
     kind: row.kind,
     startsAt: row.startsAt,
     title: normaliseEventTitle(row.title),
-    source: { label: row.source.label, url: row.source.url },
+    source: { label: normaliseSourceLabel(row.source.label), url: row.source.url },
     observedAt: row.observedAt,
     confidence: row.confidence,
   };
@@ -366,7 +378,7 @@ export function mapThingsToDoToRows(result: ThingsToDoResult, opts: MapThingsToD
       kind,
       startsAt,
       title: normaliseEventTitle(opp.title),
-      source: { label, url: url as string },
+      source: { label: normaliseSourceLabel(label), url: url as string },
       observedAt,
       confidence: "listed",
     };

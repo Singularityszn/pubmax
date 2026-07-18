@@ -18,6 +18,7 @@
 import { useEffect, useState } from "react";
 import { CloudSun } from "lucide-react";
 
+import { roundCoord } from "@/lib/geo";
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 
 import "./tonightConditions.css";
@@ -27,10 +28,6 @@ type Props = {
 };
 
 type ConditionsResponse = { summary: TonightConditionsSummary | null };
-
-function roundCoord(value: number): number {
-  return Math.round(value * 1000) / 1000;
-}
 
 export default function TonightConditionsStrip({ origin }: Props) {
   const [summary, setSummary] = useState<TonightConditionsSummary | null>(null);

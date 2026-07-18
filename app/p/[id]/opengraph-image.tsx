@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { getPintDropById } from "@/lib/pintDropLookup";
-import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 // Per-drop OG share card (Next `opengraph-image` convention). Renders the Pint
 // Drop as a collectible "pint memory card" — a beer-mat with a pressed brass
@@ -41,22 +41,6 @@ function clampText(raw: string | null | undefined, max: number, fallback = ""): 
 function priceStamp(value: number | null): string | null {
   if (value === null || !Number.isFinite(value) || value <= 0) return null;
   return `£${value.toFixed(2)}`;
-}
-
-// A small pint-glass glyph (inline SVG — no external asset, no emoji font).
-function PintGlyph() {
-  return (
-    <svg width="46" height="53" viewBox="0 0 52 60" fill="none">
-      <path
-        d="M11 5 H41 L37 51 Q36 55 32 55 H20 Q16 55 15 51 Z"
-        stroke={PAPER}
-        strokeWidth="3"
-        fill="none"
-      />
-      <path d="M13 22 H39" stroke={PAPER} strokeWidth="3" />
-      <path d="M11 5 H41 L40 13 H12 Z" fill={PAPER} />
-    </svg>
-  );
 }
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
@@ -149,7 +133,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                   marginRight: 24,
                 }}
               >
-                <PintGlyph />
+                <CrossingMark ink={PAPER} />
               </div>
               <div
                 style={{
