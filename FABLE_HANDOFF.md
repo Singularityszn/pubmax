@@ -12,16 +12,16 @@ CSP double-build line CLOSED (v3 refuted; owner conversation pending) · check-i
 
 ## Merged tonight + this morning
 
-#380 area news · #381 desktop parity · #382 cleanup · #383 hermetic weather tests · #398 seven live-verify fixes · #399 workflow docs · #400 persona lens · #401 desktop D1 shell · #402 feed/You clarity · #403 map clarity · #404 copy/layout · #405 GNHF tests · #406 prod-deploy unbreaker (vitest.setup strips NEXT_PUBLIC_DEMO_CONTENT + canary; prod deploys had been silently failing since demo flip) · #407 whats_on refresh (477 servable rows) · #409 tonight data root cause (isOnTonight start-containment dropped all 384 all-day deals every night; now interval overlap; Tuesday 1 row to 127) + copy fixes · #410 map boot two-clock skeleton fix + ?q= restore fly-to. Wayfinder clarity loop #393-#397: judge verdict delivered, final wave merged; close #396/#397 with evidence.
+#380 area news · #381 desktop parity · #382 cleanup · #383 hermetic weather tests · #398 seven live-verify fixes · #399 workflow docs · #400 persona lens · #401 desktop D1 shell · #402 feed/You clarity · #403 map clarity · #404 copy/layout · #405 GNHF tests · #406 prod-deploy unbreaker (vitest.setup strips NEXT_PUBLIC_DEMO_CONTENT + canary; prod deploys had been silently failing since demo flip) · #407 whats_on refresh (477 servable rows) · #409 tonight data root cause (isOnTonight start-containment dropped all 384 all-day deals every night; now interval overlap; Tuesday 1 row to 127) + copy fixes · #410 map boot two-clock skeleton fix + ?q= restore fly-to. Wayfinder clarity loop #393-#397: judge verdict delivered, final wave merged, closed with evidence.
+
+Cycle-17 morning wave (2026-07-19, all merged + live-verified on prod): #411 voice/design sweep (scrape register, em dash, destructive hex, Copied!) · #412 /pal/chat deterministic concierge skin (cards-are-facts, grounding flags OFF) · #413 growth loop (plan-card lockup, invite OG, ASO doc) · #414 /today brief + six-tab nav (todayBrief.ts pure core) · #415 API envelope unification (publicApiError additive code/retryable on 5 routes) + check-in limiter key symmetry + hermetic now seam · #416 sport fixtures reseed (World Cup Final 19 Jul + PL opening, 259 rows) + end-aware isPastDated/filterNotPast serving guard (closed #408) · #418 findings confidence V3 (every score re-verified at HEAD; 12 open, zero blockers) · #419 store-factory batch 1 (#168 audit: 25 stores, 4 divergent left; 3 migrated onto storeBackend seams) · #420 point-row kind-aware grace (quiz/music 3h, sport 2.5h; closed #417) · #421 map rotation + idle auto-orbit restored (owner call, supersedes abeb471e removal; one GPU rotateTo per 12s chunk at 0.6 deg/s, pauses on interaction/hidden/reduced-motion; compass always visible, north<->designed-attitude toggle; drift verified live on prod: one exact chunk observed, suspend confirmed) · #422 six-tab equal rhythm (count-driven --tab-count/--tab-inset CSS model, single label baseline via 28px/-8px Moment circle, destinations contract test; verified serving on prod DOM).
 
 ## Running lanes (cycle 17, see docs/UNIVERSAL_DAY0_PRD.md for full briefs)
 
-- Lane A (Opus worktree): /today morning brief + mobile home
-- Lane B (SOL/Codex): web push backend + daily brief sender
-- Lane C (Opus worktree): /pal concierge chat skin over existing engine, narration flag OFF
-- Lane D (Opus worktree): growth loop (crew invites end-to-end, press kit, ASO, owner content assets)
+- Lane B (SOL/Codex): web push VAPID + sw.js handler + daily brief sender (RESCOPED — APNs transport/token store already on main; read PRD Lane B first)
 - Lane E (SOL/Codex): restaurants + attractions ingest through slop filter + provenance bar
-- Owner awake and steering. Overnight lanes all closed. CSP line CLOSED (v3 refuted; owner conversation pending, three options recorded in session).
+- Fable-side lanes for the morning wave all CLOSED (tabbar, map-rotate, confidence V3, store-factory batch 1, point-grace).
+- Owner awake and steering. CSP line CLOSED (v3 refuted; owner conversation pending, three options recorded in session).
 
 ## Standing watchers/protocol
 
@@ -29,10 +29,11 @@ PR watchers = background bash until-loops (gh pr checks N; grep -c pending = 0 �
 
 ## Remaining this week (in order)
 
-1. Close #396/#397 with evidence (judge report + #409/#410 merges); verify prod dpl_ serves post-merge build.
-2. Cycle-17 lanes per docs/UNIVERSAL_DAY0_PRD.md sequencing (A+B, then C+D, then E rows; judge loops day 4-5; Capacitor sync day 6).
-3. Update fable-implement-prd.md with cycle 15/16 close + cycle 17 open.
-4. Morning-list conversation items with owner: Actions billing (CRITICAL for brief freshness), store enrollment #390, Ticketmaster key #385, VAPID keypair, Exa/Firecrawl credit top-ups, OpenRouter funding for narration flip, sport seed #408, stale stash@{0}, CSP three-options conversation.
+1. Sol lanes B (web push, rescoped) + E (category ingest) per docs/UNIVERSAL_DAY0_PRD.md; design-judge loop on /today + /pal/chat (both themes, 390x844) day 4-5; Capacitor sync day 6.
+2. Update fable-implement-prd.md with cycle 15/16 close + cycle 17 open.
+3. Store-factory batches 2-4 per #168 checklist (pintDrops LOW first; planStore DEFERRED until THE-LOCAL lane lands). Token-hygiene tail from confidence V3 open ledger (rows 15/16/35/36/42/53).
+4. Prune ~130 stale worktree-agent-* local branches + ~158 remote heads (verify squash-merge ancestry first; confidence row 44).
+5. Morning-list conversation items with owner: Actions billing (CRITICAL for brief freshness), store enrollment #390, Ticketmaster key #385, VAPID keypair, Exa/Firecrawl credit top-ups, OpenRouter funding for narration flip, stale stash@{0}, CSP three-options conversation.
 
 ## Owner morning list
 
