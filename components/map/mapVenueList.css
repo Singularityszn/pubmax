@@ -1,0 +1,230 @@
+/* A11Y finding #1 — "List view": the keyboard/SR-reachable DOM list of the
+   venues on the map. Anchored bottom-left so it clears the top toolbar / tonight
+   lane and the bottom plan chip. Hidden while a venue sheet or planner owns the
+   map (the user is already inside a venue / planning). Tokens + both themes come
+   for free from the design system; the global reduced-motion reset neutralises
+   the panel's transition. */
+.mapVenueList {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: 516; /* above tonight lane (512) + concierge (514), below toolbar */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.mapVenueList > * {
+  pointer-events: auto;
+}
+
+.appShell.detail-open .mapVenueList,
+.appShell.planning-open .mapVenueList,
+.appShell.onboarding-open .mapVenueList {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mapVenueList {
+    bottom: calc(var(--mobile-tab-clearance, 58px) + 12px);
+  }
+}
+
+/* Toggle — the always-present affordance. */
+.mapVenueListToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--brass) 52%, var(--line));
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel-raised)), var(--panel-raised));
+  box-shadow: var(--map-overlay-shadow-tight);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  touch-action: manipulation;
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+}
+
+.mapVenueListToggle:hover {
+  border-color: color-mix(in srgb, var(--brass) 70%, var(--line));
+}
+
+.mapVenueListToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.mapVenueListToggle svg {
+  color: var(--brass);
+}
+
+.mapVenueListToggleCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 20%, var(--panel));
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+/* Panel — the disclosed list. */
+.mapVenueListPanel {
+  display: flex;
+  flex-direction: column;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(52vh, 440px);
+  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-tint-river, var(--panel)) 30%, var(--panel-raised)), var(--panel-raised));
+  box-shadow: var(--map-overlay-shadow);
+  overflow: hidden;
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  animation: mapVenueListIn 160ms ease;
+}
+
+@keyframes mapVenueListIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mapVenueListHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px 10px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.mapVenueListHeadMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mapVenueListTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 850;
+  color: var(--ink);
+}
+
+.mapVenueListCount {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.mapVenueListClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin: -8px -6px -8px 0;
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mapVenueListClose:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.mapVenueListClose:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.mapVenueListItems {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mapVenueListItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mapVenueListItem:hover {
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+}
+
+.mapVenueListItem:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.mapVenueListItemName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.83rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapVenueListItemName svg {
+  flex: 0 0 auto;
+  color: var(--brass);
+}
+
+.mapVenueListItemMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.mapVenueListItemDist {
+  color: color-mix(in srgb, var(--ink-soft, var(--ink)) 70%, var(--muted));
+}
+
+.mapVenueListEmpty {
+  margin: 0;
+  padding: 16px 16px 20px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
