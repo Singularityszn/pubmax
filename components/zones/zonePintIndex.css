@@ -1,5 +1,5 @@
 /* Zone pint index. Role-tokened per #328: a PRICED zone cell is a brass-plaque
-   price surface (--price-plaque-*/--accent-price), a SELECTED cell is the quiet
+   price surface (price-plaque and accent-price tokens), a SELECTED cell is the quiet
    --state-active-* "you are here" tint, and interaction feedback routes through
    --accent-action — the loud coral is never a resting wash. Both themes via CSS
    variables; 390×844 first (cells wrap), 44px touch targets, ≤250ms ease-out. */
