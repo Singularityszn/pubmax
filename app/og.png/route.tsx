@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 
+import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+
 export const runtime = "edge";
 
 const size = {
@@ -221,6 +223,6 @@ export async function GET() {
         </div>
       </div>
     ),
-    size,
+    { ...size, headers: OG_CACHE_HEADERS },
   );
 }

@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { normalizeHandle } from "@/lib/profiles";
+import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 // Profile / Pint Passport OG share card. Lightweight — no DB read — so every
 // /u/[handle] share gets a branded card even when the profile is empty.
@@ -99,6 +100,6 @@ export default async function Image({ params }: PageProps) {
         </div>
       </div>
     ),
-    { ...size },
+    { ...size, headers: OG_CACHE_HEADERS },
   );
 }

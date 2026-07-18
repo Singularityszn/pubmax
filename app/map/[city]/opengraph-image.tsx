@@ -4,6 +4,7 @@ import { getCity, parseCityId } from "@/lib/cities";
 import {
   CardShell,
   OG,
+  OG_CACHE_HEADERS,
   OG_SIZE,
   Wordmark,
   clampText,
@@ -228,6 +229,6 @@ export default async function Image({
         </div>
       </CardShell>
     ),
-    { ...size, fonts: loadOgFonts() },
+    { ...size, fonts: loadOgFonts(), headers: OG_CACHE_HEADERS },
   );
 }

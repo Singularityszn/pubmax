@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { getPintDropById } from "@/lib/pintDropLookup";
+import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 // Per-drop OG share card (Next `opengraph-image` convention). Renders the Pint
 // Drop as a collectible "pint memory card" — a beer-mat with a pressed brass
@@ -315,6 +316,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         </div>
       </div>
     ),
-    size,
+    { ...size, headers: OG_CACHE_HEADERS },
   );
 }

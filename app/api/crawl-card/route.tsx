@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
+import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 export const runtime = "nodejs";
 
@@ -265,6 +266,6 @@ export async function GET(request: Request) {
         </div>
       </div>
     ),
-    size,
+    { ...size, headers: OG_CACHE_HEADERS },
   );
 }

@@ -78,7 +78,9 @@ describe("GET /api/late-food", () => {
     const body: LateFoodApiSuccessResponse = await response.json();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    // Curated static terminals; body is a pure function of the query + deploy → CDN-cacheable.
+    expect(response.headers.get("Cache-Control")).toContain("s-maxage=3600");
+    expect(response.headers.get("Cache-Control")).toContain("stale-while-revalidate");
     expect(body.requestedAt).toBe("2026-07-17T00:00:00.000Z");
     expect(body.terminals).toEqual([expect.objectContaining({
       area: "piccadilly-soho",
