@@ -74,7 +74,10 @@
 .roundCode {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
+  /* The core share action — a comfortable one-hand tap target (≥44px). */
+  min-height: 44px;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: clamp(28px, 8vw, 44px);
   font-weight: 800;
@@ -86,12 +89,17 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
+  transition: transform 0.12s ease, color 0.12s ease;
 }
 
 .roundCode:hover {
   color: var(--brass);
+}
+
+.roundCode:active {
+  transform: scale(0.97);
 }
 
 .roundCopyFeedback {
@@ -376,8 +384,21 @@
   background: var(--paper);
 }
 
+.roundSearchResults button:active {
+  transform: scale(0.99);
+}
+
 .roundSearchResults button span {
   font-size: 12px;
+  color: var(--muted);
+}
+
+/* Honest search feedback — "Finding pubs…" while the index loads, then a
+   grounded miss instead of a silent blank when nothing matches. */
+.roundSearchHint {
+  margin: 0;
+  padding: 10px 4px 2px;
+  font-size: 13px;
   color: var(--muted);
 }
 
@@ -390,6 +411,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* ≥44px one-hand tap target (12px + 15px line-box + 12px ≈ 44px). */
+  min-height: 44px;
   padding: 12px 18px;
   border-radius: var(--radius-pill);
   font-weight: 600;
@@ -397,6 +420,15 @@
   cursor: pointer;
   text-decoration: none;
   border: 1px solid transparent;
+  transition: transform 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+/* One-hand press feedback, matching the app's scale(.97-.99) idiom. Disabled
+   buttons don't dip. */
+.roundPrimaryBtn:not(:disabled):active,
+.roundSecondaryBtn:not(:disabled):active,
+.roundCloseBtn:not(:disabled):active {
+  transform: scale(0.97);
 }
 
 .roundPrimaryBtn {
@@ -432,8 +464,63 @@
   color: var(--ink-soft);
 }
 
+/* --- call-the-Round confirm (two-tap, irreversible) ------------------------ */
+
+.roundCloseConfirm {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+  text-align: center;
+}
+
+.roundCloseConfirmText {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.roundCloseConfirmRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* The armed "yes, call it" button reads as the consequential one. */
+.roundCloseBtnArmed {
+  border-color: color-mix(in srgb, #a4331f 55%, var(--line));
+  color: #a4331f;
+}
+
+.roundCloseBtnArmed:hover {
+  border-color: #a4331f;
+  color: #a4331f;
+}
+
 .roundError {
   margin: 0;
   color: #a4331f;
   font-size: 13px;
+}
+
+/* Respect reduced-motion: keep the color/hover feedback, drop the scale dip. */
+@media (prefers-reduced-motion: reduce) {
+  .roundCode,
+  .roundPrimaryBtn,
+  .roundSecondaryBtn,
+  .roundCloseBtn,
+  .roundSearchResults button {
+    transition: color 0.12s ease, border-color 0.12s ease;
+  }
+
+  .roundCode:active,
+  .roundPrimaryBtn:not(:disabled):active,
+  .roundSecondaryBtn:not(:disabled):active,
+  .roundCloseBtn:not(:disabled):active,
+  .roundSearchResults button:active {
+    transform: none;
+  }
 }
