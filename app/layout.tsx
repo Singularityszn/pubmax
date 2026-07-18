@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { headers } from "next/headers";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import "./globals.css";
@@ -20,28 +19,13 @@ import A2HSTracking from "@/components/A2HSTracking";
 // what pubmaxxing.com IS. No SearchAction/potentialAction: the only on-site
 // search is the client-rendered WebGL map (/map?q=), which is not a crawlable
 // results page, so advertising a sitelinks search box would be schema for
-// something we can't prove (PRD non-negotiable). logo is an absolute URL to a
-// shipped icon asset (public/icon-512.png).
-const SITE_JSON_LD = [
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": "https://pubmaxxing.com/#website",
-    name: "PUBMAXXING",
-    alternateName: "PUBMAXX",
-    url: "https://pubmaxxing.com",
-    description:
-      "A price-aware, provenance-first London pub map and crawl planner. Real observed pint prices and cited historic pubs.",
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": "https://pubmaxxing.com/#organization",
-    name: "PUBMAXXING",
-    url: "https://pubmaxxing.com",
-    logo: "https://pubmaxxing.com/icon-512.png",
-  },
-];
+// something we can't prove (PRD non-negotiable).
+// The payload lives in lib/inlineDocumentScripts.ts (with the speculation
+// rules) so proxy.ts can hash the exact inline text for the dynamic-tier CSP.
+import {
+  SITE_JSON_LD,
+  SPECULATION_RULES_JSON,
+} from "@/lib/inlineDocumentScripts";
 
 // Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
@@ -152,10 +136,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Per-request CSP nonce (set by proxy.ts). Stamped onto our inline
-  // speculation-rules block below — inline speculation rules are gated by
-  // script-src, so under the nonce policy they need the nonce to be honoured.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // No per-request reads here: the layout must stay prerenderable so public
+  // routes can be statically generated and edge-cached. Inline scripts below
+  // (speculation rules, site JSON-LD) are covered by the hash-based CSP tier
+  // (scripts/build_csp_route_headers.mjs) on static routes and by Next's own
+  // request-CSP nonce stamping on dynamic routes — neither needs a nonce prop
+  // threaded from the layout.
   return (
     <html
       lang="en"
@@ -204,37 +190,21 @@ export default async function RootLayout({
                 effects (auth, composer, /api).
             This is a JSON data block, NOT executable JavaScript: the browser
             parses it as speculation rules, never runs it. CSP: it is still
-            governed by script-src, so under the per-request nonce policy
-            (proxy.ts) it carries the nonce below; without it the browser would
-            drop the rules. Unsupported browsers ignore an unknown script type
-            entirely → pure progressive enhancement, zero behaviour change where
-            it isn't understood. */}
+            governed by script-src. The payload is a build constant
+            (lib/inlineDocumentScripts.ts), so its sha256 rides in the static
+            tier's hashed header AND in proxy.ts's dynamic-tier policy — no
+            nonce needed, which keeps this layout prerenderable. Unsupported
+            browsers ignore an unknown script type entirely → pure progressive
+            enhancement, zero behaviour change where it isn't understood. */}
         <script
           type="speculationrules"
-          nonce={nonce}
           suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              prerender: [
-                {
-                  source: "list",
-                  /* Wave I3: include /feed (Stories) — light RSC, no WebGL. */
-                  urls: ["/crawls", "/discover", "/feed"],
-                  eagerness: "moderate",
-                },
-                {
-                  where: {
-                    href_matches: "/borough/*",
-                  },
-                  eagerness: "moderate",
-                },
-              ],
-            }),
-          }}
+          dangerouslySetInnerHTML={{ __html: SPECULATION_RULES_JSON }}
         />
-        {/* Site-wide JSON-LD (WebSite + Organization). Carries the nonce like
-            every other inline script under the nonce CSP (proxy.ts). */}
-        <JsonLd data={SITE_JSON_LD} nonce={nonce} />
+        {/* Site-wide JSON-LD (WebSite + Organization). Build-constant inline
+            text; allowed by hash in both CSP tiers (see
+            lib/inlineDocumentScripts.ts), so no nonce prop. */}
+        <JsonLd data={SITE_JSON_LD} />
       </head>
       <body>
         {/* AuthProvider is additive: it establishes identity for signed-in users

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -14,7 +13,12 @@ import {
   PINT_DATASET_OBSERVED_AT,
 } from "@/lib/dataFreshness";
 import { groupVenuePrices, formatPrice, type Venue, type VenuePrice } from "@/lib/venues";
-import { boroughFromSlug, pubsInBorough, slugifyBorough } from "@/lib/boroughs";
+import {
+  boroughFromSlug,
+  LONDON_BOROUGHS,
+  pubsInBorough,
+  slugifyBorough,
+} from "@/lib/boroughs";
 import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
@@ -38,6 +42,13 @@ import "@/components/seo/factLayer.css";
 // Next 16 dynamic route params are async — `params` is a Promise we await.
 
 type PageProps = { params: Promise<{ slug: string }> };
+
+// Prerender every borough chapter at build time (33 pages). The dataset is
+// bundled, so the full slug list is known statically; an unknown slug still
+// resolves to notFound() at request time.
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  return LONDON_BOROUGHS.map((name) => ({ slug: slugifyBorough(name) }));
+}
 
 // A curated/themed crawl "touches" a borough when at least one of its stops'
 // primary/visible borough slugs matches the page's borough slug. Pure, reads
@@ -218,12 +229,10 @@ export default async function BoroughPage({ params }: PageProps) {
   ];
 
 
-  // Per-request CSP nonce (proxy.ts) for the JSON-LD block below.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <main className="boroughPage">
-      <JsonLd data={jsonLdGraph} nonce={nonce} />
+      <JsonLd data={jsonLdGraph} />
       <SiteNav active="borough" />
 
       <header className="boroughHead">
