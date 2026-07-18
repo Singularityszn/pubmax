@@ -35,7 +35,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--brass);
+  color: var(--accent-action);
 }
 
 .pubsHead h1 {
@@ -80,8 +80,8 @@
 }
 
 .pubsFilter.isActive {
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  border-color: var(--state-active-border);
+  background: var(--state-active-surface);
   color: var(--ink);
 }
 
@@ -92,7 +92,7 @@
 }
 
 .pubsFilter.isActive .pubsFilterCount {
-  color: var(--brass);
+  color: var(--state-active-ink);
 }
 
 .pubsCount {
@@ -123,7 +123,7 @@
 
 .pubsCard:hover {
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  border-color: color-mix(in srgb, var(--accent-action) 40%, var(--line));
   box-shadow: 0 14px 32px color-mix(in srgb, var(--ink) 10%, transparent);
 }
 
@@ -267,8 +267,8 @@
   font-size: 0.7rem;
   font-weight: 750;
   letter-spacing: 0.01em;
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
-  color: var(--brass);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
 }
 
 .pubsSource[data-source="nicholsonspubs.co.uk"] {
@@ -324,7 +324,7 @@
 
 .pubsCardName a:hover,
 .pubsCardName a:focus-visible {
-  color: var(--brass);
+  color: var(--accent-action);
 }
 
 .pubsCardPrice {
@@ -363,8 +363,8 @@
      44px touch target on phones ("see it on the map" was invisible as a
      terse tertiary chip; the owner literally couldn't find it at 390px). */
   order: -1;
-  border-color: var(--brass);
-  background: var(--brass);
+  border-color: var(--accent-action);
+  background: var(--accent-action);
   color: var(--color-on-accent, #fdfaf2);
 }
 
@@ -385,7 +385,7 @@
 .pubsMenuLink:hover,
 .pubsBookLink:hover,
 .pubsMapLink:hover {
-  border-color: var(--brass);
+  border-color: var(--accent-action);
 }
 
 .pubsEmpty {
