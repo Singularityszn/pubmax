@@ -11,6 +11,7 @@ import {
   filterByKind,
   matchVenueId,
   normaliseEventTitle,
+  normaliseSourceLabel,
   mapThingsToDoToRows,
   fetchRawThingsToDoStartsAt,
   THINGS_TO_DO_KIND_MAP,
@@ -302,5 +303,50 @@ describe("normaliseEventTitle", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].title).not.toMatch(/[\u2013\u2014]/);
     expect(rows[0].title).toBe("Jazz - Late");
+  });
+});
+
+describe("normaliseSourceLabel", () => {
+  const EM = String.fromCharCode(0x2014); // em dash
+  const EN = String.fromCharCode(0x2013); // en dash
+
+  it("folds a typographic dash in a source label to a plain spaced hyphen", () => {
+    expect(normaliseSourceLabel(`Skehan's ${EM} Live Music`)).toBe("Skehan's - Live Music");
+    expect(normaliseSourceLabel(`Skiddle ${EN} Gigs`)).toBe("Skiddle - Gigs");
+  });
+
+  it("leaves a plain source label untouched", () => {
+    expect(normaliseSourceLabel("Question One")).toBe("Question One");
+  });
+
+  it("no typographic dash survives a source label through parseWhatsOnRows", () => {
+    const rows = parseWhatsOnRows(
+      [makeRow({ source: { label: `Skehan's ${EM} Live Music`, url: "https://skehans.com/e" } })],
+      NOW,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source.label).not.toMatch(/[\u2013\u2014]/);
+    expect(rows[0].source.label).toBe("Skehan's - Live Music");
+  });
+
+  it("no typographic dash survives a source label through mapThingsToDoToRows", () => {
+    const result: ThingsToDoResult = {
+      window: "tonight",
+      opportunities: [
+        {
+          title: "Jazz Night",
+          kind: "gig",
+          place: { name: "The Blue Post", location: { lat: 51.5, lng: -0.1 } },
+          source: { label: `Skehan's ${EM} Live Music`, url: "https://skiddle.com/e/1" },
+        } as unknown as ThingsToDoOpportunity,
+      ],
+    };
+    const rows = mapThingsToDoToRows(result, {
+      now: NOW,
+      windowStart: "2026-07-11T19:00:00+01:00",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source.label).not.toMatch(/[\u2013\u2014]/);
+    expect(rows[0].source.label).toBe("Skehan's - Live Music");
   });
 });

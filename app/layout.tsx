@@ -90,11 +90,11 @@ const dataMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxxing.com"),
   title: {
-    default: "PUBMAXX: Make tonight worth remembering",
+    default: "PUBMAXX: real pint prices on a live map",
     template: "%s | PUBMAXX",
   },
   description:
-    "PUBMAXX is a price-aware nightlife map for real pint prices, live plans, side quests, and stories worth remembering.",
+    "PUBMAXX is a price-aware nightlife map. Real pint prices, what's on tonight, and a crawl your mates will actually walk.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -102,9 +102,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   openGraph: {
-    title: "PUBMAXX: Make tonight worth remembering",
+    title: "PUBMAXX: real pint prices on a live map",
     description:
-      "Real prices, live plans and unexpected places. Built for better nights with your people.",
+      "Real pint prices on a live map. Plan a crawl your mates will actually walk.",
     url: "https://pubmaxxing.com",
     siteName: "PUBMAXX",
     type: "website",
@@ -119,9 +119,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "PUBMAXX: Make tonight worth remembering",
+    title: "PUBMAXX: real pint prices on a live map",
     description:
-      "Real prices, live plans and unexpected places. Built for better nights with your people.",
+      "Real pint prices on a live map. Plan a crawl your mates will actually walk.",
     images: ["/og.png?v=20260715-coral"],
   },
   icons: {

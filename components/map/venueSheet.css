@@ -366,20 +366,45 @@
 
 /* ── Primary-action sheet clearance (user story 15) ──────────────────────────
    The sheet itself now sits above the fixed mobile tab bar, so internal panels
-   only need a modest breathing buffer at the sheet edge. */
-@media (max-width: 640px) {
+   only need a modest breathing buffer at the sheet edge. The band matches the
+   bottom-sheet drawer band in globals.css (@media max-width: 768px), NOT the
+   ≤640 gesture band — the drawer renders as a translated bottom sheet all the
+   way to 768px, so the in-tab Drop must yield to the sheet command bar across
+   that whole band (below 640 the phone portal sheet, 641–768 the legacy
+   drawer). */
+@media (max-width: 768px) {
   .logDropBar {
-    /* In-tab sticky Drop yields to the sheet command bar on phones. */
+    /* In-tab sticky Drop yields to the sheet command bar on the bottom sheet. */
     display: none;
   }
 }
 
-/* Wave K1 — sticky venue command bar (mobile only). */
+/* The portal sheet's own header (.mobileSharedSheetHeader > h2) already shows
+   the venue name as the centred sheet title, so the in-panel "Venue Detail"
+   eyebrow and the duplicate <h3> name are redundant there — the name rendered
+   twice, once in the sheet header and once in the panel. Trim both on the
+   portal path ONLY: the desktop legacy drawer has no titled head, so its
+   unscoped .inspectorTitle + <h3> stay the single source of the name. Scoped to
+   direct children of .venueInspector so the tab panels' own .inspectorTitle
+   headings ("On record", "Place stories", …) are untouched. */
+.mobileSharedSheet .venueInspector > .inspectorTitle,
+.mobileSharedSheet .venueInspector > h3 {
+  display: none;
+}
+
+/* Wave K1 — sticky venue command bar (bottom-sheet drawer only). */
 .venueSheetStickyBar {
   display: none;
 }
 
-@media (max-width: 640px) {
+/* Gated to the bottom-sheet drawer band (≤768px), the same band globals.css
+   turns .mapDrawer into a translated bottom sheet. Previously this was ≤640
+   (the gesture band): in the 641–768 band the legacy .mapDrawer.right became a
+   translated bottom sheet (globals @media 768) yet the command bar stayed
+   display:none and reserved no clearance, so the Drop/Share bar was never
+   pinned — the snap-fraction offsets below (which keep the bar visible in the
+   translated legacy sheet) never fired either. Aligning the band fixes both. */
+@media (max-width: 768px) {
   /* Tab bar is hidden on detail-open; --mobile-tab-clearance shrinks to a
      safe-area breathing buffer (see globals.css). Don't hardcode tab height. */
   .venueInspector {
