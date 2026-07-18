@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -64,12 +63,11 @@ export default async function PintIndexPage() {
   const rows = snapshot ? buildLeagueTable(snapshot) : [];
   const summary = indexSummary(rows);
   const jsonLd = snapshot ? datasetJsonLd(snapshot, summary.boroughCount, summary.pubCount) : null;
-  const nonce = jsonLd ? (await headers()).get("x-nonce") ?? undefined : undefined;
   const window = snapshot?.observationWindow;
 
   return (
     <main className="pintIndexPage">
-      {jsonLd ? <JsonLd data={jsonLd} nonce={nonce} /> : null}
+      {jsonLd ? <JsonLd data={jsonLd} /> : null}
       <SiteNav />
 
       <header className="pintIndexHead">

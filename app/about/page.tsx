@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
@@ -92,7 +91,6 @@ function tractionStats(s: AboutStats): Stat[] {
 
 export default async function AboutPage() {
   const stats = await loadAboutStats();
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   // AboutPage + Organization JSON-LD. NOTE (see agent report): components/seo/
   // JsonLd.tsx from PR #274 is NOT on this base branch, so this is inlined here
@@ -131,9 +129,11 @@ export default async function AboutPage() {
     <main className="aboutPage">
       <script
         type="application/ld+json"
-        nonce={nonce}
         // JSON-LD is inert data, not executable script; serialised once on the
         // server. XSS-safe: JSON.stringify of a fixed object, no user input.
+        // Build-constant inline text: allowed by sha256 in the static-tier CSP
+        // (scripts/build_csp_route_headers.mjs), so no nonce and the page stays
+        // prerenderable.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
