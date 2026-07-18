@@ -177,6 +177,9 @@ Deep reviews (#321 app, #322 data) found: P1 prompt stacking (identity+push on o
 ### Cycle 7 execution log
 - **#316 → v2** (30-step order, 3 manual stops, script-rerun legend). **#319 rebased + force-pushed** onto the data chain (evidence: 0/660 OSM relabeled, prices survive, idempotent, 3097 green); base retargeted. **#317 shard regen dispatched** (last data step). **Prompt orchestration → PR** (promptBudget on main byte-identical, tour adopts, contract doc; P1 closed at the design level — branches adopt on rebase). New Firecrawl key live; harvest round 2 sweeping 105 venues. iOS App PRD lane drafting (build-today path, paid account deferred). Owner action: install full Xcode (~12GB) for today's simulator build.
 
+- **PR #324 — iPhone App PRD** (Opus 4.8): build-today path (free Apple ID + full Xcode = simulator/device build, no paid account), paid-account activation checklist, acceptance criteria. Grounding found 3 build blockers, fixes dispatched: F1 A2HS shows inside the native shell (→#313 lane), F2 AppDelegate missing APNs forwarding + F3 missing camera permission strings (→#295 lane). OWNER: install full Xcode (~12GB) — the only human step before today's first build.
+- **Owner directive: ALL-LONDON price harvest** — expanded from outer-10 to every unpriced venue with a website, borough-batched, checkpoint-committed, credit-burn guard (pause + report if hit rate <5%). Evidence so far says chains are app-only; the sweep settles it.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
