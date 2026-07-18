@@ -20,6 +20,7 @@ import rawQuizLondon from "../public/data/whats_on/quiz_london.json";
 import rawDealsLondon from "../public/data/whats_on/deals_london.json";
 import rawSportFixtures from "../public/data/whats_on/sport_fixtures.json";
 import rawMusicLondon from "../public/data/whats_on/music_london.json";
+import rawEventsLondon from "../public/data/whats_on/events_london.json";
 import rawWhatsOnLatest from "../public/data/whats_on/latest.json";
 
 // Parse a bundled file with `now` fixed to the file's own generatedAt, so a row
@@ -42,9 +43,13 @@ export function loadBaselineWhatsOn(): WhatsOnRow[] {
   const deals = parseWhatsOnRows(rawDealsLondon, generatedAtOf(rawDealsLondon));
   const sportFixtures = parseWhatsOnRows(rawSportFixtures, generatedAtOf(rawSportFixtures));
   const music = parseWhatsOnRows(rawMusicLondon, generatedAtOf(rawMusicLondon));
+  // events_london.json is the live-API vertical (Ticketmaster/Skiddle). It ships
+  // empty until provider keys land (see scripts/whatson/eventsRefresh.mjs), so
+  // today this contributes 0 rows; it lights up with no store change.
+  const events = parseWhatsOnRows(rawEventsLondon, generatedAtOf(rawEventsLondon));
   const latest = parseWhatsOnRows(rawWhatsOnLatest, generatedAtOf(rawWhatsOnLatest));
   const byKey = new Map<string, WhatsOnRow>();
-  for (const row of [...quiz, ...deals, ...sportFixtures, ...music, ...latest]) {
+  for (const row of [...quiz, ...deals, ...sportFixtures, ...music, ...events, ...latest]) {
     const key = dedupeKey(row);
     const existing = byKey.get(key);
     if (!existing || Date.parse(row.observedAt) > Date.parse(existing.observedAt)) {

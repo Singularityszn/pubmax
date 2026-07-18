@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-07-18T00:00:00.000Z",
+  "kind": "events",
+  "region": "greater-london",
+  "sources": [
+    {
+      "label": "Ticketmaster",
+      "url": "https://www.ticketmaster.co.uk/",
+      "firstParty": false,
+      "provider": "ticketmaster",
+      "notes": "Official Ticketmaster Discovery API v2. NO rows until TICKETMASTER_API_KEY is provisioned (free tier at developer.ticketmaster.com) and scripts/whatson/eventsRefresh.mjs runs. The moment the key lands, the disabled events-refresh workflow (or `npm run refresh:events`) fills this file with real London Music/Sports listings, each linking back to its ticketmaster.co.uk event page per Ticketmaster's attribution terms.",
+      "rowsEmitted": 0
+    },
+    {
+      "label": "Skiddle",
+      "url": "https://www.skiddle.com/",
+      "firstParty": false,
+      "provider": "skiddle",
+      "notes": "Official Skiddle Events API (www.skiddle.com/api). NO rows until SKIDDLE_API_KEY is provisioned (free key on request) and eventsRefresh.mjs runs. London-strong grassroots/live-music coverage; each row links back to its skiddle.com event page per Skiddle's attribution/affiliate terms.",
+      "rowsEmitted": 0
+    }
+  ],
+  "rows": []
+}
