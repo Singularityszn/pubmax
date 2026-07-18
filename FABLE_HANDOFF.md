@@ -1,6 +1,6 @@
-# FABLE SESSION HANDOFF (2026-07-18 night, updated continuously)
+# FABLE SESSION HANDOFF (2026-07-18 morning, updated continuously)
 
-Read this first after any model/effort switch or compaction. This is the live state; history lives in fable-implement-prd.md (cycles 1-14) and docs/CYCLE15_PRD.md + docs/PERSONA_DRINKS_AND_DESKTOP_PRD.md.
+Read this first after any model/effort switch or compaction. This is the live state; history lives in fable-implement-prd.md (cycles 1-14) and docs/CYCLE15_PRD.md + docs/PERSONA_DRINKS_AND_DESKTOP_PRD.md. THE CURRENT PROGRAMME IS docs/UNIVERSAL_DAY0_PRD.md (cycle 17, launch week): Sol and every new lane read that file first.
 
 ## Who and how
 
@@ -10,31 +10,29 @@ Owner: Karan (address by name, he/him). Asleep until morning; granted six-hour f
 
 CSP double-build GO (preview-proof before merge) · check-ins stay friends-only · idle orbit stays removed · bill-split OUT of launch · demo flip DONE (NEXT_PUBLIC_DEMO_CONTENT=off in prod env) · persona shape = pub-tied lens only · Erin (private person) NEVER goes on the public site; private-personas feature is the sanctioned alternative (future ticket).
 
-## Merged tonight (after owner slept)
+## Merged tonight + this morning
 
-#380 area news (95 facts, award plaques) · #381 desktop parity (Escape layering, press feedback) · #382 cleanup (CrossingMark on all OG cards, rate-limit factory, net -72 lines) · #383 hermetic weather tests (unbroke CI) · #398 seven live-verify fixes (sticky bar 641-768px band, compass mobile, martini pin root cause = accent hash leak, metadata title, source-label dashes) · #399 workflow docs (Actions billing block found) · #400 persona lens (80 entries incl Ron Burgundy milk).
+#380 area news · #381 desktop parity · #382 cleanup · #383 hermetic weather tests · #398 seven live-verify fixes · #399 workflow docs · #400 persona lens · #401 desktop D1 shell · #402 feed/You clarity · #403 map clarity · #404 copy/layout · #405 GNHF tests · #406 prod-deploy unbreaker (vitest.setup strips NEXT_PUBLIC_DEMO_CONTENT + canary; prod deploys had been silently failing since demo flip) · #407 whats_on refresh (477 servable rows) · #409 tonight data root cause (isOnTonight start-containment dropped all 384 all-day deals every night; now interval overlap; Tuesday 1 row to 127) + copy fixes · #410 map boot two-clock skeleton fix + ?q= restore fly-to. Wayfinder clarity loop #393-#397: judge verdict delivered, final wave merged; close #396/#397 with evidence.
 
-## Running lanes (task names for SendMessage)
+## Running lanes (cycle 17, see docs/UNIVERSAL_DAY0_PRD.md for full briefs)
 
-- wave1-feed (Opus): feed double-taxonomy merge, You signed-out fix, /you redirect
-- wave1-map (Opus): visible search chip, boot skeleton gap, accent diet on Describe pill
-- wave1-copy (Opus): Tonight reorder, price-empty CTA, pint-index trims, landing drink-shapes, borough ledger label
-- desktop-shell / D1 (Fable fork): right rail (conditions always visible) + feed two-column; was in local CI, push imminent
-- csp-v3 (Fable fork): pinned-build-id double build; mid hash-stability experiment; PROOF PROTOCOL: merges only after ITS OWN preview deploy serves hash CSP + PRERENDER/HIT + /map nonce
-- design-judge: iteration-1 done (report in ticket #394 close comment); re-judge = clarity loop 3 (#396) after wave 1 merges
-- GNHF (external CLI, Codex agent, bib7q45u8): tests-only on branch gnhf/test-depth; steering tripwire monitor b1pfb1acb fires per commit; on exit run companion review (independent coverage + suite check) before any merge
+- Lane A (Opus worktree): /today morning brief + mobile home
+- Lane B (SOL/Codex): web push backend + daily brief sender
+- Lane C (Opus worktree): /pal concierge chat skin over existing engine, narration flag OFF
+- Lane D (Opus worktree): growth loop (crew invites end-to-end, press kit, ASO, owner content assets)
+- Lane E (SOL/Codex): restaurants + attractions ingest through slop filter + provenance bar
+- Owner awake and steering. Overnight lanes all closed. CSP line CLOSED (v3 refuted; owner conversation pending, three options recorded in session).
 
 ## Standing watchers/protocol
 
 PR watchers = background bash until-loops (gh pr checks N; grep -c pending = 0 → settled; grep -c fail exit code 1 means ZERO fails, read the printed number). On green: gh pr merge N --squash (allowed rule Bash(gh pr merge:*)); git revert allowed (Bash(git revert:*)). GitHub Actions crons DEAD (billing, $0 limit — owner morning item); run scripts manually instead (npm run refresh:weather done tonight; ingest:night-signals available). The "3 pre-existing weather test failures" lanes report locally are LOCAL CLOCK NOISE; Vercel is the gate and has been green since #383. Shared checkout must stay on main; lanes sometimes stray-branch it — fix by cherry-pick to main + branch -D. Disk was 95%, now ~72% after worktree purge; purge finished-lane worktrees promptly.
 
-## Remaining tonight (in order)
+## Remaining this week (in order)
 
-1. Merge wave-1 x3 + D1 on green; re-run design judge (loop 3, ticket #396); final wave (#397) with closeout evidence pack.
-2. csp-v3: enforce the preview-proof protocol; if hash instability refutes the mechanism, STOP the CSP line entirely and record it (third failure = owner conversation, not a fourth attempt).
-3. GNHF companion review on exit.
-4. Live verification pass: demo-off confirmed on prod, persona lens live, all wave-1 fixes rendering.
-5. Update fable-implement-prd.md (cycle 15/16 close) + morning report: merged list, before/after screenshots, scorecard, owner morning list.
+1. Close #396/#397 with evidence (judge report + #409/#410 merges); verify prod dpl_ serves post-merge build.
+2. Cycle-17 lanes per docs/UNIVERSAL_DAY0_PRD.md sequencing (A+B, then C+D, then E rows; judge loops day 4-5; Capacitor sync day 6).
+3. Update fable-implement-prd.md with cycle 15/16 close + cycle 17 open.
+4. Morning-list conversation items with owner: Actions billing (CRITICAL for brief freshness), store enrollment #390, Ticketmaster key #385, VAPID keypair, Exa/Firecrawl credit top-ups, OpenRouter funding for narration flip, sport seed #408, stale stash@{0}, CSP three-options conversation.
 
 ## Owner morning list
 
