@@ -209,7 +209,7 @@ function PriceConfirmChip({
           type="button"
           className="vpsChangedBtn"
           onClick={onPriceChanged}
-          aria-label={`The price has changed — log the new price for this pub`}
+          aria-label={`The price has changed. Log the new price for this pub`}
         >
           It&rsquo;s changed
         </button>
@@ -249,8 +249,8 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
           <span id="vpsTitle">The Golden Thread</span>
         </div>
         <p className="description muted">
-          No price story on record for {venue.name} yet. Log tonight&rsquo;s price — or pass down a
-          dated memory (&ldquo;a pint here in 1985&hellip;&rdquo;) — and this pub&rsquo;s thread
+          No price story on record for {venue.name} yet. Log tonight&rsquo;s price, or pass down a
+          dated memory (&ldquo;a pint here in 1985&hellip;&rdquo;), and this pub&rsquo;s thread
           starts here.
         </p>
       </section>
@@ -353,7 +353,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
         <div className="vpsInflation">
           <p className="vpsInflationLine">
             A pint here was <strong>{formatPrice(inflation.thenGbp)}</strong> in{" "}
-            <strong>{inflation.year}</strong> — that&rsquo;s{" "}
+            <strong>{inflation.year}</strong>. That&rsquo;s{" "}
             <strong className="vpsToday">{formatPrice(inflation.todayGbp)}</strong> in{" "}
             {inflation.todayYear}&rsquo;s money.
           </p>

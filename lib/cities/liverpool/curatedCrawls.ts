@@ -10,7 +10,7 @@ export const liverpoolCuratedCrawls: CuratedCrawl[] = [
     id: "match-day-warm-up",
     name: "Match-day warm-up",
     blurb:
-      "A pre-kickoff logistics stagger along the Anfield approach — Sandon, Arkles, The Park, The Albert, and The Twelfth Man — walkable waypoints for timing, not a club-loyalty crawl. Check kickoff and Merseyrail last trains before you settle.",
+      "A pre-kickoff logistics stagger along the Anfield approach, Sandon, Arkles, The Park, The Albert, and The Twelfth Man, walkable waypoints for timing, not a club-loyalty crawl. Check kickoff and Merseyrail last trains before you settle.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-liv-1b242v8", // The Sandon
@@ -26,7 +26,7 @@ export const liverpoolCuratedCrawls: CuratedCrawl[] = [
     id: "victorian-tiled-giants",
     name: "Victorian tiled giants",
     blurb:
-      "Liverpool's glazed-tile heritage houses — Philharmonic Dining Rooms, Roscoe Head, The Vines, Crown Hotel, and Doctor Duncan's — the Hope Street / Lime Street gin-palace strip in a single round.",
+      "Liverpool's glazed-tile heritage houses, Philharmonic Dining Rooms, Roscoe Head, The Vines, Crown Hotel, and Doctor Duncan's, the Hope Street / Lime Street gin-palace strip in a single round.",
     crawlStyle: "heritage",
     venueIds: [
       "venue-liv-12byxft", // Philharmonic Dining Rooms
@@ -42,7 +42,7 @@ export const liverpoolCuratedCrawls: CuratedCrawl[] = [
     id: "baltic-first-night",
     name: "Baltic first night",
     blurb:
-      "A first-night loop through the Ropewalks into the Baltic Triangle — Dispensary, Shipping Forecast, Kazimier Garden, Monro, and Baltic Fleet — warehouse bars and dockside pints without inventing a stop that isn't on the map.",
+      "A first-night loop through the Ropewalks into the Baltic Triangle, Dispensary, Shipping Forecast, Kazimier Garden, Monro, and Baltic Fleet, warehouse bars and dockside pints without inventing a stop that isn't on the map.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-liv-dv1qd1", // The Dispensary

@@ -135,7 +135,7 @@ describe("POST /api/saved-pubs/list-follows", () => {
     const missingFollower = await post({ owner: "sam", listType: "Date Night" });
     expect(missingFollower.status).toBe(400);
     expect(await missingFollower.json()).toEqual({
-      error: "Set a handle first — drop a pint to claim one.",
+      error: "Set a handle first. Drop a pint to claim one.",
     });
 
     const missingOwner = await post({ follower: "ken", listType: "Date Night" });

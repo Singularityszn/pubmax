@@ -89,7 +89,7 @@ export function parseWithEntries(value: string): string[] {
 export function buildWithSuffix(withValue: string): string {
   const entries = parseWithEntries(withValue);
   if (entries.length === 0) return "";
-  return `— with ${entries.join(", ")}`;
+  return `with ${entries.join(", ")}`;
 }
 
 /**

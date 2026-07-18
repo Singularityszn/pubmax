@@ -115,7 +115,7 @@ const DEFAULT_PRIVACY: PrivacyState = {
 const palStateSpeech: Record<PalAnimationState, string> = {
   idle: "Ready when you are. I will never make a change without showing you first.",
   noticing: "I hear you. Getting the signal clear.",
-  listening: "Listening — nothing from this conversation becomes memory.",
+  listening: "Listening. Nothing from this conversation becomes memory.",
   thinking: "Thinking through a grounded answer.",
   speaking: "Here is what I found. You choose what happens next.",
   celebrating: "Signal confirmed. Nice one.",

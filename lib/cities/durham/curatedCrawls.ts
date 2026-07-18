@@ -10,7 +10,7 @@ export const durhamCuratedCrawls: CuratedCrawl[] = [
     id: "bailey-night",
     name: "Bailey night",
     blurb:
-      "A compact Bailey peninsula night — Shakespeare and the Library on Saddler Street, Market Tavern in the Market Place, then the Victoria on Hallgarth and Colpitts toward the station. Drink responsibly on the hill.",
+      "A compact Bailey peninsula night: Shakespeare and the Library on Saddler Street, Market Tavern in the Market Place, then the Victoria on Hallgarth and Colpitts toward the station. Drink responsibly on the hill.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-dur-libaa7", // The Shakespeare
@@ -26,7 +26,7 @@ export const durhamCuratedCrawls: CuratedCrawl[] = [
     id: "elvet-wander",
     name: "Elvet wander",
     blurb:
-      "An Elvet-side wander across the bridge — Swan & Three Cygnets, Half Moon, the City, and the Dun Cow — with the Fighting Cocks on South Street if you still have legs back toward Crossgate.",
+      "An Elvet-side wander across the bridge: Swan & Three Cygnets, Half Moon, the City, and the Dun Cow, with the Fighting Cocks on South Street if you still have legs back toward Crossgate.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-dur-ffaoxv", // The Swan & Three Cygnets

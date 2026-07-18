@@ -135,7 +135,7 @@ function CrawlsPageInner() {
           <p className="crawlEyebrow">Crawls worth walking</p>
           <h1 id="crawlsHeading">Every pint has a story.</h1>
           <p className="crawlEmptyBody">
-            A Crawl Story is a shareable poster of a London pub crawl — the stops, the prices,
+            A Crawl Story is a shareable poster of a London pub crawl, the stops, the prices,
             the vibe. Here are a few routes worth the walk, handed down from the old hands who
             drank them first. Pick one, or start your own on the map.
           </p>
@@ -203,7 +203,7 @@ function CrawlsPageInner() {
           <RoundStarter />
 
           <p className="crawlEmptyBody crawlOwnLead">
-            Or build your own — pick the pubs, pass the round on.
+            Or build your own. Pick the pubs, pass the round on.
           </p>
           <Link href="/map" className="crawlPrimaryBtn">
             <MapPin size={16} aria-hidden="true" /> Build your own crawl on the map

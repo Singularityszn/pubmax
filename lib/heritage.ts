@@ -52,7 +52,7 @@ const HERITAGE_CACHE_PATH = path.join(
 // The single honest empty answer. Kept as a constant so the route, the fallback,
 // and the test all agree on the exact wording.
 export const NO_STORY_LINE =
-  "I've got the basics but no fuller story on record yet — I won't make one up.";
+  "I've got the basics but no fuller story on record yet. I won't make one up.";
 
 // Read the cache defensively: subagent C owns this file, it may be missing or
 // malformed. Any problem → treat as {} rather than throwing.

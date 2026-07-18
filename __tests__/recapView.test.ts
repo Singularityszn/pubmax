@@ -256,14 +256,14 @@ describe("composeRecapFromPublishedStory", () => {
 describe("buildRecapShareText", () => {
   it("matches the shareArtifacts builder shape and closes with the story line", () => {
     expect(buildRecapShareText({ title: "Big Friday", stopCount: 3, totalGbp: 18.4 })).toBe(
-      "Big Friday — 3 stops, £18.40 across the night. Every pint has a story.",
+      "Big Friday. 3 stops, £18.40 across the night. Every pint has a story.",
     );
   });
 
   it("omits missing data honestly", () => {
     expect(buildRecapShareText({ title: "", stopCount: 0 })).toBe("Our night out. Every pint has a story.");
     expect(buildRecapShareText({ title: "Solo one", stopCount: 1, totalGbp: null })).toBe(
-      "Solo one — 1 stop. Every pint has a story.",
+      "Solo one. 1 stop. Every pint has a story.",
     );
   });
 });

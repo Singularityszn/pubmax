@@ -37,7 +37,7 @@ type PageProps = { params: Promise<{ slug: string }> };
 function metaDescription(pub: HistoricPub): string {
   const hook = pub.hook?.replace(/\s+/g, " ").trim() ?? "";
   const base =
-    hook || `${pub.name}, a notable London pub — cited from Wikipedia and Wikidata.`;
+    hook || `${pub.name}, a notable London pub. Cited from Wikipedia and Wikidata.`;
   return base.length > 155 ? `${base.slice(0, 154).trimEnd()}…` : base;
 }
 
@@ -55,12 +55,12 @@ export async function generateMetadata({
 
   if (!pub) {
     return {
-      title: "Historic pub — PUBMAXXING",
+      title: "Historic pub. PUBMAXXING",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `${pub.name} — historic London pub | PUBMAXXING`;
+  const title = `${pub.name}. Historic London pub | PUBMAXXING`;
   const description = metaDescription(pub);
   const canonical = `/historic/${pub.slug}`;
 
@@ -174,7 +174,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
 
         {pub.facts.length === 0 ? (
           <p className="hdEmpty" role="status">
-            No fuller story on record — every claim here is cited, and we
+            No fuller story on record. Every claim here is cited, and we
             won&rsquo;t invent one to fill the gap.
           </p>
         ) : (

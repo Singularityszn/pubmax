@@ -102,7 +102,7 @@ export async function POST(request: Request): Promise<Response> {
       err instanceof Error ? err.message : err,
     );
     return jsonNoStore(
-      { error: "Ratings storage is unavailable — try again shortly." },
+      { error: "Ratings storage is unavailable. Try again shortly." },
       { status: 503 },
     );
   }

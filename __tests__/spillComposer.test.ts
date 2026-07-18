@@ -106,7 +106,7 @@ describe("buildSpillPreview", () => {
       note: "Cracking night",
       withWho: "@sam, @priya",
     });
-    expect(model.note).toMatch(/Cracking night — with @sam, @priya/);
+    expect(model.note).toMatch(/Cracking night with @sam, @priya/);
   });
 
   it("withholds the handle and initial when anonymous", () => {

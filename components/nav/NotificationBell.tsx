@@ -67,7 +67,7 @@ export default function NotificationBell(): React.JSX.Element {
     };
   }, [handle, refresh, authHandle]);
 
-  const label = unread > 0 ? `Activity — ${unread} unread` : "Activity";
+  const label = unread > 0 ? `Activity: ${unread} unread` : "Activity";
 
   return (
     <Link

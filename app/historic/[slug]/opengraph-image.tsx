@@ -16,7 +16,7 @@ import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 // loadHistoricPubs reads the filesystem via node:fs, which is edge-incompatible).
 
 export const runtime = "nodejs";
-export const alt = "A historic London pub — PUBMAXXING";
+export const alt = "A historic London pub. PUBMAXXING";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

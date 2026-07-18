@@ -278,7 +278,7 @@ export async function POST(request: Request): Promise<Response> {
       if (await pintDropsStore().hasPricedDropToday(dropPayload.venueId, ownership.handle)) {
         return jsonNoStore(
           {
-            error: "You've already logged a price here today — thanks! Come back tomorrow to keep your streak.",
+            error: "You've already logged a price here today. Thanks! Come back tomorrow to keep your streak.",
           },
           { status: 409 },
         );

@@ -31,7 +31,7 @@ import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 // OG routes.
 
 export const runtime = "nodejs";
-export const alt = "Recent pints dropped at this London pub — PUBMAXX";
+export const alt = "Recent pints dropped at this London pub. PUBMAXX";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 

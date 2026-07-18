@@ -303,7 +303,7 @@ export type RecapShareInput = { title: string; stopCount: number; totalGbp?: num
 export function buildRecapShareText(input: RecapShareInput): string {
   const title = input.title.trim() || "Our night out";
   const stops = Math.max(0, Math.floor(input.stopCount));
-  const stopClause = stops > 0 ? ` — ${stops} ${stops === 1 ? "stop" : "stops"}` : "";
+  const stopClause = stops > 0 ? `. ${stops} ${stops === 1 ? "stop" : "stops"}` : "";
   const spendClause =
     typeof input.totalGbp === "number" && input.totalGbp > 0 ? `, ${formatGbp(input.totalGbp)} across the night` : "";
   return `${title}${stopClause}${spendClause}. Every pint has a story.`;

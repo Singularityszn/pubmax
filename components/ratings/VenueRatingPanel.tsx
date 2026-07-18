@@ -49,7 +49,7 @@ export default function VenueRatingPanel({ venueId, venueName }: VenueRatingPane
     const clean = handle.trim();
     if (!clean) {
       setNeedsHandle(true);
-      setNote({ kind: "error", text: "Add a handle first — your rating needs a name." });
+      setNote({ kind: "error", text: "Add a handle first. Your rating needs a name." });
       return;
     }
     setMyRating(value);
@@ -59,7 +59,7 @@ export default function VenueRatingPanel({ venueId, venueName }: VenueRatingPane
       rememberHandle(clean);
       setNeedsHandle(false);
       setSummary(fresh);
-      setNote({ kind: "ok", text: "Saved — rate again any time to change it." });
+      setNote({ kind: "ok", text: "Saved. Rate again any time to change it." });
     } catch (err) {
       setNote({
         kind: "error",
@@ -80,7 +80,7 @@ export default function VenueRatingPanel({ venueId, venueName }: VenueRatingPane
         </span>
       ) : (
         <span className="ratingUnrated">
-          Not enough ratings yet — scores show after 10 votes.
+          Not enough ratings yet. Scores show after 10 votes.
         </span>
       )}
       <span className="ratingLine">

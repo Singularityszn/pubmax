@@ -9,7 +9,7 @@ export const bristolCuratedCrawls: CuratedCrawl[] = [
     id: "king-street-classic",
     name: "King Street classic",
     blurb:
-      "The classic King Street strip — Llandoger Trow, Old Duke, Famous Royal Navy Volunteer, King Street Brew House, and The Apple on Welsh Back — timber pubs and harbour edge without inventing a stop.",
+      "The classic King Street strip. Llandoger Trow, Old Duke, Famous Royal Navy Volunteer, King Street Brew House, and The Apple on Welsh Back. Timber pubs and harbour edge without inventing a stop.",
     crawlStyle: "heritage",
     venueIds: [
       "venue-bri-ycukpj", // The Llandoger Trow
@@ -25,7 +25,7 @@ export const bristolCuratedCrawls: CuratedCrawl[] = [
     id: "harbourside-first-night",
     name: "Harbourside first night",
     blurb:
-      "A harbourside first night — No.1 Harbourside, Hole in the Wall, Ostrich Inn, Grain Barge, and Left Handed Giant — waterfront rooms from Canons Road along the floating harbour.",
+      "A harbourside first night. No.1 Harbourside, Hole in the Wall, Ostrich Inn, Grain Barge, and Left Handed Giant. Waterfront rooms from Canons Road along the floating harbour.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-bri-1hjegsw", // No.1 Harbourside
@@ -41,7 +41,7 @@ export const bristolCuratedCrawls: CuratedCrawl[] = [
     id: "clifton-hillside",
     name: "Clifton hillside",
     blurb:
-      "A short Clifton hillside loop — the Albion on Boyces Avenue, Coronation Tap, and The Clifton — when the harbour first night continues up toward the suspension bridge.",
+      "A short Clifton hillside loop. The Albion on Boyces Avenue, Coronation Tap, and The Clifton, when the harbour first night continues up toward the suspension bridge.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-bri-1cnty5o", // The Albion

@@ -164,7 +164,7 @@ export default function GardenTonightCard() {
           {headline}
         </h2>
         <p className="gardenTonightDek">
-          Open beer-garden pubs in London right now — via CityMCP London.
+          Open beer-garden pubs in London right now, via CityMCP London.
         </p>
         <ul className="gardenTonightList">
           {pubs.map((pub) => {

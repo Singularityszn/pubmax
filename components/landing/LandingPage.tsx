@@ -54,7 +54,7 @@ const PRODUCT_SIGNALS = [
   {
     icon: CalendarClock,
     title: "A city that changes with you",
-    body: "Morning calm, after-work energy and late-night events appear when they are useful—not all at once.",
+    body: "Morning calm, after-work energy and late-night events appear when they are useful, not all at once.",
   },
   {
     icon: Route,
@@ -131,7 +131,7 @@ export default function LandingPage() {
           <div className="lpHeroCopy">
             <p className="lpHeroKicker"><span /> London is live</p>
             <h1 id="hero-title">Make tonight worth remembering.</h1>
-            <p className="lpHeroLede">Real prices, live plans and unexpected places—built for better nights with your people.</p>
+            <p className="lpHeroLede">Real prices, live plans and unexpected places, built for better nights with your people.</p>
             <div className="lpHeroActions">
               <Link className="lpButton lpButtonPrimary" href="/near">
                 <LocateFixed size={18} aria-hidden="true" /> Find my pint
@@ -207,7 +207,7 @@ export default function LandingPage() {
           <PintDropStrip />
           <div className="lpPalCallout" id="landlord">
             <span className="lpPalIcon"><MessageSquareText size={23} aria-hidden="true" /></span>
-            <div><h3>Ask your Pub Pal</h3><p>Turn a mood, budget or half-formed idea into a grounded plan—then confirm every change yourself.</p></div>
+            <div><h3>Ask your Pub Pal</h3><p>Turn a mood, budget or half-formed idea into a grounded plan. Then confirm every change yourself.</p></div>
             <Link href="/pal" className="lpTextLink">Meet your Pub Pal <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>

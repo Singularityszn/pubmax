@@ -67,7 +67,7 @@ export async function POST(request: Request): Promise<Response> {
   const follower = await resolveMessageHandle(request, readString(body.follower));
   if (!follower) {
     return jsonNoStore(
-      { error: "Set a handle first — drop a pint to claim one." },
+      { error: "Set a handle first. Drop a pint to claim one." },
       { status: 400 },
     );
   }

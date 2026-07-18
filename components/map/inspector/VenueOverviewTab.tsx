@@ -140,7 +140,7 @@ export default function VenueOverviewTab({
             <p className="cuisineServes">
               <strong>Serves food</strong>
               {cuisineTags.length === 0
-                ? " — plates available; check the board for tonight’s kitchen."
+                ? ". Plates available; check the board for tonight’s kitchen."
                 : null}
             </p>
           ) : null}
@@ -199,7 +199,7 @@ export default function VenueOverviewTab({
           </span>
           <strong>{formatPrice(venue.cheapestPrice)}</strong>
           <small className="communityPriceNote">
-            Dataset price — not a live tonight feed.
+            Dataset price. Not a live tonight feed.
           </small>
         </div>
       ) : (
@@ -263,7 +263,7 @@ export default function VenueOverviewTab({
             className="description muted"
             style={{ marginTop: "8px", fontSize: "0.82rem" }}
           >
-            Claim a handle to check in — <Link href="/u/you">set yours</Link>.
+            Claim a handle to check in. <Link href="/u/you">Set yours</Link>.
           </p>
         ) : null}
       </div>

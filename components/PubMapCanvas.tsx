@@ -815,7 +815,7 @@ export default function PubMapCanvas({
             : {
                 kind: "constructor",
                 noWebgl: true,
-                message: "This browser can't run the map — it needs WebGL.",
+                message: "This browser can't run the map. It needs WebGL.",
                 detail: detail || undefined,
               },
         ),
@@ -1132,7 +1132,7 @@ export default function PubMapCanvas({
       settleSceneError({
         kind: "tiles",
         message:
-          "The map is taking too long to finish loading — the pub list and crawl planner still work.",
+          "The map is taking too long to finish loading. The pub list and crawl planner still work.",
         detail: "Scene ready timeout",
       });
     }, STYLE_LOAD_TIMEOUT_MS * 2 + 2000);
@@ -1160,7 +1160,7 @@ export default function PubMapCanvas({
           settleSceneError({
             kind: "tiles",
             message:
-              "The map couldn't load its tiles right now — the pub list and crawl planner still work.",
+              "The map couldn't load its tiles right now. The pub list and crawl planner still work.",
           });
         }
       }, STYLE_LOAD_TIMEOUT_MS);
@@ -1234,7 +1234,7 @@ export default function PubMapCanvas({
           reportMapError({
             kind: "no-frame",
             message:
-              "The map's renderer started but never drew a frame — this browser or device can't paint the map right now.",
+              "The map's renderer started but never drew a frame. This browser or device can't paint the map right now.",
             detail: `No basemap frame within ${Math.round(FIRST_FRAME_TIMEOUT_MS / 1000)}s`,
           }),
         );

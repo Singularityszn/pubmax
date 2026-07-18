@@ -160,7 +160,7 @@ const curatedVenues: Record<string, VenueCuration> = {
     nearWater: true,
     heritageEra: "Riverside historic",
     heritageNote:
-      "Rotherhithe riverside pub highlighted by Eating Europe for its deck views and old-English snack menu — a classic Thames-side stop.",
+      "Rotherhithe riverside pub highlighted by Eating Europe for its deck views and old-English snack menu, a classic Thames-side stop.",
     storyTag: "Eating Europe guide",
     sourceLabel: "Eating Europe",
     sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
@@ -169,7 +169,7 @@ const curatedVenues: Record<string, VenueCuration> = {
   "lord wargrave": {
     heritageEra: "Marylebone",
     heritageNote:
-      "Marylebone whisky pub picked by Eating Europe for its eclectic dram list and St. Louis pork ribs — a food-and-whisky guide stop.",
+      "Marylebone whisky pub picked by Eating Europe for its eclectic dram list and St. Louis pork ribs, a food-and-whisky guide stop.",
     storyTag: "Eating Europe guide",
     sourceLabel: "Eating Europe",
     sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
@@ -178,7 +178,7 @@ const curatedVenues: Record<string, VenueCuration> = {
   "ye old mitre": {
     heritageEra: "Historic Holborn",
     heritageNote:
-      "Ely Court hideaway praised by Eating Europe as the classic London pub room — red carpets, stools, a real fireplace, and board games on request.",
+      "Ely Court hideaway praised by Eating Europe as the classic London pub room. Red carpets, stools, a real fireplace, and board games on request.",
     storyTag: "Eating Europe guide",
     sourceLabel: "Eating Europe",
     sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
@@ -187,7 +187,7 @@ const curatedVenues: Record<string, VenueCuration> = {
   "ye olde mitre": {
     heritageEra: "Historic Holborn",
     heritageNote:
-      "Ely Court hideaway praised by Eating Europe as the classic London pub room — red carpets, stools, a real fireplace, and board games on request.",
+      "Ely Court hideaway praised by Eating Europe as the classic London pub room. Red carpets, stools, a real fireplace, and board games on request.",
     storyTag: "Eating Europe guide",
     sourceLabel: "Eating Europe",
     sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
@@ -215,7 +215,7 @@ const curatedVenues: Record<string, VenueCuration> = {
   "the ship soho": {
     heritageEra: "Soho historic",
     heritageNote:
-      "Soho historic pub with a warm wooden room and musical past — Eating Europe's guide pick for an always-on atmosphere.",
+      "Soho historic pub with a warm wooden room and musical past, Eating Europe's guide pick for an always-on atmosphere.",
     storyTag: "Eating Europe guide",
     sourceLabel: "Eating Europe",
     sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
@@ -224,7 +224,7 @@ const curatedVenues: Record<string, VenueCuration> = {
   "the grenadier": {
     heritageEra: "Belgravia historic",
     heritageNote:
-      "Belgrave Square boozer tipped by Eating Europe for beef Wellington and famous Bloody Marys — a grand old local for locals and visitors alike.",
+      "Belgrave Square boozer tipped by Eating Europe for beef Wellington and famous Bloody Marys, a grand old local for locals and visitors alike.",
     storyTag: "Eating Europe guide",
     sourceLabel: "Eating Europe",
     sourceUrl: "https://www.eatingeurope.com/blog/londons-pubs/",
@@ -339,7 +339,7 @@ export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
       (hasWikipediaList
         ? wikipediaRow?.description || "Listed on Wikipedia's List of pubs in London."
         : inferredHeritage
-          ? "The venue's own description hints at period features. Unverified — a sourced note or a visitor Pint Drop can confirm it."
+          ? "The venue's own description hints at period features. Unverified. A sourced note or a visitor Pint Drop can confirm it."
           : undefined),
     sourceLabel: explicit.sourceLabel ?? (hasWikipediaList ? "Wikipedia" : undefined),
     sourceUrl: explicit.sourceUrl ?? (hasWikipediaList ? wikipediaUrl : undefined),

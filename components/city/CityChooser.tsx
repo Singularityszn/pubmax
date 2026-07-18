@@ -65,7 +65,7 @@ export default function CityChooser({
         );
         if (!nearest) {
           setLocateState("error");
-          setLocateMessage("You’re outside our mapped cities — pick one below.");
+          setLocateMessage("You’re outside our mapped cities. Pick one below.");
           return;
         }
         const href = cityMapShareUrl(nearest);
@@ -78,7 +78,7 @@ export default function CityChooser({
       },
       () => {
         setLocateState("error");
-        setLocateMessage("Couldn’t read your location — pick a city below.");
+        setLocateMessage("Couldn’t read your location. Pick a city below.");
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
     );
@@ -122,7 +122,7 @@ export default function CityChooser({
             </h2>
           )}
           <p className="cityChooserLede">
-            Open a price-aware pub map — crawls and drink-shaped pins for the
+            Open a price-aware pub map. Crawls and drink-shaped pins for the
             night you want.
           </p>
         </header>
@@ -165,7 +165,7 @@ export default function CityChooser({
                     href={href}
                     className="cityChooserLink"
                     onClick={() => selectCity(city.id)}
-                    aria-label={`${city.displayName} — ${city.tagline}. Open map.`}
+                    aria-label={`${city.displayName}: ${city.tagline}. Open map.`}
                   >
                     <span className="cityChooserName">{city.displayName}</span>
                     <p className="cityChooserTagline">{city.tagline}</p>

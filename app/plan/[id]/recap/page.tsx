@@ -79,7 +79,7 @@ function endingLine(view: RecapView): string | null {
     case "food":
       return `Ended on ${view.ending.label}`;
     case "keep_going":
-      return `Kept going — ${view.ending.label}`;
+      return `Kept going. ${view.ending.label}`;
     case "get_home":
       return view.ending.label;
     default:

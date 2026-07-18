@@ -67,7 +67,7 @@ describe("buildHeritageCrawls", () => {
       expect(crawl.crawlStyle).toBe("heritage");
       expect(crawl.name.trim().length).toBeGreaterThan(0);
       // Provenance-honest blurb.
-      expect(crawl.blurb).toContain("Cited from Wikipedia — never invented.");
+      expect(crawl.blurb).toContain("Cited from Wikipedia. Never invented.");
     }
   });
 

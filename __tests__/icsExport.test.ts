@@ -95,7 +95,7 @@ describe("buildCrawlIcs", () => {
 
   it("lists stops in order in the description and escapes commas", () => {
     // Addresses contain commas -> must be escaped in the TEXT value.
-    expect(unfolded).toContain("1. The Nellie Dean — 89 Dean St\\, W1D 3SU");
+    expect(unfolded).toContain("1. The Nellie Dean\\, 89 Dean St\\, W1D 3SU");
     expect(unfolded).toContain("2. The Dog & Duck");
     expect(unfolded).toContain("2 stops:");
   });

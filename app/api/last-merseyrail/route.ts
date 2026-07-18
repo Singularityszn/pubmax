@@ -143,7 +143,7 @@ export async function GET(request: Request): Promise<Response> {
   } catch {
     return json(
       {
-        error: "Couldn't check Merseyrail just now — check before you head out.",
+        error: "Couldn't check Merseyrail just now. Check before you head out.",
         station: null,
         trains: [],
         departures: [],

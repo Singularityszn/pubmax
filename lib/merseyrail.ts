@@ -24,7 +24,7 @@ import {
 } from "@/lib/tfl";
 
 export const MERSEYRAIL_PROVENANCE =
-  "Typical Merseyrail last service (static) — not a live Merseytravel feed. Check boards before you leave.";
+  "Typical Merseyrail last service (static). Not a live Merseytravel feed. Check boards before you leave.";
 
 export const MERSEYRAIL_MODE_LABEL = "train";
 
@@ -238,7 +238,7 @@ export function computeMerseyrailLastRide(
     });
     return {
       error:
-        "No Merseyrail stops in our map for this area — check before you head out.",
+        "No Merseyrail stops in our map for this area. Check before you head out.",
       station: { id: "", name: "Nearest Merseyrail stop", distanceM: 0 },
       trains: [],
       departures: [],

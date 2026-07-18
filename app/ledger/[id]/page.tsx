@@ -105,13 +105,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!venue) {
     return {
-      title: "The Ledger — PUBMAXXING",
+      title: "The Ledger: PUBMAXXING",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `The Ledger: ${venue.name} — PUBMAXXING`;
-  const description = `The story of ${venue.name} in ${venue.primaryBorough || "London"} — heritage notes and the pub's logbook of visits, in large print.`;
+  const title = `The Ledger: ${venue.name}. PUBMAXXING`;
+  const description = `The story of ${venue.name} in ${venue.primaryBorough || "London"}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
   // URL points at the one indexable venue permalink.
   const canonical = `/ledger/${encodeURIComponent(venue.id)}`;
@@ -331,7 +331,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
         </h2>
         {entries.length === 0 ? (
           <p className="ledgerEmptyEntries">
-            No entries logged yet — the first Pint Drop here will open the logbook.
+            No entries logged yet. The first Pint Drop here will open the logbook.
           </p>
         ) : (
           <ol className="ledgerEntries" aria-label={`Logbook entries for ${venue.name}`}>
@@ -374,7 +374,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
           <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} />
         </div>
         <p className="ledgerFamilyIntro">
-          Some stories aren&rsquo;t for the feed — kept here for whoever in the family reads them next.
+          Some stories aren&rsquo;t for the feed. Kept here for whoever in the family reads them next.
         </p>
         {familyEntries.length === 0 ? (
           <p className="ledgerFamilyEmpty">

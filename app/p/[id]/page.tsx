@@ -73,7 +73,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   }
 
   const price = formatGbp(drop.priceGbp);
-  const priceBit = price ? ` — ${price}` : "";
+  const priceBit = price ? `, ${price}` : "";
   const title = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${priceBit}`;
   const description =
     drop.note ||
@@ -142,7 +142,7 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
   const hasPhoto = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
 
   // Share lockup: a nostalgic one-liner that carries the pint into a group chat.
-  const shareTitle = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${price ? ` — ${price}` : ""}`;
+  const shareTitle = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${price ? `, ${price}` : ""}`;
   const shareText = buildPintDropShareText({
     venueName: drop.venueName,
     priceGbp: drop.priceGbp,

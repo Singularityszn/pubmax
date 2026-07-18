@@ -1195,7 +1195,7 @@ export default function PubMap({
           filters.stopCount,
         );
         if (ids.length === 0) {
-          setNearbyError("No pubs match your filters near you — try widening them.");
+          setNearbyError("No pubs match your filters near you. Try widening them.");
           return;
         }
         setMode("build");
@@ -1472,7 +1472,7 @@ export default function PubMap({
           savedOnly && savedIds.size === 0 ? (
             <section className="venueInspector" style={{ textAlign: "center" }}>
               <p className="description" style={{ marginTop: 0 }}>
-                No saved pubs yet — tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
+                No saved pubs yet. Tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
                 back on to see just your list.
               </p>
               <button type="button" className="addStopBtn" onClick={() => changeSavedOnly(false)}>
@@ -1482,7 +1482,7 @@ export default function PubMap({
           ) : (
             <section className="venueInspector" style={{ textAlign: "center" }}>
               <p className="description" style={{ marginTop: 0 }}>
-                No pubs match these filters — try widening your price or clearing your story filters.
+                No pubs match these filters. Try widening your price or clearing your story filters.
               </p>
               <button type="button" className="addStopBtn" onClick={() => setFilters(seedCrawlState("").filters)}>
                 Clear filters

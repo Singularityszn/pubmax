@@ -39,7 +39,7 @@ export default function MenuCategoryGrid({
       <header className="menuHub__head">
         <h3 className="menuHub__title">Menus</h3>
         <p className="menuHub__lede">
-          Drinks first — tap a tile. Food opens the pub&apos;s own menu when we
+          Drinks first. Tap a tile. Food opens the pub&apos;s own menu when we
           have a link.
         </p>
       </header>

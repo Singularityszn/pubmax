@@ -309,7 +309,7 @@ function RoundBoard({
           ) : null}
         </div>
         <p className="roundStatus" role="status">
-          {closed ? "This Round has been called — it's closed." : `${members.length} out · still going`}
+          {closed ? "This Round has been called. It's closed." : `${members.length} out · still going`}
         </p>
         {crewLine ? (
           <p className="roundCrewHere" role="status">
@@ -329,7 +329,7 @@ function RoundBoard({
             return (
               <li key={m.handle} className={`roundMemberChip${here ? " roundMemberChipHere" : ""}`}>
                 {here ? (
-                  <span className="roundHereDot" title="Here now — self-shared, ephemeral" aria-label="here now" />
+                  <span className="roundHereDot" title="Here now, self-shared, ephemeral" aria-label="here now" />
                 ) : null}
                 <Link href={`/u/${m.handle}`}>@{m.handle}</Link>
                 {m.handle === round.createdByHandle ? <span className="roundHostTag">host</span> : null}
@@ -497,7 +497,7 @@ function JoinForm({
         </p>
       ) : null}
       <button type="submit" className="roundPrimaryBtn" disabled={busy}>
-        {busy ? "Joining…" : "I'm out too — join the Round"}
+        {busy ? "Joining…" : "I'm out too. Join the Round"}
       </button>
     </form>
   );
@@ -612,7 +612,7 @@ function AddStop({
         // loaded with no hit it's an honest miss that points to the map fallback.
         <p className="roundSearchHint" role="status">
           {ready
-            ? "No pub by that name on the map — check the spelling, or log it on the map below."
+            ? "No pub by that name on the map. Check the spelling, or log it on the map below."
             : "Finding pubs…"}
         </p>
       ) : null}

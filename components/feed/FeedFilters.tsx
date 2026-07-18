@@ -134,7 +134,7 @@ export default function FeedFilters({ active, onChange }: FeedFiltersProps) {
           >
             {filter.label}
             {filter.demo ? (
-              <span className="feedFilterDemo" title="Demo lane — best-effort in this prototype">
+              <span className="feedFilterDemo" title="Demo lane. Best-effort in this prototype">
                 demo
               </span>
             ) : null}

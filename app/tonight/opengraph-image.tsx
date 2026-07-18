@@ -12,7 +12,7 @@ import { buildTonightPosterModel } from "@/lib/tonightPoster";
 // null), never a broken image.
 
 export const runtime = "nodejs";
-export const alt = "What's on in London tonight — PUBMAXXING";
+export const alt = "What's on in London tonight. PUBMAXXING";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

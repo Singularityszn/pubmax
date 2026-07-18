@@ -65,7 +65,7 @@ export default function PintPassport({
   } = data;
 
   const shareUrl = `/u/${encodeURIComponent(handle)}`;
-  const shareTitle = `${displayName}'s Pint Passport — PUBMAXXING`;
+  const shareTitle = `${displayName}'s Pint Passport. PUBMAXXING`;
   const shareText = buildPassportShareText({
     displayName,
     pubs,
@@ -100,8 +100,8 @@ export default function PintPassport({
         <div className="passportFirstRun">
           <p className="passportFirstRunLead">
             {isOwn
-              ? "Your passport is blank — for now."
-              : "This passport is blank — for now."}
+              ? "Your passport is blank, for now."
+              : "This passport is blank, for now."}
           </p>
           <p className="passportFirstRunCopy">
             {isOwn
@@ -173,7 +173,7 @@ export default function PintPassport({
             <li
               key={badge.id}
               className="passportBadge"
-              title={`${badge.label} — ${badge.description}`}
+              title={`${badge.label}: ${badge.description}`}
             >
               {badge.label}
             </li>

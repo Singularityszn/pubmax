@@ -31,8 +31,8 @@ export default function TonightBoard({
   if (entries.length === 0) {
     return (
       <p className="discoverEmpty" role="status">
-        No pints logged in the last 24h —{" "}
-        <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>be the first tonight</Link>.
+        No pints logged in the last 24h.{" "}
+        <Link href={cityAwareMapPath(DEFAULT_CITY_ID)}>Be the first tonight</Link>.
       </p>
     );
   }

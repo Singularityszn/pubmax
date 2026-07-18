@@ -339,7 +339,7 @@ export type SummaryDrop = {
 // so a Pint Drop override never reads as an authoritative live feed. Exported as
 // a plain constant (no new UI) — the integrator drops it in next to the price.
 export const COMMUNITY_PRICE_NOTE =
-  "Prices are community-updated — logged by drinkers, not a live feed.";
+  "Prices are community-updated, logged by drinkers, not a live feed.";
 
 // Shared relative-age core for freshness labels. Verb differs by layer:
 // community drops say "logged", sourced observations say "observed".

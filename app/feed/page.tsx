@@ -607,7 +607,7 @@ export default function FeedPage() {
         failOptimisticSpill(
           stored,
           clientRequestId,
-          "Retry details are no longer available — open the map and post it again.",
+          "Retry details are no longer available. Open the map and post it again.",
         ),
       );
       return;
@@ -642,7 +642,7 @@ export default function FeedPage() {
       const message =
         err instanceof Error && err.message.trim()
           ? err.message
-          : "Network or storage error — try again.";
+          : "Network or storage error. Try again.";
       writeLocalEntries(
         failOptimisticSpill(readOptimisticSpills(window.localStorage), clientRequestId, message),
       );
@@ -704,8 +704,8 @@ export default function FeedPage() {
       {pendingItems.length > 0 ? (
         <button type="button" className="feedNewPill" onClick={revealPending}>
           {pendingItems.length === 1
-            ? "1 new pint — tap to show"
-            : `${pendingItems.length} new pints — tap to show`}
+            ? "1 new pint. Tap to show"
+            : `${pendingItems.length} new pints. Tap to show`}
         </button>
       ) : null}
 
@@ -728,7 +728,7 @@ export default function FeedPage() {
           className="feedEmpty"
           eyebrow="Your crew"
           title="Your Friends feed is empty."
-          body="Follow people to fill your Friends feed — every pint they drop lands here. Find drinkers to follow on the map or over on Discover."
+          body="Follow people to fill your Friends feed. Every pint they drop lands here. Find drinkers to follow on the map or over on Discover."
           action={<Link href="/discover">Find people to follow</Link>}
         />
       ) : isEmpty ? (
@@ -736,7 +736,7 @@ export default function FeedPage() {
           className="feedEmpty"
           eyebrow="Quiet at the bar"
           title="No pints logged yet tonight."
-          body="Be the first to drop one — snap your pint, log the price, pass down a story. The feed fills up as London drinks."
+          body="Be the first to drop one. Snap your pint, log the price, pass down a story. The feed fills up as London drinks."
           action={<Link href="/map?log=1">Find a pub and drop a pint</Link>}
         />
       ) : (

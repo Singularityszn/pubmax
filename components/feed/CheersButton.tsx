@@ -146,9 +146,9 @@ export default function CheersButton({
         aria-pressed={view.mine}
         aria-label={
           view.count > 0
-            ? `Cheers, ${view.count}${view.mine ? " — you cheered this" : ""}`
+            ? `Cheers, ${view.count}${view.mine ? ". You cheered this" : ""}`
             : view.mine
-              ? "Cheers — you cheered this"
+              ? "Cheers. You cheered this"
               : "Cheers"
         }
         onClick={handleClick}

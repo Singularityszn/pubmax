@@ -56,7 +56,7 @@ export default function CrawlProgressSection({
         </button>
       ) : crawlDone ? (
         <p className="crawlProgressDone" role="status">
-          Crawl complete — {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
+          Crawl complete: {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
         </p>
       ) : (
         <>
@@ -78,8 +78,8 @@ export default function CrawlProgressSection({
           <p className="crawlCelebrationTitle">You walked it</p>
           <p className="crawlCelebrationCopy">
             {placeStoryBandId
-              ? "Place story complete — drop a memory, share the route, or stamp your passport."
-              : "Crawl complete — drop a memory, share the route, or stamp your passport."}
+              ? "Place story complete. Drop a memory, share the route, or stamp your passport."
+              : "Crawl complete. Drop a memory, share the route, or stamp your passport."}
           </p>
           <div className="crawlCelebrationActions">
             <Link className="crawlCelebrationLink" href={dropHref}>

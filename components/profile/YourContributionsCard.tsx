@@ -88,7 +88,7 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
       {!hasContributed ? (
         <p className="contribEmpty">
-          Log a price at a pub and your first drop lands here — that&apos;s a real
+          Log a price at a pub and your first drop lands here. That&apos;s a real
           data point on the London map, not a point in a game.
         </p>
       ) : (
@@ -135,7 +135,7 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
       {claimNudge ? (
         <a className="contribNudge" href="#account-settings">
-          Own your streak — claim your @handle
+          Own your streak. Claim your @handle
         </a>
       ) : null}
     </section>

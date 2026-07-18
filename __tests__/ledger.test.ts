@@ -173,7 +173,7 @@ describe("buildFamilyShareText", () => {
     });
     expect(share.title).toBe("The Ten Bells");
     expect(share.text).toBe(
-      "Grandad's local before the war.\n— from the family table at The Ten Bells",
+      "Grandad's local before the war.\nFrom the family table at The Ten Bells",
     );
     expect(share.url).toBe("/ledger/ten-bells");
   });

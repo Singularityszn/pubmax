@@ -717,7 +717,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
               />
               {recap ? (
                 <div className="nightCard__recapInvite">
-                  <p className="nightCard__recapLede">That&rsquo;s the night. Keep it as a private Memory — the route and any words you add, nothing posted.</p>
+                  <p className="nightCard__recapLede">That&rsquo;s the night. Keep it as a private Memory. The route and any words you add, nothing posted.</p>
                   <div className="nightCard__recapActions">
                     <button type="button" className="nightCard__endingLink" onClick={() => setRecapOpen((open) => !open)} aria-expanded={recapOpen}>
                       <BookOpen size={16} aria-hidden="true" /> {recapOpen ? "Hide recap" : "Review private recap"}
@@ -1011,7 +1011,7 @@ function LastTrainLine({ leaveByIso, stationName }: { leaveByIso: string; statio
             Leave by <strong>{clock}</strong> · {minsLeft}m left
           </>
         ) : (
-          <>Last train window has passed — check TfL</>
+          <>Last train window has passed. Check TfL</>
         )}
         {stationName ? <span className="nightCard__station"> · {stationName}</span> : null}
       </span>

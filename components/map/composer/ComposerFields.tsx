@@ -248,7 +248,7 @@ export function ComposerFields({
 
       <fieldset className="vibeTagField">
         <legend>The vibe</legend>
-        <div className="vibeTagRow" role="group" aria-label="Vibe tags — choose up to 4">
+        <div className="vibeTagRow" role="group" aria-label="Vibe tags: choose up to 4">
           {VIBE_TAGS.map((tag) => {
             const selected = vibeTags.includes(tag);
             return (

@@ -158,7 +158,7 @@ export function estimateBusyness(input: {
     isOpen,
     reportCount: 0,
     generatedAt: now.toISOString(),
-    explanation: "That's the usual pattern for this hour — we're not watching the door.",
+    explanation: "That's the usual pattern for this hour. We're not watching the door.",
   };
 }
 
@@ -199,7 +199,7 @@ export function canGroupGetIn(input: {
   return {
     fit: "likely",
     label: "Likely workable",
-    reason: `${groupSizeWords(groupSize)} should get in fine — but no promises on a ${dayName}. If it matters, book.`,
+    reason: `${groupSizeWords(groupSize)} should get in fine, but no promises on a ${dayName}. If it matters, book.`,
   };
 }
 

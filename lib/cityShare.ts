@@ -123,10 +123,10 @@ export function cityMapOgTitle(
   const id = resolveCityId(cityId);
   const city = getCity(id);
   const crawl = resolveCrawl(id, options);
-  if (crawl) return `${crawl.name} — ${city.displayName}`;
+  if (crawl) return `${crawl.name} · ${city.displayName}`;
   const bandId = normalizeBandId(options.band ?? undefined);
   const band = bandId ? bandByIdForCity(id, bandId) : undefined;
-  if (band) return `${band.title} — ${city.displayName}`;
+  if (band) return `${band.title} · ${city.displayName}`;
   return `${city.displayName} pub map`;
 }
 
@@ -184,5 +184,5 @@ export function cityMapOgAlt(
   cityId: CityId | string | null | undefined,
   options: CityMapShareOptions = {},
 ): string {
-  return `${cityMapOgTitle(cityId, options)} — PUBMAXXING`;
+  return `${cityMapOgTitle(cityId, options)} · PUBMAXXING`;
 }

@@ -77,7 +77,7 @@ export default function MessagesLink(): React.JSX.Element {
     };
   }, [handle, refresh, user]);
 
-  const label = unread > 0 ? `Messages — ${unread} unread` : "Messages";
+  const label = unread > 0 ? `Messages, ${unread} unread` : "Messages";
 
   return (
     <Link

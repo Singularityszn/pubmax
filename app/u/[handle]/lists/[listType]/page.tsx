@@ -66,7 +66,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const listCounts = await savedListFollowsStore().counts(ownerHandle, listType);
   const counts = { ...listCounts, savedPubs: pubs.length };
   const title = `@${ownerHandle}'s ${listType}`;
-  const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXXING — ${plural(
+  const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXXING. ${plural(
     counts.savedPubs,
     "pub",
   )}, ${plural(counts.followers, "follower")}.`;

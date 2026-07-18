@@ -25,7 +25,7 @@ import {
 // Grotesk fonts are read from public/fonts, both edge-incompatible.
 
 export const runtime = "nodejs";
-export const alt = "PUBMAXX — make tonight worth remembering: real pint prices across London and beyond";
+export const alt = "PUBMAXX. Make tonight worth remembering: real pint prices across London and beyond";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
@@ -143,7 +143,7 @@ export default async function Image() {
               maxWidth: 860,
             }}
           >
-            A price-aware nightlife map — find the right place for your mood, plan
+            A price-aware nightlife map. Find the right place for your mood, plan
             the crawl, and turn a spontaneous night into a story worth keeping.
           </div>
         </div>

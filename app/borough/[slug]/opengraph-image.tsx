@@ -27,7 +27,7 @@ import {
 // public/fonts the same way. Matches the sibling OG routes.
 
 export const runtime = "nodejs";
-export const alt = "The cheapest pints and best pubs in this London borough — PUBMAXX";
+export const alt = "The cheapest pints and best pubs in this London borough. PUBMAXX";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 

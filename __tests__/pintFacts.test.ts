@@ -107,7 +107,7 @@ describe("factBlockSentences", () => {
     expect(last).toContain("Prices last collected 16 July 2026");
     // Never claims a live feed — the only "live" mention is the "never a live
     // feed" disclaimer in the provenance stamp.
-    expect(last).toContain("never a live feed");
+    expect(last).toContain("Never a live feed");
     const joined = sentences.join(" ");
     expect(joined).not.toMatch(/\bprices are live\b|\blive prices\b/i);
   });

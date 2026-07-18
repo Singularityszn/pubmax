@@ -254,7 +254,7 @@ export default function CityPlaceStrip({
   return (
     <section
       className="cityPlaceStrip"
-      aria-label="Around now — CityMCP London context"
+      aria-label="Around now: CityMCP London context"
     >
       <div className="cityPlaceStripHead">
         <span className="cityPlaceStripEyebrow">Around now</span>

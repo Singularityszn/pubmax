@@ -70,7 +70,7 @@ export default async function PlanPage({ params }: Props) {
           <p>
             {state.stops.length} {state.stops.length === 1 ? "pub" : "pubs"}
             {endingLabel ? `, and you ${endingLabel}` : ""}. Your private recap lives in{" "}
-            <Link href="/u/you#night-memories">your Memories</Link> — nothing is shared until you approve it.
+            <Link href="/u/you#night-memories">your Memories</Link>. Nothing is shared until you approve it.
           </p>
         ) : (
           <p>{state.stops.length} {state.stops.length === 1 ? "pub" : "pubs"}, one link, zero account walls.</p>

@@ -35,13 +35,13 @@ export const routePacks: RoutePack[] = [
   pack(
     "old-london",
     "Old London",
-    "Heritage corridors — Victorian Soho snugs, riverside wharves, and the South Bank tide.",
+    "Heritage corridors. Victorian Soho snugs, riverside wharves, and the South Bank tide.",
     ["victorian-soho", "riverside-heritage", "bankside-riverside", "westminster-civic"],
   ),
   pack(
     "thames",
     "Thames-side",
-    "River walks and waterside taverns — Bankside to Limehouse along the tide.",
+    "River walks and waterside taverns. Bankside to Limehouse along the tide.",
     ["riverside-heritage", "bankside-riverside"],
   ),
   pack(
@@ -53,7 +53,7 @@ export const routePacks: RoutePack[] = [
   pack(
     "music-theatre",
     "Music & theatre",
-    "Market arches, Camden lock, and West End soft rounds — playhouse nights with a pint between acts.",
+    "Market arches, Camden lock, and West End soft rounds. Playhouse nights with a pint between acts.",
     ["camden-market-crawl", "borough-market-crawl", "leicester-mocktail-crawl"],
   ),
   pack(
@@ -65,7 +65,7 @@ export const routePacks: RoutePack[] = [
   pack(
     "coding-pint",
     "Coding pint",
-    "City-fringe rounds from Leadenhall to Liverpool Street — the after-work pint between the Square Mile and the East End.",
+    "City-fringe rounds from Leadenhall to Liverpool Street. The after-work pint between the Square Mile and the East End.",
     ["pint-park-view", "barbican-coding-pint"],
   ),
   pack(
@@ -77,7 +77,7 @@ export const routePacks: RoutePack[] = [
   pack(
     "late-train",
     "Late train",
-    "Tight central clusters near major stations — finish the round and still catch the last one.",
+    "Tight central clusters near major stations. Finish the round and still catch the last one.",
     ["victorian-soho", "leicester-mocktail-crawl", "soho-food-crawl"],
   ),
   pack(
@@ -89,13 +89,13 @@ export const routePacks: RoutePack[] = [
   pack(
     "civic-west",
     "Civic west",
-    "Whitehall bells to Leicester soft rounds and the old press strip — the west-of-centre civic corridor.",
+    "Whitehall bells to Leicester soft rounds and the old press strip. The west-of-centre civic corridor.",
     ["westminster-civic", "leicester-mocktail-crawl", "fleet-street-writers"],
   ),
   pack(
     "southwark-tide",
     "Southwark tide",
-    "Borough market arches to the South Bank path, then east with the tide — Southwark to Wapping energy.",
+    "Borough market arches to the South Bank path, then east with the tide. Southwark to Wapping energy.",
     ["borough-market-crawl", "bankside-riverside", "riverside-heritage"],
   ),
 ];

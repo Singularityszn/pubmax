@@ -620,7 +620,7 @@ function PlanComposerForm({
       <section className="planComposer__templates" aria-labelledby="plan-templates-title">
         <h2 id="plan-templates-title">Need a starting point?</h2>
         <p className="planComposer__templatesLead">
-          Optional occasion prompts fill the description — still editable.
+          Optional occasion prompts fill the description. Still editable.
         </p>
         <div className="planComposer__templateRow">
           {PLAN_TEMPLATES.map((template: PlanTemplate) => (

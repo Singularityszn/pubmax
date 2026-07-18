@@ -112,7 +112,7 @@ export function ClaimNightDialog({
         {(deviceBlocked || authBlocked) && (
           <p className="claimNightConflict" role="alert">
             {bothBlocked
-              ? "Both handles already belong to other accounts. Skip for now — we will not overwrite either one."
+              ? "Both handles already belong to other accounts. Skip for now. We will not overwrite either one."
               : deviceBlocked
                 ? `@${preview.deviceHandle} already belongs to another account. You can start fresh with @${preview.authHandle}, or skip.`
                 : `@${preview.authHandle} already belongs to another account. Keep @${preview.deviceHandle}, or skip.`}

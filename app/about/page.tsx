@@ -16,9 +16,9 @@ import "./about.css";
 // — no invented users, revenue, or growth metrics. The prose is the owner's own
 // narrative in brand voice; there are no fabricated third-party quotes.
 
-const PAGE_TITLE = "Our story — why PUBMAXX exists";
+const PAGE_TITLE = "Our story: why PUBMAXX exists";
 const PAGE_DESCRIPTION =
-  "After a hard day you want a cheap pint nearby, a couple of places, maybe to meet some people — without bouncing between Google Maps, other maps, and ChatGPT. PUBMAXX is one price-aware, story-led, map-first app for the whole night out.";
+  "After a hard day you want a cheap pint nearby, a couple of places, maybe to meet some people, without bouncing between Google Maps, other maps, and ChatGPT. PUBMAXX is one price-aware, story-led, map-first app for the whole night out.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "PUBMAXXING — every pint has a story",
+        alt: "PUBMAXXING: every pint has a story",
       },
     ],
   },
@@ -117,7 +117,7 @@ export default async function AboutPage() {
       url: "https://pubmaxxing.com",
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
-        "A price-aware, story-led, map-first pub-crawl planner for the UK. Real pint prices, cited heritage, and community Pint Drops — no ads, no paywalls.",
+        "A price-aware, story-led, map-first pub-crawl planner for the UK. Real pint prices, cited heritage, and community Pint Drops. No ads, no paywalls.",
       email: CONTACT_EMAIL,
       sameAs: ["https://x.com/karansznx"],
     },

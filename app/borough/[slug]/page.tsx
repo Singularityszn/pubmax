@@ -120,17 +120,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!name) {
     return {
-      title: "Borough — PUBMAXXING",
+      title: "Borough · PUBMAXXING",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `The cheapest pints and best pubs in ${name} — PUBMAXXING`;
+  const title = `The cheapest pints and best pubs in ${name} · PUBMAXXING`;
   const pubs = pubsInBorough(venues, slug);
   const cheapest = pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice;
   const description =
     typeof cheapest === "number"
-      ? `${pubs.length} pubs in ${name}, ranked cheapest-first — pints from ${formatPrice(
+      ? `${pubs.length} pubs in ${name}, ranked cheapest-first. Pints from ${formatPrice(
           cheapest,
         )}. Plan a crawl through the area on PUBMAXXING.`
       : `${pubs.length} pubs in ${name} on the map. Plan a crawl through the area on PUBMAXXING.`;
@@ -233,12 +233,12 @@ export default async function BoroughPage({ params }: PageProps) {
         <h1 className="boroughTitle">Pubs in {name}</h1>
         <p className="boroughDek">
           {pubs.length === 0 ? (
-            <>No pubs mapped in {name} just yet — the rest of London is on the map.</>
+            <>No pubs mapped in {name} just yet. The rest of London is on the map.</>
           ) : (
             <>
               {pubs.length} {pubs.length === 1 ? "pub" : "pubs"} in {name}, ranked
               cheapest pint first. This is how locals actually talk about a night
-              out — by the area — so here&rsquo;s the corner of the map that
+              out, by the area, so here&rsquo;s the corner of the map that
               belongs to {name}.
             </>
           )}
@@ -247,7 +247,7 @@ export default async function BoroughPage({ params }: PageProps) {
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
           <p className="boroughThinBanner" role="status">
             Only {pubs.length} pubs mapped in {name} so far. Every pin&rsquo;s a real
-            pub — we just haven&rsquo;t covered every street yet.
+            pub. We just haven&rsquo;t covered every street yet.
           </p>
         ) : null}
         <div className="boroughMapLinks">
@@ -266,7 +266,7 @@ export default async function BoroughPage({ params }: PageProps) {
         <EmptyState
           eyebrow="Nothing pinned here yet"
           title={`No pubs mapped in ${name} yet.`}
-          body="The rest of London is on the map already — this corner just hasn't been walked yet."
+          body="The rest of London is on the map already. This corner just hasn't been walked yet."
           action={<Link href="/borough">Browse other boroughs</Link>}
         />
       ) : (
@@ -324,7 +324,7 @@ export default async function BoroughPage({ params }: PageProps) {
           </h2>
           <p className="boroughSectionDek">
             {storyPubs.length} {storyPubs.length === 1 ? "pub" : "pubs"} here carry a heritage
-            note or a passed-down story — the ones worth a detour, not just a cheap pint.
+            note or a passed-down story, the ones worth a detour, not just a cheap pint.
           </p>
           <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
             {storyPubs.map((pub) => (
@@ -344,7 +344,7 @@ export default async function BoroughPage({ params }: PageProps) {
             Crawls through {name}
           </h2>
           <p className="boroughSectionDek">
-            A curated route with at least one stop here — plan the whole walk, not just this
+            A curated route with at least one stop here. Plan the whole walk, not just this
             borough&rsquo;s corner of it.
           </p>
           <ul className="boroughCrawlList" aria-label={`Curated crawls through ${name}`}>
@@ -428,7 +428,7 @@ export default async function BoroughPage({ params }: PageProps) {
       <FaqBlock
         items={faq}
         headingId="boroughFaqHeading"
-        title={`Pint prices in ${name} — questions`}
+        title={`Pint prices in ${name}: questions`}
       />
 
       {/* Internal cross-links (Wave S3.5): let crawlers walk borough → map →

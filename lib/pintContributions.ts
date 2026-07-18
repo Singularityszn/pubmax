@@ -169,7 +169,7 @@ export function summariseContributions(
 
 /** A short, honest streak label. Never celebratory about drinking — "mapping". */
 export function streakLabel(streak: ContributionStreak): string {
-  if (streak.current <= 0) return "No active streak — drop a price to start one";
+  if (streak.current <= 0) return "No active streak. Drop a price to start one";
   const unit = streak.current === 1 ? "day" : "days";
   return `${streak.current}-${unit} mapping streak`;
 }

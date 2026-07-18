@@ -15,18 +15,18 @@ import "./pint-index.css";
 const SITE_URL = "https://pubmaxxing.com";
 
 export const metadata: Metadata = {
-  title: "The London Pint Index — public data status · PUBMAXX",
+  title: "The London Pint Index: public data status · PUBMAXX",
   description: "The public London Pint Index, with explicit source, licence and observation-date validation. Unverified legacy prices are excluded.",
   alternates: { canonical: "/pint-index" },
   openGraph: {
-    title: "The London Pint Index — public data status",
+    title: "The London Pint Index: public data status",
     description: "A provenance-first London pint-price dataset. Only citable observations with explicit sources and dates are published.",
     type: "website",
     url: "/pint-index",
   },
   twitter: {
     card: "summary_large_image",
-    title: "The London Pint Index — public data status",
+    title: "The London Pint Index: public data status",
     description: "Only citable pint-price observations with explicit sources and dates are published.",
   },
 };
@@ -101,7 +101,7 @@ export default async function PintIndexPage() {
       <section className="pintIndexSection" aria-labelledby="zoneHeading">
         <h2 id="zoneHeading" className="pintIndexSectionTitle">The Zone pint index</h2>
         <p className="pintIndexNote">
-          A pint in Zone 1 costs more than Zone 3 — here is by how much. Each pub
+          A pint in Zone 1 costs more than Zone 3. Here is by how much. Each pub
           is placed in its <strong>nearest station&rsquo;s</strong> TfL fare zone
           (a documented approximation, not an area boundary), then we take the
           median of every zone&rsquo;s observed cheapest pint.

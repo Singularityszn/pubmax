@@ -87,7 +87,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const description =
     story.summary ||
-    `A London pub crawl — ${story.stops.length} stop${story.stops.length === 1 ? "" : "s"}${
+    `A London pub crawl. ${story.stops.length} stop${story.stops.length === 1 ? "" : "s"}${
       story.totalGbp > 0 ? `, ${formatGbp(story.totalGbp)} a round` : ""
     }.`;
 
@@ -98,7 +98,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       type: "article",
-      images: [{ url: cardUrl, width: 1200, height: 630, alt: `${title} — a London crawl` }],
+      images: [{ url: cardUrl, width: 1200, height: 630, alt: `${title}, a London crawl` }],
     },
     twitter: {
       card: "summary_large_image",

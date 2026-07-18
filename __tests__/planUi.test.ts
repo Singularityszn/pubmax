@@ -29,7 +29,7 @@ describe("planViewModel", () => {
 
   it("keeps the invite copy useful before anyone joins", () => {
     expect(shareCopyForPlan(state)).toBe(
-      "Thursday, sorted · 2 stops · starts 18:30 — open the link and tap I'm in.",
+      "Thursday, sorted · 2 stops · starts 18:30. Open the link and tap I'm in.",
     );
   });
 });

@@ -55,27 +55,27 @@ describe("cityMapOgTitle / cityMapOgDescription", () => {
 
   it("leads with cult band title/blurb when the band resolves", () => {
     expect(cityMapOgTitle("glasgow", { band: "subcrawl" })).toBe(
-      "Subcrawl — Clockwork Orange loop — Glasgow",
+      "Subcrawl: Clockwork Orange loop · Glasgow",
     );
     expect(cityMapOgDescription("glasgow", { band: "subcrawl" })).toMatch(
       /Subcrawl/i,
     );
 
     expect(cityMapOgTitle("oxford", { band: "freshers-first-night" })).toBe(
-      "Freshers first night — Oxford",
+      "Freshers first night · Oxford",
     );
     expect(
       cityMapOgDescription("oxford", { band: "freshers-first-night" }),
     ).toMatch(/Freshers/i);
 
     expect(cityMapOgTitle("liverpool", { band: "match-day-anfield" })).toBe(
-      "Match-day Anfield corridor — Liverpool",
+      "Match-day Anfield corridor · Liverpool",
     );
   });
 
   it("leads with curated crawl title when crawl resolves", () => {
     expect(cityMapOgTitle("london", { crawl: "victorian-soho" })).toBe(
-      "Victorian Soho — London",
+      "Victorian Soho · London",
     );
     expect(
       cityMapOgDescription("london", {
@@ -87,12 +87,12 @@ describe("cityMapOgTitle / cityMapOgDescription", () => {
     );
 
     expect(cityMapOgTitle("london", { crawl: "Victorian-Soho" })).toBe(
-      "Victorian Soho — London",
+      "Victorian Soho · London",
     );
 
     expect(
       cityMapOgTitle("glasgow", { crawl: "subcrawl-starter", band: "subcrawl" }),
-    ).toBe("Subcrawl starter — Glasgow");
+    ).toBe("Subcrawl starter · Glasgow");
     expect(
       cityMapOgDescription("glasgow", { crawl: "subcrawl-starter" }),
     ).toMatch(/^6-stop crawl: Subcrawl starter in Glasgow/);
@@ -107,7 +107,7 @@ describe("cityMapOgTitle / cityMapOgDescription", () => {
         crawl: "missing",
         band: "subcrawl",
       }),
-    ).toBe("Subcrawl — Clockwork Orange loop — Glasgow");
+    ).toBe("Subcrawl: Clockwork Orange loop · Glasgow");
   });
 
   it("ignores unknown bands and keeps city copy", () => {
@@ -135,10 +135,10 @@ describe("cityMapOgImageUrl", () => {
 describe("cityMapOgAlt / firstSearchParam / cult ids", () => {
   it("builds an alt string with PUBMAXXING", () => {
     expect(cityMapOgAlt("oxford", { band: "freshers-first-night" })).toBe(
-      "Freshers first night — Oxford — PUBMAXXING",
+      "Freshers first night · Oxford · PUBMAXXING",
     );
     expect(cityMapOgAlt("london", { crawl: "victorian-soho" })).toBe(
-      "Victorian Soho — London — PUBMAXXING",
+      "Victorian Soho · London · PUBMAXXING",
     );
   });
 

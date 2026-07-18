@@ -24,7 +24,7 @@ import {
 } from "@/lib/tfl";
 
 export const METROLINK_PROVENANCE =
-  "Typical Metrolink last service (static) — not a live TfGM feed. Check boards before you leave.";
+  "Typical Metrolink last service (static), not a live TfGM feed. Check boards before you leave.";
 
 export const METROLINK_MODE_LABEL = "tram";
 
@@ -233,7 +233,7 @@ export function computeMetrolinkLastRide(
       now: nowInput ?? new Date(),
     });
     return {
-      error: "No Metrolink stops in our map for this area — check before you head out.",
+      error: "No Metrolink stops in our map for this area. Check before you head out.",
       station: { id: "", name: "Nearest tram stop", distanceM: 0 },
       trains: [],
       departures: [],

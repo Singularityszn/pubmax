@@ -104,7 +104,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       if (!res.ok) {
         setSaveError(
           res.status === 429
-            ? "You're saving crawls too fast — try again in a minute."
+            ? "You're saving crawls too fast. Try again in a minute."
             : "Couldn't save a permanent link right now.",
         );
         return;

@@ -70,7 +70,7 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
           </>
         ) : (
           <>
-            Claim a handle on your profile to start collecting borough chapters — session-only
+            Claim a handle on your profile to start collecting borough chapters. Session-only
             for now, no home address stored.
           </>
         )}

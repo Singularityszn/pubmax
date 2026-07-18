@@ -128,11 +128,11 @@ export type WeeklyDigest = {
 //    orders guardian" voice). NOT fabricated data; clearly framed as a tip. ────
 
 export const GUARDIAN_TIPS: readonly string[] = [
-  "Last orders is usually 20 minutes before close — check the last train home before that final round, not after.",
+  "Last orders is usually 20 minutes before close. Check the last train home before that final round, not after.",
   "A logged pint price helps the whole city drink cheaper. If a pub near you has no price yet, be the first to drop one.",
-  "Weeknights are quietly the best value — many happy hours run Monday to Thursday and vanish by Friday.",
+  "Weeknights are quietly the best value. Many happy hours run Monday to Thursday and vanish by Friday.",
   "Cheapest isn't just Wetherspoons: independents on the outer boroughs often undercut the chains. Check your area.",
-  "Heading out on the night tube? Zones 1–2 keep running late on Fridays and Saturdays — plan the last leg first.",
+  "Heading out on the night tube? Zones 1–2 keep running late on Fridays and Saturdays. Plan the last leg first.",
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -276,7 +276,7 @@ function buildSubject(
   if (headline) {
     return `Your week in pints: ${formatGbp(headline.priceGbp)} at ${headline.venueName}, ${where}`;
   }
-  return `Your week in pints — ${where}`;
+  return `Your week in pints, ${where}`;
 }
 
 // ── Recipient resolution + opt-in gating (pure) ──────────────────────────────
@@ -408,7 +408,7 @@ export function renderWeeklyDigestHtml(digest: WeeklyDigest): string {
     const noun = s.dropsLogged === 1 ? "price was" : "prices were";
     rows.push(sectionBlock(
       "The data moat grew",
-      `<p style="margin:0;font-size:15px;color:${BRAND.ink};"><strong>${s.dropsLogged}</strong> new pint ${noun} logged ${esc(digest.scopeLabel)} this week — that's the map getting more honest, one drop at a time.</p>`,
+      `<p style="margin:0;font-size:15px;color:${BRAND.ink};"><strong>${s.dropsLogged}</strong> new pint ${noun} logged ${esc(digest.scopeLabel)} this week. That's the map getting more honest, one drop at a time.</p>`,
     ));
   }
 
@@ -428,7 +428,7 @@ export function renderWeeklyDigestHtml(digest: WeeklyDigest): string {
   ));
 
   const empty = digest.isEmpty
-    ? `<p style="margin:0 0 20px;font-size:15px;color:${BRAND.inkSoft};">Quiet week in your corner of London — no new prices or events near you. Here's one thing worth remembering anyway.</p>`
+    ? `<p style="margin:0 0 20px;font-size:15px;color:${BRAND.inkSoft};">Quiet week in your corner of London. No new prices or events near you. Here's one thing worth remembering anyway.</p>`
     : "";
 
   return `<!-- PUBMAXX weekly digest — email-safe, inline styles only -->
@@ -445,7 +445,7 @@ ${empty}${rows.join("\n")}
 </td></tr>
 <tr><td style="padding:16px 24px 24px;border-top:1px solid ${BRAND.line};">
   <p style="margin:0;font-size:12px;color:${BRAND.muted};line-height:1.5;">
-    You're getting this because you asked us to keep you posted. Prices and events are shown only when real, sourced data exists — we never invent a pint.
+    You're getting this because you asked us to keep you posted. Prices and events are shown only when real, sourced data exists. We never invent a pint.
     <br><a href="{{unsubscribe_url}}" style="color:${BRAND.muted};text-decoration:underline;">Unsubscribe</a> any time.
   </p>
 </td></tr>
@@ -468,13 +468,13 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
   const now = new Date(digest.windowEnd);
   const s = digest.sections;
   const lines: string[] = [];
-  lines.push("PUBMAXX — Your London week in pints");
+  lines.push("PUBMAXX: Your London week in pints");
   lines.push(digest.scopeLabel);
   lines.push("");
 
   if (digest.isEmpty) {
     lines.push(
-      "Quiet week in your corner of London — no new prices or events near you. Here's one thing worth remembering anyway.",
+      "Quiet week in your corner of London. No new prices or events near you. Here's one thing worth remembering anyway.",
     );
     lines.push("");
   }
@@ -485,7 +485,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
       const where = line.borough ? ` · ${line.borough}` : "";
       const fresh = freshnessLabel(line.observedAt, now);
       const src = line.source ? ` (${line.source.label}: ${line.source.url})` : "";
-      lines.push(`  ${formatGbp(line.priceGbp)}  ${line.venueName}${where} — ${fresh}${src}`);
+      lines.push(`  ${formatGbp(line.priceGbp)}  ${line.venueName}${where}, ${fresh}${src}`);
     }
     lines.push("");
   }
@@ -510,7 +510,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
   lines.push("");
   lines.push("—");
   lines.push(
-    "You're getting this because you asked us to keep you posted. We only show real, sourced data — we never invent a pint.",
+    "You're getting this because you asked us to keep you posted. We only show real, sourced data. We never invent a pint.",
   );
   lines.push("Unsubscribe: {{unsubscribe_url}}");
   return lines.join("\n");

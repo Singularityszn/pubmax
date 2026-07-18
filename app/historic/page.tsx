@@ -22,9 +22,9 @@ import "./historic.css";
 // the server-rendered "Oldest pubs by borough" rail (Wave S3.4) cross-links each
 // borough's cited heritage section so crawlers can walk the graph.
 const HISTORIC_TITLE =
-  "London's Historic Pubs — cited from Wikipedia & Wikidata · PUBMAXXING";
+  "London's Historic Pubs: cited from Wikipedia & Wikidata · PUBMAXXING";
 const HISTORIC_DESCRIPTION =
-  "A browsable index of London's notable, historic pubs — dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Never invented. Filter by borough, jump straight onto the map.";
+  "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Never invented. Filter by borough, jump straight onto the map.";
 
 export const metadata: Metadata = {
   title: HISTORIC_TITLE,

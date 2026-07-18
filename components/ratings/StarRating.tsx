@@ -155,8 +155,8 @@ export default function StarRating({
       aria-valuenow={shown ?? RATING_MIN}
       aria-valuetext={
         shown === null
-          ? "Not rated yet — use arrow keys to pick, Enter to save"
-          : `${shown} out of 5 stars${draft !== null ? " — press Enter to save" : ""}`
+          ? "Not rated yet. Use arrow keys to pick, Enter to save"
+          : `${shown} out of 5 stars${draft !== null ? ". Press Enter to save" : ""}`
       }
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}

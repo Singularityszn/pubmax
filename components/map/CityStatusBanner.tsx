@@ -117,7 +117,7 @@ function summariseTubeLines(lines: TubeLine[] | undefined): string | null {
     .slice(0, 3);
   if (affected.length === 0) return null;
   const names = affected.map((l) => `${l.line}: ${l.status}`).join(" · ");
-  return `TfL — ${names}`;
+  return `TfL: ${names}`;
 }
 
 /**
@@ -354,7 +354,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
           id="cityStatusSignalSheet"
           className="cityStatusSignalSheet"
           role="region"
-          aria-label="Tonight in London — all signals"
+          aria-label="Tonight in London: all signals"
         >
           <div className="cityStatusSignalSheetHead">
             <strong>London live</strong>

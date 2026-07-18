@@ -266,7 +266,7 @@ export function buildFamilyShareText(params: {
   const note = params.note.trim();
   const title = venueName;
   const text = note
-    ? `${note}\n— from the family table at ${venueName}`
+    ? `${note}\nFrom the family table at ${venueName}`
     : `The family table at ${venueName}`;
   const subject = `The family table at ${venueName}`;
   const body = `${text}\n\n${url}`;

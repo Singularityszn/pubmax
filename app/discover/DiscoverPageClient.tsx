@@ -121,7 +121,7 @@ function buildEditorial(): EditorialCardData[] {
       id: "golden-days",
       eyebrow: "Golden days",
       title: "The old guard, still standing",
-      dek: "Victorian gin palaces, listed snugs, and the bar Dickens actually leaned on — a walk through the London that refuses to close.",
+      dek: "Victorian gin palaces, listed snugs, and the bar Dickens actually leaned on. A walk through the London that refuses to close.",
       href: crawlMapHref("victorian-soho", DEFAULT_CITY_ID),
       cta: "Walk the heritage route",
     },
@@ -129,7 +129,7 @@ function buildEditorial(): EditorialCardData[] {
       id: "coding-pint",
       eyebrow: "Coding pint",
       title: "A quiet table and a slow pint",
-      dek: "Sockets, decent Wi-Fi, and a late-afternoon lull — the pubs that double as the best co-working room in the city.",
+      dek: "Sockets, decent Wi-Fi, and a late-afternoon lull. The pubs that double as the best co-working room in the city.",
       href: crawlMapHref("barbican-coding-pint", DEFAULT_CITY_ID),
       cta: "Find a working pint",
     },
@@ -137,7 +137,7 @@ function buildEditorial(): EditorialCardData[] {
       id: "then-vs-now",
       eyebrow: "Then vs now",
       title: "What a pint used to cost",
-      dek: "The cheapest taps in town, ranked. Proof the good £4 pint isn't extinct — you just have to know where to walk.",
+      dek: "The cheapest taps in town, ranked. Proof the good £4 pint isn't extinct. You just have to know where to walk.",
       href: packMapHref("cheap-chaos", DEFAULT_CITY_ID),
       cta: "Build a cheap crawl",
     },
@@ -371,7 +371,7 @@ export default function DiscoverPageClient({
         <h1 className="discoverTitle">There is a story behind every pint.</h1>
         <p className="discoverLede">
           Pick your poison, your nectar, or your 0.0. PUBMAXXING follows every
-          kind of round — beer, wine, gin, vodka, rum, cocktails, shots, and the
+          kind of round. Beer, wine, gin, vodka, rum, cocktails, shots, and the
           soft drinks that keep the night moving.
         </p>
         {/* Hub rule (docs/MOBILE_FLOW_SPEC.md §1): Tonight, Feed, and Crawls have no tab
@@ -397,7 +397,7 @@ export default function DiscoverPageClient({
           Choose your drink
         </h2>
         <p className="discoverSectionDek">
-          Every drink has a colour. Pick the family you want in hand — a cheap
+          Every drink has a colour. Pick the family you want in hand. A cheap
           pint, a house red, a gin and tonic, or the low/no option for one more
           stop before the last train.
         </p>
@@ -443,7 +443,7 @@ export default function DiscoverPageClient({
             </h3>
           </div>
           <p className="discoverBrandDek">
-            Open a drink family on the map, or jump by brand — beer and wine
+            Open a drink family on the map, or jump by brand. Beer and wine
             have the best coverage today.
           </p>
           <ul className="discoverBrandChips">
@@ -468,7 +468,7 @@ export default function DiscoverPageClient({
           Hungry?
         </h2>
         <p className="discoverSectionDek">
-          Pubs that serve food — light cuisine tags only, not full menus. Open
+          Pubs that serve food. Light cuisine tags only, not full menus. Open
           the map already filtered, or jump to a plate style.
         </p>
         <div className="discoverHungryRow">
@@ -495,12 +495,12 @@ export default function DiscoverPageClient({
           UK city energy
         </h2>
         <p className="discoverSectionDek">
-          Cult rivalry without fake price catalogues — cities ranked by demo
+          Cult rivalry without fake price catalogues. Cities ranked by demo
           Pint Drops, curated crawl packs, and venue coverage. Open a map and
           add to the score.
         </p>
         <p className="discoverSectionNote">
-          Demo seeds only where they exist — no invented organics.
+          Demo seeds only where they exist. No invented organics.
         </p>
         <CityRivalryTable entries={rivalry} />
       </section>
@@ -514,7 +514,7 @@ export default function DiscoverPageClient({
           Cheapest Pints Tonight
         </h2>
         <p className="discoverSectionDek">
-          Live from the community — the cheapest pints logged in the last 24
+          Live from the community. The cheapest pints logged in the last 24
           hours, cheapest first. Community-reported, not gospel.
         </p>
         {status === "idle" ? (
@@ -559,7 +559,7 @@ export default function DiscoverPageClient({
         </h2>
         <p className="discoverSectionDek">
           Ranked by the community&rsquo;s stars over the last thirty days. A pub
-          needs ten ratings to make the list — honest scores, no seeded numbers.
+          needs ten ratings to make the list. Honest scores, no seeded numbers.
         </p>
         {status === "idle" ? (
           <p className="discoverEmpty" role="status">
@@ -575,7 +575,7 @@ export default function DiscoverPageClient({
           Cheap Pint Leaderboard
         </h2>
         <p className="discoverSectionDek">
-          Dataset cheapest-on-record taps — not a live tonight feed. Open a pub
+          Dataset cheapest-on-record taps. Not a live tonight feed. Open a pub
           for sourced or community freshness.
         </p>
         {status === "idle" ? (
@@ -603,7 +603,7 @@ export default function DiscoverPageClient({
         </h2>
         <p className="discoverSectionDek">
           Today&rsquo;s community-reported pint against the baseline price on
-          record — the biggest movers first. Community numbers, not gospel.
+          record. The biggest movers first. Community numbers, not gospel.
         </p>
         <p className="discoverSectionNote">
           Then = dataset baseline. Now = latest community report.
@@ -656,11 +656,11 @@ export default function DiscoverPageClient({
             Historic London
           </h2>
           <p className="discoverSectionDek">
-            Themed heritage routes built from the pubs&rsquo; cited histories —
-            oldest first, the riverside taverns, and the highly listed classics.
+            Themed heritage routes built from the pubs&rsquo; cited histories.
+            Oldest first, the riverside taverns, and the highly listed classics.
           </p>
           <p className="discoverSectionNote">
-            Cited from Wikipedia — never invented.
+            Cited from Wikipedia. Never invented.
           </p>
           <div className="editorialGrid">
             {heritageCards.map((card) => (

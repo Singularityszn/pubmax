@@ -25,7 +25,7 @@ import {
 } from "@/lib/tfl";
 
 export const SPT_SUBWAY_PROVENANCE =
-  "Typical SPT Subway last service (static, ~23:00 close; Fri/Sat often similar) — not a live SPT feed. Check boards before you leave.";
+  "Typical SPT Subway last service (static, ~23:00 close; Fri/Sat often similar). Not a live SPT feed. Check boards before you leave.";
 
 export const SPT_SUBWAY_MODE_LABEL = "subway";
 
@@ -237,7 +237,7 @@ export function computeSptSubwayLastRide(
       now: nowInput ?? new Date(),
     });
     return {
-      error: "No Subway stops in our map for this area — check before you head out.",
+      error: "No Subway stops in our map for this area. Check before you head out.",
       station: { id: "", name: "Nearest subway stop", distanceM: 0 },
       trains: [],
       departures: [],

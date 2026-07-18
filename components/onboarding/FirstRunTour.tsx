@@ -52,7 +52,7 @@ const STEPS: readonly TourStep[] = [
   {
     eyebrow: "Welcome",
     title: "PUBMAXXING",
-    body: "Real pint prices on a live map — and the stories behind every round.",
+    body: "Real pint prices on a live map, and the stories behind every round.",
     target: null,
   },
   {
