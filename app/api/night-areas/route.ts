@@ -1,4 +1,4 @@
-import { jsonNoStore } from "@/lib/apiResponses";
+import { jsonCached } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { parseCityId } from "@/lib/cities";
 import { getNightAreasForCity, isNightAreaRouteReady } from "@/lib/nightAreas";
@@ -8,7 +8,9 @@ export async function GET(request: Request): Promise<Response> {
   if (!cityId) return publicApiError("city is required and must be valid.", "CITY_INVALID", 400);
   const areas = getNightAreasForCity(cityId);
   if (areas.length === 0) return publicApiError("Night Areas are not available for this city yet.", "NIGHT_AREAS_NOT_FOUND", 404);
-  return jsonNoStore({
+  // Night Areas are static per city (bundled config), so the success body is a
+  // pure function of ?city= and the deploy — cacheable at the edge. Was no-store.
+  return jsonCached({
     cityId,
     areas: areas.map((area) => ({ ...area, routeReady: isNightAreaRouteReady(area) })),
   });

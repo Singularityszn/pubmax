@@ -1,4 +1,4 @@
-import { jsonNoStore } from "@/lib/apiResponses";
+import { jsonCached } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import {
   getLateFoodForArea,
@@ -80,5 +80,8 @@ export async function GET(request: Request): Promise<Response> {
       ...(terminals.length === 0 ? ["eligible_late_food_options"] : []),
     ],
   };
-  return jsonNoStore(body);
+  // Curated late-food terminals are bundled static data; the body is a pure
+  // function of the query (area/tags/at/from) and the deploy, so the CDN can
+  // hold each variant. Was no-store, which hit a function on every request.
+  return jsonCached(body);
 }

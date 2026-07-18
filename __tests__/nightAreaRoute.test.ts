@@ -10,7 +10,9 @@ describe("GET /api/night-areas", () => {
     try {
       const response = await LIST(new Request("http://localhost/api/night-areas?city=london"));
       expect(response.status).toBe(200);
-      expect(response.headers.get("cache-control")).toBe("no-store");
+      // Static per-city catalogue → CDN-cacheable (was no-store).
+      expect(response.headers.get("cache-control")).toContain("s-maxage=3600");
+      expect(response.headers.get("cache-control")).toContain("stale-while-revalidate");
 
       const body = await response.json();
       expect(body).toMatchObject({ cityId: "london" });
