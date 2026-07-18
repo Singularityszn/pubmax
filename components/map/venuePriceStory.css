@@ -118,7 +118,7 @@
 }
 
 .vpsBarFillNow {
-  background: var(--brass);
+  background: var(--accent-price);
 }
 
 .vpsBarValue {
@@ -173,7 +173,7 @@
 }
 
 .vpsInflationLine .vpsToday {
-  color: var(--brass);
+  color: var(--accent-price-ink);
 }
 
 .vpsInflationMeta {
@@ -214,9 +214,9 @@
   gap: 6px;
   min-height: 34px;
   padding: 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--accent-action) 34%, var(--line));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+  background: color-mix(in srgb, var(--accent-action) 7%, var(--panel-raised));
   color: var(--ink);
   font: inherit;
   font-size: 0.8rem;
@@ -230,14 +230,14 @@
 }
 
 .vpsConfirmBtn:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--accent-action);
   outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .vpsConfirmBtn:hover {
-    border-color: var(--brass);
-    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+    border-color: var(--accent-action);
+    background: color-mix(in srgb, var(--accent-action) 12%, var(--panel-raised));
   }
 }
 
