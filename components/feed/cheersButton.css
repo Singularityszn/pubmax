@@ -225,7 +225,7 @@
   padding: 6px 12px;
   max-width: 36ch;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--brass);
   font-size: 13px;

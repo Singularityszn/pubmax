@@ -192,7 +192,7 @@
 .planCollab__proposals small,
 .planCollab__status { color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
 .planCollab__evidenceNote { margin: 0; color: var(--color-caution); font-size: 0.74rem; line-height: 1.45; }
-.planCollab__blocked { padding: 9px 10px; border-radius: 10px; background: color-mix(in srgb, var(--color-caution) 10%, transparent); color: var(--ink-soft); font-size: 0.74rem; }
+.planCollab__blocked { padding: 9px 10px; border-radius: var(--radius); background: color-mix(in srgb, var(--color-caution) 10%, transparent); color: var(--ink-soft); font-size: 0.74rem; }
 .planCollab__blocked ul { margin: 5px 0 0; padding-left: 18px; }
 .planCollab__actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .planCollab__actions button[aria-pressed="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 28%, transparent); }
@@ -334,7 +334,7 @@
   width: min(210px, 72%);
   height: 13px;
   margin-top: 7px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background:
     linear-gradient(100deg,
       color-mix(in srgb, var(--line) 55%, transparent) 30%,

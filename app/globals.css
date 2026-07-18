@@ -21,7 +21,7 @@
   --line-soft: #ece9eb;
   --paper: #faf8f5;
   --panel: #f5f2ef;
-  --panel-raised: #fffdfb;
+  --panel-raised: #fffdf9; /* D4: candle-warm off-white — raised cards stay in the paper tonal family (never pure #fff) */
   --panel-overlay: #ffffff;
   --ink-deep: #0b0b0d;
 
@@ -122,11 +122,12 @@
   --space-10: 40px;
   --space-12: 48px;
 
-  /* — Radius: existing --radius/--radius-sm untouched; --radius-lg + --radius-pill
-       added for the scale to be complete (drawers/sheets already use ad-hoc
-       18px/999px — alias them here for future use). */
-  --radius: 10px;
-  --radius-sm: 7px;
+  /* — Radius: D6 commits to the crisp/engineered register — --radius 10→8,
+       --radius-sm 7→6 (Resy 4px / Linear 2px precision over the mushy middle).
+       --radius-lg 18px (sheets/drawers) and --radius-pill (CTAs) hold their
+       geometry: pills keep the Citymapper "Go" confidence, sheets stay soft. */
+  --radius: 8px;
+  --radius-sm: 6px;
   --radius-lg: 18px;
   --radius-pill: 999px;
 
@@ -1086,9 +1087,14 @@ input[type="range"] {
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  /* Louder than Drinks — primary Plan tonight CTA in map chrome. */
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 32%, transparent);
+  /* Louder than Drinks — primary Plan tonight CTA in map chrome.
+     D3: layered micro-shadow stack (Linear's crafted-button depth). */
+  box-shadow: var(--shadow-btn);
   box-sizing: border-box;
+}
+
+.planBtn:hover {
+  box-shadow: var(--shadow-btn-hover);
 }
 
 .planBtn.active {
@@ -4981,4 +4987,39 @@ html[data-legacy="1"] {
 
 html[data-theme="dark"][data-legacy="1"] {
   --cat-on-fill: var(--ink-deep);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Design pass D3 — layered micro-shadow button depth (APPEND-ONLY)
+   ---------------------------------------------------------------------------
+   Linear's crafted-button tell: depth from a STACK of faint micro-shadows, not
+   one blurry drop. --shadow-btn is the resting stack for primary action
+   surfaces (.planBtn family); --shadow-btn-hover deepens it a hair on hover.
+   Both are tuned per theme — light keeps a warm brass glow as the bottom layer
+   so the coral CTA still reads lifted off candle paper; dark uses a TIGHTER,
+   DARKER black-based stack per #328's neutral elevation ladder (the amber CTA
+   sits over near-black, so the contact layers are near-opaque black, not glow).
+   New tokens only; nothing above is modified. Announced to token-lane (#328).
+   The pressed state keeps the existing scale-down press (see the reduced-motion
+   press block) — the stack visually collapses as the surface sinks under it. */
+:root {
+  --shadow-btn:
+    0 1px 2px rgba(60, 30, 20, 0.10),
+    0 3px 6px rgba(255, 90, 95, 0.14),
+    0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+  --shadow-btn-hover:
+    0 1px 2px rgba(60, 30, 20, 0.12),
+    0 4px 8px rgba(255, 90, 95, 0.18),
+    0 10px 24px color-mix(in srgb, var(--brass) 28%, transparent);
+}
+
+html[data-theme="dark"] {
+  --shadow-btn:
+    0 1px 1px rgba(0, 0, 0, 0.50),
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 6px 14px color-mix(in srgb, var(--brass) 22%, transparent);
+  --shadow-btn-hover:
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 3px 6px rgba(0, 0, 0, 0.50),
+    0 8px 18px color-mix(in srgb, var(--brass) 28%, transparent);
 }

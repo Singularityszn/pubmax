@@ -104,7 +104,7 @@
 
 .faqItem {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--panel);
   overflow: hidden;
 }

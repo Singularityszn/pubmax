@@ -44,7 +44,7 @@
 .activityItem {
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--panel);
   font-size: 14px;
   line-height: 1.5;

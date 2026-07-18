@@ -232,8 +232,12 @@ html[data-theme="dark"] .mobileTabList {
    --brass is already amber in dark; this pins the gradient to --night-amber. */
 html[data-theme="dark"] .planBtn {
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--brass) 24%, transparent);
+  box-shadow: var(--shadow-btn); /* D3: tighter, darker layered stack (dark tokens) */
   color: var(--color-on-accent);
+}
+
+html[data-theme="dark"] .planBtn:hover {
+  box-shadow: var(--shadow-btn-hover);
 }
 
 html[data-theme="dark"] .planBtn.active {
