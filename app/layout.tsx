@@ -162,6 +162,23 @@ export default async function RootLayout({
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
     >
       <head>
+        {/* Perf (mobile map budget): the WebGL basemap streams its vector tiles,
+            glyphs and sprite from tiles.openfreemap.org (see
+            components/map/canvas/tokens.ts). That cross-origin handshake
+            (DNS + TCP + TLS ≈ 1 RTT each on 4G) otherwise doesn't begin until
+            MapLibre boots AFTER the ~4 MB map chunk parses — serialising the two
+            slowest things on the critical path. Opening the connection during
+            initial HTML parse lets the tile fetch fire the instant the style
+            loads, shaving that round-trip off first-tile-paint. Cheap and
+            harmless on non-map routes (browsers drop an unused preconnect after
+            ~10s); dns-prefetch is the fallback for engines that ignore
+            preconnect. crossOrigin is required — tile/glyph requests are CORS. */}
+        <link
+          rel="preconnect"
+          href="https://tiles.openfreemap.org"
+          crossOrigin="anonymous"
+        />
+        <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
         {/* Set theme before paint to avoid a flash of the wrong theme. Served
             as a static file (public/theme-init.js) rather than inline so it is
             covered by CSP `script-src 'self'` with no per-build hash. It is a

@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
@@ -27,30 +28,70 @@ import { Sheet } from "@/components/ui/sheet";
 import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
 import { SearchField } from "@/components/ui/search-field";
 import { Button } from "@/components/ui/button";
-import { MobilePlanActivation, type GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
+import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
+const MobilePlanActivation = dynamic(
+  () =>
+    import("@/components/plan/MobilePlanActivation").then(
+      (m) => m.MobilePlanActivation,
+    ),
+  { ssr: false },
+);
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MapLayersControl from "@/components/map/MapLayersControl";
-import ControlRail from "@/components/map/ControlRail";
+// Perf (mobile map budget): the planner rail/route panel, venue inspector,
+// mobile plan activation, and the desktop-only map chrome below are NOT on the
+// first mobile map paint — the planner and inspector only mount after a user
+// opens them (planningOpen / detailOpen), and the desktop chrome never mounts
+// on a phone viewport at all. Statically importing them fused their JS into the
+// eager map chunk that must parse before the WebGL canvas can mount. Loading
+// them via next/dynamic (ssr:false — the whole PubMap tree is already client
+// only) splits each into its own lazy chunk fetched on demand, so a cold mobile
+// /map load ships materially less JS to parse before first tile paint.
+const ControlRail = dynamic(() => import("@/components/map/ControlRail"), {
+  ssr: false,
+});
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
 import { landmarksForCity } from "@/lib/cityLandmarks";
 import { storyBandsForCity, bandByIdForCity } from "@/lib/cityStoryBands";
-import RoutePanel from "@/components/map/RoutePanel";
+const RoutePanel = dynamic(() => import("@/components/map/RoutePanel"), {
+  ssr: false,
+});
 import ActiveRoundChip from "@/components/map/ActiveRoundChip";
-import VenueInspector, { type TabKey } from "@/components/map/VenueInspector";
+import type { TabKey } from "@/components/map/VenueInspector";
+const VenueInspector = dynamic(
+  () => import("@/components/map/VenueInspector"),
+  { ssr: false },
+);
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
-import MapToolbar from "@/components/map/MapToolbar";
-import MapPriceControl from "@/components/map/MapPriceControl";
-import CitySuggestBanner from "@/components/map/CitySuggestBanner";
-import CityStatusBanner from "@/components/map/CityStatusBanner";
+const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
+  ssr: false,
+});
+const MapPriceControl = dynamic(
+  () => import("@/components/map/MapPriceControl"),
+  { ssr: false },
+);
+const CitySuggestBanner = dynamic(
+  () => import("@/components/map/CitySuggestBanner"),
+  { ssr: false },
+);
+const CityStatusBanner = dynamic(
+  () => import("@/components/map/CityStatusBanner"),
+  { ssr: false },
+);
 import { useCrawlJourneys } from "@/components/map/useCrawlJourneys";
 import { useTonightOpportunities } from "@/components/map/useTonightOpportunities";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
-import TonightLane from "@/components/map/TonightLane";
+const TonightLane = dynamic(() => import("@/components/map/TonightLane"), {
+  ssr: false,
+});
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
-import MapConciergeAsk from "@/components/map/MapConciergeAsk";
+const MapConciergeAsk = dynamic(
+  () => import("@/components/map/MapConciergeAsk"),
+  { ssr: false },
+);
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
@@ -64,7 +105,13 @@ import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
-import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
+const LogIntentFallback = dynamic(
+  () =>
+    import("@/components/map/pubmap/LogIntentFallback").then(
+      (m) => m.LogIntentFallback,
+    ),
+  { ssr: false },
+);
 import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
