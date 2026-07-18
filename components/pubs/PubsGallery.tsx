@@ -351,7 +351,7 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
       ) : null}
 
       {visible.length === 0 ? (
-        <p className="pubsEmpty">No scraped pubs in this filter yet.</p>
+        <p className="pubsEmpty">No pubs match that filter yet.</p>
       ) : null}
     </div>
   );

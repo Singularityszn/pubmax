@@ -14,7 +14,7 @@ import "./share.css";
 // pub-ephemera artifact rather than a generic social widget. Reduced-motion is
 // respected in CSS; every control has a visible focus ring and an aria-label.
 //
-// React 19 hygiene (react-hooks/set-state-in-effect is an ERROR): the "Copied!"
+// React 19 hygiene (react-hooks/set-state-in-effect is an ERROR): the "Copied"
 // confirmation is set in the click handler and reset from a setTimeout callback
 // — never from an effect body. The pending timeout id lives in a ref so a fast
 // second click can clear the previous timer without any effect.
@@ -189,13 +189,13 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
             <XMark />
           </a>
 
-          {/* Copy link — confirms with "Copied!" for a beat, then quietly resets. */}
+          {/* Copy link — confirms with "Copied" for a beat, then quietly resets. */}
           <button
             type="button"
             className="shareBar__btn"
             onClick={handleCopy}
             aria-label={copied ? "Link copied" : "Copy link"}
-            title={copied ? "Copied!" : "Copy link"}
+            title={copied ? "Copied" : "Copy link"}
           >
             {copied ? <CheckMark /> : <LinkMark />}
           </button>
@@ -204,7 +204,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
 
       {/* Polite live confirmation for screen readers when a link is copied. */}
       <span className="shareBar__confirm" role="status" aria-live="polite">
-        {copied ? "Copied!" : ""}
+        {copied ? "Copied" : ""}
       </span>
     </div>
   );

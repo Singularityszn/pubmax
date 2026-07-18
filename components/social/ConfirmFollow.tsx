@@ -99,7 +99,7 @@ export default function ConfirmFollow({ targetHandle }: { targetHandle: string }
         <p className="confirmFollowEyebrow">Your lot</p>
         <h1 className="confirmFollowTitle">Share your link</h1>
         <p className="confirmFollowBody">
-          This is your add link. Share it at the table — when a friend opens it and
+          This is your add link. Share it at the table. When a friend opens it and
           adds you, and you add them back, you&rsquo;re each other&rsquo;s lot.
         </p>
         <code className="confirmFollowUrl">{shareUrl}</code>

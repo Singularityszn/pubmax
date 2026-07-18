@@ -14,7 +14,7 @@ describe("PubmaxxAccountHub provider gating", () => {
     }));
 
     expect(html).toContain("Night Profile");
-    expect(html).toContain("Night Area");
+    expect(html).toContain("Your patch");
     expect(html).toContain("Max per person");
     expect(html).toContain("Voice");
     expect(html).toContain("Briefings");
