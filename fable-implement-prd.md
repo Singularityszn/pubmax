@@ -163,6 +163,17 @@ Non-merge-gated work only. Three Opus 4.8 lanes + Fable preview audit:
 
 - **Price harvest → PR (stacked #315)**: 2 verified first-party prices; STRATEGIC FINDING — pubs don't publish pint prices on the web (chains app-only), so crowdsourced drops (#303) is the only real price-moat lever. Firecrawl credits exhausted (105 independents queued — owner: top up if wanted). Cycle 6 complete: 4 PRs (#318, #319, harvest, + #316/#317 from C5).
 
+## CYCLE 7 PRD (post-retrospective — deep-review remediation + next bets)
+
+Deep reviews (#321 app, #322 data) found: P1 prompt stacking (identity+push on one tap; promptBudget unadopted, ordering dead code), HIGH data-chain merge hazard (#319 naive merge silently deletes #315/#320 data), #316's order doc stale vs the data chain, P2 analytics prop drift (pwa_* missing "platform").
+
+**Remediation lanes (Opus 4.8, launch now):**
+1. `fix/prompt-orchestration` — adopt promptBudget in tour/#296-pattern, identity (#312), push (#299) surfaces; make identity-before-push real (wire isIdentityNudgePending at the PlanCrew anchor exactly as #321's fix specifies). Built on main as a standalone PR that supersedes the #299×#312 conflict resolution.
+2. `data/319-rebase` — rebase #319 onto #315+#320 merged base, re-run repair + build:slim, force-push its branch (branch update, not a merge).
+3. `docs/316-amendments` — fold both reviews' merge-order amendments into docs/MERGE_ORDER (data chain: #308→#315→#320→#319→#317 last; app: prompt-fix supersedes #299×#312 resolution; ShareBar rebase-by-intent note; pwa_* platform prop note).
+
+**Next-bet queue (post-merge / owner-gated, unchanged):** drops-first growth loop (harvest log as target list), analytics wiring, preview verification, buzz (EXA), bill-splitting decision, Firecrawl credits, Apple/press timing.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
