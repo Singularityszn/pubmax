@@ -1,13 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The route calls assertServerEnv() at module scope (the house pattern shared by
-// 40+ certified routes). On Vercel vitest reads as production without test-scoped
-// Supabase vars, so importing the module would throw "FATAL: Supabase is not
-// configured in production" before any test runs. Mock serverEnv to a no-op — the
-// same guard every sibling route test uses (see followingRoute.test.ts) — and
-// clear the Supabase env in beforeEach so the memory backend + process-local rate
-// limiter are forced on Vercel, driving the route end to end.
+// Two Vercel-vs-local seams to pin (both would otherwise pass locally, fail on
+// Vercel — the classic green-local/red-Vercel trap):
+//
+// 1. assertServerEnv() runs at module scope (the house pattern shared by 40+
+//    certified routes). On Vercel vitest reads as production without test-scoped
+//    Supabase vars, so the import throws "FATAL: Supabase is not configured".
+//    Mock serverEnv to a no-op — the guard every sibling route test uses.
+//
+// 2. The route's storage guard `requiresSupabaseStore() && !isSupabaseConfigured()`
+//    503s when requiresSupabaseStore() is true (it is on Vercel: VERCEL_ENV===
+//    "production", and deleting SUPABASE_URL does NOT flip it) while
+//    isSupabaseConfigured() is false — so every POST 503s and reads return [].
+//    Pin the @/lib/supabase seam so BOTH read false: isSupabaseConfigured() false
+//    selects the memory store, and requiresSupabaseStore() false disarms the 503
+//    guard. This is the design-doc house pattern for write-route tests (see
+//    pushTokensRoute.test.ts). hashIp/clientIp/hashActor pass through via ...actual.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
+});
 
 import { GET, POST } from "@/app/api/check-ins/route";
 import { __resetMemoryCheckIns } from "@/lib/checkInStore";

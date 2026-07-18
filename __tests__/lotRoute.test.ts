@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The route calls assertServerEnv() at module scope (the house pattern shared by
-// 40+ certified routes). On Vercel vitest reads as production without test-scoped
-// Supabase vars, so importing the module would throw "FATAL: Supabase is not
-// configured in production" before any test runs. Mock serverEnv to a no-op — the
-// same guard every sibling route test uses (see followingRoute.test.ts) — and
-// clear the Supabase env in beforeEach so the memory backend is forced on Vercel.
+// Pin both Vercel-vs-local seams (see checkInsRoute.test.ts for the full note):
+// assertServerEnv() runs at module scope, and the store seam must resolve to the
+// memory backend deterministically. Mock serverEnv to a no-op and pin
+// @/lib/supabase so isSupabaseConfigured()/requiresSupabaseStore() both read
+// false — the memory followStore is selected regardless of Vercel's env timing.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
+});
 
 import { GET } from "@/app/api/profiles/[handle]/lot/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
