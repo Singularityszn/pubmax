@@ -27,6 +27,7 @@ import {
 
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
+import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
@@ -163,11 +164,13 @@ export default function TonightClient() {
             {checkedLabel(asOf)} · via what&rsquo;s-on
           </p>
         ) : null}
-        {ready && rows.some((row) => typeof row.lat === "number" && typeof row.lng === "number") ? (
+        {(ready && rows.some((row) => typeof row.lat === "number" && typeof row.lng === "number")) ||
+        thinNight ? (
           <div className="tonightLocation">
             <p className="tonightLocationCopy">
-              Walk times are optional. Your location stays on this page and is not
-              sent or saved.
+              Sharing location is optional. Walk times stay on this page; your
+              rough position (nearest 100m or so) is used once to check your
+              nearest station and last train, and is never saved.
             </p>
             {origin ? (
               <button
@@ -190,7 +193,7 @@ export default function TonightClient() {
                   ? "Finding your location…"
                   : locationStatus === "unavailable"
                     ? "Try location again"
-                    : "Share location for walk times"}
+                    : "Share location for walk times and last train"}
               </button>
             )}
             <span className="tonightSrOnly" role="status" aria-live="polite">
@@ -202,6 +205,7 @@ export default function TonightClient() {
                     ? "Walk times are now shown."
                     : ""}
             </span>
+            {origin ? <TonightGetHomeStrip origin={origin} /> : null}
           </div>
         ) : null}
       </header>

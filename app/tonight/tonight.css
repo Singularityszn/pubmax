@@ -473,3 +473,32 @@
   .tonightQuietRow:nth-child(2) { animation-delay: 40ms; }
   .tonightQuietRow:nth-child(3) { animation-delay: 80ms; }
 }
+
+/* Get-home strip: one calm line pair inside the location block once the
+   drinker shares location. Train icon in brass, status weighted, no card
+   chrome of its own (it lives inside .tonightLocation's panel). */
+.tonightGetHome {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.tonightGetHomeIcon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--brass);
+}
+
+.tonightGetHomeCopy {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.tonightGetHomeStatus {
+  color: var(--ink);
+  font-weight: 650;
+}
