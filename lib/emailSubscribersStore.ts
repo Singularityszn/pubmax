@@ -35,12 +35,7 @@ import {
   parseEmail,
   type EmailSubscriberSource,
 } from "@/lib/emailSubscribers";
-import {
-  createMemoryFallbackWarner,
-  missingTables,
-  runStoreOp,
-  selectStore,
-} from "@/lib/storeBackend";
+import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type SubscribeInput = {
@@ -189,9 +184,11 @@ export const memoryEmailSubscribersStore: EmailSubscribersStore = {
 };
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-const { warn: warnSchemaMiss, resetWarnings: resetSchemaMissWarnings } =
-  createMemoryFallbackWarner("email-subscribers", "apply migration 0042");
-const isMissingSchema = missingTables("email_subscribers");
+const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
+  tag: "email-subscribers",
+  tables: "email_subscribers",
+  migrationHint: "apply migration 0042",
+});
 
 type SubscriberRow = {
   email?: unknown;
@@ -212,12 +209,10 @@ export const supabaseEmailSubscribersStore: EmailSubscribersStore = {
     if (!email) return { status: "existing", confirmed: false, unsubscribeToken: "", failed: true };
     const token = mintUnsubscribeToken();
     const iso = new Date(now).toISOString();
-    return runStoreOp<SubscribeOutcome>({
+    return guard<SubscribeOutcome>({
       context: "subscribe",
-      isSchemaMiss: isMissingSchema,
-      warnSchemaMiss,
       onSchemaMiss: () => memoryEmailSubscribersStore.subscribe(input, now),
-      logError: { tag: "email-subscribers", message: "subscribe failed — flagging degraded write" },
+      message: "subscribe failed — flagging degraded write",
       onError: () => ({ status: "existing", confirmed: false, unsubscribeToken: "", failed: true }),
       run: async () => {
         // INSERT ... ON CONFLICT (email) DO NOTHING — never clobbers an existing
@@ -271,12 +266,10 @@ export const supabaseEmailSubscribersStore: EmailSubscribersStore = {
 
   async confirm(token, now = Date.now()) {
     if (!token) return false;
-    return runStoreOp<boolean>({
+    return guard<boolean>({
       context: "confirm",
-      isSchemaMiss: isMissingSchema,
-      warnSchemaMiss,
       onSchemaMiss: () => memoryEmailSubscribersStore.confirm(token, now),
-      logError: { tag: "email-subscribers", message: "confirm failed" },
+      message: "confirm failed",
       onError: () => false,
       run: async () => {
         const { data, error } = await requireSupabaseAdmin()
@@ -293,12 +286,10 @@ export const supabaseEmailSubscribersStore: EmailSubscribersStore = {
 
   async unsubscribe(token) {
     if (!token) return false;
-    return runStoreOp<boolean>({
+    return guard<boolean>({
       context: "unsubscribe",
-      isSchemaMiss: isMissingSchema,
-      warnSchemaMiss,
       onSchemaMiss: () => memoryEmailSubscribersStore.unsubscribe(token),
-      logError: { tag: "email-subscribers", message: "unsubscribe failed" },
+      message: "unsubscribe failed",
       onError: () => false,
       run: async () => {
         const { data, error } = await requireSupabaseAdmin()
@@ -313,12 +304,10 @@ export const supabaseEmailSubscribersStore: EmailSubscribersStore = {
   },
 
   async listConfirmedSubscribers() {
-    return runStoreOp<ConfirmedSubscriber[]>({
+    return guard<ConfirmedSubscriber[]>({
       context: "listConfirmed",
-      isSchemaMiss: isMissingSchema,
-      warnSchemaMiss,
       onSchemaMiss: () => memoryEmailSubscribersStore.listConfirmedSubscribers(),
-      logError: { tag: "email-subscribers", message: "listConfirmed failed — returning empty" },
+      message: "listConfirmed failed — returning empty",
       onError: () => [],
       run: async () => {
         const { data, error } = await requireSupabaseAdmin()

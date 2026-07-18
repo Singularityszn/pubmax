@@ -16,6 +16,7 @@
 
 import { ambientPresenceRows } from "@/lib/ambientPresence";
 import { requireSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { PRESENCE_TTL_MS, type PresenceDTO, type PresenceInput } from "@/lib/presence";
 
@@ -200,7 +201,7 @@ export const supabasePresenceStore: PresenceStore = {
 
 /** The single backend selection point (mirrors the other stores). */
 export function presenceStore(): PresenceStore {
-  return isSupabaseConfigured() ? supabasePresenceStore : memoryPresenceStore;
+  return selectStore(memoryPresenceStore, supabasePresenceStore);
 }
 
 // ── Compatibility wrappers (route + tests keep calling these) ────────────────

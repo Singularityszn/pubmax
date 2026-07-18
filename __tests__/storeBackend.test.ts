@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createFailSoftGuard,
   errorMessage,
   isMissingTableSchema,
   missingTables,
@@ -42,5 +43,120 @@ describe("storeBackend", () => {
   it("stringifies unknown errors", () => {
     expect(errorMessage(new Error("boom"))).toBe("boom");
     expect(errorMessage("plain")).toBe("plain");
+  });
+});
+
+describe("createFailSoftGuard", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns the run result on success without warning or falling back", async () => {
+    const guardObj = createFailSoftGuard({
+      tag: "test-store",
+      tables: "widgets",
+      migrationHint: "apply migration 9999",
+    });
+    const onSchemaMiss = vi.fn(async () => "fallback");
+    const result = await guardObj.guard<string>({
+      context: "read",
+      run: async () => "ok",
+      onSchemaMiss,
+      onError: () => "soft",
+    });
+    expect(result).toBe("ok");
+    expect(onSchemaMiss).not.toHaveBeenCalled();
+  });
+
+  it("routes a missing-table error to onSchemaMiss and warns once (deduped)", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const guardObj = createFailSoftGuard({
+      tag: "test-store",
+      tables: ["widgets", "gadgets"],
+      migrationHint: "apply migration 9999",
+    });
+    const schemaMiss = () =>
+      Promise.reject(new Error("Could not find the table 'public.widgets' in the schema cache"));
+    const run = async () => {
+      await schemaMiss();
+      return "durable";
+    };
+    const first = await guardObj.guard<string>({
+      context: "read",
+      run,
+      onSchemaMiss: async () => "memory",
+      onError: () => "soft",
+    });
+    const second = await guardObj.guard<string>({
+      context: "read",
+      run,
+      onSchemaMiss: async () => "memory",
+      onError: () => "soft",
+    });
+    expect(first).toBe("memory");
+    expect(second).toBe("memory");
+    // One warn per context for the whole guard lifetime (deduped).
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    // resetWarnings re-arms the dedupe.
+    guardObj.resetWarnings();
+    await guardObj.guard<string>({
+      context: "read",
+      run,
+      onSchemaMiss: async () => "memory",
+      onError: () => "soft",
+    });
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("logs with the bound tag then returns onError for a non-schema error", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const guardObj = createFailSoftGuard({
+      tag: "test-store",
+      tables: "widgets",
+      migrationHint: "apply migration 9999",
+    });
+    const result = await guardObj.guard<string>({
+      context: "read",
+      run: async () => {
+        throw new Error("connection reset");
+      },
+      onSchemaMiss: async () => "memory",
+      message: "read failed — returning empty",
+      onError: () => "soft",
+    });
+    expect(result).toBe("soft");
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[test-store] read failed — returning empty:",
+      "connection reset",
+    );
+  });
+
+  it("rethrows a non-schema error when no onError is given", async () => {
+    const guardObj = createFailSoftGuard({
+      tag: "test-store",
+      tables: "widgets",
+      migrationHint: "apply migration 9999",
+    });
+    await expect(
+      guardObj.guard<string>({
+        context: "write",
+        run: async () => {
+          throw new Error("boom");
+        },
+        onSchemaMiss: async () => "memory",
+      }),
+    ).rejects.toThrow("boom");
+  });
+
+  it("exposes a bound schema-miss predicate for manual branching", () => {
+    const guardObj = createFailSoftGuard({
+      tag: "test-store",
+      tables: "widgets",
+      migrationHint: "apply migration 9999",
+    });
+    expect(
+      guardObj.isSchemaMiss(new Error('relation "public.widgets" does not exist')),
+    ).toBe(true);
+    expect(guardObj.isSchemaMiss(new Error("permission denied"))).toBe(false);
   });
 });
