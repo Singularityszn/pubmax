@@ -84,9 +84,12 @@ export const ANALYTICS_EVENTS = {
   // A2HS installs — beforeinstallprompt eligibility, the appinstalled
   // completion event (Android/Chrome), and standalone display-mode at launch
   // as the iOS-compatible proxy for "already installed". No props needed.
-  pwa_install_prompt_available: [],
-  pwa_install_completed: [],
-  pwa_standalone_launch: [],
+  // "platform" registered per the C8 drift note: #313's A2HS surface emits
+  // { platform: "android" | "ios-safari" } — without the allow-listed prop the
+  // sanitizer would strip it.
+  pwa_install_prompt_available: ["platform"],
+  pwa_install_completed: ["platform"],
+  pwa_standalone_launch: ["platform"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -118,6 +121,8 @@ const SAFE_STRING_VALUES = new Set([
   "photo", "pint_drop", "pint-drop", "event", "venue", "quote", "person", "side_quest",
   "private", "unlisted", "public", "friends", "legacy", "anonymous",
   "direct", "site", "search",
+  // A2HS platform values (#313): fixed enum, no UA strings
+  "android", "ios-safari", "standalone", "unsupported",
   "CLS", "FCP", "INP", "LCP", "TTFB", "good", "needs-improvement", "poor",
   ...NIGHT_AREA_SLUGS,
   ...COVERAGE_STATUSES,
