@@ -1,0 +1,93 @@
+/* Share-link confirm-follow surface (Social Loop v1). Mobile-first, role-tokened. */
+.addShell {
+  min-height: 100dvh;
+  background: var(--paper);
+  padding-bottom: var(--mobile-tab-clearance, 96px);
+}
+
+.confirmFollow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px var(--page-gutter);
+  text-align: left;
+}
+
+.confirmFollowEyebrow {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.confirmFollowTitle {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.confirmFollowBody {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink-soft, var(--muted));
+}
+
+.confirmFollowUrl {
+  display: block;
+  padding: 12px 14px;
+  border: 1px dashed var(--feed-border);
+  border-radius: var(--radius, 8px);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.confirmFollowError {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--brick, #9c3d2e);
+}
+
+.confirmFollowPrimary {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--color-on-accent, #fff);
+  font: inherit;
+  font-weight: 800;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.confirmFollowPrimary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.confirmFollowPrimary:focus-visible,
+.confirmFollowGhost:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.confirmFollowGhost {
+  align-self: center;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+}

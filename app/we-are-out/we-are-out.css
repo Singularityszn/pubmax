@@ -1,0 +1,97 @@
+/* "We're out" check-in composer (Social Loop v1). Mobile-first, role-tokened. */
+.weAreOut {
+  padding-bottom: var(--mobile-tab-clearance, 96px);
+}
+
+.weAreOutForm,
+.weAreOutDone {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: var(--feed-max, 640px);
+  margin: 0 auto;
+  padding: 0 var(--page-gutter);
+}
+
+.weAreOutField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weAreOutLabel {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.weAreOutOptional {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.weAreOutSelect,
+.weAreOutInput {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid var(--feed-border);
+  border-radius: var(--radius, 8px);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.weAreOutSelect:focus-visible,
+.weAreOutInput:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.weAreOutPrivacy {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.weAreOutError {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brick, #9c3d2e);
+}
+
+.weAreOutSubmit {
+  appearance: none;
+  min-height: 52px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--color-on-accent, #fff);
+  font: inherit;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.weAreOutSubmit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.weAreOutSubmit:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.weAreOutDoneTitle {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.weAreOutDoneActions {
+  display: flex;
+  gap: 12px;
+}

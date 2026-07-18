@@ -263,6 +263,24 @@ export default function FeedCard({
     item.lastTrainDecision,
   );
 
+  // "We're out" check-in — a lightweight, area-level presence post (Social Loop
+  // v1). It has no photo, price, reactions or bar-tab: it renders its own compact
+  // card and returns early. All hooks above have already run, so this branch is
+  // rules-of-hooks safe.
+  if (item.type === "check_in") {
+    return (
+      <CheckInCard
+        handle={shownHandle}
+        initial={initial}
+        areaName={item.areaName ?? item.venueName}
+        note={item.caption}
+        createdAt={item.createdAt}
+        ago={ago}
+        entered={entered}
+      />
+    );
+  }
+
   return (
     <article
       className={feedCardClassName(hero, optimistic, categoryResolved, entered)}
@@ -529,6 +547,53 @@ export default function FeedCard({
             onPrefetch={() => prefetchVenue(item.venueId)}
           />
         ) : null}
+      </div>
+    </article>
+  );
+}
+
+// "We're out" check-in card (Social Loop v1) — a calm, area-level presence post.
+// Deliberately minimal: who is out, WHERE at area level (never a coordinate), an
+// optional line, and when. No photo, price, reactions or bar tab — a check-in is
+// a signal, not a collectible. Shares the mount-once entrance with the drop card.
+function CheckInCard({
+  handle,
+  initial,
+  areaName,
+  note,
+  createdAt,
+  ago,
+  entered,
+}: {
+  handle: string;
+  initial: string;
+  areaName: string;
+  note: string;
+  createdAt: string;
+  ago: string;
+  entered: boolean;
+}) {
+  return (
+    <article
+      className={`feedCard feedCheckIn ${entered ? "feedCardEntered" : "feedCardEnter"}`}
+      aria-label={`${handle} is out in ${areaName}`}
+    >
+      <div className="feedCheckInBody">
+        <span className="feedAvatar feedCheckInAvatar" aria-hidden="true">
+          {initial}
+        </span>
+        <div className="feedCheckInText">
+          <p className="feedCheckInLine">
+            <span className="feedCheckInHandle">{handle}</span>
+            <span className="feedCheckInVerb"> is out</span>
+            <span className="feedCheckInWhere"> in {areaName}</span>
+          </p>
+          {note ? <p className="feedCheckInNote">{note}</p> : null}
+          <span className="feedCheckInMeta">
+            <span className="feedCheckInTag" aria-hidden="true">We&rsquo;re out</span>
+            {ago ? <time dateTime={createdAt}>{ago}</time> : null}
+          </span>
+        </div>
       </div>
     </article>
   );
