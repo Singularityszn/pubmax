@@ -19,6 +19,8 @@ import "./mapToolbar.css";
 type MapToolbarProps = {
   query: string;
   onQueryChange: (query: string) => void;
+  /** Enter/submit in the search box: jump to the current top match. */
+  onSubmitQuery?: () => void;
   favoritePint: string | null;
   onFavoritePintChange: (beerId: string | null) => void;
   drinkCategory: string;
@@ -43,6 +45,7 @@ type MapToolbarProps = {
 export default function MapToolbar({
   query,
   onQueryChange,
+  onSubmitQuery,
   favoritePint,
   onFavoritePintChange,
   drinkCategory,
@@ -100,6 +103,12 @@ export default function MapToolbar({
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onSubmitQuery?.();
+              }
+            }}
             placeholder="Search pubs"
             aria-label="Search pubs by name, area, borough or drink"
           />

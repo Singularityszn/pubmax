@@ -159,6 +159,27 @@ function iconFor(kind: "signal" | "tube" | "weather", severity: string) {
   return <Info size={14} aria-hidden="true" />;
 }
 
+/**
+ * Gate: the status strip is a *disruption* banner, so it earns a slot on first
+ * paint only when the data is genuinely actionable: a signal the upstream
+ * flagged major/notable, or a live TfL line disruption. A clear-weather
+ * one-liner or an info-severity note is not disruption; showing it stacked a
+ * second centred pill under the city switcher was pure boot clutter. Exported
+ * for the unit test.
+ */
+export function isSevereCityStatus(
+  headline: { kind: "signal" | "tube" | "weather"; severity: string } | null,
+  affectedTubeLineCount = 0,
+): boolean {
+  if (affectedTubeLineCount > 0) return true;
+  if (!headline) return false;
+  if (headline.kind === "tube") return true;
+  if (headline.kind === "signal") {
+    return headline.severity === "major" || headline.severity === "notable";
+  }
+  return false;
+}
+
 // --- A4: the full "Tonight in London" signals feed --------------------------
 // The API hands us every signal (gigs, strikes, alerts) but the pill shows
 // one. These pure helpers bucket them for the expandable sheet; exported for
@@ -278,6 +299,14 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
   const headline = pickCityStatusHeadline(data);
   if (!headline) return null;
 
+  const affectedLines = (data.tubeLines ?? []).filter(
+    (line) => line.line && line.status && line.status.toLowerCase() !== "good service",
+  );
+
+  // Gate on genuine severity so the map's first paint isn't cluttered by a
+  // second centred pill (weather/info) stacked under the city switcher.
+  if (!isSevereCityStatus(headline, affectedLines.length)) return null;
+
   const dismiss = () => {
     writeDismissed();
     setDismissed(true);
@@ -285,9 +314,6 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
 
   const signalCount = data.signals?.length ?? 0;
   const hasSignals = signalCount > 0;
-  const affectedLines = (data.tubeLines ?? []).filter(
-    (line) => line.line && line.status && line.status.toLowerCase() !== "good service",
-  );
   const hasDetails = hasSignals || affectedLines.length > 0;
   const groups = groupSignalsByKind(data.signals);
 

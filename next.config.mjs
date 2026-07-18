@@ -89,6 +89,16 @@ const nextConfig = {
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,
   },
+  async redirects() {
+    // The Stories tab settled on /feed; the old /stories route (and any deep
+    // link beneath it) is retired. A permanent (308) redirect keeps shared
+    // links and search-engine equity alive instead of dropping visitors on an
+    // unbranded 404. __tests__/storiesRedirect.test.ts pins this.
+    return [
+      { source: "/stories", destination: "/feed", permanent: true },
+      { source: "/stories/:path*", destination: "/feed", permanent: true },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

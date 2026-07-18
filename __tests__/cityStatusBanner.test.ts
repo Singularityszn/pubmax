@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   groupSignalsByKind,
+  isSevereCityStatus,
   normaliseSignalKind,
   pickCityStatusHeadline,
 } from "@/components/map/CityStatusBanner";
@@ -62,5 +63,23 @@ describe("groupSignalsByKind", () => {
     expect(normaliseSignalKind("gigs")).toBe("event");
     expect(normaliseSignalKind("ALERTS")).toBe("alert");
     expect(normaliseSignalKind(undefined)).toBe("other");
+  });
+});
+
+describe("isSevereCityStatus", () => {
+  it("shows for major and notable signals", () => {
+    expect(isSevereCityStatus({ kind: "signal", severity: "major" })).toBe(true);
+    expect(isSevereCityStatus({ kind: "signal", severity: "notable" })).toBe(true);
+  });
+
+  it("shows for live tube disruption", () => {
+    expect(isSevereCityStatus({ kind: "tube", severity: "notable" })).toBe(true);
+    expect(isSevereCityStatus({ kind: "weather", severity: "info" }, 2)).toBe(true);
+  });
+
+  it("hides mundane weather and info-only notes (boot clutter)", () => {
+    expect(isSevereCityStatus({ kind: "weather", severity: "info" })).toBe(false);
+    expect(isSevereCityStatus({ kind: "signal", severity: "info" })).toBe(false);
+    expect(isSevereCityStatus(null)).toBe(false);
   });
 });
