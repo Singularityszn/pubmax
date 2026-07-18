@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
+import { priceConfidence } from "@/lib/priceConfidence";
 import { formatPrice, type Venue } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
@@ -86,6 +87,49 @@ function ConfirmTick() {
   );
 }
 
+// Reader-visible tally: fetch the community confirm count on mount so social
+// proof shows BEFORE anyone taps — a vouched price should look vouched to every
+// visitor, not only to the person who tapped. Fail-soft: any error yields null
+// and the chip renders exactly as it did before this hook existed.
+type ConfirmTally = { confirms: number; lastConfirmedAt: number | null; recentConfirms: number };
+type ConfirmRead = { tally: ConfirmTally; confidence: ReturnType<typeof priceConfidence> | null };
+
+// Confidence is derived INSIDE the effect (with the wall clock read there, not
+// in render) so the component stays pure for the React Compiler — the clock is
+// captured once per fetch, which is exactly the freshness the label describes.
+function usePriceConfirmTally(venueId: string, priceGbp: number): ConfirmRead | null {
+  const [read, setRead] = useState<ConfirmRead | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/price-confirm?venueId=${encodeURIComponent(venueId)}&priceGbp=${priceGbp}`,
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as Partial<ConfirmTally>;
+        if (cancelled) return;
+        const tally: ConfirmTally = {
+          confirms: typeof data.confirms === "number" ? data.confirms : 0,
+          lastConfirmedAt:
+            typeof data.lastConfirmedAt === "number" ? data.lastConfirmedAt : null,
+          recentConfirms: typeof data.recentConfirms === "number" ? data.recentConfirms : 0,
+        };
+        setRead({
+          tally,
+          confidence: tally.confirms > 0 ? priceConfidence(tally, Date.now()) : null,
+        });
+      } catch {
+        // Fail-soft: no tally, chip behaves as before.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [venueId, priceGbp]);
+  return read;
+}
+
 // One-tap "still accurate?" micro-contribution. Tapping vouches the displayed
 // price is still right and flips to an optimistic confirmed state instantly (a
 // satisfying scale-in + tick draw); the POST to /api/price-confirm is fail-soft,
@@ -97,10 +141,14 @@ function PriceConfirmChip({
   venueId,
   priceGbp,
   priceLabel,
+  confidence,
+  onPriceChanged,
 }: {
   venueId: string;
   priceGbp: number;
   priceLabel: string;
+  confidence: { state: string; label: string | null } | null;
+  onPriceChanged?: () => void;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [confirms, setConfirms] = useState<number | null>(null);
@@ -125,6 +173,9 @@ function PriceConfirmChip({
     }
   }, [confirmed, venueId, priceGbp]);
 
+  // Post-tap the server tally wins; pre-tap the reader-visible confidence line
+  // (from the mounted GET) speaks — "×3 this week" / "vouched recently" — so
+  // social proof isn't gated behind contributing.
   const countLabel =
     confirms !== null ? `${confirms} ${confirms === 1 ? "confirm" : "confirms"}` : "";
 
@@ -148,8 +199,21 @@ function PriceConfirmChip({
         <span className="vpsConfirmText">
           {confirmed ? "Confirmed just now" : `Still ${priceLabel}?`}
           {confirmed && countLabel ? <span className="vpsConfirmCount"> · {countLabel}</span> : null}
+          {!confirmed && confidence?.label ? (
+            <span className="vpsConfirmCount"> · {confidence.label}</span>
+          ) : null}
         </span>
       </button>
+      {onPriceChanged ? (
+        <button
+          type="button"
+          className="vpsChangedBtn"
+          onClick={onPriceChanged}
+          aria-label={`The price has changed — log the new price for this pub`}
+        >
+          It&rsquo;s changed
+        </button>
+      ) : null}
       {confirmed ? (
         <span className="srOnly" role="status">
           Confirmed{countLabel ? ` · ${countLabel}` : ""}.
@@ -162,10 +226,20 @@ function PriceConfirmChip({
 type VenuePriceStoryProps = {
   venue: Venue;
   drops: VenuePriceStoryDrop[];
+  /** "It's changed" routes here — the correction IS a new drop (opens the composer). */
+  onPriceChanged?: () => void;
 };
 
-export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) {
+export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenuePriceStoryProps) {
   const story = computeVenuePriceStory(venue, drops);
+  // Hooks run unconditionally (before the empty-state return): the freshest
+  // actionable price to vouch for is the community "now" when present, else the
+  // baseline on record. A zero-price sentinel keeps the hook honest when the
+  // story is empty — the fetch is skipped server-side by validation and the
+  // tally stays null.
+  const confirmTarget = story.now ?? story.baseline;
+  const read = usePriceConfirmTally(venue.id, confirmTarget ? confirmTarget.gbp : 0);
+  const confidence = confirmTarget ? (read?.confidence ?? null) : null;
 
   if (story.isEmpty) {
     return (
@@ -186,7 +260,7 @@ export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) 
   const { baseline, now, deltaGbp, pct, inflation } = story;
   // The freshest actionable price to vouch for: the community "now" price when
   // present, otherwise the baseline on record.
-  const confirmTarget = now ?? baseline;
+
   const dir = deltaGbp !== null ? direction(deltaGbp) : "flat";
   const DirIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
 
@@ -220,7 +294,11 @@ export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) 
               <span className="vpsPriceLabel">{now.label}</span>
               <PriceBadge
                 variant={dir === "up" ? "increase" : "current"}
-                className="vpsPriceValue vpsPriceNow"
+                className={
+                  confidence
+                    ? `vpsPriceValue vpsPriceNow vpsConfidence-${confidence.state}`
+                    : "vpsPriceValue vpsPriceNow"
+                }
               >
                 {formatPrice(now.gbp)}
               </PriceBadge>
@@ -260,6 +338,8 @@ export default function VenuePriceStory({ venue, drops }: VenuePriceStoryProps) 
           pubs (the component instance persists between selections). */}
       {confirmTarget ? (
         <PriceConfirmChip
+          confidence={confidence}
+          onPriceChanged={onPriceChanged}
           key={`${venue.id}:${Math.round(confirmTarget.gbp * 100)}`}
           venueId={venue.id}
           priceGbp={confirmTarget.gbp}

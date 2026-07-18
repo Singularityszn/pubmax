@@ -21,6 +21,7 @@
 // device re-tapping the chip refreshes the timestamp but never inflates the
 // count — `confirms` stays an honest tally of distinct confirmers.
 
+import { CONFIRM_WINDOW_DAYS } from "@/lib/priceConfidence";
 import {
   createMemoryFallbackWarner,
   missingTables,
@@ -34,6 +35,13 @@ export type PriceConfirmResult = {
   confirms: number;
   /** Epoch ms of the most recent confirmation, or null when none on record. */
   lastConfirmedAt: number | null;
+  /**
+   * Distinct confirmers within the last CONFIRM_WINDOW_DAYS — the honest
+   * "×N this week" number (lib/priceConfidence.ts renders it). Windowed on
+   * each actor's LATEST confirm, so a re-tap moves a confirmer into the
+   * window without ever double-counting them.
+   */
+  recentConfirms: number;
   /** Set when a durable write hard-failed — the tap was NOT recorded. */
   failed?: true;
 };
@@ -63,7 +71,7 @@ export type PriceConfirmStore = {
    */
   confirm(input: PriceConfirmInput, now?: number): Promise<PriceConfirmResult>;
   /** Read the current tally without recording anything. NEVER throws. */
-  read(query: PriceConfirmQuery): Promise<PriceConfirmResult>;
+  read(query: PriceConfirmQuery, now?: number): Promise<PriceConfirmResult>;
 };
 
 const MAX_VENUE_ID = 64;
@@ -78,7 +86,9 @@ const MAX_KEYS = 5_000;
 // actors at this scale, bounded on purpose.
 const CONFIRM_SCAN_ROWS = 2_000;
 
-const EMPTY: PriceConfirmResult = { confirms: 0, lastConfirmedAt: null };
+const CONFIRM_WINDOW_MS = CONFIRM_WINDOW_DAYS * 86_400_000;
+
+const EMPTY: PriceConfirmResult = { confirms: 0, lastConfirmedAt: null, recentConfirms: 0 };
 
 function cleanVenueId(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -112,7 +122,8 @@ function actorToken(actor: string | undefined, now: number): string {
 
 // ── In-memory implementation ─────────────────────────────────────────────────
 type ConfirmRecord = {
-  actors: Set<string>;
+  /** actor → epoch ms of that actor's latest confirm (drives the 7d window). */
+  actors: Map<string, number>;
   lastConfirmedAt: number;
 };
 
@@ -138,6 +149,14 @@ function evictIfNeeded(): void {
   if (oldestKey) records.delete(oldestKey);
 }
 
+function memoryResult(rec: ConfirmRecord, now: number): PriceConfirmResult {
+  let recent = 0;
+  for (const at of rec.actors.values()) {
+    if (now - at <= CONFIRM_WINDOW_MS) recent += 1;
+  }
+  return { confirms: rec.actors.size, lastConfirmedAt: rec.lastConfirmedAt, recentConfirms: recent };
+}
+
 export const memoryPriceConfirmStore: PriceConfirmStore = {
   async confirm(input, now = Date.now()) {
     const key = normalizeKey(input.venueId, input.priceGbp);
@@ -146,21 +165,21 @@ export const memoryPriceConfirmStore: PriceConfirmStore = {
     const actor = actorToken(input.actor, now);
     let rec = records.get(mapKey);
     if (!rec) {
-      rec = { actors: new Set<string>(), lastConfirmedAt: now };
+      rec = { actors: new Map<string, number>(), lastConfirmedAt: now };
       records.set(mapKey, rec);
       evictIfNeeded();
     }
-    rec.actors.add(actor);
+    rec.actors.set(actor, now);
     rec.lastConfirmedAt = now;
-    return { confirms: rec.actors.size, lastConfirmedAt: rec.lastConfirmedAt };
+    return memoryResult(rec, now);
   },
 
-  async read(query) {
+  async read(query, now = Date.now()) {
     const key = normalizeKey(query.venueId, query.priceGbp);
     if (!key) return { ...EMPTY };
     const rec = records.get(keyOf(key.venueId, key.pennies));
     if (!rec) return { ...EMPTY };
-    return { confirms: rec.actors.size, lastConfirmedAt: rec.lastConfirmedAt };
+    return memoryResult(rec, now);
   },
 };
 
@@ -171,24 +190,32 @@ const isMissingPriceConfirmsSchema = missingTables("price_confirms");
 
 // Reduce raw confirm rows to a distinct-actor tally + latest timestamp. Guards
 // the untyped supabase-js projection: a malformed row is SKIPPED, never coerced.
-function tally(rows: unknown): PriceConfirmResult {
+function tally(rows: unknown, now: number = Date.now()): PriceConfirmResult {
   if (!Array.isArray(rows)) return { ...EMPTY };
-  const actors = new Set<string>();
+  // Latest confirm per actor — a durable row is already one-per-actor, but the
+  // map guards against duplicates in a malformed payload.
+  const actorAt = new Map<string, number>();
   let lastConfirmedAt: number | null = null;
   for (const r of rows) {
     if (typeof r !== "object" || r === null) continue;
     const row = r as Record<string, unknown>;
     const actor = row.actor;
     const at = row.last_confirmed_at;
-    if (typeof actor === "string" && actor !== "") actors.add(actor);
+    if (typeof actor !== "string" || actor === "") continue;
+    let ms: number | null = null;
     if (typeof at === "string" && at !== "") {
-      const ms = Date.parse(at);
-      if (Number.isFinite(ms) && (lastConfirmedAt === null || ms > lastConfirmedAt)) {
-        lastConfirmedAt = ms;
-      }
+      const parsed = Date.parse(at);
+      if (Number.isFinite(parsed)) ms = parsed;
     }
+    const prev = actorAt.get(actor);
+    if (prev === undefined || (ms !== null && ms > prev)) actorAt.set(actor, ms ?? 0);
+    if (ms !== null && (lastConfirmedAt === null || ms > lastConfirmedAt)) lastConfirmedAt = ms;
   }
-  return { confirms: actors.size, lastConfirmedAt };
+  let recent = 0;
+  for (const ms of actorAt.values()) {
+    if (ms > 0 && now - ms <= CONFIRM_WINDOW_MS) recent += 1;
+  }
+  return { confirms: actorAt.size, lastConfirmedAt, recentConfirms: recent };
 }
 
 async function selectTally(venueId: string, pennies: number): Promise<PriceConfirmResult> {
@@ -236,9 +263,10 @@ export const supabasePriceConfirmStore: PriceConfirmStore = {
     });
   },
 
-  async read(query) {
+  async read(query, now = Date.now()) {
     const key = normalizeKey(query.venueId, query.priceGbp);
     if (!key) return { ...EMPTY };
+    void now; // Supabase tally windows on wall-clock inside selectTally.
     return runStoreOp({
       context: "read",
       isSchemaMiss: isMissingPriceConfirmsSchema,

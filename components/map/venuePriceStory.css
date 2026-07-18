@@ -297,3 +297,46 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* ── Confidence states (lib/priceConfidence.ts) ──────────────────────────────
+   The plaque keeps its dignity as signals age: FRESH renders exactly as today
+   (no class needed beyond the hook), AGING quietly lowers the plaque's voice,
+   STALE visibly humbles it — an old truth beats a blank, but it must not
+   impersonate a fresh one. Colors stay inside the existing token set. */
+.vpsConfidence-aging {
+  opacity: 0.86;
+}
+.vpsConfidence-stale {
+  opacity: 0.68;
+  filter: saturate(0.75);
+}
+
+/* "It's changed" — the correction path. Deliberately quieter than the confirm
+   chip (text-button weight): correcting is welcome, but confirming is the
+   one-tap hero. Same 44px minimum target as every action. */
+.vpsChangedBtn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  min-height: 44px;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 6px);
+}
+.vpsChangedBtn:hover,
+.vpsChangedBtn:focus-visible {
+  color: var(--ink);
+}
+.vpsChangedBtn:active {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+  .vpsChangedBtn:active {
+    transform: none;
+  }
+}

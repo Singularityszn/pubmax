@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   __resetPriceConfirms,
   confirmPrice,
+  memoryPriceConfirmStore,
   readPriceConfirm,
 } from "@/lib/priceConfirmStore";
 
@@ -50,7 +51,7 @@ describe("priceConfirmStore (memory backend)", () => {
   it("keys the tally by (venue, price) so a different price is a fresh count", async () => {
     await confirmPrice({ venueId: "v1", priceGbp: 4.2, actor: "a" }, 1_000);
     const other = await readPriceConfirm({ venueId: "v1", priceGbp: 4.5 });
-    expect(other).toEqual({ confirms: 0, lastConfirmedAt: null });
+    expect(other).toEqual({ confirms: 0, lastConfirmedAt: null, recentConfirms: 0 });
 
     const same = await readPriceConfirm({ venueId: "v1", priceGbp: 4.2 });
     expect(same.confirms).toBe(1);
@@ -60,14 +61,34 @@ describe("priceConfirmStore (memory backend)", () => {
     expect(await confirmPrice({ venueId: "", priceGbp: 4.2 })).toEqual({
       confirms: 0,
       lastConfirmedAt: null,
+      recentConfirms: 0,
     });
     expect(await confirmPrice({ venueId: "v1", priceGbp: 0 })).toEqual({
       confirms: 0,
       lastConfirmedAt: null,
+      recentConfirms: 0,
     });
     expect(await confirmPrice({ venueId: "v1", priceGbp: 5_000 })).toEqual({
       confirms: 0,
       lastConfirmedAt: null,
+      recentConfirms: 0,
     });
+  });
+
+  it("windows recentConfirms on each actor's LATEST confirm (7 days)", async () => {
+    const DAY = 86_400_000;
+    const t0 = 1_800_000_000_000;
+    await memoryPriceConfirmStore.confirm({ venueId: "v-window", priceGbp: 5.2, actor: "a" }, t0 - 10 * DAY);
+    await memoryPriceConfirmStore.confirm({ venueId: "v-window", priceGbp: 5.2, actor: "b" }, t0 - 2 * DAY);
+    await memoryPriceConfirmStore.confirm({ venueId: "v-window", priceGbp: 5.2, actor: "c" }, t0 - 1 * DAY);
+    const read = await memoryPriceConfirmStore.read({ venueId: "v-window", priceGbp: 5.2 }, t0);
+    expect(read.confirms).toBe(3);
+    expect(read.recentConfirms).toBe(2); // a's vouch is outside the window
+
+    // A re-tap moves an old confirmer INTO the window without inflating totals.
+    await memoryPriceConfirmStore.confirm({ venueId: "v-window", priceGbp: 5.2, actor: "a" }, t0);
+    const after = await memoryPriceConfirmStore.read({ venueId: "v-window", priceGbp: 5.2 }, t0);
+    expect(after.confirms).toBe(3);
+    expect(after.recentConfirms).toBe(3);
   });
 });

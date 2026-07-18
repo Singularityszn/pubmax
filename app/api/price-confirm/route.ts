@@ -77,11 +77,11 @@ export async function GET(request: Request): Promise<Response> {
     const venueId = (params.get("venueId") ?? "").trim();
     const priceGbp = readNumber(params.get("priceGbp"));
     if (!venueId || priceGbp === null) {
-      return jsonNoStore({ confirms: 0, lastConfirmedAt: null }, { status: 200 });
+      return jsonNoStore({ confirms: 0, lastConfirmedAt: null, recentConfirms: 0 }, { status: 200 });
     }
     return jsonNoStore(await readPriceConfirm({ venueId, priceGbp }), { status: 200 });
   } catch {
     // The reader never 500s — degrade to a zero tally.
-    return jsonNoStore({ confirms: 0, lastConfirmedAt: null }, { status: 200 });
+    return jsonNoStore({ confirms: 0, lastConfirmedAt: null, recentConfirms: 0 }, { status: 200 });
   }
 }
