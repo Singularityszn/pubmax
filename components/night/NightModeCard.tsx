@@ -37,9 +37,11 @@ import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import type { CrawlEnding, EndingSelection, PlanCompletionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
 import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
+import type { NightAreaSlug } from "@/lib/nightAreas";
 import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
 import { haversineKm } from "@/lib/haversine";
 import RouteEndingCard, { type RouteEndingId, type RouteEndingOptions } from "@/components/night/RouteEndingCard";
+import { NightCalmLine } from "@/components/night/NightCalmLine";
 import { useActivePlan } from "@/components/night/useActivePlan";
 import {
   ensurePendingPlanRecap,
@@ -714,6 +716,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
                 stationName={currentTrain?.station?.name ?? null}
                 leaveByIso={lastTrainLeaveBy}
                 keepGoingExtension={chosenExtension}
+                nightArea={plan?.context?.nightArea ?? null}
               />
               {recap ? (
                 <div className="nightCard__recapInvite">
@@ -908,6 +911,7 @@ function NightEndingResult({
   stationName,
   leaveByIso,
   keepGoingExtension,
+  nightArea,
 }: {
   ending: CrawlEnding;
   currentStop: PlanStopDTO;
@@ -915,6 +919,7 @@ function NightEndingResult({
   stationName: string | null;
   leaveByIso: string | null;
   keepGoingExtension: KeepGoingExtension | null;
+  nightArea: NightAreaSlug | null;
 }) {
   if (ending === "food") {
     return (
@@ -967,6 +972,7 @@ function NightEndingResult({
         {leaveByIso ? "Use the leave-by time above and start moving now." : "Check TfL or your preferred route home before leaving the group."}
         {stationName ? ` Nearest rail signal: ${stationName}.` : ""}
       </p>
+      <NightCalmLine area={nightArea} />
     </div>
   );
 }

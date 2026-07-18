@@ -287,6 +287,27 @@
   font-size: 13px;
 }
 
+/* One quiet area-context line. Deliberately calm: soft ink, a small neutral dot,
+   never an alarm colour. Even the least-calm band stays reassuring. */
+.nightCard__calm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-soft, #6b726a);
+}
+
+.nightCard__calmDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--color-positive, #18a76d);
+}
+
+.nightCard__calmDot[data-band="steady"] { background: var(--brass, #9b7a2a); }
+.nightCard__calmDot[data-band="aware"] { background: var(--ink-soft, #6b726a); }
+
 .nightCard__foodList {
   display: grid;
   gap: 6px;

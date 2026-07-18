@@ -147,6 +147,17 @@
       "gate": "none (keyless upstream); buzz digest quality depends on CityMCP's own EXA-backed enrichment"
     },
     {
+      "id": "police_night_context",
+      "label": "Night calm context (data.police.uk street-level crime)",
+      "class": "live",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "live — fetched per request from data.police.uk, aggregated to a coarse Night Area and cached per area per published month (~12h in-process TTL). Upstream publishes ~2 months in arrears; the latest available month is read from crime-last-updated.",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "live-per-request (app/api/night-calm)",
+      "gate": "none (keyless open data). Surfaces one calm band only, never crime counts or per-street detail."
+    },
+    {
       "id": "tfl_lines",
       "label": "TfL line geometry (map basemap)",
       "class": "static",
