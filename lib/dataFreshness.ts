@@ -13,24 +13,55 @@
 // Pure formatters keep no disk access, so they can be unit-tested on fixed
 // Dates.
 
+import freshnessRegistry from "@/data/freshness_registry.json";
+import { resolveObservedAt, type FreshnessRegistry } from "@/lib/freshness";
+
 /** The bundled London pint-price dataset every borough/index page reads. */
 export const PINT_DATASET_FILE = "pint_prices_app_dataset.json";
 
+/** Registry id of the bundled pint-price dataset entry (the stamp we read). */
+const PINT_DATASET_REGISTRY_ID = "pint_prices";
+
 /**
- * The calendar day the bundled dataset's prices were collected — the July
- * 2026 snapshot recorded in data/README.md (2026-07-03T23:10:47Z). Stored
- * date-only, anchored at NOON UTC, so no timezone conversion can move the
- * day: the raw 23:10 UTC instant is already 4 July in Europe/London, which
- * would make the visible stamp ("4 July 2026") disagree with the JSON-LD ISO
- * date (2026-07-03). Noon UTC renders as 3 July in London (BST or GMT) and
- * slices to 2026-07-03 in ISO — one day, everywhere; a regression test pins
- * the two representations together.
- * Update whenever the dataset is re-collected (the dataset JSON is a bare
- * array, so the date can't ride inside the file without a breaking shape
- * change — making this machine-readable from one metadata source is a noted
- * follow-up).
+ * Resolve the pint dataset's collection stamp from the freshness registry —
+ * the single source of truth for WHEN the bundled prices were collected. The
+ * registry entry (data/freshness_registry.json → `pint_prices`) carries the
+ * literal stamp; this is a build-time import (webpack inlines the JSON), so
+ * both server and client bundles get the same value with no disk access at
+ * runtime. Fails loud at module load if the entry is missing or unparseable —
+ * a broken registry is a build break, never a silently wrong "collected" date.
+ *
+ * The stamp is stored date-only, anchored at NOON UTC, so no timezone
+ * conversion can move the day: the raw 23:10 UTC scrape instant (recorded in
+ * data/README.md) is already 4 July in Europe/London, which would make the
+ * visible stamp ("4 July 2026") disagree with the JSON-LD ISO date
+ * (2026-07-03). Noon UTC renders as 3 July in London (BST or GMT) and slices
+ * to 2026-07-03 in ISO — one day, everywhere; a drift test pins the constant
+ * to the registry value and a regression test pins the two representations
+ * together. The stamp is updated by the export pipeline when the dataset is
+ * re-collected (scripts/export_app_dataset_json.py --collected-at), never by
+ * hand-editing this file.
  */
-export const PINT_DATASET_OBSERVED_AT = new Date("2026-07-03T12:00:00Z");
+function resolvePintDatasetObservedAt(): Date {
+  const registry = freshnessRegistry as unknown as FreshnessRegistry;
+  const entry = registry.datasets.find((d) => d.id === PINT_DATASET_REGISTRY_ID);
+  const observedAt = entry ? resolveObservedAt(entry.stamp, undefined) : null;
+  if (observedAt === null) {
+    throw new Error(
+      `data/freshness_registry.json: '${PINT_DATASET_REGISTRY_ID}' is missing a resolvable literal stamp — ` +
+        "the pint dataset's collection date cannot be sourced. This registry entry is the single source of truth.",
+    );
+  }
+  return new Date(observedAt);
+}
+
+/**
+ * The calendar day the bundled dataset's prices were collected, derived at
+ * build time from the freshness registry (see resolvePintDatasetObservedAt).
+ * Drives every user-facing "collected" stamp and the JSON-LD dates. Keep this
+ * export name stable — every consumer reads through it.
+ */
+export const PINT_DATASET_OBSERVED_AT = resolvePintDatasetObservedAt();
 
 // en-GB, London time, so "July 2026" / "16 July 2026" read the same wherever
 // the build runs — a US-locale build must not stamp a page "7/2026".

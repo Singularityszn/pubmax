@@ -4,6 +4,14 @@ Source: https://www.pint-prices.com/
 
 Scrape timestamp: `2026-07-03T23:10:47+00:00`
 
+The machine-readable collection stamp the app renders lives in
+`data/freshness_registry.json` (the `pint_prices` entry) — the single source of
+truth, anchored at noon UTC on the scrape's UTC day (`2026-07-03T12:00:00Z`).
+`lib/dataFreshness.ts` `PINT_DATASET_OBSERVED_AT` is derived from it at build
+time (a drift test pins them together); the export pipeline rewrites it via
+`scripts/export_app_dataset_json.py --collected-at <ISO>`. This timestamp above
+is documentation of the raw scrape, not an independently-authored source.
+
 ## Files
 
 - `borough_pint_prices.csv`: canonical borough extract from visible borough leaderboard rows. Use this for borough-level analysis.
