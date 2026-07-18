@@ -46,7 +46,8 @@ const TODAY_TAB: Omit<Tab, "Icon" | "primary"> = {
 };
 
 // Map follows the preferred city (null → /map); every other route is canonical.
-function buildTabs(mapHref: string, pathname: string): Tab[] {
+// Exported for the six-tab contract test (order + destinations are load-bearing).
+export function buildTabs(mapHref: string, pathname: string): Tab[] {
   const icons = { today: Sunrise, map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
   const primary = PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
@@ -86,8 +87,8 @@ export default function MobileTabBar() {
   const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
   const tabs = buildTabs(mapHref, returnTo);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
-  // route none of the five tabs own) hides it via CSS rather than pinning it
-  // to a wrong tab.
+  // route none of the tabs own) hides it via CSS rather than pinning it to a
+  // wrong tab.
   const activeIndex = tabs.findIndex((tab) => isActive(pathname, tab));
   const warmTab = useCallback(
     (href: string) => {
@@ -108,11 +109,17 @@ export default function MobileTabBar() {
 
   return (
     <nav className="mobileTabBar" role="navigation" aria-label="Primary">
-      <ul className="mobileTabList">
+      {/* --tab-count feeds the count-driven layout model in mobileNav.css:
+          column width and highlight geometry all derive from it (and from
+          --tab-inset), so the CSS never assumes a tab total. */}
+      <ul
+        className="mobileTabList"
+        style={{ "--tab-count": tabs.length } as CSSProperties}
+      >
         {/* Gliding active-tab highlight. A decorative li (not a nav item) so it
             can sit inside the ul without breaking the list semantics; screen
             readers skip it via aria-hidden. Position comes from --active-index
-            (translateX by 100% of its own 1/5-width column), so it only ever
+            (translateX by 100% of its own one-column width), so it only ever
             needs a transform to glide — no layout thrash. */}
         <li
           className="mobileTabHighlight"
@@ -120,11 +127,6 @@ export default function MobileTabBar() {
           style={
             {
               "--active-index": activeIndex,
-              // Width is derived from the live tab count so the bar carries the
-              // Lane A "Today" tab (six columns) without the CSS assuming five;
-              // the highlight still glides by translateX(index * 100%) of its
-              // own width.
-              width: `calc((100% - 4px) / ${tabs.length})`,
               opacity: activeIndex === -1 ? 0 : 1,
             } as CSSProperties
           }
