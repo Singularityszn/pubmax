@@ -82,7 +82,9 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
 
   await hostPage.goto(`/rounds/${code}`);
   await expect(hostPage.locator(".roundBoard")).toBeVisible();
+  // Closing is a two-tap confirm (irreversible, crew-wide): arm, then commit.
   await hostPage.getByRole("button", { name: "Call the Round (close it)" }).click();
+  await hostPage.getByRole("button", { name: "Yes, call it" }).click();
   await expect(hostPage.getByRole("status").filter({ hasText: "This Round has been called — it's closed." })).toBeVisible();
   await hostPage.close();
 });

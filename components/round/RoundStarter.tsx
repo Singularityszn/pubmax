@@ -160,6 +160,10 @@ export default function RoundStarter({
           placeholder="your handle"
           aria-label="Your handle"
           autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="go"
           maxLength={30}
         />
         <button type="submit" className="crawlPrimaryBtn" disabled={busy}>

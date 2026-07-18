@@ -123,12 +123,23 @@ export default function RoundPage({ params }: { params: Promise<{ code: string }
 
   useEffect(() => {
     if (!isOpen) return;
-    const id = window.setInterval(() => void refetch(), POLL_MS);
-    const onFocus = () => void refetch();
-    window.addEventListener("focus", onFocus);
+    // Poll only while the tab is actually visible — a backgrounded phone
+    // shouldn't burn battery/data hitting the Round every 10s. Coming back to
+    // the foreground refetches immediately (focus + visibilitychange) so the
+    // route is fresh the moment you look, without waiting out the interval.
+    const tick = () => {
+      if (document.visibilityState === "visible") void refetch();
+    };
+    const id = window.setInterval(tick, POLL_MS);
+    const onWake = () => {
+      if (document.visibilityState === "visible") void refetch();
+    };
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
     return () => {
       window.clearInterval(id);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
     };
   }, [isOpen, refetch]);
 
@@ -171,13 +182,22 @@ export default function RoundPage({ params }: { params: Promise<{ code: string }
       };
     }
     void Promise.resolve().then(() => refetchPresence());
-    const id = window.setInterval(() => void refetchPresence(), POLL_MS);
-    const onFocus = () => void refetchPresence();
-    window.addEventListener("focus", onFocus);
+    // Same visibility gating as the Round poll: don't poll presence in the
+    // background; refetch on wake so "your crew is here" is current on return.
+    const tick = () => {
+      if (document.visibilityState === "visible") void refetchPresence();
+    };
+    const id = window.setInterval(tick, POLL_MS);
+    const onWake = () => {
+      if (document.visibilityState === "visible") void refetchPresence();
+    };
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
     return () => {
       active = false;
       window.clearInterval(id);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
     };
   }, [isOpen, currentStopVenueId, refetchPresence]);
 
@@ -464,6 +484,10 @@ function JoinForm({
           onChange={(e) => setHandle(e.target.value)}
           placeholder="e.g. cheap_pint_ken"
           autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="go"
           maxLength={30}
         />
       </label>
@@ -500,17 +524,25 @@ function AddStop({
   const [venues, setVenues] = useState<SlimVenue[]>([]);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const existingSet = useMemo(() => new Set(existing), [existing]);
   const loadedRef = useRef(false);
 
   // Load the slim index lazily on first focus of the search — same source the map
-  // uses, so a stop deep-links + prices by the same id everywhere.
+  // uses, so a stop deep-links + prices by the same id everywhere. `ready` gates
+  // the empty-vs-loading copy so a search never dead-ends on a silent blank.
   const ensureLoaded = useCallback(async () => {
     if (loadedRef.current) return;
     loadedRef.current = true;
-    setVenues(await loadSlimVenues());
+    const loaded = await loadSlimVenues();
+    setVenues(loaded);
+    setReady(true);
   }, []);
+
+  // A query is "active" once it's long enough to search — below that we show
+  // nothing (not an empty state), matching the map's search idiom.
+  const hasQuery = query.trim().length >= 2;
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -560,6 +592,8 @@ function AddStop({
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search a pub by name…"
         autoComplete="off"
+        autoCorrect="off"
+        enterKeyHint="search"
         disabled={busy}
       />
       {matches.length > 0 ? (
@@ -573,6 +607,14 @@ function AddStop({
             </li>
           ))}
         </ul>
+      ) : hasQuery ? (
+        // Never a silent blank: while the index loads it's "Finding pubs…"; once
+        // loaded with no hit it's an honest miss that points to the map fallback.
+        <p className="roundSearchHint" role="status">
+          {ready
+            ? "No pub by that name on the map — check the spelling, or log it on the map below."
+            : "Finding pubs…"}
+        </p>
       ) : null}
       {error ? (
         <p className="roundError" role="alert">
@@ -596,6 +638,25 @@ function CloseRound({
   onClosed: (next: RoundState) => void;
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false);
+  // Closing a Round is irreversible and hits the whole crew, so it's a two-tap
+  // action: the first tap arms a confirm, the second commits. The armed state
+  // auto-disarms so a stray tap can't leave the "call it" button hot all night.
+  const [confirming, setConfirming] = useState(false);
+  const disarmTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (disarmTimer.current) window.clearTimeout(disarmTimer.current);
+    },
+    [],
+  );
+
+  function arm() {
+    setConfirming(true);
+    if (disarmTimer.current) window.clearTimeout(disarmTimer.current);
+    disarmTimer.current = window.setTimeout(() => setConfirming(false), 5000);
+  }
+
   async function close() {
     setBusy(true);
     try {
@@ -611,9 +672,31 @@ function CloseRound({
       setBusy(false);
     }
   }
+
+  if (confirming) {
+    return (
+      <div className="roundCloseConfirm" role="group" aria-label="Confirm calling the Round">
+        <p className="roundCloseConfirmText">Call it for the whole crew? This closes the Round for good.</p>
+        <div className="roundCloseConfirmRow">
+          <button
+            type="button"
+            className="roundSecondaryBtn"
+            onClick={() => setConfirming(false)}
+            disabled={busy}
+          >
+            Keep going
+          </button>
+          <button type="button" className="roundCloseBtn roundCloseBtnArmed" onClick={close} disabled={busy}>
+            <DoorClosed size={16} aria-hidden="true" /> {busy ? "Calling it…" : "Yes, call it"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <button type="button" className="roundCloseBtn" onClick={close} disabled={busy}>
-      <DoorClosed size={16} aria-hidden="true" /> {busy ? "Calling it…" : "Call the Round (close it)"}
+    <button type="button" className="roundCloseBtn" onClick={arm} disabled={busy}>
+      <DoorClosed size={16} aria-hidden="true" /> Call the Round (close it)
     </button>
   );
 }
