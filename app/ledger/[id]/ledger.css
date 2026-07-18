@@ -406,3 +406,38 @@
     align-items: stretch;
   }
 }
+
+/* Listed-building brass plaque (Historic England NHLE). The one heritage fact
+   that reads as engraved metal — reuses the #328 --price-plaque-* tokens so the
+   listed status carries the same brass idiom as a price plaque, never a coral
+   alert. The whole plaque is the citation link (OGL attribution). */
+.ledgerListedPlaque {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 14px;
+  border: 1px solid var(--price-plaque-border);
+  border-radius: var(--radius-sm);
+  background: var(--price-plaque-surface);
+  box-shadow: var(--price-plaque-shine);
+  text-decoration: none;
+  color: var(--accent-price-ink);
+}
+
+.ledgerListedFact {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.ledgerListedSource {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.ledgerListedPlaque:hover .ledgerListedSource {
+  opacity: 1;
+}

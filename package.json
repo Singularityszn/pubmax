@@ -30,6 +30,7 @@
     "merge:london-osm": "node scripts/merge_outer_london_osm.mjs",
     "build:city-slim": "node scripts/build_city_slim_index.mjs",
     "build:pubmaxxing-seed": "node scripts/build_pubmaxxing_seed.mjs",
+    "build:heritage-listings": "node scripts/build_heritage_listings.mjs",
     "gen:brand-assets": "node scripts/gen-brand-assets.mjs",
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",

@@ -17,23 +17,26 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { normaliseVenueName } from "@/lib/curation";
+import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
 // Every source is a server-side (sourced) store. There is no client-supplied
 // source anymore — the route reconstructs context from server data only.
 export type HeritageFact = {
-  source: "osm" | "wikidata" | "wikipedia" | "seed";
+  source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle";
   fact: string;
   sourceRef?: string;
 };
 
 // Sources that count as trusted/sourced facts (server-retrieved). Every source
-// now qualifies; the set stays as the one place that names them.
+// now qualifies; the set stays as the one place that names them. "nhle" is
+// Historic England's official National Heritage List for England.
 const SOURCED: ReadonlySet<HeritageFact["source"]> = new Set([
   "osm",
   "wikidata",
   "wikipedia",
   "seed",
+  "nhle",
 ]);
 
 export type HeritageResponse = {
@@ -103,6 +106,14 @@ export async function retrieveHeritage(input: {
 }): Promise<HeritageFact[]> {
   const facts: HeritageFact[] = [];
   const venueKey = normaliseVenueName(input.venueName);
+
+  // (0) Listed-building fact first — the official register (Historic England
+  // NHLE), keyed by the exact venue id so it can never attach to the wrong
+  // same-named pub. This is the authoritative "brass plaque" line, so it leads.
+  const listed = await getListedBuilding(input.venueId);
+  if (listed) {
+    facts.push({ source: "nhle", fact: listed.fact, sourceRef: listed.url });
+  }
 
   // (1) Server facts first — the shipped cache keyed by normalised name.
   const cache = await readHeritageCache();
