@@ -214,7 +214,7 @@ function RichCard({ data }: { data: Extract<RecapCardData, { variant: "rich" }> 
             {numericStats.map((s, i) => (
               <StatTile key={i} figure={s.figure} label={s.label} />
             ))}
-            <EndingTile label={data.endingLabel} />
+            {data.endingLabel ? <EndingTile label={data.endingLabel} /> : null}
           </div>
           {data.crew.length > 0 ? (
             <div style={{ display: "flex", color: OG.inkSoft, fontSize: 22, marginTop: 26 }}>

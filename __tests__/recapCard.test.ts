@@ -102,8 +102,21 @@ describe("recap card privacy gate — selectRecapCardData", () => {
     expect(result.stopCount).toBeNull();
     expect(result.pintsLogged).toBeNull();
     expect(result.boroughsCrossed).toBeNull();
+    expect(result.endingLabel).toBeNull();
     expect(result.cheapestPint).toBeNull();
     expect(result.crew).toEqual([]);
+  });
+
+  it("hides the ending (null label) when the public path could not source it", () => {
+    const result = selectRecapCardData({
+      story: story("published", "public") as NightStory,
+      stats: { ...fullStats, ending: null },
+      nightDate: null,
+    });
+    if (result.variant !== "rich") throw new Error("expected rich");
+    expect(result.endingLabel).toBeNull();
+    // Other stats still flow through.
+    expect(result.pintsLogged).toBe(9);
   });
 });
 

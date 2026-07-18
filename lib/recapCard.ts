@@ -42,8 +42,13 @@ export type RecapCardStats = {
   pintsLogged: number;
   /** Distinct boroughs the route crossed. */
   boroughsCrossed: number;
-  /** Which ending the night resolved to. */
-  ending: CrawlEnding;
+  /**
+   * Which ending the night resolved to, or null when it cannot be sourced. The
+   * public recap composer leaves this null (the ending lives on the plan
+   * completion, which the public story does not join), so the card must render
+   * without an ending rather than assume one.
+   */
+  ending: CrawlEnding | null;
   /** Cheapest logged pint in GBP, or null when there is no honest figure. */
   cheapestPintGbp: number | null;
   /** Display names cleared for public sharing (may be empty). */
@@ -70,7 +75,8 @@ export type RecapCardData =
       stopCount: number | null;
       pintsLogged: number | null;
       boroughsCrossed: number | null;
-      endingLabel: string;
+      /** Short ending label, or null when the ending cannot be sourced (tile hidden). */
+      endingLabel: string | null;
       /** Pre-stamped price string (e.g. "£4.20"), or null (brass plaque hidden). */
       cheapestPint: string | null;
       /** Public-cleared crew names (may be empty — crew line hidden). */
@@ -146,7 +152,7 @@ export function selectRecapCardData(source: RecapCardSource): RecapCardData {
       stopCount: null,
       pintsLogged: null,
       boroughsCrossed: null,
-      endingLabel: "A London night",
+      endingLabel: null,
       cheapestPint: null,
       crew: [],
     };
@@ -164,7 +170,7 @@ export function selectRecapCardData(source: RecapCardSource): RecapCardData {
     stopCount: safeCount(stats.stopCount, 20),
     pintsLogged: safeCount(stats.pintsLogged),
     boroughsCrossed: safeCount(stats.boroughsCrossed, 33),
-    endingLabel: endingLabel(stats.ending),
+    endingLabel: stats.ending ? endingLabel(stats.ending) : null,
     cheapestPint: priceStamp(stats.cheapestPintGbp),
     crew,
   };
