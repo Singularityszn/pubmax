@@ -11,7 +11,7 @@
 
 export type FreshnessStampSpec =
   | { readonly kind: "field"; readonly pointer: string }
-  | { readonly kind: "literal"; readonly value: string; readonly mirrors?: string }
+  | { readonly kind: "literal"; readonly value: string; readonly consumedBy?: string }
   | null;
 
 export type FreshnessClass = "cron" | "episodic" | "user-cadence" | "live" | "static";
