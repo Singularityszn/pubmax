@@ -1,13 +1,13 @@
 {
   "summary": {
-    "generatedAt": "2026-07-18T07:59:30.695Z",
+    "generatedAt": "2026-07-18T10:59:43.523Z",
     "totalOsmUnpriced": 302,
     "withWebsite": 48,
     "chainsSkipped": 19,
-    "independentsSwept": 29,
-    "requestsUsed": 43,
+    "independentsSwept": 1,
+    "requestsUsed": 2,
     "priced": 0,
-    "note": "Inner/central-London test batch (non-OSM unpriced venues with a website). 0 verified after QA — the single raw hit was a food item."
+    "independentsEvaluated": 29
   },
   "log": [
     {
@@ -427,9 +427,21 @@
       "pub": "The Coach & Horses",
       "website": "https://www.coachhotelkew.co.uk",
       "host": "coachhotelkew.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "sourceUrl": "https://www.coachhotelkew.co.uk/food-drink/",
+      "observedAt": "2026-07-18T10:59:43.523Z",
+      "requests": 2,
+      "reason": "manual-QA drop: \"Berry Hugo 0.0%\"/\"Amalfi Spritz 0.0%\" are non-alcoholic spritz cocktails, not draught pints",
+      "rawExtractionDropped": [
+        {
+          "drinkName": "Berry Hugo 0.0%",
+          "priceGbp": 8.5
+        },
+        {
+          "drinkName": "Amalfi Spritz 0.0%",
+          "priceGbp": 9.5
+        }
+      ]
     }
   ]
 }

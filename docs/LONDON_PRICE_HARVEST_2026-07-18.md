@@ -146,9 +146,39 @@ of venues known to publish real online drink menus (craft taprooms with e-menus,
 specific independents), resolving each official site by hand/search — accepting
 the ~2% hit rate and the credit cost with eyes open.
 
+## Cycle 11 — sweep close-out + drink-menu ENRICHMENT (guard-exempt)
+
+**(a) Price sweep — closed.** One inner-London venue left credit-blocked was
+reprocessed (`--resume`): its only hit — The Coach & Horses "Berry Hugo 0.0% /
+Amalfi Spritz 0.0%" — is non-alcoholic spritz cocktails, dropped in QA. Every
+unpriced venue that carries a website in the dataset is now evaluated (outer 210
++ inner 29 = 239 independents, 4 verified, 1.7%). The <5% guard **remains** in
+force for the price metric; the ~637 website-less unpriced venues stay paused.
+
+**(b) Drink-menu enrichment — a separate metric (venue-detail richness), exempt
+from the price guard.** Ran the existing first-party chain harvester
+`scripts/firecrawl_greene_king_prices.mjs` against the new Outer-London OSM
+Greene King pubs (built `.firecrawl/gk-outer-london-menu-urls.txt` = each pub's
+own `/menu` page). All 10 matched by name; 4 published a structured drinks menu
+(wine + cocktails, with genuinely per-venue prices), following the script's own
+provenance (source "Greene King — official menu" + licence + observedAt):
+
+| Metric | Before | After |
+|---|---:|---:|
+| Venues with a drink menu (`drink_price_updates` venueKeys) | 65 | 68 |
+| Drink-menu rows total | 3381 | 3468 |
+
+New menus: **The Golden Fleece** (25), **Crown & Horseshoes** (22), **Druids
+Head** (40), **The Yacht** (47). The other 6 GK pubs published no menu page.
+`merge_london_chain_scrapes.mjs` (free Young's/Nicholson's re-match) added no new
+venues (the OSM cohort's URL formats don't match those lists). M&B/Ember/Vintage
+outer pubs were not harvested — their pages carry no web menu (app-only), so the
+Nicholson's-tuned MBPLC harvester would yield nothing.
+
 ## Validation
 
 - `npm run validate-data`: PASS (12 datasets; pint 3773 rows, slim 1919, drink
-  updates 3381).
-- Affected tests (`venuesSlim`, `venueCanonicalization`): 62 passed. Full
-  `vitest run` green earlier this session (3097).
+  updates 3468).
+- Affected tests: `venuesSlim`, `venueCanonicalization`, `greeneKingMenuParser`,
+  `drinkPriceUpdates`, `validateDrinkPriceUpdatesScript`, `venueMenuEnrichment`,
+  `drinkMenu`, `mbplcMenuParser` all green. Full `vitest run` 3097 earlier.
