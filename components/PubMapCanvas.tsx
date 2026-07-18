@@ -37,6 +37,14 @@ import {
 import MapLayersControl from "@/components/map/MapLayersControl";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
+import { resolveCompassAction } from "@/lib/mapCompass";
+import {
+  createIdleOrbit,
+  ORBIT_CHUNK_MS,
+  ORBIT_DEG_PER_SEC,
+  ORBIT_IDLE_DELAY_MS,
+  type IdleOrbit,
+} from "@/lib/mapOrbit";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -322,6 +330,9 @@ export default function PubMapCanvas({
   // frame, so React stays out of the gesture's render path. Seeded from the
   // opening camera so the compass is truthful before the first gesture.
   const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
+  // Idle auto-orbit driver (lib/mapOrbit). Ref so the compass handler can note
+  // an interaction without re-rendering or re-wiring the orbit effect.
+  const orbitRef = useRef<IdleOrbit | null>(null);
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
@@ -1698,6 +1709,68 @@ export default function PubMapCanvas({
   // remain out of the deps (no re-flying on churn, the original guarantee).
   const selectedPresent =
     Boolean(selectedVenueId) && venues.some((item) => item.id === selectedVenueId);
+  // Idle auto-orbit (owner call 2026-07-19, supersedes the abeb471e removal —
+  // rationale + the fixes for its three removal reasons live in lib/mapOrbit).
+  // Enabled only after the first pin REVEAL (not style.load), so boot idle
+  // frames are never consumed by camera motion. One long rotateTo per chunk;
+  // any pointer/wheel/touch/key on the canvas, any scheduled camera intent, or
+  // the compass pauses it instantly; hidden tab or off-screen canvas suspends.
+  useEffect(() => {
+    const map = mapRef.current;
+    const container = containerRef.current;
+    if (!map || !mapReady || !container) return;
+    let onScreen = true;
+    const orbit = createIdleOrbit({
+      idleDelayMs: ORBIT_IDLE_DELAY_MS,
+      isReduced: () => reducedRef.current,
+      startChunk: () => {
+        const live = mapRef.current;
+        if (!live) return;
+        // Drift in the designed direction (London opens at -8): one GPU-driven
+        // linear animation per chunk, no per-frame JS camera writes.
+        live.rotateTo(live.getBearing() - ORBIT_DEG_PER_SEC * (ORBIT_CHUNK_MS / 1000), {
+          duration: ORBIT_CHUNK_MS,
+          easing: (t) => t,
+        });
+      },
+      stopChunk: () => mapRef.current?.stop(),
+      setTimer: (callback, ms) => window.setTimeout(callback, ms),
+      clearTimer: (id) => window.clearTimeout(id),
+    });
+    orbitRef.current = orbit;
+    const interact = () => orbit.noteInteraction();
+    const enable = () => orbit.setEnabled(true);
+    const chunkEnd = () => orbit.noteChunkEnd();
+    const syncSuspended = () => orbit.setSuspended(document.hidden || !onScreen);
+    const listenerOptions = { capture: true, passive: true } as const;
+    container.addEventListener("pointerdown", interact, listenerOptions);
+    container.addEventListener("wheel", interact, listenerOptions);
+    container.addEventListener("touchstart", interact, listenerOptions);
+    container.addEventListener("keydown", interact, listenerOptions);
+    window.addEventListener("pubmax:camera-intent", interact);
+    window.addEventListener("pubmax:pin-reveal", enable);
+    document.addEventListener("visibilitychange", syncSuspended);
+    map.on("moveend", chunkEnd);
+    const observer = new IntersectionObserver((entries) => {
+      onScreen = entries[0]?.isIntersecting ?? true;
+      syncSuspended();
+    });
+    observer.observe(container);
+    return () => {
+      container.removeEventListener("pointerdown", interact, listenerOptions);
+      container.removeEventListener("wheel", interact, listenerOptions);
+      container.removeEventListener("touchstart", interact, listenerOptions);
+      container.removeEventListener("keydown", interact, listenerOptions);
+      window.removeEventListener("pubmax:camera-intent", interact);
+      window.removeEventListener("pubmax:pin-reveal", enable);
+      document.removeEventListener("visibilitychange", syncSuspended);
+      map.off("moveend", chunkEnd);
+      observer.disconnect();
+      orbit.dispose();
+      if (orbitRef.current === orbit) orbitRef.current = null;
+    };
+  }, [mapReady]);
+
   useEffect(() => {
     if (!selectedVenueId) return;
     // Any venue selection — map pin, route stop, or the sidebar list — retires
@@ -1939,32 +2012,50 @@ export default function PubMapCanvas({
             Recenter
           </button>
         ) : null}
-        {/* Compass: visible whenever the map is rotated (incl. the designed
-            opening bearing). The needle mirrors the live bearing; tapping
-            settles the map back to north without touching the pitch. Two-finger
-            rotate on phones and right-drag on desktop stay available either
-            way; this is the recovery affordance MapLibre's hidden built-in
-            control used to provide. */}
-        {Math.abs(mapBearing) > 0.5 ? (
-          <button
-            type="button"
-            className="mapCompassBtn"
-            onClick={() => {
-              const map = mapRef.current;
-              if (!map) return;
-              map.easeTo({ bearing: 0, duration: reducedRef.current ? 0 : 450 });
-            }}
-            aria-label="Point north"
-            title="Point north"
-          >
-            <Navigation2
-              size={14}
-              aria-hidden
-              style={{ transform: `rotate(${-mapBearing}deg)` }}
-            />
-            N
-          </button>
-        ) : null}
+        {/* Compass: always visible so rotation stays discoverable (it used to
+            render only while rotated, leaving no affordance at north). The
+            needle mirrors the live bearing. Rotated: tap settles back to north
+            without touching the pitch. At north: tap eases to the city's
+            designed attitude (e.g. London pitch 38 / bearing -8), so one tap
+            proves the map rotates on every device. Two-finger twist on phones
+            and right-drag / ctrl-drag on desktop stay available either way;
+            resolveCompassAction owns the decision (hermetic tests). */}
+        {(() => {
+          const compassAction = resolveCompassAction(mapBearing, getCity(cityId).mapView);
+          if (compassAction.kind === "none") return null;
+          const rotated = compassAction.kind === "reset-north";
+          return (
+            <button
+              type="button"
+              className="mapCompassBtn"
+              onClick={() => {
+                const map = mapRef.current;
+                if (!map) return;
+                // The compass eases directly (not via scheduleCamera), so tell
+                // the idle orbit explicitly: instant pause + fresh idle timer.
+                orbitRef.current?.noteInteraction();
+                map.easeTo(
+                  rotated
+                    ? { bearing: 0, duration: reducedRef.current ? 0 : 450 }
+                    : {
+                        bearing: compassAction.bearing,
+                        pitch: compassAction.pitch,
+                        duration: reducedRef.current ? 0 : 450,
+                      },
+                );
+              }}
+              aria-label={rotated ? "Point north" : "Tilt the city view"}
+              title={rotated ? "Point north" : "Tilt the city view"}
+            >
+              <Navigation2
+                size={14}
+                aria-hidden
+                style={{ transform: `rotate(${-mapBearing}deg)` }}
+              />
+              N
+            </button>
+          );
+        })()}
       </div>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>
