@@ -14,7 +14,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { totalGbp, VIBE_TAGS, type CrawlStory } from "@/lib/crawlStory";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { admin } from "@/lib/storeBackend";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -248,10 +249,6 @@ async function enrich(stored: StoredStory): Promise<DurableStory> {
 
 const STORIES_TABLE = "crawl_stories";
 const STOPS_TABLE = "crawl_story_stops";
-
-function admin() {
-  return requireSupabaseAdmin();
-}
 
 // A stored story → the crawl_stories row. `author_id` stays NULL until a Supabase
 // Auth link exists (a profile-linked author will go here — same reservation as
