@@ -27,6 +27,9 @@
 }
 
 @media (max-width: 640px) {
+  /* #353 tiers: the utility-corner icon owns the toggle on mobile. */
+  .mapVenueListToggle { display: none; }
+
   .mapVenueList {
     bottom: calc(var(--mobile-tab-clearance, 58px) + 12px);
   }

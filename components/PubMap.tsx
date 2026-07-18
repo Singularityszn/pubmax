@@ -1778,7 +1778,11 @@ export default function PubMap({
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
-          filtersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails || filters.maxPrice < 10)}
+          drinkFiltersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails)}
+          zoneActive={filters.zone !== "" && filters.zone !== "all"}
+          listOpen={mapListOpen}
+          onListToggle={() => setMapListOpen((open) => !open)}
+          priceCapActive={filters.maxPrice < 10}
           planOpen={planningOpen}
           planActive={routeMappedActive || activePlanRoute.length >= 2}
           planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
