@@ -535,6 +535,38 @@ export async function getNightStory(
   return membership ? story : null;
 }
 
+/**
+ * Read-only public recap source. Returns the story plus ONLY the moments that
+ * cleared the full consent gate — the story is published and non-private, and
+ * each moment is in `publishedMomentIds` (which the publish flow only ever fills
+ * from owner-approved consents, and a later withdrawal empties). No auth account
+ * or memory identifiers are exposed; nothing pending, withdrawn, or unlisted-off
+ * leaks. Anything short of the gate returns null.
+ */
+export async function getPublishedRecapSource(
+  storyId: string,
+): Promise<{ story: PublicNightStory; moments: NightMoment[] } | null> {
+  const story = await getStoryRaw(storyId);
+  if (!story || story.status !== "published" || story.visibility === "private") return null;
+  const allow = new Set(story.publishedMomentIds);
+  if (allow.size === 0) {
+    return { story: safeNightStory(story), moments: [] };
+  }
+  let storyMoments: NightMoment[];
+  if (!isSupabaseConfigured()) {
+    storyMoments = [...moments.values()].filter((moment) => moment.memoryId === story.memoryId);
+  } else {
+    const { data, error } = await requireSupabaseAdmin()
+      .from("night_moments")
+      .select("*")
+      .eq("memory_id", story.memoryId)
+      .order("occurred_at", { ascending: true });
+    if (error) return null;
+    storyMoments = (data ?? []).map((row) => momentFromRow(row as Record<string, unknown>));
+  }
+  return { story: safeNightStory(story), moments: storyMoments.filter((moment) => allow.has(moment.id)) };
+}
+
 export type NightStoryWorkspace = {
   story: Omit<NightStory, "memoryId" | "hostEditorId">;
   moments: Array<Pick<NightMoment, "id" | "kind" | "caption" | "venueId" | "occurredAt"> & {

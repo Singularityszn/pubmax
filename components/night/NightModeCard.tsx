@@ -725,6 +725,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
                     <button type="button" className="nightCard__quietButton" onClick={() => { resolvePendingPlanRecap(recap, "discarded"); setRecap(null); setRecapOpen(false); }}>
                       <Trash2 size={15} aria-hidden="true" /> Discard local recap
                     </button>
+                    {/* The crafted morning-after recap page — the full memory, laid out. */}
+                    <Link className="nightCard__endingLink" href={`/plan/${id}/recap`}>
+                      <BookOpen size={16} aria-hidden="true" /> See the full recap
+                    </Link>
                   </div>
                 </div>
               ) : recapSeeding ? (

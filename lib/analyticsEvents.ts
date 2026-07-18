@@ -50,6 +50,10 @@ export const ANALYTICS_EVENTS = {
   night_moment_saved: ["kind", "visibility"],
   night_memory_created: ["source"],
   night_story_published: ["contributors", "moments"],
+  // Recap page (Cycle 9). Sharing is a return-loop signal; the gate event marks
+  // a crew stepping toward the consent flow, never a publish itself.
+  recap_shared: ["channel", "planId"],
+  recap_share_gate_opened: ["planId"],
   next_night_committed: ["windowDays", "source"],
   draft_recovered: ["kind", "surface"],
   web_vital: ["metric", "value", "rating"],
