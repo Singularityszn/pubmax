@@ -21,7 +21,13 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CityChooser from "@/components/city/CityChooser";
+import MessagesLink from "@/components/nav/MessagesLink";
+import NotificationBell from "@/components/nav/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
+// Shared nav atoms (bell/messages island) carry their styling in siteNav.css.
+// The landing bar isn't the SiteNav component, but it now flies the same
+// wordmark + action cluster, so it pulls in those shared styles directly.
+import "@/components/nav/siteNav.css";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -92,7 +98,6 @@ export default function LandingPage() {
     <div className="lp">
       <header className="lpNav">
         <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
-          <span className="lpMark" aria-hidden="true">P<span>XX</span></span>
           <PubmaxxWordmark />
         </Link>
 
@@ -105,6 +110,11 @@ export default function LandingPage() {
         </nav>
 
         <div className="lpNavActions">
+          {/* Canonical action island — same order/shape as SiteNav so the front
+              door and the app read as one product. Bell/Messages are anon-safe
+              (plain icon links, badge only when signed-in + unread). */}
+          <NotificationBell />
+          <MessagesLink />
           <ThemeToggle />
           <SignInButton compact />
         </div>

@@ -423,25 +423,27 @@
     border-radius: var(--map-chrome-radius, 14px);
   }
 
+  /* Taste — header consistency: the wordmark is the plain PubmaxxWordmark on
+     every other surface (desktop bars, the map header, the landing bar), so the
+     mobile pill-box (border + panel fill + shadow + 13px radius) was the lone
+     outlier that made these pages read as different apps. Killed here: the mark
+     now sits bare, matching the canonical treatment. Tap target (44px) and the
+     compact type scale are kept. */
   .siteNavBrand {
     flex: 0 0 auto;
     width: auto;
-    min-width: 104px;
     min-height: 44px;
     height: 44px;
     justify-content: center;
     align-items: center;
-    padding: 0 9px;
-    border: 1px solid var(--line);
-    border-radius: 13px;
-    background: var(--panel-raised);
+    padding: 0 2px;
+    border-radius: 6px;
     color: var(--ink);
     font-size: 0.72rem;
     font-family: var(--font-display, system-ui, sans-serif);
     font-weight: 800;
     line-height: 1;
     overflow: hidden;
-    box-shadow: 0 3px 8px color-mix(in srgb, var(--ink-deep) 8%, transparent);
   }
 
   .siteNavBrand .pubmaxxWordmark { line-height: 1; }
