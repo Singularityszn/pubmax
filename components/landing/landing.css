@@ -12,6 +12,13 @@
 
 .lp *, .lp *::before, .lp *::after { box-sizing: border-box; }
 
+/* The nav is a fixed floating bar (~78px tall). Anchor jumps to a section or
+   heading id must clear it so the target never scroll-bleeds under the glass. */
+.lp section[id],
+.lp div[id],
+.lp h1[id],
+.lp h2[id] { scroll-margin-top: clamp(88px, 12vh, 108px); }
+
 .lpNav {
   position: fixed;
   top: 14px;
@@ -253,7 +260,14 @@
   .lpHero { padding: 106px var(--lp-pad) 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
   .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
-  .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 0; aspect-ratio: 4 / 5; border-radius: 22px; }.thamesHeroImg { object-position: 52% 50%; }.thamesHeroPinMeta { display: none; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
+  .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 0; aspect-ratio: 4 / 5; border-radius: 22px; }.thamesHeroImg { object-position: 52% 50%; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
+  /* Keep a compact category label on phones so the glyphs are named, not a
+     guessing game. Right-side pins flip the label inboard so it never clips
+     the photo's hidden overflow. */
+  .thamesHeroPinMeta { padding: 3px 7px; }
+  .thamesHeroPinPlace, .thamesHeroPinPrice { display: none; }
+  .thamesHeroPin:nth-child(3) .thamesHeroPinLink,
+  .thamesHeroPin:nth-child(4) .thamesHeroPinLink { flex-direction: row-reverse; }
   .thamesHeroPin:nth-child(1) { left: 18% !important; top: 24% !important; }
   .thamesHeroPin:nth-child(2) { left: 34% !important; top: 66% !important; }
   .thamesHeroPin:nth-child(3) { left: 70% !important; top: 28% !important; }

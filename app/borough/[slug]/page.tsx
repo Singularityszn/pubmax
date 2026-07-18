@@ -310,7 +310,7 @@ export default async function BoroughPage({ params }: PageProps) {
                     <span className="boroughPint">{pub.cheapestPint}</span>
                   ) : null}
                   <Link href={`/ledger/${pub.id}`} className="boroughLedgerLink">
-                    The Ledger →
+                    Price history →
                   </Link>
                 </td>
                 <td className="boroughPriceCell">

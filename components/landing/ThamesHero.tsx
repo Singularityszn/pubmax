@@ -126,8 +126,8 @@ export default function ThamesHero() {
       <p className="thamesHeroHint">
         {/* Copy is pointer-aware via CSS: touch devices see "Tap", mice see
             "Choose" — desktop never says "tap" when there's no tapping. */}
-        <span className="thamesHeroHintTouch">Tap a drink shape to open that kind of night</span>
-        <span className="thamesHeroHintPointer">Choose a drink shape to open that kind of night</span>
+        <span className="thamesHeroHintTouch">Tap a drink to see the pubs that pour it</span>
+        <span className="thamesHeroHintPointer">Pick a drink to see the pubs that pour it</span>
       </p>
       <ul className="thamesHeroPins">
         {HERO_PUBS.map((pub, i) => {

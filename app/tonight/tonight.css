@@ -81,10 +81,54 @@
   display: grid;
   gap: 8px;
   margin-top: 14px;
+  margin-bottom: 8px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-raised);
+}
+
+/* Collapsed row: a single quiet control until tapped. */
+.tonightLocationToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tonightLocationToggleLabel {
+  flex: 1 1 auto;
+}
+
+.tonightLocationChevron {
+  flex: 0 0 auto;
+  color: var(--muted);
+  transition: transform 160ms ease;
+}
+
+.tonightLocationChevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.tonightLocationToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.tonightLocationBody {
+  display: grid;
+  gap: 8px;
 }
 
 .tonightLocationCopy,
