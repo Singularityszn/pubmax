@@ -48,7 +48,14 @@ export default function VenuePintsTab({
             lastTrainDecision={lastTrainDecision}
           />
         ) : (
-          <VenuePriceStory venue={venue} drops={drops} />
+          <VenuePriceStory
+            venue={venue}
+            drops={drops}
+            onPriceChanged={() => {
+              onTabSelect?.("pints");
+              setComposerOpen(true);
+            }}
+          />
         )}
         <section className="pintDrops">
           <div className="inspectorTitle">
