@@ -130,7 +130,7 @@ export default function LandingPage() {
 
           <div className="lpHeroCopy">
             <h1 id="hero-title">Real pint prices on a live map. Plan a crawl your mates will actually walk.</h1>
-            <p className="lpHeroLede">Real pint prices on a live map. Plan a crawl your mates will actually walk.</p>
+            <p className="lpHeroLede">Every price carries a source and a date, rolled up by fare zone and borough. Pick your drink and see which nearby pubs pour it cheapest.</p>
             <div className="lpHeroActions">
               <Link className="lpButton lpButtonPrimary" href="/near">
                 <LocateFixed size={18} aria-hidden="true" /> Find my pint
