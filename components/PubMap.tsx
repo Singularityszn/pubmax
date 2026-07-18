@@ -1435,8 +1435,11 @@ export default function PubMap({
         />
       ) : null}
 
-      {/* Full-bleed map is the base layer; every panel slides in over it. */}
-      <section className="mapStage">
+      {/* Full-bleed map is the base layer; every panel slides in over it.
+          Named region so AT users get a landmark for the map surface (the
+          canvas pins are pointer-only; keyboard discovery is the tonight lane
+          + search input inside this region). */}
+      <section className="mapStage" aria-label={`Interactive pub map of ${city.displayName}`}>
         {/* Wave K2 / Issue #35 — keep the pitched-London loading chrome until
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank
