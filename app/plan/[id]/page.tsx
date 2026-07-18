@@ -33,11 +33,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+const ENDING_LABEL: Record<"food" | "get_home" | "keep_going", string> = {
+  food: "found food after",
+  get_home: "headed home",
+  keep_going: "kept it going",
+};
+
 export default async function PlanPage({ params }: Props) {
   const { id } = await params;
   const state = await planStore().get(id);
   if (!state) notFound();
   const shareText = shareCopyForPlan(state);
+  // A finished night must not still read like it's about to happen. Reflect the
+  // server's own completion state so re-opening the plan the morning after
+  // acknowledges the night and points onward to the recap, instead of stopping.
+  const completed = state.plan.status === "completed" || Boolean(state.ending);
+  const endingLabel = state.ending ? ENDING_LABEL[state.ending] : null;
 
   return (
     <main className="planPage">
@@ -53,9 +64,17 @@ export default async function PlanPage({ params }: Props) {
         <Link href="/plan">Make another plan</Link>
       </header>
       <section className="planPage__hero">
-        <p className="planPage__eyebrow">Your night is sorted</p>
+        <p className="planPage__eyebrow">{completed ? "That was the night" : "Your night is sorted"}</p>
         <h1>{state.plan.title}</h1>
-        <p>{state.stops.length} {state.stops.length === 1 ? "pub" : "pubs"}, one link, zero account walls.</p>
+        {completed ? (
+          <p>
+            {state.stops.length} {state.stops.length === 1 ? "pub" : "pubs"}
+            {endingLabel ? `, and you ${endingLabel}` : ""}. Your private recap lives in{" "}
+            <Link href="/u/you#night-memories">your Memories</Link> — nothing is shared until you approve it.
+          </p>
+        ) : (
+          <p>{state.stops.length} {state.stops.length === 1 ? "pub" : "pubs"}, one link, zero account walls.</p>
+        )}
       </section>
       <div className="planPage__grid">
         <PlanSummary planId={id} state={state} />

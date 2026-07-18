@@ -7,9 +7,11 @@ import {
   clampStopIndex,
   cleanStopIndex,
   clearActivePlan,
+  RECAP_GRACE_MS,
   dismissNightMode,
   isNightModeDismissed,
   isPlanActiveNow,
+  isWithinRecapGrace,
   markActivePlan,
   markNightModeActiveFired,
   parseActivePlan,
@@ -240,5 +242,27 @@ describe("markNightModeActiveFired (session dedupe, #4)", () => {
     });
     // The in-memory Set should still have it, preventing a refire.
     expect(markNightModeActiveFired(id)).toBe(false);
+  });
+});
+
+describe("isWithinRecapGrace", () => {
+  const completedAt = "2026-07-16T23:30:00.000Z";
+  const at = Date.parse(completedAt);
+
+  it("treats absent or unparseable timestamps as outside the window", () => {
+    expect(isWithinRecapGrace(null, at)).toBe(false);
+    expect(isWithinRecapGrace(undefined, at)).toBe(false);
+    expect(isWithinRecapGrace("not-a-date", at)).toBe(false);
+  });
+
+  it("holds the card from the completion instant through the grace period", () => {
+    expect(isWithinRecapGrace(completedAt, at)).toBe(true);
+    expect(isWithinRecapGrace(completedAt, at + 1)).toBe(true);
+    expect(isWithinRecapGrace(completedAt, at + RECAP_GRACE_MS)).toBe(true);
+  });
+
+  it("retires the card before the ending and after grace expires", () => {
+    expect(isWithinRecapGrace(completedAt, at - 1)).toBe(false);
+    expect(isWithinRecapGrace(completedAt, at + RECAP_GRACE_MS + 1)).toBe(false);
   });
 });
