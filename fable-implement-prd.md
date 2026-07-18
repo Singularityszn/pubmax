@@ -249,6 +249,10 @@ Wayfinder next-wave note: with these, every filed finding in the programme is ei
 
 - **Live-data wayfinder lane** (owner: "always get live data"): `infra/live-data-wayfinder` — cadence audit per data class, activation matrix (which owner key arms which cron), and the missing spine: machine-readable freshness registry + check_freshness script + /api/freshness route feeding the existing staleness labels uniformly. Key truth: TfL is already live; most other classes are built-but-key-gated; drops' refresh mechanism IS the growth loop.
 
+### Cycle 11 + design wave complete — PRs #345–#350
+- **#345** design direction (the bar-mat thesis, top-8 deltas, collision map) · **#346** a11y features (List view + shared focus trap) · **#347** the logo system (Concept A "The Crossing" recommended — owner picks, one-commit activation) · **#348** design quick wins (D3/D4/D6, 22 radii migrated, AA holds) · **#349** live-data wayfinder (cadence audit, activation matrix, freshness spine — caught 3 stale crons on main; correction: digest/APNs are branch work, not dormant keys) · **#350** CityMCP stale-serve + observability drain · #320 harvest closed (enrichment +87 rows).
+- **Programme state: ~50 open PRs, zero merged, everything reviewed.** Construction backlog is EMPTY except owner-gated items. Next wave = activation: Sol merges (#316 v2 + #341 ledger), owner keys (Ticketmaster 2-min, EXA, Skiddle approval, Firecrawl fine, logo pick, #313 wording, bill-split), then real users on the funnel.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
