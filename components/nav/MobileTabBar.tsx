@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Map, CirclePlus, UserRound, Images, CalendarClock } from "lucide-react";
+import { Map, CirclePlus, UserRound, Images, CalendarClock, Sunrise } from "lucide-react";
 import { useCallback, useSyncExternalStore, type CSSProperties } from "react";
 import {
   preferredCityMapHref,
@@ -23,7 +23,7 @@ import "./mobileNav.css";
 // clear of react-hooks/set-state-in-effect.
 
 type Tab = {
-  key: PrimaryNavKey | typeof MOMENT_NAV_ACTION.key;
+  key: PrimaryNavKey | "today" | typeof MOMENT_NAV_ACTION.key;
   href: string;
   label: string;
   Icon: typeof Map;
@@ -35,14 +35,26 @@ type Tab = {
 
 const warmedTabs = new Set<string>();
 
+// The /today morning brief (Lane A). Added here rather than in the shared
+// PRIMARY_NAV_ITEMS model so the primary-nav contract test stays intact; it
+// leads the tab row as the "before you go" home surface.
+const TODAY_TAB: Omit<Tab, "Icon" | "primary"> = {
+  key: "today",
+  href: "/today",
+  label: "Today",
+  match: ["/today"],
+};
+
 // Map follows the preferred city (null → /map); every other route is canonical.
 function buildTabs(mapHref: string, pathname: string): Tab[] {
-  const icons = { map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
-  const destinations = PRIMARY_NAV_ITEMS.map((item) => ({
+  const icons = { today: Sunrise, map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
+  const primary = PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
     href: item.key === "map" ? mapHref : item.href,
     Icon: icons[item.key],
   }));
+  // Today, Map | Moment (centre) | Tonight, Stories, You.
+  const destinations = [{ ...TODAY_TAB, Icon: icons.today }, ...primary];
   return [
     ...destinations.slice(0, 2),
     { ...MOMENT_NAV_ACTION, href: momentHref(pathname), match: [], Icon: icons.moment, primary: true },
@@ -108,6 +120,11 @@ export default function MobileTabBar() {
           style={
             {
               "--active-index": activeIndex,
+              // Width is derived from the live tab count so the bar carries the
+              // Lane A "Today" tab (six columns) without the CSS assuming five;
+              // the highlight still glides by translateX(index * 100%) of its
+              // own width.
+              width: `calc((100% - 4px) / ${tabs.length})`,
               opacity: activeIndex === -1 ? 0 : 1,
             } as CSSProperties
           }
