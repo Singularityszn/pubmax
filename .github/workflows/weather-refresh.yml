@@ -1,5 +1,18 @@
 name: Weather cache refresh
 
+# KNOWN BLOCKER (wayfinder #389): dispatched and scheduled runs on this private
+# repo currently end in `startup_failure` with zero jobs allocated — the run
+# dies *before* any job starts. This is NOT a defect in this file: the YAML is
+# valid (a manual dispatch resolves the workflow name and cron), and the minimal
+# `ci.yml` workflow fails identically on workflow_dispatch. The cause is
+# account-level GitHub Actions runner allocation — no hosted runner is granted
+# for this private, user-owned repo (exhausted included minutes and/or a $0
+# Actions spending limit). The fix is an OWNER action in account/repo settings
+# (Settings > Billing and plans > raise the Actions spending limit above $0, or
+# provision the already-installed Blacksmith runners and repoint `runs-on`).
+# Editing this file cannot resolve it. Once runner allocation is fixed, dispatch
+# this workflow and expect a green run.
+
 on:
   schedule:
     - cron: "15 14 * * *"
@@ -9,9 +22,14 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: weather-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
