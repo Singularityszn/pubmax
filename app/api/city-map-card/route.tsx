@@ -4,6 +4,7 @@ import { getCity, parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
 import { bandByIdForCity } from "@/lib/cityStoryBands";
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
+import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 // City map OG share card — cult / Freshers deep links (`?band=subcrawl`) and
 // curated crawl shares (`?crawl=victorian-soho`). Query-aware because
@@ -290,6 +291,6 @@ export async function GET(request: Request) {
         </div>
       </div>
     ),
-    size,
+    { ...size, headers: OG_CACHE_HEADERS },
   );
 }
