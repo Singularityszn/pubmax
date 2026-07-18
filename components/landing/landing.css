@@ -1,6 +1,9 @@
 .lp {
   --lp-max: 1240px;
-  --lp-pad: clamp(18px, 4vw, 52px);
+  /* Landing keeps its generous up-to-52px desktop gutter, but never dips below
+     the global --page-gutter (≥20px + safe-area) on phones — the owner's hero
+     letters were nearly touching the glass at the old 18px floor. */
+  --lp-pad: max(var(--page-gutter), clamp(18px, 4vw, 52px));
   min-height: 100dvh;
   overflow: clip;
   background: var(--paper);
@@ -247,7 +250,7 @@
 
 @media (max-width: 700px) {
   .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 10px; gap: 8px; }.lpWordmark { font-size: 12px; }
-  .lpHero { padding: 106px 18px 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
+  .lpHero { padding: 106px var(--lp-pad) 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
   .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
   .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 0; aspect-ratio: 4 / 5; border-radius: 22px; }.thamesHeroImg { object-position: 52% 50%; }.thamesHeroPinMeta { display: none; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
@@ -255,11 +258,11 @@
   .thamesHeroPin:nth-child(2) { left: 34% !important; top: 66% !important; }
   .thamesHeroPin:nth-child(3) { left: 70% !important; top: 28% !important; }
   .thamesHeroPin:nth-child(4) { left: 80% !important; top: 70% !important; }
-  .lpSignalSection, .lpProofSection { width: calc(100% - 36px); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
+  .lpSignalSection, .lpProofSection { width: calc(100% - 2 * var(--lp-pad)); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
   .lpSignalGrid { margin-top: 38px; grid-template-columns: 1fr; }.lpSignalGrid article { min-height: 230px; border-right: 0; border-bottom: 1px solid var(--line); }.lpSignalGrid article:last-child { border-bottom: 0; }
-  .lpMemorySection { padding: 76px 18px; }.lpMemoryCanvas { gap: 48px; }.lpMemorySteps li { grid-template-columns: 44px 1fr; }
+  .lpMemorySection { padding: 76px var(--lp-pad); }.lpMemoryCanvas { gap: 48px; }.lpMemorySteps li { grid-template-columns: 44px 1fr; }
   .dropStripRail { width: calc(100vw - 18px); grid-auto-columns: min(82vw, 310px); }.lpPalCallout { grid-template-columns: auto 1fr; align-items: start; }.lpPalCallout > a { grid-column: 2; }
-  .lpCityChooser { padding-inline: 18px; }.lpFinalCta { min-height: 72vh; padding-inline: 18px; }
+  .lpCityChooser { padding-inline: var(--lp-pad); }.lpFinalCta { min-height: 72vh; padding-inline: var(--lp-pad); }
 }
 
 @media (max-width: 420px) {

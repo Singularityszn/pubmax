@@ -6,7 +6,7 @@
 .discoverPage {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 32px 20px 80px;
+  padding: 32px var(--page-gutter) 80px;
   color: var(--ink);
 }
 
@@ -823,7 +823,7 @@
    so the pub name and its price stamp stay legible on a 375px screen. */
 @media (max-width: 560px) {
   .discoverPage {
-    padding: 18px 14px calc(var(--mobile-tab-clearance, 72px) + 48px);
+    padding: 18px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
   }
 
   .discoverHead {

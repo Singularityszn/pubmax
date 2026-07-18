@@ -31,7 +31,7 @@
       var(--paper) 430px
     );
   color: var(--ink);
-  padding: 22px 16px 82px;
+  padding: 22px var(--page-gutter) 82px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1287,7 +1287,7 @@
 
   /* Wave K3 — denser mobile stream: smaller title, tighter cards, tab clearance. */
   .feedShell {
-    padding: 16px 12px calc(var(--mobile-tab-clearance, 72px) + 48px);
+    padding: 16px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
     gap: 14px;
   }
 

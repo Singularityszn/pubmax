@@ -7,7 +7,7 @@
 .tonightPage {
   max-width: 720px;
   margin: 0 auto;
-  padding: 16px 16px calc(96px + env(safe-area-inset-bottom, 0px));
+  padding: 16px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
   color: var(--ink);
 }
 
