@@ -25,11 +25,13 @@ import {
 import { usePathname } from "next/navigation";
 
 import {
+  claimTourPromptBudget,
   getTourSeenServerSnapshot,
   getTourSeenSnapshot,
   markTourSeen,
   shouldShowFirstRunTour,
   subscribeTour,
+  tourHasPromptBudget,
 } from "@/lib/firstRunTour";
 import { trackEvent } from "@/lib/analytics";
 import "./firstRunTour.css";
@@ -112,11 +114,17 @@ export default function FirstRunTour(): React.JSX.Element | null {
     void Promise.resolve().then(() => setMounted(true));
   }, []);
 
-  // Map-only, one-time gate (see lib/firstRunTour.ts): the tour spotlights
-  // the map + mobile tab bar, so it only makes sense on /map surfaces, and
-  // never on landing/tonight/feed/pint-index/etc. (must render clean for
-  // SEO/press/first-tap), nor over Pub Pal / You's own dedicated onboarding.
-  const active = shouldShowFirstRunTour({ mounted, seen, pathname });
+  // Map-only, one-time gate (see lib/firstRunTour.ts) — AND the shared
+  // one-prompt-per-session budget: don't open if a sibling surface (A2HS /
+  // identity / push) already holds it. See docs/PROMPT_ORCHESTRATION.md.
+  const active =
+    shouldShowFirstRunTour({ mounted, seen, pathname }) && tourHasPromptBudget();
+
+  // Claim the shared budget at the moment the tour actually shows, so an
+  // eligible-but-hidden tour never starves a sibling. Idempotent for the tour.
+  useEffect(() => {
+    if (active) claimTourPromptBudget();
+  }, [active]);
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.
