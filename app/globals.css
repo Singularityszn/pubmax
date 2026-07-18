@@ -183,6 +183,20 @@
   --tracking-wide: 0.05em;
   --tracking-wider: 0.08em;
 
+  /* — Page gutter: the single horizontal breathing room every page shell puts
+       between its body text/headings and the screen edge. One token so no page
+       can drift back to a cramped ad-hoc value, and so notch-edge devices get
+       extra room automatically.
+         · clamp(22px, 5vw, 32px): at a 390px phone → 22px (comfortably off the
+           glass even under the big hero letters, not wasteful); grows to 32px on
+           wide phones/tablets, capped so desktop max-width containers are
+           unaffected.
+         · max(…, env(safe-area-inset-*)): on notch/rounded-corner devices the
+           gutter never dips below the safe-area inset, so landscape + curved
+           glass never clip text. Falls back to 0px where env() is unsupported,
+           leaving the clamp() in charge. */
+  --page-gutter: max(clamp(22px, 5vw, 32px), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+
   /* — Spacing scale: 4px base, used for new work; existing literal paddings
        are untouched. */
   --space-1: 4px;

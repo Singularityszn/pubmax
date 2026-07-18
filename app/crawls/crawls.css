@@ -7,7 +7,7 @@
   min-height: 100vh;
   background: var(--paper);
   color: var(--ink);
-  padding: 24px 16px 64px;
+  padding: 24px var(--page-gutter) 64px;
   display: flex;
   flex-direction: column;
   align-items: center;

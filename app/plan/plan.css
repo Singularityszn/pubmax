@@ -8,7 +8,7 @@
   --fit-unlikely: var(--color-negative);
   --fit-book: var(--plan-accent-strong);
   min-height: 100vh;
-  padding: clamp(18px, 4vw, 48px) clamp(16px, 5vw, 72px) 96px;
+  padding: clamp(18px, 4vw, 48px) max(var(--page-gutter), clamp(16px, 5vw, 72px)) 96px;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--plan-accent) 6%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
     var(--paper);

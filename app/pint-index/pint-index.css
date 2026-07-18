@@ -7,7 +7,7 @@
 .pintIndexPage {
   max-width: 960px;
   margin: 0 auto;
-  padding: 28px 20px 80px;
+  padding: 28px var(--page-gutter) 80px;
   color: var(--ink);
 }
 
@@ -310,7 +310,7 @@
 
 @media (max-width: 640px) {
   .pintIndexPage {
-    padding: 20px 14px 72px;
+    padding: 20px var(--page-gutter) 72px;
   }
 
   .pintIndexStats {

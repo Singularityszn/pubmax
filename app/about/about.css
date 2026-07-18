@@ -9,7 +9,7 @@
 .aboutPage {
   max-width: 760px;
   margin: 0 auto;
-  padding: 20px 16px calc(96px + env(safe-area-inset-bottom, 0px));
+  padding: 20px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
   color: var(--ink);
 }
 
