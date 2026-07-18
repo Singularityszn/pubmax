@@ -8,7 +8,7 @@
 // in lib/nativePushPrompt.ts (shouldOfferPushPrompt), this component is pure
 // presentation + the two button actions.
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { registerNativePush } from "@/lib/nativePush";
 import { trackEvent } from "@/lib/analytics";
@@ -19,6 +19,9 @@ import {
   markPushPromptEnabled,
   subscribePushPrompt,
 } from "@/lib/nativePushPrompt";
+import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
+
+const PUSH_SURFACE = "native-push";
 import "./nativePushPrompt.css";
 
 export default function NativePushPrompt(): React.JSX.Element | null {
@@ -28,7 +31,15 @@ export default function NativePushPrompt(): React.JSX.Element | null {
     getPushPromptServerSnapshot,
   );
 
-  if (!visible) return null;
+  const canShow = visible && hasPromptBudgetFor(PUSH_SURFACE);
+
+  // Claim the shared one-prompt-per-session budget at the moment it shows
+  // (docs/PROMPT_ORCHESTRATION.md).
+  useEffect(() => {
+    if (canShow) claimPromptBudget(PUSH_SURFACE);
+  }, [canShow]);
+
+  if (!canShow) return null;
 
   function handleEnable() {
     // Persist immediately so the sheet can't double-fire on a slow
