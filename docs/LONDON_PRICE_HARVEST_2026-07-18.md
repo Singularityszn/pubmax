@@ -99,6 +99,53 @@ dataset — Camden, Soho, Covent Garden, City of London, Wandsworth, Hackney) to
 test the owner's hypothesis that central craft/independent bars publish more.
 If that batch also lands <5%, PAUSE and report rather than spend further.
 
+## Inner/central-London test batch (owner hypothesis test)
+
+The owner believed central craft/independent bars publish pint prices more often.
+Tested it cheaply: swept the 48 **non-OSM** unpriced venues that already carry a
+website in the dataset (Soho, Camden, Covent Garden, Mayfair, City of London,
+Wandsworth, Hackney, Tower Hamlets, Victoria, …) via
+`--scope non-osm` (log: `data/osm/inner_london_price_harvest_log.json`).
+
+| Metric | Value |
+|---|---|
+| Non-OSM unpriced venues with a website | 48 |
+| Chains skipped (no web prices) | 19 |
+| Independents evaluated | 29 |
+| Raw extraction hits | 1 |
+| **Verified after QA** | **0** |
+| Firecrawl requests | 43 |
+
+The single raw hit — The Phoenix (Victoria), "Young's ale & treacle soda bread
+£4.00" — is a **food item**, dropped in QA. Central London published *fewer*
+extractable standard pint prices than outer London, not more.
+
+## Decision — PAUSE (owner <5% guard)
+
+| Cohort | Evaluated | Verified | Hit rate |
+|---|---:|---:|---:|
+| Outer-London | 210 | 4 | 1.9% |
+| Inner/central-London | 29 | 0 | 0.0% |
+| **Combined** | **239** | **4** | **1.7%** |
+
+Across **239 evaluated independents in ~493 scrape requests, 4 verified standard
+pint prices (1.7%)** — decisively under the 5% guard, and the inner-London probe
+refuted the "central bars publish more" hypothesis. The honest reason is
+structural: UK pubs put standard prices behind bar boards and loyalty/Order &
+Pay apps; the web £ figures that do exist are overwhelmingly promos, happy-hour
+deals, non-pint measures (1/3, 2/3, 330ml cans, online-shop cases), food, or
+chains.
+
+**Paused before spending the balance** on the ~637 unpriced venues that have **no
+website in the dataset** — pricing them would first require a Firecrawl *search*
+per venue to resolve an official site (expensive), for an expected yield <2%.
+
+### If the owner still wants to proceed
+Highest-EV next step is NOT a blanket sweep but a curated pass over a shortlist
+of venues known to publish real online drink menus (craft taprooms with e-menus,
+specific independents), resolving each official site by hand/search — accepting
+the ~2% hit rate and the credit cost with eyes open.
+
 ## Validation
 
 - `npm run validate-data`: PASS (12 datasets; pint 3773 rows, slim 1919, drink

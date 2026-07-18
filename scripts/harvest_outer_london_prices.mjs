@@ -43,7 +43,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const APP_PATH = join(ROOT, "public/data/pint_prices_app_dataset.json");
 const DRINK_UPDATES_DIR = join(ROOT, "public/data/drink_price_updates");
 const LATEST_PATH = join(DRINK_UPDATES_DIR, "latest.json");
-const LOG_PATH = join(ROOT, "data/osm/outer_price_harvest_log.json");
+const DEFAULT_LOG_PATH = join(ROOT, "data/osm/outer_price_harvest_log.json");
+function logPathArg() {
+  const i = process.argv.indexOf("--log");
+  return i !== -1 && process.argv[i + 1] ? join(ROOT, process.argv[i + 1]) : DEFAULT_LOG_PATH;
+}
+const LOG_PATH = logPathArg();
 
 const API = "https://api.firecrawl.dev/v2/scrape";
 const KEY = process.env.FIRECRAWL_API_KEY;
@@ -212,10 +217,35 @@ function main() {
     console.log(`[resume] carrying ${priorKeep.length} prior entries; reprocessing ${reblockedUrls.size} credit-blocked venues`);
   }
 
+  // --scope osm (default): the outer-London OSM presence cohort.
+  // --scope non-osm: every OTHER unpriced venue (all-London expansion) whose
+  //   venue group carries no numeric price anywhere.
+  const scope = arg("--scope", "osm");
   const app = JSON.parse(readFileSync(APP_PATH, "utf8"));
-  const osmRows = app.filter(
-    (r) => String(r.source_datasets || "").includes("outer_london_osm") && r.price_gbp == null,
-  );
+
+  let osmRows;
+  if (scope === "non-osm") {
+    // group by venueKey; keep groups with NO numeric price; one representative
+    // row per group (prefer a row that has a website).
+    const groups = new Map();
+    for (const r of app) {
+      const k = venueGroupingKey(r);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(r);
+    }
+    osmRows = [];
+    for (const rows of groups.values()) {
+      const hasPrice = rows.some((r) => typeof r.price_gbp === "number" && Number.isFinite(r.price_gbp));
+      if (hasPrice) continue;
+      if (rows.some((r) => String(r.source_datasets || "").includes("outer_london_osm"))) continue; // already done
+      const rep = rows.find((r) => r.website) || rows[0];
+      osmRows.push(rep);
+    }
+  } else {
+    osmRows = app.filter(
+      (r) => String(r.source_datasets || "").includes("outer_london_osm") && r.price_gbp == null,
+    );
+  }
 
   // Bucket by host; keep the first row per host as the harvest target (all rows
   // remain individually priceable, but one representative site drives the fetch).
