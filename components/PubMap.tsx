@@ -42,6 +42,10 @@ const MobilePlanActivation = dynamic(
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
+import PersonaLensPicker from "@/components/map/PersonaLensPicker";
+import PersonaLensCard from "@/components/map/PersonaLensCard";
+import { usePersonaTonightCategory } from "@/components/map/usePersonaTonight";
+import { findPersonaById, personaHighlightsPubs, type PersonaDrink } from "@/lib/personaDrinks";
 import MapLayersControl from "@/components/map/MapLayersControl";
 // Perf (mobile map budget): the planner rail/route panel, venue inspector,
 // mobile plan activation, and the desktop-only map chrome below are NOT on the
@@ -940,6 +944,55 @@ export default function PubMap({
     else clearFavoritePint();
   }, []);
 
+  // Persona "Drink like..." lens. The picker sets filters.drinkCategory so the
+  // lens RIDES the existing drink-category filter path (filterVenues +
+  // pubsToGeoJSON) instead of forking a new pin pipeline; we only track WHICH
+  // persona is active so the card can render. Conditions cross-link: personas
+  // whose category fits tonight sort first (usePersonaTonightCategory reuses the
+  // shared /api/tonight-conditions verdict, no duplicated weather rules).
+  const [personaLensId, setPersonaLensId] = useState<string | null>(null);
+  const personaTonightCategory = usePersonaTonightCategory(isLondon);
+
+  const selectPersona = useCallback((persona: PersonaDrink | null) => {
+    if (!persona) {
+      setPersonaLensId(null);
+      setFilters((current) => ({
+        ...current,
+        drinkCategory: "",
+        drinkBrand: "",
+        requireCocktails: false,
+      }));
+      return;
+    }
+    setPersonaLensId(persona.id);
+    setFavoritePintState(null);
+    // Non-alcoholic / uncovered orders (water, Cherry Coke, milk) would filter
+    // the map to empty, so we leave the drink filter cleared and just show the
+    // card, no lens dead-end. Everything else rides the drink-category path.
+    const highlights = personaHighlightsPubs(persona);
+    setFilters((current) => ({
+      ...current,
+      drinkCategory: highlights ? persona.drinkCategory : "",
+      drinkBrand: "",
+      requireCocktails: highlights && persona.drinkCategory === "cocktail",
+    }));
+  }, []);
+
+  // The card shows while the active persona still owns the live drink lens.
+  // Highlighting personas hold the card while their category is the active
+  // filter; non-highlighting (non-alcoholic) personas hold it while no other
+  // drink lens has taken over (drinkCategory stays cleared). Either way,
+  // selecting a different lens by any control implicitly retires the card.
+  const activePersona = useMemo(() => {
+    if (!personaLensId) return null;
+    const persona = findPersonaById(personaLensId);
+    if (!persona) return null;
+    const owns = personaHighlightsPubs(persona)
+      ? persona.drinkCategory === filters.drinkCategory
+      : filters.drinkCategory === "";
+    return owns ? persona : null;
+  }, [personaLensId, filters.drinkCategory]);
+
   // Flip "Saved only". Re-read the saved set from localStorage on every toggle
   // (event handler, not an effect) so a pub saved elsewhere this session is
   // reflected the moment the filter is turned on — no stale set, no reload.
@@ -1725,6 +1778,9 @@ export default function PubMap({
                 drinkCategory === "cocktail" ? true : drinkCategory ? false : current.requireCocktails,
             }))
           }
+          personaId={personaLensId}
+          onPersonaSelect={selectPersona}
+          personaTonightCategory={personaTonightCategory}
           planningOpen={planningOpen}
           onTogglePlanning={togglePlanning}
           filters={filters}
@@ -1805,6 +1861,16 @@ export default function PubMap({
           />
         ) : null}
 
+        {activePersona ? (
+          <PersonaLensCard
+            persona={activePersona}
+            matchCount={
+              personaHighlightsPubs(activePersona) ? filteredVenueCount : undefined
+            }
+            onClose={() => selectPersona(null)}
+          />
+        ) : null}
+
         {/* A11Y #1 — keyboard/SR "List view": the DOM parallel to the canvas
             pins. Present on both viewports; selection drives the same
             selectVenue the pin tap does. Hidden by CSS while a sheet owns the
@@ -1879,6 +1945,11 @@ export default function PubMap({
                     requireCocktails: drinkCategory === "cocktail",
                   }))
                 }
+              />
+              <PersonaLensPicker
+                personaId={personaLensId}
+                onSelect={selectPersona}
+                tonightCategory={personaTonightCategory}
               />
               <fieldset className="mobilePriceChoices">
                 <legend>Maximum pint price</legend>

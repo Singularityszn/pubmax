@@ -6,9 +6,12 @@ import { useEffect, useState } from "react";
 import CitySwitcher from "@/components/map/CitySwitcher";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
+import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import ZonePicker from "@/components/map/ZonePicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import type { DrinkCategory } from "@/lib/drinks";
+import type { PersonaDrink } from "@/lib/personaDrinks";
 import type { Filters } from "@/lib/venues";
 import type { ZonePintIndex } from "@/lib/zones";
 
@@ -26,6 +29,12 @@ type MapToolbarProps = {
   drinkCategory: string;
   drinkBrand: string;
   onDrinkLensChange: (next: { drinkCategory: string; drinkBrand: string }) => void;
+  /** Active "Drink like..." persona id, or null when the lens is off. */
+  personaId: string | null;
+  /** Select a persona (or null to clear); the parent rides the drink filter. */
+  onPersonaSelect: (persona: PersonaDrink | null) => void;
+  /** The DrinkCategory that fits tonight, for the persona fits-tonight sort. */
+  personaTonightCategory: DrinkCategory | null;
   planningOpen: boolean;
   onTogglePlanning: () => void;
   filters: Filters;
@@ -51,6 +60,9 @@ export default function MapToolbar({
   drinkCategory,
   drinkBrand,
   onDrinkLensChange,
+  personaId,
+  onPersonaSelect,
+  personaTonightCategory,
   planningOpen,
   onTogglePlanning,
   filters,
@@ -197,6 +209,13 @@ export default function MapToolbar({
       <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
         {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
         <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+        <div className="mapToolbarDrinksLens">
+          <PersonaLensPicker
+            personaId={personaId}
+            onSelect={onPersonaSelect}
+            tonightCategory={personaTonightCategory}
+          />
+        </div>
       </div>
     </div>
   );

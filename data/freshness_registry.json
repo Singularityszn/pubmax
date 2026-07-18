@@ -222,6 +222,17 @@
       "stalenessBudgetHours": 1080,
       "refreshWorkflow": "manual (re-run the research sweeps, re-extract into data/area_news.json, then node scripts/build_area_news_matches.mjs)",
       "gate": "none (committed dataset; EXA_API_KEY / FIRECRAWL_API_KEY arm the underlying research sweeps but the layer ships static)"
+    },
+    {
+      "id": "persona_drinks",
+      "label": "Persona drinks (reported / canon drink orders for the Drink like lens)",
+      "class": "episodic",
+      "artifact": "data/persona_drinks.json",
+      "stamp": { "kind": "literal", "value": "2026-07-18T12:00:00Z", "consumedBy": "committed snapshot; bundled into the app via lib/personaDrinks.ts (webpack inlines the JSON). This literal is the crawl's collection date, the single source of truth for how fresh the persona set is." },
+      "cadence": "episodic snapshot — re-run the persona crawl (Exa + Firecrawl), drop the new JSONL in as data/persona_drinks.source.jsonl, then node scripts/build_persona_drinks.mjs",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (node scripts/build_persona_drinks.mjs)",
+      "gate": "none to check (bundled static). A refresh crawl needs EXA_API_KEY and FIRECRAWL_API_KEY."
     }
   ]
 }
