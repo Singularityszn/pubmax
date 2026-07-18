@@ -200,9 +200,19 @@ type PubMapCanvasProps = {
 };
 
 
-// Hard ceiling on the tile-paint gate: slow or incomplete community tiles must
-// never leave the pub layer hidden indefinitely.
+// Short fallback that un-gates the local pins if slow or incomplete community
+// tiles never report loaded, so the pub layer can't hang hidden indefinitely.
+// This runs BEHIND the still-present parent skeleton and never lifts the chrome.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
+// Honest upper bound for lifting the parent loading chrome when tiles never
+// settle. On a slow tile stream the reveal always prefers a real render/idle
+// frame with tiles loaded (so the theme-matched pitched-London skeleton stays
+// up until the basemap actually paints); this ceiling only fires when that
+// frame never arrives, so the user never sees a flat basemap void behind a
+// prematurely retired skeleton. Kept above the slow-stream window the design
+// judge measured (~9s) and above the first-frame watchdog so a genuinely dead
+// canvas surfaces the error fallback rather than a blank lift.
+const PIN_READY_CEILING_MS = 12_000;
 // First-painted-frame watchdog. `style.load` is a network/parse event — it can
 // fire (and retire the parent's loading chrome) in a browser whose WebGL
 // context was GRANTED but whose render loop never produces a frame (dead
@@ -885,7 +895,8 @@ export default function PubMapCanvas({
     // cancels the previous generation before setStyle, so a late render/frame
     // from the old style can never mutate the new one.
     const pinRevealCoordinator = createPinRevealCoordinator({
-      timeoutMs: PIN_REVEAL_TIMEOUT_MS,
+      pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
+      readyCeilingMs: PIN_READY_CEILING_MS,
       areTilesLoaded: () => {
         const basemapSourceIds = Object.entries(map.getStyle().sources ?? {})
           .filter(([, source]) => (
@@ -919,13 +930,15 @@ export default function PubMapCanvas({
       setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
       clearTimer: (handle) => window.clearTimeout(handle),
       onReveal: (reason, generation) => {
-        // Void fix (#395 R2): lift the PARENT loading chrome HERE — the pin
+        // Void fix (#395 R2, #397): lift the PARENT loading chrome HERE — the
         // reveal is the first frame with the basemap actually painted (reason
-        // "tiles"/"idle") or an honest 3s degrade ("timeout"). style.load only
+        // "tiles"/"idle") or, only if that frame never arrives, an honest
+        // ceiling degrade ("timeout" at PIN_READY_CEILING_MS). style.load only
         // built the scene graph; on a slow tile stream that left a flat
-        // background-only rectangle (near-black in dark theme) exposed for many
-        // seconds once the chrome retired at style.load. Emitting parent-ready
-        // at reveal keeps the pitched-London skeleton over the real void window.
+        // background-only rectangle (grey/near-black) exposed for many seconds
+        // once the chrome retired at style.load. Holding parent-ready until a
+        // real painted frame keeps the pitched-London skeleton over the whole
+        // void window instead of retiring it on a blind short timeout.
         onMapReadyRef.current?.(true);
         window.dispatchEvent(new CustomEvent("pubmax:pin-reveal", {
           detail: { reason, generation },
