@@ -86,6 +86,55 @@
   .mobileMapRail > button[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-accent); }
   .mobileMapChipCount { min-width: 1.2rem; height: 1.2rem; display: grid; place-items: center; border-radius: 999px; background: var(--color-accent); color: var(--color-on-accent); font-family: var(--font-data); font-size: .68rem; }
 
+  /* TIER 1 — the one primary-weight chip. Filled accent so "Near me" reads as
+     THE action; every other chip stays quiet. (When #328's role tokens land,
+     --color-accent here becomes --accent-action — same value, clearer name.) */
+  .mobileMapChipPrimary {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+  .mobileMapRail > .mobileMapChipPrimary[aria-pressed="true"] {
+    border-color: var(--ink-deep);
+    color: var(--color-on-accent);
+    filter: saturate(1.08);
+  }
+  .mobileMapChipPrimary:disabled { opacity: .72; }
+
+  /* TIER 3 — utility corner: compact icon-buttons stacked at the map's right
+     edge, below the chrome, above the plan pill. List view (#346) joins here. */
+  .mobileMapUtilityCorner {
+    position: fixed;
+    right: 10px;
+    top: calc(var(--mobile-map-chrome-h, 118px) + env(safe-area-inset-top) + 10px);
+    z-index: var(--z-map-toolbar);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: auto;
+  }
+  .mobileMapUtilityCorner > button {
+    position: relative;
+    min-width: 44px;
+    min-height: 44px;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 14%, transparent);
+  }
+  .mobileMapCornerSuffix { font-size: .62rem; font-weight: 700; margin-left: 2px; }
+  .mobileMapCornerBadge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-family: var(--font-data);
+    font-size: .64rem;
+  }
+
   .mobilePlanActivation {
     position: fixed;
     left: 50%;

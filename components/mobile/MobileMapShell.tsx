@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, LocateFixed, Route, Search, SlidersHorizontal, Sparkles, TrainFront, WalletCards } from "lucide-react";
+import { Ellipsis, List, LocateFixed, Route, Search, SlidersHorizontal, Sparkles, TrainFront } from "lucide-react";
 import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { Chip } from "@/components/ui/chip";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
+import { buildFiltersChip, buildNearMeChip, buildTflCorner } from "@/lib/mapChromeTiers";
 import type { MapOverlay, MapSheetKind } from "@/lib/mobileShell";
 
 import "./mobileMapShell.css";
@@ -46,7 +47,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, filtersActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent }: {
+export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, priceCapActive, zoneActive, listOpen, onListToggle, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent }: {
   cityLabel: string;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
@@ -57,7 +58,13 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
   tflCount: number;
   tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
-  filtersActive: boolean;
+  drinkFiltersActive: boolean;
+  /** #329 zone lens counts as a filters refinement (its mobile home is the filters sheet). */
+  zoneActive?: boolean;
+  /** #346 adoption: the a11y List view's toggle lives in the utility corner on mobile. */
+  listOpen?: boolean;
+  onListToggle?: () => void;
+  priceCapActive: boolean;
   planOpen: boolean;
   planActive: boolean;
   planStopCount: number;
@@ -74,6 +81,9 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
 }) {
   const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
   const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
+  const nearMe = buildNearMeChip(nearMeStatus, nearbyCount);
+  const filtersChip = buildFiltersChip({ drinkFiltersActive, priceCapActive, priceLabel, zoneActive });
+  const tflCorner = buildTflCorner(tflStatus, tflCount);
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;
@@ -94,14 +104,32 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
           <div className="mobileMapSearchRow">{searchContent}</div>
         ) : (
           <nav className="mobileMapRail" aria-label="Contextual map controls">
-            <Chip aria-pressed={nearMeStatus === "ready"} disabled={nearMeStatus === "requesting"} onClick={onNearMe}><LocateFixed size={17} />{nearMeStatus === "requesting" ? "Locating" : nearMeStatus === "ready" ? `Nearby ${nearbyCount}` : nearMeStatus === "error" ? "Try near me" : "Near me"}</Chip>
+            {/* TIER 1 — the answer. The only primary-weight chip on the map. */}
+            <Chip className="mobileMapChipPrimary" aria-pressed={nearMe.pressed} disabled={nearMe.disabled} onClick={onNearMe}><LocateFixed size={17} />{nearMe.label}</Chip>
+            {/* TIER 2 — answer-adjacent surfaces. Filters absorbs the old
+                Drinks + price chips (both always opened this same sheet); the
+                zone picker joins as a sheet section when that lane lands. */}
             <Chip aria-pressed={overlay === "tonight"} onClick={() => set("tonight")}><Sparkles size={17} />Tonight{tonightCount ? <span className="mobileMapChipCount">{tonightCount}</span> : null}</Chip>
-            <Chip aria-pressed={overlay === "filters" && filtersActive} onClick={() => set("filters")}><SlidersHorizontal size={17} />Drinks</Chip>
-            <Chip aria-pressed={overlay === "filters"} onClick={() => set("filters")}><WalletCards size={17} />{priceLabel}</Chip>
-            <Chip aria-pressed={overlay === "tfl"} onClick={() => set("tfl")}><TrainFront size={17} />TfL{tflStatus === "clear" ? " OK" : tflStatus === "unavailable" ? " ?" : null}{tflCount ? <span className="mobileMapChipCount">{tflCount}</span> : null}</Chip>
+            <Chip aria-pressed={overlay === "filters"} aria-label={filtersChip.ariaLabel} onClick={() => set("filters")}><SlidersHorizontal size={17} />{filtersChip.label}{filtersChip.refinements ? <span className="mobileMapChipCount">{filtersChip.refinements}</span> : null}</Chip>
           </nav>
         )}
       </div>
+      {/* TIER 3 — utilities live in the map's corner, out of the answer's way.
+          List view (#346) joins this stack on its rebase. */}
+      {overlay !== "search" ? (
+        <div className="mobileMapUtilityCorner" aria-label="Map utilities">
+          <IconButton aria-label={tflCorner.ariaLabel} aria-expanded={overlay === "tfl"} onClick={() => set("tfl")}>
+            <TrainFront size={19} />
+            {tflCorner.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tflCorner.statusSuffix}</span> : null}
+            {tflCorner.badge ? <span className="mobileMapCornerBadge">{tflCorner.badge}</span> : null}
+          </IconButton>
+          {onListToggle ? (
+            <IconButton aria-label="List view of pubs on the map" aria-pressed={Boolean(listOpen)} onClick={onListToggle}>
+              <List size={19} />
+            </IconButton>
+          ) : null}
+        </div>
+      ) : null}
       {overlay === "none" && !planOpen ? (
         <button
           type="button"
