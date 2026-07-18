@@ -4520,20 +4520,24 @@ button:disabled {
     transform: translateY(0) !important;
   }
 
-  /* Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css. */
+  /* Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css.
+     dvh (visible viewport) with vh fallback — see venueSheet.css for why. */
   .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging) {
     transform: translateY(45vh) !important;
+    transform: translateY(45dvh) !important;
   }
 
   .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
     transform: translateY(78vh) !important;
+    transform: translateY(78dvh) !important;
   }
 
   .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-full:not(.sheet-dragging) {
     transform: translateY(8vh) !important;
+    transform: translateY(8dvh) !important;
   }
 
   .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
@@ -4543,6 +4547,7 @@ button:disabled {
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
     height: 100vh;
+    height: 100dvh;
     max-height: none;
   }
 

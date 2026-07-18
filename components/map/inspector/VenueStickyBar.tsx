@@ -1,4 +1,4 @@
-import { PlusCircle, Route as RouteIcon, Share2, TrainFront } from "lucide-react";
+import { PlusCircle, Route as RouteIcon, Share2 } from "lucide-react";
 
 import type { Venue } from "@/lib/venues";
 import type { CrawlMode } from "@/components/map/ControlRail";
@@ -60,15 +60,8 @@ export default function VenueStickyBar({
         <Share2 size={15} aria-hidden="true" />
         Share
       </button>
-      <button
-        type="button"
-        className="venueSheetStickyGhost"
-        onClick={() => selectTab("getting-home")}
-        aria-label="Check last train"
-      >
-        <TrainFront size={15} aria-hidden="true" />
-        Train
-      </button>
+      {/* No Train button here: the tab row's "Train" (getting-home) tab is the
+          single entry point — the strip holds actions, not navigation. */}
       {currentShareFeedback ? (
         <span
           role={currentShareFeedback.tone === "error" ? "alert" : "status"}

@@ -347,8 +347,10 @@ test("mobile venue sheet sticky actions switch to Train and Drop without desktop
   const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
-  await stickyActions.getByRole("button", { name: "Check last train" }).click();
+  // The tab row is the single Train entry point (the sticky strip holds
+  // actions, not navigation — owner-reported duplicate removed).
   const gettingHomeTab = page.getByRole("tab", { name: "Last train", exact: true });
+  await gettingHomeTab.click();
   await expect(gettingHomeTab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
 

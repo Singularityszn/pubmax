@@ -272,24 +272,33 @@
      closed/open base transforms still apply when the drawer is closed; these
      rules override once `.open.sheet-*` is present. Keep in sync with
      globals.css's ≤768px `.sheet-*` overrides. Venue = right, planner = left. */
+  /* dvh, not vh: iOS Safari's `vh` is the LARGE viewport (URL bar ignored),
+     so a vh-positioned sheet under-reveals and its sticky bar floats mid-
+     content over the copy (owner screenshot, The Black Friar). `dvh` tracks
+     the visible viewport, matching the JS drag math (lib/sheetSnap.ts uses
+     innerHeight-derived fractions). vh lines stay as the older-browser
+     fallback. */
   .mapDrawer.left.open.sheet-full,
   .mapDrawer.right.open.sheet-full {
     transform: translateY(8vh);
+    transform: translateY(8dvh);
   }
 
   .mapDrawer.left.open.sheet-half,
   .mapDrawer.right.open.sheet-half {
-    /* Reveal ~55vh of sheet content above the fixed mobile tab bar. */
+    /* Reveal ~55dvh of sheet content above the fixed mobile tab bar. */
     transform: translateY(45vh);
+    transform: translateY(45dvh);
   }
 
   .mapDrawer.left.open.sheet-peek,
   .mapDrawer.right.open.sheet-peek {
-    /* Reveal ~22vh — grabber plus the useful venue summary and action. */
+    /* Reveal ~22dvh — grabber plus the useful venue summary and action. */
     transform: translateY(78vh);
+    transform: translateY(78dvh);
   }
 
-  /* Viewport-tall so translateY(vh) reveals exactly SHEET_SNAP_FRACTIONS. */
+  /* Viewport-tall so translateY(dvh) reveals exactly SHEET_SNAP_FRACTIONS. */
   .mapDrawer.left.open.sheet-full,
   .mapDrawer.left.open.sheet-half,
   .mapDrawer.left.open.sheet-peek,
@@ -297,6 +306,7 @@
   .mapDrawer.right.open.sheet-half,
   .mapDrawer.right.open.sheet-peek {
     height: 100vh;
+    height: 100dvh;
     max-height: none;
   }
 
@@ -373,7 +383,10 @@
   /* Tab bar is hidden on detail-open; --mobile-tab-clearance shrinks to a
      safe-area breathing buffer (see globals.css). Don't hardcode tab height. */
   .venueInspector {
-    padding-bottom: calc(var(--mobile-tab-clearance, 12px) + 8px);
+    /* Clearance for the sticky command bar (44px controls + 20px padding +
+       border) so the last content row ("Share location for travel times")
+       can always scroll clear of it. */
+    padding-bottom: calc(var(--mobile-tab-clearance, 12px) + 84px);
     /* U6b — inside the bottom sheet the title block used to sit flush at x=0;
        give the whole inspector the sheet's standard 18px gutter (matches
        .venueSheetSkeleton's `margin: 0 18px`). */
@@ -403,19 +416,36 @@
     margin: 12px -4px 0;
     padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
     border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+    /* Near-solid fast: content scrolling under the bar must not read through
+       the buttons (owner screenshot showed copy bleeding through the fade). */
     background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--panel) 0%, transparent) 0%,
-      color-mix(in srgb, var(--panel) 92%, transparent) 28%,
-      var(--panel) 55%
+      color-mix(in srgb, var(--panel) 96%, transparent) 14%,
+      var(--panel) 30%
     );
   }
 
-  /* A full sheet is translated down by 8vh; its scrollport therefore extends
-     that far below the physical viewport. Offset the sticky command bar by the
-     same amount so short tab panels cannot strand actions below the fold. */
-  .mapDrawer.right.sheet-full .venueSheetStickyBar {
+  /* LEGACY viewport-tall drawer only: that sheet is translated DOWN by its
+     snap fraction, so its scrollport extends that far below the physical
+     viewport and the sticky bar needs the same offset to stay visible.
+     The portal sheet (.mobileSharedSheet) is EXCLUDED: its body is already
+     sized to the visible height, so these offsets would float the bar
+     mid-content over the copy (the owner's Black Friar screenshot) — there
+     the base `bottom: 0` is correct. dvh to match the transforms. */
+  .mapDrawer.right.open.sheet-full:not(.mobileSharedSheet) .venueSheetStickyBar {
     bottom: calc(8vh + 8px);
+    bottom: calc(8dvh + 8px);
+  }
+
+  .mapDrawer.right.open.sheet-half:not(.mobileSharedSheet) .venueSheetStickyBar {
+    bottom: calc(45vh + 8px);
+    bottom: calc(45dvh + 8px);
+  }
+
+  .mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet) .venueSheetStickyBar {
+    bottom: calc(78vh + 8px);
+    bottom: calc(78dvh + 8px);
   }
 
   .venueSheetStickyPrimary,

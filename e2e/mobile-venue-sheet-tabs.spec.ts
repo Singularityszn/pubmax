@@ -109,7 +109,6 @@ async function expectPrimaryActions(page: Page): Promise<void> {
     "Log a Pint Drop at Arnos Arms",
     "Crawl",
     "Share Arnos Arms",
-    "Check last train",
   ]);
 
   for (const action of actions) {

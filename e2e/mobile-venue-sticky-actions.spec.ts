@@ -95,8 +95,9 @@ test("mobile sticky Train action opens Last train and the sheet reopens cleanly"
   const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
+  // Tab row is the single Train entry point; the strip holds actions only.
   const lastTrainTab = portal.getByRole("tab", { name: "Last train", exact: true });
-  await stickyActions.getByRole("button", { name: "Check last train" }).click();
+  await lastTrainTab.click();
   await expect(lastTrainTab).toHaveAttribute("aria-selected", "true");
   await expect(portal.locator("#venuePanel-getting-home")).toBeVisible();
   await expect(sheet).toHaveClass(/sheet-full/);
