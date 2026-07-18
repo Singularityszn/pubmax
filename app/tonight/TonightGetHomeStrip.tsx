@@ -16,16 +16,13 @@
 import { useEffect, useState } from "react";
 import { TrainFront } from "lucide-react";
 
+import { roundCoord } from "@/lib/geo";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
 type Props = {
   origin: { lat: number; lng: number };
 };
-
-function roundCoord(value: number): number {
-  return Math.round(value * 1000) / 1000;
-}
 
 export default function TonightGetHomeStrip({ origin }: Props) {
   const [summary, setSummary] = useState<GetHomeSummary | null>(null);

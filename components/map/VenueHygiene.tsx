@@ -44,6 +44,15 @@ async function fetchRating(
   return body.rating ?? null;
 }
 
+// Format the FSA rating date as a quiet "Jun 2025" month stamp for the title/aria
+// provenance line. Returns null for a missing or unparseable date (fail-soft).
+function formatRatedMonth(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+}
+
 export default function VenueHygiene({ venueId, venueName, address }: Props) {
   const [rating, setRating] = useState<HygieneRating | null>(null);
   const generationRef = useRef(0);
@@ -77,9 +86,13 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
 
   if (!rating) return null;
 
-  const title = rating.localAuthority
+  // Quiet provenance: surface WHEN the FSA assessed the venue (month + year from
+  // the ISO ratingDate) in the title/aria text only, no extra chrome on the chip.
+  const rated = formatRatedMonth(rating.ratingDate);
+  const base = rating.localAuthority
     ? `FSA food hygiene rating ${rating.ratingValue} out of 5, rated by ${rating.localAuthority}`
     : `FSA food hygiene rating ${rating.ratingValue} out of 5`;
+  const title = rated ? `${base}, rated ${rated}` : base;
 
   return (
     <a

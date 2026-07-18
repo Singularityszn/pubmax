@@ -12,6 +12,7 @@
 // contributing zero rows, so this route returns 200 + { rows: [], ... } rather
 // than 500. Flat error contract: an error is always { error, rows: [] }.
 
+import { publicApiError } from "@/lib/apiError";
 import { aggregateTonightEvents } from "@/lib/events/provider";
 import { createEventbriteProvider } from "@/lib/events/eventbrite";
 import { isEventsLiveLimited } from "@/lib/eventsLiveRateLimit";
@@ -43,10 +44,12 @@ export const GET = withRouteTiming("events/tonight", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   if (await isEventsLiveLimited(request)) {
-    return jsonResponse(
-      { error: "Too many requests, slow down.", rows: [] },
-      { status: 429 },
-    );
+    // Flat { error, rows: [] } contract preserved: `rows` rides along as a
+    // compatibility sibling of publicApiError's canonical { error, code, retryable }.
+    return publicApiError("Too many requests, slow down.", "rate_limited", 429, {
+      retryable: true,
+      compatibilityFields: { rows: [] },
+    });
   }
 
   const now = Date.now();
@@ -63,7 +66,11 @@ async function getHandler(request: Request): Promise<Response> {
   } catch (err) {
     // Defence in depth — aggregateTonightEvents should never throw, but the
     // route still honours the flat { error, rows: [] } contract if it does.
+    // Fail-soft stays 200; `rows`/`asOf` ride along as compatibility siblings.
     const message = err instanceof Error ? err.message : "events request failed";
-    return jsonResponse({ error: message, rows: [], asOf: new Date(now).toISOString() });
+    return publicApiError(message, "events_unavailable", 200, {
+      retryable: true,
+      compatibilityFields: { rows: [], asOf: new Date(now).toISOString() },
+    });
   }
 }
