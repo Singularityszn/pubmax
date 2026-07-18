@@ -919,6 +919,14 @@ export default function PubMapCanvas({
       setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
       clearTimer: (handle) => window.clearTimeout(handle),
       onReveal: (reason, generation) => {
+        // Void fix (#395 R2): lift the PARENT loading chrome HERE — the pin
+        // reveal is the first frame with the basemap actually painted (reason
+        // "tiles"/"idle") or an honest 3s degrade ("timeout"). style.load only
+        // built the scene graph; on a slow tile stream that left a flat
+        // background-only rectangle (near-black in dark theme) exposed for many
+        // seconds once the chrome retired at style.load. Emitting parent-ready
+        // at reveal keeps the pitched-London skeleton over the real void window.
+        onMapReadyRef.current?.(true);
         window.dispatchEvent(new CustomEvent("pubmax:pin-reveal", {
           detail: { reason, generation },
         }));
@@ -1132,7 +1140,13 @@ export default function PubMapCanvas({
       if (sceneSettled) return;
       sceneSettled = true;
       clearTimeout(hangFailTimer);
-      publishMapReady(true);
+      // Internal scene-built gate only: unblock the map's own data/camera
+      // effects now that the scene graph exists at style.load. The PARENT
+      // loading chrome is deliberately NOT lifted here — it stays up until the
+      // basemap actually PAINTS (pinRevealCoordinator.onReveal above), so a slow
+      // tile stream can't expose a background-only void behind a retired
+      // skeleton. Error/timeout paths still lift the chrome via reportMapError.
+      setMapReady(true);
       startPinEntrance();
     };
     const settleSceneError = (error: NonNullable<typeof mapError>) => {

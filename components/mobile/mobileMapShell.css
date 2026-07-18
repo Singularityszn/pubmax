@@ -102,6 +102,42 @@
     box-shadow: var(--shadow-sm);
   }
 
+  /* #395 R1 — active-search chip. A restored session (or a typed query) filters
+     the map to one pin with no visible cause; this dismissible chip makes that
+     filter honest and one-tap clearable. Quiet neutral idiom so it doesn't add
+     to the accent budget; the whole chip is the clear target (44px). */
+  .mobileMapQueryRow {
+    display: flex;
+    pointer-events: auto;
+  }
+  .mobileMapQueryChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 6px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+  }
+  .mobileMapQueryChip:active { transform: scale(.98); }
+  .mobileMapQueryChipText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobileMapQueryChipDismiss {
+    display: inline-flex;
+    color: var(--color-text-soft);
+  }
+
   .mobileMapRail {
     display: flex;
     gap: 6px;
@@ -178,11 +214,15 @@
     justify-content: center;
     gap: 10px;
     padding: 6px 18px;
-    border: 1px solid color-mix(in srgb, var(--color-accent) 72%, var(--color-border));
+    /* Accent diet (#395 R3): demoted to the quiet neutral chip idiom (border +
+       surface + ink, same as Tonight/Filters) so "Near me" is the single loud
+       action on the map. The bottom-nav Moment button keeps its own accent —
+       that belongs to the nav's system, not this pill. */
+    border: 1px solid var(--color-border);
     border-radius: 999px;
-    background: var(--color-accent);
-    color: var(--color-on-accent);
-    box-shadow: 0 12px 28px color-mix(in srgb, var(--ink-deep) 28%, transparent);
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
     font: inherit;
     transform: translateX(-50%);
   }

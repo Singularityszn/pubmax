@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, List, LocateFixed, Route, Search, SlidersHorizontal, Sparkles, TrainFront } from "lucide-react";
+import { Ellipsis, List, LocateFixed, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
 import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -47,10 +47,14 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, priceCapActive, zoneActive, listOpen, onListToggle, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent }: {
+export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, priceCapActive, zoneActive, listOpen, onListToggle, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent }: {
   cityLabel: string;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
+  /** #395 R1: the live map search query (restored or typed), trimmed. Empty = no filter. */
+  activeQuery: string;
+  /** Clears the query and unfilters the map. */
+  onClearQuery: () => void;
   onNearMe: () => void;
   nearMeStatus: "idle" | "requesting" | "ready" | "error";
   nearbyCount: number;
@@ -113,6 +117,24 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, on
             <Chip aria-pressed={overlay === "filters"} aria-label={filtersChip.ariaLabel} onClick={() => set("filters")}><SlidersHorizontal size={17} />{filtersChip.label}{filtersChip.refinements ? <span className="mobileMapChipCount">{filtersChip.refinements}</span> : null}</Chip>
           </nav>
         )}
+        {/* #395 R1 — active-search chip. When a query filters the map (restored
+            session OR typed) and the search field is closed, surface it as a
+            dismissible chip so the filter is never invisible. Tapping it clears
+            the query and restores every pin. */}
+        {overlay !== "search" && activeQuery ? (
+          <div className="mobileMapQueryRow">
+            <button
+              type="button"
+              className="mobileMapQueryChip"
+              onClick={onClearQuery}
+              aria-label={`Clear pub search: ${activeQuery}`}
+            >
+              <Search size={15} aria-hidden="true" />
+              <span className="mobileMapQueryChipText">{activeQuery}</span>
+              <X size={16} aria-hidden="true" className="mobileMapQueryChipDismiss" />
+            </button>
+          </div>
+        ) : null}
       </div>
       {/* TIER 3 — utilities live in the map's corner, out of the answer's way.
           List view (#346) joins this stack on its rebase. */}
