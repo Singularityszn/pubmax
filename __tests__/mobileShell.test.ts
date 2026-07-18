@@ -6,6 +6,7 @@ import {
   readMobileMapSession,
   validateMapViewport,
   validateMobileMapFilters,
+  withCityCameraAttitude,
   writeMobileMapSession,
 } from "@/lib/mobileShell";
 
@@ -52,6 +53,19 @@ describe("mobile map session adapter", () => {
       openSheet: "venue",
       filters,
     });
+  });
+
+  it("upgrades a dead-flat saved viewport to the city's designed camera attitude", () => {
+    const flat = { center: [-0.12, 51.52] as [number, number], zoom: 12, pitch: 0, bearing: 0 };
+    const london = { pitch: 38, bearing: -8 };
+    expect(withCityCameraAttitude(flat, london)).toEqual({ ...flat, pitch: 38, bearing: -8 });
+    // A user's own rotation or tilt is intent, not artefact: preserved untouched.
+    const rotated = { ...flat, bearing: 22 };
+    expect(withCityCameraAttitude(rotated, london)).toBe(rotated);
+    const tilted = { ...flat, pitch: 12 };
+    expect(withCityCameraAttitude(tilted, london)).toBe(tilted);
+    // A city designed flat stays flat.
+    expect(withCityCameraAttitude(flat, { pitch: 0, bearing: 0 })).toBe(flat);
   });
 
   it("rejects malformed city, filters, viewport, and overlay data", () => {

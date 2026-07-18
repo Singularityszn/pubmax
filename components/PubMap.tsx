@@ -164,6 +164,7 @@ import { getNightArea, nearestNightAreaForViewport, nightAreaForMapQuery } from 
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   readMobileMapSession,
+  withCityCameraAttitude,
   writeMobileMapSession,
   type MobileShellState,
   type MapOverlay,
@@ -380,8 +381,10 @@ export default function PubMap({
     const restored = restoredMobileSession?.openSheet;
     return restored && !["venue", "planner"].includes(restored) ? restored : "none";
   });
-  const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(
-    restoredMobileSession?.viewport ?? city.mapView,
+  const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
+    restoredMobileSession?.viewport
+      ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
+      : city.mapView,
   );
   const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
   const [mobileLayersTab, setMobileLayersTab] = useState<"layers" | "prices" | "events" | "transit">("layers");
@@ -1639,7 +1642,11 @@ export default function PubMap({
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
           onMapReady={setMapCanvasReady}
           onMapErrored={setMapCanvasErrored}
-          mapView={restoredMobileSession?.viewport ?? city.mapView}
+          mapView={
+            restoredMobileSession?.viewport
+              ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
+              : city.mapView
+          }
           maxBounds={cityBounds}
           fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
           userLocation={userLocation}

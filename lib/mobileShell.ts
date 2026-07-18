@@ -111,6 +111,28 @@ export function validateMapViewport(value: unknown): MapViewportSnapshot | null 
   };
 }
 
+/**
+ * Re-adopt the city's designed camera attitude for a dead-flat saved viewport.
+ *
+ * Pitch/bearing are PRESENTATION, not intent: every programmatic fitBounds used
+ * to zero the bearing, and the flattened camera then round-tripped through the
+ * saved session forever — so the designed pitched, slightly-rotated city view
+ * (e.g. London's pitch 38 / bearing -8) never came back. A snapshot that is
+ * exactly pitch 0 AND bearing 0 is overwhelmingly that artefact, not a choice,
+ * so it upgrades to the city's designed attitude; any other saved attitude
+ * (a user's own rotation or tilt) is preserved untouched.
+ */
+export function withCityCameraAttitude(
+  viewport: MapViewportSnapshot,
+  cityView: { pitch?: number; bearing?: number },
+): MapViewportSnapshot {
+  if (viewport.pitch !== 0 || viewport.bearing !== 0) return viewport;
+  const pitch = cityView.pitch ?? 0;
+  const bearing = cityView.bearing ?? 0;
+  if (pitch === 0 && bearing === 0) return viewport;
+  return { ...viewport, pitch, bearing };
+}
+
 export function validateMobileMapFilters(value: unknown): Filters | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Partial<Filters>;
