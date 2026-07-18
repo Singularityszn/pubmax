@@ -1,8 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// /u/you first-run passport (user stories 29/30) + notifications bell/activity
+// /u/you signed-out identity invitation (spec #393) + notifications bell/activity
 // (story 34). Fresh-context (no localStorage `pubmax_handle`), so /u/you never
-// redirects and always renders the anonymous first-run Pint Passport. Also
+// redirects and renders the honest invitation — NOT a "@you" pseudo-profile. Also
 // re-asserts the PRD's two regression guards on the SAME fresh page: no raw
 // "venue-…" id and no "@@" doubled handle ever leak as visible text.
 //
@@ -17,10 +17,10 @@ function watchPageErrors(page: Page): string[] {
 
 const RAW_VENUE_ID = /venue-[a-z0-9]+/;
 
-test.describe("/u/you — first-run passport (fresh context, no localStorage)", () => {
+test.describe("/u/you — signed-out identity invitation (fresh context, no localStorage)", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("renders the anonymous first-run passport with start-your-passport copy + CTAs", async ({
+  test("renders the honest invitation, not a pseudo-profile, with one primary CTA + quiet secondary", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -30,33 +30,28 @@ test.describe("/u/you — first-run passport (fresh context, no localStorage)", 
 
     // No device handle in localStorage → /u/you never redirects (guarded in
     // app/u/[handle]/page.tsx's isYouRoute effect); it stays on this route and
-    // renders the first-run passport.
+    // renders the signed-out invitation (spec #393: no fake "@you" profile).
     await expect(page).toHaveURL(/\/u\/you$/);
 
-    const passport = page.locator(".pintPassport");
-    await expect(passport).toBeVisible();
+    const invite = page.locator(".youIdentityIntro");
+    await expect(invite).toBeVisible();
+    await expect(invite.getByRole("heading", { name: "Make the night yours." })).toBeVisible();
 
-    // First-run copy (isOwn && isEmpty branch of PintPassport.tsx).
-    await expect(passport.locator(".passportFirstRunLead")).toContainText(
-      "Your passport is blank",
-    );
-    await expect(passport.locator(".passportFirstRunCopy")).toContainText(
-      "Start collecting your nights",
-    );
+    // One primary CTA (start identity) + one quiet secondary — no more.
+    const actions = invite.locator(".youIdentityActions a");
+    await expect(actions).toHaveCount(2);
+    await expect(actions.nth(0)).toHaveAttribute("href", "#account-settings");
+    await expect(actions.nth(1)).toHaveAttribute("href", "/pal");
 
-    // Both first-run CTAs: "Open the map" and "Log a pint".
-    const actions = passport.locator(".passportFirstRunActions");
-    await expect(actions.getByRole("link", { name: "Open the map" })).toHaveAttribute(
-      "href",
-      "/map",
-    );
-    await expect(actions.getByRole("link", { name: "Log a pint" })).toHaveAttribute(
-      "href",
-      "/map?log=1",
-    );
+    // No pseudo-profile scaffolding: the "@you" passport header, timeline and
+    // saved list are all suppressed when signed out.
+    await expect(page.locator(".pintPassport")).toHaveCount(0);
+    await expect(page.locator("#timeline")).toHaveCount(0);
+    await expect(page.locator(".youProfileTabs")).toHaveCount(0);
 
-    // The stat grid still renders (all-zero first-run page), never a broken gap.
-    await expect(passport.locator(".passportGrid")).toBeVisible();
+    // No fake handle leaks anywhere on the page.
+    const bodyText = await page.locator("body").innerText();
+    expect(bodyText).not.toContain("@you");
 
     // No "Claim this handle" button — "you" is a sentinel, not a real handle to
     // adopt (app/u/[handle]/page.tsx: isYouRoute ? null : ...).
@@ -65,7 +60,7 @@ test.describe("/u/you — first-run passport (fresh context, no localStorage)", 
     expect(errors).toEqual([]);
   });
 
-  test("mobile first-run passport CTAs stay thumb-sized and within the viewport", async ({
+  test("mobile invitation CTAs stay thumb-sized and within the viewport", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -74,15 +69,12 @@ test.describe("/u/you — first-run passport (fresh context, no localStorage)", 
     const response = await page.goto("/u/you");
     expect(response?.status()).toBe(200);
 
-    const passport = page.locator(".pintPassport");
-    await expect(passport).toBeVisible();
-
-    const actions = passport.locator(".passportFirstRunActions");
+    const actions = page.locator(".youIdentityActions");
     await expect(actions).toBeVisible();
 
     const result = await page.evaluate(() => {
       const links = Array.from(
-        document.querySelectorAll<HTMLElement>(".passportFirstRunActions a"),
+        document.querySelectorAll<HTMLElement>(".youIdentityActions a"),
       ).map((link) => {
         const rect = link.getBoundingClientRect();
         return {
@@ -115,7 +107,7 @@ test.describe("/u/you — first-run passport (fresh context, no localStorage)", 
     page,
   }) => {
     await page.goto("/u/you");
-    await expect(page.locator(".pintPassport")).toBeVisible();
+    await expect(page.locator(".youIdentityIntro")).toBeVisible();
 
     const bodyText = await page.locator("body").innerText();
     expect(bodyText).not.toMatch(RAW_VENUE_ID);

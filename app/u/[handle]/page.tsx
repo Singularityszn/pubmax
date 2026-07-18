@@ -380,6 +380,11 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = myHandle !== "" && myHandle === routeHandle;
   const isAnonymous = myHandle === "";
+  // Signed-out /u/you: the viewer has no handle yet. This is an INVITATION, not a
+  // profile — so it shows only the honest "make the night yours" intro + the
+  // claim/account surface, never the pseudo-profile scaffolding (a "@you"
+  // passport header, timeline, saved list) that reads like a bug (spec #393).
+  const youSignedOut = isYouRoute && isAnonymous;
   const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
   const joinedBadgeEventIds = new Set(badgeEventOptIns.optedInEventIds);
   const joinableBadgeEvents =
@@ -548,7 +553,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               </div>
             ) : null}
 
-            {passportIsOwn ? (
+            {passportIsOwn && !youSignedOut ? (
               <div id="passport">
                 <PintPassport
                   handle={routeHandle}
@@ -564,7 +569,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               <YourContributionsCard handle={routeHandle} claimNudge />
             ) : null}
 
-            {isYouRoute || isOwnProfile ? (
+            {(isYouRoute || isOwnProfile) && !youSignedOut ? (
               <nav className="youProfileTabs" aria-label="Your profile sections">
                 <a href="#timeline">Moments</a>
                 <a href="#passport">Passport</a>
@@ -591,7 +596,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
             ) : null}
 
-            {joinableBadgeEvents.length ? (
+            {!youSignedOut && joinableBadgeEvents.length ? (
               <section className="passportQuestOptIn" aria-labelledby="questOptInHeading">
                 <div>
                   <p className="passportQuestOptInKicker">Optional events</p>
@@ -634,38 +639,42 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
               />
             ) : null}
 
-            <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
-              <h2 id="dropsHeading" className="profileSectionHeading">
-                Timeline
-              </h2>
+            {!youSignedOut ? (
+              <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
+                <h2 id="dropsHeading" className="profileSectionHeading">
+                  Timeline
+                </h2>
 
-              {state === "loading" ? (
-                <div className="profileTimelineSkel feedList" aria-hidden="true">
-                  {Array.from({ length: 2 }).map((_, i) => (
-                    <div key={i} className="feedCard feedCardSkeleton">
-                      <div className="feedSkelHead">
-                        <span className="feedSkelAvatar" />
-                        <span className="feedSkelLine feedSkelLineShort" />
+                {state === "loading" ? (
+                  <div className="profileTimelineSkel feedList" aria-hidden="true">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="feedCard feedCardSkeleton">
+                        <div className="feedSkelHead">
+                          <span className="feedSkelAvatar" />
+                          <span className="feedSkelLine feedSkelLineShort" />
+                        </div>
+                        <div className="feedSkelPhoto" />
+                        <div className="feedSkelLine" />
                       </div>
-                      <div className="feedSkelPhoto" />
-                      <div className="feedSkelLine" />
-                    </div>
-                  ))}
-                </div>
-              ) : drops.length === 0 ? (
-                <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
-              ) : (
-                <ProfileTimeline drops={drops as Array<Record<string, unknown>>} />
-              )}
-            </section>
+                    ))}
+                  </div>
+                ) : drops.length === 0 ? (
+                  <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
+                ) : (
+                  <ProfileTimeline drops={drops as Array<Record<string, unknown>>} />
+                )}
+              </section>
+            ) : null}
 
-            <div id="saved-pubs">
-              <SavedPubList
-                ownerHandle={isYouRoute ? myHandle : routeHandle}
-                groups={saved}
-                followedLists={followedLists}
-              />
-            </div>
+            {!youSignedOut ? (
+              <div id="saved-pubs">
+                <SavedPubList
+                  ownerHandle={isYouRoute ? myHandle : routeHandle}
+                  groups={saved}
+                  followedLists={followedLists}
+                />
+              </div>
+            ) : null}
 
             {isYouRoute || isOwnProfile ? (
               <div id="account-settings">

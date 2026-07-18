@@ -9,12 +9,13 @@ type FeedFiltersProps = {
 };
 
 // Airbnb-clean lane switcher: primary lanes first; demo / niche lanes behind More.
+// `friends` is intentionally absent — the Social Loop's "Your lot" tab owns the
+// friends lane now (spec #393), so it never returns as a chip here.
 const PRIMARY_FILTERS = FEED_FILTERS.filter(
   (f) =>
     f.id === "latest" ||
     f.id === "for-you" ||
     f.id === "tonight" ||
-    f.id === "friends" ||
     f.id === "cheap",
 );
 const MORE_FILTERS = FEED_FILTERS.filter((f) => !PRIMARY_FILTERS.some((p) => p.id === f.id));

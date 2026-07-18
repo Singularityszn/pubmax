@@ -759,19 +759,6 @@ export default function FeedPage() {
   }
 
   const isEmpty = status === "error" || (status === "ready" && filtered.length === 0);
-  // The Friends lane gets its own prompt only when the *reason* it's empty is
-  // that the viewer follows nobody (or is anonymous) — a route to /discover
-  // fixes that. If they already follow people who just haven't posted, that's
-  // a quiet feed, not a missing follow graph, so it falls through to the
-  // generic isEmpty copy below instead of wrongly telling them to go find
-  // people to follow. Guarded on the following set having loaded, so we don't
-  // flash it before the fetch resolves.
-  const friendsEmpty =
-    tab === "london" &&
-    filter === "friends" &&
-    status === "ready" &&
-    followingHandles !== null &&
-    followingHandles.size === 0;
 
   // The Your lot tab's own empty state: the viewer has no mutual follows AND no
   // check-ins to show. A mutual follow (not a one-way follow) is what fills this
@@ -787,12 +774,11 @@ export default function FeedPage() {
     <main className="feedShell">
       <SiteNav active="feed" />
 
+      {/* One compact intro line only (spec #395): the title carries the whole
+          pre-content header so the feed starts within a single viewport — the
+          old eyebrow + lede stack pushed real content below the fold. */}
       <header className="feedHeader">
-        <p className="feedEyebrow">Pubmaxxer stories</p>
         <h1 className="feedTitle">The Pint Feed</h1>
-        <p className="feedLede">
-          Moments, prices and people from real London nights.
-        </p>
         <div className="feedComposeActions" aria-label="Create">
           <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>
           <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
@@ -849,14 +835,6 @@ export default function FeedPage() {
           title="Your lot is quiet."
           body="Your lot is the people you both follow. Add a friend by their handle or share your link at the table, and their nights, drops and check-ins land here."
           action={<Link href="/discover">Add your lot</Link>}
-        />
-      ) : friendsEmpty ? (
-        <EmptyState
-          className="feedEmpty"
-          eyebrow="Your crew"
-          title="Your Friends feed is empty."
-          body="Follow people to fill your Friends feed. Every pint they drop lands here. Find drinkers to follow on the map or over on Discover."
-          action={<Link href="/discover">Find people to follow</Link>}
         />
       ) : isEmpty ? (
         <EmptyState

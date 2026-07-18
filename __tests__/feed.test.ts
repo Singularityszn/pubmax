@@ -230,11 +230,15 @@ describe("applyFeedFilter", () => {
       expect(applyFeedFilter(items, f).map((i) => i.id)).toEqual(["a", "b"]);
     }
     expect(FEED_FILTERS.some((f) => f.id === "nearby" || f.id === "crawls")).toBe(false);
+    // `friends` is no longer a chip either (spec #393): the Social Loop's "Your
+    // lot" tab owns the friends lane, so a duplicate "Friends" chip was retired.
+    // The applyFeedFilter("friends", …) branch stays (the tab composes over it),
+    // exercised by the `friends` describe block below.
+    expect(FEED_FILTERS.some((f) => f.id === "friends")).toBe(false);
     expect(FEED_FILTERS.map((f) => f.id)).toEqual([
       "latest",
       "for-you",
       "tonight",
-      "friends",
       "cheap",
       "golden-days",
     ]);
