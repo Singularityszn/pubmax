@@ -145,12 +145,33 @@ export function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
   };
 }
 
+// Route-stop plaque labels: the pub name that rides beside each numbered stop.
+// A long name ("The Old Bank of England") is truncated so it never sprawls
+// across the route; the ellipsis signals there's more. Trim first so trailing
+// spaces don't eat the budget, and drop a trailing space before the ellipsis so
+// we never emit "word …".
+export const ROUTE_STOP_LABEL_MAX = 18;
+
+export function truncateStopName(name: string, max = ROUTE_STOP_LABEL_MAX): string {
+  const trimmed = name.trim();
+  if (trimmed.length <= max) return trimmed;
+  // Reserve one slot for the single-glyph ellipsis.
+  return `${trimmed.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
 export function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: route.map((venue, index) => ({
       type: "Feature" as const,
-      properties: { id: venue.id, label: String(index + 1) },
+      properties: {
+        id: venue.id,
+        label: String(index + 1),
+        // Full name kept for downstream reads; `stopName` is the truncated
+        // plaque text the map draws beside the numbered disc.
+        name: venue.name,
+        stopName: truncateStopName(venue.name),
+      },
       geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
     })),
   };

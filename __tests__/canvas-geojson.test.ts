@@ -5,6 +5,8 @@ import {
   pubsToGeoJSON,
   routeToLine,
   routeToStops,
+  truncateStopName,
+  ROUTE_STOP_LABEL_MAX,
   bandCorridorGeoJSON,
 } from "@/components/map/canvas/geojson";
 import type { VenueSignal } from "@/components/map/canvas/types";
@@ -82,6 +84,36 @@ describe("routeToLine", () => {
   });
 });
 
+describe("truncateStopName", () => {
+  it("returns a short name unchanged (at and below the budget)", () => {
+    expect(truncateStopName("The Ship")).toBe("The Ship");
+    // Exactly at the budget stays whole.
+    const exact = "x".repeat(ROUTE_STOP_LABEL_MAX);
+    expect(truncateStopName(exact)).toBe(exact);
+  });
+
+  it("trims surrounding whitespace before measuring", () => {
+    expect(truncateStopName("  The Ship  ")).toBe("The Ship");
+  });
+
+  it("truncates an over-long name with a single-glyph ellipsis", () => {
+    const out = truncateStopName("The Old Bank of England");
+    expect(out.endsWith("…")).toBe(true);
+    expect([...out]).toHaveLength(ROUTE_STOP_LABEL_MAX);
+    expect(out).toBe("The Old Bank of E…");
+  });
+
+  it("drops a trailing space before the ellipsis (no 'word …')", () => {
+    // The 17-char cut lands right after a space; it must not survive next to
+    // the ellipsis.
+    expect(truncateStopName("The Crown Anchor Tavern")).toBe("The Crown Anchor…");
+  });
+
+  it("honours a custom max", () => {
+    expect(truncateStopName("The Winchester", 6)).toBe("The W…");
+  });
+});
+
 describe("routeToStops", () => {
   it("labels stops 1..n in order and preserves ids", () => {
     const a = makeVenue({ id: "a" });
@@ -90,6 +122,20 @@ describe("routeToStops", () => {
     const fc = routeToStops([a, b, c]);
     expect(fc.features.map((f) => f.properties?.label)).toEqual(["1", "2", "3"]);
     expect(fc.features.map((f) => f.properties?.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("carries the full name and a truncated plaque name per stop", () => {
+    const a = makeVenue({ id: "a", name: "The Ship" });
+    const b = makeVenue({ id: "b", name: "The Old Bank of England" });
+    const fc = routeToStops([a, b]);
+    expect(fc.features.map((f) => f.properties?.name)).toEqual([
+      "The Ship",
+      "The Old Bank of England",
+    ]);
+    expect(fc.features.map((f) => f.properties?.stopName)).toEqual([
+      "The Ship",
+      "The Old Bank of E…",
+    ]);
   });
 });
 

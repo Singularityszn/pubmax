@@ -696,6 +696,38 @@ export function buildRouteStops(ctx: SceneCtx) {
     // Stops are always dark-filled, so the label is the light-side token.
     paint: { "text-color": dark ? tokens.ink : tokens.paper },
   });
+  // Pub-name plaque (owner bug: numbered discs alone don't say WHICH pub stop 2
+  // is, while ordinary basemap POIs around them are labelled). Engraved-brass
+  // text riding beside each numbered disc — a strong paper/ink halo carries it
+  // over the pale Liberty basemap and the night land without a background box.
+  // Collision-tolerant: text-variable-anchor lets the plaque flip side to dodge
+  // neighbours and the default placement drops the odd label in a dense cluster
+  // rather than smearing them all — the numbers (allow-overlap) always stay.
+  // Zoom-gated at 13.5: below that the whole route can sit in one thumb-width,
+  // so plaques would pile up; the discs carry the route until the user leans in.
+  addLayerOnce({
+    id: "route-stops-name",
+    type: "symbol",
+    source: "route-stops",
+    minzoom: 13.5,
+    layout: {
+      "text-field": ["get", "stopName"],
+      "text-font": textFont,
+      "text-size": ["interpolate", ["linear"], ["zoom"], 13.5, 10, 16, 12],
+      // Ride beside the numbered disc (radius 13px), flipping side to dodge the
+      // route line and neighbouring stops.
+      "text-variable-anchor": ["left", "right", "top", "bottom"],
+      "text-radial-offset": 1.6,
+      "text-justify": "auto",
+      "text-max-width": 9,
+    },
+    paint: {
+      "text-color": dark ? tokens.brassBright : tokens.brass,
+      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-width": 2,
+      "text-halo-blur": 0.4,
+    },
+  });
 }
 
 export function buildTonight(ctx: SceneCtx) {
