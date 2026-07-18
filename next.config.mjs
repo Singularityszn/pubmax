@@ -12,21 +12,20 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 // timestamp default needs zero extra scripts or package.json changes.
 const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 
-// The full Content-Security-Policy is NOT served from here — it is TWO-TIER
-// (single source: scripts/lib/cspPolicy.mjs):
-//   - static routes carry it as an injected <meta http-equiv> with per-route
-//     sha256 hashes (scripts/build_csp_meta_static.mjs, npm postbuild), which
-//     keeps them prerenderable and edge-cacheable;
-//   - dynamic routes get a per-request nonce policy from proxy.ts.
-// The ONE exception is below: `frame-ancestors` is ignored in meta CSP by
-// spec, and it needs no per-build values, so it ships as a plain static
-// header on every response (it restricts nothing but framing, so it
-// intersects harmlessly with both tiers; X-Frame-Options DENY doubles it for
-// older engines).
+// Content-Security-Policy is NO LONGER served from here. It moved to proxy.ts
+// (Next.js 16's renamed `middleware` convention) so it can be built PER-REQUEST
+// with a fresh nonce — that is the only way to drop `script-src 'unsafe-inline'`
+// while still allowing Next's inline RSC bootstrap/hydration scripts (their
+// sha256 differs per page and per build, so they can't be statically hashed).
+// See proxy.ts for the full policy + the per-directive rationale (img-src
+// allowlist, connect-src tiles/supabase/wss, style-src 'unsafe-inline' for
+// MapLibre, worker/child blob:, etc.). All the OTHER security headers below
+// (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer) stay here on
+// `/:path*`; only the CSP moved. Trade-off: the per-request nonce forces
+// dynamic rendering for every route (no static generation / ISR / PPR).
 
 // Baseline security headers on every response.
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "DENY" },

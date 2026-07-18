@@ -78,38 +78,22 @@ test.describe("crawls page — curated crawls", () => {
 });
 
 test.describe("security headers", () => {
-  test("/ carries the static-tier CSP (meta policy + framing header)", async ({ page }) => {
+  test("/ serves a Content-Security-Policy header", async ({ page }) => {
     const response = await page.goto("/");
-    expect(response?.status()).toBe(200);
-
-    // `/` is a STATIC-tier route (two-tier CSP): the substantive policy is an
-    // injected <meta http-equiv> whose script-src carries the sha256 hashes of
-    // the page's own prerendered inline scripts
-    // (scripts/build_csp_meta_static.mjs). No nonce (a prebuilt shell can't
-    // know one) and never 'unsafe-inline'. Framing protection is the one
-    // directive meta CSP ignores, so it ships as a plain header.
-    const headerCsp = response?.headers()["content-security-policy"];
-    expect(headerCsp).toBeTruthy();
-    expect(headerCsp).toMatch(/frame-ancestors 'none'/);
-
-    const meta = page.locator('meta[http-equiv="Content-Security-Policy"][data-csp-tier="static-hash"]');
-    await expect(meta).toHaveCount(1);
-    const metaCsp = (await meta.getAttribute("content")) ?? "";
-    expect(metaCsp).toMatch(/default-src 'self'/);
-    expect(metaCsp).toMatch(/object-src 'none'/);
-    expect(metaCsp).toMatch(/script-src 'self'( 'sha256-[^']+')+/);
-    expect(metaCsp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
-  });
-
-  test("/map serves the dynamic-tier nonce CSP", async ({ page }) => {
-    const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
 
     const csp = response?.headers()["content-security-policy"];
     expect(csp).toBeTruthy();
-    // Dynamic routes keep the per-request nonce (proxy.ts) plus the two
-    // constant document-script hashes for the layout's nonce-free blocks.
-    expect(csp).toMatch(/script-src 'self' 'nonce-[^']+'( 'sha256-[^']+'){2}/);
+    // Sanity-check a couple of the load-bearing directives from proxy.ts
+    // rather than pinning the whole string (which would make this test brittle
+    // to any future directive tweak).
+    expect(csp).toMatch(/default-src 'self'/);
+    expect(csp).toMatch(/frame-ancestors 'none'/);
+    expect(csp).toMatch(/object-src 'none'/);
+    // script-src is now nonce-based (proxy.ts): a per-request nonce replaces
+    // 'unsafe-inline' so Next's inline RSC/hydration bootstrap is allowed by
+    // 'nonce-<value>' while inline injection is otherwise blocked.
+    expect(csp).toMatch(/script-src[^;]*'nonce-[^']+'/);
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
   });
 
