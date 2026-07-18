@@ -157,6 +157,8 @@ Non-merge-gated work only. Three Opus 4.8 lanes + Fable preview audit:
 3. **`data/borough-label-repair`** — #308's data-quality signal: geo≠stored borough mismatch is high in the core (Camden 89, City of London 77) — pins carry wrong borough labels from the source site. Repair stored labels to point-in-polygon truth via the canonical pipeline, with a diff report.
 4. **Fable**: visual audit of Vercel preview URLs for #309 (/near), #311 (headers), #307 (feed), #304 (tonight) — pre-merge taste verdicts.
 
+- **Round-loop polish → PR**: PREMISE CORRECTION — bill-splitting never existed (Cycle-2 "ledger polish" bet mislabeled; ledger=heritage log, bar-tab=photo grid). Lane refused scope creep, polished the real Round loop (two-tap close, honest search states, visibility-gated polling, 44px/press, keyboard hygiene). OWNER DECISION queued: build bill-splitting as its own feature, or drop the idea.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
