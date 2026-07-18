@@ -3128,6 +3128,68 @@ input[type="range"] {
   font-weight: 500;
 }
 
+/* First-drop nudge (Cycle-8 item 3) — the honest empty-price invitation shown
+   in the overview price slot when a venue has no price on any source. Sits in
+   the same footprint as .contributorPrice so an unpriced pub reads as "one to
+   claim", not a gap. One line + one CTA — deliberately not a banner. Tokens
+   only, so it themes with the rest of the sheet in light and dark. */
+.firstDropNudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 10px 0;
+  padding: 10px 11px;
+  border: 1px dashed color-mix(in srgb, var(--brass) 40%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--brass) 6%, var(--panel-raised));
+}
+
+.firstDropNudgeLine {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.firstDropNudgeCta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+  /* Colour transitions only; the press-scale (0.97, <=250ms) comes from the
+     global button:active rule so motion stays consistent sheet-wide. */
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+.firstDropNudgeCta:hover {
+  border-color: var(--brass-bright);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 28%, transparent);
+}
+
+.firstDropNudgeCta:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 /* Claim list — every provenance-stamped claim renders as its own card so a
    Sourced editorial claim and an Anecdote drop are always both visible. */
 .claimList {

@@ -158,6 +158,13 @@ export default function VenueInspector({
         locationRequestStatus={locationRequestStatus}
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
+        onStartFirstDrop={() => {
+          // First-drop nudge (Cycle-8 item 3): open the existing composer,
+          // prefilled-for-this-venue by rendering the Pints tab with this
+          // venue's id. Mirrors firstDropComposerIntent(venue.id).
+          selectTab("pints");
+          setComposerOpen(true);
+        }}
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}
