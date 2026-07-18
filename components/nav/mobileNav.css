@@ -71,9 +71,15 @@
     align-items: center;
     justify-content: space-around;
     gap: 0;
+    /* Count-driven layout model. --tab-count is written by MobileTabBar from
+       the live tab array; --tab-inset is the pill's inner padding. Every
+       equal-rhythm rule below (column width, highlight geometry) derives from
+       these two, so adding or removing a tab can never desync the CSS. */
+    --tab-count: 6;
+    --tab-inset: 2px;
     max-width: 420px;
     margin: 0 auto;
-    padding: 2px;
+    padding: var(--tab-inset);
     list-style: none;
     border: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
     border-radius: 16px;
@@ -85,17 +91,17 @@
   }
 
   /* Gliding active-tab highlight (still solid — Flat-Chrome-On-Map Rule; this
-     is a tint of the panel's own accent, not glass). Sized to one of the five
-     equal flex columns and translated by --active-index * 100% of its OWN
-     width, so it only ever animates `transform` (+ opacity to hide when no
-     tab matches the route). A decorative first child, painted behind the tab
-     items by DOM order. */
+     is a tint of the panel's own accent, not glass). Sized to one of the
+     --tab-count equal flex columns and translated by --active-index * 100% of
+     its OWN width, so it only ever animates `transform` (+ opacity to hide
+     when no tab matches the route). A decorative first child, painted behind
+     the tab items by DOM order. */
   .mobileTabHighlight {
     position: absolute;
-    top: 2px;
-    bottom: 2px;
-    left: 2px;
-    width: calc((100% - 4px) / 5);
+    top: var(--tab-inset);
+    bottom: var(--tab-inset);
+    left: var(--tab-inset);
+    width: calc((100% - 2 * var(--tab-inset)) / var(--tab-count));
     border-radius: 12px;
     background: color-mix(in srgb, var(--brass) 13%, transparent);
     transform: translateX(calc(var(--active-index, -1) * 100%));
@@ -200,14 +206,18 @@
   /* Moment: primary centre action — compact circle, never "current page". */
   .mobileTabPrimary {
     color: var(--ink-soft);
-    gap: 2px;
   }
 
   .mobileTabPrimary .mobileTabIcon {
-    /* Compact Drop circle; parent .mobileTab keeps the tap target. */
-    width: 30px;
-    height: 30px;
-    margin-top: -1px;
+    /* Compact Drop circle; parent .mobileTab keeps the tap target.
+       Baseline contract: every label in the bar sits on ONE baseline. The
+       circle is 28px against the 20px icon row, so the -8px top margin makes
+       its occupied height identical (28 - 8 = 20) and the extra 8px reads as
+       a raise ABOVE the row instead of pushing this label below its five
+       siblings (the exact misalignment the owner's screenshot showed). */
+    width: 28px;
+    height: 28px;
+    margin-top: -8px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--brass) 92%, var(--panel-raised));
     color: var(--color-on-accent, #fdfaf2);
@@ -274,40 +284,22 @@
   .mobileTabBar {
     padding-inline: 10px;
   }
-
-  .mobileTabPrimary .mobileTabIcon {
-    width: 28px;
-    height: 28px;
-    margin-top: 0;
-  }
 }
 
 @media (max-width: 360px) {
   .mobileTabList {
-    padding: 1px;
+    /* One knob: the highlight geometry above derives from --tab-inset, so the
+       smallest step only needs to shrink the inset and everything stays flush. */
+    --tab-inset: 1px;
     max-width: 340px;
-  }
-
-  /* The list's own padding shrank to 1px above — keep the highlight's inset
-     in lockstep so it still sits flush inside the pill at the smallest step. */
-  .mobileTabHighlight {
-    top: 1px;
-    bottom: 1px;
-    left: 1px;
-    width: calc((100% - 2px) / 5);
   }
 
   .mobileTab {
     /* Hold the 44px WCAG tap target even on the smallest phones; only the
-       label shrinks slightly to fit five tabs across ~340px. */
+       label shrinks slightly to fit six tabs across ~340px. */
     font-size: 0.5625rem;
     padding: 2px 0;
     min-height: 44px;
-  }
-
-  .mobileTabPrimary .mobileTabIcon {
-    width: 28px;
-    height: 28px;
   }
 }
 
