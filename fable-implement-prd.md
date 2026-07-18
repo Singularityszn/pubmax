@@ -194,6 +194,8 @@ Three lanes (Opus 4.8, worktrees, separate branches, Sol decides):
 
 - **Owner directives: production fundamentals + study guide** — prod-lane (Opus 4.8, infra/production-readiness): honest audit of caching/CDN/DB-index/resilience/observability gaps vs what exists, then top-5 quick wins as commits. teach-lane (Opus 4.8, docs/how-pubmaxx-is-built): self-contained HTML curriculum, 10 chapters first-principles→staff-level, every concept anchored to real repo code + this project's war stories.
 
+- **PRs #327 (email digest), #328 (token system v2), #329 (zone lens — the £1.60 Zone 1 tax, real data)** opened. **Harvest CONCLUDED + paused by guard**: 239 evaluated, 4 verified, 1.7% — inner London 0%, hypothesis refuted structurally (prices live on bar boards + Order&Pay apps, not the web). Drops (#303/#326) confirmed as THE price channel. OWNER DECISION: hand-curated harvest shortlist, or hold and bet fully on drops (Fable recommends: hold, bet on drops).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
