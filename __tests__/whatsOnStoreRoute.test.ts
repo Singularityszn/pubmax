@@ -26,12 +26,17 @@ afterEach(() => {
 
 const NOW = Date.parse("2026-07-11T20:00:00.000Z");
 
+// Default startsAt is 22:00 London (21:00Z), just AFTER NOW (20:00Z), so a row
+// with no explicit override is "currently live" and survives the default-path
+// freshness guard (filterNotPast). The routing / merge / rate-limit tests below
+// care about a servable row, not about staleness; the guard itself is covered
+// by its own cases and by lib/whatsOn's hermetic suite.
 function makeRow(overrides: Partial<WhatsOnRow> = {}): WhatsOnRow {
   return {
     id: "r1",
     placeName: "The Test Arms",
     kind: "quiz",
-    startsAt: "2026-07-11T19:30:00+01:00",
+    startsAt: "2026-07-11T22:00:00+01:00",
     title: "Pub quiz",
     source: { label: "Question One", url: "https://questionone.com/x/" },
     observedAt: "2026-07-11T18:00:00.000Z",
@@ -170,27 +175,47 @@ describe("loadWhatsOn orchestration", () => {
     expect(nearSorted.rows[0].id).toBe("near");
   });
 
-  it("drops rows more than 24h in the past on the DEFAULT (no window) query path", async () => {
-    // NOW = 2026-07-11T20:00:00.000Z.
+  it("drops past-dated rows on the DEFAULT (no window) query path (end-aware, #408/#409 semantics)", async () => {
+    // NOW = 2026-07-11T20:00:00.000Z. The guard reads each row as an interval
+    // [startsAt, endsAt] (a point row's end is its start) and drops it once that
+    // interval has ended — so a played sport fixture (point row) never renders,
+    // while an all-day deal still running at NOW correctly survives.
     const baseline = [
-      makeRow({ id: "just-past", startsAt: "2026-07-10T22:00:00+01:00" }), // 2026-07-10T21:00:00Z, 23h before NOW
-      makeRow({ id: "long-past", startsAt: "2026-07-09T20:30:00+01:00" }), // well over 24h before NOW
-      makeRow({ id: "future", startsAt: "2026-07-12T19:30:00+01:00" }),
+      // point row (no endsAt) whose start has passed -> past -> dropped
+      makeRow({ id: "point-past", placeName: "Past Arms", startsAt: "2026-07-11T19:00:00+01:00" }),
+      // interval row still running at NOW (endsAt in the future) -> kept, even though it started before NOW
+      makeRow({
+        id: "interval-live",
+        placeName: "Live Arms",
+        kind: "deal",
+        startsAt: "2026-07-11T12:30:00+01:00",
+        endsAt: "2026-07-11T23:00:00+01:00",
+      }),
+      // interval row whose endsAt has already passed -> past -> dropped
+      makeRow({
+        id: "interval-over",
+        placeName: "Over Arms",
+        kind: "deal",
+        startsAt: "2026-07-11T10:00:00+01:00",
+        endsAt: "2026-07-11T15:00:00+01:00",
+      }),
+      // future point row -> kept
+      makeRow({ id: "future", placeName: "Future Arms", startsAt: "2026-07-12T19:30:00+01:00" }),
     ];
     const { rows } = await loadWhatsOn(
       {},
       { now: NOW, loadBaseline: () => baseline, fetchLive: async () => [] },
     );
-    expect(rows.map((r) => r.id).sort()).toEqual(["future", "just-past"]);
+    expect(rows.map((r) => r.id).sort()).toEqual(["future", "interval-live"]);
   });
 
-  it("does NOT apply the 24h staleness drop when a window is requested (tonight already scopes it)", async () => {
+  it("does NOT apply the past-dated guard when a window is requested (tonight already scopes it)", async () => {
     const baseline = [makeRow({ id: "quiz-out", kind: "quiz", startsAt: "2026-07-10T19:30:00+01:00" })];
     const { rows } = await loadWhatsOn(
       { window: "tonight" },
       { now: NOW, loadBaseline: () => baseline, fetchLive: async () => [] },
     );
-    // Excluded by filterTonight's own window logic, not by dropStale — this
+    // Excluded by filterTonight's own window logic, not by filterNotPast — this
     // just documents that the two mechanisms don't double up.
     expect(rows.map((r) => r.id)).toEqual([]);
   });

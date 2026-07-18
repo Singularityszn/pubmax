@@ -21,29 +21,30 @@
 //   up a scraper against a source that would need to be re-vetted for
 //   permissibility every time the calendar moves on.
 //
-// SCOPE — why only two fixtures ship in this seed: squarely inside the FIFA
-// World Cup 2026 knockout stage (11 Jun - 19 Jul 2026). The Premier League
-// and Champions League are both off-season until August, so there is no
-// competitive top-flight fixture to source honestly for the "next 2-3 weeks"
-// window right now — padding the seed with preseason club friendlies (mostly
-// overseas, odd UK kick-off hours, not reliably screened outside the club's
-// own fanbase) would trade honesty for row count. The two World Cup
-// semi-finals are the only fixtures in that window with a publicly fixed
-// date + kickoff + venue that are also the kind of mass, prime-time,
-// free-to-air broadcast a "shows live sport" pub actually screens. The next
-// refresh should replace this list wholesale once the Premier League
-// calendar resumes.
+// SCOPE — what ships in this seed (refreshed 2026-07-18): the FIFA World Cup
+// 2026 Final (19 Jul, the last fixture of the knockout stage, 11 Jun - 19 Jul
+// 2026) plus the Premier League 2026/27 opening weekend (21-24 Aug), which is
+// when the domestic top flight resumes. Every entry is a broadcast, widely
+// screened fixture with a publicly fixed date + kickoff + venue, sourced from
+// the competition's own public schedule (FIFA_SOURCE / PL_SOURCE below). The
+// gap between the Final and the Premier League restart is genuine off-season:
+// no competitive top-flight fixture is sourced for it rather than pad the seed
+// with preseason club friendlies (odd UK kick-off hours, not reliably screened)
+// that would trade honesty for row count. The next refresh should extend the
+// Premier League list as later matchweeks are confirmed.
 //
-// MANUALLY CURATED, UNVERIFIED — 2026-07-12: this module does no fetching (see
-// the module doc comment above), so nothing below has been independently
-// re-checked against a live source at commit time. The two entries were
-// hand-entered against a best-effort read of the public FIFA schedule as of
-// the authoring date; treat the teams, venues, dates and kickoffs as
-// best-effort claims, not confirmed results. Do not read this as "confirmed
-// by FIFA match centre" or "confirmed by press" — no such corroboration was
-// actually performed here, and no scoreline or match outcome is asserted.
-// Every refresh MUST re-derive this list from a live check rather than
-// copy-forward these entries unexamined.
+// MANUALLY CURATED — refreshed 2026-07-18: this module does no fetching (see
+// the module doc comment above), so the entries below are hand-entered. On this
+// refresh each fixture (teams, date, kickoff, venue) was checked against the
+// competition's own published schedule: the FIFA World Cup 2026 fixtures index
+// (FIFA_SOURCE) for the Final, and the official Premier League 2026/27 fixture
+// list (PL_SOURCE) for the opening-weekend matches. Treat these as best-effort,
+// source-backed claims, not live-confirmed results, and assert no scoreline or
+// match outcome. Every refresh MUST re-derive this list from a fresh check of
+// those public schedules rather than copy-forward stale entries: once a fixture
+// has been played it is past-dated and the serving guard (lib/whatsOn.ts
+// filterNotPast, wired in lib/whatsOnStore.ts) stops it being served, but the
+// seed itself must still be refreshed so upcoming fixtures take its place.
 // Unknown != invented: if a matchup genuinely cannot be pinned down at
 // refresh time, the pending leg should ship as "TBC" per row rather than a
 // guessed team — see the DROPPED-FIXTURE / DIAGNOSTICS handling in
@@ -84,32 +85,89 @@ const FIFA_SOURCE = {
   url: "https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/scores-fixtures",
 };
 
-// Hand-sourced, hand-refreshed fixture calendar (see SCOPE + VERIFIED above).
-// Add or replace entries on the weekly refresh; every entry MUST already be a
+// Premier League schedule-index source, used the same way as FIFA_SOURCE: the
+// official Premier League 2026/27 fixtures listing genuinely names every
+// opening-weekend match below (date + kickoff), so it is honest, stable
+// provenance without needing a per-match deep link.
+const PL_SOURCE = {
+  label: "Premier League 2026/27 fixture list",
+  url: "https://www.premierleague.com/en/news/4675097/all-380-fixtures-for-202627-premier-league-season",
+};
+
+// Hand-sourced, hand-refreshed fixture calendar (see SCOPE + MANUALLY CURATED
+// above). Add or replace entries on each refresh; every entry MUST already be a
 // publicly confirmed date + kickoff + venue + team pairing, each individually
-// re-verified against a live source at refresh time — never a guessed
-// matchup or time carried over from a stale search result. Kickoffs are
-// Europe/London wall-clock; londonWallClockToIso below resolves the correct
-// BST/GMT instant (and rejects anything that isn't a real London wall-clock
-// moment — see its own doc comment).
+// re-checked against the competition's own public schedule at refresh time,
+// never a guessed matchup or time carried over from a stale entry. Titles use a
+// plain " v " and a spaced hyphen (no em/en dash) so the served copy stays free
+// of typographic dashes. Kickoffs are Europe/London wall-clock;
+// londonWallClockToIso below resolves the correct BST/GMT instant (and rejects
+// anything that isn't a real London wall-clock moment - see its own doc
+// comment). Each fixture kicks off at a distinct instant so no two collide on
+// the (place, kind, startsAt) dedupe key at a single pub.
 export const SPORT_FIXTURES = [
   {
-    id: "wc2026-sf1-fra-esp",
-    title: "France v Spain — FIFA World Cup Semi-Final",
+    id: "wc2026-final-esp-arg",
+    title: "Spain v Argentina - FIFA World Cup Final",
     competition: "FIFA World Cup 2026",
-    venue: "AT&T Stadium, Dallas",
-    kickoffLondonDate: "2026-07-14",
+    venue: "MetLife Stadium, East Rutherford",
+    kickoffLondonDate: "2026-07-19",
     kickoffLondonTime: "20:00",
     source: FIFA_SOURCE,
   },
   {
-    id: "wc2026-sf2-eng-arg",
-    title: "England v Argentina — FIFA World Cup Semi-Final",
-    competition: "FIFA World Cup 2026",
-    venue: "Mercedes-Benz Stadium, Atlanta",
-    kickoffLondonDate: "2026-07-15",
+    id: "pl2627-mw1-ars-cov",
+    title: "Arsenal v Coventry City - Premier League",
+    competition: "Premier League 2026/27, matchweek 1",
+    venue: "Emirates Stadium, London",
+    kickoffLondonDate: "2026-08-21",
     kickoffLondonTime: "20:00",
-    source: FIFA_SOURCE,
+    source: PL_SOURCE,
+  },
+  {
+    id: "pl2627-mw1-hul-mun",
+    title: "Hull City v Manchester United - Premier League",
+    competition: "Premier League 2026/27, matchweek 1",
+    venue: "MKM Stadium, Hull",
+    kickoffLondonDate: "2026-08-22",
+    kickoffLondonTime: "12:30",
+    source: PL_SOURCE,
+  },
+  {
+    id: "pl2627-mw1-bre-tot",
+    title: "Brentford v Tottenham Hotspur - Premier League",
+    competition: "Premier League 2026/27, matchweek 1",
+    venue: "Gtech Community Stadium, London",
+    kickoffLondonDate: "2026-08-22",
+    kickoffLondonTime: "17:30",
+    source: PL_SOURCE,
+  },
+  {
+    id: "pl2627-mw1-mci-bou",
+    title: "Manchester City v Bournemouth - Premier League",
+    competition: "Premier League 2026/27, matchweek 1",
+    venue: "Etihad Stadium, Manchester",
+    kickoffLondonDate: "2026-08-23",
+    kickoffLondonTime: "14:00",
+    source: PL_SOURCE,
+  },
+  {
+    id: "pl2627-mw1-new-liv",
+    title: "Newcastle United v Liverpool - Premier League",
+    competition: "Premier League 2026/27, matchweek 1",
+    venue: "St James' Park, Newcastle",
+    kickoffLondonDate: "2026-08-23",
+    kickoffLondonTime: "16:30",
+    source: PL_SOURCE,
+  },
+  {
+    id: "pl2627-mw1-ful-che",
+    title: "Fulham v Chelsea - Premier League",
+    competition: "Premier League 2026/27, matchweek 1",
+    venue: "Craven Cottage, London",
+    kickoffLondonDate: "2026-08-24",
+    kickoffLondonTime: "20:00",
+    source: PL_SOURCE,
   },
 ];
 
@@ -298,7 +356,7 @@ export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, 
         title: fixture.title,
         detail:
           `${placeName} is Greene King-listed as showing live sport ` +
-          `(checked ${dateOnly(attrRow.observedAt)}) — screening of this SPECIFIC ` +
+          `(checked ${dateOnly(attrRow.observedAt)}). Screening of this SPECIFIC ` +
           `fixture is not confirmed by the venue. Fixture per ${fixtureSourceLabel} ` +
           `(${fixtureSourceUrl}): ${fixture.competition}, ${fixture.venue}, kickoff ` +
           `${fixture.kickoffLondonTime} London time.`,
@@ -394,6 +452,7 @@ function main() {
     kind: "sport",
     sources: [
       FIFA_SOURCE,
+      PL_SOURCE,
       {
         label: "Greene King",
         url: "https://www.greeneking.co.uk/pubs/",
