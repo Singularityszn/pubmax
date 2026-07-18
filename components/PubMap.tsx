@@ -87,6 +87,8 @@ import {
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { slimVenuesToPins } from "@/lib/slimPins";
+import { computeZonePintIndex } from "@/lib/zones";
+import ZonePicker from "@/components/map/ZonePicker";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -672,6 +674,10 @@ export default function PubMap({
     [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  // Zone pint index (nearest-station fare zone medians) for the zone picker.
+  // Computed off the full venue set so the strip's numbers don't shift as the
+  // user filters — it's a stable "here's the lay of the land" reference.
+  const zoneIndex = useMemo(() => computeZonePintIndex(venues), [venues]);
   // Base narrowing: the existing filter pipeline (story filters, price, query,
   // pint-drops). Favorite-pint re-prices inside PubMapCanvas and never changes
   // membership, so it isn't part of this set.
@@ -1599,6 +1605,7 @@ export default function PubMap({
           searchSettled={loaded && loadedCityId === cityId}
           filteredVenueCount={filteredVenues.length}
           searchableVenueCount={venues.length}
+          zoneIndex={zoneIndex}
           cityId={cityId}
         /> : null}
         {!mobileViewport ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
@@ -1700,6 +1707,14 @@ export default function PubMap({
           filtersContent={
             <div className="mobileMapFilters">
               <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
+              {isLondon ? (
+                <ZonePicker
+                  variant="inline"
+                  zone={filters.zone}
+                  onZoneChange={(zone) => setFilters((current) => ({ ...current, zone }))}
+                  index={zoneIndex}
+                />
+              ) : null}
               <FavoritePintPicker
                 value={favoritePint}
                 onChange={changeFavoritePint}

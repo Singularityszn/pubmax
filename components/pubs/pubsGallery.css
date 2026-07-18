@@ -291,6 +291,21 @@
   font-size: 0.74rem;
 }
 
+/* Zone pill = metadata, not accent → the neutral-strong badge role (#328). */
+.pubsZone {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--badge-ink);
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--badge-border);
+  background: var(--badge-surface);
+}
+
+.pubsZoneChips {
+  margin: 4px 0 0;
+}
+
 .pubsCardName {
   margin: 0;
   font-family: var(--font-display), var(--serif), sans-serif;

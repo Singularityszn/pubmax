@@ -486,6 +486,14 @@ function validateSlimVenues() {
     if (typeof row.borough !== "string") {
       errs.add(`${where} (${id}): borough must be a string`);
     }
+    // zone (nearest-station fare zone) is optional; when present it must be a
+    // positive integer (1–6 typically, up to 9 at the London edge).
+    if (
+      row.zone !== undefined &&
+      (!Number.isInteger(row.zone) || row.zone < 1 || row.zone > 9)
+    ) {
+      errs.add(`${where} (${id}): zone must be an integer 1–9 when present (got ${row.zone})`);
+    }
 
     const exp = expected.get(id);
     if (!exp) {

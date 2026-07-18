@@ -38,6 +38,11 @@ export type SlimVenue = {
   lng: number;
   cheapestPrice: number | null;
   borough: string;
+  /**
+   * Nearest-station TfL fare zone (1–6, occasionally 7–9 at the London edge).
+   * Absent when no station was comparable — honestly unknown, never bucketed.
+   */
+  zone?: number;
   filterHints?: VenueFilterHints;
 };
 
@@ -87,7 +92,15 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   const price = row.cheapestPrice;
   const priceOk =
     price === null || (typeof price === "number" && Number.isFinite(price));
-  return priceOk && (row.filterHints === undefined || isFilterHints(row.filterHints));
+  // zone, when present, must be a positive integer (fare zone). Absent is fine.
+  const zoneOk =
+    row.zone === undefined ||
+    (typeof row.zone === "number" && Number.isInteger(row.zone) && row.zone > 0);
+  return (
+    priceOk &&
+    zoneOk &&
+    (row.filterHints === undefined || isFilterHints(row.filterHints))
+  );
 }
 
 // Normalise each surviving row to exactly the SlimVenue shape so no stray
@@ -103,6 +116,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
     borough: venue.borough,
+    ...(venue.zone !== undefined ? { zone: venue.zone } : {}),
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
   }));
 }

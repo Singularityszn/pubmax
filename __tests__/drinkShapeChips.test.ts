@@ -24,6 +24,7 @@ function filters(overrides: Partial<Filters> = {}): Filters {
     requireSeatedService: false,
     drinkCategory: "",
     drinkBrand: "",
+    zone: "",
     ...overrides,
   };
 }

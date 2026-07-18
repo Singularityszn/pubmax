@@ -16,8 +16,10 @@ import {
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { resolveBookingAction } from "@/lib/venueExternalActions";
+import { ZONE_IDS, venueMatchesZone, type ZoneSelection } from "@/lib/zones";
 
 import "./pubsGallery.css";
+import "@/components/map/zonePicker.css";
 
 type FilterKey = "all" | ScrapedPubSourceId;
 
@@ -76,11 +78,25 @@ function DrinkArt({
 
 export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [zone, setZone] = useState<ZoneSelection>("all");
 
   const visible = useMemo(
-    () => (filter === "all" ? pubs : pubs.filter((pub) => pub.source === filter)),
-    [filter, pubs],
+    () =>
+      pubs.filter(
+        (pub) =>
+          (filter === "all" || pub.source === filter) &&
+          venueMatchesZone(pub.zone, zone),
+      ),
+    [filter, zone, pubs],
   );
+
+  // Only offer zone chips for zones that actually have scraped pubs — no dead
+  // buttons, and honest about where our scrapes land.
+  const zonesPresent = useMemo(() => {
+    const set = new Set<number>();
+    for (const pub of pubs) if (pub.zone !== null) set.add(pub.zone);
+    return ZONE_IDS.filter((id) => set.has(id));
+  }, [pubs]);
 
   const counts = useMemo(() => {
     const next: Record<FilterKey, number> = {
@@ -117,9 +133,35 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
         })}
       </div>
 
+      {zonesPresent.length > 0 ? (
+        <div className="zoneChips pubsZoneChips" role="group" aria-label="Filter by fare zone">
+          <button
+            type="button"
+            className={zone === "all" ? "zoneChip isOn" : "zoneChip"}
+            aria-pressed={zone === "all"}
+            onClick={() => setZone("all")}
+          >
+            All zones
+          </button>
+          {zonesPresent.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={zone === id ? "zoneChip isOn" : "zoneChip"}
+              aria-pressed={zone === id}
+              aria-label={`Zone ${id}${zone === id ? " (selected)" : ""}`}
+              onClick={() => setZone(id)}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <p className="pubsCount" aria-live="polite">
         {visible.length} pub{visible.length === 1 ? "" : "s"}
         {filter === "all" ? " from our scrapes" : ` · ${SCRAPED_SOURCE_LABELS[filter]}`}
+        {zone !== "all" ? ` · Zone ${zone}` : ""}
       </p>
 
       <ul className="pubsGrid">
@@ -144,6 +186,11 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
                   {pub.sourceLabel}
                 </span>
                 {pub.borough ? <span className="pubsBorough">{pub.borough}</span> : null}
+                {pub.zone !== null ? (
+                  <span className="pubsZone" title="Nearest station's fare zone">
+                    Zone {pub.zone}
+                  </span>
+                ) : null}
               </div>
               <h2 className="pubsCardName">
                 <Link href={venueMapUrl(pub.id)}>{pub.name}</Link>

@@ -6,6 +6,7 @@ import {
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
 import { isDrinkCategory } from "@/lib/drinks";
+import { parseZoneParam } from "@/lib/zones";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -131,6 +132,9 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (drinkBrand && findBrand(drinkBrand)) {
     params.set("brand", drinkBrand);
   }
+  // Zone lens: only a concrete 1–6 zone is encoded ("" / "all" is the default).
+  const zone = parseZoneParam(filters.zone);
+  if (zone !== null && zone !== "all") params.set("zone", String(zone));
   if (builtIds.length) params.set("pubs", builtIds.join(","));
   if (selectedVenueId) params.set("sel", selectedVenueId);
   // Only encode a band when one is active — off is the default.
@@ -204,6 +208,10 @@ export function decodeCrawl(
       if (hit.category === "cocktail") filters.requireCocktails = true;
     }
   }
+
+  // Zone lens deep-link (?zone=3). Only a valid 1–6 zone sets the filter.
+  const zone = parseZoneParam(params.get("zone"));
+  if (zone !== null && zone !== "all") filters.zone = String(zone);
 
   if (Object.keys(filters).length) out.filters = filters;
 

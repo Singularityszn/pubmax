@@ -53,6 +53,18 @@ describe("crawlUrl", () => {
     });
   });
 
+  it("round-trips a concrete zone lens and omits the default (all)", () => {
+    const zoned = encodeCrawl({ ...sample, filters: { ...sample.filters, zone: "3" } });
+    expect(zoned).toContain("zone=3");
+    expect(decodeCrawl(new URLSearchParams(zoned)).filters).toMatchObject({ zone: "3" });
+    // "" / "all" is the default and must not clutter the URL.
+    expect(encodeCrawl({ ...sample, filters: { ...sample.filters, zone: "" } })).not.toContain("zone");
+    expect(encodeCrawl({ ...sample, filters: { ...sample.filters, zone: "all" } })).not.toContain("zone");
+    // A junk zone param is ignored on decode (no zone key set).
+    expect(decodeCrawl(new URLSearchParams("zone=9")).filters?.zone).toBeUndefined();
+    expect(decodeCrawl(new URLSearchParams("zone=nope")).filters?.zone).toBeUndefined();
+  });
+
   it("encodes requirePintDrops as drops=1 and omits it when off", () => {
     expect(encodeCrawl(sample)).toContain("drops=1");
     const off = encodeCrawl({ ...sample, filters: { ...sample.filters, requirePintDrops: false } });

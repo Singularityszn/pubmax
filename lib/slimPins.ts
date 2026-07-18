@@ -61,6 +61,9 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     latitude: slim.lat,
     longitude: slim.lng,
     primaryBorough: slim.borough,
+    // Carry the nearest-station fare zone so the zone lens filters slim pins
+    // before detail hydrates (undefined stays undefined — honestly unknown).
+    ...(slim.zone !== undefined ? { zone: slim.zone } : {}),
     visibleBoroughs: slim.borough ? [slim.borough] : [],
     prices: [],
     cheapestPrice: slim.cheapestPrice,

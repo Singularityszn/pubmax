@@ -6,9 +6,11 @@ import { useEffect, useState } from "react";
 import CitySwitcher from "@/components/map/CitySwitcher";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
+import ZonePicker from "@/components/map/ZonePicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import type { Filters } from "@/lib/venues";
+import type { ZonePintIndex } from "@/lib/zones";
 
 import "./mapToolbar.css";
 
@@ -32,6 +34,8 @@ type MapToolbarProps = {
   filteredVenueCount: number;
   /** Number of venues available to search; zero means the index is unavailable/empty. */
   searchableVenueCount: number;
+  /** Per-zone median pint index for the zone picker's tappable detail. */
+  zoneIndex: ZonePintIndex;
   /** Active city for the map switcher (defaults to London). */
   cityId?: CityId;
 };
@@ -51,6 +55,7 @@ export default function MapToolbar({
   searchSettled,
   filteredVenueCount,
   searchableVenueCount,
+  zoneIndex,
   cityId = DEFAULT_CITY_ID,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
@@ -127,6 +132,14 @@ export default function MapToolbar({
           <Wine size={15} aria-hidden="true" />
           <span>Drinks</span>
         </button>
+
+        {cityId === DEFAULT_CITY_ID ? (
+          <ZonePicker
+            zone={filters.zone}
+            onZoneChange={(zone) => onFiltersChange({ ...filters, zone })}
+            index={zoneIndex}
+          />
+        ) : null}
 
         <button
           type="button"

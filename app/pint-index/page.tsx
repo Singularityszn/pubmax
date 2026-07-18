@@ -4,9 +4,11 @@ import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
+import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { buildLeagueTable, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { formatPrice } from "@/lib/venues";
+import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
 import "./pint-index.css";
 
@@ -55,7 +57,10 @@ function formatDate(value: string): string {
 }
 
 export default async function PintIndexPage() {
-  const snapshot = await loadPublicPintIndexSnapshot();
+  const [snapshot, zoneIndex] = await Promise.all([
+    loadPublicPintIndexSnapshot(),
+    loadZonePintIndex(),
+  ]);
   const rows = snapshot ? buildLeagueTable(snapshot) : [];
   const summary = indexSummary(rows);
   const jsonLd = snapshot ? datasetJsonLd(snapshot, summary.boroughCount, summary.pubCount) : null;
@@ -92,6 +97,17 @@ export default async function PintIndexPage() {
           </dl>
         ) : null}
       </header>
+
+      <section className="pintIndexSection" aria-labelledby="zoneHeading">
+        <h2 id="zoneHeading" className="pintIndexSectionTitle">The Zone pint index</h2>
+        <p className="pintIndexNote">
+          A pint in Zone 1 costs more than Zone 3 — here is by how much. Each pub
+          is placed in its <strong>nearest station&rsquo;s</strong> TfL fare zone
+          (a documented approximation, not an area boundary), then we take the
+          median of every zone&rsquo;s observed cheapest pint.
+        </p>
+        <ZonePintIndexStrip index={zoneIndex} />
+      </section>
 
       <section className="pintIndexSection" aria-labelledby="leagueHeading">
         <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>

@@ -14,6 +14,7 @@ import {
   type VenueAccessibility,
 } from "@/lib/venueAccessibility";
 import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
+import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 
 export type CrawlStyle =
   | "balanced"
@@ -123,6 +124,11 @@ export type Venue = {
   dataQualityNotes: string[];
   sourceDatasets: string[];
   curation: VenueCuration;
+  // Nearest-station TfL fare zone (1–6, occasionally 7–9 at the London edge).
+  // Stamped onto the slim index at build time (scripts/lib/stationZones.mjs) and
+  // carried onto the pin so the zone lens can filter before detail hydrates.
+  // Undefined when unknown — honestly absent, never bucketed.
+  zone?: number;
   // Compact facts carried by the slim map index so URL/query filters can work
   // before the heavy venue detail rows are hydrated.
   filterHints?: VenueFilterHints;
@@ -192,6 +198,10 @@ export type Filters = {
   // lib/drinkBrands. Cocktail / low-no still prefer the amenity flags above.
   drinkCategory: string;
   drinkBrand: string;
+  // Zone lens (nearest-station fare zone). "" or "all" = every zone; "1".."6"
+  // narrows to venues whose assigned zone matches. A venue with an unknown zone
+  // never matches a concrete zone — honest, not guessed into a bucket.
+  zone: string;
 };
 
 export function truthyFlag(value: string): boolean {
@@ -513,6 +523,8 @@ export function filterVenues(
   const query = filters.query.trim().toLowerCase();
   const drinkCategory = filters.drinkCategory?.trim() ?? "";
   const drinkBrand = filters.drinkBrand?.trim() ?? "";
+  // "" / "all" → every zone; a concrete zone narrows to that fare zone only.
+  const zoneSelection = parseZoneParam(filters.zone);
   return venues.filter((venue) => {
     const matchesPrice =
       venue.cheapestPrice === null || venue.cheapestPrice <= filters.maxPrice;
@@ -536,7 +548,8 @@ export function filterVenues(
       matchesPintDrops &&
       matchesAccessibility &&
       matchesDrinkCategory(venue, drinkCategory) &&
-      matchesDrinkBrand(venue, drinkBrand)
+      matchesDrinkBrand(venue, drinkBrand) &&
+      venueMatchesZone(venue.zone, zoneSelection)
     );
   });
 }
