@@ -85,7 +85,11 @@ export default function ZonePicker({
       }
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
+        event.preventDefault();
+        setOpen(false);
+      }
     }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
