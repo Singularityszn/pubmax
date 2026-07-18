@@ -77,7 +77,8 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { getSaved } from "@/lib/savedPubs";
-import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
+import { createSlimShardLoader, type MapBounds, type SlimShardLoader } from "@/lib/slimShards";
+import type { SlimVenue } from "@/lib/venuesSlim";
 import {
   cityMaxBounds,
   DEFAULT_CITY_ID,
@@ -502,21 +503,48 @@ export default function PubMap({
     else openPlanning();
   }, [closePlanning, openPlanning, planningOpen]);
 
-  // Issue #35 — stage 1: paint pins from the slim index. This resolves in ~400 KB
-  // (or instantly from IndexedDB), and is the ONLY initial venue payload for the
-  // map. Full pub detail is fetched lazily via /api/venue/[id] when inspected.
-  // Non-London cities load `/data/cities/{id}/venues_slim.json` via CityConfig.
-  // City switches reset pins asynchronously so we never setState in the effect
-  // body (react-hooks/set-state-in-effect) — same pattern as MapToolbar.
+  // Issue #35 + Cycle-5 sharding — stage 1: paint pins from the slim index's
+  // CORE shard (inner-London priced index, ~515 KB, or instantly from
+  // IndexedDB). This is the ONLY eager first-paint venue payload; the hollow
+  // Outer-London boroughs (#315) stream in lazily as the viewport intersects
+  // them or near-me geolocates into them (see the two effects below). Full pub
+  // detail is still fetched lazily via /api/venue/[id] when inspected.
+  //
+  // One code path: the shard loader (lib/slimShards.ts) hides fetching, dedup,
+  // offline mirroring, and the single-file fallback for cities that ship no
+  // manifest (non-London packs behave exactly as before). City switches reset
+  // pins asynchronously so we never setState in the effect body.
+  const slimLoaderRef = useRef<SlimShardLoader | null>(null);
+
+  // Merge lazily-loaded shard venues into the painted pins, dedup by id. A
+  // no-op update returns the previous array so React skips a re-render.
+  const mergeSlimVenues = useCallback((rows: SlimVenue[]) => {
+    if (rows.length === 0) return;
+    setSlimPins((prev) => {
+      const byId = new Map(prev.map((pin) => [pin.id, pin]));
+      let added = false;
+      for (const pin of slimVenuesToPins(rows)) {
+        if (!byId.has(pin.id)) {
+          byId.set(pin.id, pin);
+          added = true;
+        }
+      }
+      return added ? Array.from(byId.values()) : prev;
+    });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
+    const loader = createSlimShardLoader(cityId);
+    slimLoaderRef.current = loader;
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setLoaded(false);
       setLoadedCityId(null);
       setSlimPins([]);
     });
-    loadSlimVenuesForCity(cityId)
+    loader
+      .core()
       .then((slim) => {
         if (cancelled || slim.length === 0) return;
         setSlimPins(slimVenuesToPins(slim));
@@ -524,7 +552,7 @@ export default function PubMap({
         markPubmaxTiming("pubmax:slim-venues-ready");
       })
       .catch(() => {
-        // Slim fetch failed with no offline mirror — render the honest empty
+        // Core fetch failed with no offline mirror — render the honest empty
         // state instead of falling back to the full 6 MB client payload.
       })
       .finally(() => {
@@ -535,8 +563,49 @@ export default function PubMap({
       });
     return () => {
       cancelled = true;
+      if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
     };
   }, [cityId]);
+
+  // Lazy outer shards: whenever the map settles on a viewport, load the shards
+  // it intersects and merge their pins. Already-loaded shards are skipped by
+  // the loader; a failed shard is not marked loaded, so a later moveend retries
+  // it — the map keeps working with whatever loaded.
+  const handleMapBoundsChange = useCallback(
+    (bounds: MapBounds) => {
+      const loader = slimLoaderRef.current;
+      if (!loader) return;
+      void loader
+        .inBounds(bounds)
+        .then((rows) => mergeSlimVenues(rows))
+        .catch(() => {
+          // Keep loaded shards; a later moveend retries this one.
+        });
+    },
+    [mergeSlimVenues],
+  );
+
+  // Near-me: geolocating into a hollow outer borough loads that borough's shard
+  // (with one retry inside the loader) so the nearby pins exist. Until it lands
+  // the near-me flows fall back honestly to the already-loaded pins.
+  useEffect(() => {
+    const loc = userLocation ?? venueJourneyLocation;
+    if (!loc) return;
+    const loader = slimLoaderRef.current;
+    if (!loader) return;
+    let cancelled = false;
+    void loader
+      .nearPoint(loc.lat, loc.lng)
+      .then((rows) => {
+        if (!cancelled) mergeSlimVenues(rows);
+      })
+      .catch(() => {
+        // Honest fallback: keep whatever pins already loaded.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userLocation, venueJourneyLocation, mergeSlimVenues]);
 
   useEffect(() => {
     if (!selectedVenueId || detailById.has(selectedVenueId)) return;
@@ -1504,6 +1573,7 @@ export default function PubMap({
           onPoiHiddenChange={setPoiHidden}
           hideLayersControl={mobileViewport}
           onViewportChange={setMapViewport}
+          onBoundsChange={handleMapBoundsChange}
         />
         {!mobileViewport ? <MapToolbar
           query={filters.query}

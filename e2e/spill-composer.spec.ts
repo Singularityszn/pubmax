@@ -267,7 +267,7 @@ test.describe("camera-first Spill composer", () => {
       ].map((name) => ({ name, count: performance.getEntriesByName(name).length })),
     );
     expect(marks.every((mark) => mark.count > 0)).toBe(true);
-    expect(requests).toContain("/data/venues_slim.json");
+    expect(requests).toContain("/data/venues_slim.core.json");
     expect(requests).not.toContain("/data/pint_prices_app_dataset.json");
 
     expect(errors).toEqual([]);

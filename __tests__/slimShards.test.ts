@@ -1,0 +1,172 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  bboxContainsPoint,
+  bboxIntersects,
+  createSlimShardLoader,
+  parseShardManifest,
+  shardForPoint,
+  shardsForBounds,
+  type MapBounds,
+  type ShardManifest,
+} from "@/lib/slimShards";
+
+// A small synthetic London-ish manifest: one core + two outer shards whose
+// bboxes are deliberately non-overlapping so viewport/point mapping is exact.
+const MANIFEST: ShardManifest = {
+  version: 1,
+  shards: [
+    { id: "core", core: true, url: "/data/venues_slim.core.json", count: 2, bbox: [-0.2, 51.45, 0.0, 51.55] },
+    { id: "greenwich", core: false, borough: "Greenwich", url: "/data/venues_slim.greenwich.json", count: 1, bbox: [0.0, 51.46, 0.1, 51.52] },
+    { id: "enfield", core: false, borough: "Enfield", url: "/data/venues_slim.enfield.json", count: 1, bbox: [-0.15, 51.62, -0.02, 51.68] },
+  ],
+};
+
+function slimRow(id: string, lat: number, lng: number) {
+  return { id, name: id, lat, lng, cheapestPrice: null, borough: "x" };
+}
+
+const BODIES: Record<string, unknown> = {
+  "/data/venues_slim.manifest.json": MANIFEST,
+  "/data/venues_slim.core.json": [slimRow("c1", 51.5, -0.1), slimRow("c2", 51.51, -0.12)],
+  "/data/venues_slim.greenwich.json": [slimRow("g1", 51.48, 0.05)],
+  "/data/venues_slim.enfield.json": [slimRow("e1", 51.65, -0.08)],
+};
+
+describe("slimShards pure geometry", () => {
+  it("bboxIntersects is inclusive at the edges and rejects disjoint boxes", () => {
+    const bounds: MapBounds = { west: -0.05, south: 51.4, east: 0.05, north: 51.5 };
+    expect(bboxIntersects([0.0, 51.46, 0.1, 51.52], bounds)).toBe(true); // greenwich overlaps
+    expect(bboxIntersects([-0.15, 51.62, -0.02, 51.68], bounds)).toBe(false); // enfield is north
+  });
+
+  it("bboxContainsPoint", () => {
+    expect(bboxContainsPoint([0.0, 51.46, 0.1, 51.52], 51.48, 0.05)).toBe(true);
+    expect(bboxContainsPoint([0.0, 51.46, 0.1, 51.52], 51.7, 0.05)).toBe(false);
+  });
+
+  it("shardsForBounds returns only intersecting NON-core shards", () => {
+    const bounds: MapBounds = { west: -0.02, south: 51.44, east: 0.12, north: 51.53 };
+    const ids = shardsForBounds(MANIFEST, bounds).map((s) => s.id);
+    expect(ids).toEqual(["greenwich"]);
+  });
+
+  it("shardForPoint picks the containing outer shard, or null in core territory", () => {
+    expect(shardForPoint(MANIFEST, 51.48, 0.05)?.id).toBe("greenwich");
+    expect(shardForPoint(MANIFEST, 51.65, -0.08)?.id).toBe("enfield");
+    expect(shardForPoint(MANIFEST, 51.5, -0.1)).toBeNull(); // central: core covers it
+  });
+});
+
+describe("parseShardManifest", () => {
+  it("accepts a well-formed manifest and rejects malformed ones", () => {
+    expect(parseShardManifest(MANIFEST)?.shards.length).toBe(3);
+    expect(parseShardManifest(null)).toBeNull();
+    expect(parseShardManifest({ version: 1 })).toBeNull();
+    expect(parseShardManifest({ version: 1, shards: [{ id: "x" }] })).toBeNull();
+    expect(
+      parseShardManifest({ version: 1, shards: [{ id: "x", url: "/u", count: 1, core: false, bbox: [1, 2, 3] }] }),
+    ).toBeNull();
+  });
+});
+
+describe("createSlimShardLoader (London)", () => {
+  const realFetch = globalThis.fetch;
+  let fetched: string[];
+
+  function installFetch(overrides: Record<string, "fail" | "404"> = {}) {
+    fetched = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      fetched.push(url);
+      if (overrides[url] === "fail") return Promise.reject(new Error("cellar signal"));
+      if (overrides[url] === "404") {
+        return Promise.resolve({ ok: false, status: 404 } as Response);
+      }
+      if (url in BODIES) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(BODIES[url]) } as Response);
+      }
+      return Promise.resolve({ ok: false, status: 404 } as Response);
+    }) as typeof fetch;
+  }
+
+  beforeEach(() => installFetch());
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("core() loads only the manifest + core shard (first-paint stays lean)", async () => {
+    const loader = createSlimShardLoader("london");
+    const core = await loader.core();
+    expect(core.map((v) => v.id).sort()).toEqual(["c1", "c2"]);
+    expect(fetched).toContain("/data/venues_slim.manifest.json");
+    expect(fetched).toContain("/data/venues_slim.core.json");
+    expect(fetched).not.toContain("/data/venues_slim.greenwich.json");
+    expect(fetched).not.toContain("/data/venues_slim.enfield.json");
+  });
+
+  it("inBounds() lazily loads intersecting shards once, skipping already-loaded ones", async () => {
+    const loader = createSlimShardLoader("london");
+    await loader.core();
+    const rows = await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 });
+    expect(rows.map((v) => v.id)).toEqual(["g1"]);
+    expect(fetched).toContain("/data/venues_slim.greenwich.json");
+
+    // A second pass over the same viewport must not refetch the loaded shard.
+    fetched = [];
+    const again = await loader.inBounds({ west: 0.0, south: 51.44, east: 0.12, north: 51.53 });
+    expect(again).toEqual([]);
+    expect(fetched).not.toContain("/data/venues_slim.greenwich.json");
+  });
+
+  it("nearPoint() loads the shard the user geolocated into", async () => {
+    const loader = createSlimShardLoader("london");
+    await loader.core();
+    const rows = await loader.nearPoint(51.65, -0.08);
+    expect(rows.map((v) => v.id)).toEqual(["e1"]);
+    // A central point needs no outer shard.
+    expect(await loader.nearPoint(51.5, -0.1)).toEqual([]);
+  });
+
+  it("all() loads core plus every outer shard", async () => {
+    const loader = createSlimShardLoader("london");
+    const rows = await loader.all();
+    expect(rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "e1", "g1"]);
+  });
+
+  it("degrades honestly: a failed shard yields [] and is retried on the next call", async () => {
+    installFetch({ "/data/venues_slim.greenwich.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    await loader.core();
+    const bounds = { west: 0.0, south: 51.44, east: 0.12, north: 51.53 };
+    // First attempt: shard fetch fails (no offline mirror in Node) → [].
+    expect(await loader.inBounds(bounds)).toEqual([]);
+    // The failed shard is NOT marked loaded, so it retries — now let it succeed.
+    installFetch();
+    const rows = await loader.inBounds(bounds);
+    expect(rows.map((v) => v.id)).toEqual(["g1"]);
+  });
+
+  it("falls back to the single city file when there is no manifest", async () => {
+    installFetch({ "/data/cities/manchester/venues_slim.manifest.json": "404" });
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      fetched.push(url);
+      if (url === "/data/cities/manchester/venues_slim.manifest.json") {
+        return Promise.resolve({ ok: false, status: 404 } as Response);
+      }
+      if (url === "/data/cities/manchester/venues_slim.json") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([slimRow("m1", 53.4, -2.2)]) } as Response);
+      }
+      return Promise.resolve({ ok: false, status: 404 } as Response);
+    }) as typeof fetch;
+
+    const loader = createSlimShardLoader("manchester");
+    const core = await loader.core();
+    expect(core.map((v) => v.id)).toEqual(["m1"]);
+    // No manifest → nothing lazy to resolve.
+    expect(await loader.inBounds({ west: -3, south: 53, east: -2, north: 54 })).toEqual([]);
+    expect(await loader.nearPoint(53.4, -2.2)).toEqual([]);
+  });
+});

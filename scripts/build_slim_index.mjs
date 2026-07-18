@@ -20,10 +20,28 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  CORE_FILE,
+  MANIFEST_FILE,
+  buildShardManifest,
+  classifySlimShards,
+  shardFileForSlug,
+} from "./lib/slimShards.mjs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
+const DATA_DIR = path.join(ROOT, "public", "data");
+
+// First-paint budget: the eager map payload is the manifest + core shard ONLY.
+// Restored to 600 KB after #315 (which had raised it to 900 KB to fit the raw
+// Outer-London pins into one file). The outer boroughs now stream in lazily, so
+// first paint never pays for them again.
+const EAGER_BUDGET_BYTES = 600 * 1024;
+// All-in budget across every shard (core + outer). A regression that bloats the
+// whole index — not just first paint — still fails CI.
+const TOTAL_BUDGET_BYTES = 1200 * 1024;
 const GENERATED_DIR = path.join(ROOT, "data", "generated");
 const DETAIL_INDEX_PATH = path.join(GENERATED_DIR, "venue_detail_index.json");
 const DETAIL_ROWS_PATH = path.join(GENERATED_DIR, "venue_details.jsonl");
@@ -552,9 +570,36 @@ async function main() {
   const detailText = detailLines.join("");
   const detailIndexText = JSON.stringify(detailIndex);
   await mkdir(GENERATED_DIR, { recursive: true });
+  // The monolithic index stays the canonical artifact server-side name
+  // resolution (lib/venueIndex.ts), the OG coverage image, and the by-id
+  // consumers (crawls, rounds) read — they need ALL venues by id, not a
+  // viewport. The sharded files below are the CLIENT MAP first-paint
+  // optimization derived from the same rows.
   await writeFile(SLIM_PATH, slimText);
   await writeFile(DETAIL_ROWS_PATH, detailText);
   await writeFile(DETAIL_INDEX_PATH, detailIndexText);
+
+  // --- shard the slim index for the map's first paint ------------------------
+  const { core, outer } = classifySlimShards(slim);
+  const manifest = buildShardManifest({ core, outer });
+  const coreText = JSON.stringify(core);
+  const manifestText = JSON.stringify(manifest);
+  await writeFile(path.join(DATA_DIR, CORE_FILE), coreText);
+  await writeFile(path.join(DATA_DIR, MANIFEST_FILE), manifestText);
+
+  let outerBytesTotal = 0;
+  const shardReport = [];
+  for (const [slug, { borough, venues }] of outer) {
+    const text = JSON.stringify(venues);
+    outerBytesTotal += Buffer.byteLength(text);
+    await writeFile(path.join(DATA_DIR, shardFileForSlug(slug)), text);
+    shardReport.push({ slug, borough, count: venues.length, bytes: Buffer.byteLength(text) });
+  }
+
+  const manifestBytes = Buffer.byteLength(manifestText);
+  const coreBytes = Buffer.byteLength(coreText);
+  const eagerBytes = manifestBytes + coreBytes;
+  const totalShardBytes = eagerBytes + outerBytesTotal;
 
   const rawBytes = Buffer.byteLength(rawText);
   const slimBytes = Buffer.byteLength(slimText);
@@ -571,6 +616,35 @@ async function main() {
   console.log(`detail rows: ${slim.length} venues ${mb(detailBytes)} MB (${detailBytes} bytes)`);
   console.log(`wrote: ${path.relative(ROOT, DETAIL_ROWS_PATH)}`);
   console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
+
+  console.log("");
+  console.log(`shards: ${outer.size} lazy outer shard(s) + core`);
+  console.log(
+    `  core (eager):  ${core.length} venues   ${kb(coreBytes)} KB   (+ manifest ${kb(manifestBytes)} KB)`,
+  );
+  for (const { slug, count, bytes } of shardReport) {
+    console.log(`  ${slug.padEnd(24)} ${String(count).padStart(4)} venues   ${kb(bytes)} KB`);
+  }
+  console.log(
+    `  EAGER first-paint: ${kb(eagerBytes)} KB / ${kb(EAGER_BUDGET_BYTES)} KB budget`,
+  );
+  console.log(
+    `  TOTAL all shards:  ${kb(totalShardBytes)} KB / ${kb(TOTAL_BUDGET_BYTES)} KB budget`,
+  );
+
+  if (eagerBytes >= EAGER_BUDGET_BYTES) {
+    throw new Error(
+      `eager first-paint payload ${kb(eagerBytes)} KB exceeds ${kb(EAGER_BUDGET_BYTES)} KB budget ` +
+        `(manifest ${kb(manifestBytes)} KB + core ${kb(coreBytes)} KB). ` +
+        `A borough gained enough presence pins that core no longer fits — retune ` +
+        `OUTER_MAX_PRICED_RATIO/OUTER_MIN_VENUES in scripts/lib/slimShards.mjs, or split core further.`,
+    );
+  }
+  if (totalShardBytes >= TOTAL_BUDGET_BYTES) {
+    throw new Error(
+      `total shard payload ${kb(totalShardBytes)} KB exceeds ${kb(TOTAL_BUDGET_BYTES)} KB budget.`,
+    );
+  }
 }
 
 export { buildCurationHints };

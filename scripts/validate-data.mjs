@@ -12,6 +12,12 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
+import {
+  CORE_FILE,
+  MANIFEST_FILE,
+  buildShardManifest,
+  classifySlimShards,
+} from "./lib/slimShards.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -110,6 +116,10 @@ const PINT_ROW_FLOOR = 2500;
 // (truncation) would blow well past it.
 const SLIM_VENUE_FLOOR = 900;
 const DETAIL_VENUE_FLOOR = 900;
+// Cycle-5 sharding budgets. Eager = manifest + core shard (the map's first
+// paint); total = every shard. Kept in lockstep with scripts/build_slim_index.mjs.
+const SLIM_EAGER_BUDGET_BYTES = 600 * 1024;
+const SLIM_TOTAL_BUDGET_BYTES = 1200 * 1024;
 const PUBMAXXING_PUB_FLOOR = 150;
 const PUBMAXXING_BEVERAGE_ROW_FLOOR = 1400;
 const PUBMAXXING_HISTORY_SEED_FLOOR = 70;
@@ -500,6 +510,139 @@ function validateSlimVenues() {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${slim.length} venues (floor ${SLIM_VENUE_FLOOR}), ${errs.count} error(s)`);
   if (!ok) errs.report();
   return { ok, count: slim.length };
+}
+
+// venues_slim shards — the map's first-paint payload is split into an eager
+// CORE shard + a lazy per-borough shard for each hollow Outer-London borough
+// (Cycle-5). This validator recomputes the expected split from the canonical
+// venues_slim.json using the same shared module the build script uses, so the
+// shipped manifest + shard files can never silently drift from the monolith. It
+// also enforces the eager (manifest + core) and total-across-shards budgets.
+function validateSlimShards() {
+  const name = "public/data/venues_slim shards";
+  const errs = makeCollector();
+  let full;
+  try {
+    full = loadJson("venues_slim.json");
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse venues_slim.json (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  if (!Array.isArray(full)) {
+    console.log(`FAIL ${name}: venues_slim.json is not a top-level array`);
+    return { ok: false, count: 0 };
+  }
+
+  const readRaw = (fileName) => readFileSync(join(DATA_DIR, fileName), "utf8");
+  const fileFromUrl = (url) => url.replace(/^\/data\//, "");
+
+  let manifest;
+  let coreRows;
+  try {
+    manifest = JSON.parse(readRaw(MANIFEST_FILE));
+    coreRows = JSON.parse(readRaw(CORE_FILE));
+  } catch (e) {
+    console.log(`FAIL ${name}: missing/broken manifest or core shard (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  // Rebuild the expected plan from the monolith and compare structurally.
+  const { core: expectedCore, outer: expectedOuter } = classifySlimShards(full);
+  const expectedManifest = buildShardManifest({ core: expectedCore, outer: expectedOuter });
+
+  if (manifest.version !== expectedManifest.version) {
+    errs.add(`manifest version ${manifest.version} !== expected ${expectedManifest.version}`);
+  }
+  const shipShards = Array.isArray(manifest.shards) ? manifest.shards : [];
+  if (shipShards.length !== expectedManifest.shards.length) {
+    errs.add(
+      `manifest lists ${shipShards.length} shard(s), expected ${expectedManifest.shards.length}`,
+    );
+  }
+  const shipById = new Map(shipShards.map((s) => [s.id, s]));
+  const allIds = new Set();
+  let eagerBytes = Buffer.byteLength(readRaw(MANIFEST_FILE));
+  let totalBytes = eagerBytes;
+
+  for (const exp of expectedManifest.shards) {
+    const got = shipById.get(exp.id);
+    if (!got) {
+      errs.add(`manifest is missing shard "${exp.id}"`);
+      continue;
+    }
+    if (got.url !== exp.url) errs.add(`shard "${exp.id}": url "${got.url}" !== expected "${exp.url}"`);
+    if (got.count !== exp.count) {
+      errs.add(`shard "${exp.id}": count ${got.count} !== expected ${exp.count}`);
+    }
+    if (got.core !== exp.core) errs.add(`shard "${exp.id}": core flag mismatch`);
+    if (
+      !Array.isArray(got.bbox) ||
+      got.bbox.length !== 4 ||
+      got.bbox.some((n, i) => n !== exp.bbox[i])
+    ) {
+      errs.add(`shard "${exp.id}": bbox ${JSON.stringify(got.bbox)} !== expected ${JSON.stringify(exp.bbox)}`);
+    }
+
+    // Read the shard body, count its bytes, and fold its ids into the union.
+    let rows;
+    try {
+      const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
+      rows = JSON.parse(raw);
+      const bytes = Buffer.byteLength(raw);
+      totalBytes += bytes;
+      if (exp.core) eagerBytes += bytes;
+    } catch (e) {
+      errs.add(`shard "${exp.id}": could not read body (${e.message})`);
+      continue;
+    }
+    if (!Array.isArray(rows) || rows.length !== exp.count) {
+      errs.add(`shard "${exp.id}": body has ${rows?.length} rows, manifest says ${exp.count}`);
+      continue;
+    }
+    for (const r of rows) {
+      if (!r || typeof r.id !== "string") {
+        errs.add(`shard "${exp.id}": a row is missing an id`);
+        continue;
+      }
+      if (allIds.has(r.id)) errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
+      allIds.add(r.id);
+    }
+  }
+
+  // The union of all shards must be exactly the monolith — no venue lost or
+  // duplicated by the split.
+  const fullIds = new Set(full.map((v) => v && v.id).filter(Boolean));
+  if (allIds.size !== fullIds.size) {
+    errs.add(`shard union has ${allIds.size} ids, monolith has ${fullIds.size}`);
+  }
+  for (const id of fullIds) {
+    if (!allIds.has(id)) {
+      errs.add(`id "${id}" is in venues_slim.json but no shard`);
+      break;
+    }
+  }
+  if (coreRows.length !== expectedCore.length) {
+    errs.add(`core shard has ${coreRows.length} venues, expected ${expectedCore.length}`);
+  }
+
+  // Budgets — the whole point of this cycle.
+  if (eagerBytes >= SLIM_EAGER_BUDGET_BYTES) {
+    errs.add(
+      `eager first-paint ${(eagerBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+  if (totalBytes >= SLIM_TOTAL_BUDGET_BYTES) {
+    errs.add(
+      `total shard payload ${(totalBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+
+  const ok = errs.count === 0;
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${shipShards.length} shard(s), eager ${(eagerBytes / 1024).toFixed(1)} KB / ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB, total ${(totalBytes / 1024).toFixed(1)} KB / ${(SLIM_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB, ${errs.count} error(s)`,
+  );
+  if (!ok) errs.report();
+  return { ok, count: shipShards.length };
 }
 
 // venue_detail_index.json + venue_details.jsonl — server-side lazy detail
@@ -1230,6 +1373,7 @@ function main() {
     validateTflLines(),
     validatePintPrices(),
     validateSlimVenues(),
+    validateSlimShards(),
     validateVenueDetails(),
     validateDrinkPriceUpdates(),
     validateWhatsOnUpdates(),
