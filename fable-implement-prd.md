@@ -247,6 +247,8 @@ Wayfinder next-wave note: with these, every filed finding in the programme is ei
 
 - **Design wave added to Cycle 11** (owner directive): `docs/design-direction` — Firecrawl study of Citymapper/DICE/Airbnb/Linear/Family + Apple HIG physics → design thesis + top-8 implementable deltas as the next wave's PRD; `design/logo-system` — 3 crafted SVG mark concepts (no beer-mug kitsch; ××-as-rendezvous / geometric pint / X-marks-the-pub directions), full icon system, owner picks before any live swap.
 
+- **Live-data wayfinder lane** (owner: "always get live data"): `infra/live-data-wayfinder` — cadence audit per data class, activation matrix (which owner key arms which cron), and the missing spine: machine-readable freshness registry + check_freshness script + /api/freshness route feeding the existing staleness labels uniformly. Key truth: TfL is already live; most other classes are built-but-key-gated; drops' refresh mechanism IS the growth loop.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
