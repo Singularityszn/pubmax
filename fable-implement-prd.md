@@ -192,6 +192,8 @@ Three lanes (Opus 4.8, worktrees, separate branches, Sol decides):
 
 - **Real-user slop feedback → both-theme audit + token-lane** (Opus 4.8, design/token-system-v2): diagnosis is SYSTEMIC — coral does everything, dark mode is flat inverted-light with a muddy brown wash, no elevation system, weak type hierarchy outside prices. Lane scope: token-level only (accent roles, dark elevation steps, wash removal, 3-level type scale, 1-2 signature moves like brass price-plaques) — no layout rewrites (those live in #305/#307/#311). Screenshots: scratchpad t-{light,dark}-{home,map,tonight,feed}.png.
 
+- **Owner directives: production fundamentals + study guide** — prod-lane (Opus 4.8, infra/production-readiness): honest audit of caching/CDN/DB-index/resilience/observability gaps vs what exists, then top-5 quick wins as commits. teach-lane (Opus 4.8, docs/how-pubmaxx-is-built): self-contained HTML curriculum, 10 chapters first-principles→staff-level, every concept anchored to real repo code + this project's war stories.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
