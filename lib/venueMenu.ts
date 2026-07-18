@@ -1,7 +1,7 @@
 import { venueDrinkMenu } from "@/lib/drinkMenu";
 import {
   applyDrinkPriceUpdatesToMenu,
-  parseDrinkPriceUpdates,
+  type DrinkPriceUpdate,
 } from "@/lib/drinkPriceUpdates";
 import type { Drink } from "@/lib/drinks";
 import {
@@ -9,26 +9,26 @@ import {
   venueGroupingKey,
   type Venue,
 } from "@/lib/venues";
-import rawDrinkPriceUpdates from "../public/data/drink_price_updates/latest.json";
 
 // The seam between the venue sheet (VenueInspector) and the all-drinks menu
 // (lib/drinkMenu.ts). Venue.prices (VenuePrice[]) structurally satisfies
 // LegacyPintPrice[] — app_price_id, pint_name, price_gbp all line up — so no
 // mapping is needed here, just composition.
 //
-const updateFileGeneratedAt = Date.parse(
-  String((rawDrinkPriceUpdates as { generatedAt?: unknown }).generatedAt ?? ""),
-);
-const drinkPriceUpdates = parseDrinkPriceUpdates(
-  rawDrinkPriceUpdates,
-  Number.isFinite(updateFileGeneratedAt) ? updateFileGeneratedAt : Date.now(),
-);
+// The observed drink-price updates (public/data/drink_price_updates/latest.json,
+// ~2 MB) are NOT imported here: a static import bundled the whole file into the
+// map's client JS. Callers load them at runtime via lib/priceUpdatesLoader.ts
+// and pass them in; the menu renders seed/app-dataset rows immediately and the
+// update overlay lands when the fetch resolves.
 
-export function venueMenuForInspector(venue: Pick<Venue, "id" | "prices">): Drink[] {
+export function venueMenuForInspector(
+  venue: Pick<Venue, "id" | "prices">,
+  updates: DrinkPriceUpdate[] = [],
+): Drink[] {
   const base = venueDrinkMenu(venue.id, venue.prices);
   const firstPrice = venue.prices[0];
   if (!firstPrice) return base;
-  return applyDrinkPriceUpdatesToMenu(venueGroupingKey(firstPrice), base, drinkPriceUpdates);
+  return applyDrinkPriceUpdatesToMenu(venueGroupingKey(firstPrice), base, updates);
 }
 
 export type VenueMenuVenue = Pick<Venue, "id" | "prices"> &
