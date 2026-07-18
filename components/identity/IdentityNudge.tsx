@@ -13,7 +13,7 @@
 // already done something worth keeping. Reuses the ClaimNightDialog styling and
 // the SignInButton provider-button idiom (app/auth/auth.css).
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -24,6 +24,9 @@ import {
   subscribeIdentityNudge,
   type IdentityNudgeTrigger,
 } from "@/lib/identityNudge";
+import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
+
+const IDENTITY_SURFACE = "identity-nudge";
 import "@/app/auth/auth.css";
 import "./identityNudge.css";
 
@@ -74,7 +77,16 @@ export default function IdentityNudge(): React.JSX.Element | null {
   // Signed-in state is applied here (live via useAuth) rather than in the store
   // snapshot, so a sign-in in another tab instantly hides the nudge. Nothing to
   // offer when auth is unconfigured — no dead buttons.
-  if (!trigger || loading || user || !configured) return null;
+  const canShow =
+    Boolean(trigger) && !loading && !user && configured && hasPromptBudgetFor(IDENTITY_SURFACE);
+
+  // Claim the shared one-prompt-per-session budget at the moment it shows
+  // (docs/PROMPT_ORCHESTRATION.md). Idempotent for this surface.
+  useEffect(() => {
+    if (canShow) claimPromptBudget(IDENTITY_SURFACE);
+  }, [canShow]);
+
+  if (!canShow || !trigger) return null;
 
   const copy = COPY[trigger];
 
