@@ -121,14 +121,14 @@ describe("buildSportFixtureRows", () => {
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row).toMatchObject({
-      id: "sport-fixture-wc2026-sf1-fra-esp-arkles",
+      id: "sport-fixture-wc2026-final-esp-arg-arkles",
       placeName: "Arkles",
       venueId: "venue-17ivo1z",
       lat: 53.4303544,
       lng: -2.9574746,
       kind: "sport",
-      startsAt: "2026-07-14T20:00:00+01:00",
-      title: "France v Spain — FIFA World Cup Semi-Final",
+      startsAt: "2026-07-19T20:00:00+01:00",
+      title: "Spain v Argentina - FIFA World Cup Final",
       source: { label: "Greene King", url: ARKLES.source.url },
       observedAt,
       confidence: "derived",
@@ -194,16 +194,18 @@ describe("buildSportFixtureRows", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("two fixtures x one pub produce two distinct, non-colliding rows", () => {
+  it("every fixture x one pub produces a distinct, non-colliding row", () => {
     const rows = buildSportFixtureRows({
       attributeRows: [ARKLES],
       fixtures: SPORT_FIXTURES,
       observedAt,
     });
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(SPORT_FIXTURES.length);
+    // Each fixture kicks off at a distinct instant, so no two rows collide on
+    // the (place, kind, startsAt) dedupe key at a single pub.
     const keys = new Set(rows.map((r) => dedupeKey(r as WhatsOnRow)));
-    expect(keys.size).toBe(2);
-    expect(dedupeRows(rows as WhatsOnRow[])).toHaveLength(2);
+    expect(keys.size).toBe(SPORT_FIXTURES.length);
+    expect(dedupeRows(rows as WhatsOnRow[])).toHaveLength(SPORT_FIXTURES.length);
   });
 
   it("dedupeRows collapses two rows that land on the same (place, kind, startsAt), keeping the freshest", () => {
@@ -258,15 +260,24 @@ describe("SPORT_FIXTURES", () => {
     }
   });
 
-  it("both semi-finals kick off at 20:00 London time (verified against independent press)", () => {
+  it("every fixture resolves to a DISTINCT kickoff instant (no dedupe-key collision at a single pub)", () => {
+    // Two fixtures at the same instant would collide on (place, kind, startsAt)
+    // for any one pub and silently collapse to one derived row (dedupeRows).
+    const instants = SPORT_FIXTURES.map((f) =>
+      londonWallClockToIso(f.kickoffLondonDate, f.kickoffLondonTime),
+    );
+    expect(new Set(instants).size).toBe(SPORT_FIXTURES.length);
+  });
+
+  it("ships confirmed teams, not placeholders (both finalists / all matchweek-1 pairings resolved by refresh time)", () => {
     for (const fixture of SPORT_FIXTURES) {
-      expect(fixture.kickoffLondonTime).toBe("20:00");
+      expect(fixture.title).not.toMatch(/TBC|TBD|winner of/i);
     }
   });
 
-  it("ships confirmed teams, not placeholders — both quarter-finals had resolved by refresh time", () => {
+  it("keeps served copy free of typographic (em/en) dashes", () => {
     for (const fixture of SPORT_FIXTURES) {
-      expect(fixture.title).not.toMatch(/TBC|TBD|winner of/i);
+      expect(fixture.title).not.toMatch(/[—–]/);
     }
   });
 });

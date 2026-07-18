@@ -325,6 +325,35 @@ export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): Wha
   return rows.filter((row) => isOnTonight(row, now));
 }
 
+// The instant a row stops being relevant: its explicit endsAt, or (for a point
+// row that carries no endsAt) its startsAt. Same interval reading isOnTonight
+// uses (#409): a row is [startsAt, effectiveEnd]. Returns NaN only when
+// startsAt itself is unparseable (a row that would already fail isValidWhatsOnRow).
+export function rowEffectiveEnd(row: WhatsOnRow): number {
+  const startsAt = Date.parse(row.startsAt);
+  const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : startsAt;
+  return Number.isFinite(parsedEnd) ? parsedEnd : startsAt;
+}
+
+// Freshness guard for the serving/build seam. A row is past-dated once its
+// interval has ended: effectiveEnd < now. A point row (no endsAt) is past the
+// instant its startsAt passes; an interval row (e.g. an all-day deal) stays
+// live while it is still running, exactly like isOnTonight's overlap test.
+//
+// This is the #408 defence: the hand-curated sport-fixtures seed goes stale the
+// moment a kickoff passes (crons are dead, so nothing re-derives it), and a
+// stale bundled seed must never be SERVED. The tonight window path already
+// scopes past rows out via filterTonight; this guards the default (no window)
+// path, which would otherwise surface a played fixture forever.
+export function isPastDated(row: WhatsOnRow, now: number = Date.now()): boolean {
+  const end = rowEffectiveEnd(row);
+  return Number.isFinite(end) && end < now;
+}
+
+export function filterNotPast(rows: WhatsOnRow[], now: number = Date.now()): WhatsOnRow[] {
+  return rows.filter((row) => !isPastDated(row, now));
+}
+
 export function filterByKind(rows: WhatsOnRow[], kind: WhatsOnKind): WhatsOnRow[] {
   return rows.filter((row) => row.kind === kind);
 }

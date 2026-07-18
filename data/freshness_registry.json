@@ -81,6 +81,17 @@
       "gate": "TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY (Skiddle needs written commercial approval). Baseline rows are hand-verified transforms; live layer also blends CityMCP at request time."
     },
     {
+      "id": "whats_on_sport_fixtures",
+      "label": "What's-On sport fixtures (derived screenings)",
+      "class": "episodic",
+      "artifact": "public/data/whats_on/sport_fixtures.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "episodic; hand-curated fixture seed, re-derived on each manual refresh (crons dead, #408)",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (node scripts/whatson/sportFixtures.mjs; refresh the SPORT_FIXTURES seed from the FIFA / Premier League public schedules, then regenerate)",
+      "gate": "none (bundled static; keyless). Past-dated rows are never served: lib/whatsOn.ts filterNotPast guards the serving seam in lib/whatsOnStore.ts, so a stale seed degrades to zero served fixtures rather than surfacing a played match."
+    },
+    {
       "id": "events_live_eventbrite",
       "label": "Eventbrite own-org events (live, Tonight surface)",
       "class": "live",

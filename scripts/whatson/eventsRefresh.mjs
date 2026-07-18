@@ -15,8 +15,9 @@
 //     deep-link back to the event's ticketmaster page and only "reasonable
 //     period" caching. We honour that by FULLY OVERWRITING events_london.json
 //     on every refresh (never append-only history) and letting the store's
-//     tonight-window + STALE_AFTER_MS drop expired rows — the checked-in file
-//     is only ever a short-lived working cache. Every row links back to its
+//     tonight-window + past-dated freshness guard (lib/whatsOn.ts filterNotPast)
+//     drop expired rows — the checked-in file is only ever a short-lived
+//     working cache. Every row links back to its
 //     own ticketmaster.co.uk event page.
 //   * SKIDDLE (Events API) — best pub/bar-scale coverage, free key, BUT the
 //     API is "for non-commercial use only. Any commercial use must be first

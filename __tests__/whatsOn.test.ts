@@ -8,6 +8,9 @@ import {
   londonServiceDayBounds,
   isOnTonight,
   filterTonight,
+  rowEffectiveEnd,
+  isPastDated,
+  filterNotPast,
   filterByKind,
   matchVenueId,
   normaliseEventTitle,
@@ -173,6 +176,83 @@ describe("London tonight windowing (04:00 service-day rollback)", () => {
     const pointBeforeWindow = makeRow({ id: "point-before", startsAt: "2026-07-11T12:00:00+01:00" });
     expect(isOnTonight(lunchtimeOnly, now)).toBe(false);
     expect(isOnTonight(pointBeforeWindow, now)).toBe(false);
+  });
+});
+
+// Freshness guard (#408): a past-dated row (its interval already ended) must
+// never be served. All fixed dates, no real clock — hermetic. NOW below is a
+// fixed instant, chosen so the sport-fixtures seed's own dates exercise it.
+describe("past-dated freshness guard (isPastDated / filterNotPast)", () => {
+  const NOW_GUARD = Date.parse("2026-07-18T22:00:00.000Z"); // the #408 refresh instant
+
+  it("rowEffectiveEnd is endsAt when present, else startsAt", () => {
+    expect(rowEffectiveEnd(makeRow({ startsAt: "2026-07-18T19:30:00+01:00" }))).toBe(
+      Date.parse("2026-07-18T19:30:00+01:00"),
+    );
+    expect(
+      rowEffectiveEnd(makeRow({ startsAt: "2026-07-18T11:30:00+01:00", endsAt: "2026-07-18T23:00:00+01:00" })),
+    ).toBe(Date.parse("2026-07-18T23:00:00+01:00"));
+  });
+
+  it("treats a played sport fixture (point row, kickoff in the past) as past-dated", () => {
+    // The old, unrefreshed seed: a World Cup semi-final already kicked off on
+    // 2026-07-14. It is a point row (no endsAt), so its start is its end.
+    const playedFixture = makeRow({
+      id: "sport-old",
+      kind: "sport",
+      startsAt: "2026-07-14T20:00:00+01:00",
+      confidence: "derived",
+    });
+    expect(isPastDated(playedFixture, NOW_GUARD)).toBe(true);
+    expect(filterNotPast([playedFixture], NOW_GUARD)).toEqual([]);
+  });
+
+  it("keeps an upcoming fixture (kickoff after now)", () => {
+    // The refreshed seed: the World Cup Final kicks off 2026-07-19, still ahead
+    // of NOW_GUARD.
+    const upcoming = makeRow({
+      id: "sport-final",
+      kind: "sport",
+      startsAt: "2026-07-19T20:00:00+01:00",
+      confidence: "derived",
+    });
+    expect(isPastDated(upcoming, NOW_GUARD)).toBe(false);
+    expect(filterNotPast([upcoming], NOW_GUARD).map((r) => r.id)).toEqual(["sport-final"]);
+  });
+
+  it("keeps an interval row that started before now but is still running (endsAt in the future)", () => {
+    const allDayDeal = makeRow({
+      id: "deal-live",
+      kind: "deal",
+      startsAt: "2026-07-18T11:30:00+01:00",
+      endsAt: "2026-07-19T00:00:00+01:00", // 23:00Z on the 18th, after NOW_GUARD (22:00Z)
+    });
+    expect(isPastDated(allDayDeal, NOW_GUARD)).toBe(false);
+  });
+
+  it("drops an interval row whose endsAt has already passed", () => {
+    const finishedDeal = makeRow({
+      id: "deal-over",
+      kind: "deal",
+      startsAt: "2026-07-18T11:30:00+01:00",
+      endsAt: "2026-07-18T14:00:00+01:00", // 13:00Z, before NOW_GUARD (22:00Z)
+    });
+    expect(isPastDated(finishedDeal, NOW_GUARD)).toBe(true);
+    expect(filterNotPast([finishedDeal], NOW_GUARD)).toEqual([]);
+  });
+
+  it("filterNotPast partitions a mixed set, preserving order of the survivors", () => {
+    const rows = [
+      makeRow({ id: "past-point", startsAt: "2026-07-14T20:00:00+01:00" }),
+      makeRow({ id: "future-point", startsAt: "2026-07-19T20:00:00+01:00" }),
+      makeRow({
+        id: "running",
+        kind: "deal",
+        startsAt: "2026-07-18T11:30:00+01:00",
+        endsAt: "2026-07-19T00:00:00+01:00",
+      }),
+    ];
+    expect(filterNotPast(rows, NOW_GUARD).map((r) => r.id)).toEqual(["future-point", "running"]);
   });
 });
 
