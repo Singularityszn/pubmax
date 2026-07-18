@@ -216,6 +216,8 @@ Lanes (Opus 4.8, worktrees, Sol decides):
 
 - **PR #333 recap OG card** (privacy-gated, 60s revocation TTL, lanes coordinated URL agent-to-agent) · **PR #334 night-arc seams** — HIGH find: the recap was STRANDED after the 8h window (the arc's payoff dead-ended); fixed with 24h grace + completed-state plan page. recap-page lane still building the durable memory surface. Pointer appended to sol2.md (untracked, additive only).
 
+- **PR #335 recap page — CYCLE 9 COMPLETE.** The recap set: #334 (arc seams + 24h grace) → #335 (private crew page + approval-gated public recap, single privacy choke point) → #333 (OG card). Lanes locked URL + stats contracts agent-to-agent, zero file overlap. The USP loop now runs end-to-end in the queue: find the pint → guard the night → log the drop → keep the memory → send the card.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
