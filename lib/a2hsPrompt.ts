@@ -85,7 +85,37 @@ export type PlatformSnapshot = {
   displayModeStandalone?: boolean;
   /** navigator.maxTouchPoints (distinguishes iPadOS-as-desktop-UA). */
   maxTouchPoints?: number;
+  /**
+   * Running inside the native Capacitor shell (the PR #313→#324 iOS wrap). The
+   * WKWebView is NOT display-mode standalone, navigator.standalone is false,
+   * and its UA misses every suppression regex below — so without this flag the
+   * installed app would beg the user to "Add to Home Screen". The caller
+   * (readPlatform in the component) probes `window.Capacitor` SSR-safely.
+   *
+   * SEAM: once lib/nativePlatform.ts (isNativeApp()) lands on this branch's
+   * base, feed its result in here and drop the inline probe.
+   */
+  isNativeApp?: boolean;
 };
+
+/**
+ * SSR-safe probe for the native Capacitor shell. Mirrors the standard
+ * `window.Capacitor` bridge check so an installed native build is detected even
+ * though it is not a home-screen PWA. Kept here (not on navigator) because the
+ * bridge hangs off `window`, not `navigator`.
+ *
+ * SEAM: replace with lib/nativePlatform.ts `isNativeApp()` when it exists.
+ */
+export function isNativeAppShell(): boolean {
+  try {
+    if (typeof window === "undefined") return false;
+    const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+    if (!cap) return false;
+    return typeof cap.isNativePlatform === "function" ? cap.isNativePlatform() : true;
+  } catch {
+    return false;
+  }
+}
 
 // In-app browsers (webviews) can't install to the home screen; treat as
 // unsupported so we never show steps the user cannot follow.
@@ -99,6 +129,11 @@ const IOS_NON_SAFARI = /\b(CriOS|FxiOS|EdgiOS|OPiOS|mercury|DuckDuckGo)\b/i;
  * platforms. Standalone (already installed) wins over everything.
  */
 export function detectA2hsPlatform(env: PlatformSnapshot): A2hsPlatform {
+  // FIRST, before anything else: the native Capacitor shell already IS the app.
+  // It isn't display-mode standalone and its UA slips past every regex below,
+  // so it must be classified terminal here or the installed app would show the
+  // "Add to Home Screen" prompt. Treated as standalone → the gate never fires.
+  if (env.isNativeApp) return "standalone";
   if (env.displayModeStandalone || env.navigatorStandalone) return "standalone";
 
   const ua = env.userAgent || "";

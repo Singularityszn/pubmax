@@ -8,6 +8,7 @@ import {
   detectA2hsPlatform,
   evaluateA2hs,
   hasProvenValue,
+  isNativeAppShell,
   parseA2hsState,
   readA2hsState,
   recordA2hsVisit,
@@ -62,6 +63,20 @@ const UA = {
 };
 
 describe("detectA2hsPlatform", () => {
+  it("native Capacitor shell is terminal — never offer A2HS inside the app", () => {
+    // The native WKWebView reports an iPhone-Safari-shaped UA, is NOT
+    // display-mode standalone, and navigator.standalone is false; without the
+    // native flag it would wrongly resolve to ios-safari and beg to install.
+    expect(detectA2hsPlatform({ userAgent: UA.iPhoneSafari })).toBe("ios-safari");
+    expect(
+      detectA2hsPlatform({ userAgent: UA.iPhoneSafari, isNativeApp: true }),
+    ).toBe("standalone");
+    // Wins even over an Android UA.
+    expect(
+      detectA2hsPlatform({ userAgent: UA.androidChrome, isNativeApp: true }),
+    ).toBe("standalone");
+  });
+
   it("standalone (display-mode) wins over everything", () => {
     expect(
       detectA2hsPlatform({ userAgent: UA.iPhoneSafari, displayModeStandalone: true }),
@@ -108,6 +123,50 @@ describe("detectA2hsPlatform", () => {
 
   it("is total — empty UA never throws", () => {
     expect(detectA2hsPlatform({ userAgent: "" })).toBe("unsupported");
+  });
+});
+
+describe("isNativeAppShell (Capacitor bridge probe)", () => {
+  type WinWithCap = { Capacitor?: { isNativePlatform?: () => boolean } };
+
+  it("false when there is no window (SSR)", () => {
+    delete (globalThis as { window?: unknown }).window;
+    expect(isNativeAppShell()).toBe(false);
+  });
+
+  it("false when no Capacitor bridge is present", () => {
+    (globalThis as { window?: WinWithCap }).window = {};
+    expect(isNativeAppShell()).toBe(false);
+  });
+
+  it("true when the bridge reports a native platform", () => {
+    (globalThis as { window?: WinWithCap }).window = {
+      Capacitor: { isNativePlatform: () => true },
+    };
+    expect(isNativeAppShell()).toBe(true);
+  });
+
+  it("false when the bridge reports web (Capacitor present but not native)", () => {
+    (globalThis as { window?: WinWithCap }).window = {
+      Capacitor: { isNativePlatform: () => false },
+    };
+    expect(isNativeAppShell()).toBe(false);
+  });
+
+  it("treats a bridge object without isNativePlatform() as native (older Capacitor)", () => {
+    (globalThis as { window?: WinWithCap }).window = { Capacitor: {} };
+    expect(isNativeAppShell()).toBe(true);
+  });
+
+  it("never throws if the probe blows up", () => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      get() {
+        throw new Error("boom");
+      },
+    });
+    expect(isNativeAppShell()).toBe(false);
+    delete (globalThis as { window?: unknown }).window;
   });
 });
 

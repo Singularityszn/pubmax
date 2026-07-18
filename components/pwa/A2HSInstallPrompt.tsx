@@ -30,6 +30,7 @@ import { Share, Plus, X } from "lucide-react";
 
 import {
   detectA2hsPlatform,
+  isNativeAppShell,
   evaluateA2hs,
   readA2hsState,
   recordA2hsVisit,
@@ -79,6 +80,9 @@ function readPlatform(): A2hsPlatform {
     navigatorStandalone: nav.standalone === true,
     displayModeStandalone,
     maxTouchPoints: nav.maxTouchPoints,
+    // Native Capacitor shell (PR #313→#324): already the installed app, so the
+    // gate must never offer "Add to Home Screen" inside it.
+    isNativeApp: isNativeAppShell(),
   });
 }
 
