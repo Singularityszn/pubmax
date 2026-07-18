@@ -163,7 +163,11 @@ import {
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
 } from "@/lib/bandOnboardingChip";
-import { shouldOpenPlanningInitially, shouldFitQueryVenuesOnArrival } from "@/lib/mapArrival";
+import {
+  shouldOpenPlanningInitially,
+  shouldFitQueryVenuesOnArrival,
+  resolveQueryRestoreFit,
+} from "@/lib/mapArrival";
 import { getNightArea, nearestNightAreaForViewport, nightAreaForMapQuery } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
@@ -1104,6 +1108,41 @@ export default function PubMap({
     }, 320);
     return () => window.clearTimeout(handle);
   }, [trimmedMapQuery, selectVenue]);
+
+  // #397: a query restored from the URL (?q=) must fly to its matches exactly
+  // like typed search does (#371). The typed-search effect above deliberately
+  // skips first paint, and the arrival framing prop can miss the restore on the
+  // slow two-stage venue load (mapReady fires before slim pins match) — leaving
+  // the query in the field and a pin count on screen while the camera sits on
+  // the default view with no match in sight. Drive the same select-one /
+  // fit-many result here once the map is ready and the slim pins have matched.
+  // A zero-result query never moves the camera and never claims pins.
+  const didRestoreQueryFlyRef = useRef(false);
+  useEffect(() => {
+    if (didRestoreQueryFlyRef.current) return;
+    if (!mapCanvasReady) return;
+    if (!shouldFitQueryVenuesOnArrival(arrivalSearch)) return;
+    // A restored selection (?sel=) owns the camera; don't fight its fly-to.
+    if (seed.selectedVenueId) return;
+    const matches = filteredVenues;
+    const fit = resolveQueryRestoreFit(matches.length);
+    // "none" means still loading (no match yet) or an honest zero-result query;
+    // either way, leave the camera alone and don't latch the once-guard.
+    if (fit === "none") return;
+    const firstMatchId = matches[0]?.id;
+    // Defer the state write out of the effect body (matches the typed-search
+    // effect above) and latch on the actual fire, so re-renders while the pins
+    // are still settling reschedule cleanly instead of losing the fly-to.
+    const handle = window.setTimeout(() => {
+      didRestoreQueryFlyRef.current = true;
+      if (fit === "select-single" && firstMatchId) {
+        selectVenue(firstMatchId);
+      } else if (fit === "fit-many") {
+        setSearchFitToken((token) => token + 1);
+      }
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, [mapCanvasReady, filteredVenues, arrivalSearch, seed.selectedVenueId, selectVenue]);
 
   const focusMapSearch = useCallback(() => {
     const search = (document.getElementById("mobileMapSearchInput") ?? document.getElementById("mapSearchInput")) as HTMLInputElement | null;

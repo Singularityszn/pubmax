@@ -4,6 +4,7 @@ import {
   isBoroughBrowseArrival,
   isCuratedCrawlArrival,
   isDrinkShapeArrival,
+  resolveQueryRestoreFit,
   shouldFitQueryVenuesOnArrival,
   shouldOpenPlanningInitially,
 } from "@/lib/mapArrival";
@@ -53,6 +54,19 @@ describe("shouldFitQueryVenuesOnArrival", () => {
     expect(shouldFitQueryVenuesOnArrival("")).toBe(false);
     expect(shouldFitQueryVenuesOnArrival("?drink=beer&q=Soho")).toBe(false);
     expect(shouldFitQueryVenuesOnArrival("?band=subcrawl")).toBe(false);
+  });
+});
+
+describe("resolveQueryRestoreFit", () => {
+  it("mirrors typed search: one match selects, several fit, zero stays put", () => {
+    expect(resolveQueryRestoreFit(1)).toBe("select-single");
+    expect(resolveQueryRestoreFit(8)).toBe("fit-many");
+    expect(resolveQueryRestoreFit(2)).toBe("fit-many");
+  });
+
+  it("never moves the camera or claims pins for a zero-result restore", () => {
+    expect(resolveQueryRestoreFit(0)).toBe("none");
+    expect(resolveQueryRestoreFit(-1)).toBe("none");
   });
 });
 

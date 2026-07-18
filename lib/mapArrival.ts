@@ -35,6 +35,20 @@ export function shouldFitQueryVenuesOnArrival(search: string): boolean {
 }
 
 /**
+ * What a URL-restored search query (`?q=`) should do to the camera once the map
+ * is ready and the pins have matched. Mirrors typed search (#371): one match
+ * flies to and opens that venue; several frame them all; zero never moves the
+ * camera and never claims pins (the count chips stay honest at nothing).
+ */
+export type QueryRestoreFit = "select-single" | "fit-many" | "none";
+
+export function resolveQueryRestoreFit(matchCount: number): QueryRestoreFit {
+  if (matchCount <= 0) return "none";
+  if (matchCount === 1) return "select-single";
+  return "fit-many";
+}
+
+/**
  * Whether the planner (left drawer) should open on first paint.
  *
  * Opens for shared/restored crawls (`builtIds` from storage, bare `mode=build`,
