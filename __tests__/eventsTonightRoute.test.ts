@@ -60,7 +60,7 @@ describe("GET /api/events/tonight", () => {
   });
 
   it("surfaces mapped own-org events on success and sets an edge-cache header", async () => {
-    global.fetch = vi.fn(async (url: string | URL) =>
+    global.fetch = vi.fn(async (url: RequestInfo | URL) =>
       String(url).includes("/organizations/org-1/events/")
         ? new Response(JSON.stringify({ events: [musicEvent] }), { status: 200 })
         : new Response(JSON.stringify({ organizations: [{ id: "org-1" }] }), { status: 200 }),
