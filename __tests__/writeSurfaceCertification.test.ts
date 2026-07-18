@@ -47,7 +47,14 @@ const mutationRoutes = routeFiles(API_ROOT)
 
 describe("mutating API surface certification", () => {
   it("keeps the reviewed inventory explicit", () => {
-    expect(mutationRoutes).toHaveLength(60);
+    // 60 on the feat/identity-nudges base + 1 for the email-capture POST
+    // (app/api/email-subscribers/route.ts). The confirm/unsubscribe endpoints
+    // are token-gated GETs and are intentionally NOT counted here. NOTE: this
+    // count reconciles on merge — infra/production-readiness (migration 0041)
+    // does not add a mutating route, but if another in-flight branch lands one
+    // first, whoever merges bumps this number (a deliberate merge-conflict
+    // coordination point, per docs/WRITE_SURFACE_CERTIFICATION.md).
+    expect(mutationRoutes).toHaveLength(61);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {
