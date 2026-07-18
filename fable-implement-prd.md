@@ -180,6 +180,9 @@ Deep reviews (#321 app, #322 data) found: P1 prompt stacking (identity+push on o
 - **PR #324 — iPhone App PRD** (Opus 4.8): build-today path (free Apple ID + full Xcode = simulator/device build, no paid account), paid-account activation checklist, acceptance criteria. Grounding found 3 build blockers, fixes dispatched: F1 A2HS shows inside the native shell (→#313 lane), F2 AppDelegate missing APNs forwarding + F3 missing camera permission strings (→#295 lane). OWNER: install full Xcode (~12GB) — the only human step before today's first build.
 - **Owner directive: ALL-LONDON price harvest** — expanded from outer-10 to every unpriced venue with a website, borough-batched, checkpoint-committed, credit-burn guard (pause + report if hit rate <5%). Evidence so far says chains are app-only; the sweep settles it.
 
+- **Owner directive: TfL zone price lens** — zone-lane launched (Opus 4.8, feat/zone-price-lens): nearest-station zone assignment (honest, provenance-labeled), zone picker chip on map + /pubs, playful "Zone 1 tax" median strip on pint-index (real numbers only, <10-venue zones say "not enough pints logged — fix that"). Boroughs already on the map (33 polygons); zones are the new lens.
+- **#295 updated**: F2 (APNs forwarding) + F3 (camera permission strings) fixed, plutil-validated.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
