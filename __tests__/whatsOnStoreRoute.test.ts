@@ -175,14 +175,16 @@ describe("loadWhatsOn orchestration", () => {
     expect(nearSorted.rows[0].id).toBe("near");
   });
 
-  it("drops past-dated rows on the DEFAULT (no window) query path (end-aware, #408/#409 semantics)", async () => {
+  it("drops past-dated rows on the DEFAULT (no window) query path (grace-aware, #408/#409/#417 semantics)", async () => {
     // NOW = 2026-07-11T20:00:00.000Z. The guard reads each row as an interval
-    // [startsAt, endsAt] (a point row's end is its start) and drops it once that
-    // interval has ended — so a played sport fixture (point row) never renders,
-    // while an all-day deal still running at NOW correctly survives.
+    // [startsAt, effectiveEnd] (a point row's end is startsAt + its kind grace,
+    // #417) and drops it once that interval has ended, so a point row whose whole
+    // grace has elapsed never renders, while an all-day deal still running at NOW
+    // correctly survives.
     const baseline = [
-      // point row (no endsAt) whose start has passed -> past -> dropped
-      makeRow({ id: "point-past", placeName: "Past Arms", startsAt: "2026-07-11T19:00:00+01:00" }),
+      // point row (quiz, no endsAt) whose start + 3h grace has fully elapsed by NOW
+      // (14:00+01 = 13:00Z, +3h = 16:00Z < 20:00Z) -> past -> dropped
+      makeRow({ id: "point-past", placeName: "Past Arms", startsAt: "2026-07-11T14:00:00+01:00" }),
       // interval row still running at NOW (endsAt in the future) -> kept, even though it started before NOW
       makeRow({
         id: "interval-live",
