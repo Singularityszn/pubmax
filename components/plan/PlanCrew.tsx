@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { trackEvent } from "@/lib/analytics";
+import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 
@@ -159,6 +160,9 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
         source: "shared-plan",
         participants: Array.isArray(nextCrew) ? nextCrew.length : 1,
       });
+      // Joining a crew is a first high-intent action → arm the signed-out
+      // account nudge (self-gates on auth/cooldown).
+      recordPlanNudgeTrigger();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not join this plan.");
     } finally {

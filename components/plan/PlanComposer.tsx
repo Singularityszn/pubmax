@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
+import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
@@ -522,6 +523,10 @@ function PlanComposerForm({
         trackEvent("lane_to_plan", { source: laneSource, stops: completeStops.length });
       }
       trackEvent("plan_created", { count: completeStops.length });
+      // First high-intent action → arm the signed-out account nudge (self-gates
+      // on auth/cooldown; browsing was never gated). In the native shell this
+      // wins over the push prompt, which defers via isIdentityNudgePending().
+      recordPlanNudgeTrigger();
       if (body.memberToken) {
         const planId = body.plan.plan.id as string;
         writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });

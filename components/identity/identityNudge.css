@@ -1,0 +1,30 @@
+/* Identity nudge sheet. Inherits the ClaimNightDialog look (auth.css) and only
+   adds the provider-button stack + spacing specific to this prompt. */
+
+.identityNudgeProviders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.identityNudgeProviders .authSignIn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* This sheet always has room for the full provider labels; never fall back to
+   the short "Google" / "Microsoft" labels the crowded nav needs. */
+.identityNudgeProviders .authSignInLabelShort {
+  display: none;
+}
+
+.identityNudgeProviders .authSignInLabelFull {
+  display: inline;
+}
+
+.identityNudgeActions {
+  margin-top: 0.75rem;
+  justify-content: center;
+}
