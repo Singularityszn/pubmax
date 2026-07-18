@@ -173,6 +173,10 @@ describe("derived key lists", () => {
     expect(drinkPinKindFromCategories([], true)).toBe("cocktail");
     expect(drinkPinKindFromCategories(["wine"], false)).toBe("wine");
     expect(drinkPinKindFromCategories(["champagne"], false)).toBe("wine");
+    // Recorded categories outrank the cocktails amenity: a beer-led pub that
+    // also mixes cocktails stays a pint pin (owner audit, The Black Friar).
+    expect(drinkPinKindFromCategories(["beer"], true)).toBe("pint");
+    expect(drinkPinKindFromCategories(["cocktail"], false)).toBe("cocktail");
   });
 
   it("drink pin draws do not throw for every kind × bucket", () => {
