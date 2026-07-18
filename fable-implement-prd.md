@@ -196,6 +196,11 @@ Three lanes (Opus 4.8, worktrees, separate branches, Sol decides):
 
 - **PRs #327 (email digest), #328 (token system v2), #329 (zone lens — the £1.60 Zone 1 tax, real data)** opened. **Harvest CONCLUDED + paused by guard**: 239 evaluated, 4 verified, 1.7% — inner London 0%, hypothesis refuted structurally (prices live on bar boards + Order&Pay apps, not the web). Drops (#303/#326) confirmed as THE price channel. OWNER DECISION: hand-curated harvest shortlist, or hold and bet fully on drops (Fable recommends: hold, bet on drops).
 
+### Cycle 8 complete — full delivery log
+- **PR #325** APNs transport (real HTTP/2+ES256, no deps, 25 tests) · **#326** first-drop nudge · **#327** email digest seam (opt-in-first) · **#328** token system v2 (brass price plaques, wash killed) · **#329** zone lens (the £1.60 Zone 1 tax, 649 stations, 0 unknowns) · **#330** production hardening (OG caching, API cache headers, 0041 author index — third ledger collision caught in review, OAuth timeouts; audit doc gives fair credit to what's already mature) · **#331** the How-PUBMAXX-Is-Built study guide (15k words, fact-checked the project's own folklore against code).
+- **Harvest verdict** stands: drops are the price channel. **review-c8 lane** running: adversarial cross-PR pass over #323–#329 (zone×data-chain merge position, token drift, APNs crypto verification, digest PII, #323 adoption checklist + merge-order additions).
+- Open PR count: **~30 active** (#276, #295–#331 minus held/superseded). Sol's path: #316 v2 order + #321/#322 reviews + review-c8's amendment when it lands.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
