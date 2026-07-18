@@ -14,7 +14,13 @@ export type FreshnessStampSpec =
   | { readonly kind: "literal"; readonly value: string; readonly consumedBy?: string }
   | null;
 
-export type FreshnessClass = "cron" | "episodic" | "user-cadence" | "live" | "static";
+export type FreshnessClass =
+  | "cron"
+  | "episodic"
+  | "user-cadence"
+  | "live"
+  | "static"
+  | "snapshot";
 
 export interface FreshnessDataset {
   readonly id: string;

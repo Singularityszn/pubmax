@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useTransientSpeechInput } from "@/components/plan/useTransientSpeechInput";
+import AreaNewsBlock from "@/components/areanews/AreaNewsBlock";
 import type { CityId } from "@/lib/cities";
 import { getNightAreasForCity, type NightAreaSlug } from "@/lib/nightAreas";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
@@ -197,6 +198,10 @@ export function MobilePlanActivation({
         <label>People<input type="number" min="1" max="30" value={groupSize} onChange={(event) => { setGroupSizeTouched(true); setGroupSize(Math.max(1, Math.min(30, Number(event.target.value) || 1))); }} /></label>
         <label>Max each<input type="number" inputMode="decimal" min="5" max="500" value={budgetLimit} onChange={(event) => setBudgetLimit(event.target.value)} placeholder="£" /></label>
       </div>
+      <AreaNewsBlock
+        area={area}
+        areaLabel={areas.find((nightArea) => nightArea.slug === area)?.name ?? area}
+      />
       <div className="mobilePlannerIntentChips" role="group" aria-label="Night mood">
         {MOODS.map((value) => <Chip key={value} aria-pressed={moodTouched && mood === value} onClick={() => { setMoodTouched(true); setMood(value); }}>{value}</Chip>)}
       </div>
