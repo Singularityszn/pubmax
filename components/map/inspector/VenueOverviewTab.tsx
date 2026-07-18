@@ -17,6 +17,7 @@ import {
 } from "@/lib/venueAccessibility";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
+import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
@@ -44,6 +45,7 @@ export default function VenueOverviewTab({
   locationRequestStatus,
   onRequestLocation,
   onClearLocation,
+  onStartFirstDrop,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -58,6 +60,9 @@ export default function VenueOverviewTab({
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
   onClearLocation: () => void;
+  /** Opens the existing Pint Drop composer prefilled for this venue (Pints
+   *  tab + composer open). Fired by the first-drop nudge on unpriced venues. */
+  onStartFirstDrop: () => void;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -197,7 +202,16 @@ export default function VenueOverviewTab({
             Dataset price — not a live tonight feed.
           </small>
         </div>
-      ) : null}
+      ) : (
+        /* No price on any honest source — the 658-unpriced case. Instead of a
+           blank slot, invite the first Pint Drop for this venue (Cycle-8 item
+           3). This else-branch is exactly isVenueUnpriced(venue, price). */
+        <FirstDropNudge
+          venueId={venue.id}
+          venueName={venue.name}
+          onStartFirstDrop={onStartFirstDrop}
+        />
+      )}
       {mode === "build" ? (
         <button
           className="addStopBtn"
