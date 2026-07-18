@@ -8,6 +8,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
 import ShareBar from "@/components/share/ShareBar";
 import { slugifyBorough } from "@/lib/boroughs";
+import { buildHistoricPubShareText } from "@/lib/shareArtifacts";
 import {
   getHistoricPubBySlug,
   loadHistoricPubs,
@@ -128,7 +129,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   const boroughSlug = pub.borough ? slugifyBorough(pub.borough) : null;
   const mapHref = pub.venueId ? `/map?sel=${pub.venueId}` : null;
   const canonical = `/historic/${pub.slug}`;
-  const shareText = pub.hook?.trim() || `${pub.name} — a historic London pub.`;
+  const shareText = buildHistoricPubShareText({ name: pub.name, hook: pub.hook });
 
   return (
     <main className="hdPage">

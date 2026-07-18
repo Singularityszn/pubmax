@@ -141,23 +141,18 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
 
       {showChannels ? (
         <>
-          {/* X / Twitter — server-rendered as a real anchor so it works without JS;
-              onClick upgrades it to build the absolute url at click time. */}
-          <a
-            className="shareBar__btn"
-            href={tweetHref(url)}
-            onClick={(event) => {
-              event.preventDefault();
-              trackPlanInvite("x");
-              openIntent(tweetHref);
-            }}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Share on X"
-            title="Share on X"
-          >
-            <XMark />
-          </a>
+          {/* Native share — only when the Web Share API is actually supported. */}
+          {canNativeShare ? (
+            <button
+              type="button"
+              className="shareBar__btn"
+              onClick={handleNativeShare}
+              aria-label="Share to another app"
+              title="Share to another app"
+            >
+              <ShareMark />
+            </button>
+          ) : null}
 
           {/* WhatsApp — same progressive-enhancement shape. */}
           <a
@@ -176,6 +171,24 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
             <WhatsAppMark />
           </a>
 
+          {/* X / Twitter — server-rendered as a real anchor so it works without JS;
+              onClick upgrades it to build the absolute url at click time. */}
+          <a
+            className="shareBar__btn"
+            href={tweetHref(url)}
+            onClick={(event) => {
+              event.preventDefault();
+              trackPlanInvite("x");
+              openIntent(tweetHref);
+            }}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Share on X"
+            title="Share on X"
+          >
+            <XMark />
+          </a>
+
           {/* Copy link — confirms with "Copied!" for a beat, then quietly resets. */}
           <button
             type="button"
@@ -186,19 +199,6 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
           >
             {copied ? <CheckMark /> : <LinkMark />}
           </button>
-
-          {/* Native share — only when the Web Share API is actually supported. */}
-          {canNativeShare ? (
-            <button
-              type="button"
-              className="shareBar__btn"
-              onClick={handleNativeShare}
-              aria-label="Share to another app"
-              title="Share to another app"
-            >
-              <ShareMark />
-            </button>
-          ) : null}
         </>
       ) : null}
 

@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
 import type { PassportData } from "@/lib/passport";
+import { buildPassportShareText } from "@/lib/shareArtifacts";
 
 // The Pint Passport (user story 29): a collectible field-guide "passport page"
 // that renders a handle's already-computed stats + badges as stamped identity.
@@ -65,9 +66,13 @@ export default function PintPassport({
 
   const shareUrl = `/u/${encodeURIComponent(handle)}`;
   const shareTitle = `${displayName}'s Pint Passport — PUBMAXXING`;
-  const shareText = isEmpty
-    ? `Start a Pint Passport on PUBMAXXING — every pint stamps a page.`
-    : `${displayName} · ${pubs} pubs · ${boroughs.length} boroughs · ${pints} pints on PUBMAXXING`;
+  const shareText = buildPassportShareText({
+    displayName,
+    pubs,
+    boroughs: boroughs.length,
+    pints,
+    isEmpty,
+  });
 
   return (
     <section

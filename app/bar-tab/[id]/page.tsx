@@ -7,6 +7,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import VenueRatingPanel from "@/components/ratings/VenueRatingPanel";
 import ShareBar from "@/components/share/ShareBar";
 import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } from "@/lib/feed";
+import { buildBarTabShareText } from "@/lib/shareArtifacts";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
@@ -78,8 +79,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
+    // The card image comes from the sibling opengraph-image.tsx (Next file
+    // convention injects og:image / twitter:image automatically).
     openGraph: { title, description, type: "website" },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
@@ -154,7 +157,7 @@ export default async function BarTabPage({ params }: PageProps) {
           <ShareBar
             url={shareUrl}
             title={`The Bar Tab at ${venue.name}`}
-            text={`Recent pints at ${venue.name}. Every pint has a story.`}
+            text={buildBarTabShareText({ venueName: venue.name })}
           />
         </div>
 
