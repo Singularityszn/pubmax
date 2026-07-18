@@ -21,6 +21,7 @@ import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
+import VenueAwardBadge from "@/components/areanews/VenueAwardBadge";
 import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueGettingThere, {
   type LocationRequestStatus,
@@ -131,6 +132,9 @@ export default function VenueOverviewTab({
         primaryBorough={venue.primaryBorough}
         cityId={cityId}
       />
+      {/* Fresh-facts layer (Cycle 15 Lane A): an engraved brass plaque when a
+          venue-matched award fact exists for this pin. Renders nothing otherwise. */}
+      <VenueAwardBadge venueId={venue.id} />
       <div className="amenityRow">
         {/* Labels are reader-facing words, not data keys: "0.0" alone read as
             a leaked number and lowercase one-worders read as raw tags (owner
