@@ -45,6 +45,36 @@ Plan member capability and use idempotency keys or atomic store operations.
 - Read-only discovery remains available with caching and abuse controls; it never
   receives a write capability merely because the HTTP verb is POST.
 
+## Route additions since the Wave 0 inventory
+
+### `app/api/push-tokens` — native push registration (route 61)
+
+- **Route / method:** `POST app/api/push-tokens/route.ts` (Capacitor shell only;
+  client in `lib/nativePush.ts`).
+- **Validation:** `validatePushToken` (`lib/pushTokenStore.ts`) — trimmed
+  non-empty `token` ≤ 512 chars, `platform` ∈ {`ios`, `android`}; malformed or
+  invalid payloads 400 in the flat public envelope before the limiter or store
+  is touched.
+- **Rate limit (dual boundary):** durable per-IP `isLimited` with key
+  `push-tokens:${hashIp(clientIp(request))}` (raw IP never keyed), budget
+  10/hour — a device registers once per boot — PLUS a route-wide global
+  backstop (`push-tokens:global`, 300/hour across all callers). The per-IP key
+  derives from forwarding headers an attacker can rotate per-request where the
+  edge doesn't overwrite them; the global ceiling makes key rotation pointless
+  and is the table-growth bound. Either exceed → 429
+  `{ error, code: "RATE_LIMITED", retryable: true }`. Fail-open on limiter
+  outage (no anonymous paid spend behind this route).
+- **Auth stance:** deliberately anonymous — registration happens on shell boot,
+  pre-sign-in, and a row carries no identity (only "this device token can
+  receive pushes"). Upsert on token keeps re-registration idempotent, so table
+  growth is bounded by distinct tokens × the IP budget.
+- **Rollback / kill:** no server-side sender exists yet, so disabling push is
+  consequence-free — delete the route (or 503 it) and the client seam degrades
+  silently (`lib/nativePush.ts` is fire-and-forget). Durable rows live in
+  `public.push_tokens` (migration 0039, RLS on, anon/authenticated revoked);
+  `truncate public.push_tokens` is a safe reset — devices re-register on next
+  boot.
+
 ## Certification command
 
 ```bash
