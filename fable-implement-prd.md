@@ -222,6 +222,8 @@ Lanes (Opus 4.8, worktrees, Sol decides):
 
 - **R2 closed** (1be94e3b): public recap photo TTL 3600→180s, scoped to the public path, tested. **The full queue — 36 PRs — is now reviewed, adversarially attacked, and remediation-clean.** Sol's complete path: #316 v2 order + review docs #321/#322/#332/#336 (steps 31–33 = recap set with the one documented hand-merge).
 
+- **PRs #337/#338 — two-axis corpus review (Standards / Spec)**: Standards CLEAN (0 hard violations; DeliveryStatus + DAY_MS cleanups; seam repetition sanctioned). Spec: 3 fidelity gaps — early email capture NOT built (locked decision, needs a lane or a de-scope), #313 gates on 2nd calendar day vs locked "second visit" (owner confirm), USP bet 4 unresolved (bill-split decision). Issue map: #45 closable on #302 merge; #286 satisfied; #283 needs accessibility-matrix proof; #287/#282 correctly deferred.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
