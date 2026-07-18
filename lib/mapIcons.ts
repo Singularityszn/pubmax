@@ -817,7 +817,11 @@ export function drinkPinKindFromCategories(
   cocktailsAmenity: boolean,
 ): DrinkPinKind {
   const cats = new Set((categories ?? []).map((c) => c.toLowerCase()));
-  if (cats.has("cocktail") || cocktailsAmenity) return "cocktail";
+  // Recorded drink categories outrank the cocktails amenity: nearly every pub
+  // pours a cocktail, so amenity-first painted classic pubs (The Black Friar,
+  // owner audit) with a martini glyph. The amenity only decides when the venue
+  // has no recorded categories at all.
+  if (cats.has("cocktail")) return "cocktail";
   if (cats.has("wine") || cats.has("champagne") || cats.has("prosecco")) return "wine";
   if (
     cats.has("whisky") ||
@@ -828,6 +832,10 @@ export function drinkPinKindFromCategories(
   ) {
     return "spirits";
   }
+  if (cats.has("beer") || cats.has("ale") || cats.has("lager") || cats.has("stout") || cats.has("cider")) {
+    return "pint";
+  }
+  if (cocktailsAmenity) return "cocktail";
   return "pint";
 }
 

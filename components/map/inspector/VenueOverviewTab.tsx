@@ -132,15 +132,18 @@ export default function VenueOverviewTab({
         cityId={cityId}
       />
       <div className="amenityRow">
-        <Amenity active={Boolean(venue.curation.nearWater)} label="water" />
-        <Amenity active={venue.hasStory} label="heritage" />
-        <Amenity active={Boolean(venue.curation.writerPick)} label="writer" />
-        <Amenity active={venue.amenities.beerGarden} label="garden" />
-        <Amenity active={venue.amenities.nonAlcoholic} label="0.0" />
-        <Amenity active={venue.amenities.liveSports} label="sports" />
+        {/* Labels are reader-facing words, not data keys: "0.0" alone read as
+            a leaked number and lowercase one-worders read as raw tags (owner
+            audit). Sentence case, self-explanatory, still chip-short. */}
+        <Amenity active={Boolean(venue.curation.nearWater)} label="Near water" />
+        <Amenity active={venue.hasStory} label="Heritage" />
+        <Amenity active={Boolean(venue.curation.writerPick)} label="Writer's pick" />
+        <Amenity active={venue.amenities.beerGarden} label="Beer garden" />
+        <Amenity active={venue.amenities.nonAlcoholic} label="0.0% beer" />
+        <Amenity active={venue.amenities.liveSports} label="Live sports" />
         <Amenity active={venue.amenities.food} label="Serves food" />
-        <Amenity active={venue.amenities.cocktails} label="cocktails" />
-        <Amenity active={venue.amenities.pubQuiz} label="quiz" />
+        <Amenity active={venue.amenities.cocktails} label="Cocktails" />
+        <Amenity active={venue.amenities.pubQuiz} label="Pub quiz" />
       </div>
       {venue.amenities.food || cuisineTags.length > 0 ? (
         <div className="cuisineRow" aria-label="Food and cuisine">
