@@ -283,6 +283,11 @@ Launch-day incidents, all root-caused + fixed: crosswalk governance ×2 (unindex
 
 Owner queue: Ticketmaster/EXA/Resend/APNs keys now light up MERGED code; logo pick; demo-content flip; #313 wording; bill-split; Xcode for the first iOS build.
 
+### Post-launch polish + debt closure (evening)
+- **#356** tonight-sheet fix · **#357** global gutters (found the profile zero-padding bug) · **#358** em-dash sweep (504+ rewrites incl. fresh merge copy) · **#359** provenance single-source (closes #279 for real — drift test) · **#360** store factory (#168's honest remainder, 4 stores converted). All merged.
+- **Tracker at zero-debt**: 4 open issues (all deliberate: deferred waves #287/#282, companion depth #252, #168's follow-up adopters), 2 open PRs (#229 GA-hold confirmed vs maplibre 5.24, none other). #263/#264 closed superseded with evidence.
+- Outstanding: deploy-sheriff loop until production Ready + live signatures verified (multiple CI-only failures fixed in sequence; live site still serving pre-wave build until one deploy lands green).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
