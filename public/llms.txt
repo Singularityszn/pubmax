@@ -39,6 +39,15 @@ with explicit source and observation evidence.
 - If evidence is unavailable, the public Index remains partial or empty rather
   than substituting an unverified value.
 
+## Data attribution
+
+- Listed-building status (grade, list entry) comes from Historic England's
+  National Heritage List for England (NHLE), © Historic England, licensed under
+  the Open Government Licence v3.0. Facts are matched conservatively to pubs by
+  name and location; each is shown with a link to its official list entry.
+- Heritage narrative facts are cited from Wikipedia and Wikidata.
+- Mapping data is © OpenStreetMap contributors.
+
 ## Contact
 
 Site: https://pubmaxxing.com

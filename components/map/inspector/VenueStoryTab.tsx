@@ -100,7 +100,11 @@ export default function VenueStoryTab({
           </div>
           <ul className="heritageFactList">
             {heritageFacts.map((fact, index) => (
-              <li key={`${fact.source}-${index}`} className="heritageFact">
+              <li
+                key={`${fact.source}-${index}`}
+                className="heritageFact"
+                data-source={fact.source}
+              >
                 <p className="heritageFactText">{fact.fact}</p>
                 <div className="heritageFactMeta">
                   <span className="heritageSourceChip" data-source={fact.source}>

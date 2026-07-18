@@ -12,18 +12,20 @@
 // Mirror of lib/heritage's HeritageFact, redeclared here so the client bundle
 // never has to import that node-backed module just for the shape.
 export type HeritageFact = {
-  source: "osm" | "wikidata" | "wikipedia" | "seed";
+  source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle";
   fact: string;
   sourceRef?: string;
 };
 
 // The only sources we render. An entry with any other (or missing) source is
-// dropped rather than surfaced under an unknown provenance.
+// dropped rather than surfaced under an unknown provenance. "nhle" is Historic
+// England's National Heritage List for England (listed-building facts).
 const KNOWN_SOURCES: ReadonlySet<HeritageFact["source"]> = new Set([
   "osm",
   "wikidata",
   "wikipedia",
   "seed",
+  "nhle",
 ]);
 
 function isKnownSource(value: unknown): value is HeritageFact["source"] {

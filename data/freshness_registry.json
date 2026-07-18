@@ -189,6 +189,17 @@
       "stalenessBudgetHours": null,
       "refreshWorkflow": "manual",
       "gate": "none"
+    },
+    {
+      "id": "heritage_listings",
+      "label": "Listed-building heritage facts (Historic England NHLE)",
+      "class": "episodic",
+      "artifact": "public/data/heritage_listings.json",
+      "stamp": { "kind": "literal", "value": "2026-07-18T00:00:00Z", "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically" },
+      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer",
+      "stalenessBudgetHours": 8760,
+      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs)",
+      "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"
     }
   ]
 }

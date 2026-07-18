@@ -79,6 +79,8 @@ export function heritageSourceLabel(source: string): string {
       return "Wikidata";
     case "osm":
       return "OpenStreetMap";
+    case "nhle":
+      return "Historic England";
     case "seed":
     default:
       return "On record";

@@ -1133,6 +1133,30 @@ html[data-legacy="1"] .venueTabPanel::before {
   box-shadow: var(--shadow-sm);
 }
 
+/* A listed-building fact (Historic England NHLE) is the pub's real brass plaque,
+   so it wears the amber/brass plaque idiom (per #328 --price-plaque-* tokens)
+   rather than the plain panel — engraved metal, not an alert. The plaque metal
+   lives ONLY on the priced/heritage surfaces; this is one of them. */
+.venueTabPanel .heritageFact[data-source="nhle"] {
+  background: var(--price-plaque-surface);
+  border-color: var(--price-plaque-border);
+  box-shadow: var(--price-plaque-shine), var(--shadow-sm);
+}
+
+.venueTabPanel .heritageFact[data-source="nhle"] .heritageFactText {
+  color: var(--accent-price-ink);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* The Historic England chip reads as an engraved brass tab, matching the plaque
+   it sits on rather than the quieter external-source pill. */
+.venueTabPanel .heritageSourceChip[data-source="nhle"] {
+  border-color: var(--price-plaque-border);
+  background: color-mix(in srgb, var(--amber) 20%, var(--panel-raised));
+  color: var(--accent-price-ink);
+}
+
 .venueTabPanel .heritageFactText {
   margin: 0 0 8px;
   font-size: 0.86rem;

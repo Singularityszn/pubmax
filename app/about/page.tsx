@@ -302,6 +302,27 @@ export default async function AboutPage() {
           </a>
         </div>
       </section>
+
+      <section className="aboutSection aboutCredits" aria-labelledby="credits">
+        <h2 id="credits" className="aboutH2">Data &amp; sources</h2>
+        <ul className="aboutSourceList">
+          <li>
+            Listed-building status comes from Historic England&apos;s National
+            Heritage List for England (NHLE), &copy; Historic England, licensed
+            under the{" "}
+            <a
+              href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open Government Licence v3.0
+            </a>
+            . Each listed fact links to its official list entry.
+          </li>
+          <li>Heritage narrative is cited from Wikipedia and Wikidata.</li>
+          <li>Mapping data is &copy; OpenStreetMap contributors.</li>
+        </ul>
+      </section>
     </main>
   );
 }

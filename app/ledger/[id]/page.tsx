@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 
 import { getVenueCuration } from "@/lib/curation";
+import { getListedBuilding, type ListedBuilding } from "@/lib/heritageListings";
 import {
   buildFamilyTableEntries,
   buildLedgerEntries,
@@ -130,8 +131,11 @@ const SITE_URL = "https://pubmaxxing.com";
 // BarOrPub structured data for the venue permalink (Wave S1.3). ONLY fields the
 // dataset actually carries — name, geo (lat/lng), postal address, canonical url.
 // No invented cuisine/priceRange/rating: provenance rule. lat/lng and address
-// are omitted when absent rather than guessed.
-function venueJsonLd(venue: Venue) {
+// are omitted when absent rather than guessed. When the pub is on the official
+// register (Historic England NHLE) we add a factual `description` + a
+// heritage `additionalProperty` carrying the grade + list-entry citation, so
+// AI/search engines see the listed-building status straight from the JSON-LD.
+function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
   const hasGeo =
     typeof venue.latitude === "number" && typeof venue.longitude === "number";
   return {
@@ -139,6 +143,17 @@ function venueJsonLd(venue: Venue) {
     "@type": "BarOrPub",
     name: venue.name,
     url: `${SITE_URL}/ledger/${encodeURIComponent(venue.id)}`,
+    ...(listed
+      ? {
+          description: listed.fact,
+          additionalProperty: {
+            "@type": "PropertyValue",
+            name: "Listed building",
+            value: `Grade ${listed.grade}`,
+            url: listed.url,
+          },
+        }
+      : {}),
     ...(venue.address || venue.primaryBorough
       ? {
           address: {
@@ -196,6 +211,10 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   const canonicalId = venue.id;
 
   const curation = getVenueCuration(venue.prices);
+  // Official listed-building record (Historic England NHLE), keyed by canonical
+  // venue id — feeds the BarOrPub JSON-LD description below. null for the many
+  // pubs that are not listed.
+  const listedBuilding = await getListedBuilding(canonicalId);
   const drops = await pintDropStoreFor().listVisible(canonicalId);
   const claimDrops = ledgerClaimDrops(
     drops.map((d) => ({
@@ -271,7 +290,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
 
   return (
     <main className="ledgerPage">
-      <JsonLd data={venueJsonLd(venue)} nonce={nonce} />
+      <JsonLd data={venueJsonLd(venue, listedBuilding)} nonce={nonce} />
       <header className="ledgerHead">
         <Link className="ledgerHomeLink" href="/">
           PUBMAXXING
@@ -282,6 +301,21 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
           {venue.address ? `${venue.address} · ` : ""}
           {venue.primaryBorough || "London"}
         </p>
+
+        {/* Listed-building brass plaque (Historic England NHLE). Rendered only
+            when the pub is on the official register; the citation link is the
+            attribution required by the Open Government Licence. */}
+        {listedBuilding ? (
+          <a
+            className="ledgerListedPlaque"
+            href={listedBuilding.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span className="ledgerListedFact">{listedBuilding.fact}</span>
+            <span className="ledgerListedSource">Historic England</span>
+          </a>
+        ) : null}
 
         <div className="ledgerHeadActions">
           <Link className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
