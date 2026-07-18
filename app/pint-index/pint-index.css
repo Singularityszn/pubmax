@@ -236,7 +236,7 @@
   margin: 16px 0 0;
   padding: 14px 16px;
   border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
   color: var(--ink-soft);
   font-size: 14px;

@@ -98,7 +98,7 @@
 .venueSheetSkeletonStamp {
   width: 112px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius);
 }
 
 .venueSheetSkeletonBody {

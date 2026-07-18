@@ -51,7 +51,7 @@
   min-height: 44px;
   padding: 9px 13px;
   border: 1px solid var(--brass);
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--brass);
   font-size: 13px;
   font-weight: 800;

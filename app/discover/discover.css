@@ -108,7 +108,7 @@
   margin: 0;
   padding: 20px;
   border: 1px solid color-mix(in srgb, var(--river) 28%, var(--line));
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--ink-soft);
   background: var(--panel-raised);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
