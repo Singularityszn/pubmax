@@ -148,6 +148,15 @@ Deferred until merges land: post-#301 analytics wiring (#309/#312/#313 call site
 
 - **Slim sharding done → PR (stacked on #315)**: eager 805→515KB (manifest+core), 10 lazy outer shards via objective ≥20-venues/<40%-priced rule, loader seam with viewport/near-me/failure-retry, budgets CI-enforced. Full suite 3117 green.
 
+## CYCLE 6 PRD (morning, loop continues per Karan)
+
+Non-merge-gated work only. Three Opus 4.8 lanes + Fable preview audit:
+
+1. **`data/outer-price-harvest`** — the outer boroughs are now venue-covered (#315) but 4–17% priced. FIRECRAWL_API_KEY is valid: harvest honest prices for the new OSM pubs from pub-OWNED published sources (own site/menu pages) under the Pint Index evidence rules (explicit source, licence, observed-at; no aggregator scraping in violation of ToS; no invented prices). Feeds cheapestPrice via the existing price pipeline.
+2. **`feat/ledger-polish`** — Cycle-2 USP bet 4, never executed: rounds/bar-tab splitting hardening + mobile UX pass (the sticky-per-group loop).
+3. **`data/borough-label-repair`** — #308's data-quality signal: geo≠stored borough mismatch is high in the core (Camden 89, City of London 77) — pins carry wrong borough labels from the source site. Repair stored labels to point-in-polygon truth via the canonical pipeline, with a diff report.
+4. **Fable**: visual audit of Vercel preview URLs for #309 (/near), #311 (headers), #307 (feed), #304 (tonight) — pre-merge taste verdicts.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
