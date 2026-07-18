@@ -325,6 +325,18 @@
   text-decoration: none;
 }
 
+.nightCard__recapInvite {
+  display: grid;
+  gap: 8px;
+}
+
+.nightCard__recapLede {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-soft, #6b726a);
+}
+
 .nightCard__recapActions {
   display: flex;
   flex-wrap: wrap;

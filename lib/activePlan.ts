@@ -23,6 +23,13 @@ export const ACTIVE_PLAN_VERSION = 1 as const;
 export const ACTIVE_PLAN_PRE_MS = 3 * 60 * 60 * 1000; // 3h before the first pint
 export const ACTIVE_PLAN_POST_MS = 8 * 60 * 60 * 1000; // 8h after (last-train o'clock)
 
+// After the active window closes, a night can still have an unsaved private
+// recap stranded on the device. The Night Mode card is the only surface that
+// can save it, so it stays reachable for a bounded grace period past the ending
+// — long enough to catch it the morning after, short enough never to haunt the
+// shell for days. Measured from the completion instant, not the plan start.
+export const RECAP_GRACE_MS = 24 * 60 * 60 * 1000; // 24h after the ending was confirmed
+
 /** Same-tab notify so the shell card re-reads after a write without a focus hop. */
 const CHANGE_EVENT = "pubmax:active-plan";
 const DISMISS_EVENT = "pubmax:night-mode-dismiss";
@@ -129,6 +136,19 @@ export function isPlanActiveNow(ref: ActivePlanRef | null, now: number): boolean
   const start = Date.parse(ref.startTime);
   if (Number.isNaN(start)) return false;
   return now >= start - ACTIVE_PLAN_PRE_MS && now <= start + ACTIVE_PLAN_POST_MS;
+}
+
+/**
+ * Is `now` inside the recap grace period that follows a confirmed ending? True
+ * for [completedAt, completedAt + RECAP_GRACE]. An absent or unparseable
+ * timestamp is treated as outside the window — a stranded recap never keeps the
+ * card up forever, it just retires with the active window.
+ */
+export function isWithinRecapGrace(completedAtIso: string | null | undefined, now: number): boolean {
+  if (typeof completedAtIso !== "string") return false;
+  const completedAt = Date.parse(completedAtIso);
+  if (Number.isNaN(completedAt)) return false;
+  return now >= completedAt && now <= completedAt + RECAP_GRACE_MS;
 }
 
 /** Stored active-plan pointer, or null on SSR / unset / malformed. */

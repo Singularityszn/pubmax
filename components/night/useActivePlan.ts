@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import {
   isNightModeDismissed,
   isPlanActiveNow,
+  isWithinRecapGrace,
   readActivePlan,
   subscribeActivePlan,
   subscribeNightModeDismiss,
   type ActivePlanRef,
 } from "@/lib/activePlan";
+import { readPendingPlanRecap, subscribePendingPlanRecap } from "@/lib/planRecap";
 import { restorePlanCapability } from "@/lib/planSessionCapability";
 
 // How often we re-check the time window, so a plan that ages out of its active
@@ -30,7 +32,16 @@ const IDLE: NightModeState = { ref: null, visible: false, dismissed: false };
 
 function resolve(now: number): NightModeState {
   const ref = readActivePlan();
-  if (!isPlanActiveNow(ref, now) || !ref) return IDLE;
+  if (!ref) return IDLE;
+  // Once the active window closes the card normally retires — unless the night
+  // ended with a private recap still unsaved on this device. That recap can only
+  // be saved from this card, so it stays reachable through the recap grace
+  // period. An unresolved recap seeds itself the morning after; a saved or
+  // discarded one leaves no pending draft and the card retires as before.
+  if (!isPlanActiveNow(ref, now)) {
+    const recap = readPendingPlanRecap(ref.id);
+    if (!recap || !isWithinRecapGrace(recap.completedAt, now)) return IDLE;
+  }
   const dismissed = isNightModeDismissed(ref.id);
   return { ref, visible: !dismissed, dismissed };
 }
@@ -60,6 +71,15 @@ export function useActivePlan(): NightModeState {
 
   useEffect(() => {
     if (state.ref?.id) void restorePlanCapability(state.ref.id).catch(() => undefined);
+  }, [state.ref?.id]);
+
+  // Retire the card promptly when the recap that was keeping it alive past the
+  // window is saved or discarded — without this the interval tick would leave a
+  // resolved night's card lingering up to a minute.
+  useEffect(() => {
+    const id = state.ref?.id;
+    if (!id) return;
+    return subscribePendingPlanRecap(id, () => setState(resolve(Date.now())));
   }, [state.ref?.id]);
 
   return state;

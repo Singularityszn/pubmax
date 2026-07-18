@@ -274,6 +274,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   const endingSavingRef = useRef(false);
   const [endingError, setEndingError] = useState("");
   const [recap, setRecap] = useState<PendingPlanRecap | null>(() => readPendingPlanRecap(id));
+  // True only while we are fetching a completed plan's recap seed on re-entry —
+  // the honest "hold on, it's coming" state so a finished night never shows a
+  // blank gap between the ending result and its recap invitation.
+  const [recapSeeding, setRecapSeeding] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
   const [recapSaving, setRecapSaving] = useState(false);
   const recapSavingRef = useRef(false);
@@ -324,15 +328,27 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
 
   useEffect(() => {
     if (plan?.plan.status !== "completed" && !plan?.ending) return;
+    // Already holding this night's recap locally — no seed fetch, no spinner.
+    if (readPendingPlanRecap(id)) return;
     const controller = new AbortController();
-    void fetch(`/api/plans/${id}/complete`, { cache: "no-store", signal: controller.signal })
-      .then(async (response) => response.ok ? response.json() as Promise<{ completion?: PlanCompletionDTO | null }> : null)
-      .then((body) => {
+    const title = plan.plan.title;
+    // Seed the completed night's recap on re-entry. The seeding flag lives inside
+    // the async task (not the effect body) so it never triggers a synchronous
+    // render cascade; the honest "coming" line shows only while this is in flight.
+    void (async () => {
+      setRecapSeeding(true);
+      try {
+        const response = await fetch(`/api/plans/${id}/complete`, { cache: "no-store", signal: controller.signal });
+        const body = response.ok ? (await response.json()) as { completion?: PlanCompletionDTO | null } : null;
         if (controller.signal.aborted || !body?.completion) return;
         const existing = readPendingPlanRecap(id);
-        if (!existing || existing.completionId !== body.completion.id) setRecap(ensurePendingPlanRecap(body.completion, plan.plan.title));
-      })
-      .catch(() => undefined);
+        if (!existing || existing.completionId !== body.completion.id) setRecap(ensurePendingPlanRecap(body.completion, title));
+      } catch {
+        // A failed seed simply leaves no local recap; nothing is invented.
+      } finally {
+        if (!controller.signal.aborted) setRecapSeeding(false);
+      }
+    })();
     return () => controller.abort();
   }, [id, plan]);
 
@@ -608,7 +624,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
       </div>
 
       <div className="nightCard__head">
-        <p className="nightCard__eyebrow">On tonight{plan?.plan.title ? ` · ${plan.plan.title}` : ""}</p>
+        <p className="nightCard__eyebrow">{activeEnding ? "Night complete" : "On tonight"}{plan?.plan.title ? ` · ${plan.plan.title}` : ""}</p>
         <button
           ref={closeRef}
           type="button"
@@ -700,14 +716,19 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
                 keepGoingExtension={chosenExtension}
               />
               {recap ? (
-                <div className="nightCard__recapActions">
-                  <button type="button" className="nightCard__endingLink" onClick={() => setRecapOpen((open) => !open)} aria-expanded={recapOpen}>
-                    <BookOpen size={16} aria-hidden="true" /> Review private recap
-                  </button>
-                  <button type="button" className="nightCard__quietButton" onClick={() => { resolvePendingPlanRecap(recap, "discarded"); setRecap(null); setRecapOpen(false); }}>
-                    <Trash2 size={15} aria-hidden="true" /> Discard local recap
-                  </button>
+                <div className="nightCard__recapInvite">
+                  <p className="nightCard__recapLede">That&rsquo;s the night. Keep it as a private Memory — the route and any words you add, nothing posted.</p>
+                  <div className="nightCard__recapActions">
+                    <button type="button" className="nightCard__endingLink" onClick={() => setRecapOpen((open) => !open)} aria-expanded={recapOpen}>
+                      <BookOpen size={16} aria-hidden="true" /> {recapOpen ? "Hide recap" : "Review private recap"}
+                    </button>
+                    <button type="button" className="nightCard__quietButton" onClick={() => { resolvePendingPlanRecap(recap, "discarded"); setRecap(null); setRecapOpen(false); }}>
+                      <Trash2 size={15} aria-hidden="true" /> Discard local recap
+                    </button>
+                  </div>
                 </div>
+              ) : recapSeeding ? (
+                <p className="nightCard__endingStatus" role="status">Pulling your private recap together…</p>
               ) : null}
               {recapOpen && recap ? (
                 <PlanRecapEditor recap={recap} saving={recapSaving} onChange={(next) => { setRecap(next); writePendingPlanRecap(next); }} onSave={() => void savePrivateRecap()} />
