@@ -84,6 +84,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     canonicalOnly: false,
     drinkCategory: "",
     drinkBrand: "",
+    zone: "",
     ...overrides,
   };
 }
@@ -185,6 +186,24 @@ describe("filterVenues", () => {
   it("query matches borough", () => {
     const venues = groupVenuePrices([makeRow({ primary_borough: "Hackney" })]);
     expect(filterVenues(venues, makeFilters({ query: "hackney" }))).toHaveLength(1);
+  });
+
+  it("zone filter narrows to the matching fare zone; unknown zone fails a concrete pick", () => {
+    const zone1 = groupVenuePrices([makeRow({ address: "Z1" })]);
+    zone1[0].zone = 1;
+    const zone3 = groupVenuePrices([makeRow({ address: "Z3" })]);
+    zone3[0].zone = 3;
+    const unknown = groupVenuePrices([makeRow({ address: "Z?" })]); // no zone
+    const all = [...zone1, ...zone3, ...unknown];
+
+    // "" / "all" is a no-op — every venue passes.
+    expect(filterVenues(all, makeFilters({ zone: "" }))).toHaveLength(3);
+    expect(filterVenues(all, makeFilters({ zone: "all" }))).toHaveLength(3);
+    // A concrete zone narrows to that zone only.
+    expect(filterVenues(all, makeFilters({ zone: "1" }))).toHaveLength(1);
+    expect(filterVenues(all, makeFilters({ zone: "3" }))[0].address).toBe("Z3");
+    // An unknown-zone venue never matches a concrete zone.
+    expect(filterVenues(unknown, makeFilters({ zone: "3" }))).toHaveLength(0);
   });
 
   it("maxPrice excludes pricier venues but a null-price venue passes", () => {

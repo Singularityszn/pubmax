@@ -96,6 +96,8 @@ export const initialFilters: Filters = {
   requireSeatedService: false,
   drinkCategory: "",
   drinkBrand: "",
+  // "" = all zones (no narrowing). The zone picker sets "1".."6".
+  zone: "",
 };
 
 type ControlRailProps = {

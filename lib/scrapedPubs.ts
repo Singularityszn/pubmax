@@ -27,6 +27,8 @@ export type ScrapedPub = {
   /** Companion drink glyphs for a small shelf under the hero. */
   drinkShelf: DrinkCategory[];
   cheapestPrice: number | null;
+  /** Nearest-station TfL fare zone (1–6), or null when unknown. */
+  zone: number | null;
 };
 
 export const SCRAPED_SOURCE_LABELS: Record<ScrapedPubSourceId, string> = {

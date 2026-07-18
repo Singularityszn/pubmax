@@ -95,6 +95,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireSeatedService: false,
     drinkCategory: "",
     drinkBrand: "",
+    zone: "",
     ...overrides,
   };
 }
@@ -136,7 +137,9 @@ describe("venues_slim.json", () => {
   it("contains only the fields the map hydration path consumes", () => {
     const rows = slim as Record<string, unknown>[];
     const badKeySets = rows
-      .map((row) => Object.keys(row).sort())
+      // `zone` (nearest-station fare zone) is an optional additive field — strip
+      // it before the exact-shape check so both zoned and unknown-zone rows pass.
+      .map((row) => Object.keys(row).filter((key) => key !== "zone").sort())
       .filter((keys) => JSON.stringify(keys) !== JSON.stringify(SLIM_KEYS));
     expect(badKeySets).toEqual([]);
   });

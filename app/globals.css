@@ -79,6 +79,31 @@
   --color-on-accent-strong: #16122a; /* dark text on bright accent */
   --color-on-photo: #ffffff; /* white text on a photo-scrim overlay */
 
+  /* Role tokens (#328 preview) — DEDUPE-ON-MERGE with design/token-system-v2.
+     #328 deprecates coral-for-everything: raw --brass is licensed only as the
+     ONE loud CTA accent, so price/selected/badge consumers read their role, not
+     the hue. These are byte-identical to #328's definitions; when that branch
+     merges, delete this block and keep #328's canonical one (no consumer change
+     — the names match). Theme-stable: color-mix over --brass/--ink/--amber/
+     --panel-raised/--line, which already flip per theme.
+       --accent-action  → the ONE loud accent. CTAs / Plan only.
+       --accent-price   → the pub's brass-plaque heritage. Prices, not coral.
+       --state-active-* → "you are here", quieter than a CTA.
+       --badge-*        → neutral-strong. Counts + metadata, not accent. */
+  --accent-action: var(--brass);
+  --accent-action-strong: var(--brass-bright);
+  --accent-price: var(--amber);
+  --accent-price-ink: color-mix(in srgb, var(--amber) 66%, var(--ink));
+  --price-plaque-surface: color-mix(in srgb, var(--amber) 11%, var(--panel-raised));
+  --price-plaque-border: color-mix(in srgb, var(--amber) 46%, var(--line));
+  --price-plaque-shine: inset 0 1px 0 color-mix(in srgb, #ffffff 42%, transparent);
+  --state-active-surface: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  --state-active-border: color-mix(in srgb, var(--brass) 36%, var(--line));
+  --state-active-ink: color-mix(in srgb, var(--brass) 52%, var(--ink));
+  --badge-surface: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  --badge-border: color-mix(in srgb, var(--ink) 15%, var(--line));
+  --badge-ink: var(--ink-soft);
+
   /* — Type: display + body + data trio (wired via next/font in app/layout.tsx).
        Each var falls back to a system stack so the tokens degrade gracefully
        if a font fails to load. Display is Space Grotesk — a modern geometric

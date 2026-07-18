@@ -27,6 +27,7 @@ import {
   classifySlimShards,
   shardFileForSlug,
 } from "./lib/slimShards.mjs";
+import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -526,6 +527,11 @@ async function main() {
     console.log(`dropped ${droppedOob} row(s) outside Greater London bounds`);
   }
 
+  // Fare-zone table (nearest-station assignment). Load once; each venue is
+  // stamped with the zone of its nearest station — an honest approximation,
+  // labelled as such in the UI. See scripts/lib/stationZones.mjs.
+  const stationZones = await loadStationZones();
+
   const slim = [];
   const detailLines = [];
   const detailIndex = {
@@ -535,6 +541,8 @@ async function main() {
     venues: {},
   };
   let detailOffset = 0;
+  const zoneCounts = {};
+  let zoneUnknown = 0;
   for (const [key, prices] of grouped) {
     const first = prices[0];
     const numericPrices = prices
@@ -543,13 +551,23 @@ async function main() {
     const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
     const id = stableVenueIdFromKey(key);
 
+    const lat = Number(first.latitude);
+    const lng = Number(first.longitude);
+    const nearest = nearestStationZone(lat, lng, stationZones);
+    const zone = nearest ? nearest.zone : null;
+    if (zone === null) zoneUnknown += 1;
+    else zoneCounts[zone] = (zoneCounts[zone] ?? 0) + 1;
+
     slim.push({
       id,
       name: String(first.pub_name),
-      lat: Number(first.latitude),
-      lng: Number(first.longitude),
+      lat,
+      lng,
       cheapestPrice,
       borough: String(first.primary_borough || ""),
+      // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
+      // null when no station is comparable — kept honest, never bucketed.
+      ...(zone !== null ? { zone } : {}),
       filterHints: buildFilterHints(prices, id, scrapedIds),
     });
 
@@ -616,6 +634,16 @@ async function main() {
   console.log(`detail rows: ${slim.length} venues ${mb(detailBytes)} MB (${detailBytes} bytes)`);
   console.log(`wrote: ${path.relative(ROOT, DETAIL_ROWS_PATH)}`);
   console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
+
+  // Zone coverage (nearest-station fare zone) — stamped per venue above, so the
+  // core + outer shards inherit it via classifySlimShards. Logged here, after
+  // the shard budgets, as a build-time honesty spot-check.
+  const zoneSummary = Object.keys(zoneCounts)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((z) => `z${z}:${zoneCounts[z]}`)
+    .join(" ");
+  console.log(`zones: ${zoneSummary}${zoneUnknown ? ` unknown:${zoneUnknown}` : ""} (nearest-station)`);
 
   console.log("");
   console.log(`shards: ${outer.size} lazy outer shard(s) + core`);

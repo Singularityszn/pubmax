@@ -32,11 +32,31 @@ async function loadGroupedVenues() {
   }
 }
 
+/** id → nearest-station fare zone, from the slim index (single source of truth). */
+async function loadZonesById(): Promise<Map<string, number>> {
+  const byId = new Map<string, number>();
+  try {
+    const file = path.join(process.cwd(), "public", "data", "venues_slim.json");
+    const rows = JSON.parse(await readFile(file, "utf8")) as unknown;
+    if (Array.isArray(rows)) {
+      for (const row of rows as { id?: unknown; zone?: unknown }[]) {
+        if (typeof row.id === "string" && typeof row.zone === "number" && Number.isInteger(row.zone)) {
+          byId.set(row.id, row.zone);
+        }
+      }
+    }
+  } catch {
+    // No slim index → every scraped pub reads zone: null (honestly unknown).
+  }
+  return byId;
+}
+
 /** All scraped enrichment pubs, newest sources first within name sort. */
 export async function listScrapedPubs(): Promise<ScrapedPub[]> {
-  const [index, venues] = await Promise.all([
+  const [index, venues, zonesById] = await Promise.all([
     loadVenueMenuEnrichmentIndex(),
     loadGroupedVenues(),
+    loadZonesById(),
   ]);
   const byId = new Map(venues.map((venue) => [venue.id, venue]));
   const pubs: ScrapedPub[] = [];
@@ -65,6 +85,7 @@ export async function listScrapedPubs(): Promise<ScrapedPub[]> {
       drinkAccent,
       drinkShelf: drinkShelfForVenue(id, drinkAccent),
       cheapestPrice: venue?.cheapestPrice ?? null,
+      zone: zonesById.get(id) ?? null,
     });
   }
 
