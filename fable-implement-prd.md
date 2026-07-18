@@ -159,6 +159,8 @@ Non-merge-gated work only. Three Opus 4.8 lanes + Fable preview audit:
 
 - **Round-loop polish → PR**: PREMISE CORRECTION — bill-splitting never existed (Cycle-2 "ledger polish" bet mislabeled; ledger=heritage log, bar-tab=photo grid). Lane refused scope creep, polished the real Round loop (two-tap close, honest search states, visibility-gated polling, 44px/press, keyboard hygiene). OWNER DECISION queued: build bill-splitting as its own feature, or drop the idea.
 
+- **Borough label repair → PR**: scraped labels were systematically wrong; geometry now source of truth. 610 rows/262 venues corrected (Camden 185→96 pubs, Islington 40→87 — corrections, not regressions). Public Pint Index snapshot unaffected (status:empty).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
