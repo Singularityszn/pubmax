@@ -125,6 +125,22 @@ export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): val
   return true;
 }
 
+// Data-derived event titles occasionally carry a typographic em or en dash
+// (for example a scraped "Skehan's [em dash] Live Music"). The authored-copy
+// sweep (#358) fixed hand-written strings but never touches data files, so the
+// dash leaks onto Tonight and the What's-On spine. This is the
+// render/normalisation seam: fold any em or en dash in a displayed title down
+// to a plain spaced hyphen so no typographic dash survives. Bulk-editing the
+// data files is deliberately avoided; the fix lives at the seam every row
+// passes through. The character class uses unicode escapes (U+2014 em,
+// U+2013 en) so this source file itself stays free of typographic dashes.
+export function normaliseEventTitle(title: string): string {
+  return title
+    .replace(/\s*[\u2014\u2013]\s*/g, " - ")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+
 // Normalise a raw row into the exact WhatsOnRow shape, dropping null optionals
 // so downstream `field !== undefined` checks behave.
 function normaliseRow(row: WhatsOnRow): WhatsOnRow {
@@ -133,7 +149,7 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
     placeName: row.placeName,
     kind: row.kind,
     startsAt: row.startsAt,
-    title: row.title,
+    title: normaliseEventTitle(row.title),
     source: { label: row.source.label, url: row.source.url },
     observedAt: row.observedAt,
     confidence: row.confidence,
@@ -349,7 +365,7 @@ export function mapThingsToDoToRows(result: ThingsToDoResult, opts: MapThingsToD
       placeName,
       kind,
       startsAt,
-      title: opp.title,
+      title: normaliseEventTitle(opp.title),
       source: { label, url: url as string },
       observedAt,
       confidence: "listed",

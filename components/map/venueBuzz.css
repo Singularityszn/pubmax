@@ -44,6 +44,25 @@
   color: var(--ink);
 }
 
+/* Inline press citation: a real superscript that links to its mention. */
+.venueBuzzCite {
+  font-size: 0.7em;
+  line-height: 0;
+  font-weight: 600;
+  margin-left: 1px;
+}
+
+.venueBuzzCite a {
+  color: var(--brass);
+  text-decoration: none;
+  padding: 0 1px;
+}
+
+.venueBuzzCite a:hover,
+.venueBuzzCite a:focus-visible {
+  text-decoration: underline;
+}
+
 .venueBuzzMentions {
   display: flex;
   flex-wrap: wrap;
