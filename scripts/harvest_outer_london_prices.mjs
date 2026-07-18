@@ -53,7 +53,7 @@ const KEY = process.env.FIRECRAWL_API_KEY;
 // save credits; logged honestly as chain-no-web-price.
 const NO_WEB_PRICE_CHAINS = [
   { re: /jdwetherspoon/, label: "J D Wetherspoon (prices in Order & Pay app only)" },
-  { re: /greeneking/, label: "Greene King (image-only web menus)" },
+  { re: /greeneking|hungryhorse|farmhouseinns|flaminggrill|metropolitanpubcompany/, label: "Greene King / Hungry Horse (image menus + app-only deals)" },
   { re: /emberinns|vintageinn|oneills|nicholsonspubs|sizzlingpubs|allbarone|toby|harvester|castlepubs|premiummeasures/, label: "Mitchells & Butlers (prices in app only)" },
   { re: /craftunionpubs|slugandlettuce|stonegate|craftedsocial|crafted-social/, label: "Stonegate (prices in app only)" },
   { re: /greatukpubs|greatlocalpubs/, label: "Great Local Pubs / Stonegate (no web prices)" },
@@ -193,6 +193,24 @@ function main() {
   const limit = Number(arg("--limit", "0")) || 0;
   const budget = Number(arg("--budget", "280")) || 280;
   const dryRun = arg("--dry-run", false) === true;
+  // --resume: reprocess ONLY the independents that a prior run left credit-blocked
+  // (result "blocked" + "Insufficient credits"), and carry forward every prior
+  // definitive entry so the log stays a complete per-venue record.
+  const resume = arg("--resume", false) === true;
+  let priorKeep = [];
+  let reblockedUrls = new Set();
+  if (resume) {
+    const prior = JSON.parse(readFileSync(LOG_PATH, "utf8"));
+    const entries = Array.isArray(prior) ? prior : prior.log || [];
+    for (const e of entries) {
+      if (e.result === "blocked" && /Insufficient credits/i.test(String(e.reason || ""))) {
+        reblockedUrls.add(e.website);
+      } else {
+        priorKeep.push(e);
+      }
+    }
+    console.log(`[resume] carrying ${priorKeep.length} prior entries; reprocessing ${reblockedUrls.size} credit-blocked venues`);
+  }
 
   const app = JSON.parse(readFileSync(APP_PATH, "utf8"));
   const osmRows = app.filter(
@@ -218,20 +236,28 @@ function main() {
     const h = host(row.website);
     const chain = chainOf(h);
     if (chain) {
-      log.push({
-        borough: row.primary_borough,
-        pub: row.pub_name,
-        website: row.website,
-        host: h,
-        result: "no-price-published",
-        reason: `chain: ${chain.label}`,
-      });
+      if (!resume) {
+        log.push({
+          borough: row.primary_borough,
+          pub: row.pub_name,
+          website: row.website,
+          host: h,
+          result: "no-price-published",
+          reason: `chain: ${chain.label}`,
+        });
+      }
       continue;
     }
     targets.push(row);
   }
 
-  const queue = limit ? targets.slice(0, limit) : targets;
+  // In resume mode, seed the log with every carried-forward prior entry and
+  // narrow the queue to just the previously credit-blocked venues.
+  if (resume) {
+    log.push(...priorKeep);
+  }
+  const activeTargets = resume ? targets.filter((r) => reblockedUrls.has(r.website)) : targets;
+  const queue = limit ? activeTargets.slice(0, limit) : activeTargets;
   console.log(
     `Independents to sweep: ${queue.length} (of ${targets.length}); chains logged: ${log.length}; budget ${budget} requests`,
   );

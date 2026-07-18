@@ -40511,6 +40511,78 @@
         "licence": "All rights reserved — first-party publisher of its own pub menu/prices; read-only, attributed use only."
       },
       "observedAt": "2026-07-18T05:38:55.488Z"
+    },
+    {
+      "venueKey": "small beer|22, tottenham lane, london, n8 8pt|51.58030|-0.12312",
+      "drinkName": "Best Bitter, 4.5%, Almasty (Newcastle)",
+      "category": "beer",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "Small Beer — official website",
+        "url": "https://www.smallbeern8.co.uk/drinks",
+        "licence": "All rights reserved — first-party publisher of its own pub menu/prices; read-only, attributed use only."
+      },
+      "observedAt": "2026-07-18T05:38:55.488Z"
+    },
+    {
+      "venueKey": "small beer|22, tottenham lane, london, n8 8pt|51.58030|-0.12312",
+      "drinkName": "Session IPA, 4.0%, Two By Two (Newcastle)",
+      "category": "beer",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "Small Beer — official website",
+        "url": "https://www.smallbeern8.co.uk/drinks",
+        "licence": "All rights reserved — first-party publisher of its own pub menu/prices; read-only, attributed use only."
+      },
+      "observedAt": "2026-07-18T05:38:55.488Z"
+    },
+    {
+      "venueKey": "small beer|22, tottenham lane, london, n8 8pt|51.58030|-0.12312",
+      "drinkName": "Stand and Deliver, Dark Mild, 4.5% (Hackney)",
+      "category": "beer",
+      "priceGbp": 6.2,
+      "source": {
+        "label": "Small Beer — official website",
+        "url": "https://www.smallbeern8.co.uk/drinks",
+        "licence": "All rights reserved — first-party publisher of its own pub menu/prices; read-only, attributed use only."
+      },
+      "observedAt": "2026-07-18T05:38:55.488Z"
+    },
+    {
+      "venueKey": "small beer|22, tottenham lane, london, n8 8pt|51.58030|-0.12312",
+      "drinkName": "Martina, Lager, 4.0%, Bohem (Tottenham)",
+      "category": "beer",
+      "priceGbp": 6.5,
+      "source": {
+        "label": "Small Beer — official website",
+        "url": "https://www.smallbeern8.co.uk/drinks",
+        "licence": "All rights reserved — first-party publisher of its own pub menu/prices; read-only, attributed use only."
+      },
+      "observedAt": "2026-07-18T05:38:55.488Z"
+    },
+    {
+      "venueKey": "langham working mens club|600, green lanes, london, n8 0ry|51.58463|-0.09972",
+      "drinkName": "Pint of Beer",
+      "category": "beer",
+      "priceGbp": 3.6,
+      "source": {
+        "label": "Langham Working Mens Club — official website",
+        "url": "https://www.langhamclub.co.uk/",
+        "licence": "All rights reserved — first-party publisher of its own pub menu/prices; read-only, attributed use only."
+      },
+      "observedAt": "2026-07-18T05:38:55.488Z"
+    },
+    {
+      "venueKey": "langham working mens club|600, green lanes, london, n8 0ry|51.58463|-0.09972",
+      "drinkName": "Pint of Lager",
+      "category": "beer",
+      "priceGbp": 4.25,
+      "source": {
+        "label": "Langham Working Mens Club — official website",
+        "url": "https://www.langhamclub.co.uk/",
+        "licence": "All rights reserved — first-party publisher of its own pub menu/prices; read-only, attributed use only."
+      },
+      "observedAt": "2026-07-18T05:38:55.488Z"
     }
   ]
 }

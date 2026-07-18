@@ -56,6 +56,30 @@ const VERIFIED = [
     sourceUrl: "https://boombattlebar.com/uk/theo2/",
     draught: [{ drinkName: "BOOM Lager", priceGbp: 5.0 }],
   },
+  {
+    // Haringey (resume batch). /drinks page marks 2/3 pours "(2/3)"; the items
+    // below are the UNMARKED = full-pint lines only. Verified 2026-07-18.
+    pubName: "Small Beer",
+    host: "smallbeern8.co.uk",
+    sourceUrl: "https://www.smallbeern8.co.uk/drinks",
+    draught: [
+      { drinkName: "Best Bitter, 4.5%, Almasty (Newcastle)", priceGbp: 5.5 },
+      { drinkName: "Session IPA, 4.0%, Two By Two (Newcastle)", priceGbp: 5.5 },
+      { drinkName: "Stand and Deliver, Dark Mild, 4.5% (Hackney)", priceGbp: 6.2 },
+      { drinkName: "Martina, Lager, 4.0%, Bohem (Tottenham)", priceGbp: 6.5 },
+    ],
+  },
+  {
+    // Haringey working men's club — standard everyday pint-range statement on its
+    // own homepage ("pints of beer ranging from £3.60 to £4.25 per pint").
+    pubName: "Langham Working Mens Club",
+    host: "langhamclub.co.uk",
+    sourceUrl: "https://www.langhamclub.co.uk/",
+    draught: [
+      { drinkName: "Pint of Beer", priceGbp: 3.6 },
+      { drinkName: "Pint of Lager", priceGbp: 4.25 },
+    ],
+  },
 ];
 
 function host(url) {

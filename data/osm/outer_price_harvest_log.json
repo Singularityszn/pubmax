@@ -1,14 +1,14 @@
 {
   "summary": {
-    "generatedAt": "2026-07-18T05:38:55.488Z",
-    "totalOsmUnpriced": 660,
-    "withWebsite": 273,
+    "generatedAt": "2026-07-18T07:05:35.524Z",
+    "totalOsmUnpriced": 658,
+    "withWebsite": 271,
     "chainsSkipped": 63,
-    "independentsSwept": 210,
-    "requestsUsed": 264,
-    "priced": 2,
-    "manualQaDropped": 2,
-    "note": "Raw harvest verbatim-validated 4 candidates; 2 passed manual pint review (Tattoo Bar, Boom Battle Bar); 2 dropped (SALT Woolwich, The City Barge)."
+    "independentsSwept": 105,
+    "requestsUsed": 155,
+    "priced": 4,
+    "manualQaDropped": 0,
+    "note": "Outer-London complete (2 sweeps). Raw harvest surfaced candidates; strict serving-size + promo-vs-standard QA kept only first-party STANDARD draught PINT prices."
   },
   "log": [
     {
@@ -1523,8 +1523,8 @@
       "pub": "The Alice House",
       "website": "https://www.thealicehouse.co.uk/",
       "host": "thealicehouse.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1532,17 +1532,17 @@
       "pub": "The Island",
       "website": "https://theislandnw10.com/",
       "host": "theislandnw10.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Brent",
       "pub": "Wolfpack",
       "website": "https://wolfpackbars.com/queens-park-bar/",
       "host": "wolfpackbars.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1550,8 +1550,8 @@
       "pub": "Freaks and Geeks",
       "website": "https://www.escapebars.uk/",
       "host": "escapebars.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1559,8 +1559,8 @@
       "pub": "Roof East",
       "website": "https://www.roofeast.com/",
       "host": "roofeast.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1568,17 +1568,17 @@
       "pub": "The Bat and Ball",
       "website": "https://www.thebatandball.com/",
       "host": "thebatandball.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Newham",
       "pub": "Prosecco Caffè",
       "website": "https://www.prosecco.wine/en/prosecco-and/prosecco-caffe",
       "host": "prosecco.wine",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1586,17 +1586,17 @@
       "pub": "Tap East",
       "website": "http://www.tapeast.co.uk/",
       "host": "tapeast.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Barking and Dagenham",
       "pub": "The Royal Oak",
       "website": "https://www.thequeenshouse.co.uk/new-opening-barking",
       "host": "thequeenshouse.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1604,8 +1604,8 @@
       "pub": "Tina We Salute You",
       "website": "http://www.tinawesaluteyou.com/",
       "host": "tinawesaluteyou.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1613,26 +1613,26 @@
       "pub": "Mother Kelly's E20",
       "website": "http://motherkellys.co.uk/",
       "host": "motherkellys.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Brent",
       "pub": "Beer + Burger",
       "website": "https://www.beerandburgerstore.com/",
       "host": "beerandburgerstore.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Newham",
       "pub": "Forest Tavern",
       "website": "https://foresttavern.com",
       "host": "foresttavern.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1641,7 +1641,7 @@
       "website": "http://www.masti-wembley.com",
       "host": "masti-wembley.com",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"www.masti-wembley.com\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -1649,17 +1649,17 @@
       "pub": "The Arch",
       "website": "https://thearchwembley.co.uk/",
       "host": "thearchwembley.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Joyau",
       "website": "https://joyau.co/london",
       "host": "joyau.co",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1667,8 +1667,8 @@
       "pub": "Holly Tree",
       "website": "https://thehollytreepub.co.uk/",
       "host": "thehollytreepub.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1676,53 +1676,77 @@
       "pub": "Pretty Decent Beer Co Taproom",
       "website": "https://www.prettydecentbeer.co/",
       "host": "prettydecentbeer.co",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "sourceUrl": "https://www.prettydecentbeer.co/",
+      "observedAt": "2026-07-18T07:05:35.524Z",
+      "requests": 1,
+      "reason": "manual-QA drop: £ values are Shopify online-shop can/case prices (Sale/Regular price + free-delivery), not draught pints",
+      "rawExtractionDropped": [
+        {
+          "drinkName": "Broadband Abs - 5% DDH Pale Ale",
+          "priceGbp": 4.65
+        },
+        {
+          "drinkName": "UniTiger - 5% DDH Pale",
+          "priceGbp": 4.75
+        },
+        {
+          "drinkName": "Where Have All the Pogs Gone? - 8% DIPA",
+          "priceGbp": 7
+        }
+      ]
     },
     {
       "borough": "Brent",
       "pub": "The Green Man",
       "website": "http://www.thegreenmanhotelatwembley.co.uk/",
       "host": "thegreenmanhotelatwembley.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Brent",
       "pub": "The White Horse",
       "website": "https://www.whitehorsewembley.co.uk/",
       "host": "whitehorsewembley.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "The Leyton Engineer",
       "website": "https://theleytonengineer.co.uk/",
       "host": "theleytonengineer.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Leytonstone Tavern",
       "website": "http://leytonstonetavern.com/",
       "host": "leytonstonetavern.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "sourceUrl": "https://www.leytonstonetavern.com/public/#menus",
+      "observedAt": "2026-07-18T07:05:35.524Z",
+      "requests": 2,
+      "reason": "manual-QA drop: \"£5 LOCAL PINTS\" is a Monday-only promo, not a standard published price",
+      "rawExtractionDropped": [
+        {
+          "drinkName": "Local Pints",
+          "priceGbp": 5
+        }
+      ]
     },
     {
       "borough": "Waltham Forest",
       "pub": "Northcote Arms",
       "website": "https://www.thenorthcotee11.com/",
       "host": "thenorthcotee11.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1730,17 +1754,17 @@
       "pub": "Heathcote & Star",
       "website": "https://heathcoteandstar.co.uk/",
       "host": "heathcoteandstar.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "The Red Lion",
       "website": "https://theredlionleytonstone.com/",
       "host": "theredlionleytonstone.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1748,8 +1772,8 @@
       "pub": "89 Social",
       "website": "http://89social.co.uk/",
       "host": "89social.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1757,18 +1781,18 @@
       "pub": "Neckstamper Brewing",
       "website": "https://neckstamper.com/",
       "host": "neckstamper.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Gravity Well Taproom",
       "website": "https://www.gravitywellbrewing.co.uk/",
       "host": "gravitywellbrewing.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Brent",
@@ -1776,7 +1800,7 @@
       "website": "http://www.club-182.com",
       "host": "club-182.com",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"www.club-182.com\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -1784,8 +1808,8 @@
       "pub": "The Duke's Head",
       "website": "http://www.thedukesheadhighgate.co.uk",
       "host": "thedukesheadhighgate.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1793,17 +1817,25 @@
       "pub": "Queer Brewing Project",
       "website": "https://www.thequeerbrewingproject.com/taproom",
       "host": "thequeerbrewingproject.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "sourceUrl": "https://www.thequeerbrewingproject.com/taproom",
+      "observedAt": "2026-07-18T07:05:35.524Z",
+      "requests": 1,
+      "reason": "manual-QA drop: \"£5 pints\" is Friday happy-hour (4-6pm) promo, not a standard price",
+      "rawExtractionDropped": [
+        {
+          "drinkName": "Pint of Beer",
+          "priceGbp": 5
+        }
+      ]
     },
     {
       "borough": "Barking and Dagenham",
       "pub": "Nebula",
       "website": "https://www.nebulalounge.co.uk/",
       "host": "nebulalounge.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1811,17 +1843,17 @@
       "pub": "Red Lion & Sun",
       "website": "https://www.theredlionandsun.com/",
       "host": "theredlionandsun.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Prince of Wales",
       "website": "https://pow-leyton.com/",
       "host": "pow-leyton.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1830,7 +1862,7 @@
       "website": "https://www.nicholasnickleby.co.uk/",
       "host": "nicholasnickleby.co.uk",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"www.nicholasnickleby.co.uk\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -1839,7 +1871,7 @@
       "website": "https://wineartist.co.uk",
       "host": "wineartist.co.uk",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"wineartist.co.uk\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -1847,8 +1879,8 @@
       "pub": "King William IV",
       "website": "https://williamthefourth.co.uk/",
       "host": "williamthefourth.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
       "requests": 1
     },
     {
@@ -1856,8 +1888,8 @@
       "pub": "The European",
       "website": "https://theeuropeanpub.co.uk/",
       "host": "theeuropeanpub.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1865,8 +1897,8 @@
       "pub": "The Wrestlers",
       "website": "https://thewrestlershighgate.com/",
       "host": "thewrestlershighgate.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1874,26 +1906,26 @@
       "pub": "The Bull",
       "website": "https://www.thebullhighgate.com/",
       "host": "thebullhighgate.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Railway Tavern",
       "website": "https://www.the-railwaytavern.co.uk/",
       "host": "the-railwaytavern.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Floral Hall",
       "website": "https://www.floralhall-london.com/",
       "host": "floralhall-london.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1901,17 +1933,17 @@
       "pub": "The Woodman",
       "website": "https://www.the-woodman.com/",
       "host": "the-woodman.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Old Ale Emporium",
       "website": "https://the-old-ale-emporium.edan.io/",
       "host": "the-old-ale-emporium.edan.io",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
       "requests": 1
     },
     {
@@ -1919,35 +1951,64 @@
       "pub": "King's Head",
       "website": "https://www.thekingsheadcrouchend.co.uk/#/",
       "host": "thekingsheadcrouchend.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Small Beer",
       "website": "https://www.smallbeern8.co.uk",
       "host": "smallbeern8.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "priced",
+      "cheapestPint": 5.5,
+      "drink": "Best Bitter, Bitter, 4.5%, Almasty (Newcastle)",
+      "allDraught": [
+        {
+          "drinkName": "Best Bitter, Bitter, 4.5%, Almasty (Newcastle)",
+          "priceGbp": 5.5
+        },
+        {
+          "drinkName": "Session IPA, IPA, 4.0%, Two By Two (Newcastle)",
+          "priceGbp": 5.5
+        },
+        {
+          "drinkName": "Stand and Deliver, Dark Mild, 4.5% (Hackney)",
+          "priceGbp": 6.2
+        },
+        {
+          "drinkName": "Martina, Lager, 4.0%, Bohem (Tottenham)",
+          "priceGbp": 6.5
+        },
+        {
+          "drinkName": "Life Coach, London Stout, 4.4%, Howling Hops (Hackney)",
+          "priceGbp": 8
+        },
+        {
+          "drinkName": "Helles, Helles Lager, 4.5%, Two Flints (Windsor)",
+          "priceGbp": 8.2
+        }
+      ],
+      "sourceUrl": "https://www.smallbeern8.co.uk/drinks",
+      "observedAt": "2026-07-18T07:05:35.524Z",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "St James Bar",
       "website": "https://goergios-bar-grill.edan.io/",
       "host": "goergios-bar-grill.edan.io",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Fox at Crouch End",
       "website": "https://www.urbanpubsandbars.com/venues/the-fox-at-crouch-end",
       "host": "urbanpubsandbars.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
       "requests": 1
     },
     {
@@ -1955,18 +2016,34 @@
       "pub": "Untraditional Pub",
       "website": "https://www.pillarsbrewery.com/pages/untraditional-pub",
       "host": "pillarsbrewery.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Little Mercies",
       "website": "https://littlemercies.co.uk/",
       "host": "littlemercies.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "sourceUrl": "https://littlemercies.co.uk/menu-preview/",
+      "observedAt": "2026-07-18T07:05:35.524Z",
+      "requests": 2,
+      "reason": "manual-QA drop: draught served in 330ml measures (cocktail bar), not pints",
+      "rawExtractionDropped": [
+        {
+          "drinkName": "Helles Lager",
+          "priceGbp": 6.25
+        },
+        {
+          "drinkName": "Keller Pils",
+          "priceGbp": 6.25
+        },
+        {
+          "drinkName": "Dalston Sunrise",
+          "priceGbp": 6.5
+        }
+      ]
     },
     {
       "borough": "Waltham Forest",
@@ -1974,7 +2051,7 @@
       "website": "https://lordraglanpub.com/",
       "host": "lordraglanpub.com",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "http 500",
       "requests": 1
     },
     {
@@ -1982,8 +2059,8 @@
       "pub": "The Queens",
       "website": "https://www.thequeenscrouchend.co.uk/",
       "host": "thequeenscrouchend.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -1991,8 +2068,8 @@
       "pub": "True Craft",
       "website": "https://www.truecraftlondon.co.uk/",
       "host": "truecraftlondon.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
       "requests": 1
     },
     {
@@ -2000,44 +2077,44 @@
       "pub": "Brouhaha Bar",
       "website": "https://www.brouhahabar.com",
       "host": "brouhahabar.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Maynard Arms",
       "website": "https://www.maynardarmsn8.co.uk/",
       "host": "maynardarmsn8.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Queens Arms",
       "website": "https://www.queensarms-e17.co.uk/",
       "host": "queensarms-e17.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "The Village Public House",
       "website": "https://www.village-walthamstow.com/",
       "host": "village-walthamstow.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Good Reader",
       "website": "https://thegoodreader.co.uk/",
       "host": "thegoodreader.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2046,7 +2123,7 @@
       "website": "http://www.fizzsportsbar.com/",
       "host": "fizzsportsbar.com",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"www.fizzsportsbar.com\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -2054,17 +2131,17 @@
       "pub": "Pillars Brewery",
       "website": "https://www.pillarsbrewery.com/",
       "host": "pillarsbrewery.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Trap Taproom",
       "website": "https://realal.co/",
       "host": "realal.co",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
       "requests": 1
     },
     {
@@ -2072,8 +2149,8 @@
       "pub": "Mother's Ruin Gin Factory",
       "website": "https://www.mothersruin.net/",
       "host": "mothersruin.net",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
       "requests": 1
     },
     {
@@ -2082,7 +2159,7 @@
       "website": "https://www.thenagsheade17.com/",
       "host": "thenagsheade17.com",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"www.thenagsheade17.com\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -2090,17 +2167,30 @@
       "pub": "True Craft",
       "website": "https://truecraftlondon.co.uk",
       "host": "truecraftlondon.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Langham Working Mens Club",
       "website": "https://www.langhamclub.co.uk/",
       "host": "langhamclub.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "priced",
+      "cheapestPint": 3.6,
+      "drink": "Pint of Beer",
+      "allDraught": [
+        {
+          "drinkName": "Pint of Beer",
+          "priceGbp": 3.6
+        },
+        {
+          "drinkName": "Pint of Lager",
+          "priceGbp": 4.25
+        }
+      ],
+      "sourceUrl": "https://www.langhamclub.co.uk/",
+      "observedAt": "2026-07-18T07:05:35.524Z",
       "requests": 1
     },
     {
@@ -2108,9 +2198,9 @@
       "pub": "No5 Dining and Lounge",
       "website": "https://no5dining.co.uk",
       "host": "no5dining.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Haringey",
@@ -2118,7 +2208,7 @@
       "website": "https://esplanadeclub.london/",
       "host": "esplanadeclub.london",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"esplanadeclub.london\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -2126,26 +2216,26 @@
       "pub": "The Ferry Boat Inn",
       "website": "https://www.heritagepubs.co.uk/ferry-boat-tottenham",
       "host": "heritagepubs.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Priory",
       "website": "https://www.thepriorypubn8.com",
       "host": "thepriorypubn8.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Victoria Stakes",
       "website": "https://www.victoriastakes.com",
       "host": "victoriastakes.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2153,26 +2243,26 @@
       "pub": "Three Compasses",
       "website": "https://www.threecompasseshornsey.com/",
       "host": "threecompasseshornsey.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Ye Olde Rose and Crown",
       "website": "https://www.yeolderoseandcrowntheatrepub.co.uk/",
       "host": "yeolderoseandcrowntheatrepub.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Post Bar",
       "website": "https://www.thepostbar.co.uk/",
       "host": "thepostbar.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2180,17 +2270,17 @@
       "pub": "Mother Kelly's",
       "website": "https://motherkellys.co.uk/",
       "host": "motherkellys.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Pressure Drop",
       "website": "https://pressuredropbrewing.co.uk/pages/taproom",
       "host": "pressuredropbrewing.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2198,17 +2288,17 @@
       "pub": "Clissold Arms",
       "website": "https://clissoldarms.co.uk",
       "host": "clissoldarms.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Big Penny Social",
       "website": "https://bigpennysocial.co.uk/",
       "host": "bigpennysocial.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2216,8 +2306,8 @@
       "pub": "Beavertown Brewery Taproom",
       "website": "https://beavertownbrewery.co.uk/pages/taproom",
       "host": "beavertownbrewery.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
       "requests": 1
     },
     {
@@ -2225,17 +2315,17 @@
       "pub": "Signature Brew Taproom",
       "website": "https://www.signaturebrew.co.uk/pages/visit-the-brewers-bar-at-signature-brew-in-blackhorse-road-walthamstow",
       "host": "signaturebrew.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Beehive",
       "website": "https://beehiven17.com/",
       "host": "beehiven17.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2244,7 +2334,7 @@
       "website": "https://belmeis.com",
       "host": "belmeis.com",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"belmeis.com\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -2252,8 +2342,8 @@
       "pub": "Exale Taproom",
       "website": "https://exalebrew.co.uk/",
       "host": "exalebrew.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2261,18 +2351,18 @@
       "pub": "The Goodness Brewing Company",
       "website": "https://www.thegoodnessbrew.co/",
       "host": "thegoodnessbrew.co",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Phoenix",
       "website": "https://www.alexandrapalace.com/food-drink/phoenix-bar-pizzeria/",
       "host": "alexandrapalace.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
@@ -2280,7 +2370,7 @@
       "website": "https://www.wildcardbrewery.co.uk/",
       "host": "wildcardbrewery.co.uk",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"www.wildcardbrewery.co.uk\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -2288,8 +2378,8 @@
       "pub": "40ft Brewery",
       "website": "https://www.hackneybrewery.com/",
       "host": "hackneybrewery.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2297,17 +2387,25 @@
       "pub": "The Tavern On The Hill",
       "website": "https://www.tavernonthehill.co.uk/",
       "host": "tavernonthehill.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "sourceUrl": "https://www.tavernonthehill.co.uk/",
+      "observedAt": "2026-07-18T07:05:35.524Z",
+      "requests": 1,
+      "reason": "manual-QA drop: \"£5 Pints\" is a Mon/Tue promo, not a standard price",
+      "rawExtractionDropped": [
+        {
+          "drinkName": "East London Brewing Pints",
+          "priceGbp": 5
+        }
+      ]
     },
     {
       "borough": "Haringey",
       "pub": "The Victoria",
       "website": "https://www.thevictoriatottenham.com/",
       "host": "thevictoriatottenham.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2315,62 +2413,62 @@
       "pub": "The Nag's Head",
       "website": "https://thenagshead.pub/",
       "host": "thenagshead.pub",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Bluecoats Pub",
       "website": "https://thebluecoatspub.com/",
       "host": "thebluecoatspub.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Ludo's",
       "website": "https://ludoslondon.co.uk/",
       "host": "ludoslondon.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Starting Gate",
       "website": "https://www.thestartinggate.co.uk/",
       "host": "thestartinggate.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Maid of Muswell",
       "website": "https://www.themaidofmuswell.co.uk/",
       "host": "themaidofmuswell.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "The Antwerp Arms",
       "website": "https://www.antwerparms.co.uk/",
       "host": "antwerparms.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Haringey",
       "pub": "Beavertown Corner Pin",
       "website": "https://beavertownbrewery.co.uk/pages/corner-pin",
       "host": "beavertownbrewery.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
       "requests": 1
     },
     {
@@ -2378,9 +2476,9 @@
       "pub": "Tap Room",
       "website": "https://www.bohembrewery.com/bohem-tap-room/",
       "host": "bohembrewery.com",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Enfield",
@@ -2388,7 +2486,7 @@
       "website": "http://www.occasionalhalf.co.uk/",
       "host": "occasionalhalf.co.uk",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"www.occasionalhalf.co.uk\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -2396,17 +2494,17 @@
       "pub": "The Old Hall Tavern",
       "website": "https://www.oldhalltavernchingford.co.uk/",
       "host": "oldhalltavernchingford.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Enfield",
       "pub": "The Alfred Herring",
       "website": "https://www.thealfredherring.co.uk/",
       "host": "thealfredherring.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
       "requests": 1
     },
     {
@@ -2414,27 +2512,35 @@
       "pub": "Greene Man",
       "website": "https://www.hungryhorse.co.uk/pubs/greater-london/greene-man/",
       "host": "hungryhorse.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "sourceUrl": "https://www.hungryhorse.co.uk/pubs/greater-london/greene-man/deals/3-pound-drinks",
+      "observedAt": "2026-07-18T07:05:35.524Z",
+      "requests": 2,
+      "reason": "manual-QA drop: Hungry Horse (Greene King chain), £3 app-only promo 23-26 Jul, not a standard price",
+      "rawExtractionDropped": [
+        {
+          "drinkName": "Peroni Nastro Azzurro",
+          "priceGbp": 3
+        }
+      ]
     },
     {
       "borough": "Enfield",
       "pub": "The Salisbury Arms",
       "website": "https://www.thesalisburyarmswinchmorehill.co.uk/",
       "host": "thesalisburyarmswinchmorehill.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     },
     {
       "borough": "Waltham Forest",
       "pub": "Spice Station",
       "website": "http://www.spicestationandbar.co.uk/",
       "host": "spicestationandbar.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "no draught pint pricing on site",
+      "requests": 2
     },
     {
       "borough": "Enfield",
@@ -2442,7 +2548,7 @@
       "website": "http://www.fbitattoolondon.com/staff/louise",
       "host": "fbitattoolondon.com",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"www.fbitattoolondon.com\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -2451,7 +2557,7 @@
       "website": "https://redlionenfield.co.uk/",
       "host": "redlionenfield.co.uk",
       "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
+      "reason": "DNS resolution failed for hostname \"redlionenfield.co.uk\". This means the domain name could not be translated to an IP address. Possible causes: (1) The domain name is misspelled (check for typos), (2) The domain does not exist or has expired, (3) The DNS servers are temporarily unavailable, or (4) The domain was recently registered and DNS has not propagated yet. Please verify the URL is correct and the website exists.",
       "requests": 1
     },
     {
@@ -2459,9 +2565,9 @@
       "pub": "The Sun and Woolpack",
       "website": "http://www.sunandwoolpack.co.uk/",
       "host": "sunandwoolpack.co.uk",
-      "result": "blocked",
-      "reason": "Insufficient credits to perform this request. For more credits, you can upgrade your plan at https://firecrawl.dev/pricing or try changing the request limit to a lower value.",
-      "requests": 1
+      "result": "no-price-published",
+      "reason": "draught listed but no extractable/verbatim pint price",
+      "requests": 2
     }
   ]
 }
