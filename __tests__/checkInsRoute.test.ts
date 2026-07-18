@@ -1,12 +1,18 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// The route calls assertServerEnv() at module scope (the house pattern shared by
+// 40+ certified routes). On Vercel vitest reads as production without test-scoped
+// Supabase vars, so importing the module would throw "FATAL: Supabase is not
+// configured in production" before any test runs. Mock serverEnv to a no-op — the
+// same guard every sibling route test uses (see followingRoute.test.ts) — and
+// clear the Supabase env in beforeEach so the memory backend + process-local rate
+// limiter are forced on Vercel, driving the route end to end.
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/check-ins/route";
 import { __resetMemoryCheckIns } from "@/lib/checkInStore";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { __resetMemoryProfiles } from "@/lib/profileStore";
-
-// Keyless env (vitest.setup strips SUPABASE_*) → the route runs on the in-memory
-// stores and the process-local rate limiter, so this drives it end to end.
 
 function postBody(body: unknown): Request {
   return new Request("http://localhost/api/check-ins", {
@@ -17,6 +23,8 @@ function postBody(body: unknown): Request {
 }
 
 beforeEach(() => {
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryCheckIns();
   __resetMemoryFollows();
   __resetMemoryProfiles();

@@ -1,10 +1,20 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// The route calls assertServerEnv() at module scope (the house pattern shared by
+// 40+ certified routes). On Vercel vitest reads as production without test-scoped
+// Supabase vars, so importing the module would throw "FATAL: Supabase is not
+// configured in production" before any test runs. Mock serverEnv to a no-op — the
+// same guard every sibling route test uses (see followingRoute.test.ts) — and
+// clear the Supabase env in beforeEach so the memory backend is forced on Vercel.
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET } from "@/app/api/profiles/[handle]/lot/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { __resetMemoryProfiles } from "@/lib/profileStore";
 
 beforeEach(() => {
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryFollows();
   __resetMemoryProfiles();
 });
