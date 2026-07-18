@@ -26,6 +26,8 @@
     "prebuild:slim": "npm run canonicalize:venues",
     "build:slim": "node scripts/build_slim_index.mjs",
     "fetch:city-pubs": "node scripts/fetch_city_osm_pubs.mjs",
+    "fetch:london-pubs": "node scripts/fetch_city_osm_pubs.mjs --london",
+    "merge:london-osm": "node scripts/merge_outer_london_osm.mjs",
     "build:city-slim": "node scripts/build_city_slim_index.mjs",
     "build:pubmaxxing-seed": "node scripts/build_pubmaxxing_seed.mjs",
     "refresh:prices": "node scripts/refresh_prices.mjs",

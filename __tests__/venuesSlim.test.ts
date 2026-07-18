@@ -273,7 +273,11 @@ describe("venues_slim.json", () => {
     const rawBytes = statSync(RAW_PATH).size;
     // The whole point of the split: slim must be a small fraction of raw.
     expect(slimBytes).toBeLessThan(rawBytes * 0.2);
-    // And comfortably under the ~600 KB budget the map loads on every visit.
-    expect(slimBytes).toBeLessThan(600 * 1024);
+    // Absolute first-paint budget the map loads on every visit. Raised in the
+    // Cycle-4 `data/outer-london-osm` lane, which deliberately adds ~650 sourced
+    // Outer-London venue-presence pins (the persona-hollow ring) — honest extra
+    // pins cost payload. Still ~11% of raw and gzips far smaller over the wire;
+    // a future cycle could shrink it by omitting filterHints for unpriced pins.
+    expect(slimBytes).toBeLessThan(900 * 1024);
   });
 });

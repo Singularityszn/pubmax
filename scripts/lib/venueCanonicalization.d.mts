@@ -37,11 +37,13 @@ export function venueGroupingKey(row: CanonicalizationRow): string;
 export function stableVenueIdFromKey(key: string): string;
 export function hasOperatorSuffix(name: unknown): boolean;
 export function normalizeVenueIdentityName(name: unknown): string;
+export function significantNameTokens(normName: unknown): string[];
+export function namesLikelySamePub(aNorm: unknown, bNorm: unknown): boolean;
 export function postcodeOutward(address: unknown): string | null;
 export function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number;
 export function canonicalizeDataset<T extends CanonicalizationRow>(
   rows: T[],
-  options?: { maxMergeMeters?: number },
+  options?: { maxMergeMeters?: number; fuzzyMergeMeters?: number },
 ): CanonicalizationResult<T>;
 export function clusterHasPostcodeConflict(
   cluster: Array<{ address?: unknown }>,
