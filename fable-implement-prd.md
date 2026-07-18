@@ -218,6 +218,8 @@ Lanes (Opus 4.8, worktrees, Sol decides):
 
 - **PR #335 recap page — CYCLE 9 COMPLETE.** The recap set: #334 (arc seams + 24h grace) → #335 (private crew page + approval-gated public recap, single privacy choke point) → #333 (OG card). Lanes locked URL + stats contracts agent-to-agent, zero file overlap. The USP loop now runs end-to-end in the queue: find the pint → guard the night → log the drop → keep the memory → send the card.
 
+- **PR #336 — recap-set adversarial review**: all three APPROVED. R1: lanes' "zero overlap" claim FALSE — #334×#335 NightModeCard conflict proven, exact hand-merge documented + verified (Sol: steps 31–33 = #334 → #335 hand-merge → #333). R2 (MEDIUM, fix routed): withdrawn-consent photos fetchable ~1h via signed URLs — public recap TTL dropping to 180s. Everything else fail-closed.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
