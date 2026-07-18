@@ -263,6 +263,12 @@ Remote truth re-verified pre-launch (origin/main ccceede7, no new Sol merges, co
 1. **`feat/map-chrome-tiers`** — the #352 consolidation: Near me as the single Tier-1 answer, one Filters chip absorbing Drinks/price/Zone as sheet sections, TfL+List as corner icons; capability-preserving placement-only; adoption notes so #309/#329/#346 rebase mechanically.
 2. **`feat/drop-confirmations`** — the moat completion: one-tap "Still £5.20?" confirms, trust math (fresh-confirmed/aging/stale states) rendered subtly on the brass plaque, "It's changed" routes into the composer, day-bucket dedupe + dual limits, migration 0043, cert count → 63 with reconciliation note, decay for unconfirmed prices.
 
+## PROGRAMME CLOSED TO CONSTRUCTION — MERGE-READY (final pass #355)
+
+**#353** chrome tiers (7→3+2, adoption notes) · **#354** drop confirmations (Sol's plumbing discovered + honest delta only: social proof, trust math, decay) · **#355** final pass: ALL of #345–#354 verified as one conflict-free stacking tree, 13/13 suites, cert truth = 60 (fork's 62 claim refuted — self-correcting reviews), ZERO blockers. Every PR #276–#355 now carries an evidence-backed verdict (ledgers V1+V2).
+
+**The programme: ~55 PRs, 12 cycles, 3 ledgers, merge-ready. Next: the launch/activation plan (grilling with owner), then Sol's merge day per the choreography (#352 clusters + #316 v2 + #341/#355 ledgers).**
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
