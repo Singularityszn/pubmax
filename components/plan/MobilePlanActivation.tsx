@@ -13,6 +13,7 @@ import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { shouldWarmMapIntent } from "@/lib/mapWarmup";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
+import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 
 type GeneratedStop = { venueId: string; venueName: string };
 
@@ -155,6 +156,10 @@ export function MobilePlanActivation({
         endings: generated.endings,
       });
       if (!user) writeDeviceNightContext(generated.context, cityId);
+      // First meaningful plan action inside the native shell (starting a
+      // round) — the contextual push pre-permission explainer's earliest
+      // opportunity. No-op on web/SSR.
+      recordPlanHighIntentAction();
       // Keep the planner result responsive while the map derives and paints
       // the route layers. Route activation is non-urgent and remains ordered.
       startTransition(() => onGenerated(generated));

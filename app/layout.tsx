@@ -9,6 +9,7 @@ import NightModeCard from "@/components/night/NightModeCard";
 import OfflineReady from "@/components/OfflineReady";
 import FirstRunTour from "@/components/onboarding/FirstRunTour";
 import A2HSInstallPrompt from "@/components/pwa/A2HSInstallPrompt";
+import NativePushPrompt from "@/components/native/NativePushPrompt";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
@@ -265,6 +266,10 @@ export default async function RootLayout({
                 night) and only when the shared prompt budget is free, so it
                 never stacks on the first-run tour. */}
             <A2HSInstallPrompt />
+            {/* Contextual native push pre-permission explainer (Capacitor
+                shell only) — renders nothing on web/SSR; budget-gated and
+                identity-first per docs/PROMPT_ORCHESTRATION.md. */}
+            <NativePushPrompt />
             {/* Silent offline SW registration (issue #32) — renders nothing,
                 production-only, registers after load. */}
             <OfflineReady />

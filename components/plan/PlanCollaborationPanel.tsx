@@ -6,6 +6,7 @@ import type { PlanStopDTO } from "@/lib/plan";
 import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal, PlanVote } from "@/lib/planCollaborationStore";
 import { publishPlanCollaborationChange, subscribePlanCollaborationChange, type PlanCollaborationChangeKind } from "@/lib/planContinuity";
 import { trackEvent } from "@/lib/analytics";
+import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 
 type CollaborationState = {
   memberId: string;
@@ -218,7 +219,13 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       announce(decision ? "decision" : "vote");
       setStatus(decision ? `Proposal ${operation}.` : "Your vote is in.");
       await refresh();
-      if (operation === "accepted") window.location.reload();
+      if (operation === "accepted") {
+        // Confirming a route proposal is a first meaningful plan action
+        // inside the native shell — the contextual push pre-permission
+        // explainer's earliest opportunity. No-op on web/SSR.
+        recordPlanHighIntentAction();
+        window.location.reload();
+      }
     } catch (caught) { setError(caught instanceof Error ? caught.message : decision ? "The route was not changed." : "Could not record your vote."); }
     finally { setPending(""); }
   }
