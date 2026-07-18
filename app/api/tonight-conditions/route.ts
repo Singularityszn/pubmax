@@ -13,8 +13,9 @@
 // { summary: null } and the strip renders nothing.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import type { ConciergeVenue } from "@/lib/concierge/rank";
 import {
   getNightArea,
   nearestNightAreaForViewport,
@@ -27,6 +28,7 @@ import {
   londonMonth,
   summariseTonightConditions,
   tallyLensMatches,
+  type TonightConditionsSummary,
   type VenueLensTally,
 } from "@/lib/tonightConditions";
 import weatherSnapshot from "@/public/data/weather/latest.json";
@@ -42,6 +44,69 @@ function finiteCoord(value: string | null, min: number, max: number): number | n
   return parsed;
 }
 
+export type ResolveConditionsOptions = {
+  /** Rounded [lng, lat] once location is shared; null resolves the default area. */
+  point: [number, number] | null;
+  now: Date;
+  /**
+   * Test seam: the weather snapshot to read. Defaults to the bundled
+   * public/data/weather/latest.json. Injecting a fixture keeps route tests
+   * hermetic — they must not depend on whatever the live refresh last wrote.
+   */
+  snapshot?: unknown;
+  /** Test seam: the venue-index loader (defaults to the real server loader). */
+  loadVenues?: (cityId: CityId) => Promise<ConciergeVenue[]>;
+};
+
+/**
+ * Core of the route: resolves the area, reads the cached weather, runs the rules
+ * and (with a location) counts nearby venues. All IO flows through the injected
+ * `snapshot` / `loadVenues` seams so it is deterministic under test. Never throws
+ * for data reasons; returns null when there is nothing worth saying.
+ */
+export async function resolveTonightConditions(
+  options: ResolveConditionsOptions,
+): Promise<TonightConditionsSummary | null> {
+  const { point, now } = options;
+  const snapshot = options.snapshot ?? weatherSnapshot;
+  const loadVenues = options.loadVenues ?? loadConciergeVenues;
+
+  const area = point
+    ? nearestNightAreaForViewport(DEFAULT_CITY_ID, point)
+    : getNightArea(DEFAULT_AREA);
+  if (!area) return null;
+
+  const weather = planningWeatherForArea(snapshot, area.slug, now.getTime());
+  if (!weather) return null;
+
+  const conditionsWeather = {
+    tempC: weather.feelsLikeC,
+    condition: weather.condition,
+    precipitationProbabilityPct: weather.precipitationProbabilityPct,
+  };
+
+  // Resolve the lens once so we only load the venue index when a claim is
+  // possible (a garden or riverside verdict with a shared location).
+  const verdict = evaluateDrinkWeather({
+    tempC: conditionsWeather.tempC,
+    precipitationProbabilityPct: conditionsWeather.precipitationProbabilityPct,
+    month: londonMonth(now),
+  });
+  if (!verdict) return null;
+
+  let tally: VenueLensTally = null;
+  if (point && lensVenuePredicate(verdict.venueLens)) {
+    try {
+      const venues = await loadVenues(DEFAULT_CITY_ID);
+      tally = tallyLensMatches(venues, verdict.venueLens, point);
+    } catch {
+      tally = null;
+    }
+  }
+
+  return summariseTonightConditions({ weather: conditionsWeather, now, tally });
+}
+
 export async function GET(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
@@ -49,41 +114,7 @@ export async function GET(request: Request): Promise<Response> {
     const lng = finiteCoord(url.searchParams.get("lng"), -180, 180);
     const point: [number, number] | null = lat !== null && lng !== null ? [lng, lat] : null;
 
-    const area = point
-      ? nearestNightAreaForViewport(DEFAULT_CITY_ID, point)
-      : getNightArea(DEFAULT_AREA);
-    if (!area) return jsonNoStore({ summary: null });
-
-    const now = new Date();
-    const weather = planningWeatherForArea(weatherSnapshot, area.slug, now.getTime());
-    if (!weather) return jsonNoStore({ summary: null });
-
-    const conditionsWeather = {
-      tempC: weather.feelsLikeC,
-      condition: weather.condition,
-      precipitationProbabilityPct: weather.precipitationProbabilityPct,
-    };
-
-    // Resolve the lens once so we only load the venue index when a claim is
-    // possible (a garden or riverside verdict with a shared location).
-    const verdict = evaluateDrinkWeather({
-      tempC: conditionsWeather.tempC,
-      precipitationProbabilityPct: conditionsWeather.precipitationProbabilityPct,
-      month: londonMonth(now),
-    });
-    if (!verdict) return jsonNoStore({ summary: null });
-
-    let tally: VenueLensTally = null;
-    if (point && lensVenuePredicate(verdict.venueLens)) {
-      try {
-        const venues = await loadConciergeVenues(DEFAULT_CITY_ID);
-        tally = tallyLensMatches(venues, verdict.venueLens, point);
-      } catch {
-        tally = null;
-      }
-    }
-
-    const summary = summariseTonightConditions({ weather: conditionsWeather, now, tally });
+    const summary = await resolveTonightConditions({ point, now: new Date() });
     return jsonNoStore({ summary });
   } catch {
     // The strip is an optional extra; a failure here must never break the page.
