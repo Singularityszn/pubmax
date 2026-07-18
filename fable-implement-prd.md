@@ -214,6 +214,8 @@ Lanes (Opus 4.8, worktrees, Sol decides):
 2. **`feat/recap-page`** — the crafted private recap page: route walked, pints + prices logged, approved photos, chosen ending, guardian save, dry-London copy; approval-gated sharing via existing consents; #328 token system (plaques, elevation); 390-first both themes.
 3. **`feat/recap-card`** — generated OG image card for shared recaps (ogBrand kit + OG_CACHE_HEADERS from #330's pattern): night title, route line, headline stats. The preview that makes people tap.
 
+- **PR #333 recap OG card** (privacy-gated, 60s revocation TTL, lanes coordinated URL agent-to-agent) · **PR #334 night-arc seams** — HIGH find: the recap was STRANDED after the 8h window (the arc's payoff dead-ended); fixed with 24h grace + completed-state plan page. recap-page lane still building the durable memory surface. Pointer appended to sol2.md (untracked, additive only).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
