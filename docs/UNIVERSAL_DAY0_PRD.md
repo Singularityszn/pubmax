@@ -40,14 +40,14 @@ Smallest excellent v1: one route `/today`, becomes the signed-in mobile home bef
 4. One sourced pub-of-the-day fact (`lib/heritageFacts.ts` / `lib/pintFacts.ts` + `lib/provenanceLabels.ts`).
 Cut: personalization, streaks, seasonal theming. Nav entry in `MobileTabBar` + `SiteNav`.
 
-### Lane B: web push backend + daily brief sender (SOL, backend)
+### Lane B: web push gap + daily brief sender (SOL, backend)
 
-- Push-token store through the dual-backend store seam (`lib/storeBackend.ts` factory; Supabase durable, in-memory fallback), additive migration only, NO destructive migrations.
-- Subscribe/unsubscribe API routes, write-surface certification updated (the certified mutating-route count gate will fail CI until the new routes are certified).
-- Service-worker push handler + notification click-through in `public/sw.js`.
-- Daily brief sender: manual script first (`scripts/push/sendDailyBrief.mjs`, same pattern as refresh:weather) since crons are dead; payload = drink-weather verdict + top pick. VAPID keys: owner provisions; sender no-ops loudly without them.
-- Permission ask happens in UI AFTER a real user action (Lane A wires the prompt); never on boot.
-- Contract: public error contract stays additive (locked H2); rate-limit the subscribe route with the durable limiter factory.
+RESCOPED 2026-07-18 after spec review: most of the push pipeline ALREADY EXISTS on main (this cycle's commits): `lib/pushTokenStore.ts`, `lib/pushProvider.ts`, `lib/pushSender.ts`, `lib/nativePush.ts`, `lib/nativePushPrompt.ts`, `/api/push-tokens` route, real APNs HTTP/2 ES256 transport. Sol: read those files FIRST; do not rebuild them. The actual gaps:
+- Web-push (VAPID) provider path alongside the existing APNs provider behind the same `lib/pushProvider.ts` seam; no-op loudly without VAPID keys (owner provisions).
+- Push event handler + notification click-through in `public/sw.js`.
+- Daily brief sender: manual script (`scripts/push/sendDailyBrief.mjs`, refresh:weather pattern) since crons are dead; payload = drink-weather verdict + top pick, composed from the same libs Lane A uses.
+- Permission ask stays UI-side after a real user action (Lane A wires the prompt); never on boot.
+- Contract unchanged: additive public error contract, durable rate limiting on any new route, write-surface certification updated for any new mutating route.
 
 ### Lane C: concierge chat surface /pal (Opus, UI + seam)
 

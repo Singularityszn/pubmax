@@ -8,7 +8,7 @@ Owner: Karan (address by name, he/him). Asleep until morning; granted six-hour f
 
 ## Tonight's approved decisions (owner said GO)
 
-CSP double-build GO (preview-proof before merge) · check-ins stay friends-only · idle orbit stays removed · bill-split OUT of launch · demo flip DONE (NEXT_PUBLIC_DEMO_CONTENT=off in prod env) · persona shape = pub-tied lens only · Erin (private person) NEVER goes on the public site; private-personas feature is the sanctioned alternative (future ticket).
+CSP double-build line CLOSED (v3 refuted; owner conversation pending) · check-ins stay friends-only · idle orbit stays removed · bill-split OUT of launch · demo flip DONE (NEXT_PUBLIC_DEMO_CONTENT=off in prod env) · persona shape = pub-tied lens only · standing privacy rule: named private individuals NEVER appear on the public site or in tracked files (specifics live in session memory); private-personas feature is the sanctioned alternative (future ticket).
 
 ## Merged tonight + this morning
 
