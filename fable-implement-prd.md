@@ -257,6 +257,12 @@ Wayfinder next-wave note: with these, every filed finding in the programme is ei
 - **#351 voice spec**: the great voice exists, buried under plumbing-leak + SaaS registers; full rewrite table + 8 attachment moments, sequenced into owning PRs.
 - **#352 Fable fork systemic review**: 4 merge clusters must land as single sittings (partial prompt-cluster merge = P1 live in prod); cert-count bomb mapped (true final = 62, bump schedule for Sol); map chrome ruled OVER THE LINE post-merge (consolidation design ready as a next lane); **forgot: drop confirmations** (community-verified moat — recommended next build); **shouldn't ship: fake presence counts** — demo kill switch committed (NEXT_PUBLIC_DEMO_CONTENT=off), OWNER DECISION: flip before launch.
 
+## CYCLE 12 — the taste wave (owner: GO; two Fable forks, high context)
+
+Remote truth re-verified pre-launch (origin/main ccceede7, no new Sol merges, codex branches unchanged). Two Fable-fork lanes (full session context each, fresh-fetch mandated):
+1. **`feat/map-chrome-tiers`** — the #352 consolidation: Near me as the single Tier-1 answer, one Filters chip absorbing Drinks/price/Zone as sheet sections, TfL+List as corner icons; capability-preserving placement-only; adoption notes so #309/#329/#346 rebase mechanically.
+2. **`feat/drop-confirmations`** — the moat completion: one-tap "Still £5.20?" confirms, trust math (fresh-confirmed/aging/stale states) rendered subtly on the brass plaque, "It's changed" routes into the composer, day-bucket dedupe + dual limits, migration 0043, cert count → 63 with reconciliation note, decay for unconfirmed prices.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
