@@ -18,7 +18,12 @@ export type MapWarmDeps = {
 };
 
 export const MAP_INTENT_WARM_PATHS = [
-  "/data/venues_slim.json",
+  // Cycle-5 sharding: the map's first paint fetches the manifest + core shard,
+  // NOT the monolithic venues_slim.json — warm exactly what it will request so
+  // slow connections prime the right bytes (and never the 824 KB monolith the
+  // map no longer reads).
+  "/data/venues_slim.manifest.json",
+  "/data/venues_slim.core.json",
   "/data/london_pois.json",
   "/data/tfl_lines.json",
 ] as const;

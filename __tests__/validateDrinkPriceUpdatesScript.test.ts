@@ -5,7 +5,7 @@
 // its logic.
 import { describe, it, expect, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -41,16 +41,26 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "scripts", "lib", "validateLateFoodEvidence.mjs"),
     join(scratchScripts, "lib", "validateLateFoodEvidence.mjs"),
   );
+  cpSync(
+    join(ROOT, "scripts", "lib", "slimShards.mjs"),
+    join(scratchScripts, "lib", "slimShards.mjs"),
+  );
   for (const f of [
     "london_pois.json",
     "tfl_lines.json",
     "pint_prices_app_dataset.json",
-    "venues_slim.json",
     "pubmaxxing_seed_snapshot.json",
     "pint_index_snapshot.json",
     "late_food_evidence.json",
   ]) {
     cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
+  }
+  // The slim monolith + every shard the build emits (manifest, core, and one
+  // per hollow outer borough) — validateSlimShards recomputes and checks them.
+  for (const f of readdirSync(join(ROOT, "public", "data"))) {
+    if (f.startsWith("venues_slim") && f.endsWith(".json")) {
+      cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
+    }
   }
   mkdirSync(join(scratchData, "night_signals"), { recursive: true });
   cpSync(

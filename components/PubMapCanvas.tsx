@@ -178,6 +178,16 @@ type PubMapCanvasProps = {
   onPoiHiddenChange?: (next: Record<PoiCategory, boolean>) => void;
   hideLayersControl?: boolean;
   onViewportChange?: (viewport: MapViewportSnapshot) => void;
+  /**
+   * Emitted (on first idle + every moveend) with the current viewport edges so
+   * the map can lazily load the slim-index shards it intersects (Cycle-5).
+   */
+  onBoundsChange?: (bounds: {
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+  }) => void;
 };
 
 
@@ -247,6 +257,7 @@ export default function PubMapCanvas({
   onPoiHiddenChange,
   hideLayersControl = false,
   onViewportChange,
+  onBoundsChange,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
@@ -380,6 +391,7 @@ export default function PubMapCanvas({
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
   const onTonightOpportunityClickRef = useRef(onTonightOpportunityClick);
   const onViewportChangeRef = useRef(onViewportChange);
+  const onBoundsChangeRef = useRef(onBoundsChange);
   const cityLandmarksRef = useRef(cityLandmarks);
   const tonightOpportunitiesRef = useRef(tonightOpportunities);
   const tonightOverlayVisibleRef = useRef(tonightOverlayVisible);
@@ -396,6 +408,7 @@ export default function PubMapCanvas({
     onLandmarkSelectRef.current = onLandmarkSelect;
     onTonightOpportunityClickRef.current = onTonightOpportunityClick;
     onViewportChangeRef.current = onViewportChange;
+    onBoundsChangeRef.current = onBoundsChange;
     cityLandmarksRef.current = cityLandmarks;
   }, [
     onVenueClick,
@@ -404,6 +417,7 @@ export default function PubMapCanvas({
     onLandmarkSelect,
     onTonightOpportunityClick,
     onViewportChange,
+    onBoundsChange,
     cityLandmarks,
   ]);
 
@@ -790,6 +804,16 @@ export default function PubMapCanvas({
     }
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     mapRef.current = map;
+    const emitBounds = () => {
+      if (!onBoundsChangeRef.current) return;
+      const b = map.getBounds();
+      onBoundsChangeRef.current({
+        west: b.getWest(),
+        south: b.getSouth(),
+        east: b.getEast(),
+        north: b.getNorth(),
+      });
+    };
     map.on("moveend", () => {
       const center = map.getCenter();
       onViewportChangeRef.current?.({
@@ -798,7 +822,11 @@ export default function PubMapCanvas({
         pitch: map.getPitch(),
         bearing: map.getBearing(),
       });
+      emitBounds();
     });
+    // Kick the initial viewport's shards (a restored session may open on an
+    // Outer-London borough that core doesn't cover).
+    map.once("idle", emitBounds);
 
     // The upstream OpenFreeMap styles reference sprite images we never render
     // at our zoom/layers (liberty's "wood-pattern"), and MapLibre warns on

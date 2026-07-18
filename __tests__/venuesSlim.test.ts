@@ -271,13 +271,38 @@ describe("venues_slim.json", () => {
   it("is meaningfully smaller than the raw dataset", () => {
     const slimBytes = statSync(SLIM_PATH).size;
     const rawBytes = statSync(RAW_PATH).size;
-    // The whole point of the split: slim must be a small fraction of raw.
+    // The whole point of the split: the full slim index must be a small
+    // fraction of raw. (This monolith is the server/by-id artifact; the map's
+    // FIRST-PAINT budget is enforced against the eager shards below.)
     expect(slimBytes).toBeLessThan(rawBytes * 0.2);
-    // Absolute first-paint budget the map loads on every visit. Raised in the
-    // Cycle-4 `data/outer-london-osm` lane, which deliberately adds ~650 sourced
-    // Outer-London venue-presence pins (the persona-hollow ring) — honest extra
-    // pins cost payload. Still ~11% of raw and gzips far smaller over the wire;
-    // a future cycle could shrink it by omitting filterHints for unpriced pins.
-    expect(slimBytes).toBeLessThan(900 * 1024);
+  });
+
+  it("keeps the map's eager first-paint payload (manifest + core shard) under 600 KB", () => {
+    // Cycle-5 sharding: #315 pushed the monolith to ~805 KB and forced the
+    // first-paint budget to 900 KB. The map now paints from the CORE shard only
+    // (inner-London priced index); the hollow Outer-London boroughs stream in
+    // lazily. First paint is manifest + core, restored to the pre-#315 <600 KB.
+    const manifestBytes = statSync(
+      path.join(ROOT, "public", "data", "venues_slim.manifest.json"),
+    ).size;
+    const coreBytes = statSync(
+      path.join(ROOT, "public", "data", "venues_slim.core.json"),
+    ).size;
+    expect(manifestBytes + coreBytes).toBeLessThan(600 * 1024);
+  });
+
+  it("keeps the all-in shard payload (core + every outer shard) under 1.2 MB", () => {
+    const manifest = JSON.parse(
+      readFileSync(path.join(ROOT, "public", "data", "venues_slim.manifest.json"), "utf8"),
+    ) as { shards: { url: string }[] };
+    let total = statSync(
+      path.join(ROOT, "public", "data", "venues_slim.manifest.json"),
+    ).size;
+    for (const shard of manifest.shards) {
+      total += statSync(
+        path.join(ROOT, "public", "data", shard.url.replace(/^\/data\//, "")),
+      ).size;
+    }
+    expect(total).toBeLessThan(1200 * 1024);
   });
 });

@@ -32,7 +32,7 @@ test("/map initial load uses slim pins without full or detail datasets", async (
   // journeys until the viewer opens or maps a route.
   await page.waitForTimeout(1_500);
 
-  expect(requested(requests, "/data/venues_slim.json")).toBe(true);
+  expect(requested(requests, "/data/venues_slim.core.json")).toBe(true);
   expect(requested(requests, "/data/pint_prices_app_dataset.json")).toBe(false);
   expect(requested(requests, "/data/venue_detail_index.json")).toBe(false);
   expect(requested(requests, "/data/venue_details.jsonl")).toBe(false);
@@ -82,7 +82,7 @@ test("/map lazy-loads selected venue detail through the API", async ({ page }) =
   await detailResponse;
   await expect(page.locator(".venueInspector")).toBeVisible({ timeout: 20_000 });
 
-  expect(requested(requests, "/data/venues_slim.json")).toBe(true);
+  expect(requested(requests, "/data/venues_slim.core.json")).toBe(true);
   expect(requested(requests, `/api/venue/${SEED_VENUE_ID}`)).toBe(true);
   expect(requested(requests, "/data/pint_prices_app_dataset.json")).toBe(false);
   expect(requested(requests, "/data/venue_detail_index.json")).toBe(false);
