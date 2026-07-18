@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import SiteNav from "@/components/nav/SiteNav";
 import RecapShareButton from "@/components/plan/RecapShareButton";
 import { getPublishedRecapSource } from "@/lib/nightMemoryStore";
-import { signedNightMomentPhotoUrl } from "@/lib/nightMomentMedia";
+import { PUBLIC_RECAP_PHOTO_TTL_SECONDS, signedNightMomentPhotoUrl } from "@/lib/nightMomentMedia";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
@@ -92,7 +92,9 @@ export default async function PublicRecapPage({ params }: Props) {
   const photoUrls = new Map<string, string>();
   await Promise.all(
     view.photos.map(async (photo) => {
-      const url = await signedNightMomentPhotoUrl(photo.mediaObjectKey);
+      // Short TTL: signed URLs can't be revoked, so a withdrawn consent must not
+      // stay fetchable for an hour. The page re-signs on every render.
+      const url = await signedNightMomentPhotoUrl(photo.mediaObjectKey, PUBLIC_RECAP_PHOTO_TTL_SECONDS);
       if (url) photoUrls.set(photo.id, url);
     }),
   );

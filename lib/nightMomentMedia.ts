@@ -23,11 +23,26 @@ export async function removeNightMomentPhoto(key: string): Promise<void> {
   await deletePhotos([key]);
 }
 
-export async function signedNightMomentPhotoUrl(key: string | null): Promise<string | null> {
+/** Default signed-URL lifetime for owner-facing surfaces (Memory workspace). */
+export const NIGHT_MOMENT_PHOTO_TTL_SECONDS = 60 * 60;
+
+/**
+ * Short lifetime for the PUBLIC recap page. Supabase signed URLs cannot be
+ * revoked, so a withdrawn consent leaves an already-issued URL fetchable until
+ * it expires. The public page is dynamic and re-signs on every render, so a
+ * tight TTL bounds that exposure window to minutes — a withdrawn photo stops
+ * being served on the next render and its last URL dies shortly after.
+ */
+export const PUBLIC_RECAP_PHOTO_TTL_SECONDS = 180;
+
+export async function signedNightMomentPhotoUrl(
+  key: string | null,
+  ttlSeconds: number = NIGHT_MOMENT_PHOTO_TTL_SECONDS,
+): Promise<string | null> {
   if (!key || !isSupabaseConfigured()) return null;
   const { data, error } = await requireSupabaseAdmin()
     .storage
     .from(STORAGE_BUCKET)
-    .createSignedUrl(key, 60 * 60);
+    .createSignedUrl(key, ttlSeconds);
   return error ? null : data.signedUrl;
 }
