@@ -420,6 +420,7 @@ The full release matrix includes:
 | `SECURITY_AND_RELIABILITY_PRD_2026-07-07.md` | Authoritative appendix | Threat model and control catalogue |
 | `TASTEFUL_EVOLUTION_PRD_2026-07-08.md` | Absorbed | Density, belonging, and interaction taste |
 | `THE_SPILL_FIRST_PRINCIPLES_PRD.md` | Superseded terminology | Social intent retained under Moment/Memory/Story |
+| `UNIVERSAL_DAY0_PRD.md` | Authoritative appendix | Cycle 17 launch-week lane spec: morning brief, tonight, concierge, web push, category ingest |
 | `WAYFINDER_LIVE_DATA.md` | Authoritative appendix | Live-data cadence, activation matrix, and freshness-registry contract |
 | `WAYFINDER_MOMENT_TO_STORY.md` | Authoritative appendix | Active consent delivery route |
 | `WAYFINDER_PRD_PRODUCT_SECURITY_WAVE_MERGE.md` | Authoritative appendix | Security salvage audit trail |

@@ -43,6 +43,7 @@ import "./siteNav.css";
 
 type NavKey =
   | "home"
+  | "today"
   | "map"
   | "pubs"
   | "drop"
@@ -65,10 +66,18 @@ type NavLink = {
 // Consumer nav only. Staff moderation lives at /admin (URL + token) and is
 // intentionally absent from every public nav so demos never look like an
 // admin console.
-const LINKS: NavLink[] = PRIMARY_NAV_ITEMS.map((item) => ({
-  ...item,
-  key: item.key === "stories" ? "discover" : item.key === "you" ? "profile" : item.key,
-}));
+// The /today morning brief (Lane A). Added here rather than in the shared
+// PRIMARY_NAV_ITEMS model so the primary-nav contract test stays intact; it
+// leads the desktop link list as the "before you go" home surface.
+const TODAY_LINK: NavLink = { key: "today", href: "/today", label: "Today", match: ["/today"] };
+
+const LINKS: NavLink[] = [
+  TODAY_LINK,
+  ...PRIMARY_NAV_ITEMS.map((item) => ({
+    ...item,
+    key: (item.key === "stories" ? "discover" : item.key === "you" ? "profile" : item.key) as NavKey,
+  })),
+];
 
 function matchesPath(pathname: string, link: NavLink): boolean {
   return link.match.some((prefix) =>
