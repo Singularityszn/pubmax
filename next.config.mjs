@@ -97,6 +97,11 @@ const nextConfig = {
     return [
       { source: "/stories", destination: "/feed", permanent: true },
       { source: "/stories/:path*", destination: "/feed", permanent: true },
+      // The You surface lives at /u/you (the nav points there); the bare /you
+      // path had no route and 404'd on shared links. A permanent (308) redirect
+      // sends it to the canonical profile route. __tests__/storiesRedirect.test.ts
+      // pins this alongside the /stories rules.
+      { source: "/you", destination: "/u/you", permanent: true },
     ];
   },
   async headers() {

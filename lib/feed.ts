@@ -231,11 +231,15 @@ export type FeedFilterDef = {
 // Wave I1: demo lanes `nearby` / `crawls` stay in the FeedFilter union +
 // applyFeedFilter (pass-through) but are hidden from chips until real geo /
 // crawl-linkage signals exist — they looked like product lanes and weren't.
+// Cycle 15 (spec #393): `friends` is NO LONGER a chip. The Social Loop tabs
+// (Your lot / Nearby / London) own the social axis now, and "Your lot" is the
+// friends lane — a "Friends" chip beside those tabs was a duplicate taxonomy.
+// The `friends` FeedFilter + applyFeedFilter branch stay (the "Your lot" tab
+// composes over them internally); only the chip is gone.
 export const FEED_FILTERS: FeedFilterDef[] = [
   { id: "latest", label: "Latest", demo: false },
   { id: "for-you", label: "For You", demo: false },
   { id: "tonight", label: "Tonight", demo: false },
-  { id: "friends", label: "Friends", demo: false },
   { id: "cheap", label: "Cheap Legends", demo: false },
   { id: "golden-days", label: "Golden Days", demo: false },
 ];

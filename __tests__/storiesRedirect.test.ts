@@ -38,4 +38,13 @@ describe("next.config redirects", () => {
       permanent: true,
     });
   });
+
+  it("sends the bare /you path to the canonical /u/you profile route permanently", async () => {
+    const rule = (await loadRedirects()).find((entry) => entry.source === "/you");
+    expect(rule).toMatchObject({
+      source: "/you",
+      destination: "/u/you",
+      permanent: true,
+    });
+  });
 });

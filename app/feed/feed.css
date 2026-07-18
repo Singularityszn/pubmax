@@ -52,6 +52,9 @@
   text-align: center;
 }
 
+/* .feedEyebrow / .feedLede are retired from the /feed header (spec #395: one
+   compact intro line only) but are still used by the We're-out surface, which
+   imports this stylesheet — so the rules stay. */
 .feedEyebrow {
   display: inline-flex;
   align-items: center;
@@ -89,7 +92,7 @@
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .feedMomentCta,
