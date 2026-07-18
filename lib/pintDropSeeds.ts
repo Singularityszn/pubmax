@@ -1,3 +1,4 @@
+import { demoContentEnabled } from "@/lib/demoContent";
 import type { CityId } from "@/lib/cities";
 import { manchesterDemoPintDrops } from "@/lib/cities/manchester/pintDropSeeds";
 import type { PintDrop } from "@/lib/pintDropShared";
@@ -230,6 +231,7 @@ export function isManchesterVenueId(venueId: string): boolean {
  * Pass `manchester` on the Manchester map so pins can pick up community prices.
  */
 export function demoPintDropsForCity(cityId?: CityId | null): PintDrop[] {
+  if (!demoContentEnabled()) return [];
   switch (cityId) {
     case "manchester":
       return manchesterDemoPintDrops;
@@ -246,5 +248,6 @@ export function demoPintDropsForCity(cityId?: CityId | null): PintDrop[] {
 
 /** Seeds for one venue — appended after organic drops in the read paths. */
 export function demoDropsFor(venueId: string): PintDrop[] {
+  if (!demoContentEnabled()) return [];
   return demoPintDrops.filter((drop) => drop.venueId === venueId);
 }

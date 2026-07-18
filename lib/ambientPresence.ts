@@ -19,6 +19,7 @@
 // roster is derived from the demo pint-drop seeds so the same demo characters
 // appear "out tonight" at the same curated heritage pubs.
 
+import { demoContentEnabled } from "@/lib/demoContent";
 import { demoPintDrops, isManchesterVenueId } from "@/lib/pintDropSeeds";
 
 /** Hard cap on the ambient count for one venue — a glance, never a crowd. */
@@ -95,6 +96,7 @@ export function londonHour(date: Date): number {
  * 21:00–23:00, tailing off past midnight. Bounded 0..MAX_AMBIENT_PER_VENUE.
  */
 export function ambientPresenceCurve(venueKey: string, date: Date): number {
+  if (!demoContentEnabled()) return 0;
   const hour = londonHour(date);
   const [min, max] = HOUR_BAND[hour] ?? [0, 0];
   if (max <= 0) return 0;
