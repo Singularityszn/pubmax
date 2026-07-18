@@ -11,7 +11,11 @@
 //      0.6 deg/s edge-tile loads are rare and prefetched.
 //   2. "Fought spatial memory" — the drift is slow enough to read as ambience
 //      (full turn in 10 minutes), pauses the moment the user touches anything,
-//      and resumes only after 20s of stillness.
+//      and resumes only after 20s of stillness. The FIRST orbit of a mount is
+//      the exception: a user who opens the map and just looks should see the
+//      drift within seconds, so until they have interacted at all the idle
+//      delay is the short first-impression one (owner report 2026-07-19:
+//      "why isn't the map rotating" — 20s reads as not rotating).
 //   3. "Starved the pin-reveal idle event" — the orbit is enabled only AFTER
 //      the reveal has fired (the canvas gates enable() on mapReady), so boot
 //      idle frames are never consumed by camera motion.
@@ -23,7 +27,12 @@
 export type OrbitState = "off" | "waiting" | "orbiting" | "suspended";
 
 type OrbitOptions = {
-  idleDelayMs: number;
+  // Idle delay before the FIRST orbit of this mount, i.e. until the user has
+  // interacted with the map at all. Short: the open-and-stare first impression.
+  firstDelayMs: number;
+  // Idle delay for every re-arm once the user HAS interacted. Generous: an
+  // active user gets patience, not a map that fights their camera.
+  interactionDelayMs: number;
   // Live gate, read at every decision point so an OS-level toggle mid-session
   // takes effect without re-wiring: reduced users never orbit.
   isReduced: () => boolean;
@@ -50,7 +59,8 @@ export type IdleOrbit = {
 };
 
 export function createIdleOrbit({
-  idleDelayMs,
+  firstDelayMs,
+  interactionDelayMs,
   isReduced,
   startChunk,
   stopChunk,
@@ -62,6 +72,10 @@ export function createIdleOrbit({
   let orbiting = false;
   let timer: number | null = null;
   let disposed = false;
+  // Once true, every re-arm (including after suspend/resume) waits the
+  // generous interaction delay. Sticky for the mount: enable/disable cycles
+  // don't reset it — only a fresh mount gets the first-impression delay again.
+  let hasInteracted = false;
 
   const clearIdleTimer = () => {
     if (timer !== null) clearTimer(timer);
@@ -82,7 +96,7 @@ export function createIdleOrbit({
       if (disposed || !enabled || suspended || isReduced()) return;
       orbiting = true;
       startChunk();
-    }, idleDelayMs);
+    }, hasInteracted ? interactionDelayMs : firstDelayMs);
   };
 
   return {
@@ -97,6 +111,7 @@ export function createIdleOrbit({
       armTimer();
     },
     noteInteraction() {
+      hasInteracted = true;
       stopOrbiting();
       armTimer();
     },
@@ -135,5 +150,7 @@ export function createIdleOrbit({
 export const ORBIT_DEG_PER_SEC = 0.6;
 /** One MapLibre animation per chunk; JS wakes ~5 times a minute, not per frame. */
 export const ORBIT_CHUNK_MS = 12_000;
-/** Generous stillness before the ambience returns. */
-export const ORBIT_IDLE_DELAY_MS = 20_000;
+/** First impression: a user who opens the map and stares sees drift in ~6s. */
+export const ORBIT_FIRST_DELAY_MS = 6_000;
+/** Generous stillness before the ambience returns once the user has interacted. */
+export const ORBIT_INTERACTION_DELAY_MS = 20_000;
