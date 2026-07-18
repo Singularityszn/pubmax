@@ -24,7 +24,15 @@ import {
   readLastTrainDestination,
   writeLastTrainDestination,
 } from "@/lib/lastTrainDestination";
-import type { LastPintDecision, LastPintDecisionKind, LastTrainResult } from "@/lib/tfl";
+import {
+  buildLastPintShareText,
+  describeLeaveCountdown,
+  lastPintShareHref,
+  minutesUntilLeaveBy,
+  type LastPintDecision,
+  type LastPintDecisionKind,
+  type LastTrainResult,
+} from "@/lib/tfl";
 
 type LastTrainCardProps = {
   lat: number;
@@ -162,6 +170,26 @@ function formatLeaveBy(iso: string | null): string | null {
   }).format(d);
 }
 
+type CrewShareOutcome = "shared" | "idle" | "error";
+
+// Hand the composed crew message to the platform: native share sheet first
+// (mobile-first — that's where WhatsApp is), else the wa.me deep link. A
+// cancelled sheet resolves to "idle" (no error UI); a blocked popup is "error".
+async function dispatchCrewShare(shareText: string): Promise<CrewShareOutcome> {
+  const nav = typeof navigator === "undefined" ? undefined : navigator;
+  if (nav && typeof nav.share === "function") {
+    try {
+      await nav.share({ text: shareText });
+      return "shared";
+    } catch {
+      return "idle";
+    }
+  }
+  if (typeof window === "undefined") return "error";
+  const opened = window.open(lastPintShareHref(shareText), "_blank", "noopener,noreferrer");
+  return opened ? "shared" : "error";
+}
+
 function readSessionDestination(): string {
   if (typeof window === "undefined") return "";
   return readLastTrainDestination(window.sessionStorage);
@@ -196,6 +224,54 @@ function showLondonStaticFallback(
   );
 }
 
+// The pub-native decision + live leave-by countdown + "send to crew" share.
+// Extracted from the card body so each stays legible (and under the repo's
+// cyclomatic-complexity ceiling). Purely presentational — the parent owns the
+// fetch, the decision, and the share dispatch.
+function DecisionBlock({
+  decision,
+  mode,
+  provider,
+  leaveBy,
+  countdownPhrase,
+  shareState,
+  onShare,
+}: {
+  decision: LastPintDecision;
+  mode: string;
+  provider: string | undefined;
+  leaveBy: string | null;
+  countdownPhrase: string | null;
+  shareState: "idle" | "shared" | "error";
+  onShare: () => void;
+}) {
+  const showLeaveBy = Boolean(leaveBy) && decision.decision !== "live_data_unavailable";
+  return (
+    <div style={styles.decision}>
+      <p style={{ ...styles.decisionLine, color: DECISION_COLOUR[decision.decision] }}>
+        {decisionCopy(decision.decision, mode, provider)}
+      </p>
+      {showLeaveBy ? (
+        <p style={styles.leaveBy}>
+          Leave by {leaveBy} for the last {mode}
+          {countdownPhrase ? <span style={styles.countdown}> · {countdownPhrase}</span> : null}.
+        </p>
+      ) : null}
+      {decision.disruptionSummary ? (
+        <p style={styles.disruption}>{decision.disruptionSummary}</p>
+      ) : null}
+      <div style={styles.shareRow}>
+        <button type="button" style={styles.shareButton} onClick={onShare}>
+          {shareState === "shared" ? "Sent to crew" : "Send to crew"}
+        </button>
+        {shareState === "error" ? (
+          <span style={styles.shareError}>Couldn&apos;t open the share — try again.</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function LastTrainCard({
   lat,
   lng,
@@ -210,6 +286,11 @@ export default function LastTrainCard({
   const [destinationDraft, setDestinationDraft] = useState("");
   const [editingDestination, setEditingDestination] = useState(false);
   const [state, setState] = useState<LastTrainCardState>({ status: "loading" });
+  // Live countdown clock. `nowTick` is bumped on an interval so the relative
+  // "leave in N min" phrase stays honest without re-fetching; the absolute
+  // "Leave by HH:MM" never changes, so this is purely additive.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const [shareState, setShareState] = useState<"idle" | "shared" | "error">("idle");
   const requestKey = lastTrainRequestKey({ lat, lng, venueName, cityId });
   const displayState = currentLastTrainState(state, requestKey);
 
@@ -268,6 +349,34 @@ export default function LastTrainCard({
   const readyData =
     displayState.status === "ready" ? (displayState.data as LastRideResult) : undefined;
   const mode = modeWord(readyData, cityId);
+
+  // Tick the live countdown every 30s while there's an active leave-by time.
+  // Calm, not chatty: 30s is fine for a minute-resolution phrase, and we stop
+  // the interval entirely once the leave-by moment is well past.
+  const leaveByIso = decision?.leaveByIso ?? null;
+  const countdownMinutes = minutesUntilLeaveBy(leaveByIso, new Date(nowTick));
+  const countdownPhrase = describeLeaveCountdown(countdownMinutes);
+  useEffect(() => {
+    if (!leaveByIso) return;
+    const id = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [leaveByIso]);
+
+  // "Send to crew" — compose the WhatsApp-ready message (pure helper) and hand
+  // it off to the share dispatcher (native sheet, else wa.me). Branching lives
+  // in the module-scope helpers below to keep this component legible.
+  function shareToCrew() {
+    if (!decision) return;
+    const shareText = buildLastPintShareText({
+      decision: decision.decision,
+      stationName: readyData?.station.name ?? decision.stationName,
+      leaveByClock: leaveBy,
+      lastServiceClock: readyData?.trains?.[0]?.clock ?? null,
+      modeWord: mode,
+      destinationLabel,
+    });
+    void dispatchCrewShare(shareText).then(setShareState);
+  }
   // Provenance honesty (H5): prefer provider-supplied copy (Metrolink static);
   // London still scopes the live claim to departures only.
   const provenance = readyData ? provenanceCopyForResult(readyData) : null;
@@ -363,19 +472,15 @@ export default function LastTrainCard({
       ) : null}
 
       {decision ? (
-        <div style={styles.decision}>
-          <p style={{ ...styles.decisionLine, color: DECISION_COLOUR[decision.decision] }}>
-            {decisionCopy(decision.decision, mode, readyData?.provider)}
-          </p>
-          {leaveBy && decision.decision !== "live_data_unavailable" ? (
-            <p style={styles.leaveBy}>
-              Leave by {leaveBy} for the last {mode}.
-            </p>
-          ) : null}
-          {decision.disruptionSummary ? (
-            <p style={styles.disruption}>{decision.disruptionSummary}</p>
-          ) : null}
-        </div>
+        <DecisionBlock
+          decision={decision}
+          mode={mode}
+          provider={readyData?.provider}
+          leaveBy={leaveBy}
+          countdownPhrase={countdownPhrase}
+          shareState={shareState}
+          onShare={shareToCrew}
+        />
       ) : null}
 
       {readyData?.departures && readyData.departures.length > 0 ? (
@@ -490,6 +595,32 @@ const styles: Record<string, React.CSSProperties> = {
   leaveBy: {
     margin: "2px 0 0",
     color: "var(--ink-soft, #6b726a)",
+  },
+  countdown: {
+    fontVariantNumeric: "tabular-nums",
+    color: "var(--ink, #2a2a26)",
+  },
+  shareRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+  shareButton: {
+    padding: "6px 12px",
+    borderRadius: "var(--radius-sm, 6px)",
+    border: "1px solid var(--line, #d9d4c7)",
+    background: "var(--panel, #f4f1e8)",
+    color: "var(--ink, #2a2a26)",
+    font: "inherit",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  shareError: {
+    fontSize: 11,
+    color: "var(--accent-risk, #b3261e)",
   },
   disruption: {
     margin: "4px 0 0",

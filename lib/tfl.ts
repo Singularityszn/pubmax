@@ -325,3 +325,109 @@ export type NearestPub = {
   name: string;
   price: number | null;
 };
+
+// --- Live "leave by" countdown (Last Pint Guardian) -------------------------
+//
+// The card renders a static "Leave by 23:28" line; the Guardian adds a calm,
+// live-ticking relative countdown next to it. Both bits below are pure so the
+// component only owns the interval that re-invokes them — the phrasing itself
+// is unit-tested without a clock.
+
+// Whole minutes from `now` until the leave-by moment. Positive = still time in
+// hand, negative = the leave-by time has already passed. Rounds toward zero so
+// "30s left" reads as 0 (not yet negative) — we never round a live "go now" up
+// into a scary "you're late".
+export function minutesUntilLeaveBy(leaveByIso: string | null, now: Date = new Date()): number | null {
+  if (!leaveByIso) return null;
+  const leaveBy = new Date(leaveByIso);
+  if (Number.isNaN(leaveBy.getTime())) return null;
+  return Math.trunc((leaveBy.getTime() - now.getTime()) / 60_000);
+}
+
+// Calm, non-alarmist phrasing for the live countdown. The repo tone is honest,
+// no fake urgency: we state the fact and stop. Returns null when the number
+// adds nothing over the absolute "Leave by HH:MM" already shown (far out), so
+// the UI can simply omit the line.
+//   >= 90 min  -> null            (the clock time alone is calmer this far out)
+//   2..89 min  -> "in N min"
+//   1 min      -> "in 1 min"
+//   0 min      -> "right about now"
+//   < 0 min    -> "leave-by time has passed"
+export function describeLeaveCountdown(minutesRemaining: number | null): string | null {
+  if (minutesRemaining === null) return null;
+  if (minutesRemaining >= 90) return null;
+  if (minutesRemaining < 0) return "leave-by time has passed";
+  if (minutesRemaining === 0) return "right about now";
+  if (minutesRemaining === 1) return "in 1 min";
+  return `in ${minutesRemaining} min`;
+}
+
+// --- "Send to crew" share (issue #45 remaining acceptance item) -------------
+//
+// A WhatsApp-ready message a drinker can fire to their group so everyone leaves
+// together. Deliberately worded around GETTING HOME, never around drinking
+// more: the tone tags below are all home-logistics, so the share never
+// encourages excess. Provenance-honest — when live data was unavailable the
+// message says so rather than inventing a time.
+
+export type LastPintShareInput = {
+  decision: LastPintDecisionKind;
+  stationName: string;
+  // Wall-clock "HH:MM" the card already computed for the leave-by line (London
+  // local). Null when there's no leave-by (live_data_unavailable).
+  leaveByClock: string | null;
+  // The last-service wall clock ("23:42"), if known — the anchor fact.
+  lastServiceClock?: string | null;
+  // "train" | "tram" | "subway" — from the city's mode word.
+  modeWord: string;
+  // Session-only destination label, if the drinker set one.
+  destinationLabel?: string | null;
+};
+
+// One calm home-logistics line per state. None of these nudge "one more" as an
+// instruction — order_one_more just states there's time in hand.
+function shareToneTag(kind: LastPintDecisionKind): string {
+  switch (kind) {
+    case "order_one_more":
+      return "Time in hand — no rush yet.";
+    case "half_pint_only":
+      return "Start thinking about home.";
+    case "settle_up_now":
+      return "Time to settle up.";
+    case "train_risk":
+      return "Cutting it fine — sort a backup way home.";
+    case "live_data_unavailable":
+      return "Couldn't check live times — check before you head out.";
+  }
+}
+
+// Build the crew message text. Pure — no window, no navigator.
+export function buildLastPintShareText(input: LastPintShareInput): string {
+  const { decision, stationName, leaveByClock, lastServiceClock, modeWord, destinationLabel } = input;
+  const mode = modeWord || "train";
+  const lines: string[] = [];
+
+  if (decision === "live_data_unavailable" || !leaveByClock) {
+    lines.push(`Last ${mode} home from ${stationName} — couldn't check live times.`);
+    lines.push(shareToneTag("live_data_unavailable"));
+  } else {
+    const anchor = lastServiceClock
+      ? `Last ${mode} home: ${lastServiceClock} from ${stationName}.`
+      : `Last ${mode} home from ${stationName}.`;
+    lines.push(anchor);
+    const leaveLine = destinationLabel
+      ? `Leave by ${leaveByClock} for ${destinationLabel}.`
+      : `Leave by ${leaveByClock}.`;
+    lines.push(leaveLine);
+    lines.push(shareToneTag(decision));
+  }
+
+  lines.push("— via PUBMAXXING");
+  return lines.join("\n");
+}
+
+// WhatsApp deep link for the crew message (matches components/share/ShareBar
+// wa.me idiom). The share text is self-contained, so no URL is appended.
+export function lastPintShareHref(shareText: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+}

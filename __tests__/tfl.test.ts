@@ -10,6 +10,10 @@ import {
   formatLastJourney,
   computeLastPintDecision,
   walkMinutesForKm,
+  minutesUntilLeaveBy,
+  describeLeaveCountdown,
+  buildLastPintShareText,
+  lastPintShareHref,
   BUFFER_MINUTES,
   type LastPintDecisionInput,
 } from "@/lib/tfl";
@@ -331,5 +335,124 @@ describe("minutesUntilDeparture — wrap decided by now, not the timetable flag"
   it("an evening train that already left tonight reads negative (not wrapped forward)", () => {
     // now = 22:30, departure 22:00, same service, not past midnight.
     expect(minutesUntilDeparture(22 * 60, false, 22 * 60 + 30)).toBe(-30);
+  });
+});
+
+// --- Last Pint Guardian: live leave-by countdown ------------------------------
+describe("minutesUntilLeaveBy", () => {
+  const now = new Date("2026-07-10T22:00:00Z");
+
+  it("returns null for a null/invalid iso", () => {
+    expect(minutesUntilLeaveBy(null, now)).toBeNull();
+    expect(minutesUntilLeaveBy("not-a-date", now)).toBeNull();
+  });
+
+  it("returns whole minutes of margin when the leave-by is in the future", () => {
+    expect(minutesUntilLeaveBy("2026-07-10T22:23:00Z", now)).toBe(23);
+  });
+
+  it("truncates toward zero so 30s left reads as 0, not a scary negative", () => {
+    expect(minutesUntilLeaveBy("2026-07-10T22:00:30Z", now)).toBe(0);
+  });
+
+  it("returns negative once the leave-by moment has passed", () => {
+    expect(minutesUntilLeaveBy("2026-07-10T21:50:00Z", now)).toBe(-10);
+  });
+});
+
+describe("describeLeaveCountdown — calm, non-alarmist phrasing", () => {
+  it("omits the phrase (null) when far out so the clock time speaks for itself", () => {
+    expect(describeLeaveCountdown(null)).toBeNull();
+    expect(describeLeaveCountdown(90)).toBeNull();
+    expect(describeLeaveCountdown(240)).toBeNull();
+  });
+
+  it("reads 'in N min' for a live window", () => {
+    expect(describeLeaveCountdown(45)).toBe("in 45 min");
+    expect(describeLeaveCountdown(2)).toBe("in 2 min");
+    expect(describeLeaveCountdown(1)).toBe("in 1 min");
+  });
+
+  it("reads 'right about now' at zero", () => {
+    expect(describeLeaveCountdown(0)).toBe("right about now");
+  });
+
+  it("states plainly that the time has passed when negative (no false urgency)", () => {
+    expect(describeLeaveCountdown(-1)).toBe("leave-by time has passed");
+    expect(describeLeaveCountdown(-30)).toBe("leave-by time has passed");
+  });
+});
+
+// --- Last Pint Guardian: "send to crew" share (issue #45 remaining item) -----
+describe("buildLastPintShareText", () => {
+  it("anchors on the last service and leave-by, with the destination when set", () => {
+    const text = buildLastPintShareText({
+      decision: "settle_up_now",
+      stationName: "Angel",
+      leaveByClock: "23:28",
+      lastServiceClock: "23:42",
+      modeWord: "train",
+      destinationLabel: "Walthamstow",
+    });
+    expect(text).toContain("Last train home: 23:42 from Angel.");
+    expect(text).toContain("Leave by 23:28 for Walthamstow.");
+    expect(text).toContain("Time to settle up.");
+    expect(text).toContain("— via PUBMAXXING");
+  });
+
+  it("omits the destination clause when none is set", () => {
+    const text = buildLastPintShareText({
+      decision: "order_one_more",
+      stationName: "Angel",
+      leaveByClock: "23:28",
+      lastServiceClock: "23:42",
+      modeWord: "train",
+    });
+    expect(text).toContain("Leave by 23:28.");
+    expect(text).not.toContain(" for ");
+  });
+
+  it("never nudges drinking more — even 'order one more' is framed as time in hand", () => {
+    const text = buildLastPintShareText({
+      decision: "order_one_more",
+      stationName: "Angel",
+      leaveByClock: "23:28",
+      modeWord: "train",
+    });
+    expect(text).toContain("Time in hand");
+    expect(text.toLowerCase()).not.toContain("drink more");
+    expect(text.toLowerCase()).not.toContain("another round");
+  });
+
+  it("degrades honestly when live data was unavailable (no invented time)", () => {
+    const text = buildLastPintShareText({
+      decision: "live_data_unavailable",
+      stationName: "Angel",
+      leaveByClock: null,
+      modeWord: "train",
+    });
+    expect(text).toContain("couldn't check live times");
+    expect(text).not.toContain("Leave by");
+  });
+
+  it("uses the city mode word (tram) in the copy", () => {
+    const text = buildLastPintShareText({
+      decision: "half_pint_only",
+      stationName: "St Peter's Square",
+      leaveByClock: "23:10",
+      lastServiceClock: "23:20",
+      modeWord: "tram",
+    });
+    expect(text).toContain("Last tram home: 23:20 from St Peter's Square.");
+  });
+});
+
+describe("lastPintShareHref", () => {
+  it("builds a wa.me deep link with the encoded message", () => {
+    const href = lastPintShareHref("Leave by 23:28.\n— via PUBMAXXING");
+    expect(href.startsWith("https://wa.me/?text=")).toBe(true);
+    expect(decodeURIComponent(href.replace("https://wa.me/?text=", ""))).toBe(
+      "Leave by 23:28.\n— via PUBMAXXING",
+    );
   });
 });
