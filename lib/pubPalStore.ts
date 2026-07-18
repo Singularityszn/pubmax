@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { cleanPalDraft, compatiblePalSpecies, type MasteryEvent, type PalProposalPreferences, type PubPal, type PubPalMemory, type PubPalMemoryKind } from "@/lib/pubPal";
 import { cleanText } from "@/lib/textClean";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { admin } from "@/lib/storeBackend";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 const pals = new Map<string, PubPal>();
 const memories = new Map<string, PubPalMemory[]>();
@@ -43,7 +44,7 @@ function memoryFromRow(row: Record<string, unknown>): PubPalMemory {
 export async function getPubPalResult(ownerId: string): Promise<PubPalStoreResult<PubPal | null>> {
   if (!isSupabaseConfigured()) return { ok: true, value: pals.get(ownerId) ?? null };
   try {
-    const { data, error } = await requireSupabaseAdmin().from("pub_pals").select("*").eq("owner_id", ownerId).maybeSingle();
+    const { data, error } = await admin().from("pub_pals").select("*").eq("owner_id", ownerId).maybeSingle();
     if (error) return { ok: false, error: "error" };
     return { ok: true, value: data ? palFromRow(data as Record<string, unknown>) : null };
   } catch {
@@ -68,7 +69,7 @@ export async function createPubPalResult(ownerId: string, raw: unknown): Promise
   const pal: PubPal = { id: randomUUID(), ownerId, name: draft.name, adultAttestedAt: now, appearance: draft.appearance, personality: draft.personality, voice: draft.voice, muted: controls.muted === true, hidden: controls.hidden === true, proposalPreferences: preferences, masteryPoints: 0, createdAt: now, updatedAt: now };
   if (!isSupabaseConfigured()) { pals.set(ownerId, pal); return { ok: true, value: pal }; }
   try {
-    const { data, error } = await requireSupabaseAdmin().from("pub_pals").insert({ id: pal.id, owner_id: ownerId, name: pal.name, adult_attested_at: now, appearance: pal.appearance, personality: pal.personality, voice: pal.voice, muted: pal.muted, hidden: pal.hidden, proposal_preferences: pal.proposalPreferences }).select("*").single();
+    const { data, error } = await admin().from("pub_pals").insert({ id: pal.id, owner_id: ownerId, name: pal.name, adult_attested_at: now, appearance: pal.appearance, personality: pal.personality, voice: pal.voice, muted: pal.muted, hidden: pal.hidden, proposal_preferences: pal.proposalPreferences }).select("*").single();
     return error || !data ? { ok: false, error: "error" } : { ok: true, value: palFromRow(data as Record<string, unknown>) };
   } catch {
     return { ok: false, error: "error" };
@@ -93,7 +94,7 @@ export async function updatePubPalResult(ownerId: string, raw: unknown): Promise
   if (typeof input.hidden === "boolean") patch.hidden = input.hidden;
   if (input.proposalPreferences && typeof input.proposalPreferences === "object") patch.proposal_preferences = next.proposalPreferences;
   try {
-    const { data, error } = await requireSupabaseAdmin().from("pub_pals").update(patch).eq("owner_id", ownerId).select("*").maybeSingle();
+    const { data, error } = await admin().from("pub_pals").update(patch).eq("owner_id", ownerId).select("*").maybeSingle();
     if (error) return { ok: false, error: "error" };
     return data ? { ok: true, value: palFromRow(data as Record<string, unknown>) } : { ok: false, error: "not_found" };
   } catch {
@@ -110,7 +111,7 @@ export async function deletePubPalResult(ownerId: string): Promise<PubPalStoreRe
     return { ok: true, value: true };
   }
   try {
-    const { data, error } = await requireSupabaseAdmin().from("pub_pals").delete().eq("owner_id", ownerId).select("id").maybeSingle();
+    const { data, error } = await admin().from("pub_pals").delete().eq("owner_id", ownerId).select("id").maybeSingle();
     if (error) return { ok: false, error: "error" };
     return data ? { ok: true, value: true } : { ok: false, error: "not_found" };
   } catch {
@@ -125,7 +126,7 @@ export async function listPalMemoriesResult(ownerId: string): Promise<PubPalStor
   if (!pal) return { ok: false, error: "not_found" };
   if (!isSupabaseConfigured()) return { ok: true, value: memories.get(pal.id) ?? [] };
   try {
-    const { data, error } = await requireSupabaseAdmin().from("pub_pal_memories").select("*").eq("pal_id", pal.id).order("created_at", { ascending: false });
+    const { data, error } = await admin().from("pub_pal_memories").select("*").eq("pal_id", pal.id).order("created_at", { ascending: false });
     if (error || !data) return { ok: false, error: "error" };
     return { ok: true, value: data.map((row) => memoryFromRow(row as Record<string, unknown>)) };
   } catch {
@@ -144,7 +145,7 @@ export async function confirmPalMemoryResult(ownerId: string, raw: unknown): Pro
   const memory: PubPalMemory = { id: randomUUID(), palId: pal.id, kind, value, provenance: kind === "correction" ? "user_correction" : "user_confirmed", createdAt: timestamp, updatedAt: timestamp };
   if (!isSupabaseConfigured()) { memories.set(pal.id, [memory, ...(memories.get(pal.id) ?? [])]); return { ok: true, value: memory }; }
   try {
-    const { error } = await requireSupabaseAdmin().from("pub_pal_memories").insert({ id: memory.id, pal_id: pal.id, kind, value, provenance: memory.provenance, created_at: memory.createdAt, updated_at: memory.updatedAt });
+    const { error } = await admin().from("pub_pal_memories").insert({ id: memory.id, pal_id: pal.id, kind, value, provenance: memory.provenance, created_at: memory.createdAt, updated_at: memory.updatedAt });
     return error ? { ok: false, error: "error" } : { ok: true, value: memory };
   } catch {
     return { ok: false, error: "error" };
@@ -169,7 +170,7 @@ export async function updatePalMemoryResult(ownerId: string, memoryId: string, r
     return { ok: true, value: updated };
   }
   try {
-    const { data, error } = await requireSupabaseAdmin().from("pub_pal_memories")
+    const { data, error } = await admin().from("pub_pal_memories")
       .update({ value, provenance: "user_correction", updated_at: timestamp })
       .eq("id", memoryId)
       .eq("pal_id", pal.id)
@@ -196,7 +197,7 @@ export async function deletePalMemoryResult(ownerId: string, memoryId: string): 
     return { ok: true, value: true };
   }
   try {
-    const { data, error } = await requireSupabaseAdmin().from("pub_pal_memories")
+    const { data, error } = await admin().from("pub_pal_memories")
       .delete()
       .eq("id", memoryId)
       .eq("pal_id", pal.id)

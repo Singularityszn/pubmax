@@ -3,7 +3,8 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStore } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
+import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type PlanInvite = {
   id: string;
@@ -641,7 +642,7 @@ const safeSupabaseStore = new Proxy(supabaseStore, {
 }) as PlanCollaborationStore;
 
 export function planCollaborationStore(): PlanCollaborationStore {
-  return isSupabaseConfigured() ? safeSupabaseStore : memoryStore;
+  return selectStore(memoryStore, safeSupabaseStore);
 }
 
 export function __resetPlanCollaboration(): void {
