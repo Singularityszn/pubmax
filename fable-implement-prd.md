@@ -161,6 +161,8 @@ Non-merge-gated work only. Three Opus 4.8 lanes + Fable preview audit:
 
 - **Borough label repair → PR**: scraped labels were systematically wrong; geometry now source of truth. 610 rows/262 venues corrected (Camden 185→96 pubs, Islington 40→87 — corrections, not regressions). Public Pint Index snapshot unaffected (status:empty).
 
+- **Price harvest → PR (stacked #315)**: 2 verified first-party prices; STRATEGIC FINDING — pubs don't publish pint prices on the web (chains app-only), so crowdsourced drops (#303) is the only real price-moat lever. Firecrawl credits exhausted (105 independents queued — owner: top up if wanted). Cycle 6 complete: 4 PRs (#318, #319, harvest, + #316/#317 from C5).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
