@@ -23,3 +23,15 @@ delete process.env.VERCEL_ENV;
 delete process.env.VERCEL;
 delete process.env.SUPABASE_URL;
 delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Same trap, different flag: the Production Vercel project sets
+// NEXT_PUBLIC_DEMO_CONTENT=off, and `npm run ci` runs vitest inside that
+// build. Seed-behaviour tests (demoPintDropsForCity and friends) assume the
+// documented default (demo content ON), so letting the deployment flag leak
+// in turns them red on Production builds only — Previews (no flag) stay
+// green. First seen when the flag was set on Production after #395.
+//
+// Strip it here so the test baseline is the documented default regardless of
+// ambient env. Tests that assert the off behaviour stub the flag explicitly
+// (see __tests__/demoContent.test.ts) and are unaffected.
+delete process.env.NEXT_PUBLIC_DEMO_CONTENT;

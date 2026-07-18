@@ -13,6 +13,15 @@ afterEach(() => {
 });
 
 describe("demo content kill switch", () => {
+  it("test baseline is hermetic: ambient deployment env cannot flip the flag", () => {
+    // vitest.setup.ts strips NEXT_PUBLIC_DEMO_CONTENT (Production sets it to
+    // "off" and `npm run ci` runs vitest inside that build). If this fails,
+    // the setup stopped pinning the baseline and seed tests depend on
+    // whichever environment the suite happens to run in.
+    expect(original).toBeUndefined();
+    expect(demoContentEnabled()).toBe(true);
+  });
+
   it("defaults ON — behavior unchanged until the owner flips it", () => {
     delete process.env[FLAG];
     expect(demoContentEnabled()).toBe(true);
