@@ -1223,7 +1223,7 @@ function validateLateFoodEvidenceSnapshot() {
 // Runner
 // ---------------------------------------------------------------------------
 
-function main() {
+async function main() {
   console.log("Validating bundled datasets in public/data …\n");
   const results = [
     validatePois(),
@@ -1240,6 +1240,34 @@ function main() {
     validatePubmaxxingSeed(),
   ];
   const failed = results.filter((r) => !r.ok).length;
+
+  // Freshness spine (WARN, never fail): schema validation above is a build gate
+  // — a malformed dataset must block the merge. Cadence is different: a daily
+  // cron that hasn't merged its PR yet, or a source still awaiting a provider
+  // key, is stale-but-valid. That is owner-visibility, not a broken build, so a
+  // freshness breach here only WARNs. The hard, non-zero gate lives in the
+  // dedicated `node scripts/check_freshness.mjs`.
+  // Dynamically imported so the "this script copies standalone into a scratch
+  // repo" contract (see the drink-price validation test) still holds: when
+  // check_freshness.mjs / the registry aren't alongside it, this SKIPs cleanly.
+  try {
+    const { evaluateFreshness } = await import("./check_freshness.mjs");
+    const { results: fresh, breached } = evaluateFreshness();
+    const stale = fresh.filter((r) => r.status === "stale");
+    const unknown = fresh.filter((r) => r.status === "unknown");
+    console.log("\nFreshness registry (advisory — see scripts/check_freshness.mjs):");
+    if (breached) {
+      for (const r of [...stale, ...unknown]) {
+        console.log(`  WARN ${r.id}: ${r.detail}`);
+      }
+      console.log(`  ${stale.length} stale, ${unknown.length} unresolved of ${fresh.length} datasets (not a build failure).`);
+    } else {
+      console.log(`  OK: ${fresh.length} datasets within budget (or live/untracked).`);
+    }
+  } catch (e) {
+    // A registry problem must not break the data gate — it only dims a warning.
+    console.log(`\nFreshness registry: SKIPPED (${e.message}).`);
+  }
 
   console.log("");
   if (failed > 0) {

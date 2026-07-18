@@ -1,0 +1,172 @@
+{
+  "$comment": "Machine-readable freshness registry — the single source of truth for WHEN every data class is meant to refresh and how stale it is allowed to get. Consumed by scripts/check_freshness.mjs (CI/owner check), lib/freshness.ts (the /api/freshness route), and validate-data (WARN wiring). See docs/WAYFINDER_LIVE_DATA.md for the cadence table and activation matrix. Keep entries in lockstep with the workflows in .github/workflows and the refresh scripts in scripts/.",
+  "version": 1,
+  "generatedBy": "infra/live-data-wayfinder",
+  "datasets": [
+    {
+      "id": "pint_prices",
+      "label": "London pint-price dataset",
+      "class": "episodic",
+      "artifact": "public/data/pint_prices_app_dataset.json",
+      "stamp": { "kind": "literal", "value": "2026-07-03T12:00:00Z", "mirrors": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT" },
+      "cadence": "episodic — re-collected by hand, then re-exported",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (npm run export:data → canonicalize:venues → build:slim)",
+      "gate": "none (bundled static; keyless)"
+    },
+    {
+      "id": "price_updates",
+      "label": "Cheapest-pint baseline price updates",
+      "class": "cron",
+      "artifact": "public/data/price_updates/latest.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "weekly, Monday 07:00 UTC",
+      "stalenessBudgetHours": 336,
+      "refreshWorkflow": "Price refresh",
+      "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so a run is a safe no-op until a per-source parser lands"
+    },
+    {
+      "id": "drink_price_updates",
+      "label": "Per-drink price updates",
+      "class": "cron",
+      "artifact": "public/data/drink_price_updates/latest.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "weekly, Monday 07:30 UTC",
+      "stalenessBudgetHours": 336,
+      "refreshWorkflow": "Drink price refresh",
+      "gate": "none to run; only allowlisted first-party source (Wetherspoons) has no per-drink web prices, so the pipeline is real but emits zero rows"
+    },
+    {
+      "id": "food_price_updates",
+      "label": "Food-menu price updates",
+      "class": "episodic",
+      "artifact": "public/data/food_price_updates/latest.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "episodic — harvested by hand (no workflow)",
+      "stalenessBudgetHours": 1440,
+      "refreshWorkflow": "manual (menu harvest lane)",
+      "gate": "FIRECRAWL_API_KEY for menu scraping harvest"
+    },
+    {
+      "id": "night_signals",
+      "label": "Night signals (offline-reviewed claims)",
+      "class": "cron",
+      "artifact": "public/data/night_signals/latest.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "daily, 08:15 UTC",
+      "stalenessBudgetHours": 48,
+      "refreshWorkflow": "Night Signal refresh",
+      "gate": "EXA_API_KEY arms candidate ingestion; without it the reviewed snapshot publishes empty (staged candidates only). Every claim still passes human review before it ships."
+    },
+    {
+      "id": "weather",
+      "label": "Night-area weather cache",
+      "class": "cron",
+      "artifact": "public/data/weather/latest.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "daily, 14:15 UTC",
+      "stalenessBudgetHours": 48,
+      "refreshWorkflow": "Weather cache refresh",
+      "gate": "none (Open-Meteo is keyless)"
+    },
+    {
+      "id": "whats_on",
+      "label": "What's-On (sport / quiz / deals / music / events)",
+      "class": "cron",
+      "artifact": "public/data/whats_on/latest.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "target daily 15:45 UTC (events vertical); baseline verticals episodic",
+      "stalenessBudgetHours": 48,
+      "refreshWorkflow": "What's-On events refresh (feat/event-sources — cron commented out until keys)",
+      "gate": "TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY (Skiddle needs written commercial approval). Baseline rows are hand-verified transforms; live layer also blends CityMCP at request time."
+    },
+    {
+      "id": "pint_index_snapshot",
+      "label": "London Pint Index (borough medians)",
+      "class": "user-cadence",
+      "artifact": "public/data/pint_index_snapshot.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "event-sourced — grows as confirmed Pint Drops / official-publisher observations arrive",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "user-cadence (the growth loop IS the refresh mechanism)",
+      "gate": "none; only confirmed Pint Drops + official-publisher / open-data sources are eligible"
+    },
+    {
+      "id": "late_food_evidence",
+      "label": "Late-food evidence",
+      "class": "episodic",
+      "artifact": "public/data/late_food_evidence.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "episodic — evidenced by hand per Night Area",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (evidence curation)",
+      "gate": "none"
+    },
+    {
+      "id": "pubmaxxing_seed",
+      "label": "PUBMAXXING all-drinks / history seed import",
+      "class": "episodic",
+      "artifact": "public/data/pubmaxxing_seed_snapshot.json",
+      "stamp": { "kind": "field", "pointer": "sourceImportedAt" },
+      "cadence": "episodic — imported from the sibling pubmaxxing repo",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (npm run build:pubmaxxing-seed)",
+      "gate": "none"
+    },
+    {
+      "id": "wetherspoons_directory",
+      "label": "Wetherspoons venue-presence directory (OSM)",
+      "class": "episodic",
+      "artifact": "public/data/wetherspoons/pubs.json",
+      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "cadence": "episodic — OSM / directory harvest",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (npm run fetch:city-pubs / scripts/fetch_wetherspoons_pubs.mjs)",
+      "gate": "FIRECRAWL_API_KEY for the directory refresh path; OSM Overpass is keyless"
+    },
+    {
+      "id": "tfl_last_train",
+      "label": "TfL last-train / last-drink (live)",
+      "class": "live",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "live — fetched per request from api.tfl.gov.uk, never disk-cached",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "live-per-request (app/api/last-train)",
+      "gate": "none (keyless); TFL_APP_KEY only raises rate limits"
+    },
+    {
+      "id": "citymcp",
+      "label": "CityMCP London (buzz / status / journey / places)",
+      "class": "live",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "live — proxied per request with short in-process TTLs (3–10 min)",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "live-per-request (app/api/citymcp/*)",
+      "gate": "none (keyless upstream); buzz digest quality depends on CityMCP's own EXA-backed enrichment"
+    },
+    {
+      "id": "tfl_lines",
+      "label": "TfL line geometry (map basemap)",
+      "class": "static",
+      "artifact": "public/data/tfl_lines.json",
+      "stamp": null,
+      "cadence": "static — line geometry changes rarely",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual",
+      "gate": "none"
+    },
+    {
+      "id": "london_pois",
+      "label": "London POIs (map basemap)",
+      "class": "static",
+      "artifact": "public/data/london_pois.json",
+      "stamp": null,
+      "cadence": "static — curated geographic reference",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual",
+      "gate": "none"
+    }
+  ]
+}
