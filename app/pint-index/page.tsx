@@ -113,10 +113,10 @@ export default async function PintIndexPage() {
         <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
         {rows.length === 0 ? (
           <p className="pintIndexNote">
-            <strong>0 eligible public observations.</strong> We are keeping this
-            page intentionally empty until source and observation evidence pass
-            the public snapshot contract. No file timestamp is treated as a
-            price observation date, and no excluded price is substituted.
+            <strong>No price logged here yet.</strong> Yours to set. We&rsquo;d
+            rather show nothing than a guess, so the league table opens the
+            moment real, cited prices land. No file timestamp counts as a price
+            date, and no excluded price is ever swapped in.
           </p>
         ) : (
           <div className="pintIndexTableWrap">

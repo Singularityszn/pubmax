@@ -64,7 +64,7 @@ const PRODUCT_SIGNALS = [
 ] as const;
 
 const MEMORY_STEPS = [
-  { icon: Compass, n: "01", title: "Find the side quest", body: "Start with a mood, a price or something happening nearby." },
+  { icon: Compass, n: "01", title: "What's on round the corner", body: "Start with a mood, a price or something happening nearby." },
   { icon: UsersRound, n: "02", title: "Bring the crew", body: "Turn a saved place into a night people can join and shape together." },
   { icon: Camera, n: "03", title: "Keep the moment", body: "Capture what happened privately, then publish only what everyone approves." },
 ] as const;
@@ -130,7 +130,7 @@ export default function LandingPage() {
 
           <div className="lpHeroCopy">
             <p className="lpHeroKicker"><span /> London is live</p>
-            <h1 id="hero-title">Make tonight worth remembering.</h1>
+            <h1 id="hero-title">Real pint prices on a live map. Plan a crawl your mates will actually walk.</h1>
             <p className="lpHeroLede">Real prices, live plans and unexpected places, built for better nights with your people.</p>
             <div className="lpHeroActions">
               <Link className="lpButton lpButtonPrimary" href="/near">
@@ -145,7 +145,7 @@ export default function LandingPage() {
             </div>
             <div className="lpLiveReadout" aria-label="Product highlights">
               <span><MapPin size={15} aria-hidden="true" /> Price-aware places</span>
-              <span><Sparkles size={15} aria-hidden="true" /> Side quests nearby</span>
+              <span><Sparkles size={15} aria-hidden="true" /> The good stuff nearby</span>
             </div>
           </div>
 
@@ -157,7 +157,7 @@ export default function LandingPage() {
 
         <section className="lpSignalSection" id="wedge" aria-labelledby="signal-title">
           <div className="lpSectionIntro">
-            <h2 id="signal-title">The city, with signal.</h2>
+            <h2 id="signal-title">Cheap pints near you, live</h2>
             <p>PUBMAXX clears away the listings noise and keeps the three things that change your decision.</p>
           </div>
           <div className="lpSignalGrid">

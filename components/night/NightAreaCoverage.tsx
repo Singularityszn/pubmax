@@ -45,7 +45,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
     ? `${openChecks} evidence ${openChecks === 1 ? "check remains" : "checks remain"}; no route yet.`
     : "The evidence gate is not complete yet; no route is promised.";
   const shared = {
-    actionLabel: "Inspect pubs",
+    actionLabel: "See the pubs",
     href: `/map?q=${encodeURIComponent(area.name)}`,
   };
 
@@ -96,7 +96,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
 function areaMapLabel(area: NightArea, state: CoverageState): string {
   return state.bucket === "route_ready"
     ? `Open the planner from ${area.name} coverage`
-    : `Inspect ${area.name} pubs on the map`;
+    : `See ${area.name} pubs on the map`;
 }
 
 function CoverageRow({ area, now }: { area: NightArea; now: Date }) {
@@ -152,7 +152,7 @@ export default function NightAreaCoverage() {
       <header className="nightAreaCoverage__head">
         <div>
           <p className="nightAreaCoverage__eyebrow">London capture</p>
-          <h2 id="night-area-coverage-title">Night Areas, with the gate visible</h2>
+          <h2 id="night-area-coverage-title">Areas near you, with the gate visible</h2>
         </div>
         <Link className="nightAreaCoverage__plannerLink" href="/plan">
           Open planner
@@ -160,11 +160,11 @@ export default function NightAreaCoverage() {
       </header>
 
       <p className="nightAreaCoverage__intro">
-        Capture and review are evidence stages, not routes. Only a Night Area with a complete,
+        Capture and review are evidence stages, not routes. Only an area with a complete,
         live gate can produce a Crawl Route; everything else stays browse-only.
       </p>
 
-      <ul className="nightAreaCoverage__counts" aria-label="Night Area coverage counts">
+      <ul className="nightAreaCoverage__counts" aria-label="Area coverage counts">
         {counts.map((status) => (
           <li key={status.bucket}>
             <strong>{status.count}</strong>
@@ -175,21 +175,21 @@ export default function NightAreaCoverage() {
 
       <div className="nightAreaCoverage__quickRead">
         <p className="nightAreaCoverage__sectionLabel">Quick read</p>
-        <ul className="nightAreaCoverage__list" aria-label="Representative Night Area coverage">
+        <ul className="nightAreaCoverage__list" aria-label="Representative area coverage">
           {featured.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}
         </ul>
       </div>
 
       <details className="nightAreaCoverage__details">
         <summary>
-          <span>See every Night Area</span>
+          <span>See every area</span>
           <span className="nightAreaCoverage__detailsMeta">{areas.length} areas</span>
         </summary>
         <p className="nightAreaCoverage__detailsIntro">
-          “Inspect pubs” opens the map for browsing only. It does not turn a captured, reviewed,
+          “See the pubs” opens the map for browsing only. It does not turn a captured, reviewed,
           discovered, or paused area into a planned route.
         </p>
-        <ul className="nightAreaCoverage__list" aria-label="All Night Area coverage">
+        <ul className="nightAreaCoverage__list" aria-label="All area coverage">
           {areas.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}
         </ul>
       </details>

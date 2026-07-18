@@ -7,6 +7,7 @@ import { formatPrice, type Venue } from "@/lib/venues";
 import { buildVenueClaims } from "@/lib/curation";
 import { heritageSourceLabel } from "@/lib/historicFilter";
 import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
+import { presentableDescription } from "@/lib/slopFilter";
 import type { DropWithPhotos } from "@/components/map/usePintDrops";
 import { bandsForVenue, type StoryBand } from "@/lib/storyBands";
 import { nearestLandmarks, type Landmark } from "@/lib/landmarks";
@@ -34,6 +35,12 @@ export default function VenueStoryTab({
   // The distinct, provenance-stamped claim list for the inspected venue.
   // Editorial Sourced claims and contributor/anecdote drops stay separate.
   const claims = useMemo(() => buildVenueClaims(venue.curation, drops), [venue.curation, drops]);
+
+  // The scraped `description` is third-party AI marketing slop for the large
+  // majority of venues ("Welcome to the X pub!", "vibrant atmosphere"). Guard
+  // the render seam: slop resolves to null so the honest empty state below takes
+  // over, and only genuine notes ever reach the page. Never edits the data.
+  const description = useMemo(() => presentableDescription(venue.description), [venue.description]);
 
   // Place stories (Wave D): which curated corridors pass through this venue,
   // plus nearby landmark names for the Lore "Around here" section.
@@ -127,8 +134,8 @@ export default function VenueStoryTab({
           </ul>
         </section>
       ) : null}
-      {venue.description ? (
-        <p className="description">{venue.description}</p>
+      {description ? (
+        <p className="description">{description}</p>
       ) : heritageFacts.length === 0 ? (
         <p className="description muted">
           No heritage note for {venue.name} yet. Log a Pint Drop below with a passed-down story
