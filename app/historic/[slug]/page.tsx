@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, ExternalLink, MessageSquare } from "lucide-react";
@@ -121,6 +122,8 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   const pub = getHistoricPubBySlug(slug, await loadHistoricPubs());
   if (!pub) notFound();
 
+  // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   const grade = listedBadge(pub.listed);
   const boroughSlug = pub.borough ? slugifyBorough(pub.borough) : null;
@@ -130,7 +133,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
 
   return (
     <main className="hdPage">
-      <JsonLd data={historicPubJsonLd(pub)} />
+      <JsonLd data={historicPubJsonLd(pub)} nonce={nonce} />
       <SiteNav active="historic" />
 
       <p className="hdBack">
