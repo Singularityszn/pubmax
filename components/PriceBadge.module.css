@@ -28,10 +28,14 @@
   color: var(--ink-soft);
 }
 
+/* Current price — the headline number. Migrated off coral (--brass, the action
+   accent) onto the brass-plaque price role so a price no longer reads as a CTA
+   or an alert. See .price-plaque + --accent-price in globals.css. */
 .current {
-  border-color: color-mix(in srgb, var(--brass) 58%, var(--line));
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
-  color: var(--brass);
+  border-color: var(--price-plaque-border);
+  background: var(--price-plaque-surface);
+  color: var(--accent-price-ink);
+  box-shadow: var(--price-plaque-shine);
 }
 
 .cheap {

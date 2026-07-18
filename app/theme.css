@@ -73,6 +73,18 @@ html[data-theme="dark"] {
   --grape: #9b90c0; /* muted violet (was #a78bfa) — no purple mesh */
   --pink: #cf8bb6; /* muted pink (was #ff7ac8) */
 
+  /* Accent role discipline (token-system-v2) — dark tuning. The role tokens
+     themselves are defined in globals.css as color-mix over the palette; most
+     track the dark palette automatically. The plaque needs a darker mix (the
+     price plate must read as lit metal on near-black, not a bright cream chip)
+     and the top-shine drops to a faint warm sheen. --amber stays full-chroma
+     in dark, so the brass-plaque identity survives the theme flip. */
+  --accent-price-ink: color-mix(in srgb, var(--amber) 80%, var(--ink));
+  --price-plaque-surface: color-mix(in srgb, var(--amber) 16%, var(--panel-raised));
+  --price-plaque-border: color-mix(in srgb, var(--amber) 42%, var(--line));
+  --price-plaque-shine: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --hairline-strong: color-mix(in srgb, var(--line) 55%, var(--ink-soft) 45%);
+
   /* P1 chrome cleanup — Apple-neutral near-black DOM-chrome surfaces.
      --paper/--panel/--panel-raised/--line above carry a deliberate sage/green
      bias (the M4 "Night Out" street palette) that the map canvas reads

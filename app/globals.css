@@ -70,6 +70,54 @@
   --color-border: var(--line);
   --color-border-soft: var(--line-soft);
 
+  /* ── Accent role discipline (token-system-v2) ─────────────────────────────
+     The taste audit found one accent — coral (--brass) — doing every job at
+     once: CTA, price, active pill, link, badge, count. When one colour means
+     everything it means nothing, and the UI reads as generic. These role
+     tokens SPLIT those jobs so each has its own voice, and they are pure
+     additive aliases over the palette above (change the palette, these
+     follow). Migrating a consumer is a one-line swap from a raw hue to the
+     role it actually plays — breadth without per-component rewrites.
+
+       --accent-action  → the ONE loud accent. CTAs / Plan only.
+       --accent-price   → the pub's brass-plaque heritage. Prices, not coral.
+       --state-active-* → "you are here", quieter than a CTA.
+       --badge-*        → neutral-strong. Counts + metadata, not accent.
+       --hairline*      → one divider vocabulary. */
+
+  /* Primary action — coral (light) / amber (dark). This is the only place the
+     loud accent is licensed to appear at full strength. */
+  --accent-action: var(--brass);
+  --accent-action-strong: var(--brass-bright);
+
+  /* Price — lager-gold / brass, the pub's own heritage metal. Prices read as
+     engraved brass plaques (see .price-plaque), never coral price-alerts.
+     Amber is full-chroma in both themes, so this role is theme-stable. */
+  --accent-price: var(--amber);
+  --accent-price-ink: color-mix(in srgb, var(--amber) 66%, var(--ink));
+  --price-plaque-surface: color-mix(in srgb, var(--amber) 11%, var(--panel-raised));
+  --price-plaque-border: color-mix(in srgb, var(--amber) 46%, var(--line));
+  --price-plaque-shine: inset 0 1px 0 color-mix(in srgb, #ffffff 42%, transparent);
+
+  /* Active / selected — a low-chroma accent tint + accent hairline. "You are
+     here" should whisper; only the CTA fill shouts. */
+  --state-active-surface: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  --state-active-border: color-mix(in srgb, var(--brass) 36%, var(--line));
+  --state-active-ink: color-mix(in srgb, var(--brass) 52%, var(--ink));
+
+  /* Badge / count — neutral-strong. Counts, tallies and metadata pills read as
+     confident ink chrome, not as an accent competing with the CTA. */
+  --badge-surface: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  --badge-border: color-mix(in srgb, var(--ink) 15%, var(--line));
+  --badge-ink: var(--ink-soft);
+
+  /* Hairline system (signature) — one divider vocabulary across the app so
+     edges read as a deliberate system, not per-component guesses.
+       --hairline         standard divider / card edge
+       --hairline-strong  structural edge (section / toolbar boundaries) */
+  --hairline: var(--line);
+  --hairline-strong: color-mix(in srgb, var(--line) 68%, var(--ink-soft) 32%);
+
   /* Fixed-contrast text: for content sitting on a solid brass/ink-deep FILL
      (buttons, chips, photo captions), not a theme-flipping surface. These
      intentionally do NOT change between themes — the fill they sit on
@@ -235,10 +283,13 @@
   --surface-tint-brass: color-mix(in srgb, var(--panel-raised) 84%, var(--brass) 16%);
   --surface-tint-pint: color-mix(in srgb, var(--panel-raised) 86%, var(--pint) 14%);
   --surface-tint-lager: color-mix(in srgb, var(--panel-raised) 84%, var(--amber) 16%);
-  --gradient-party: radial-gradient(circle at 12% 14%, rgba(255, 90, 95, 0.1), transparent 30%),
-    radial-gradient(circle at 88% 8%, rgba(41, 182, 246, 0.09), transparent 28%),
-    radial-gradient(circle at 72% 86%, rgba(49, 209, 88, 0.07), transparent 30%),
-    linear-gradient(135deg, var(--paper), color-mix(in srgb, var(--paper) 82%, #ffffff 18%));
+  /* Page wash — was three tri-colour radial blobs (coral + blue + green) that
+     read as generic "AI gradient" spray. Replaced with a single soft light
+     falling from above onto warm candle paper: candle warmth, zero colour
+     spray. Dark keeps its own neutral ramp (theme.css). */
+  --gradient-party:
+    radial-gradient(150% 100% at 50% -25%, color-mix(in srgb, var(--paper) 80%, #ffffff 20%) 0%, transparent 62%),
+    var(--paper);
 }
 
 * {
@@ -300,6 +351,57 @@ body {
 .tabular-data {
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Price plaque (signature move) ─────────────────────────────────────────
+   The pub's brass-plaque heritage made literal: prices and headline data sit
+   on an engraved lager-gold plate — mono face, tabular figures, a warm brass
+   hairline and a hair of top shine — instead of borrowing the coral action
+   colour. This is the ONE place the amber/brass metal treatment lives, so a
+   price never reads as a coral alert. Opt in with class="price-plaque"; the
+   PriceBadge "current" variant already resolves to these tokens. */
+.price-plaque {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--accent-price-ink);
+  background: var(--price-plaque-surface);
+  border: 1px solid var(--price-plaque-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--price-plaque-shine);
+}
+
+/* ── Typographic hierarchy (3 levels) ──────────────────────────────────────
+   Outside prices the audit found nearly everything one weight of the same
+   grey. These three role classes give a clear section → card → meta ladder
+   using the loaded stack (Space Grotesk display, Inter body): a display
+   section title, a tighter card title, and quiet tracked meta. Additive
+   utilities so components can adopt the ladder one node at a time. */
+.type-section-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink);
+}
+.type-card-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink);
+}
+.type-meta {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-wide);
+  color: var(--muted);
 }
 
 button,
