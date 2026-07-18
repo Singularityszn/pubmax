@@ -3,14 +3,21 @@
 Wave 0 treats every exported `POST`, `PUT`, `PATCH`, or `DELETE` handler as a
 reviewed surface—even when a POST is semantically read-only. The regression test
 `__tests__/writeSurfaceCertification.test.ts` scans the complete `app/api` tree.
-Adding a sixty-first mutating route or removing its authority/abuse boundary fails
+Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
+
+> **Inventory: 61 mutating routes.** The count grew 60 → 61 with the lightweight
+> email-capture surface `POST /api/email-subscribers` (identity nudge sheet, early
+> email capture). Its confirm/unsubscribe endpoints are token-gated **GET**s and
+> are deliberately excluded from the mutating-verb inventory. The number is a
+> merge-conflict coordination point across in-flight branches — reconcile it (not
+> silently overwrite) when branches meet.
 
 ## Boundary classes
 
 | Boundary | Purpose | Representative surfaces |
 |---|---|---|
-| Durable rate limit | Public/keyless abuse and provider-cost control | Events, discovery proxies, Pint Drops, crawl contributions, Plan creation |
+| Durable rate limit | Public/keyless abuse and provider-cost control | Events, discovery proxies, Pint Drops, crawl contributions, Plan creation, email capture |
 | Account | Supabase-authenticated ownership | Night Memories/Stories, Pub Pal, profiles, social connections |
 | Capability | Narrow possession-based authority plus server validation | Plan actions, completion, invites, constraints, proposals, recap |
 | Moderator | Staff-only operational mutation | Import notes and moderation |
@@ -28,6 +35,10 @@ Plan member capability and use idempotency keys or atomic store operations.
   limiter when Supabase is not configured.
 - Public community contribution paths use durable limits in production and a
   tightened degraded budget on transient limiter failures.
+- Email capture (`POST /api/email-subscribers`) enforces durable limits on **two
+  axes** — per-IP and a global circuit breaker — and answers 503 on a hard
+  durable-store write failure rather than a fake success. It stores the address
+  UNCONFIRMED (double opt-in); nothing is mailed until the recipient confirms.
 - Account, moderator, and Plan-capability routes reject missing authority before
   persistence. Confirmation-protected publication requires a separate one-use
   token.
