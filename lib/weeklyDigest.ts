@@ -516,17 +516,60 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
   return lines.join("\n");
 }
 
-/** Build the provider-ready message for a generated digest. */
-export function toEmailMessage(digest: WeeklyDigest): {
+/** The per-recipient unsubscribe placeholder the renderers emit. The
+ *  message-building path (toEmailMessage) MUST substitute it with a real,
+ *  per-recipient URL before a message may leave this module. */
+export const UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}";
+
+function isHttpUrl(value: unknown): value is string {
+  if (typeof value !== "string" || value.trim().length === 0) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fail-closed guard: no rendered message may ship with an unresolved template
+ * placeholder. Catches the unsubscribe token (if substitution was skipped) and
+ * any future `{{…}}` a renderer might add. Throws with a clear, actionable error
+ * naming the offending token — never returns a half-templated email.
+ */
+export function assertNoResidualPlaceholders(rendered: string, part: "html" | "text"): void {
+  const match = /\{\{\s*([^}]*?)\s*\}\}/.exec(rendered);
+  if (match) {
+    throw new Error(
+      `weeklyDigest: unresolved template placeholder "{{${match[1]}}}" in rendered ${part} — refusing to build an email with unsubstituted content.`,
+    );
+  }
+}
+
+/**
+ * Build the provider-ready message for a generated digest. `unsubscribeUrl` is
+ * REQUIRED (P2-c): it is substituted per-recipient into both parts, HTML-escaped
+ * in the HTML context and raw in the text context, and the result is asserted to
+ * carry no residual `{{…}}` placeholder before the message is returned.
+ */
+export function toEmailMessage(
+  digest: WeeklyDigest,
+  options: { unsubscribeUrl: string },
+): {
   to: string;
   subject: string;
   html: string;
   text: string;
 } {
-  return {
-    to: digest.email,
-    subject: digest.subject,
-    html: renderWeeklyDigestHtml(digest),
-    text: renderWeeklyDigestText(digest),
-  };
+  const { unsubscribeUrl } = options;
+  if (!isHttpUrl(unsubscribeUrl)) {
+    throw new Error(
+      "toEmailMessage: unsubscribeUrl is required and must be an absolute http(s) URL.",
+    );
+  }
+  const html = renderWeeklyDigestHtml(digest).split(UNSUBSCRIBE_PLACEHOLDER).join(esc(unsubscribeUrl));
+  const text = renderWeeklyDigestText(digest).split(UNSUBSCRIBE_PLACEHOLDER).join(unsubscribeUrl);
+  assertNoResidualPlaceholders(html, "html");
+  assertNoResidualPlaceholders(text, "text");
+  return { to: digest.email, subject: digest.subject, html, text };
 }

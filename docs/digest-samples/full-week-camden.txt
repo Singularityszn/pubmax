@@ -18,4 +18,4 @@ ONE FOR THE ROAD
 
 —
 You're getting this because you asked us to keep you posted. We only show real, sourced data — we never invent a pint.
-Unsubscribe: {{unsubscribe_url}}
+Unsubscribe: https://pubmaxxing.com/u/EXAMPLE-UNSUBSCRIBE-TOKEN

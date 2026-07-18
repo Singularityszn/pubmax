@@ -4,6 +4,7 @@ import {
   DEFAULT_WINDOW_DAYS,
   GUARDIAN_TIPS,
   MAX_CHEAPEST_LINES,
+  assertNoResidualPlaceholders,
   generateWeeklyDigest,
   isDigestOptedIn,
   isLikelyEmail,
@@ -290,12 +291,40 @@ describe("rendering — honest, email-safe", () => {
     expect(text).toContain("Unsubscribe");
   });
 
-  it("toEmailMessage bundles subject/html/text for the provider", () => {
-    const msg = toEmailMessage(rich);
+  it("toEmailMessage bundles subject/html/text and substitutes the unsubscribe URL", () => {
+    const url = "https://pubmaxxing.com/u/tok-123";
+    const msg = toEmailMessage(rich, { unsubscribeUrl: url });
     expect(msg.to).toBe("d@e.com");
     expect(msg.subject).toBe(rich.subject);
     expect(msg.html).toContain("PUBMAXX");
     expect(msg.text).toContain("PUBMAXX");
+    // P2-c: placeholder is substituted, nothing residual survives.
+    expect(msg.html).toContain(url);
+    expect(msg.text).toContain(url);
+    expect(msg.html).not.toContain("{{");
+    expect(msg.text).not.toContain("{{");
+  });
+
+  it("toEmailMessage requires an absolute http(s) unsubscribe URL", () => {
+    expect(() => toEmailMessage(rich, { unsubscribeUrl: "" })).toThrow(
+      /unsubscribeUrl is required/,
+    );
+    expect(() => toEmailMessage(rich, { unsubscribeUrl: "not-a-url" })).toThrow(
+      /absolute http\(s\) URL/,
+    );
+    expect(() =>
+      toEmailMessage(rich, { unsubscribeUrl: "ftp://x/y" }),
+    ).toThrow(/absolute http\(s\) URL/);
+  });
+
+  it("assertNoResidualPlaceholders throws on any unresolved {{…}} token", () => {
+    expect(() => assertNoResidualPlaceholders("<p>ok</p>", "html")).not.toThrow();
+    expect(() =>
+      assertNoResidualPlaceholders("<a href='{{unsubscribe_url}}'>x</a>", "html"),
+    ).toThrow(/unsubscribe_url/);
+    expect(() => assertNoResidualPlaceholders("hi {{ leftover }} bye", "text")).toThrow(
+      /leftover/,
+    );
   });
 });
 

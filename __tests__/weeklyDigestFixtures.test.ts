@@ -6,8 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   generateWeeklyDigest,
-  renderWeeklyDigestHtml,
-  renderWeeklyDigestText,
+  toEmailMessage,
   type WeeklyDigestInput,
 } from "@/lib/weeklyDigest";
 
@@ -15,11 +14,18 @@ import {
 // cover the honesty spectrum: a full week, a partial week, and an empty week.
 //
 // The committed HTML/text files under docs/digest-samples/ are the review
-// artefacts. This spec asserts the renderers still produce them; run with
+// artefacts. They are the FINAL provider-ready messages (built via
+// toEmailMessage), so the per-recipient unsubscribe URL is substituted and NO
+// `{{…}}` placeholder survives (P2-c). A fixed example URL is used for
+// reproducibility. This spec asserts the builder still produces them; run with
 // WRITE_DIGEST_FIXTURES=1 to regenerate the committed files after an
 // intentional copy/markup change:
 //
 //   WRITE_DIGEST_FIXTURES=1 npx vitest run __tests__/weeklyDigestFixtures.test.ts
+
+// Fixture-input only: a fixed, obviously-example unsubscribe URL so the rendered
+// fixtures are byte-stable. The production send path supplies a real per-recipient URL.
+const FIXTURE_UNSUBSCRIBE_URL = "https://pubmaxxing.com/u/EXAMPLE-UNSUBSCRIBE-TOKEN";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "docs", "digest-samples");
@@ -74,8 +80,10 @@ describe("weekly digest fixtures", () => {
   for (const [name, input] of Object.entries(SCENARIOS)) {
     it(`renders ${name} (matches committed fixture)`, () => {
       const digest = generateWeeklyDigest(input);
-      const html = renderWeeklyDigestHtml(digest);
-      const text = renderWeeklyDigestText(digest);
+      // Final provider-ready message: unsubscribe URL substituted + guarded.
+      const { html, text } = toEmailMessage(digest, {
+        unsubscribeUrl: FIXTURE_UNSUBSCRIBE_URL,
+      });
 
       const htmlPath = join(OUT_DIR, `${name}.html`);
       const textPath = join(OUT_DIR, `${name}.txt`);
@@ -88,8 +96,13 @@ describe("weekly digest fixtures", () => {
       // Sanity that always holds, write or not.
       expect(html).toContain("PUBMAXX");
       expect(text).toContain("PUBMAXX");
+      // P2-c: no residual template placeholder in a built message.
+      expect(html).not.toContain("{{");
+      expect(text).not.toContain("{{");
+      expect(html).toContain(FIXTURE_UNSUBSCRIBE_URL);
+      expect(text).toContain(FIXTURE_UNSUBSCRIBE_URL);
 
-      // When fixtures exist, they must stay in sync with the renderers.
+      // When fixtures exist, they must stay in sync with the builder.
       if (existsSync(htmlPath)) {
         expect(readFileSync(htmlPath, "utf8")).toBe(`${html}\n`);
         expect(readFileSync(textPath, "utf8")).toBe(`${text}\n`);

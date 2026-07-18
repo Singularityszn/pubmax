@@ -27,7 +27,10 @@
 //   2. const members  = await listOptInAudience();             // Supabase admin, below
 //   3. const users    = resolveDigestRecipients(members);      // lib/weeklyDigest
 //   4. const messages = users.map((u) => toEmailMessage(
-//        generateWeeklyDigest({ user: u, now: new Date(), ...datasets })));
+//        generateWeeklyDigest({ user: u, now: new Date(), ...datasets }),
+//        { unsubscribeUrl: unsubscribeUrlFor(u) }));            // REQUIRED per-recipient
+//        // toEmailMessage substitutes {{unsubscribe_url}} and throws if any
+//        // {{…}} placeholder survives — a message can never ship half-templated.
 //   5. const results  = await provider.send(messages);         // noop → all "skipped"
 //   6. summarise(results);                                      // sent/skipped/invalid/error
 //

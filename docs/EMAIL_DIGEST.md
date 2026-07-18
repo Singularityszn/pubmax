@@ -49,8 +49,10 @@ digest gates on **explicit opt-in**, not opt-out:
   metadata:
   - `user_metadata.digest_opt_in === true` → opted in
   - `user_metadata.digest_opt_out === true` → opted out
-- Every rendered email carries an `{{unsubscribe_url}}` placeholder the send
-  path fills per-recipient.
+- Every rendered email carries an `{{unsubscribe_url}}` placeholder;
+  `toEmailMessage(digest, { unsubscribeUrl })` **requires** a per-recipient URL,
+  substitutes it into both parts, and **throws** if any residual `{{…}}`
+  placeholder survives (P2-c) — a message can never ship half-templated.
 
 **Where the durable field goes (owner decision needed).** When opt-in volume
 warrants it, add a `public.user_email_prefs` table keyed by `user_id →
@@ -84,8 +86,9 @@ Enforced by the generator and covered by tests:
 ## Fixtures
 
 `docs/digest-samples/{full-week-camden,partial-week-london,empty-week-barnet}.{html,txt}`
-are committed rendered examples for review. Regenerate after an intentional
-copy/markup change:
+are committed rendered examples for review — the **final provider-ready
+messages** built via `toEmailMessage` with a fixed example unsubscribe URL, so no
+`{{…}}` placeholder survives. Regenerate after an intentional copy/markup change:
 
 ```
 WRITE_DIGEST_FIXTURES=1 npx vitest run __tests__/weeklyDigestFixtures.test.ts
