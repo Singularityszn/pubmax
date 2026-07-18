@@ -245,6 +245,8 @@ Raise every open finding from reviewer-prose to evidence-backed verdict, and clo
 
 Wayfinder next-wave note: with these, every filed finding in the programme is either fixed, PR'd, or an owner decision. The wave after this is merge-activation (Sol) + PMF measurement — no construction left that isn't gated.
 
+- **Design wave added to Cycle 11** (owner directive): `docs/design-direction` — Firecrawl study of Citymapper/DICE/Airbnb/Linear/Family + Apple HIG physics → design thesis + top-8 implementable deltas as the next wave's PRD; `design/logo-system` — 3 crafted SVG mark concepts (no beer-mug kitsch; ××-as-rendezvous / geometric pint / X-marks-the-pub directions), full icon system, owner picks before any live swap.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
