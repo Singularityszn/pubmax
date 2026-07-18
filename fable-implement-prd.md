@@ -144,6 +144,8 @@ Audit: live captures confirm every remaining defect is already fixed in an open 
 
 Deferred until merges land: post-#301 analytics wiring (#309/#312/#313 call sites), buzz layer (EXA key), email digest (provider decision).
 
+- **Merge-order matrix done → PR**: 22 PRs, only 4 conflict pairs (#299 hub, #307↔#314); recommended order collapses to 2 rebases / 4 files; steps 1–18 simulate clean. Sol has an executable checklist.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
