@@ -491,18 +491,18 @@
 
 /* The armed "yes, call it" button reads as the consequential one. */
 .roundCloseBtnArmed {
-  border-color: color-mix(in srgb, #a4331f 55%, var(--line));
-  color: #a4331f;
+  border-color: color-mix(in srgb, var(--color-negative) 55%, var(--line));
+  color: var(--color-negative);
 }
 
 .roundCloseBtnArmed:hover {
-  border-color: #a4331f;
-  color: #a4331f;
+  border-color: var(--color-negative);
+  color: var(--color-negative);
 }
 
 .roundError {
   margin: 0;
-  color: #a4331f;
+  color: var(--color-negative);
   font-size: 13px;
 }
 

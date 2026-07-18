@@ -62,7 +62,7 @@ export default function RouteHeader({
           aria-label="Copy a shareable link to this crawl"
         >
           {copied ? <Check size={14} /> : <Link2 size={14} />}
-          {copied ? "Copied!" : "Copy link"}
+          {copied ? "Copied" : "Copy link"}
         </button>
         <Route size={24} />
       </div>

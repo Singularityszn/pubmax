@@ -370,10 +370,10 @@ function CrawlPoster({
         </Link>
         <button type="button" className="crawlSecondaryBtn" onClick={onCopy}>
           {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-          {/* aria-live announces the "Copied!" confirmation to screen readers
+          {/* aria-live announces the "Copied" confirmation to screen readers
               without needing a separate status region — the button's own
               accessible name updates and is polite (non-interrupting). */}
-          <span aria-live="polite">{copied ? "Copied!" : "Copy share link"}</span>
+          <span aria-live="polite">{copied ? "Copied" : "Copy share link"}</span>
         </button>
       </div>
 

@@ -35,7 +35,7 @@ export const SCRAPED_SOURCE_LABELS: Record<ScrapedPubSourceId, string> = {
   "greene-king.co.uk": "Greene King",
   "nicholsonspubs.co.uk": "Nicholson's",
   "youngs.co.uk": "Young's",
-  other: "Scraped",
+  other: "Other",
 };
 
 const ACCENT_POOL: DrinkCategory[] = DRINK_CATEGORIES.filter(

@@ -276,7 +276,7 @@
 
 .aboutBtnPrimary {
   background: var(--brass);
-  color: #fff;
+  color: var(--color-on-accent);
   border: 1px solid var(--brass);
 }
 

@@ -17,7 +17,7 @@ export default function CrawlStoryCopyButton() {
 
   return (
     <button type="button" className="storySecondaryBtn" onClick={copyLink}>
-      {copied ? "Copied!" : "Copy link"}
+      {copied ? "Copied" : "Copy link"}
     </button>
   );
 }

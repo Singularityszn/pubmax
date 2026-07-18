@@ -238,7 +238,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
           ) : (
             <Copy size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
           )}
-          {copied ? "Copied!" : "Copy share link"}
+          {copied ? "Copied" : "Copy share link"}
         </button>
         {/* The durable upgrade: POST to /api/crawls for a permanent /crawls/[slug]
             link. The anonymous copy button above still works either way. */}

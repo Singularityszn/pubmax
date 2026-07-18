@@ -17,7 +17,7 @@ import { trackEvent } from "@/lib/analytics";
 //     publication): the WhatsApp-native share is unlocked, pointing at that
 //     already-approved URL.
 //
-// React 19 hygiene: the "Copied!" flash is set in the click handler and cleared
+// React 19 hygiene: the "Copied" flash is set in the click handler and cleared
 // from a setTimeout in a ref — never from an effect body.
 
 type RecapShareButtonProps = {
@@ -124,10 +124,10 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
         </button>
       ) : null}
       <button type="button" className="recapShare__btn" onClick={handleCopy} aria-label={copied ? "Link copied" : "Copy link"}>
-        {copied ? "Copied!" : "Copy link"}
+        {copied ? "Copied" : "Copy link"}
       </button>
       <span className="recapShare__confirm" role="status" aria-live="polite">
-        {copied ? "Copied!" : ""}
+        {copied ? "Copied" : ""}
       </span>
     </div>
   );
