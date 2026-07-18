@@ -237,6 +237,14 @@ Raise every open finding from reviewer-prose to evidence-backed verdict, and clo
 - **#339** a11y matrix (#283 proven, 1 fix, 3 filed) · **#340** route-stop names (owner report — symbol layer, brass halo text) · **#341** findings confidence ledger (47 verdicts: 10 stale, ~13 merge-time, 11 owner) · **#342** event sources (Ticketmaster free/instant + Skiddle gated; Eventbrite dead; seam key-activated) · **#343** early email capture (last missing locked decision, stacked on #312, double-opt-in) · **#344** feed scroll stability (owner report — iOS anchoring; regression test proven-failing pre-fix) · #329 token migration completed.
 - Owner activation shortlist: TICKETMASTER_API_KEY (2 min, fills Tonight), Skiddle approval, Firecrawl top-up (credits exhausted again). All three owner-side.
 
+## CYCLE 11 PRD (new Firecrawl credits; owner: scrape all viable data + execute mentioned next steps)
+
+1. **`data/harvest-continuation`** (Opus 4.8): with fresh credits — (a) the remaining unevaluated independents from the London sweep (resume script exists, --resume/--scope flags); (b) the venue drink-menu ENRICHMENT harvesters (previously off-metric for cheapestPrice but real value for venue detail pages — run for matched chains per existing scripts); (c) keep the <5% pause guard for the price sweep but enrichment is exempt (different metric). Checkpoint commits.
+2. **`fix/a11y-findings`** (Opus 4.8): the two real filed a11y gaps from #339 — a keyboard-operable venue path (DOM list fallback reachable by keyboard for arbitrary pin selection, WCAG 2.1.1) + desktop venue drawer focus trap (mobile parity).
+3. **`infra/resilience-p2`** (Opus 4.8): #330's deferred P2s — CityMCP serve-last-known-on-error + single retry; per-route latency/error-budget log drain + alert on rate-limiter fail-open events (per the PNC observability runbook's patterns).
+
+Wayfinder next-wave note: with these, every filed finding in the programme is either fixed, PR'd, or an owner decision. The wave after this is merge-activation (Sol) + PMF measurement — no construction left that isn't gated.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
