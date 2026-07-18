@@ -1,72 +1,73 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Per-request Content-Security-Policy with a fresh nonce.
+import { buildCsp } from "./scripts/lib/cspPolicy.mjs";
+import {
+  SITE_JSON_LD_TEXT,
+  SPECULATION_RULES_JSON,
+} from "@/lib/inlineDocumentScripts";
+
+// DYNAMIC-TIER Content-Security-Policy: a per-request nonce, applied ONLY to
+// the routes that must render per request (auth/personal surfaces — see the
+// matcher below). This is one half of the two-tier CSP:
 //
-// WHY THIS EXISTS (see the matching block that USED to live in next.config.mjs):
-// the CSP was previously served as a static header, which forced
-// `script-src 'unsafe-inline'` because Next.js 16's App-Router RSC streaming
-// scripts (the per-page `self.__next_f.push(...)` bootstrap + hydration payload)
-// are inline, and their content — hence any sha256 hash — differs per page and
-// per build, so they can't be statically hashed. The ONLY way to drop
-// 'unsafe-inline' from script-src without breaking hydration is a per-request
-// nonce applied via this proxy: Next.js reads the nonce from the
-// `Content-Security-Policy` REQUEST header (the 'nonce-<value>' pattern) and
-// stamps it onto every inline script it emits. Our own inline scripts
-// (speculation rules in app/layout.tsx, the copy-link handlers in
-// app/p/[id] and app/crawls/[slug]) read the nonce from the `x-nonce` request
-// header and carry it explicitly. External scripts (public/theme-init.js and
-// the /_next/static/chunks/* bundles) stay covered by `script-src 'self'`.
+//   - STATIC TIER: every statically generated route (/, /near, /tonight,
+//     /about, /pint-index, /crawls, /discover, /feed, /borough/*, /historic/*,
+//     ...) is served with a per-route sha256 hash CSP stamped into
+//     .next/routes-manifest.json by scripts/build_csp_route_headers.mjs after
+//     `next build`. A prebuilt shell can't know a request nonce, but hashes of
+//     its own build output need no request state — so those routes stay
+//     prerendered and edge-cached (the ~1s-TTFB fix) with NO 'unsafe-inline'.
+//   - DYNAMIC TIER (this file): per-request nonce, exactly as before. Next.js
+//     reads the nonce from the Content-Security-Policy REQUEST header and
+//     stamps it onto every inline script it emits; our own dynamic pages read
+//     `x-nonce` via next/headers.
 //
-// TRADE-OFF (acknowledged): a per-request nonce forces DYNAMIC rendering for
-// every route — static generation / ISR / PPR are incompatible with nonce CSP
-// because a prebuilt shell can't know the request's nonce.
+// Shared invariants live in scripts/lib/cspPolicy.mjs (every non-script
+// directive, single source) and are guarded by __tests__/cspPolicy.test.ts:
+// script-src NEVER contains 'unsafe-inline' in either tier (owner decision,
+// 2026-07-18), and every dynamic HTML page route must be matched here — the
+// postbuild script fails the build if one is covered by neither tier.
 //
 // This file is `proxy.ts` (not `middleware.ts`): Next.js 16 renamed the
 // middleware convention to `proxy` (runs on the Node runtime). Every OTHER
 // security header (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer)
-// still ships from next.config.mjs on `/:path*`; only the CSP moved here so it
-// can be built per-request with the live nonce.
+// still ships from next.config.mjs on `/:path*`.
+
+// The root layout renders two build-constant inline blocks on EVERY route
+// (speculation rules + site JSON-LD, lib/inlineDocumentScripts.ts). The layout
+// no longer threads a nonce (that read forced every route dynamic), so on
+// nonce-governed routes those two blocks are allowed by their constant sha256
+// hashes instead. Hashed once at module load — the content is build-constant.
+const sha256 = (text: string) =>
+  `'sha256-${createHash("sha256").update(text, "utf8").digest("base64")}'`;
+const DOCUMENT_SCRIPT_HASHES = [
+  sha256(SPECULATION_RULES_JSON),
+  sha256(SITE_JSON_LD_TEXT),
+].join(" ");
+
 export function proxy(request: NextRequest) {
   // Crypto-random, base64-encoded nonce (a fresh UUID per request).
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
 
-  // script-src: NO 'unsafe-inline' (its removal is the entire point of this
-  //   file — and browsers ignore 'unsafe-inline' whenever a nonce is present
-  //   anyway). 'self' covers the external theme-init + the async /_next/static
-  //   chunk bundles; 'nonce-<value>' covers Next's inline RSC bootstrap +
-  //   hydration payload and our own nonce-stamped inline scripts. Local
-  //   `next dev` additionally gets 'unsafe-eval' because React's development
-  //   tooling uses eval for call-stack reconstruction; production never does.
+  // script-src: NO 'unsafe-inline' (browsers ignore it whenever a nonce is
+  //   present anyway). 'self' covers the external theme-init.js + the async
+  //   /_next/static chunk bundles; 'nonce-<value>' covers Next's inline RSC
+  //   bootstrap + hydration payload and our nonce-stamped page scripts; the two
+  //   constant document-script hashes cover the layout's nonce-free inline
+  //   blocks. Local `next dev` additionally gets 'unsafe-eval' (React dev
+  //   tooling uses eval for call-stack reconstruction); production never does.
   //   NB: no 'strict-dynamic' — it would make the browser ignore the 'self'
-  //   source expression, blocking the parser-inserted external theme-init.js;
-  //   Next's chunk loading is happy under plain 'self' + a nonce'd bootstrap.
-  const scriptSrc = `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ""}`;
-
-  // Every non-script directive below is copied VERBATIM from the previous
-  // static CSP in next.config.mjs. See that file's history for the per-directive
-  // rationale (img-src allowlist, connect-src tiles/supabase/wss, style-src
-  // 'unsafe-inline' for MapLibre's runtime style injection, worker/child blob:
-  // for MapLibre tile workers + the offline service worker, etc.).
-  const contentSecurityPolicy = [
-    "default-src 'self'",
-    scriptSrc,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud https://www.jdwetherspoon.com https://live.staticflickr.com https://whatpub-new.s3.eu-west-1.amazonaws.com https://media-cdn.tripadvisor.com https://images.squarespace-cdn.com https://images.cdn.inapub.co.uk https://www.greeneking.co.uk https://encrypted-tbn0.gstatic.com https://static.wixstatic.com",
-    "font-src 'self' data: https://tiles.openfreemap.org",
-    "connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co",
-    "worker-src 'self' blob:",
-    "child-src blob:",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "object-src 'none'",
-  ].join("; ");
+  //   source expression, blocking the parser-inserted external theme-init.js.
+  const scriptSrc = `script-src 'self' 'nonce-${nonce}' ${DOCUMENT_SCRIPT_HASHES}${isDev ? " 'unsafe-eval'" : ""}`;
+  const contentSecurityPolicy = buildCsp(scriptSrc);
 
   // Forward the nonce to the render: `x-nonce` for our own components
-  // (app/layout.tsx et al. read it via next/headers), and the CSP itself on the
-  // REQUEST header so Next.js can extract the nonce and stamp its inline scripts.
+  // (read via next/headers on dynamic pages), and the CSP itself on the
+  // REQUEST header so Next.js can extract the nonce and stamp its inline
+  // scripts.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
@@ -80,19 +81,28 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Apply to every request that renders an HTML document. Skip static assets
-  // (/_next/static, /_next/image, favicon) and the JSON/binary /api routes —
-  // none execute inline scripts, so a nonce'd CSP there is pointless. Skip
-  // prefetch requests (the `missing` clause) so router prefetches don't burn a
-  // nonce on a payload the browser won't execute inline. HTML documents at /,
-  // /map, /feed, /borough/*, /plan/*, /crawls, /p/* all still match.
+  // DYNAMIC HTML ROUTES ONLY — the literal-matcher form of
+  // scripts/lib/cspPolicy.mjs DYNAMIC_CSP_PREFIXES (Next.js requires the
+  // matcher to be statically analyzable, so the list is spelled out here and
+  // __tests__/cspPolicy.test.ts holds the two in lockstep; the postbuild
+  // script fails the build on any dynamic page route neither tier covers).
+  // Static routes are deliberately NOT matched: they carry the hash CSP from
+  // the routes manifest, and skipping the proxy keeps them on the fastest
+  // edge-cache path. `missing` skips router prefetches so they don't burn a
+  // nonce on a payload the browser won't execute inline.
+  // (Literal objects only: Next statically analyzes this config, so no .map().)
   matcher: [
-    {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
+    { source: "/bar-tab/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/crawls/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/landmark/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/ledger/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/map", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/map/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/messages/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/p/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/plan/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/recap/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/rounds/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/u/:path+", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
   ],
 };

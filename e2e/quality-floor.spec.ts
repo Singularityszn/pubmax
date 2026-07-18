@@ -126,28 +126,50 @@ test.describe("profile edit seam — request-level trust boundary (story 31)", (
 
 // ---------------------------------------------------------------------------
 // Public pages render under a Content-Security-Policy (PRD Quality floor +
-// governance). The header is set for `/:path*` in next.config.mjs, so every
-// public read surface must carry it. We assert the three canonical directives
-// that make the policy meaningful (a bare "CSP: ;" would pass a mere presence
-// check but not this). Read-only bare GETs.
-for (const path of ["/", "/map", "/feed", "/discover"]) {
-  test(`quality floor: ${path} responds with a real Content-Security-Policy header`, async ({
+// governance). TWO-TIER delivery (scripts/lib/cspPolicy.mjs): static routes
+// carry the full policy as an injected <meta http-equiv> with per-route sha256
+// hashes (plus a frame-ancestors-only header from next.config.mjs, since meta
+// CSP ignores frame-ancestors by spec); dynamic routes get the full policy as
+// a per-request nonce header from proxy.ts. Read-only bare GETs.
+for (const path of ["/", "/feed", "/discover"]) {
+  test(`quality floor: ${path} carries the static-tier meta CSP + framing header`, async ({
     request,
   }) => {
     const res = await request.get(path);
     expect(res.status()).toBe(200);
 
-    const headers = res.headers();
-    const csp = headers["content-security-policy"];
-    expect(csp, `${path} must set a Content-Security-Policy header`).toBeTruthy();
+    // Framing protection is header-delivered (meta can't carry it).
+    const headerCsp = res.headers()["content-security-policy"];
+    expect(headerCsp, `${path} must set the framing CSP header`).toBeTruthy();
+    expect(headerCsp).toContain("frame-ancestors 'none'");
 
-    // The policy is substantive, not an empty stub: it locks the origin, forbids
-    // being framed, and denies plugin/object embedding (matches next.config.mjs).
-    expect(csp).toContain("default-src 'self'");
-    expect(csp).toContain("frame-ancestors 'none'");
-    expect(csp).toContain("object-src 'none'");
+    // The substantive policy rides in the document itself.
+    const html = await res.text();
+    const meta = html.match(
+      /<meta http-equiv="Content-Security-Policy" content="([^"]*)" data-csp-tier="static-hash"\/>/,
+    );
+    expect(meta, `${path} must carry the injected meta CSP`).toBeTruthy();
+    const metaCsp = (meta?.[1] ?? "").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+    expect(metaCsp).toContain("default-src 'self'");
+    expect(metaCsp).toContain("object-src 'none'");
+    expect(metaCsp).toMatch(/script-src 'self'( 'sha256-[^']+')+/);
+    expect(metaCsp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
   });
 }
+
+test("quality floor: /map responds with the dynamic-tier nonce CSP header", async ({
+  request,
+}) => {
+  const res = await request.get("/map");
+  expect(res.status()).toBe(200);
+  const csp = res.headers()["content-security-policy"];
+  expect(csp, "/map must set a Content-Security-Policy header").toBeTruthy();
+  expect(csp).toContain("default-src 'self'");
+  expect(csp).toContain("frame-ancestors 'none'");
+  expect(csp).toContain("object-src 'none'");
+  expect(csp).toMatch(/script-src 'self' 'nonce-[^']+'/);
+  expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+});
 
 // ---------------------------------------------------------------------------
 // Non-alcoholic filter toggle — flips a real control inside the one coordinated
