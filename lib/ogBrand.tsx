@@ -120,26 +120,34 @@ export function priceStamp(value: number | null | undefined): string | null {
 
 // ── Shared marks ─────────────────────────────────────────────────────────────
 
-// A pint-glass glyph built from inline SVG (no external asset, no emoji font),
-// matching the lockup used across the existing OG family. `ink` colours the
-// linework so it can sit on the coral chip (dark ink) or on a dark panel.
-export function PintGlyph({ ink, size = 46 }: { ink: string; size?: number }) {
-  const h = Math.round((size * 60) / 52);
+// The Crossing mark (concept A, docs/BRAND_MARK.md) as an inline-literal SVG:
+// the same geometry the app component and static assets stamp, re-declared here
+// because satori can't read `var(--…)` or import the client component. Mirrors
+// the `plaque` variant's linework: two crossing arms in `ink` (round caps,
+// stroke-width = size*8.5/64 via the 64-unit viewBox) with a lit coral-bright
+// rendezvous node. `ink` is the arm colour so it can sit on the coral chip
+// (ink-deep) or on a dark panel (coral). Replaces the retired pint glyph.
+export function CrossingMark({ ink, size = 46 }: { ink: string; size?: number }) {
   return (
-    <svg width={size} height={h} viewBox="0 0 52 60" fill="none">
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
       <path
-        d="M11 5 H41 L37 51 Q36 55 32 55 H20 Q16 55 15 51 Z"
+        d="M18.5 18.5 L45.5 45.5"
         stroke={ink}
-        strokeWidth="3"
-        fill="none"
+        strokeWidth="8.5"
+        strokeLinecap="round"
       />
-      <path d="M13 22 H39" stroke={ink} strokeWidth="3" />
-      <path d="M11 5 H41 L40 13 H12 Z" fill={ink} />
+      <path
+        d="M45.5 18.5 L18.5 45.5"
+        stroke={ink}
+        strokeWidth="8.5"
+        strokeLinecap="round"
+      />
+      <circle cx="32" cy="32" r="3.2" fill={OG.coralBright} />
     </svg>
   );
 }
 
-// The PUBMAXX wordmark lockup: a coral rounded-square holding the pint glyph,
+// The PUBMAXX wordmark lockup: a coral rounded-square holding The Crossing mark,
 // then the wordmark set in Space Grotesk. `scale` shrinks the whole lockup for
 // tighter footers.
 export function Wordmark({ scale = 1 }: { scale?: number }) {
@@ -159,7 +167,7 @@ export function Wordmark({ scale = 1 }: { scale?: number }) {
           boxShadow: "0 10px 30px rgba(255,90,95,0.35)",
         }}
       >
-        <PintGlyph ink={OG.inkDeep} size={Math.round(40 * scale)} />
+        <CrossingMark ink={OG.inkDeep} size={Math.round(40 * scale)} />
       </div>
       <div
         style={{
