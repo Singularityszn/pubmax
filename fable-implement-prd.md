@@ -275,6 +275,14 @@ Remote truth re-verified pre-launch (origin/main ccceede7, no new Sol merges, co
 - **Status-commented, kept open**: #281 umbrella (wave table), #284/#285 (pending the integrator's cluster restack), #287/#282 (deferred per locked London-only decision), #252 (companion depth = owner's depth-order), #168 (real debt, factory case stronger).
 - Open issues now: 8, each with a current, honest status. OWNER decisions still pending: #313 gate wording, bill-split.
 
+## LAUNCH DAY COMPLETE — THE PROGRAMME IS MERGED (2026-07-18)
+
+Owner granted merge authority; the full choreography executed: docs tier → data chain (script-rerun restacks, true merges) → feature bulk → prompt cluster (one sitting, P1 impossible in prod) → share + recap clusters (documented hand-merges) → native stack (double-restacked, cert count final at 62). **Every programme PR #276–#356 is on main** except the three documented holds (#229/#263/#264). Final composition verified: 3605 tests green.
+
+Launch-day incidents, all root-caused + fixed: crosswalk governance ×2 (unindexed PRD docs), reactions-test timeout flake, CSS comment self-termination (real prod-risk bug), Tonight-sheet layout break (from the chrome-tier move — #356), disk exhaustion (worktree prune). In flight at close: deploy-sheriff (until live green + signatures verified), mobile gutters, em-dash sweep.
+
+Owner queue: Ticketmaster/EXA/Resend/APNs keys now light up MERGED code; logo pick; demo-content flip; #313 wording; bill-split; Xcode for the first iOS build.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
