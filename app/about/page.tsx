@@ -119,11 +119,7 @@ export default async function AboutPage() {
       description:
         "A price-aware, story-led, map-first pub-crawl planner for the UK. Real pint prices, cited heritage, and community Pint Drops — no ads, no paywalls.",
       email: CONTACT_EMAIL,
-      sameAs: [
-        "https://x.com/karansznx",
-        "https://github.com/karanmrn",
-        "https://www.linkedin.com/in/karanmanoharan23/",
-      ],
+      sameAs: ["https://x.com/karansznx"],
     },
   };
 
@@ -261,24 +257,6 @@ export default async function AboutPage() {
                 className="aboutLink"
               >
                 X
-              </a>
-              {" · "}
-              <a
-                href="https://github.com/karanmrn"
-                target="_blank"
-                rel="noreferrer"
-                className="aboutLink"
-              >
-                GitHub
-              </a>
-              {" · "}
-              <a
-                href="https://www.linkedin.com/in/karanmanoharan23/"
-                target="_blank"
-                rel="noreferrer"
-                className="aboutLink"
-              >
-                LinkedIn
               </a>
             </dd>
           </div>
