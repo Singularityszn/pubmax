@@ -220,6 +220,8 @@ Lanes (Opus 4.8, worktrees, Sol decides):
 
 - **PR #336 — recap-set adversarial review**: all three APPROVED. R1: lanes' "zero overlap" claim FALSE — #334×#335 NightModeCard conflict proven, exact hand-merge documented + verified (Sol: steps 31–33 = #334 → #335 hand-merge → #333). R2 (MEDIUM, fix routed): withdrawn-consent photos fetchable ~1h via signed URLs — public recap TTL dropping to 180s. Everything else fail-closed.
 
+- **R2 closed** (1be94e3b): public recap photo TTL 3600→180s, scoped to the public path, tested. **The full queue — 36 PRs — is now reviewed, adversarially attacked, and remediation-clean.** Sol's complete path: #316 v2 order + review docs #321/#322/#332/#336 (steps 31–33 = recap set with the one documented hand-merge).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
