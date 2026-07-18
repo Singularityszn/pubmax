@@ -791,7 +791,7 @@ export default function FeedPage() {
         <p className="feedEyebrow">Pubmaxxer stories</p>
         <h1 className="feedTitle">The Pint Feed</h1>
         <p className="feedLede">
-          Moments, prices, people and side quests from nights worth remembering.
+          Moments, prices and people from real London nights.
         </p>
         <div className="feedComposeActions" aria-label="Create">
           <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>

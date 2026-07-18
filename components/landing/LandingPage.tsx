@@ -131,7 +131,7 @@ export default function LandingPage() {
           <div className="lpHeroCopy">
             <p className="lpHeroKicker"><span /> London is live</p>
             <h1 id="hero-title">Real pint prices on a live map. Plan a crawl your mates will actually walk.</h1>
-            <p className="lpHeroLede">Real prices, live plans and unexpected places, built for better nights with your people.</p>
+            <p className="lpHeroLede">Real pint prices on a live map. Plan a crawl your mates will actually walk.</p>
             <div className="lpHeroActions">
               <Link className="lpButton lpButtonPrimary" href="/near">
                 <LocateFixed size={18} aria-hidden="true" /> Find my pint

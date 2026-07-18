@@ -249,7 +249,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
           <span id="vpsTitle">The Golden Thread</span>
         </div>
         <p className="description muted">
-          No price story on record for {venue.name} yet. Log tonight&rsquo;s price, or pass down a
+          No price story on record for {venue.name}{" "}yet. Log tonight&rsquo;s price, or pass down a
           dated memory (&ldquo;a pint here in 1985&hellip;&rdquo;), and this pub&rsquo;s thread
           starts here.
         </p>
