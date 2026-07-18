@@ -5,6 +5,18 @@
 // or finishing — it is marked done and never shows again. Mirrors the
 // storage idiom in lib/cityPreference.ts (hasStorage guard, try/catch, a
 // same-tab CHANGE_EVENT so useSyncExternalStore clients re-read after a write).
+//
+// The tour also participates in the shared one-interruptive-prompt-per-session
+// budget (lib/promptBudget): before it interrupts it checks the budget, and at
+// the moment it shows it claims it — so a returning-day session that is also
+// A2HS/identity/push eligible only ever sees one of them. See
+// docs/PROMPT_ORCHESTRATION.md for the contract.
+
+import {
+  claimPromptBudget,
+  hasPromptBudgetFor,
+  type PromptSurface,
+} from "@/lib/promptBudget";
 
 /** Bump the `v1` suffix if the tour content changes enough to re-show it. */
 const STORAGE_KEY = "pubmax-tour-v1-done";
@@ -79,6 +91,33 @@ export function subscribeTour(onStoreChange: () => void): () => void {
 /** Client snapshot for useSyncExternalStore. */
 export function getTourSeenSnapshot(): boolean {
   return hasSeenTour();
+}
+
+/**
+ * This tour's id in the shared one-interruptive-prompt-per-session budget.
+ * The tour is map-scoped, so it rarely co-renders with the plan-tap surfaces,
+ * but it still claims like the rest so a returning-day session that is also
+ * A2HS/identity/push eligible only ever sees one prompt. See
+ * docs/PROMPT_ORCHESTRATION.md.
+ */
+export const TOUR_PROMPT_SURFACE: PromptSurface = "first-run-tour";
+
+/**
+ * Whether the tour may interrupt this session — true when the shared prompt
+ * budget is free or already held by the tour. Mirrors A2HS's pre-show check.
+ * Degrades open (returns true) on SSR / storage failure.
+ */
+export function tourHasPromptBudget(storage?: Storage | null): boolean {
+  return hasPromptBudgetFor(TOUR_PROMPT_SURFACE, storage);
+}
+
+/**
+ * Claim the one-prompt-per-session budget for the tour at the moment it shows.
+ * Returns false when a sibling surface already claimed it this session (the
+ * tour should then stay hidden). Idempotent for the tour's own re-render.
+ */
+export function claimTourPromptBudget(storage?: Storage | null): boolean {
+  return claimPromptBudget(TOUR_PROMPT_SURFACE, storage);
 }
 
 /** Server snapshot — always "seen" so nothing renders during SSR. */
