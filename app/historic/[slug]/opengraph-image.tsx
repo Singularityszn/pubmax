@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { getHistoricPubBySlug, loadHistoricPubs } from "@/lib/historic";
 import { listedBadge } from "@/lib/historicFilter";
-import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 // Per-pub Historic Pubs OG share card (Next `opengraph-image` convention).
 // Renders the cited heritage of a single pub as a collectible "field-guide
@@ -40,23 +40,6 @@ function clampText(raw: string | null | undefined, max: number, fallback = ""): 
     .trim();
   if (!cleaned) return fallback;
   return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
-}
-
-// A small pint-glass glyph (inline SVG — no external asset, no emoji font),
-// matching the wordmark lockup used across the OG family.
-function PintGlyph() {
-  return (
-    <svg width="46" height="53" viewBox="0 0 52 60" fill="none">
-      <path
-        d="M11 5 H41 L37 51 Q36 55 32 55 H20 Q16 55 15 51 Z"
-        stroke={PAPER}
-        strokeWidth="3"
-        fill="none"
-      />
-      <path d="M13 22 H39" stroke={PAPER} strokeWidth="3" />
-      <path d="M11 5 H41 L40 13 H12 Z" fill={PAPER} />
-    </svg>
-  );
 }
 
 // A bordered brass chip. Only ever rendered for present, cited facts.
@@ -163,7 +146,7 @@ export default async function Image({
                   marginRight: 24,
                 }}
               >
-                <PintGlyph />
+                <CrossingMark ink={PAPER} />
               </div>
               <div
                 style={{

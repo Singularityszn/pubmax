@@ -83,6 +83,9 @@ describe("GET /api/events/tonight", () => {
     for (let i = 0; i < 65; i += 1) last = await GET(req());
     expect(last?.status).toBe(429);
     const body = await last!.json();
-    expect(body).toEqual({ error: "Too many requests, slow down.", rows: [] });
+    // Flat { error, rows: [] } shape preserved atop publicApiError's canonical fields.
+    expect(body).toMatchObject({ error: "Too many requests, slow down.", rows: [] });
+    expect(body.code).toBe("rate_limited");
+    expect(body.retryable).toBe(true);
   });
 });

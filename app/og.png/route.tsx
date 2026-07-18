@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 export const runtime = "edge";
 
@@ -19,24 +19,6 @@ const CORAL = "#ff5a5f";
 const RIVER = "#6687a7";
 
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
-
-// A small pint-glass glyph built from inline SVG (no external asset, no font emoji).
-function PintGlyph() {
-  return (
-    <svg width="52" height="60" viewBox="0 0 52 60" fill="none">
-      <path
-        d="M11 5 H41 L37 51 Q36 55 32 55 H20 Q16 55 15 51 Z"
-        stroke={INK}
-        strokeWidth="3"
-        fill="none"
-      />
-      {/* the pour line */}
-      <path d="M13 22 H39" stroke={INK} strokeWidth="3" />
-      {/* foam head */}
-      <path d="M11 5 H41 L40 13 H12 Z" fill={INK} />
-    </svg>
-  );
-}
 
 export async function GET() {
   return new ImageResponse(
@@ -121,7 +103,7 @@ export async function GET() {
                 marginRight: 26,
               }}
             >
-              <PintGlyph />
+              <CrossingMark ink={INK} size={52} />
             </div>
             <div
               style={{

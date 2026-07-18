@@ -13,27 +13,11 @@
 // (only partly CityMCP-backed) and documents a "never 500" fail-soft
 // contract — a 429 here is an allowed degraded response, but it must not
 // share (and prematurely exhaust) the CityMCP budget proper.
-//
-// Same idiom as lib/lastRideRateLimit.ts: isLimited (lib/pintDrops.ts) with
-// clientIp + hashIp (lib/supabase.ts) for IP extraction/keying — durable via
-// Supabase when configured, in-memory fallback otherwise.
 
-import { isLimited } from "@/lib/pintDrops";
-import { clientIp, hashIp } from "@/lib/supabase";
-
-const CITYMCP_RATE_LIMIT = 60;
-const CITYMCP_RATE_WINDOW_MS = 60_000;
-const WHATS_ON_RATE_LIMIT = 60;
-const WHATS_ON_RATE_WINDOW_MS = 60_000;
+import { makeIpRateLimiter } from "@/lib/ipRateLimit";
 
 /** Shared ~60/min-per-IP budget across the entire /api/citymcp/* surface. */
-export async function isCityMcpLimited(request: Request): Promise<boolean> {
-  const key = `citymcp:${hashIp(clientIp(request))}`;
-  return isLimited(key, key, CITYMCP_RATE_LIMIT, CITYMCP_RATE_WINDOW_MS);
-}
+export const isCityMcpLimited = makeIpRateLimiter("citymcp");
 
 /** Separate ~60/min-per-IP budget for /api/whats-on, which is partly bundled data. */
-export async function isWhatsOnLimited(request: Request): Promise<boolean> {
-  const key = `whats-on:${hashIp(clientIp(request))}`;
-  return isLimited(key, key, WHATS_ON_RATE_LIMIT, WHATS_ON_RATE_WINDOW_MS);
-}
+export const isWhatsOnLimited = makeIpRateLimiter("whats-on");

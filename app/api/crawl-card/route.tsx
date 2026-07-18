@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
-import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 export const runtime = "nodejs";
 
@@ -35,22 +35,6 @@ function clampInt(raw: string | null, min: number, max: number, fallback: number
   const n = Number(raw);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.round(n)));
-}
-
-// A small pint-glass glyph (inline SVG — no external asset, no emoji font).
-function PintGlyph() {
-  return (
-    <svg width="52" height="60" viewBox="0 0 52 60" fill="none">
-      <path
-        d="M11 5 H41 L37 51 Q36 55 32 55 H20 Q16 55 15 51 Z"
-        stroke={PAPER}
-        strokeWidth="3"
-        fill="none"
-      />
-      <path d="M13 22 H39" stroke={PAPER} strokeWidth="3" />
-      <path d="M11 5 H41 L40 13 H12 Z" fill={PAPER} />
-    </svg>
-  );
 }
 
 export async function GET(request: Request) {
@@ -150,7 +134,7 @@ export async function GET(request: Request) {
                 marginRight: 26,
               }}
             >
-              <PintGlyph />
+              <CrossingMark ink={PAPER} size={52} />
             </div>
             <div
               style={{

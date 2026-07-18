@@ -4,7 +4,7 @@ import { getCity, parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
 import { bandByIdForCity } from "@/lib/cityStoryBands";
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
-import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 // City map OG share card — cult / Freshers deep links (`?band=subcrawl`) and
 // curated crawl shares (`?crawl=victorian-soho`). Query-aware because
@@ -37,21 +37,6 @@ function clampParam(raw: string | null, max: number, fallback = ""): string {
     .trim();
   if (!cleaned) return fallback;
   return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
-}
-
-function PintGlyph() {
-  return (
-    <svg width="44" height="50" viewBox="0 0 52 60" fill="none">
-      <path
-        d="M11 5 H41 L37 51 Q36 55 32 55 H20 Q16 55 15 51 Z"
-        stroke={INK_DEEP}
-        strokeWidth="3"
-        fill="none"
-      />
-      <path d="M13 22 H39" stroke={INK_DEEP} strokeWidth="3" />
-      <path d="M11 5 H41 L40 13 H12 Z" fill={INK_DEEP} />
-    </svg>
-  );
 }
 
 export async function GET(request: Request) {
@@ -164,7 +149,7 @@ export async function GET(request: Request) {
                 marginRight: 22,
               }}
             >
-              <PintGlyph />
+              <CrossingMark ink={INK_DEEP} size={44} />
             </div>
             <div
               style={{
