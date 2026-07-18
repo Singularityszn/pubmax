@@ -19,6 +19,7 @@ import {
 } from "@/lib/citymcp/client";
 import { enrichOpportunityLocations } from "@/lib/citymcp/enrichOpportunityLocations";
 import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
+import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -96,7 +97,9 @@ function parsePrice(raw: string | null): ThingsToDoPrice | undefined {
   return ALLOWED_PRICES.has(v) ? v : undefined;
 }
 
-export async function GET(request: Request): Promise<Response> {
+export const GET = withRouteTiming("citymcp/things-to-do", getHandler);
+
+async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
     return jsonResponse(
       { error: "Too many requests, slow down.", opportunities: [] },
@@ -154,13 +157,17 @@ export async function GET(request: Request): Promise<Response> {
     // Keep un-enriched opportunities.
   }
 
+  const stale = result.stale === true;
   return jsonResponse(
     {
       window: result.window,
       area: result.area ?? null,
       asOf: result.asOf ?? null,
       opportunities: result.opportunities,
+      ...(stale ? { stale: true } : {}),
     },
-    { cache: true },
+    // A stale last-known-good answer is served no-store so the edge never pins
+    // it and the next request re-attempts a live refresh.
+    { cache: !stale },
   );
 }

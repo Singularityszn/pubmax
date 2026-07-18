@@ -16,6 +16,7 @@ import {
   type CityStatusTubeLine,
 } from "@/lib/citymcp/client";
 import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
+import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -48,7 +49,9 @@ function trimTubeLines(lines: readonly CityStatusTubeLine[] | undefined): CitySt
   });
 }
 
-export async function GET(request: Request): Promise<Response> {
+export const GET = withRouteTiming("citymcp/status", getHandler);
+
+async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
     return jsonResponse(
       { asOf: null, weather: null, tubeLines: [], signals: [], error: "Too many requests, slow down." },
@@ -81,13 +84,18 @@ export async function GET(request: Request): Promise<Response> {
   const trimmedSignals = trimSignals(status.signals, SIGNAL_CAP);
   const trimmedLines = trimTubeLines(status.tubeLines);
 
+  // A stale (last-known-good) answer must never be pinned at the edge — serve it
+  // no-store so the next request re-attempts a live refresh (mirrors last-train's
+  // never-cache-a-fallback contract).
+  const stale = status.stale === true;
   return jsonResponse(
     {
       asOf: status.asOf,
       weather: status.weather ?? null,
       tubeLines: trimmedLines,
       signals: trimmedSignals,
+      ...(stale ? { stale: true } : {}),
     },
-    { cache: true },
+    { cache: !stale },
   );
 }

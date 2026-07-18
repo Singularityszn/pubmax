@@ -15,6 +15,7 @@ import {
   type CityPlace,
 } from "@/lib/citymcp/client";
 import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
+import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -45,7 +46,9 @@ function parseBool(raw: string | null): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
-export async function GET(request: Request): Promise<Response> {
+export const GET = withRouteTiming("citymcp/place", getHandler);
+
+async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
     return jsonResponse({ error: "Too many requests, slow down.", place: null }, { status: 429 });
   }
@@ -68,5 +71,10 @@ export async function GET(request: Request): Promise<Response> {
       err instanceof CityMcpError ? err.message : "CityMCP request failed";
     return jsonResponse({ place: null, error: message });
   }
-  return jsonResponse({ place }, { cache: true });
+  const stale = place.stale === true;
+  return jsonResponse(
+    { place, ...(stale ? { stale: true } : {}) },
+    // Never edge-cache a stale last-known-good dossier.
+    { cache: !stale },
+  );
 }

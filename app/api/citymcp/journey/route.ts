@@ -17,6 +17,7 @@ import {
   type CityJourney,
 } from "@/lib/citymcp/client";
 import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
+import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -156,7 +157,9 @@ async function respondWithJourney(
   );
 }
 
-export async function GET(request: Request): Promise<Response> {
+export const GET = withRouteTiming("citymcp/journey", getHandler);
+
+async function getHandler(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   return respondWithJourney(
     request,
@@ -171,7 +174,9 @@ export async function GET(request: Request): Promise<Response> {
   );
 }
 
-export async function POST(request: Request): Promise<Response> {
+export const POST = withRouteTiming("citymcp/journey", postHandler);
+
+async function postHandler(request: Request): Promise<Response> {
   let input: JourneyInput;
   try {
     const body = (await request.json()) as unknown;

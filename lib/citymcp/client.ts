@@ -51,6 +51,51 @@ function setCappedCache<K, V>(cache: Map<K, V>, key: K, value: V): void {
   }
 }
 
+type TtlCacheEntry<V> = { value: V; expiresAt: number };
+
+/**
+ * Serve-last-known-on-error, mirroring TfL/last-train's `nearestStaticStation`
+ * stale-serve (the audit's best-in-class reference).
+ *
+ *   fresh hit (within TTL)  → return the cached value as-is.
+ *   expired / cold          → refetch (with the client's transient retry).
+ *     success               → cache + return the fresh value.
+ *     failure + last-known  → return the *expired* value stamped `stale:true`.
+ *     failure + cold        → propagate the error (route still fail-soft empty).
+ *
+ * UX choice (documented in docs/adr/0003 + the audit): a slightly-stale banner
+ * WITH a freshness label beats an empty one. The returned value keeps its
+ * original upstream `asOf`, so the existing `checkedLabel`/`formatAsOfLabel`
+ * renderers honestly show it as old ("Checked 12 Jul") rather than faking a
+ * fresh timestamp. Expired entries are retained in the Map (only overwritten on
+ * success, only dropped by the size cap), so no second cache tier is needed.
+ * Each failing request still re-attempts upstream, so recovery is immediate —
+ * exactly the stale-while-revalidate shape the CDN layer already uses.
+ */
+async function fetchWithStaleServe<V extends object>(
+  cache: Map<string, TtlCacheEntry<V>>,
+  key: string,
+  ttlMs: number,
+  fetcher: () => Promise<V>,
+): Promise<V> {
+  const now = Date.now();
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > now) return cached.value;
+  try {
+    const value = await fetcher();
+    setCappedCache(cache, key, { value, expiresAt: now + ttlMs });
+    return value;
+  } catch (err) {
+    const lastKnown = cache.get(key);
+    if (lastKnown) {
+      // Serve the last-known-good value, flagged stale. Spread a fresh object so
+      // the marker never leaks back into the retained cache entry.
+      return { ...lastKnown.value, stale: true };
+    }
+    throw err;
+  }
+}
+
 // ---------- Public types ----------
 
 export type CityMcpToolName =
@@ -70,7 +115,33 @@ export type CityMcpCallOptions = {
   fetchImpl?: typeof fetch;
   /** Override AbortSignal (advanced; usually leave alone). */
   signal?: AbortSignal;
+  /**
+   * Extra attempts on a *transient* failure (timeout / network / HTTP 429 or
+   * 5xx), mirroring the TfL `tflGet` retry contract. Deterministic failures
+   * (parse / rpc / 4xx / empty) are never retried — a second identical POST
+   * would just double the latency. Defaults to 1 (one retry, two attempts).
+   */
+  retries?: number;
 };
+
+/** How many transient retries `callCityMcpTool` performs when unset. */
+const DEFAULT_RETRIES = 1;
+
+/**
+ * Is this failure worth a second attempt? Mirrors the TfL `tflGet`
+ * classification exactly: timeouts, network blips, and HTTP 429 / 5xx are
+ * transient; a parse, rpc, 4xx, or empty error is deterministic (retrying is
+ * pure latency with no upside).
+ */
+export function isTransientCityMcpError(err: unknown): boolean {
+  if (!(err instanceof CityMcpError)) return false;
+  if (err.kind === "timeout" || err.kind === "network") return true;
+  if (err.kind === "http") {
+    const status = err.httpStatus ?? 0;
+    return status === 429 || status >= 500;
+  }
+  return false;
+}
 
 export class CityMcpError extends Error {
   readonly kind:
@@ -133,6 +204,12 @@ export type CityStatus = {
   weather?: CityStatusWeather;
   tubeLines?: CityStatusTubeLine[];
   signals: CityStatusSignal[];
+  /**
+   * True when this is a last-known-good value served because a live refresh
+   * failed (see `fetchWithStaleServe`). The `asOf` timestamp is the original
+   * upstream one, so the UI labels it honestly as old.
+   */
+  stale?: boolean;
 };
 
 export type SearchPlacesRow = {
@@ -273,8 +350,34 @@ function nextJsonRpcId(): number {
  * Call a CityMCP London tool by name. Returns the parsed `result` object from
  * the JSON-RPC envelope (which contains at least `structuredContent`). Throws
  * `CityMcpError` on any failure — callers should try/catch and degrade.
+ *
+ * A single transient retry (timeout / network / 429 / 5xx) is applied by
+ * default — see `opts.retries` — so a one-off blip on the third-party upstream
+ * self-heals before the caller ever sees an error. Deterministic failures are
+ * surfaced immediately.
  */
 export async function callCityMcpTool<T = unknown>(
+  name: CityMcpToolName,
+  args: Record<string, unknown> = {},
+  opts: CityMcpCallOptions = {},
+): Promise<{ structuredContent?: T; content?: unknown; isError?: boolean }> {
+  const retries = Math.max(0, opts.retries ?? DEFAULT_RETRIES);
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await callCityMcpToolOnce<T>(name, args, opts);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries && isTransientCityMcpError(err)) continue;
+      throw err;
+    }
+  }
+  // Unreachable (the loop either returns or throws), but keeps the types honest.
+  throw lastErr;
+}
+
+/** One CityMCP `tools/call` POST — no retry. See `callCityMcpTool`. */
+async function callCityMcpToolOnce<T = unknown>(
   name: CityMcpToolName,
   args: Record<string, unknown> = {},
   opts: CityMcpCallOptions = {},
@@ -340,26 +443,20 @@ export async function fetchCityStatus(
   opts: CityMcpCallOptions = {},
 ): Promise<CityStatus> {
   const cacheKey = args.borough ? `b:${args.borough}` : "_";
-  const now = Date.now();
-  const cached = cityStatusCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) return cached.value;
-
-  const result = await callCityMcpTool<CityStatus>("city_status", args, opts);
-  const structured = result.structuredContent;
-  if (!structured || typeof structured !== "object") {
-    throw new CityMcpError("city_status: missing structuredContent", "empty");
-  }
-  const normalised: CityStatus = {
-    asOf: typeof structured.asOf === "string" ? structured.asOf : new Date().toISOString(),
-    weather: structured.weather,
-    tubeLines: Array.isArray(structured.tubeLines) ? structured.tubeLines : undefined,
-    signals: Array.isArray(structured.signals) ? structured.signals : [],
-  };
-  setCappedCache(cityStatusCache, cacheKey, {
-    value: normalised,
-    expiresAt: now + CITY_STATUS_TTL_MS,
+  return fetchWithStaleServe(cityStatusCache, cacheKey, CITY_STATUS_TTL_MS, async () => {
+    const result = await callCityMcpTool<CityStatus>("city_status", args, opts);
+    const structured = result.structuredContent;
+    if (!structured || typeof structured !== "object") {
+      throw new CityMcpError("city_status: missing structuredContent", "empty");
+    }
+    const normalised: CityStatus = {
+      asOf: typeof structured.asOf === "string" ? structured.asOf : new Date().toISOString(),
+      weather: structured.weather,
+      tubeLines: Array.isArray(structured.tubeLines) ? structured.tubeLines : undefined,
+      signals: Array.isArray(structured.signals) ? structured.signals : [],
+    };
+    return normalised;
   });
-  return normalised;
 }
 
 // ---------- search_places convenience ----------
@@ -473,6 +570,8 @@ export type CityPlace = {
     };
     source?: string;
   };
+  /** Last-known-good value served after a failed live refresh. See CityStatus.stale. */
+  stale?: boolean;
 };
 
 type PlaceCacheEntry = { value: CityPlace; expiresAt: number };
@@ -676,16 +775,12 @@ export async function fetchCityPlace(
   if (!id) throw new CityMcpError("get_place: id is required", "empty");
   const deep = opts.deep === true;
   const cacheKey = `${deep ? "d" : "s"}:${id}`;
-  const now = Date.now();
-  const cached = placeCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) return cached.value;
-
-  const args: Record<string, unknown> = { id };
-  if (deep) args.deep = true;
-  const result = await callCityMcpTool<unknown>("get_place", args, opts);
-  const trimmed = trimCityPlace(id, result.structuredContent);
-  setCappedCache(placeCache, cacheKey, { value: trimmed, expiresAt: now + PLACE_TTL_MS });
-  return trimmed;
+  return fetchWithStaleServe(placeCache, cacheKey, PLACE_TTL_MS, async () => {
+    const args: Record<string, unknown> = { id };
+    if (deep) args.deep = true;
+    const result = await callCityMcpTool<unknown>("get_place", args, opts);
+    return trimCityPlace(id, result.structuredContent);
+  });
 }
 
 // ---------- things_to_do: curated opportunities + short-TTL cache ----------
@@ -736,6 +831,8 @@ export type ThingsToDoResult = {
   area?: string;
   asOf?: string;
   opportunities: ThingsToDoOpportunity[];
+  /** Last-known-good value served after a failed live refresh. See CityStatus.stale. */
+  stale?: boolean;
 };
 
 type ThingsToDoCacheEntry = { value: ThingsToDoResult; expiresAt: number };
@@ -840,29 +937,26 @@ export async function fetchThingsToDo(
   if (typeof limit === "number" && limit > 0) args.limit = limit;
 
   const cacheKey = JSON.stringify(args);
-  const now = Date.now();
-  const cached = thingsToDoCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) return cached.value;
+  return fetchWithStaleServe(thingsToDoCache, cacheKey, THINGS_TO_DO_TTL_MS, async () => {
+    const result = await callCityMcpTool<Record<string, unknown>>("things_to_do", args, opts);
+    const structured = result.structuredContent ?? {};
 
-  const result = await callCityMcpTool<Record<string, unknown>>("things_to_do", args, opts);
-  const structured = result.structuredContent ?? {};
+    const rawOpps = Array.isArray(structured.opportunities) ? structured.opportunities : [];
+    const opportunities: ThingsToDoOpportunity[] = [];
+    for (const item of rawOpps) {
+      const trimmed = trimOpportunity(item);
+      if (trimmed) opportunities.push(trimmed);
+      if (typeof limit === "number" && opportunities.length >= limit) break;
+    }
 
-  const rawOpps = Array.isArray(structured.opportunities) ? structured.opportunities : [];
-  const opportunities: ThingsToDoOpportunity[] = [];
-  for (const item of rawOpps) {
-    const trimmed = trimOpportunity(item);
-    if (trimmed) opportunities.push(trimmed);
-    if (typeof limit === "number" && opportunities.length >= limit) break;
-  }
-
-  const value: ThingsToDoResult = {
-    window,
-    area: pickString(structured.area) ?? area,
-    asOf: pickString(structured.asOf),
-    opportunities,
-  };
-  setCappedCache(thingsToDoCache, cacheKey, { value, expiresAt: now + THINGS_TO_DO_TTL_MS });
-  return value;
+    const value: ThingsToDoResult = {
+      window,
+      area: pickString(structured.area) ?? area,
+      asOf: pickString(structured.asOf),
+      opportunities,
+    };
+    return value;
+  });
 }
 
 // ---------- get_journey: TfL itineraries + short-TTL cache ----------
@@ -956,6 +1050,13 @@ export function trimJourney(raw: unknown): CityJourney | null {
  * (prefer `formatJourneyPoint(lat, lng)` — free-text names often Ambiguous).
  * Cached in-process for ~3min per args key. Throws `CityMcpError` on failure.
  * Returns at most 3 trimmed journeys.
+ *
+ * Deliberately does NOT serve-last-known-on-error (unlike city_status /
+ * get_place / things_to_do): a journey's whole value IS its departure/arrival
+ * timing, so a stale itinerary is actively misleading in a way a "checked
+ * earlier" label cannot rescue — the honest degrade here is empty, letting the
+ * caller fall back to live TfL last-train timing. It still benefits from the
+ * transient retry baked into `callCityMcpTool`.
  */
 export async function fetchJourney(
   args: FetchJourneyArgs,
