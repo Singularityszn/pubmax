@@ -38,6 +38,7 @@ import {
   checkRateLimitDurableDetailed,
   isSupabaseConfigured,
 } from "@/lib/supabase";
+import { log } from "@/lib/log";
 
 /** Unscoped feed/map reads: keep Manchester venue ids off the London surface. */
 export function dropMatchesCityScope(
@@ -265,6 +266,12 @@ export async function isLimited(
   // Transient outage only — tighten (or refuse under STRICT).
   if (reason === "error") {
     if (process.env.RATE_LIMIT_STRICT === "1") return true;
+    // Fail-open (degraded): the durable limiter is unreachable, so we drop to a
+    // per-instance in-memory budget tightened to DEGRADED_RATE_LIMIT. This is an
+    // alertable event — on Vercel each cold-start instance gets a fresh budget,
+    // so the effective cap is looser than intended exactly during an outage.
+    // No PII: only the failure reason, resulting mode, and numeric caps.
+    warnRateLimitFailOpen(reason, "degraded", Math.min(limit, DEGRADED_RATE_LIMIT), windowMs);
     return isRateLimited(
       localKey,
       Date.now(),
@@ -273,8 +280,27 @@ export async function isLimited(
     );
   }
 
-  // missing-rpc / no-client / unknown → full in-memory budget.
+  // missing-rpc / no-client / unknown → full in-memory budget (fail-open wide).
+  warnRateLimitFailOpen(reason ?? "unknown", "full", limit, windowMs);
   return isRateLimited(localKey, Date.now(), limit, windowMs);
+}
+
+/**
+ * Emit ONE structured WARN whenever the durable limiter fails open to the
+ * in-memory budget. Distinct from the `console.error` in
+ * `checkRateLimitDurableDetailed` (which reports *why* the RPC broke): this line
+ * records the *decision* — that we opened the budget and to what mode — so an
+ * operator can alert on `event:"rate_limit.fail_open"` in the Vercel runtime log
+ * drain (ADR 0007: Vercel owns runtime-log evidence). No key, IP, or handle is
+ * logged — the shared logger would redact them anyway, but they never reach it.
+ */
+function warnRateLimitFailOpen(
+  reason: string,
+  mode: "degraded" | "full",
+  effectiveLimit: number,
+  windowMs: number,
+): void {
+  log("warn", "rate_limit.fail_open", { reason, mode, effectiveLimit, windowMs });
 }
 
 export function addPintDrop(drop: PintDrop): void {

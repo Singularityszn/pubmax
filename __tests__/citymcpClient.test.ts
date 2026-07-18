@@ -490,3 +490,119 @@ describe("fetchThingsToDo", () => {
     ).rejects.toBeInstanceOf(CityMcpError);
   });
 });
+
+describe("callCityMcpTool transient retry", () => {
+  it("retries once on a transient 503 then succeeds", async () => {
+    let n = 0;
+    const fetchImpl = vi.fn(async () => {
+      n += 1;
+      if (n === 1) return new Response("boom", { status: 503 });
+      return new Response(
+        sseFrame({ jsonrpc: "2.0", id: 1, result: { structuredContent: {} } }),
+        { status: 200 },
+      );
+    });
+    const res = await callCityMcpTool("city_status", {}, { fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(res).toBeDefined();
+  });
+
+  it("does NOT retry a deterministic rpc error", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        sseFrame({ jsonrpc: "2.0", id: 1, error: { code: -32601, message: "no such tool" } }),
+        { status: 200 },
+      ),
+    );
+    await expect(
+      callCityMcpTool("city_status", {}, { fetchImpl }),
+    ).rejects.toMatchObject({ kind: "rpc" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("respects retries:0 (no extra attempt on a transient failure)", async () => {
+    const fetchImpl = vi.fn(async () => new Response("boom", { status: 503 }));
+    await expect(
+      callCityMcpTool("city_status", {}, { fetchImpl, retries: 0 }),
+    ).rejects.toMatchObject({ kind: "http", httpStatus: 503 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("serve-last-known-on-error (stale-serve)", () => {
+  const statusFrame = (asOf: string) =>
+    new Response(
+      sseFrame({
+        jsonrpc: "2.0",
+        id: 1,
+        result: {
+          structuredContent: {
+            asOf,
+            weather: { condition: "clear", tempC: 18 },
+            signals: [{ headline: "Roadworks", severity: "notable" }],
+          },
+        },
+      }),
+      { status: 200 },
+    );
+
+  it("serves the last-known city_status stamped stale after a failed refresh past TTL", async () => {
+    vi.useFakeTimers();
+    try {
+      const good = vi.fn(async () => statusFrame("2026-07-11T00:00:00Z"));
+      const first = await fetchCityStatus({}, { fetchImpl: good });
+      expect(first.stale).toBeUndefined();
+      expect(first.asOf).toBe("2026-07-11T00:00:00Z");
+
+      // Age the entry past CITY_STATUS_TTL_MS (5min) so the next read refetches.
+      vi.advanceTimersByTime(6 * 60 * 1000);
+
+      const bad = vi.fn(async () => new Response("down", { status: 503 }));
+      const second = await fetchCityStatus({}, { fetchImpl: bad, retries: 0 });
+      expect(second.stale).toBe(true);
+      // Original upstream timestamp is preserved so the UI labels it as old.
+      expect(second.asOf).toBe("2026-07-11T00:00:00Z");
+      expect(second.signals).toEqual(first.signals);
+      // The retained cache entry itself must stay clean (no leaked stale flag).
+      const third = await fetchCityStatus({}, { fetchImpl: good });
+      expect(third.stale).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("serves the last-known get_place stamped stale after a failed refresh", async () => {
+    vi.useFakeTimers();
+    try {
+      const good = vi.fn(async () =>
+        new Response(
+          sseFrame({
+            jsonrpc: "2.0",
+            id: 1,
+            result: { structuredContent: { id: "p1", name: "The Anchor" } },
+          }),
+          { status: 200 },
+        ),
+      );
+      const first = await fetchCityPlace("p1", { fetchImpl: good });
+      expect(first.name).toBe("The Anchor");
+      expect(first.stale).toBeUndefined();
+
+      vi.advanceTimersByTime(11 * 60 * 1000); // > PLACE_TTL_MS (10min)
+
+      const bad = vi.fn(async () => new Response("x", { status: 500 }));
+      const second = await fetchCityPlace("p1", { fetchImpl: bad, retries: 0 });
+      expect(second.stale).toBe(true);
+      expect(second.name).toBe("The Anchor");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("propagates the error on a cold miss with no last-known value", async () => {
+    const bad = vi.fn(async () => new Response("down", { status: 503 }));
+    await expect(
+      fetchCityStatus({}, { fetchImpl: bad, retries: 0 }),
+    ).rejects.toMatchObject({ kind: "http" });
+  });
+});

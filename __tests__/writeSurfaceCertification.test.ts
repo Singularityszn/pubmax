@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
 const API_ROOT = join(ROOT, "app/api");
-const MUTATION_EXPORT = /export async function (POST|PUT|PATCH|DELETE)\b/;
+// Mutating handlers are exported either as `export async function POST` or, when
+// wrapped by an observation seam like `withRouteTiming`, as `export const POST =
+// …`. Both forms must stay certified.
+const MUTATION_EXPORT = /export (?:async function|const) (POST|PUT|PATCH|DELETE)\b/;
 
 function routeFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

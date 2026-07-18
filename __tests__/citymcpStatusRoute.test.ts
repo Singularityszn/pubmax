@@ -102,4 +102,44 @@ describe("GET /api/citymcp/status", () => {
     const body = JSON.parse(String(init.body));
     expect(body.params.arguments).toEqual({ borough: "Hackney" });
   });
+
+  it("serves last-known-good stamped stale (no-store) when a refresh fails past TTL", async () => {
+    vi.useFakeTimers();
+    try {
+      global.fetch = vi.fn(async () =>
+        new Response(
+          sseFrame({
+            jsonrpc: "2.0",
+            id: 1,
+            result: {
+              structuredContent: {
+                asOf: "2026-07-11T00:00:00Z",
+                signals: [{ headline: "Roadworks", severity: "notable" }],
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+      const fresh = await GET(new Request("http://localhost/api/citymcp/status"));
+      const freshBody = await fresh.json();
+      expect(freshBody.stale).toBeUndefined();
+      expect(fresh.headers.get("cache-control")).toMatch(/public/);
+
+      // Age past the 5min city_status TTL so the next request refetches.
+      vi.advanceTimersByTime(6 * 60 * 1000);
+      global.fetch = vi.fn(async () => new Response("down", { status: 503 }));
+
+      const stale = await GET(new Request("http://localhost/api/citymcp/status"));
+      expect(stale.status).toBe(200);
+      const staleBody = await stale.json();
+      expect(staleBody.stale).toBe(true);
+      expect(staleBody.asOf).toBe("2026-07-11T00:00:00Z");
+      expect(staleBody.signals).toHaveLength(1);
+      // A stale answer is never pinned at the edge.
+      expect(stale.headers.get("cache-control")).toBe("no-store");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
