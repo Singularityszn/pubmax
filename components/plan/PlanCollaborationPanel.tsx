@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { PlanStopDTO } from "@/lib/plan";
 import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal, PlanVote } from "@/lib/planCollaborationStore";
 import { publishPlanCollaborationChange, subscribePlanCollaborationChange, type PlanCollaborationChangeKind } from "@/lib/planContinuity";
+import { trackEvent } from "@/lib/analytics";
 
 type CollaborationState = {
   memberId: string;
@@ -116,6 +117,10 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       if (!response.ok || !body?.token || !body?.invite) throw new Error(errorMessage(body, "Could not create an invite."));
       const url = `${window.location.origin}/plan/${planId}#invite=${encodeURIComponent(body.token)}`;
       setInvite({ value: body.invite, url });
+      // invite.id is the invite's own row id — an opaque, non-secret database
+      // identifier, never the raw one-use token/capability in the url above —
+      // so it links safely to invite_redeemed for k-factor (docs/METRICS_FUNNEL.md).
+      if (typeof body.invite?.id === "string") trackEvent("invite_created", { inviteId: body.invite.id });
       announce("invite");
       await navigator.clipboard?.writeText(url).catch(() => undefined);
       setStatus("Private one-use invite copied. It expires in 24 hours.");

@@ -134,4 +134,45 @@ describe("sanitizeEvent", () => {
     expect(isKnownEvent("streak_view")).toBe(false);
     expect(sanitizeEvent("streak_increment", { days: 4 })).toBeNull();
   });
+
+  describe("metrics funnel events (Wave M)", () => {
+    it("accepts a UUID-shaped inviteId for invite_created and invite_redeemed", () => {
+      const inviteId = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+      expect(sanitizeEvent("invite_created", { inviteId })).toEqual({
+        name: "invite_created",
+        props: { inviteId },
+      });
+      expect(sanitizeEvent("invite_redeemed", { inviteId })).toEqual({
+        name: "invite_redeemed",
+        props: { inviteId },
+      });
+    });
+
+    it("rejects a non-UUID inviteId (free text can never reach telemetry via this key)", () => {
+      expect(sanitizeEvent("invite_created", { inviteId: "not-a-uuid" })?.props).toEqual({});
+      expect(sanitizeEvent("invite_created", { inviteId: "jane.doe@example.com" })?.props).toEqual({});
+      expect(sanitizeEvent("invite_created", { inviteId: 12345 })?.props).toEqual({});
+    });
+
+    it("accepts a bounded numeric dayBucket for activity_pulse", () => {
+      expect(sanitizeEvent("activity_pulse", { dayBucket: 20_285 })?.props).toEqual({ dayBucket: 20_285 });
+      expect(sanitizeEvent("activity_pulse", { dayBucket: Number.NaN })?.props).toEqual({});
+      expect(sanitizeEvent("activity_pulse", { dayBucket: -1 })?.props).toEqual({});
+    });
+
+    it("carries no props for the A2HS install funnel events", () => {
+      expect(sanitizeEvent("pwa_install_prompt_available", { extra: "x" })).toEqual({
+        name: "pwa_install_prompt_available",
+        props: {},
+      });
+      expect(sanitizeEvent("pwa_install_completed")).toEqual({
+        name: "pwa_install_completed",
+        props: {},
+      });
+      expect(sanitizeEvent("pwa_standalone_launch")).toEqual({
+        name: "pwa_standalone_launch",
+        props: {},
+      });
+    });
+  });
 });

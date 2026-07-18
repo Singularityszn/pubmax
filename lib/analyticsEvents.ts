@@ -67,6 +67,29 @@ export const ANALYTICS_EVENTS = {
   district_route_blocked: ["district", "coverageStatus", "demandWave", "reason"],
   district_route_ready_selected: ["district", "coverageStatus", "demandWave"],
   route_ready_gate_failed: ["district", "coverageStatus", "demandWave", "reason", "gateVersion"],
+  // Metrics funnel (Wave M) — nights planned/week reuses plan_created (create)
+  // and crew_committed (join, source: "shared-plan") from R3/Wave F above; see
+  // docs/METRICS_FUNNEL.md for the full computation. The events below are new.
+  //
+  // Invites per planner — invite_created (host mints a link) and
+  // invite_redeemed (a guest actually unlocks collaboration on it) share the
+  // invite's own row id, which is an opaque, non-secret database identifier
+  // (never the raw invite token/capability) — safe to join on for k-factor.
+  invite_created: ["inviteId"],
+  invite_redeemed: ["inviteId"],
+  // Return rate (daily basis) — one coarse, low-cardinality signal per
+  // identity per UTC calendar day (days-since-epoch, deduped client-side
+  // before it is ever sent). No timestamp, no session length, no fingerprint.
+  activity_pulse: ["dayBucket"],
+  // A2HS installs — beforeinstallprompt eligibility, the appinstalled
+  // completion event (Android/Chrome), and standalone display-mode at launch
+  // as the iOS-compatible proxy for "already installed". No props needed.
+  // "platform" registered per the C8 drift note: #313's A2HS surface emits
+  // { platform: "android" | "ios-safari" } — without the allow-listed prop the
+  // sanitizer would strip it.
+  pwa_install_prompt_available: ["platform"],
+  pwa_install_completed: ["platform"],
+  pwa_standalone_launch: ["platform"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -98,6 +121,8 @@ const SAFE_STRING_VALUES = new Set([
   "photo", "pint_drop", "pint-drop", "event", "venue", "quote", "person", "side_quest",
   "private", "unlisted", "public", "friends", "legacy", "anonymous",
   "direct", "site", "search",
+  // A2HS platform values (#313): fixed enum, no UA strings
+  "android", "ios-safari", "standalone", "unsupported",
   "CLS", "FCP", "INP", "LCP", "TTFB", "good", "needs-improvement", "poor",
   ...NIGHT_AREA_SLUGS,
   ...COVERAGE_STATUSES,
@@ -117,6 +142,21 @@ function isAllowedDistrictEventProp(name: AnalyticsEventName, key: string, value
   const allowed = DISTRICT_EVENT_PROP_VALUES[key as keyof typeof DISTRICT_EVENT_PROP_VALUES];
   return !allowed || (allowed as readonly (string | number | boolean)[]).includes(value);
 }
+
+// UUID-shaped values (e.g. a plan invite's own row id) are the one exception
+// to the fixed-enum string allowlist below: they are opaque, non-secret,
+// server-generated identifiers — never free text, never the raw invite
+// token/capability — so a format check is enough to keep them PII-free.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuidLike(value: unknown): value is string {
+  return typeof value === "string" && UUID_PATTERN.test(value);
+}
+
+/** Per-prop-key validators that replace the generic enum check for that key. */
+const CUSTOM_PROP_VALIDATORS: Partial<Record<string, (value: unknown) => value is string | number | boolean>> = {
+  inviteId: isUuidLike,
+};
 
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
@@ -154,9 +194,12 @@ export function sanitizeEvent(
   if (props && typeof props === "object") {
     for (const key of allowedKeys) {
       const value = (props as Record<string, unknown>)[key];
-      if (value !== undefined && isSafeValue(value) && isAllowedDistrictEventProp(name, key, value)) {
-        out[key] = value;
-      }
+      if (value === undefined) continue;
+      const customValidator = CUSTOM_PROP_VALIDATORS[key];
+      const valid = customValidator
+        ? customValidator(value)
+        : isSafeValue(value) && isAllowedDistrictEventProp(name, key, value);
+      if (valid) out[key] = value as string | number | boolean;
     }
   }
   return { name, props: out };

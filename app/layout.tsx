@@ -13,6 +13,8 @@ import CommandPaletteProvider from "@/components/command/CommandPaletteProvider"
 import PubPalSummon from "@/components/pubpal/PubPalSummon";
 import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
+import DailyActivityPulse from "@/components/DailyActivityPulse";
+import A2HSTracking from "@/components/A2HSTracking";
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
 // identity graph Google reads for the brand panel and AI engines read to know
@@ -261,6 +263,10 @@ export default async function RootLayout({
                 production-only, registers after load. */}
             <OfflineReady />
             <PerformanceVitals />
+            {/* Metrics funnel (Wave M) — consent-gated, render-nothing
+                signals: daily return-rate pulse and the A2HS install funnel. */}
+            <DailyActivityPulse />
+            <A2HSTracking />
           </CommandPaletteProvider>
         </AuthProvider>
         {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
