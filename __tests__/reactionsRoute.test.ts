@@ -315,7 +315,10 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
     vi.doUnmock("@/lib/pintDropLookup");
   });
 
-  it("GET degrades to an empty summaries map on a store error (feed stays up)", async () => {
+  // 45s: this case exercises the durable-limiter fail-open path, whose fetch
+  // retries legitimately take ~18s on Vercel's 4-core CI box — the default 20s
+  // timeout left a margin thin enough to flake the production deploy gate.
+  it("GET degrades to an empty summaries map on a store error (feed stays up)", { timeout: 45_000 }, async () => {
     vi.doMock("@/lib/reactionsStore", async () => {
       const actual =
         await vi.importActual<typeof import("@/lib/reactionsStore")>("@/lib/reactionsStore");
