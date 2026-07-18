@@ -269,6 +269,12 @@ Remote truth re-verified pre-launch (origin/main ccceede7, no new Sol merges, co
 
 **The programme: ~55 PRs, 12 cycles, 3 ledgers, merge-ready. Next: the launch/activation plan (grilling with owner), then Sol's merge day per the choreography (#352 clusters + #316 v2 + #341/#355 ledgers).**
 
+### Issue backlog triaged (evidence-verified)
+- **CLOSED**: #45 (Last Pint — #302 merged), #286 (Wave 0 — cert/hardening/observability mapped), #283 (Wave 1 — a11y matrix closed the gap; List view carried by #346).
+- **Downgraded honestly**: #279 stays open — #349's registry is a third mirror of the hand-authored PINT_DATASET_OBSERVED_AT, not the single source the issue asks for; exact wiring commented (small post-cluster lane).
+- **Status-commented, kept open**: #281 umbrella (wave table), #284/#285 (pending the integrator's cluster restack), #287/#282 (deferred per locked London-only decision), #252 (companion depth = owner's depth-order), #168 (real debt, factory case stronger).
+- Open issues now: 8, each with a current, honest status. OWNER decisions still pending: #313 gate wording, bill-split.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
