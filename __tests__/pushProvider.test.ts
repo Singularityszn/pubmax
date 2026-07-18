@@ -1,13 +1,22 @@
+import { generateKeyPairSync, verify as cryptoVerify, type KeyObject } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The provider seam (lib/pushProvider.ts): env-based selection mirrors
-// storeBackend.selectStore. No live APNs — we drive selection with vi.stubEnv,
-// exactly like the guard tests do for Supabase env in this suite.
+// storeBackend.selectStore. No live APNs — selection is driven with vi.stubEnv
+// and the transport is an injected mock session factory (createApnsPushProvider
+// takes the http2 seam), exactly the boundary the real sender crosses.
 import {
   apnsPushProvider,
+  buildApnsJwt,
+  createApnsPushProvider,
   isApnsConfigured,
   noopPushProvider,
   selectPushProvider,
+  type ApnsConfig,
+  type ApnsProviderDeps,
+  type ApnsRawResponse,
+  type ApnsRequest,
+  type ApnsTransport,
 } from "@/lib/pushProvider";
 
 const APNS_ENV = {
@@ -23,6 +32,43 @@ function stubApnsEnv(): void {
 afterEach(() => {
   vi.unstubAllEnvs();
 });
+
+// A real P-256 keypair so JWTs are genuinely signable + verifiable — the only
+// honest way to test ES256 construction without a live Apple key.
+const { privateKey: testPrivateKey, publicKey: testPublicKey } = generateKeyPairSync("ec", {
+  namedCurve: "P-256",
+});
+const testPrivatePem = testPrivateKey.export({ format: "pem", type: "pkcs8" }).toString();
+
+const TEST_CONFIG: ApnsConfig = {
+  keyId: "TESTKEY",
+  teamId: "TESTTEAM",
+  privateKey: testPrivatePem,
+  host: "api.sandbox.push.apple.com",
+};
+
+function decodeJwtPart(part: string): Record<string, unknown> {
+  return JSON.parse(Buffer.from(part, "base64url").toString("utf8"));
+}
+
+/** A recording mock transport. `responder` maps a token → the raw response;
+ *  every request and the close() call are captured for assertions. */
+function mockTransport(
+  responder: (token: string) => ApnsRawResponse | Promise<ApnsRawResponse>,
+): ApnsTransport & { requests: ApnsRequest[]; closed: number; host?: string } {
+  const t: ApnsTransport & { requests: ApnsRequest[]; closed: number; host?: string } = {
+    requests: [],
+    closed: 0,
+    async send(request) {
+      t.requests.push(request);
+      return responder(request.deviceToken);
+    },
+    close() {
+      t.closed += 1;
+    },
+  };
+  return t;
+}
 
 describe("isApnsConfigured", () => {
   it("is false unless all three APNs keys are present", () => {
@@ -66,15 +112,264 @@ describe("noopPushProvider", () => {
   });
 });
 
-describe("apnsPushProvider (stub)", () => {
+describe("buildApnsJwt", () => {
+  it("produces a verifiable ES256 JWT with the right header + claims", () => {
+    const iat = 1_700_000_000;
+    const jwt = buildApnsJwt({
+      keyId: "ABC123",
+      teamId: "TEAM99",
+      privateKey: testPrivatePem,
+      iat,
+    });
+    const [headerB64, claimsB64, sigB64] = jwt.split(".");
+    expect(jwt.split(".")).toHaveLength(3);
+
+    const header = decodeJwtPart(headerB64);
+    expect(header).toEqual({ alg: "ES256", kid: "ABC123" });
+
+    const claims = decodeJwtPart(claimsB64);
+    expect(claims).toEqual({ iss: "TEAM99", iat });
+
+    // The signature must verify against the public key, in JOSE raw r‖s form
+    // (64 bytes for P-256) — proving we did NOT emit DER.
+    const signature = Buffer.from(sigB64, "base64url");
+    expect(signature).toHaveLength(64);
+    const ok = cryptoVerify(
+      "sha256",
+      Buffer.from(`${headerB64}.${claimsB64}`, "utf8"),
+      { key: testPublicKey as KeyObject, dsaEncoding: "ieee-p1363" },
+      signature,
+    );
+    expect(ok).toBe(true);
+  });
+
+  it("throws on an unparseable private key", () => {
+    expect(() =>
+      buildApnsJwt({ keyId: "K", teamId: "T", privateKey: "not-a-key", iat: 1 }),
+    ).toThrow();
+  });
+});
+
+describe("apnsPushProvider (default instance)", () => {
   it("throws a not-configured error when env keys are missing", async () => {
     await expect(apnsPushProvider.send(["tok"], { title: "T", body: "B" }))
       .rejects.toThrow(/APNS_KEY_ID, APNS_TEAM_ID and APNS_PRIVATE_KEY/);
   });
 
-  it("throws a not-implemented error when configured but transport is a pending drop-in", async () => {
+  it("throws (loud) when configured with an unparseable private key", async () => {
+    // The env fixture's key is not a real p8 — a config error must surface, not
+    // be masked as per-token noise (pushSender turns the throw into all-error).
     stubApnsEnv();
     await expect(apnsPushProvider.send(["tok"], { title: "T", body: "B" }))
-      .rejects.toThrow(/not implemented yet/);
+      .rejects.toThrow();
+  });
+
+  it("returns [] for no tokens without touching config or transport", async () => {
+    expect(await apnsPushProvider.send([], { title: "T", body: "B" })).toEqual([]);
+  });
+});
+
+describe("createApnsPushProvider — transport + response mapping", () => {
+  function providerWith(
+    responder: (token: string) => ApnsRawResponse | Promise<ApnsRawResponse>,
+    over: Partial<ApnsProviderDeps> = {},
+  ) {
+    const transport = mockTransport(responder);
+    const hosts: string[] = [];
+    const provider = createApnsPushProvider({
+      config: () => TEST_CONFIG,
+      now: () => 1_700_000_000_000,
+      jwtCache: new Map(),
+      sessionFactory: (host) => {
+        hosts.push(host);
+        transport.host = host;
+        return transport;
+      },
+      ...over,
+    });
+    return { provider, transport, hosts };
+  }
+
+  it("maps 200 → sent", async () => {
+    const { provider } = providerWith(() => ({ status: 200, apnsId: "a-1" }));
+    const [r] = await provider.send(["tok"], { title: "T", body: "B" });
+    expect(r).toEqual({ token: "tok", status: "sent" });
+  });
+
+  it("maps 410 → invalid (drives pruning)", async () => {
+    const { provider } = providerWith(() => ({ status: 410, reason: "Unregistered" }));
+    const [r] = await provider.send(["dead"], { title: "T", body: "B" });
+    expect(r).toEqual({ token: "dead", status: "invalid", reason: "Unregistered" });
+  });
+
+  it("maps a 400 BadDeviceToken reason → invalid", async () => {
+    const { provider } = providerWith(() => ({ status: 400, reason: "BadDeviceToken" }));
+    const [r] = await provider.send(["bad"], { title: "T", body: "B" });
+    expect(r).toEqual({ token: "bad", status: "invalid", reason: "BadDeviceToken" });
+  });
+
+  it("maps 429 → error (retryable, not pruned)", async () => {
+    const { provider } = providerWith(() => ({ status: 429, reason: "TooManyRequests" }));
+    const [r] = await provider.send(["tok"], { title: "T", body: "B" });
+    expect(r).toEqual({ token: "tok", status: "error", reason: "TooManyRequests" });
+  });
+
+  it("maps 5xx → error", async () => {
+    const { provider } = providerWith(() => ({ status: 503, reason: "ServiceUnavailable" }));
+    const [r] = await provider.send(["tok"], { title: "T", body: "B" });
+    expect(r).toEqual({ token: "tok", status: "error", reason: "ServiceUnavailable" });
+  });
+
+  it("maps an unexpected 4xx (e.g. bad JWT) → error, never invalid", async () => {
+    const { provider } = providerWith(() => ({ status: 403, reason: "InvalidProviderToken" }));
+    const [r] = await provider.send(["tok"], { title: "T", body: "B" });
+    expect(r.status).toBe("error");
+  });
+
+  it("falls back to apns_<status> when the body carries no reason", async () => {
+    const { provider } = providerWith(() => ({ status: 500 }));
+    const [r] = await provider.send(["tok"], { title: "T", body: "B" });
+    expect(r).toEqual({ token: "tok", status: "error", reason: "apns_500" });
+  });
+
+  it("turns a per-request rejection into a retryable error result (no throw)", async () => {
+    const { provider } = providerWith(() => {
+      throw new Error("stream RST_STREAM");
+    });
+    const [r] = await provider.send(["tok"], { title: "T", body: "B" });
+    expect(r).toEqual({ token: "tok", status: "error", reason: "apns_request_failed" });
+  });
+
+  it("all-errors when the session cannot even be opened (connection failure)", async () => {
+    const provider = createApnsPushProvider({
+      config: () => TEST_CONFIG,
+      now: () => 1_700_000_000_000,
+      jwtCache: new Map(),
+      sessionFactory: () => {
+        throw new Error("ECONNREFUSED");
+      },
+    });
+    const results = await provider.send(["a", "b"], { title: "T", body: "B" });
+    expect(results).toEqual([
+      { token: "a", status: "error", reason: "apns_connect_failed" },
+      { token: "b", status: "error", reason: "apns_connect_failed" },
+    ]);
+  });
+
+  it("batches every token over ONE session, in input order, then closes it", async () => {
+    const byToken: Record<string, ApnsRawResponse> = {
+      good: { status: 200 },
+      gone: { status: 410, reason: "Unregistered" },
+      flaky: { status: 503, reason: "ServiceUnavailable" },
+    };
+    const { provider, transport, hosts } = providerWith((token) => byToken[token]);
+    const results = await provider.send(["good", "gone", "flaky"], { title: "T", body: "B" });
+
+    expect(results.map((r) => [r.token, r.status])).toEqual([
+      ["good", "sent"],
+      ["gone", "invalid"],
+      ["flaky", "error"],
+    ]);
+    // One session, opened once to the resolved host, three multiplexed requests.
+    expect(hosts).toEqual(["api.sandbox.push.apple.com"]);
+    expect(transport.requests).toHaveLength(3);
+    expect(transport.closed).toBe(1);
+  });
+
+  it("sends the correct APNs headers + aps envelope with custom data", async () => {
+    const { provider, transport } = providerWith(() => ({ status: 200 }));
+    await provider.send(["dev-token"], {
+      title: "New tonight",
+      body: "Cheap pints in SE1",
+      threadId: "night-signals",
+      data: { kind: "night_signal_live", entityId: "e1" },
+    });
+    const req = transport.requests[0];
+    expect(req.headers["apns-topic"]).toBe("com.pubmaxx.app");
+    expect(req.headers["apns-push-type"]).toBe("alert");
+    expect(req.headers["apns-priority"]).toBe("10");
+    expect(req.headers.authorization).toMatch(/^bearer /);
+
+    const parsed = JSON.parse(req.body);
+    expect(parsed.aps.alert).toEqual({ title: "New tonight", body: "Cheap pints in SE1" });
+    expect(parsed.aps["thread-id"]).toBe("night-signals");
+    // Custom data rides at the top level (Apple reserves `aps`).
+    expect(parsed.kind).toBe("night_signal_live");
+    expect(parsed.entityId).toBe("e1");
+  });
+
+  it("selects the production host when APNS_ENV=production", async () => {
+    const transport = mockTransport(() => ({ status: 200 }));
+    const hosts: string[] = [];
+    // Use the real env-backed config resolver to prove APNS_ENV wiring.
+    for (const [k, v] of Object.entries({ ...APNS_ENV, APNS_PRIVATE_KEY: testPrivatePem })) {
+      vi.stubEnv(k, v);
+    }
+    vi.stubEnv("APNS_ENV", "production");
+    const provider = createApnsPushProvider({
+      now: () => 1_700_000_000_000,
+      jwtCache: new Map(),
+      sessionFactory: (host) => {
+        hosts.push(host);
+        return transport;
+      },
+    });
+    await provider.send(["tok"], { title: "T", body: "B" });
+    expect(hosts).toEqual(["api.push.apple.com"]);
+  });
+
+  it("defaults to the sandbox host when APNS_ENV is unset", async () => {
+    const transport = mockTransport(() => ({ status: 200 }));
+    const hosts: string[] = [];
+    for (const [k, v] of Object.entries({ ...APNS_ENV, APNS_PRIVATE_KEY: testPrivatePem })) {
+      vi.stubEnv(k, v);
+    }
+    const provider = createApnsPushProvider({
+      now: () => 1_700_000_000_000,
+      jwtCache: new Map(),
+      sessionFactory: (host) => {
+        hosts.push(host);
+        return transport;
+      },
+    });
+    await provider.send(["tok"], { title: "T", body: "B" });
+    expect(hosts).toEqual(["api.sandbox.push.apple.com"]);
+  });
+});
+
+describe("createApnsPushProvider — JWT caching / reuse window", () => {
+  function bearerOf(transport: { requests: ApnsRequest[] }, i = 0): string {
+    return transport.requests[i].headers.authorization.replace(/^bearer /, "");
+  }
+
+  it("reuses one signed JWT across sends within the ~50-min window, then refreshes", async () => {
+    const cache = new Map();
+    const transport = mockTransport(() => ({ status: 200 }));
+    let clock = 1_700_000_000_000;
+    const provider = createApnsPushProvider({
+      config: () => TEST_CONFIG,
+      now: () => clock,
+      jwtCache: cache,
+      sessionFactory: () => transport,
+    });
+
+    await provider.send(["a"], { title: "T", body: "B" });
+    const jwt1 = bearerOf(transport, 0);
+
+    // +40 min: still inside the reuse window → same token.
+    clock += 40 * 60 * 1000;
+    await provider.send(["b"], { title: "T", body: "B" });
+    const jwt2 = bearerOf(transport, 1);
+    expect(jwt2).toBe(jwt1);
+
+    // +20 min more (60 total, past the 50-min window) → fresh token with a new iat.
+    clock += 20 * 60 * 1000;
+    await provider.send(["c"], { title: "T", body: "B" });
+    const jwt3 = bearerOf(transport, 2);
+    expect(jwt3).not.toBe(jwt1);
+
+    const iat1 = (decodeJwtPart(jwt1.split(".")[1]) as { iat: number }).iat;
+    const iat3 = (decodeJwtPart(jwt3.split(".")[1]) as { iat: number }).iat;
+    expect(iat3).toBeGreaterThan(iat1);
   });
 });
