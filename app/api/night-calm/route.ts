@@ -37,7 +37,7 @@ async function getHandler(request: Request): Promise<Response> {
 
   const area = new URL(request.url).searchParams.get("area")?.trim() ?? null;
   if (!isNightAreaSlug(area)) {
-    return publicApiError("A known Night Area is required.", "NIGHT_AREA_REQUIRED", 422);
+    return publicApiError("Pick an area we cover.", "NIGHT_AREA_REQUIRED", 422);
   }
 
   const result = await loadNightCalmForArea(area);

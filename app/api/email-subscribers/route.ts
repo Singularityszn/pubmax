@@ -19,6 +19,7 @@
 // write failure answers 503 (house rule: degraded dependency, never fake
 // success).
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { dispatchConfirmationEmail } from "@/lib/emailConfirmation";
 import { coerceSource, parseEmail } from "@/lib/emailSubscribers";
@@ -39,14 +40,14 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const email = parseEmail(body.email);
   if (!email) {
     // Honest validation — no fake success. The client validates the same way
     // (lib/emailSubscribers.ts) so this is a defence-in-depth 400.
-    return jsonNoStore({ error: "Enter a valid email address." }, { status: 400 });
+    return publicApiError("Enter a valid email address.", "INVALID_EMAIL", 400);
   }
   const source = coerceSource(body.source);
 
@@ -61,16 +62,23 @@ export async function POST(request: Request): Promise<Response> {
     (await isLimited(perIpKey, perIpKey, PER_IP_LIMIT, WINDOW_MS)) ||
     (await isLimited(globalKey, globalKey, GLOBAL_LIMIT, WINDOW_MS))
   ) {
-    return jsonNoStore({ error: "Too many sign-ups right now, try again shortly." }, { status: 429 });
+    return publicApiError(
+      "Too many sign-ups right now, try again shortly.",
+      "RATE_LIMITED",
+      429,
+      { retryable: true },
+    );
   }
 
   // Store as an UNCONFIRMED pending subscriber. Idempotent by email: a re-submit
   // returns the existing row without re-confirming or rotating its token.
   const outcome = await emailSubscribersStore().subscribe({ email, source });
   if (outcome.failed) {
-    return jsonNoStore(
-      { error: "Could not save your email right now. Try again in a moment." },
-      { status: 503 },
+    return publicApiError(
+      "Could not save your email right now. Try again in a moment.",
+      "STORE_UNAVAILABLE",
+      503,
+      { retryable: true },
     );
   }
 

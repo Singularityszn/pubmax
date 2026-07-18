@@ -10,6 +10,7 @@
 // to hold at the CDN edge (jsonCached). Never 500s: any failure degrades to an
 // empty result, matching the layer's fail-soft contract.
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonCached, jsonNoStore } from "@/lib/apiResponses";
 import {
   awardForVenue,
@@ -36,7 +37,7 @@ export async function GET(request: Request): Promise<Response> {
       return jsonCached({ entries: resolved.slice(0, NEW_ROUND_HERE_CAP) });
     }
 
-    return jsonNoStore({ error: "Pass area or venueId." }, { status: 400 });
+    return publicApiError("Pass area or venueId.", "INVALID_REQUEST", 400);
   } catch {
     return jsonNoStore({ entries: [], award: null }, { status: 200 });
   }

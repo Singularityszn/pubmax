@@ -6,6 +6,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // prove the London-day comparison without a live project. The memory backend +
 // the route 409 are covered in pintDrops.test.ts — this pins the OTHER backend.
 
+// Fixed clock so the London-day comparison never straddles a real midnight
+// (the store reads its `now` argument, never the wall clock). Model:
+// __tests__/priceConfidence.test.ts.
+const NOW = 1_800_000_000_000;
+
 const filters: Record<string, unknown> = {};
 let scriptedRows: Array<{ created_at: string }> = [];
 
@@ -46,10 +51,10 @@ beforeEach(() => {
 
 describe("supabasePintDropStore.hasPricedDropToday", () => {
   it("returns true when the newest priced row is on the current London day", async () => {
-    const today = londonDayKey(new Date());
+    const today = londonDayKey(new Date(NOW));
     scriptedRows = [{ created_at: `${today}T12:00:00Z` }];
 
-    const hit = await supabasePintDropStore.hasPricedDropToday("venue-x", "@Reg");
+    const hit = await supabasePintDropStore.hasPricedDropToday("venue-x", "@Reg", NOW);
     expect(hit).toBe(true);
     // Filters the right axes, with the handle normalised.
     expect(filters["eq:venue_id"]).toBe("venue-x");
@@ -60,7 +65,7 @@ describe("supabasePintDropStore.hasPricedDropToday", () => {
 
   it("returns false when the newest priced row is from an earlier day", async () => {
     scriptedRows = [{ created_at: "2020-01-01T12:00:00Z" }];
-    expect(await supabasePintDropStore.hasPricedDropToday("venue-x", "reg")).toBe(false);
+    expect(await supabasePintDropStore.hasPricedDropToday("venue-x", "reg", NOW)).toBe(false);
   });
 
   it("returns false when the contributor has no priced rows here", async () => {

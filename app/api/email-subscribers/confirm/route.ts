@@ -9,6 +9,7 @@
 // GET (not POST) because it is followed from an email link. It is capability-
 // gated by the unguessable token and mutates exactly one row it already owns.
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { emailSubscribersStore } from "@/lib/emailSubscribersStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -20,13 +21,15 @@ const WINDOW_MS = 60_000;
 export async function GET(request: Request): Promise<Response> {
   const token = (new URL(request.url).searchParams.get("token") ?? "").trim();
   if (!token) {
-    return jsonNoStore({ error: "Missing confirmation token." }, { status: 400 });
+    return publicApiError("Missing confirmation token.", "TOKEN_REQUIRED", 400);
   }
 
   // Light per-IP rate limit so the token space can't be brute-forced cheaply.
   const key = `email-confirm:ip:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key, PER_IP_LIMIT, WINDOW_MS)) {
-    return jsonNoStore({ error: "Too many attempts, slow down." }, { status: 429 });
+    return publicApiError("Too many attempts, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
   }
 
   const confirmed = await emailSubscribersStore().confirm(token);

@@ -7,6 +7,7 @@
 //
 // GET because it is followed from an email link; capability-gated by the token.
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { emailSubscribersStore } from "@/lib/emailSubscribersStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -18,12 +19,14 @@ const WINDOW_MS = 60_000;
 export async function GET(request: Request): Promise<Response> {
   const token = (new URL(request.url).searchParams.get("token") ?? "").trim();
   if (!token) {
-    return jsonNoStore({ error: "Missing unsubscribe token." }, { status: 400 });
+    return publicApiError("Missing unsubscribe token.", "TOKEN_REQUIRED", 400);
   }
 
   const key = `email-unsub:ip:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key, PER_IP_LIMIT, WINDOW_MS)) {
-    return jsonNoStore({ error: "Too many attempts, slow down." }, { status: 429 });
+    return publicApiError("Too many attempts, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
   }
 
   const removed = await emailSubscribersStore().unsubscribe(token);

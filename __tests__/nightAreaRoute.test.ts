@@ -97,7 +97,7 @@ describe("GET /api/night-areas/:slug", () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({
-      error: "Night Area not found.",
+      error: "We don't cover that area.",
       code: "NIGHT_AREA_NOT_FOUND",
       retryable: false,
     });
