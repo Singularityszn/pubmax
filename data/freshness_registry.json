@@ -136,6 +136,17 @@
       "gate": "none (keyless); TFL_APP_KEY only raises rate limits"
     },
     {
+      "id": "food_hygiene",
+      "label": "FSA food hygiene ratings (FHRS)",
+      "class": "live",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached)",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "live-per-request (app/api/hygiene)",
+      "gate": "none (keyless open API; requires the x-api-version: 2 header)"
+    },
+    {
       "id": "citymcp",
       "label": "CityMCP London (buzz / status / journey / places)",
       "class": "live",

@@ -21,6 +21,7 @@ import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
+import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueGettingThere, {
   type LocationRequestStatus,
 } from "@/components/map/VenueGettingThere";
@@ -96,6 +97,13 @@ export default function VenueOverviewTab({
       hidden={tab !== "overview"}
     >
       <p className="venueAddress">{venue.address}</p>
+      {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
+          server-side. Renders nothing for an unmatched pub. */}
+      <VenueHygiene
+        venueId={venue.id}
+        venueName={venue.name}
+        address={venue.address}
+      />
       <VenueGettingThere
         userLocation={userLocation}
         venueLocation={{ lat: venue.latitude, lng: venue.longitude }}
