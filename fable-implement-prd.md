@@ -133,6 +133,17 @@ Backlog drawn from logged findings; four non-colliding lanes, all Opus 4.8, work
 
 Deferred (conflict-avoidance): Supabase-eager-on-/map (touches PubMap.tsx, would collide with #309), email digest (needs provider decision + inbox confirmation from owner).
 
+- **#307 closed out**: 44px fix pushed (c37157ff); pub-link/Cheers failures proven contention artifacts (19/0 at workers=1). All Cycle-3/4 lanes complete.
+
+## CYCLE 5 PRD (early morning)
+
+Audit: live captures confirm every remaining defect is already fixed in an open PR — the bottleneck is now the 20-PR merge queue, not missing work. PubMap.tsx is touched by #297/#304/#306/#309; ShareBar by #307/#314. Launching more feature lanes would compound conflicts. Two lanes instead:
+
+1. **`docs/merge-order-matrix`** (Opus 4.8): pairwise conflict analysis across all open PRs (git merge-tree, no checkouts), optimal total merge order, per-PR one-line rebase notes where conflicts exist. Deliverable Sol can execute top-to-bottom. This is the highest-leverage artifact for getting live unblocked.
+2. **`perf/slim-borough-shards`** (Opus 4.8, atop #315): #315 raised the slim first-paint budget 600→900KB to fit +657 venues. Shard the slim index (core boroughs eager, outer boroughs lazy by viewport/near-me need) to reclaim <600KB first paint without losing coverage.
+
+Deferred until merges land: post-#301 analytics wiring (#309/#312/#313 call sites), buzz layer (EXA key), email digest (provider decision).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
