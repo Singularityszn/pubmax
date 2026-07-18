@@ -42,16 +42,23 @@ CommandLineTools).
 
 1. **Signing** — in Xcode, select the `App` target → Signing & Capabilities,
    set the team and confirm bundle id `com.pubmaxx.app`.
-2. **Camera permission string** — add `NSCameraUsageDescription` (and
-   `NSPhotoLibraryUsageDescription` / `NSPhotoLibraryAddUsageDescription`) to
-   `ios/App/App/Info.plist`; required by `@capacitor/camera`.
+2. ~~Camera permission strings~~ — **done in repo**: `ios/App/App/Info.plist`
+   carries `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription`.
+   `NSPhotoLibraryAddUsageDescription` is deliberately omitted: the capture
+   seam never writes to the gallery (`saveToGallery` stays at its `false`
+   default in `lib/nativeCamera.ts`) — add the key only if that changes.
 3. **Push (APNs)**
    - Add the *Push Notifications* capability to the App target.
    - Create an APNs Auth Key in the Apple Developer portal; store it wherever
      the server-side sender will live. Server-side push **sending** is not
      built yet — `/api/push-tokens` only registers device tokens.
-   - Add the standard `AppDelegate` forwarding of APNs callbacks to Capacitor
-     if the template didn't include it (Capacitor docs → Push Notifications).
+   - ~~AppDelegate forwarding~~ — **done in repo**: `ios/App/App/AppDelegate.swift`
+     forwards `didRegisterForRemoteNotificationsWithDeviceToken` /
+     `didFailToRegisterForRemoteNotificationsWithError` to Capacitor's
+     `.capacitorDidRegisterForRemoteNotifications` /
+     `.capacitorDidFailToRegisterForRemoteNotifications` notifications
+     (canonical Capacitor 8 push setup). Not yet compiled locally — no Xcode
+     on this machine; first `xcodebuild` will confirm.
 4. **Universal links**
    - Add the *Associated Domains* capability with
      `applinks:pubmaxxing.com`.

@@ -24,6 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>PUBMAXX uses the camera so you can take photos of your night and save them as private Moments.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PUBMAXX opens your photo library so you can add existing photos to your private Moments.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
