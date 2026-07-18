@@ -101,6 +101,53 @@
   font-size: 0.86rem;
 }
 
+/* --- sticky area jump (progressive-disclosure companion) ------------------ */
+
+.pubsJumpNav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  padding: 8px 2px;
+  margin: 0 -2px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(6px);
+  scrollbar-width: none;
+}
+
+.pubsJumpNav::-webkit-scrollbar {
+  display: none;
+}
+
+.pubsJumpChip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.pubsJumpChip:hover,
+.pubsJumpChip:focus-visible {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.pubsJumpChip:active {
+  transform: scale(0.97);
+}
+
 .pubsGrid {
   list-style: none;
   margin: 0;
@@ -108,6 +155,58 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 14px;
+}
+
+/* Cards beyond the initial page — still full markup in the server-rendered
+   HTML (SEO text intact), just visually collapsed until "Show more". */
+.pubsCard.pubsCardFold {
+  display: none;
+}
+
+@keyframes pubsCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pubsCard.isEntering {
+  animation: pubsCardEnter 220ms ease-out both;
+}
+
+.pubsShowMoreWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.pubsShowMoreBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.pubsShowMoreBtn:hover,
+.pubsShowMoreBtn:focus-visible {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.pubsShowMoreBtn:active {
+  transform: scale(0.97);
 }
 
 .pubsCard {
@@ -395,12 +494,19 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pubsCard,
-  .pubsCardGlyphHero {
+  .pubsCardGlyphHero,
+  .pubsJumpChip,
+  .pubsShowMoreBtn {
     transition: none;
     animation: none;
   }
 
   .pubsCard:hover {
+    transform: none;
+  }
+
+  .pubsJumpChip:active,
+  .pubsShowMoreBtn:active {
     transform: none;
   }
 }

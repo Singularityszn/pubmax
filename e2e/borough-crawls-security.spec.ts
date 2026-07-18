@@ -45,8 +45,8 @@ test.describe("borough page", () => {
   });
 });
 
-test.describe("crawls page — curated cards", () => {
-  test("the crawls index renders the curated crawls grid (static, always-populated)", async ({
+test.describe("crawls page — curated crawls", () => {
+  test("the crawls index renders one featured card plus compact grouped rows (static, always-populated)", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -54,21 +54,24 @@ test.describe("crawls page — curated cards", () => {
     const response = await page.goto("/crawls");
     expect(response?.status()).toBe(200);
 
-    // The curated grid is a static, bundled list (lib/curatedCrawls.ts) — unlike
-    // the per-crawl poster (?s=), it never depends on the DB, so it should always
-    // render at least one card.
-    const grid = page.locator(".curatedGrid");
-    await expect(grid).toBeVisible();
-    const cards = grid.locator(".curatedCard");
-    await expect(cards.first()).toBeVisible();
-    const cardCount = await cards.count();
-    expect(cardCount).toBeGreaterThan(0);
+    // The curated set is a static, bundled list (lib/curatedCrawls.ts) — unlike
+    // the per-crawl poster (?s=), it never depends on the DB, so it should
+    // always render a featured card up top (E: list-discipline pass replaced
+    // the old repeated full-card grid with ONE featured card + compact rows).
+    const featured = page.locator(".curatedFeaturedCard");
+    await expect(featured).toBeVisible();
+    await expect(featured.locator(".curatedName")).toBeVisible();
+    await expect(featured.locator(".curatedBlurb")).toBeVisible();
+    await expect(featured.locator(".curatedLink")).toHaveAttribute("href", /\/map/);
 
-    // Each card carries a name, a blurb, and a working link onto the map.
-    const first = cards.first();
-    await expect(first.locator(".curatedName")).toBeVisible();
-    await expect(first.locator(".curatedBlurb")).toBeVisible();
-    await expect(first.locator(".curatedLink")).toHaveAttribute("href", /\/map/);
+    // Every remaining curated crawl is a compact, one-line row grouped by
+    // theme — still reachable, just not a repeated full card.
+    const rows = page.locator(".crawlCompactRow");
+    const rowCount = await rows.count();
+    expect(rowCount).toBeGreaterThan(0);
+    const firstRow = rows.first();
+    await expect(firstRow.locator(".crawlCompactName")).toBeVisible();
+    await expect(firstRow.locator(".crawlCompactLink")).toHaveAttribute("href", /\/map/);
 
     expect(errors).toEqual([]);
   });

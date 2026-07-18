@@ -51,7 +51,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("mobile Crawls surfaces", () => {
-  test("/crawls renders curated crawls with thumb-sized primary actions and no horizontal overflow", async ({
+  test("/crawls renders one featured crawl + compact rows with thumb-sized primary actions and no horizontal overflow", async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -62,27 +62,30 @@ test.describe("mobile Crawls surfaces", () => {
 
     await expect(page.getByRole("heading", { name: "Every pint has a story." })).toBeVisible();
 
-    const grid = page.getByRole("list", { name: "Curated crawls worth walking" });
-    await expect(grid).toBeVisible();
+    // List-discipline pass: the old repeated full-card grid is now ONE
+    // featured card (with the route thumb + plan CTA) plus compact,
+    // one-line rows for every other curated crawl, grouped by theme.
+    const featuredCard = page.locator(".curatedFeaturedCard");
+    await expect(featuredCard).toBeVisible();
+    expect(await page.locator(".curatedCard").count(), "exactly one full card").toBe(1);
 
-    const cards = page.locator(".curatedCard");
-    await expect(cards.first()).toBeVisible();
-    expect(await cards.count(), "curated crawl cards should render").toBeGreaterThanOrEqual(3);
+    const featuredPlanButton = featuredCard.locator(".curatedPlanBtn");
+    await expectTappable(featuredPlanButton, "featured crawl plan action");
 
-    const planButtons = page.locator(".curatedCard .curatedPlanBtn");
-    await expect(planButtons.first()).toBeVisible();
-    const planButtonBoxes = await planButtons.evaluateAll((buttons) =>
-      buttons.map((button) => {
-        const rect = button.getBoundingClientRect();
+    const compactRows = page.locator(".crawlCompactLink");
+    const rowCount = await compactRows.count();
+    expect(rowCount, "compact crawl rows should render").toBeGreaterThanOrEqual(3);
+    const rowBoxes = await compactRows.evaluateAll((links) =>
+      links.map((link) => {
+        const rect = link.getBoundingClientRect();
         return {
-          label: button.textContent?.trim() ?? "crawl plan action",
+          label: link.textContent?.trim() ?? "compact crawl row",
           width: Math.round(rect.width),
           height: Math.round(rect.height),
         };
       }),
     );
-    expect(planButtonBoxes.length, "primary plan actions should render").toBeGreaterThanOrEqual(3);
-    for (const box of planButtonBoxes) {
+    for (const box of rowBoxes) {
       expect(box.width, `${box.label} width`).toBeGreaterThanOrEqual(MIN_TAP_TARGET);
       expect(box.height, `${box.label} height`).toBeGreaterThanOrEqual(MIN_TAP_TARGET);
     }
@@ -93,9 +96,8 @@ test.describe("mobile Crawls surfaces", () => {
     );
     await expectNoHorizontalOverflow(page);
 
-    const firstPlanButton = planButtons.first();
-    await expect(firstPlanButton).toHaveAttribute("href", /\/map\?mode=build&pubs=/);
-    await firstPlanButton.click();
+    await expect(featuredPlanButton).toHaveAttribute("href", /\/map\?mode=build&pubs=/);
+    await featuredPlanButton.click();
     await expect(page).toHaveURL(/\/map\?mode=build&pubs=/, { timeout: 30_000 });
 
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
