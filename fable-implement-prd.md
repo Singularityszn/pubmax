@@ -205,6 +205,15 @@ Three lanes (Opus 4.8, worktrees, separate branches, Sol decides):
 
 - **All #332 remediations closed**: #327 unsubscribe guard fail-safe (0550649b); #329 rebased into the data chain as step 31 (4a66e0e0 — 1919 venues intact, zone in every shard, 519KB eager, 0 raw brass). **Every open PR is now reviewed, cross-reviewed, and remediation-clean.** Data chain final shape: #315→#320→#319→#317→#329.
 
+## CYCLE 9 PRD (grilled + locked: depth before validation, owner's call)
+
+Owner chose depth-first over ship-and-measure (PMF conviction; validation follows the depth wave). Locked: **the recap artifact + night arc** — polish plan→live night→ending→recap into one seamless arc that reliably produces a beautiful, sendable night memory. Form: **private approval-gated recap PAGE + generated OG image card** (the WhatsApp preview is the hook, the page is the memory). Privacy: nothing shareable without the existing Story-approval consent flow.
+
+Lanes (Opus 4.8, worktrees, Sol decides):
+1. **`feat/night-arc-seams`** — audit the arc end-to-end in code (plan → activation → guardian/get-in/votes → ending selection → recap), fix the seams: dead ends, state loss between stages, missing transitions, mobile one-hand continuity. Polish lane discipline (no new features).
+2. **`feat/recap-page`** — the crafted private recap page: route walked, pints + prices logged, approved photos, chosen ending, guardian save, dry-London copy; approval-gated sharing via existing consents; #328 token system (plaques, elevation); 390-first both themes.
+3. **`feat/recap-card`** — generated OG image card for shared recaps (ogBrand kit + OG_CACHE_HEADERS from #330's pattern): night title, route line, headline stats. The preview that makes people tap.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
