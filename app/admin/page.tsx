@@ -139,7 +139,7 @@ export default function AdminPage() {
       const authed = await ensureAdminSession();
       if (!authed) {
         setImportNotes([]);
-        setImportMsg("Not authorised — check the admin token.");
+        setImportMsg("Not authorised. Check the admin token.");
         return;
       }
       const qs = showDismissed ? "?includeDismissed=1" : "";
@@ -148,7 +148,7 @@ export default function AdminPage() {
       );
       if (res.status === 403) {
         setImportNotes([]);
-        setImportMsg("Not authorised — check the admin token.");
+        setImportMsg("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
@@ -174,14 +174,14 @@ export default function AdminPage() {
       if (!authed) {
         setDrops([]);
         setComments([]);
-        setMessage("Not authorised — check the admin token.");
+        setMessage("Not authorised. Check the admin token.");
         return;
       }
 
       const res = await fetch("/api/pint-drops?status=hidden", SESSION_FETCH);
       if (res.status === 403) {
         setDrops([]);
-        setMessage("Not authorised — check the admin token.");
+        setMessage("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
@@ -233,11 +233,11 @@ export default function AdminPage() {
         body: JSON.stringify({ action, id }),
       });
       if (res.status === 403) {
-        setMessage("Not authorised — check the admin token.");
+        setMessage("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
-        setMessage("Action failed — try again.");
+        setMessage("Action failed. Try again.");
         return;
       }
       // Decided comments leave the hidden queue either way.
@@ -261,11 +261,11 @@ export default function AdminPage() {
         body: JSON.stringify({ action, id }),
       });
       if (res.status === 403) {
-        setMessage("Not authorised — check the admin token.");
+        setMessage("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
-        setMessage("Action failed — try again.");
+        setMessage("Action failed. Try again.");
         return;
       }
       // Decided drops leave the queue either way (restore → visible,
@@ -285,7 +285,7 @@ export default function AdminPage() {
     try {
       const authed = await ensureAdminSession();
       if (!authed) {
-        setImportMsg("Not authorised — check the admin token.");
+        setImportMsg("Not authorised. Check the admin token.");
         return;
       }
       const res = await retryWithFreshSession(() =>
@@ -306,7 +306,7 @@ export default function AdminPage() {
         message?: string;
       };
       if (res.status === 403) {
-        setImportMsg("Not authorised — check the admin token.");
+        setImportMsg("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
@@ -331,7 +331,7 @@ export default function AdminPage() {
     try {
       const authed = await ensureAdminSession();
       if (!authed) {
-        setImportMsg("Not authorised — check the admin token.");
+        setImportMsg("Not authorised. Check the admin token.");
         return;
       }
       const res = await retryWithFreshSession(() =>
@@ -347,11 +347,11 @@ export default function AdminPage() {
         message?: string;
       };
       if (res.status === 403) {
-        setImportMsg("Not authorised — check the admin token.");
+        setImportMsg("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
-        setImportMsg(payload.error ?? "Action failed — try again.");
+        setImportMsg(payload.error ?? "Action failed. Try again.");
         return;
       }
       setImportMsg(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored."));
@@ -582,8 +582,8 @@ export default function AdminPage() {
             Import note
           </h2>
           <p className="admin-sub">
-            Queue a URL or research note for moderated review. Staff-entered only —
-            no Reddit/X polling. Notes persist on disk when the server can write
+            Queue a URL or research note for moderated review. Staff-entered only.
+            No Reddit/X polling. Notes persist on disk when the server can write
             <code> .data/</code>.
           </p>
 

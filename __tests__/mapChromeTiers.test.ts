@@ -22,7 +22,7 @@ describe("buildFiltersChip", () => {
     expect(buildFiltersChip({ drinkFiltersActive: false, priceCapActive: false, priceLabel: "Price" }).ariaLabel).toBe("Filters");
     expect(
       buildFiltersChip({ drinkFiltersActive: true, priceCapActive: true, priceLabel: "≤£8.00" }).ariaLabel,
-    ).toBe("Filters — drinks and ≤£8.00 active");
+    ).toBe("Filters: drinks and ≤£8.00 active");
   });
 });
 
@@ -35,7 +35,7 @@ describe("buildTflCorner", () => {
   });
 
   it("aria labels carry the status meaning", () => {
-    expect(buildTflCorner("issues", 15).ariaLabel).toBe("TfL live — 15 updates");
-    expect(buildTflCorner("clear", 3).ariaLabel).toBe("TfL live — lines running well");
+    expect(buildTflCorner("issues", 15).ariaLabel).toBe("TfL live: 15 updates");
+    expect(buildTflCorner("clear", 3).ariaLabel).toBe("TfL live: lines running well");
   });
 });

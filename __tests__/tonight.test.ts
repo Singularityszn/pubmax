@@ -85,8 +85,8 @@ describe("provenanceLabel", () => {
 describe("coverageLabel", () => {
   it("owns the zero, thin, and healthy cases honestly", () => {
     expect(coverageLabel(0)).toBe("Nothing confirmed tonight yet");
-    expect(coverageLabel(1)).toBe("Thin tonight — 1 confirmed");
-    expect(coverageLabel(2)).toBe("Thin tonight — 2 confirmed");
+    expect(coverageLabel(1)).toBe("Thin tonight, 1 confirmed");
+    expect(coverageLabel(2)).toBe("Thin tonight, 2 confirmed");
     expect(coverageLabel(7)).toBe("7 things on tonight");
   });
 });

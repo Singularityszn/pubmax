@@ -185,7 +185,7 @@ describe("subject line", () => {
 
   it("stays calm when there's no headline price", () => {
     const digest = generateWeeklyDigest(baseInput());
-    expect(digest.subject).toBe("Your week in pints — London");
+    expect(digest.subject).toBe("Your week in pints, London");
   });
 });
 

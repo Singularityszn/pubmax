@@ -4,7 +4,7 @@ import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { CardShell, OG, OG_CACHE_HEADERS, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
 
 export const runtime = "nodejs";
-export const alt = "The London Pint Index public data status — PUBMAXX";
+export const alt = "The London Pint Index public data status · PUBMAXX";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 

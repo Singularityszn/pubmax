@@ -103,7 +103,7 @@ export default function VenuePintsTab({
           )}
           {drops.length === 0 ? (
             <p className="description muted">
-              No Pint Drops yet at {venue.name}. Be the first — log tonight&rsquo;s price or pass
+              No Pint Drops yet at {venue.name}. Be the first. Log tonight&rsquo;s price or pass
               down a story using the button below.
             </p>
           ) : (

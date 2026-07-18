@@ -153,7 +153,7 @@ export default function TonightClient() {
         </div>
         <h1 className="tonightTitle">What&rsquo;s on near you, right now.</h1>
         <p className="tonightLede">
-          Quiz, sport, deals, and live music from sourced listings — the same
+          Quiz, sport, deals, and live music from sourced listings. The same
           spine as the map. No invented nights; thin nights stay thin.
         </p>
         {ready || empty ? (
@@ -224,7 +224,7 @@ export default function TonightClient() {
 
       {empty ? (
         <p className="tonightStatus" role="status">
-          Nothing confirmed in London tonight yet — we only show what the
+          Nothing confirmed in London tonight yet. We only show what the
           upstream actually returns. Check back later.
         </p>
       ) : null}

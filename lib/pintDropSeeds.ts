@@ -49,7 +49,7 @@ const seeds: SeedSpec[] = [
     drink: "London Pride",
     priceGbp: 6.4,
     passedDownNote:
-      "My old man swore the flagstone floor by the bar was laid when the watermen still drank here. Take your pint out to the terrace at low tide and listen — the river knocks on the wall like it wants letting in.",
+      "My old man swore the flagstone floor by the bar was laid when the watermen still drank here. Take your pint out to the terrace at low tide and listen. The river knocks on the wall like it wants letting in.",
     era: "Told since the 1960s",
     minutesAgo: 18,
     // Demo Last Train stamp: posted with time to spare (leave-by ~30 min after post).
@@ -89,7 +89,7 @@ const seeds: SeedSpec[] = [
     drink: "Carlsberg",
     priceGbp: 5.6,
     passedDownNote:
-      "Grandma said at a proper high tide the balcony feels like the deck of a barge. She was right — hold your glass with both hands the first time.",
+      "Grandma said at a proper high tide the balcony feels like the deck of a barge. She was right. Hold your glass with both hands the first time.",
     era: "High-tide advice",
     minutesAgo: 95,
   },
@@ -113,7 +113,7 @@ const seeds: SeedSpec[] = [
     drink: "Cask ale",
     priceGbp: 6.5,
     passedDownNote:
-      "Mum said her grandmother could order a port here without the saloon ever seeing her face — you swivel the etched snob screen and a whole century turns with it.",
+      "Mum said her grandmother could order a port here without the saloon ever seeing her face. You swivel the etched snob screen and a whole century turns with it.",
     era: "Great-grandmother's trick",
     minutesAgo: 163,
   },
@@ -125,7 +125,7 @@ const seeds: SeedSpec[] = [
     drink: "Amstel",
     priceGbp: 5.9,
     passedDownNote:
-      "My grandfather drank here when the trams still ran up the High Road. Same green tiles outside, same corner seat inside — he said the brewery built it to outlast the lot of us, and so far it has.",
+      "My grandfather drank here when the trams still ran up the High Road. Same green tiles outside, same corner seat inside. He said the brewery built it to outlast the lot of us, and so far it has.",
     era: "Since the trams",
     minutesAgo: 201,
   },
@@ -149,7 +149,7 @@ const seeds: SeedSpec[] = [
     drink: "Cask ale",
     priceGbp: 5.4,
     passedDownNote:
-      "It says 1846 above the door, but for our family the date that matters is 1971 — my aunt's wedding party filled the back room and nobody went home before the bell.",
+      "It says 1846 above the door, but for our family the date that matters is 1971. My aunt's wedding party filled the back room and nobody went home before the bell.",
     era: "The wedding, 1971",
     minutesAgo: 286,
   },
@@ -161,7 +161,7 @@ const seeds: SeedSpec[] = [
     drink: "Pilsner",
     priceGbp: 6.0,
     passedDownNote:
-      "My father-in-law calls this his thinking pub — piano in the corner, a proper cellar, and the same quiet at five o'clock he remembers from forty years back.",
+      "My father-in-law calls this his thinking pub. Piano in the corner, a proper cellar, and the same quiet at five o'clock he remembers from forty years back.",
     era: "Forty years of five o'clocks",
     minutesAgo: 312,
   },
@@ -173,7 +173,7 @@ const seeds: SeedSpec[] = [
     drink: "London Pride",
     priceGbp: 6.3,
     passedDownNote:
-      "Demo note: this stretch of Wapping Wall sits on the Thames-side industrial Place story — watermen's stairs, warehouse walls, and the tide still knocking. (Seeded demo, not a live report.)",
+      "Demo note: this stretch of Wapping Wall sits on the Thames-side industrial Place story. Watermen's stairs, warehouse walls, and the tide still knocking. (Seeded demo, not a live report.)",
     era: "Place story demo",
     minutesAgo: 340,
   },
@@ -184,7 +184,7 @@ const seeds: SeedSpec[] = [
     drink: "Asahi",
     priceGbp: 7.0,
     passedDownNote:
-      "Demo note: Upper Mall is a quiet river-history stop — smallest bar, biggest tide view. (Seeded demo, not a live report.)",
+      "Demo note: Upper Mall is a quiet river-history stop. Smallest bar, biggest tide view. (Seeded demo, not a live report.)",
     era: "Place story demo",
     minutesAgo: 355,
   },

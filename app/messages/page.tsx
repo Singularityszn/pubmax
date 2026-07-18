@@ -115,7 +115,7 @@ export default function MessagesInboxPage(): React.JSX.Element {
         ) : conversations.length === 0 ? (
           <EmptyState
             title="No conversations yet"
-            body="Start a conversation from any profile — open someone's page and tap Message."
+            body="Start a conversation from any profile. Open someone's page and tap Message."
             action={<Link href="/feed">Find someone to message</Link>}
           />
         ) : (

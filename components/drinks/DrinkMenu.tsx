@@ -175,7 +175,7 @@ export default function DrinkMenu({
         <p className="drinkMenuEmptyTitle">No menu on record yet</p>
         <p className="drinkMenuEmptyBody">
           {venueName ? `${venueName} hasn't` : "This pub hasn't"} logged any
-          drinks beyond the pint list. Prices you see are community-updated —
+          drinks beyond the pint list. Prices you see are community-updated,
           not a live feed.
         </p>
       </div>

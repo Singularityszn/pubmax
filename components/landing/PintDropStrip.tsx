@@ -153,7 +153,7 @@ export default function PintDropStrip() {
 
       {status === "empty" && (
         <div className="dropStripEmpty">
-          No community drops yet — be the first to log a pint on the map.
+          No community drops yet. Be the first to log a pint on the map.
         </div>
       )}
 

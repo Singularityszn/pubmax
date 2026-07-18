@@ -81,7 +81,7 @@ export function provenanceLabel(asOf?: string | null): string {
  */
 export function coverageLabel(count: number): string {
   if (count <= 0) return "Nothing confirmed tonight yet";
-  if (count <= 2) return `Thin tonight — ${count} confirmed`;
+  if (count <= 2) return `Thin tonight, ${count} confirmed`;
   return `${count} things on tonight`;
 }
 

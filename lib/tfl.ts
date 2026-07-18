@@ -389,15 +389,15 @@ export type LastPintShareInput = {
 function shareToneTag(kind: LastPintDecisionKind): string {
   switch (kind) {
     case "order_one_more":
-      return "Time in hand — no rush yet.";
+      return "Time in hand. No rush yet.";
     case "half_pint_only":
       return "Start thinking about home.";
     case "settle_up_now":
       return "Time to settle up.";
     case "train_risk":
-      return "Cutting it fine — sort a backup way home.";
+      return "Cutting it fine. Sort a backup way home.";
     case "live_data_unavailable":
-      return "Couldn't check live times — check before you head out.";
+      return "Couldn't check live times. Check before you head out.";
   }
 }
 
@@ -408,7 +408,7 @@ export function buildLastPintShareText(input: LastPintShareInput): string {
   const lines: string[] = [];
 
   if (decision === "live_data_unavailable" || !leaveByClock) {
-    lines.push(`Last ${mode} home from ${stationName} — couldn't check live times.`);
+    lines.push(`Last ${mode} home from ${stationName}. Couldn't check live times.`);
     lines.push(shareToneTag("live_data_unavailable"));
   } else {
     const anchor = lastServiceClock
@@ -422,7 +422,7 @@ export function buildLastPintShareText(input: LastPintShareInput): string {
     lines.push(shareToneTag(decision));
   }
 
-  lines.push("— via PUBMAXXING");
+  lines.push("via PUBMAXXING");
   return lines.join("\n");
 }
 

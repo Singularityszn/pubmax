@@ -74,15 +74,15 @@ describe("spill: with-suffix builder", () => {
   });
 
   it("builds a suffix from comma-separated handles", () => {
-    expect(buildWithSuffix("@sam, @priya")).toBe("— with @sam, @priya");
+    expect(buildWithSuffix("@sam, @priya")).toBe("with @sam, @priya");
   });
 
   it("builds a suffix from space-separated handles", () => {
-    expect(buildWithSuffix("@sam @priya")).toBe("— with @sam, @priya");
+    expect(buildWithSuffix("@sam @priya")).toBe("with @sam, @priya");
   });
 
   it("accepts free text alongside handles", () => {
-    expect(buildWithSuffix("@sam, the lads")).toBe("— with @sam, the, lads");
+    expect(buildWithSuffix("@sam, the lads")).toBe("with @sam, the, lads");
   });
 
   it("dedupes repeated entries", () => {
@@ -101,11 +101,11 @@ describe("spill: with-suffix builder", () => {
   });
 
   it("appends the suffix to a non-empty note with a separating space", () => {
-    expect(appendWithSuffix("Great pint.", "@sam")).toBe("Great pint. — with @sam");
+    expect(appendWithSuffix("Great pint.", "@sam")).toBe("Great pint. with @sam");
   });
 
   it("returns just the suffix when the note is empty", () => {
-    expect(appendWithSuffix("", "@sam")).toBe("— with @sam");
+    expect(appendWithSuffix("", "@sam")).toBe("with @sam");
   });
 
   it("returns the note unchanged when there is no with value", () => {
@@ -113,7 +113,7 @@ describe("spill: with-suffix builder", () => {
   });
 
   it("trims the note before appending", () => {
-    expect(appendWithSuffix("  Great pint.  ", "@sam")).toBe("Great pint. — with @sam");
+    expect(appendWithSuffix("  Great pint.  ", "@sam")).toBe("Great pint. with @sam");
   });
 });
 

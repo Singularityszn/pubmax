@@ -50,7 +50,7 @@ export default function DealsTonightLane() {
         <span className="dealsTonightChecked">{checkedLabel(state.asOf)}</span>
       </div>
       <p className="dealsTonightLead">
-        First-party chain deal days — {meta.badgeLabel.toLowerCase()}. Prices and
+        First-party chain deal days, {meta.badgeLabel.toLowerCase()}. Prices and
         dishes vary by pub; check the source.
       </p>
       <ul className="dealsTonightList">

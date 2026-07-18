@@ -35,7 +35,7 @@ type Ctx = { params: Promise<{ code: string }> };
 function errorResponse(error: RoundWriteError): Response {
   const map: Record<RoundWriteError, { status: number; message: string }> = {
     not_found: { status: 404, message: "That Round doesn't exist." },
-    closed: { status: 409, message: "This Round has been called — it's closed." },
+    closed: { status: 409, message: "This Round has been called. It's closed." },
     invalid: { status: 400, message: "Check the details and try again." },
     forbidden: { status: 403, message: "You're not in this Round." },
     // A store failure is a degraded dependency (503, fail-soft), not a bug (500)

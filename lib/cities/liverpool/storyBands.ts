@@ -10,18 +10,18 @@ export const liverpoolStoryBands: StoryBand[] = [
     id: "match-day-anfield",
     title: "Match-day Anfield corridor",
     copy:
-      "On match days the walk from the city centre toward Anfield and Goodison fills with pre-kickoff foot traffic along Walton Breck, Oakfield, and the stadium approaches. This corridor is mapped for timing and Merseyrail home — pubs as waypoints, not a club-loyalty itinerary. Check kickoff and last-train boards before you settle in.",
+      "On match days the walk from the city centre toward Anfield and Goodison fills with pre-kickoff foot traffic along Walton Breck, Oakfield, and the stadium approaches. This corridor is mapped for timing and Merseyrail home, pubs as waypoints, not a club-loyalty itinerary. Check kickoff and last-train boards before you settle in.",
     kind: "modern",
     anchorLandmarkIds: ["anfield-stadium", "goodison-park"],
     colourToken: "amber",
     radiusKm: 0.85,
     sources: [
       {
-        label: "Wikipedia — Anfield",
+        label: "Wikipedia: Anfield",
         url: "https://en.wikipedia.org/wiki/Anfield",
       },
       {
-        label: "Merseyrail — network map",
+        label: "Merseyrail: network map",
         url: "https://www.merseyrail.org/plan-your-journey/network-map/",
       },
     ],
@@ -42,11 +42,11 @@ export const liverpoolStoryBands: StoryBand[] = [
     radiusKm: 0.75,
     sources: [
       {
-        label: "Wikipedia — Ropewalks, Liverpool",
+        label: "Wikipedia: Ropewalks, Liverpool",
         url: "https://en.wikipedia.org/wiki/Ropewalks,_Liverpool",
       },
       {
-        label: "Wikipedia — Baltic Triangle",
+        label: "Wikipedia: Baltic Triangle",
         url: "https://en.wikipedia.org/wiki/Baltic_Triangle",
       },
     ],
@@ -55,7 +55,7 @@ export const liverpoolStoryBands: StoryBand[] = [
     id: "victorian-opulence",
     title: "Victorian tiled giants",
     copy:
-      "Liverpool's late-Victorian and Edwardian gin palaces — the Philharmonic Dining Rooms, The Vines, and The Crown — still show the tiled opulence of the city's shipping boom. Hope Street and Lime Street stitch them into a short heritage corridor a few minutes from the station.",
+      "Liverpool's late-Victorian and Edwardian gin palaces, the Philharmonic Dining Rooms, The Vines, and The Crown, still show the tiled opulence of the city's shipping boom. Hope Street and Lime Street stitch them into a short heritage corridor a few minutes from the station.",
     kind: "civic",
     anchorLandmarkIds: [
       "philharmonic-dining-rooms",
@@ -68,11 +68,11 @@ export const liverpoolStoryBands: StoryBand[] = [
     radiusKm: 0.55,
     sources: [
       {
-        label: "British Listed Buildings — Philharmonic Hotel",
+        label: "British Listed Buildings: Philharmonic Hotel",
         url: "https://britishlistedbuildings.co.uk/101207638-philharmonic-hotel-liverpool",
       },
       {
-        label: "British Listed Buildings — The Vines",
+        label: "British Listed Buildings: The Vines",
         url: "https://britishlistedbuildings.co.uk/101355108-the-vines-public-house-liverpool",
       },
     ],

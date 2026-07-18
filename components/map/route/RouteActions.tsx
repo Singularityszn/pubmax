@@ -88,7 +88,7 @@ export default function RouteActions({
 
       {legSummary.legs.length > 0 && pace === "run" ? (
         <p className="routeSafetyNote" role="note">
-          Run pace is for getting between stops — drink water, keep to well-lit routes, and
+          Run pace is for getting between stops. Drink water, keep to well-lit routes, and
           never treat running as a reason to drink more.
         </p>
       ) : null}

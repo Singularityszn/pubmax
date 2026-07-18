@@ -70,12 +70,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const venue = await getVenue(id);
   if (!venue) {
-    return { title: "Bar Tab — PUBMAXXING", robots: { index: false, follow: false } };
+    return { title: "Bar Tab: PUBMAXXING", robots: { index: false, follow: false } };
   }
-  const title = `The Bar Tab: ${venue.name} — PUBMAXXING`;
+  const title = `The Bar Tab: ${venue.name}. PUBMAXXING`;
   const description = `Recent pints dropped at ${venue.name} in ${
     venue.primaryBorough || "London"
-  } — photos, prices, and the stories behind them.`;
+  }. Photos, prices, and the stories behind them.`;
   return {
     title,
     description,
@@ -172,7 +172,7 @@ export default async function BarTabPage({ params }: PageProps) {
           className="barTabEmpty"
           eyebrow="Quiet at the bar"
           title="No pints on the tab yet."
-          body="Be the first to drop one here — snap your pint, log the price, pass down a story."
+          body="Be the first to drop one here. Snap your pint, log the price, pass down a story."
           action={<Link href={`${venueMapUrl(canonicalId)}&log=1`}>Drop a pint here</Link>}
         />
       ) : (

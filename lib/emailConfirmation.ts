@@ -69,7 +69,7 @@ export function buildConfirmationEmail(params: {
     `<h1 style="font-size:20px;margin:0 0 12px">One tap to confirm</h1>`,
     `<p style="font-size:15px;line-height:1.5;color:#3f3f46;margin:0 0 16px">You asked to get the weekly pint digest from PUBMAXX. Confirm below and that is the only thing we will email you.</p>`,
     `<p style="margin:0 0 20px"><a href="${esc(confirm)}" style="display:inline-block;background:#f0a01a;color:#17171a;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:8px">Confirm subscription</a></p>`,
-    `<p style="font-size:13px;color:#6b6b73;margin:0 0 8px">Didn't ask for this? Ignore this email — you will not be added.</p>`,
+    `<p style="font-size:13px;color:#6b6b73;margin:0 0 8px">Didn't ask for this? Ignore this email. You will not be added.</p>`,
     `<p style="font-size:12px;color:#6b6b73;margin:0"><a href="${esc(unsub)}" style="color:#6b6b73">Unsubscribe</a></p>`,
     `</div>`,
   ].join("");
@@ -80,7 +80,7 @@ export function buildConfirmationEmail(params: {
     "",
     `Confirm: ${confirm}`,
     "",
-    "Didn't ask for this? Ignore this email — you will not be added.",
+    "Didn't ask for this? Ignore this email. You will not be added.",
     `Unsubscribe: ${unsub}`,
   ].join("\n");
   return { to: params.email, subject, html, text };

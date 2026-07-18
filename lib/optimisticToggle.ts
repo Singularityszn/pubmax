@@ -105,7 +105,7 @@ export async function postReactionToggle(
 // The copy echoes the anonymous-gated empty state on /activity ("Sign in or
 // claim a handle") — honest and warm, not an error klaxon.
 export const CHEERS_GATE_PROMPT =
-  "That cheers didn't save — sign in or claim a handle, then try again.";
+  "That cheers didn't save. Sign in or claim a handle, then try again.";
 
 export type CheersTapFeedback = {
   revertOptimistic: boolean;

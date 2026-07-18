@@ -32,7 +32,7 @@ export default function PlanNotFound(): React.JSX.Element {
       <EmptyState
         eyebrow="Plan"
         title="This plan has closed"
-        body="The link's expired, or the plan was never here. Ask whoever sent it for a fresh link — or put your own night in order and send one back."
+        body="The link's expired, or the plan was never here. Ask whoever sent it for a fresh link, or put your own night in order and send one back."
         action={
           <Link href="/plan" className="planPage__cta">
             Start your own plan

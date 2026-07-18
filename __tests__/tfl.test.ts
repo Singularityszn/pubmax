@@ -397,7 +397,7 @@ describe("buildLastPintShareText", () => {
     expect(text).toContain("Last train home: 23:42 from Angel.");
     expect(text).toContain("Leave by 23:28 for Walthamstow.");
     expect(text).toContain("Time to settle up.");
-    expect(text).toContain("— via PUBMAXXING");
+    expect(text).toContain("via PUBMAXXING");
   });
 
   it("omits the destination clause when none is set", () => {
@@ -431,7 +431,7 @@ describe("buildLastPintShareText", () => {
       leaveByClock: null,
       modeWord: "train",
     });
-    expect(text).toContain("couldn't check live times");
+    expect(text).toContain("Couldn't check live times");
     expect(text).not.toContain("Leave by");
   });
 

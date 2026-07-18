@@ -9,7 +9,7 @@ export const glasgowCuratedCrawls: CuratedCrawl[] = [
     id: "subcrawl-starter",
     name: "Subcrawl starter",
     blurb:
-      "A short, honest taste of Subcrawl folklore — one pub near each of six Subway stops (Hillhead, Kelvinbridge, St George's Cross, Buchanan Street, St Enoch, Bridge Street). Not the full fifteen; drink responsibly and know when to hop off the Clockwork Orange.",
+      "A short, honest taste of Subcrawl folklore. One pub near each of six Subway stops (Hillhead, Kelvinbridge, St George's Cross, Buchanan Street, St Enoch, Bridge Street). Not the full fifteen; drink responsibly and know when to hop off the Clockwork Orange.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-glw-dsoj3p", // The Curler's Rest — Hillhead
@@ -26,7 +26,7 @@ export const glasgowCuratedCrawls: CuratedCrawl[] = [
     id: "west-end-first-night",
     name: "West End first night",
     blurb:
-      "A walkable first night on Byres Road and Ashton Lane — Tennent's, the Chip lane, Curlers, Jinty's, and the Three Judges — Hillhead Subway as the last-ride escape hatch.",
+      "A walkable first night on Byres Road and Ashton Lane. Tennent's, the Chip lane, Curlers, Jinty's, and the Three Judges. Hillhead Subway as the last-ride escape hatch.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-glw-rapd3s", // Tennent's Bar
@@ -42,7 +42,7 @@ export const glasgowCuratedCrawls: CuratedCrawl[] = [
     id: "merchant-city-tiles",
     name: "Merchant City tiles",
     blurb:
-      "Merchant City and the High Street fringe — Babbity Bowster, Blackfriars, Empire, Scotia, and the Horseshoe — warehouse streets and tiled city-centre bars without inventing a stop that isn't on the map.",
+      "Merchant City and the High Street fringe. Babbity Bowster, Blackfriars, Empire, Scotia, and the Horseshoe. Warehouse streets and tiled city-centre bars without inventing a stop that isn't on the map.",
     crawlStyle: "heritage",
     venueIds: [
       "venue-glw-q76zv1", // Babbity Bowster

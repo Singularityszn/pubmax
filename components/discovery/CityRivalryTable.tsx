@@ -19,7 +19,7 @@ type CityRivalryTableProps = {
  */
 export default function CityRivalryTable({
   entries,
-  caption = "UK city energy — demo Pint Drops, curated crawls, and venue coverage.",
+  caption = "UK city energy. Demo Pint Drops, curated crawls, and venue coverage.",
 }: CityRivalryTableProps) {
   if (entries.length === 0) {
     return (

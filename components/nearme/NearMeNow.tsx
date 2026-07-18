@@ -160,7 +160,7 @@ export default function NearMeNow({
     <section className="nmn" aria-label="Cheapest pints near you now">
       {state === "idle" ? (
         <div className="nmnIntro">
-          <p className="nmnLede">The cheapest good pints within a short walk — right now.</p>
+          <p className="nmnLede">The cheapest good pints within a short walk, right now.</p>
           <button type="button" className="nmnLocate" onClick={locate}>
             <LocateFixed size={18} aria-hidden="true" /> Find my pint
           </button>
@@ -180,7 +180,7 @@ export default function NearMeNow({
           <header className="nmnHead">
             <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest pints near you"}</h2>
             {scope === "widened" ? (
-              <p className="nmnWiden">Not many priced pubs on your doorstep — these are the nearest, a bit further out.</p>
+              <p className="nmnWiden">Not many priced pubs on your doorstep. These are the nearest, a bit further out.</p>
             ) : (
               <p className="nmnSub">Within about a 12-minute walk.</p>
             )}
@@ -278,7 +278,7 @@ function BoroughPicker({
 
   const message =
     reason === "denied"
-      ? "No problem — location is off. Pick your area and we'll show the cheapest pints there."
+      ? "No problem. Location is off. Pick your area and we'll show the cheapest pints there."
       : reason === "none"
         ? "No priced pubs turned up nearby. Pick an area to see the cheapest pints there."
         : "Location isn't available here. Pick your area to see the cheapest pints there.";

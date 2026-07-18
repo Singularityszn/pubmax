@@ -16,7 +16,7 @@ describe("buildPlanInviteShareText", () => {
   it("carries title, stop count and start clock", () => {
     expect(
       buildPlanInviteShareText({ title: "Friday in Soho", stopCount: 3, startClock: "19:00" }),
-    ).toBe("Friday in Soho · 3 stops · starts 19:00 — open the link and tap I'm in.");
+    ).toBe("Friday in Soho · 3 stops · starts 19:00. Open the link and tap I'm in.");
   });
 
   it("singularises one stop", () => {
@@ -27,7 +27,7 @@ describe("buildPlanInviteShareText", () => {
 
   it("omits the start clause when the start time is unknown — never invented", () => {
     const text = buildPlanInviteShareText({ title: "Friday in Soho", stopCount: 2, startClock: null });
-    expect(text).toBe("Friday in Soho · 2 stops — open the link and tap I'm in.");
+    expect(text).toBe("Friday in Soho · 2 stops. Open the link and tap I'm in.");
     expect(text).not.toContain("starts");
   });
 });
@@ -36,12 +36,12 @@ describe("buildPintDropShareText", () => {
   it("names the finder and price when both are known", () => {
     expect(
       buildPintDropShareText({ venueName: "The Test Tavern", priceGbp: 4.5, handle: "@old_ken" }),
-    ).toBe("@old_ken found a proper pint at The Test Tavern — £4.50. Every pint has a story.");
+    ).toBe("@old_ken found a proper pint at The Test Tavern, £4.50. Every pint has a story.");
   });
 
   it("reads first-person without a handle", () => {
     expect(buildPintDropShareText({ venueName: "The Test Tavern", priceGbp: 4.5 })).toBe(
-      "Found a proper pint at The Test Tavern — £4.50. Every pint has a story.",
+      "Found a proper pint at The Test Tavern, £4.50. Every pint has a story.",
     );
   });
 
@@ -58,13 +58,13 @@ describe("buildPintDropShareText", () => {
 describe("buildCrawlShareText", () => {
   it("includes the round total when the stops carry prices", () => {
     expect(buildCrawlShareText({ title: "Soho Loop", stopCount: 4, totalGbp: 21.4 })).toBe(
-      "Soho Loop — 4 stops, £21.40 a round. Every pint has a story.",
+      "Soho Loop. 4 stops, £21.40 a round. Every pint has a story.",
     );
   });
 
   it("drops the money line when no stop was priced", () => {
     expect(buildCrawlShareText({ title: "Soho Loop", stopCount: 1, totalGbp: 0 })).toBe(
-      "Soho Loop — 1 stop. Every pint has a story.",
+      "Soho Loop. 1 stop. Every pint has a story.",
     );
   });
 });
@@ -72,7 +72,7 @@ describe("buildCrawlShareText", () => {
 describe("buildVenueShareText", () => {
   it("leads with the cheapest pint when known", () => {
     expect(buildVenueShareText({ name: "The Red Lion", cheapestPintGbp: 4.2 })).toBe(
-      "The Red Lion — pints from £4.20. On the PUBMAXXING map.",
+      "The Red Lion. Pints from £4.20. On the PUBMAXXING map.",
     );
   });
 
@@ -107,14 +107,14 @@ describe("buildPassportShareText", () => {
   it("invites rather than boasts when the passport is empty", () => {
     expect(
       buildPassportShareText({ displayName: "Old Ken", pubs: 0, boroughs: 0, pints: 0, isEmpty: true }),
-    ).toBe("Start a Pint Passport on PUBMAXXING — every pint stamps a page.");
+    ).toBe("Start a Pint Passport on PUBMAXXING. Every pint stamps a page.");
   });
 });
 
 describe("buildSavedListShareText", () => {
   it("carries owner, list type and honest pub count", () => {
     expect(buildSavedListShareText({ owner: "old_ken", listType: "favourites", pubCount: 5 })).toBe(
-      "old_ken's favourites list — 5 pubs on PUBMAXXING.",
+      "old_ken's favourites list. 5 pubs on PUBMAXXING.",
     );
   });
 });
@@ -128,7 +128,7 @@ describe("buildHistoricPubShareText", () => {
 
   it("falls back honestly when the hook is blank", () => {
     expect(buildHistoricPubShareText({ name: "Ye Olde Mitre", hook: "   " })).toBe(
-      "Ye Olde Mitre — a historic London pub.",
+      "Ye Olde Mitre. A historic London pub.",
     );
   });
 });

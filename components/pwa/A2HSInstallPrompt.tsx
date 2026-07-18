@@ -293,7 +293,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
         {surface === "android" ? (
           <>
             <p id="a2hsBody" className="a2hsBody">
-              One tap to tonight&apos;s cheapest pints — no app store, no download.
+              One tap to tonight&apos;s cheapest pints. No app store, no download.
             </p>
             <div className="a2hsActions">
               <button type="button" className="a2hsSecondary pressable" onClick={() => close(true)}>
@@ -310,7 +310,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
         ) : (
           <>
             <p id="a2hsBody" className="a2hsBody">
-              One tap to tonight — and once it&apos;s installed, PUBMAXX can send you
+              One tap to tonight, and once it&apos;s installed, PUBMAXX can send you
               price-drop and last-orders alerts. Works in Safari.
             </p>
             <ol className="a2hsSteps">
@@ -335,7 +335,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
                   3
                 </span>
                 <span>
-                  Tap <strong>Add</strong> — PUBMAXX lands on your home screen.
+                  Tap <strong>Add</strong>. PUBMAXX lands on your home screen.
                 </span>
               </li>
             </ol>

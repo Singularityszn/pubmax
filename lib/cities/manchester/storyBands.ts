@@ -16,7 +16,7 @@ export const manchesterStoryBands: StoryBand[] = [
     radiusKm: 0.55,
     sources: [
       {
-        label: "Wikipedia — Northern Quarter, Manchester",
+        label: "Wikipedia: Northern Quarter, Manchester",
         url: "https://en.wikipedia.org/wiki/Northern_Quarter,_Manchester",
       },
     ],
@@ -37,11 +37,11 @@ export const manchesterStoryBands: StoryBand[] = [
     radiusKm: 0.7,
     sources: [
       {
-        label: "Wikipedia — Castlefield",
+        label: "Wikipedia: Castlefield",
         url: "https://en.wikipedia.org/wiki/Castlefield",
       },
       {
-        label: "Historic England — Manchester historic pub walk",
+        label: "Historic England: Manchester historic pub walk",
         url: "https://historicengland.org.uk/campaigns/visit/walking-tours/historic-pub-walks-north-west-england/manchester/",
       },
     ],
@@ -50,14 +50,14 @@ export const manchesterStoryBands: StoryBand[] = [
     id: "oxford-road-strip",
     title: "Oxford Road student strip",
     copy:
-      "Oxford Road is Manchester's university spine — from the city-centre stations south toward the campuses, lined with student pubs, music venues, and late bars. The Lass O'Gowrie, Sandbar, and the Salutation have long poured for students walking the corridor between lectures and the last tram.",
+      "Oxford Road is Manchester's university spine. From the city-centre stations south toward the campuses, lined with student pubs, music venues, and late bars. The Lass O'Gowrie, Sandbar, and the Salutation have long poured for students walking the corridor between lectures and the last tram.",
     kind: "modern",
     anchorLandmarkIds: ["peveril-of-the-peak", "circus-tavern", "piccadilly-gardens"],
     colourToken: "brass",
     radiusKm: 0.85,
     sources: [
       {
-        label: "Wikipedia — Oxford Road, Manchester",
+        label: "Wikipedia: Oxford Road, Manchester",
         url: "https://en.wikipedia.org/wiki/Oxford_Road,_Manchester",
       },
     ],

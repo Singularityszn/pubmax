@@ -159,12 +159,12 @@ export default function VenueBuzz({
   return (
     <section
       className="venueBuzz"
-      aria-label="Around the web — AI summary of press and reviews, via CityMCP"
+      aria-label="Around the web: AI summary of press and reviews, via CityMCP"
     >
       <div className="venueBuzzHead">
         <span className="venueBuzzEyebrow">
           <Newspaper size={12} aria-hidden="true" />
-          Around the web — AI summary of press &amp; reviews
+          Around the web: AI summary of press &amp; reviews
         </span>
         <span
           className="venueBuzzSource"
@@ -187,8 +187,8 @@ export default function VenueBuzz({
         </ul>
       ) : null}
       <small className="venueBuzzNote">
-        AI-synthesised from third-party press and reviews via CityMCP London —
-        not community reports or PUBMAXXING editorial.
+        AI-synthesised from third-party press and reviews via CityMCP London.
+        Not community reports or PUBMAXXING editorial.
       </small>
     </section>
   );

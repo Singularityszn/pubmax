@@ -52,7 +52,7 @@ export default function SavedPubList({
           <EmptyState
             eyebrow="Your lists"
             title="No saved pubs yet."
-            body="Save a pub from the map to start a list — favourites, want-to-try, whatever you call it."
+            body="Save a pub from the map to start a list. Favourites, want-to-try, whatever you call it."
             action={<Link href="/map">Open the map</Link>}
           />
         </section>

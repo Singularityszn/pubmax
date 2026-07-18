@@ -33,7 +33,7 @@ export default function HistoricBoroughLinks({
       </h2>
       <p className="historicBoroughDek">
         Cited historic pubs, grouped by area. Every date comes from the pub&rsquo;s
-        sourced heritage record — jump to a borough for the full, cited list.
+        sourced heritage record. Jump to a borough for the full, cited list.
       </p>
       <ul className="historicBoroughList">
         {boroughs.map((row) => (

@@ -112,7 +112,7 @@ export default function ThamesHero() {
     onFocus: warmMap,
   };
   return (
-    <div className="thamesHeroPhoto" role="region" aria-label="London pubs as drink shapes — tap one to open the map">
+    <div className="thamesHeroPhoto" role="region" aria-label="London pubs as drink shapes. Tap one to open the map">
       <Image
         className="thamesHeroImg"
         src="/landing/hero-night.jpg"
@@ -145,7 +145,7 @@ export default function ThamesHero() {
               <Link
                 href={href}
                 className="thamesHeroPinLink"
-                aria-label={`${categoryLabel(pub.category)} at ${pub.place}, about ${pub.price} — open on the map`}
+                aria-label={`${categoryLabel(pub.category)} at ${pub.place}, about ${pub.price}. Open on the map`}
                 {...mapWarmProps}
               >
                 <span className="thamesHeroPinGlyph" data-cat={pub.category}>

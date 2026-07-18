@@ -49,7 +49,7 @@ const COPY: Record<IdentityNudgeTrigger, { title: string; body: string }> = {
   },
   moment: {
     title: "Own your memories",
-    body: "Sign in and your Moments save to your account — not just this device.",
+    body: "Sign in and your Moments save to your account, not just this device.",
   },
 };
 
@@ -127,11 +127,11 @@ export default function IdentityNudge(): React.JSX.Element | null {
       return "You're already signed up for the weekly digest.";
     }
     if (body.confirmationSent === true) {
-      return "Almost there — check your inbox to confirm your subscription.";
+      return "Almost there. Check your inbox to confirm your subscription.";
     }
     // Provider-gated noop today: we saved a PENDING sign-up and will send a
     // confirmation before ever adding the address to the digest (double opt-in).
-    return "Thanks — we'll email you to confirm before adding you to the digest.";
+    return "Thanks. We'll email you to confirm before adding you to the digest.";
   }
 
   async function submitEmail(event: React.FormEvent) {
@@ -225,7 +225,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
             </div>
             <form className="identityNudgeEmail" onSubmit={submitEmail} noValidate>
               <label className="identityNudgeEmailLabel" htmlFor="identity-nudge-email">
-                Just leave your email — we&apos;ll send the weekly pint digest.
+                Just leave your email. We&apos;ll send the weekly pint digest.
               </label>
               <div className="identityNudgeEmailRow">
                 <input

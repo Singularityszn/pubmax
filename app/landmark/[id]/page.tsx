@@ -40,9 +40,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const landmark = landmarkById(id);
   if (!landmark) {
-    return { title: "Landmark chapter — PUBMAXXING", robots: { index: false, follow: false } };
+    return { title: "Landmark chapter · PUBMAXXING", robots: { index: false, follow: false } };
   }
-  const title = `${landmark.name} — London story chapter — PUBMAXXING`;
+  const title = `${landmark.name}: London story chapter · PUBMAXXING`;
   const description = landmark.history.slice(0, 155);
   const canonical = `/landmark/${landmark.id}`;
   return {
@@ -124,7 +124,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
             Story pubs nearby
           </h2>
           <p className="landmarkChapterFoot">
-            Straight-line distances — pavement walks will be longer.
+            Straight-line distances. Pavement walks will be longer.
           </p>
           <ul className="landmarkChapterPubList">
             {nearby.map(({ venue, km }) => (

@@ -58,7 +58,7 @@ export function buildPlanInviteShareText(input: PlanInviteShareInput): string {
   const { title, stopCount, startClock } = input;
   const parts = [title, countNoun(stopCount, "stop")];
   if (startClock) parts.push(`starts ${startClock}`);
-  return `${parts.join(" · ")} — open the link and tap I'm in.`;
+  return `${parts.join(" · ")}. Open the link and tap I'm in.`;
 }
 
 // ── Pint drop (permalink card + feed card share the same message) ────────────
@@ -77,7 +77,7 @@ export function buildPintDropShareText(input: PintDropShareInput): string {
   const opener = handle
     ? `${handle} found a proper pint at ${venueName}`
     : `Found a proper pint at ${venueName}`;
-  return `${opener}${price ? ` — ${price}` : ""}. Every pint has a story.`;
+  return `${opener}${price ? `, ${price}` : ""}. Every pint has a story.`;
 }
 
 // ── Crawl story ──────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ export type CrawlShareInput = {
 export function buildCrawlShareText(input: CrawlShareInput): string {
   const { title, stopCount } = input;
   const total = gbp(input.totalGbp);
-  return `${title} — ${countNoun(stopCount, "stop")}${
+  return `${title}. ${countNoun(stopCount, "stop")}${
     total ? `, ${total} a round` : ""
   }. Every pint has a story.`;
 }
@@ -108,7 +108,7 @@ export type VenueShareInput = {
 export function buildVenueShareText(input: VenueShareInput): string {
   const price = gbp(input.cheapestPintGbp);
   return price
-    ? `${input.name} — pints from ${price}. On the PUBMAXXING map.`
+    ? `${input.name}. Pints from ${price}. On the PUBMAXXING map.`
     : `${input.name}, on the PUBMAXXING map.`;
 }
 
@@ -134,7 +134,7 @@ export type PassportShareInput = {
 
 export function buildPassportShareText(input: PassportShareInput): string {
   if (input.isEmpty) {
-    return "Start a Pint Passport on PUBMAXXING — every pint stamps a page.";
+    return "Start a Pint Passport on PUBMAXXING. Every pint stamps a page.";
   }
   const { displayName, pubs, boroughs, pints } = input;
   return `${displayName} · ${countNoun(pubs, "pub")} · ${countNoun(
@@ -152,7 +152,7 @@ export type SavedListShareInput = {
 };
 
 export function buildSavedListShareText(input: SavedListShareInput): string {
-  return `${input.owner}'s ${input.listType} list — ${countNoun(
+  return `${input.owner}'s ${input.listType} list. ${countNoun(
     input.pubCount,
     "pub",
   )} on PUBMAXXING.`;
@@ -168,7 +168,7 @@ export type HistoricPubShareInput = {
 
 export function buildHistoricPubShareText(input: HistoricPubShareInput): string {
   const hook = input.hook?.trim();
-  return hook || `${input.name} — a historic London pub.`;
+  return hook || `${input.name}. A historic London pub.`;
 }
 
 // ── wa.me deep link ──────────────────────────────────────────────────────────

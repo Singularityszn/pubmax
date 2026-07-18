@@ -47,7 +47,7 @@ export const DESTINATION_META: Record<SpillDestination, DestinationMeta> = {
     key: "tonight",
     label: "Tonight",
     visibility: "public",
-    helper: "Public tonight — on the feed and the map.",
+    helper: "Public tonight. On the feed and the map.",
     needsActiveRound: false,
   },
   round: {
@@ -61,7 +61,7 @@ export const DESTINATION_META: Record<SpillDestination, DestinationMeta> = {
     key: "family",
     label: "Family Table",
     visibility: "legacy",
-    helper: "Kept for the family — off the public feed.",
+    helper: "Kept for the family. Off the public feed.",
     needsActiveRound: false,
   },
   ledger: {

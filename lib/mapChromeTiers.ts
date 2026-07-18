@@ -73,7 +73,7 @@ export function buildFiltersChip(input: {
   return {
     label: "Filters",
     refinements,
-    ariaLabel: refinements === 0 ? "Filters" : `Filters — ${parts.join(" and ")} active`,
+    ariaLabel: refinements === 0 ? "Filters" : `Filters: ${parts.join(" and ")} active`,
   };
 }
 
@@ -85,11 +85,11 @@ export function buildTflCorner(status: TflStatus, count: number): CornerUtilityM
     badge: count > 0 ? count : null,
     ariaLabel:
       status === "clear"
-        ? "TfL live — lines running well"
+        ? "TfL live: lines running well"
         : status === "unavailable"
-          ? "TfL live — status unavailable"
+          ? "TfL live: status unavailable"
           : count > 0
-            ? `TfL live — ${count} updates`
+            ? `TfL live: ${count} updates`
             : "TfL live",
   };
 }

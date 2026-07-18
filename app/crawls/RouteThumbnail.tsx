@@ -45,7 +45,7 @@ export default function RouteThumbnail({ points, className, label }: RouteThumbn
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       className={className}
       role="img"
-      aria-label={label ?? `Route shape — straight lines between ${points.length} stops`}
+      aria-label={label ?? `Route shape: straight lines between ${points.length} stops`}
       preserveAspectRatio="xMidYMid meet"
     >
       <polyline

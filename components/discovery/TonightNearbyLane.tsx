@@ -147,7 +147,7 @@ export default function TonightNearbyLane() {
         </Link>
       </div>
       <p className="discoverSectionDek">
-        Curated things to do in London tonight — via CityMCP London. Grounded,
+        Curated things to do in London tonight, via CityMCP London. Grounded,
         upstream-sourced; no invented listings.
       </p>
       <div className="tonightNearbyGrid">

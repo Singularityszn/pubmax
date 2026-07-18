@@ -27,7 +27,7 @@ function demoCreatedAt(minutesAgo: number): string {
   return new Date(DEMO_NOW_MS - minutesAgo * MINUTE_MS).toISOString();
 }
 
-const SEED_NOTE_SUFFIX = " Seeded demo Drop — replace with a real Spill.";
+const SEED_NOTE_SUFFIX = " Seeded demo Drop. Replace with a real Spill.";
 
 const seeds: SeedSpec[] = [
   // Peveril of the Peak — venue-mcr-1lwo5lo
@@ -38,7 +38,7 @@ const seeds: SeedSpec[] = [
     drink: "Cask bitter",
     priceGbp: 4.6,
     passedDownNote:
-      "Green tiles on the triangle plot — stand outside once before you go in." + SEED_NOTE_SUFFIX,
+      "Green tiles on the triangle plot. Stand outside once before you go in." + SEED_NOTE_SUFFIX,
     era: "Victorian tile lore",
     minutesAgo: 22,
   },
@@ -50,7 +50,7 @@ const seeds: SeedSpec[] = [
     drink: "Guinness",
     priceGbp: 5.2,
     passedDownNote:
-      "Long front bar, tiled corridor, snug at the back — ask for the quiet room." +
+      "Long front bar, tiled corridor, snug at the back. Ask for the quiet room." +
       SEED_NOTE_SUFFIX,
     era: "1930s remodel habit",
     minutesAgo: 48,
@@ -63,7 +63,7 @@ const seeds: SeedSpec[] = [
     drink: "House lager",
     priceGbp: 3.9,
     passedDownNote:
-      "One of the smallest rooms in town — two stools and an honest pint." + SEED_NOTE_SUFFIX,
+      "One of the smallest rooms in town, two stools and an honest pint." + SEED_NOTE_SUFFIX,
     era: "Beerhouse survival",
     minutesAgo: 71,
   },
@@ -75,7 +75,7 @@ const seeds: SeedSpec[] = [
     drink: "Craft IPA",
     priceGbp: 5.8,
     passedDownNote:
-      "Northern Quarter music room energy — check the gig board before you settle." +
+      "Northern Quarter music room energy. Check the gig board before you settle." +
       SEED_NOTE_SUFFIX,
     era: "Indie night tip",
     minutesAgo: 96,
@@ -88,7 +88,7 @@ const seeds: SeedSpec[] = [
     drink: "Marble Pint",
     priceGbp: 4.8,
     passedDownNote:
-      "Marble's own house pour under the vaulted ceiling — start here on a Rochdale Road crawl." +
+      "Marble's own house pour under the vaulted ceiling. Start here on a Rochdale Road crawl." +
       SEED_NOTE_SUFFIX,
     era: "Brewery tap lore",
     minutesAgo: 124,
@@ -101,7 +101,7 @@ const seeds: SeedSpec[] = [
     drink: "Cask ale",
     priceGbp: 4.4,
     passedDownNote:
-      "City-centre tiled classic — a quick half before the next stop." + SEED_NOTE_SUFFIX,
+      "City-centre tiled classic, a quick half before the next stop." + SEED_NOTE_SUFFIX,
     era: "City-centre habit",
     minutesAgo: 151,
   },
@@ -113,7 +113,7 @@ const seeds: SeedSpec[] = [
     drink: "Guest pale",
     priceGbp: 5.5,
     passedDownNote:
-      "Northern Quarter tap list changes often — ask what's on cask tonight." + SEED_NOTE_SUFFIX,
+      "Northern Quarter tap list changes often. Ask what's on cask tonight." + SEED_NOTE_SUFFIX,
     era: "Guest-ale tip",
     minutesAgo: 183,
   },
@@ -125,7 +125,7 @@ const seeds: SeedSpec[] = [
     drink: "Session bitter",
     priceGbp: 4.2,
     passedDownNote:
-      "Oxford Road student spine staple — cheap enough for a second round." + SEED_NOTE_SUFFIX,
+      "Oxford Road student spine staple, cheap enough for a second round." + SEED_NOTE_SUFFIX,
     era: "Student stagger",
     minutesAgo: 214,
   },
@@ -137,7 +137,7 @@ const seeds: SeedSpec[] = [
     drink: "Cask bitter",
     priceGbp: 4.0,
     passedDownNote:
-      "Compact city-centre local — a proper Northern pint before the train." + SEED_NOTE_SUFFIX,
+      "Compact city-centre local, a proper Northern pint before the train." + SEED_NOTE_SUFFIX,
     era: "After-work round",
     minutesAgo: 248,
   },
@@ -149,7 +149,7 @@ const seeds: SeedSpec[] = [
     drink: "Premium lager",
     priceGbp: 6.2,
     passedDownNote:
-      "Victorian chop-house room — dress the pint up a notch for Cross Street." + SEED_NOTE_SUFFIX,
+      "Victorian chop-house room. Dress the pint up a notch for Cross Street." + SEED_NOTE_SUFFIX,
     era: "Chop-house tip",
     minutesAgo: 281,
   },

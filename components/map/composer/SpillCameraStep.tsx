@@ -76,13 +76,13 @@ export function SpillCameraStep({
               slot so provenance/photo semantics are unchanged. */}
             <label className="spillCameraBtn">
               <SmilePlus size={18} />
-              <span>Flip — you at the bar</span>
+              <span>Flip: you at the bar</span>
               <input
                 ref={venueInputRef}
                 type="file"
                 accept="image/*"
                 capture="user"
-                aria-label="Flip — you at the bar: snap or upload a selfie"
+                aria-label="Flip. You at the bar: snap or upload a selfie"
                 onChange={(event) =>
                   pickPhoto("venue", event.target.files?.[0], event.target)
                 }

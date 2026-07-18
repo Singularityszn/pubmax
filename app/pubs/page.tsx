@@ -6,9 +6,9 @@ import { listScrapedPubs } from "@/lib/scrapedPubs.server";
 
 import "@/components/pubs/pubsGallery.css";
 
-const PUBS_TITLE = "Pubs — scraped menus on the map · PUBMAXXING";
+const PUBS_TITLE = "Pubs: scraped menus on the map · PUBMAXXING";
 const PUBS_DESCRIPTION =
-  "Browse Young's, Nicholson's, and Greene King pubs we've scraped — each with a drink picture, menu links, and a jump to the map.";
+  "Browse Young's, Nicholson's, and Greene King pubs we've scraped, each with a drink picture, menu links, and a jump to the map.";
 
 export const metadata: Metadata = {
   title: PUBS_TITLE,
@@ -39,7 +39,7 @@ export default async function PubsPage() {
           <h1>Pubs with a drink on every card</h1>
           <p className="pubsDek">
             Young&apos;s gardens, Nicholson&apos;s historic rooms, and Greene King
-            menus we&apos;ve scraped into the London map — open a pub, check the
+            menus we&apos;ve scraped into the London map. Open a pub, check the
             menu, or jump straight onto the pin.
           </p>
         </header>

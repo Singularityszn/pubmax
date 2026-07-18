@@ -29,8 +29,8 @@ export function LogIntentFallback({
         <strong>Pick a pub to log a Pint Drop</strong>
         <p className="description">
           {hasUserLocation
-            ? "Nearest pubs to you first. Choose one, search, or tap the map — then we’ll open the Pint Drop composer."
-            : "We won’t guess which pub you’re in. Choose one below, search, or tap the map — then we’ll open the Pint Drop composer."}
+            ? "Nearest pubs to you first. Choose one, search, or tap the map. Then we’ll open the Pint Drop composer."
+            : "We won’t guess which pub you’re in. Choose one below, search, or tap the map. Then we’ll open the Pint Drop composer."}
         </p>
       </div>
       {candidates.length > 0 ? (

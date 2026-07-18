@@ -163,13 +163,13 @@ describe("crewHereSummary — honest one-liner", () => {
 
   it("uses the singular verb for one and names the pub", () => {
     const result = roundPresence([member("ken")], stops, [presence("ken", "v2")], NOW);
-    expect(crewHereSummary(result)).toBe("1 of your crew is here — The Crown");
+    expect(crewHereSummary(result)).toBe("1 of your crew is here: The Crown");
   });
 
   it("uses the plural verb for more than one", () => {
     const members = [member("ken"), member("mo")];
     const rows = [presence("ken", "v2"), presence("mo", "v2")];
     const result = roundPresence(members, stops, rows, NOW);
-    expect(crewHereSummary(result)).toBe("2 of your crew are here — The Crown");
+    expect(crewHereSummary(result)).toBe("2 of your crew are here: The Crown");
   });
 });

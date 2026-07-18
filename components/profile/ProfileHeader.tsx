@@ -99,7 +99,7 @@ export default function ProfileHeader({
             <li
               key={badge.id}
               className="profileBadge"
-              title={`${badge.label} — ${badge.description}`}
+              title={`${badge.label}: ${badge.description}`}
             >
               <span aria-hidden="true" className="profileBadgeDot" />
               <span className="profileBadgeLabel">{badge.label}</span>

@@ -1,10 +1,10 @@
-PUBMAXX — Your London week in pints
+PUBMAXX: Your London week in pints
 near Kentish Town
 
 CHEAPEST NEW PRICES THIS WEEK
-  £4.80  The Pineapple · Camden — logged yesterday (The Pineapple menu: https://example.com/pineapple)
-  £5.20  The Southampton Arms · Camden — logged 2 days ago (Pint Drop (confirmed): https://pubmaxxing.com/drops/v2)
-  £5.90  The Lord Palmerston · Camden — logged 4 days ago (The Lord Palmerston: https://example.com/palmerston)
+  £4.80  The Pineapple · Camden, logged yesterday (The Pineapple menu: https://example.com/pineapple)
+  £5.20  The Southampton Arms · Camden, logged 2 days ago (Pint Drop (confirmed): https://pubmaxxing.com/drops/v2)
+  £5.90  The Lord Palmerston · Camden, logged 4 days ago (The Lord Palmerston: https://example.com/palmerston)
 
 THE DATA MOAT GREW
   3 new pint prices were logged near Kentish Town this week.
@@ -14,8 +14,8 @@ WORTH A LOOK SOON
   (The Pineapple listings: https://example.com/pineapple/quiz)
 
 ONE FOR THE ROAD
-  Last orders is usually 20 minutes before close — check the last train home before that final round, not after.
+  Last orders is usually 20 minutes before close. Check the last train home before that final round, not after.
 
 —
-You're getting this because you asked us to keep you posted. We only show real, sourced data — we never invent a pint.
+You're getting this because you asked us to keep you posted. We only show real, sourced data. We never invent a pint.
 Unsubscribe: https://pubmaxxing.com/u/EXAMPLE-UNSUBSCRIBE-TOKEN

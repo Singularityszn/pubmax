@@ -34,7 +34,7 @@ const SITE_JSON_LD = [
     alternateName: "PUBMAXX",
     url: "https://pubmaxxing.com",
     description:
-      "A price-aware, provenance-first London pub map and crawl planner — real observed pint prices and cited historic pubs.",
+      "A price-aware, provenance-first London pub map and crawl planner. Real observed pint prices and cited historic pubs.",
   },
   {
     "@context": "https://schema.org",
@@ -93,7 +93,7 @@ const dataMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxxing.com"),
   title: {
-    default: "PUBMAXX — Make tonight worth remembering",
+    default: "PUBMAXX: Make tonight worth remembering",
     template: "%s | PUBMAXX",
   },
   description:
@@ -105,9 +105,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   openGraph: {
-    title: "PUBMAXX — Make tonight worth remembering",
+    title: "PUBMAXX: Make tonight worth remembering",
     description:
-      "Real prices, live plans and unexpected places—built for better nights with your people.",
+      "Real prices, live plans and unexpected places. Built for better nights with your people.",
     url: "https://pubmaxxing.com",
     siteName: "PUBMAXX",
     type: "website",
@@ -122,9 +122,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "PUBMAXX — Make tonight worth remembering",
+    title: "PUBMAXX: Make tonight worth remembering",
     description:
-      "Real prices, live plans and unexpected places—built for better nights with your people.",
+      "Real prices, live plans and unexpected places. Built for better nights with your people.",
     images: ["/og.png?v=20260715-coral"],
   },
   icons: {

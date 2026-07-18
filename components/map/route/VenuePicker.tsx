@@ -27,7 +27,7 @@ export default function VenuePicker({
         <span>Add stops</span>
       </div>
       <p className="description muted">
-        Every filtered pub, keyboard-friendly — the map is optional. Use search and filters to
+        Every filtered pub, keyboard-friendly. The map is optional. Use search and filters to
         narrow the list.
       </p>
       <ul className="venuePickerList">
@@ -58,7 +58,7 @@ export default function VenuePicker({
       </ul>
       {filteredVenues.length > PICKER_LIMIT ? (
         <small className="pickerNote">
-          Showing {PICKER_LIMIT} of {filteredVenues.length} — narrow the search to see more.
+          Showing {PICKER_LIMIT} of {filteredVenues.length}. Narrow the search to see more.
         </small>
       ) : null}
     </section>

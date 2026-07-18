@@ -101,7 +101,7 @@ export function buildCrawlIcs(crawl: IcsCrawl, options: IcsOptions = {}): string
   if (crawl.blurb) descriptionParts.push(crawl.blurb);
   if (crawl.stops.length) {
     const lines = crawl.stops.map((stop, index) => {
-      const where = stop.address ? ` — ${stop.address}` : "";
+      const where = stop.address ? `, ${stop.address}` : "";
       return `${index + 1}. ${stop.name}${where}`;
     });
     descriptionParts.push(

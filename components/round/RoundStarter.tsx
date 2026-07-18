@@ -118,7 +118,7 @@ export default function RoundStarter({
         </span>
         <h2 className="roundStarterTitle">Share the code</h2>
         <p className="roundStarterBlurb">
-          Friends join with this code. You stay on the map — open the Round board anytime.
+          Friends join with this code. You stay on the map. Open the Round board anytime.
         </p>
         <p className="roundStarterCode" data-testid="round-starter-code">
           {startedCode}

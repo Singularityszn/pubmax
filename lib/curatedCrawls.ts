@@ -47,7 +47,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "victorian-soho",
     name: "Victorian Soho",
     blurb:
-      "Five Dean Street–era snugs the old Soho hands drank in — pass the round on to whoever's next.",
+      "Five Dean Street–era snugs the old Soho hands drank in. Pass the round on to whoever's next.",
     crawlStyle: "heritage",
     // Tight cluster around Dean St / Greek St, W1D — every leg under 200m.
     venueIds: [
@@ -64,7 +64,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "fleet-street-writers",
     name: "Fleet Street & the Writers",
     blurb:
-      "The old press strip, Strand to Fleet Street — where a generation of hacks filed copy, then drank it back.",
+      "The old press strip, Strand to Fleet Street, where a generation of hacks filed copy, then drank it back.",
     crawlStyle: "writerTrail",
     // Walkable west→east along the Strand and Fleet St, WC2/EC4.
     venueIds: [
@@ -82,7 +82,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "bloomsbury-literary",
     name: "Bloomsbury Literary",
     blurb:
-      "From the Museum Tavern down Lamb's Conduit Street — the reading-room-and-a-pint round handed down since the British Museum days.",
+      "From the Museum Tavern down Lamb's Conduit Street, the reading-room-and-a-pint round handed down since the British Museum days.",
     crawlStyle: "writerTrail",
     // British Museum → Lamb's Conduit St spine, WC1.
     venueIds: [
@@ -98,7 +98,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "riverside-heritage",
     name: "Riverside Heritage",
     blurb:
-      "St Katharine Docks east to Limehouse — the Thames-side taverns watermen and their grandkids still drink in at the turn of the tide.",
+      "St Katharine Docks east to Limehouse, the Thames-side taverns watermen and their grandkids still drink in at the turn of the tide.",
     crawlStyle: "heritage",
     // Along the river west→east, Wapping to Limehouse — a proper riverside walk.
     venueIds: [
@@ -114,7 +114,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "pint-park-view",
     name: "A pint, a park, a view",
     blurb:
-      "A City-fringe loop past Leadenhall Market that climbs to a free rooftop garden with one of London's best skyline views — a pint at each end of the climb.",
+      "A City-fringe loop past Leadenhall Market that climbs to a free rooftop garden with one of London's best skyline views. A pint at each end of the climb.",
     crawlStyle: "beerGarden",
     // Bishopsgate/Cornhill cluster, EC2/EC3 — every leg under 550m, all inside
     // the 22 Bishopsgate viewpoint's "on the way" radius via lib/routeLegs.
@@ -132,7 +132,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "borough-market-crawl",
     name: "Borough Market crawl",
     blurb:
-      "A tight loop through the stalls and railway arches of Borough Market — London's oldest food market, trading since at least the 13th century, threaded between five pubs.",
+      "A tight loop through the stalls and railway arches of Borough Market, London's oldest food market, trading since at least the 13th century, threaded between five pubs.",
     crawlStyle: "balanced",
     // Southwark St / Borough High St, SE1 — every leg under 250m.
     venueIds: [
@@ -149,7 +149,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "bankside-riverside",
     name: "Bankside riverside walk",
     blurb:
-      "Straight along the Thames path from Clink Street to the South Bank — the old wharves and a working riverside pub, with Tate Modern and the river the whole way.",
+      "Straight along the Thames path from Clink Street to the South Bank, the old wharves and a working riverside pub, with Tate Modern and the river the whole way.",
     crawlStyle: "heritage",
     // Along the river, Bankside/Southwark, SE1 — every leg under 550m.
     venueIds: [
@@ -165,7 +165,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "camden-market-crawl",
     name: "Camden Market crawl",
     blurb:
-      "From the lock down Camden High Street — market stalls, canal views, and the pubs that have watched Camden's music scene since punk.",
+      "From the lock down Camden High Street, market stalls, canal views, and the pubs that have watched Camden's music scene since punk.",
     crawlStyle: "sports",
     // Camden Lock down Camden High St, NW1 — every leg under 400m.
     venueIds: [
@@ -181,7 +181,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "soho-food-crawl",
     name: "Soho small plates",
     blurb:
-      "A kitchen-first loop through Dean Street's food pubs — proper plates between the pints, so nobody drinks on an empty stomach.",
+      "A kitchen-first loop through Dean Street's food pubs. Proper plates between the pints, so nobody drinks on an empty stomach.",
     crawlStyle: "balanced",
     altStyle: "food",
     // Every stop serves food; tight Dean St / Bateman St cluster, W1D — legs
@@ -199,7 +199,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "westminster-civic",
     name: "Westminster & Whitehall",
     blurb:
-      "From the Admiralty to Trafalgar Square — the pubs civil servants and tourists share when Parliament is in session and the bells are ringing.",
+      "From the Admiralty to Trafalgar Square, the pubs civil servants and tourists share when Parliament is in session and the bells are ringing.",
     crawlStyle: "heritage",
     venueIds: [
       "venue-1t2cfa2", // The Admiralty
@@ -215,7 +215,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "barbican-coding-pint",
     name: "Barbican coding pint",
     blurb:
-      "A Barbican-to-Old-Street loop through the City fringe — the after-work standup pint between the Square Mile studios and Silicon Roundabout.",
+      "A Barbican-to-Old-Street loop through the City fringe, the after-work standup pint between the Square Mile studios and Silicon Roundabout.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-1h8gb3j", // The Jugged Hare
@@ -231,7 +231,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "leicester-mocktail-crawl",
     name: "Leicester Square soft round",
     blurb:
-      "A cocktail-bar loop off Leicester Square — every stop mixes drinks, so it's an easy one to run alcohol-free: order the mocktail version of the round.",
+      "A cocktail-bar loop off Leicester Square. Every stop mixes drinks, so it's an easy one to run alcohol-free: order the mocktail version of the round.",
     crawlStyle: "dateNight",
     altStyle: "mocktail",
     // All stops list cocktails (so a mocktail is on the menu); tight cluster
@@ -250,7 +250,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "eating-europe-london-pubs",
     name: "Historic pubs (Eating Europe guide)",
     blurb:
-      "Seven stops from Eating Europe's London pubs guide — heritage notes and stories only, never prices. A city-wide greatest-hits loop, not one tight walk.",
+      "Seven stops from Eating Europe's London pubs guide. Heritage notes and stories only, never prices. A city-wide greatest-hits loop, not one tight walk.",
     crawlStyle: "heritage",
     venueIds: [
       "venue-1lcgpd9", // The Mayflower — Rotherhithe
@@ -266,7 +266,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "youngs-beer-gardens",
     name: "Young's beer gardens",
     blurb:
-      "Garden pubs from Young's own regional guides that match our London map — official microsite links, beer-garden story, no invented prices.",
+      "Garden pubs from Young's own regional guides that match our London map. Official microsite links, beer-garden story, no invented prices.",
     crawlStyle: "beerGarden",
     // Guide-derived set across London (not one tight walk). Prefer garden-flagged
     // matches; Lamb / Castle stay as Young's hits even when the garden flag is soft.
@@ -287,7 +287,7 @@ export const curatedCrawls: CuratedCrawl[] = [
     id: "nicholsons-west-end",
     name: "Nicholson's West End",
     blurb:
-      "A walkable Mayfair–Soho–Strand loop through Nicholson's historic pubs — official menu and book links, no invented prices.",
+      "A walkable Mayfair–Soho–Strand loop through Nicholson's historic pubs. Official menu and book links, no invented prices.",
     crawlStyle: "heritage",
     // West → east: Mayfair / Oxford Circus → Soho → Strand.
     venueIds: [

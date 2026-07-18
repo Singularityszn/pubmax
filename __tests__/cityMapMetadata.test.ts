@@ -10,10 +10,10 @@ describe("city map generateMetadata", () => {
       searchParams: Promise.resolve({ band: "freshers-first-night" }),
     });
 
-    expect(metadata.title).toBe("Freshers first night — Oxford");
+    expect(metadata.title).toBe("Freshers first night · Oxford");
     expect(metadata.description).toMatch(/Freshers/i);
     expect(metadata.openGraph).toMatchObject({
-      title: "Freshers first night — Oxford",
+      title: "Freshers first night · Oxford",
       type: "website",
       url: "/map/oxford?band=freshers-first-night",
       images: [
@@ -32,7 +32,7 @@ describe("city map generateMetadata", () => {
       searchParams: Promise.resolve({ band: "subcrawl" }),
     });
 
-    expect(metadata.title).toBe("Subcrawl — Clockwork Orange loop — Glasgow");
+    expect(metadata.title).toBe("Subcrawl: Clockwork Orange loop · Glasgow");
     expect(metadata.openGraph).toMatchObject({
       url: "/map/glasgow?band=subcrawl",
     });
@@ -75,12 +75,12 @@ describe("city map generateMetadata", () => {
       }),
     });
 
-    expect(metadata.title).toBe("Victorian Soho — London");
+    expect(metadata.title).toBe("Victorian Soho · London");
     expect(metadata.description).toBe(
       "5-stop crawl: Victorian Soho in London. Open it on PUBMAXXING.",
     );
     expect(metadata.openGraph).toMatchObject({
-      title: "Victorian Soho — London",
+      title: "Victorian Soho · London",
       url: "/map?crawl=victorian-soho",
       images: [
         {
@@ -103,7 +103,7 @@ describe("city map generateMetadata", () => {
       }),
     });
 
-    expect(metadata.title).toBe("Subcrawl starter — Glasgow");
+    expect(metadata.title).toBe("Subcrawl starter · Glasgow");
     expect(metadata.description).toMatch(/^6-stop crawl: Subcrawl starter/);
     expect(metadata.openGraph).toMatchObject({
       url: "/map/glasgow?band=subcrawl&crawl=subcrawl-starter",

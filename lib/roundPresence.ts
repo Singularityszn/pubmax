@@ -156,5 +156,5 @@ export function roundPresence(
 export function crewHereSummary(result: RoundPresence): string | null {
   if (result.count === 0 || !result.stop) return null;
   const verb = result.count === 1 ? "is" : "are";
-  return `${result.count} of your crew ${verb} here — ${result.stop.venueName}`;
+  return `${result.count} of your crew ${verb} here: ${result.stop.venueName}`;
 }

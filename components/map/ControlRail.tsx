@@ -251,7 +251,7 @@ export default function ControlRail({
           <MapPinned size={16} />
           <span>Featured routes</span>
         </div>
-        <p className="featuredHint">Curated crawls — one generation&rsquo;s pubs, handed to the next.</p>
+        <p className="featuredHint">Curated crawls. One generation&rsquo;s pubs, handed to the next.</p>
         <div className="featuredList">
           {curatedCrawls.map((crawl) => (
             <button
@@ -466,7 +466,7 @@ export default function ControlRail({
           <span>Accessible venues</span>
         </div>
         <p className="accessibilityHint">
-          Only pubs with access we can <strong>confirm</strong> from a public source — unknown
+          Only pubs with access we can <strong>confirm</strong> from a public source. Unknown
           pubs are hidden here rather than guessed. Help by spilling what you know.
         </p>
         <label>

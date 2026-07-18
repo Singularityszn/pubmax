@@ -9,7 +9,7 @@ export const manchesterCuratedCrawls: CuratedCrawl[] = [
     id: "northern-quarter-first-night",
     name: "Northern Quarter first night",
     blurb:
-      "A first-night loop through the Northern Quarter — Castle Hotel, Gullivers, Port Street Beer House, and the Smithfield edge — indie pubs and music rooms between Piccadilly and Afflecks.",
+      "A first-night loop through the Northern Quarter: Castle Hotel, Gullivers, Port Street Beer House, and the Smithfield edge. Indie pubs and music rooms between Piccadilly and Afflecks.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-mcr-1rcu4en", // Castle Hotel
@@ -25,7 +25,7 @@ export const manchesterCuratedCrawls: CuratedCrawl[] = [
     id: "victorian-tiled-pubs",
     name: "Victorian tiled pubs",
     blurb:
-      "Manchester's glazed-tile heritage houses — Peveril of the Peak, Briton's Protection, Circus Tavern, and the Old Monkey — the Historic England pub-walk strip in a single round.",
+      "Manchester's glazed-tile heritage houses: Peveril of the Peak, Briton's Protection, Circus Tavern, and the Old Monkey. The Historic England pub-walk strip in a single round.",
     crawlStyle: "heritage",
     venueIds: [
       "venue-mcr-1lwo5lo", // Peveril of the Peak
@@ -41,7 +41,7 @@ export const manchesterCuratedCrawls: CuratedCrawl[] = [
     id: "oxford-road-student-stagger",
     name: "Oxford Road student stagger",
     blurb:
-      "The student spine south of the stations — Lass O'Gowrie, Sandbar, Salutation, and Salisbury — a walkable stagger along Oxford Road without inventing a stop that isn't in the map.",
+      "The student spine south of the stations: Lass O'Gowrie, Sandbar, Salutation, and Salisbury. A walkable stagger along Oxford Road without inventing a stop that isn't in the map.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-mcr-xwczi4", // The Lass O'Gowrie

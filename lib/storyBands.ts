@@ -92,7 +92,7 @@ export const STORY_BANDS: StoryBand[] = [
     radiusKm: 0.75,
     sources: [
       {
-        label: "British Library — Fleet Street",
+        label: "British Library: Fleet Street",
         url: "https://www.bl.uk/collection-guides/newspapers",
       },
     ],
@@ -108,7 +108,7 @@ export const STORY_BANDS: StoryBand[] = [
     radiusKm: 0.65,
     sources: [
       {
-        label: "Borough Market — Our history",
+        label: "Borough Market: Our history",
         url: "https://boroughmarket.org.uk/about-us/history/",
       },
     ],
@@ -130,7 +130,7 @@ export const STORY_BANDS: StoryBand[] = [
     radiusKm: 0.75,
     sources: [
       {
-        label: "UK Parliament — Living Heritage",
+        label: "UK Parliament: Living Heritage",
         url: "https://www.parliament.uk/about/living-heritage/",
       },
     ],
@@ -162,7 +162,7 @@ export const STORY_BANDS: StoryBand[] = [
     radiusKm: 0.7,
     sources: [
       {
-        label: "Tech City / Silicon Roundabout — Wikipedia",
+        label: "Tech City / Silicon Roundabout: Wikipedia",
         url: "https://en.wikipedia.org/wiki/Silicon_Roundabout",
       },
     ],

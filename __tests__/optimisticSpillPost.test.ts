@@ -61,7 +61,7 @@ describe("optimistic Spill posting", () => {
       pintPhotoUrl: "blob:http://localhost/pint",
       optimistic: {
         state: "uploading",
-        message: "Posting Spill — uploading photo",
+        message: "Posting Spill, uploading photo",
         uploadProgress: 0,
         canRetry: false,
         clientRequestId: "client-1",
@@ -256,7 +256,7 @@ describe("optimistic Spill posting", () => {
           ...draft,
           optimistic: {
             state: "uploading",
-            message: "Retrying Spill — uploading photo",
+            message: "Retrying Spill, uploading photo",
             uploadProgress: 0,
             canRetry: false,
             clientRequestId: "client-1",

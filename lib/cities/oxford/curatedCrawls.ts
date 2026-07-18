@@ -9,7 +9,7 @@ export const oxfordCuratedCrawls: CuratedCrawl[] = [
     id: "freshers-first-night",
     name: "Freshers first night",
     blurb:
-      "The cult first-night loop: Turf Tavern down the alley, King's Arms by the Bodleian, White Horse on Broad Street, then St Giles' for the Lamb & Flag — with the Bear as a city-centre snug if you still have legs. Drink responsibly; this is folklore, not a challenge.",
+      "The cult first-night loop: Turf Tavern down the alley, King's Arms by the Bodleian, White Horse on Broad Street, then St Giles' for the Lamb & Flag, with the Bear as a city-centre snug if you still have legs. Drink responsibly; this is folklore, not a challenge.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-oxf-16404bl", // Turf Tavern
@@ -25,7 +25,7 @@ export const oxfordCuratedCrawls: CuratedCrawl[] = [
     id: "jericho-wander",
     name: "Jericho wander",
     blurb:
-      "A walkable Jericho night — Jericho Tavern, Jude the Obscure, Rickety Press, Old Bookbinders, and the Victoria — canal-side pubs west of St Giles' without inventing a stop that isn't on the map.",
+      "A walkable Jericho night: Jericho Tavern, Jude the Obscure, Rickety Press, Old Bookbinders, and the Victoria. Canal-side pubs west of St Giles' without inventing a stop that isn't on the map.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-oxf-z97rrk", // Jericho Tavern
@@ -41,7 +41,7 @@ export const oxfordCuratedCrawls: CuratedCrawl[] = [
     id: "city-centre-snugs",
     name: "City centre snugs",
     blurb:
-      "Tight city-centre rooms around the Covered Market — the Bear, Chequers, Crown, Wheatsheaf, and St Aldate's Tavern — a short heritage loop when you want snugs over the Freshers alley run.",
+      "Tight city-centre rooms around the Covered Market: the Bear, Chequers, Crown, Wheatsheaf, and St Aldate's Tavern. A short heritage loop when you want snugs over the Freshers alley run.",
     crawlStyle: "heritage",
     venueIds: [
       "venue-oxf-dgav2w", // The Bear

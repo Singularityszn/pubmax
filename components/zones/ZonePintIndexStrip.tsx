@@ -32,7 +32,7 @@ function taxLine(index: ZonePintIndex): string {
     return "Log a few more pints and the zone tax appears here.";
   }
   if (cheapest.zone === dearest.zone || taxGbp === 0) {
-    return "Only one zone has enough pints logged so far — no tax to call yet.";
+    return "Only one zone has enough pints logged so far. No tax to call yet.";
   }
   return `The Zone ${dearest.zone} tax over Zone ${cheapest.zone} is ${formatZoneGbp(taxGbp)}.`;
 }
@@ -58,7 +58,7 @@ export default function ZonePintIndexStrip({
             : `${row.pricedCount}/${MIN_PRICED_VENUES}`;
           const title = priced
             ? `${label}: median ${formatZoneGbp(row.medianGbp)} from ${row.pricedCount} priced pubs`
-            : `${label}: only ${row.pricedCount} priced pubs — not enough pints logged yet`;
+            : `${label}: only ${row.pricedCount} priced pubs. Not enough pints logged yet`;
           const cellClass = [
             "zonePintCell",
             priced ? "isPriced" : "isThin",
@@ -99,7 +99,7 @@ export default function ZonePintIndexStrip({
         {hasAny ? (
           taxLine(index)
         ) : (
-          <>Not enough pints logged in any zone yet — fix that.</>
+          <>Not enough pints logged in any zone yet. Fix that.</>
         )}
       </p>
 

@@ -16,14 +16,14 @@ import "./[slug]/borough.css";
 // Reuses the detail page's stylesheet so both surfaces stay visually identical.
 
 export const metadata: Metadata = {
-  title: "London pubs by borough — PUBMAXXING",
+  title: "London pubs by borough: PUBMAXXING",
   description:
-    "Browse London's pubs the way locals do — by area. Camden, Soho, Hackney and every borough on the map, ranked by the cheapest pint.",
+    "Browse London's pubs the way locals do, by area. Camden, Soho, Hackney and every borough on the map, ranked by the cheapest pint.",
   alternates: { canonical: "/borough" },
   openGraph: {
-    title: "London pubs by borough — PUBMAXXING",
+    title: "London pubs by borough: PUBMAXXING",
     description:
-      "Browse London's pubs by area — every borough on the map, ranked by the cheapest pint.",
+      "Browse London's pubs by area. Every borough on the map, ranked by the cheapest pint.",
     type: "website",
   },
 };

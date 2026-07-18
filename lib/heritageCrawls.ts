@@ -57,7 +57,7 @@ function bySlug(a: RoutablePub, b: RoutablePub): number {
   return a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0;
 }
 
-const PROVENANCE = "Cited from Wikipedia — never invented.";
+const PROVENANCE = "Cited from Wikipedia. Never invented.";
 
 function makeCrawl(
   id: string,
@@ -135,7 +135,7 @@ export function buildHeritageCrawls(pubs: HistoricPub[]): CuratedCrawl[] {
   const listedCrawl = makeCrawl(
     "heritage-grade-listed",
     "Grade-Listed Classics",
-    `The map's most highly listed pubs — Grade II* and above, protected historic interiors. Every listing is ${PROVENANCE}`,
+    `The map's most highly listed pubs. Grade II* and above, protected historic interiors. Every listing is ${PROVENANCE}`,
     listed,
   );
   if (listedCrawl) crawls.push(listedCrawl);

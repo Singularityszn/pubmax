@@ -22,7 +22,7 @@ type LeaderboardTableProps = {
 };
 
 const LEADERBOARD_HONESTY =
-  "Cheapest we have on record — not necessarily tonight's price. Open a pub to see what's sourced or freshly reported.";
+  "Cheapest we have on record. Not necessarily tonight's price. Open a pub to see what's sourced or freshly reported.";
 
 export default function LeaderboardTable({
   entries,
@@ -31,7 +31,7 @@ export default function LeaderboardTable({
   if (entries.length === 0) {
     return (
       <p className="discoverEmpty" role="status">
-        No priced pints to rank just yet — check back once the taps report in.
+        No priced pints to rank just yet. Check back once the taps report in.
       </p>
     );
   }

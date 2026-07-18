@@ -501,7 +501,7 @@ export async function GET(request: Request): Promise<Response> {
       });
       return json({
         error:
-          "Couldn't reach TfL just now — showing the nearest known station from our map. Check live times before you head out.",
+          "Couldn't reach TfL just now. Showing the nearest known station from our map. Check live times before you head out.",
         station: {
           id: staticStation.id,
           name: staticStation.name,
@@ -526,7 +526,7 @@ export async function GET(request: Request): Promise<Response> {
       live: false,
     });
     return json({
-      error: "Couldn't reach TfL just now — check before you head out.",
+      error: "Couldn't reach TfL just now. Check before you head out.",
       station: null,
       trains: [],
       departures: [],

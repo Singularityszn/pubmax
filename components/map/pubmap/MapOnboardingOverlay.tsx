@@ -42,7 +42,7 @@ export function MapOnboardingOverlay({
         <p className="eyebrow">New here?</p>
         <h2 id="onboardingTitle">Start with a story</h2>
         <p className="mapOnboardingLead">
-          Curated crawls — one generation&rsquo;s pubs, handed to the next. Pick one to drop it
+          Curated crawls. One generation&rsquo;s pubs, handed to the next. Pick one to drop it
           on the map, or explore on your own.
         </p>
         <div className="mapOnboardingList">
@@ -51,7 +51,7 @@ export function MapOnboardingOverlay({
               key={crawl.id}
               type="button"
               className="mapOnboardingCrawl"
-              aria-label={`Load the ${crawl.name} crawl — ${crawl.venueIds.length} stops`}
+              aria-label={`Load the ${crawl.name} crawl, ${crawl.venueIds.length} stops`}
               onClick={() => onLoadCrawl(crawl)}
             >
               <span className="mapOnboardingCrawlHead">

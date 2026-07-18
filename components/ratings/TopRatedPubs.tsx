@@ -49,7 +49,7 @@ export default function TopRatedPubs({ venueNames }: TopRatedPubsProps) {
         className="topRatedEmpty"
         eyebrow="Early days"
         title="No pub has earned its stars yet this month."
-        body="A pub joins this list once ten people have rated it in the last thirty days — honest scores only, no seeded numbers."
+        body="A pub joins this list once ten people have rated it in the last thirty days. Honest scores only, no seeded numbers."
         action={<Link href="/map">Find a pub to rate</Link>}
       />
     );

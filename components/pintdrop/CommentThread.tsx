@@ -197,7 +197,7 @@ export default function CommentThread({
         if (!res.ok) {
           setError(
             res.status === 429
-              ? "You're commenting too fast — give it a sec."
+              ? "You're commenting too fast. Give it a sec."
               : res.status === 400
                 ? "Couldn't post that reply."
                 : "Couldn't post that comment.",
@@ -277,7 +277,7 @@ export default function CommentThread({
           {loading && !loaded ? <p className="commentStatus">Loading comments…</p> : null}
 
           {!loading && loaded && count === 0 ? (
-            <p className="commentEmpty">No comments yet — start the story.</p>
+            <p className="commentEmpty">No comments yet. Start the story.</p>
           ) : null}
 
           {count > 0 ? (

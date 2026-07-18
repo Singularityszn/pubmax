@@ -161,7 +161,7 @@ export default function HistoricPageClient({
             <div className="historicEmpty" role="status">
               <p className="historicEmptyTitle">Nothing matches those filters.</p>
               <p className="historicEmptyBody">
-                We only show pubs we can cite — nothing is invented to fill the
+                We only show pubs we can cite. Nothing is invented to fill the
                 gap.{" "}
                 {filtersActive ? (
                   <button

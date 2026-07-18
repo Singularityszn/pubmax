@@ -189,7 +189,7 @@ export default function FavoritePintPicker({
             }}
             role="status"
           >
-            Thin coverage — category filter only
+            Thin coverage. Category filter only
           </span>
         )
       ) : null}

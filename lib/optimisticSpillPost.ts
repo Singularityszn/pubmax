@@ -97,7 +97,7 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
     ...(input.lastTrainDecision ? { lastTrainDecision: input.lastTrainDecision } : {}),
     optimistic: {
       state: hasPhoto ? "uploading" : "pending",
-      message: hasPhoto ? "Posting Spill — uploading photo" : "Posting Spill",
+      message: hasPhoto ? "Posting Spill, uploading photo" : "Posting Spill",
       uploadProgress: hasPhoto ? 0 : null,
       canRetry: false,
       clientRequestId: input.clientRequestId,
@@ -181,7 +181,7 @@ export function markOptimisticSpillRetrying(
         ...entry.drop,
         optimistic: {
           state: hasPhoto ? "uploading" : "pending",
-          message: hasPhoto ? "Retrying Spill — uploading photo" : "Retrying Spill",
+          message: hasPhoto ? "Retrying Spill, uploading photo" : "Retrying Spill",
           uploadProgress: hasPhoto ? 0 : null,
           canRetry: false,
           clientRequestId,
@@ -194,7 +194,7 @@ export function markOptimisticSpillRetrying(
 async function resolveBlobPreview(url: string): Promise<Blob> {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error("Photo preview is no longer available — open the composer and attach it again.");
+    throw new Error("Photo preview is no longer available. Open the composer and attach it again.");
   }
   return response.blob();
 }

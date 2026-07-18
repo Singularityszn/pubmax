@@ -369,8 +369,8 @@ export function usePintDrops(cityId: CityId = "london") {
     setDropMsg({
       ok: true,
       text: publishToFeed
-        ? "Cheers — posting to the feed…"
-        : "Cheers — saving your Pint Drop…",
+        ? "Cheers. Posting to the feed…"
+        : "Cheers. Saving your Pint Drop…",
       links: [{ href: "/feed", label: "See the feed" }],
     });
 
@@ -487,12 +487,12 @@ export function usePintDrops(cityId: CityId = "london") {
       setDropMsg({
         ok: true,
         text: addedToNight
-          ? "Cheers — added to your night."
-          : "Cheers — your Pint Drop is live.",
+          ? "Cheers. Added to your night."
+          : "Cheers. Your Pint Drop is live.",
         links,
       });
     } catch {
-      markFailed("Network or storage error — try again.");
+      markFailed("Network or storage error. Try again.");
     }
   }
 
@@ -505,7 +505,7 @@ export function usePintDrops(cityId: CityId = "london") {
       next.set(venueId, (next.get(venueId) ?? []).filter((drop) => drop.id !== id));
       return next;
     });
-    setDropMsg({ ok: true, text: "Report received — that Pint Drop is hidden." });
+    setDropMsg({ ok: true, text: "Report received. That Pint Drop is hidden." });
     try {
       // `actor` is the device's stable anon id (same attribution reactions and
       // comments use) — the server hashes it into the per-actor report key, so

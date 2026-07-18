@@ -200,12 +200,12 @@ function emptyNoteForCity(cityId: CityId): string {
     return `No ${getCity(cityId).lastRideLabel.toLowerCase()} provider is available for ${getCity(cityId).displayName} yet.`;
   }
   if (cityId === "manchester") {
-    return "Couldn't check Metrolink just now — check before you head out.";
+    return "Couldn't check Metrolink just now. Check before you head out.";
   }
   if (cityId === "glasgow") {
-    return "Couldn't check the Subway just now — check before you head out.";
+    return "Couldn't check the Subway just now. Check before you head out.";
   }
-  return "Couldn't reach TfL just now — check before you head out.";
+  return "Couldn't reach TfL just now. Check before you head out.";
 }
 
 function lastServiceLineLabel(lineName: string, mode: string): string {
@@ -265,7 +265,7 @@ function DecisionBlock({
           {shareState === "shared" ? "Sent to crew" : "Send to crew"}
         </button>
         {shareState === "error" ? (
-          <span style={styles.shareError}>Couldn&apos;t open the share — try again.</span>
+          <span style={styles.shareError}>Couldn&apos;t open the share. Try again.</span>
         ) : null}
       </div>
     </div>
@@ -452,7 +452,7 @@ export default function LastTrainCard({
                 </button>
               ) : null}
             </div>
-            <p style={styles.destinationHint}>Session only — never saved to your profile.</p>
+            <p style={styles.destinationHint}>Session only. Never saved to your profile.</p>
           </form>
         )}
       </div>
@@ -467,7 +467,7 @@ export default function LastTrainCard({
 
       {readyData && showLondonStaticFallback(cityId, readyData) ? (
         <p style={styles.note}>
-          Station from our map — live train times unavailable until TfL responds again.
+          Station from our map. Live train times unavailable until TfL responds again.
         </p>
       ) : null}
 
