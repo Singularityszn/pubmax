@@ -6,10 +6,11 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 61 mutating routes.** The count grew 60 → 61 with the lightweight
-> email-capture surface `POST /api/email-subscribers` (identity nudge sheet, early
-> email capture). Its confirm/unsubscribe endpoints are token-gated **GET**s and
-> are deliberately excluded from the mutating-verb inventory. The number is a
+> **Inventory: 63 mutating routes.** The count grew 60 → 61 (email-capture
+> `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
+> Social Loop "we're out" `POST /api/check-ins`). Token-gated GET
+> confirm/unsubscribe endpoints and the Social Loop's read-only GETs are
+> deliberately excluded from the mutating-verb inventory. The number is a
 > merge-conflict coordination point across in-flight branches — reconcile it (not
 > silently overwrite) when branches meet.
 
@@ -74,6 +75,31 @@ Plan member capability and use idempotency keys or atomic store operations.
   `public.push_tokens` (migration 0039, RLS on, anon/authenticated revoked);
   `truncate public.push_tokens` is a safe reset — devices re-register on next
   boot.
+
+### `app/api/check-ins` — "we're out" check-in (route 63)
+
+- **Route / method:** `POST app/api/check-ins/route.ts` (Social Loop v1,
+  `feat/social-loop-v1`). The route also exports a read-only `GET` (the "Your
+  lot" / area read) which is NOT a mutating verb and is not counted.
+- **Validation:** `validateCheckInInput` (`lib/checkIn.ts`) — a normalised handle,
+  an area that must be a known night-area slug (area-level location only, never a
+  coordinate), an optional trimmed venue tag, a cleaned/capped note, and a
+  visibility from the `{friends, area}` allowlist (defaults to `friends`).
+  Malformed bodies 400 before the store is touched.
+- **Rate limit (boundary):** durable per-handle + hashed-IP `isLimited` with key
+  `check-in:${handle}:${hashIp(clientIp(request))}` (raw IP never keyed) — 429 on
+  exceed. This is the certification boundary (rate_limit class).
+- **Auth stance:** the author is the self-asserted handle resolved through
+  `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
+  `gateHandleAction` — the same demo identity boundary as a pint drop or follow.
+- **Privacy:** friends-only by default; the single choke `lib/socialFeed.ts`
+  decides which check-ins reach which viewer (mutual follows only), so a
+  friends-only post can never reach a public query. Rows auto-expire after 12h
+  (`expires_at`). Durable rows live in `public.check_ins` (migration 0043, RLS on,
+  anon/authenticated revoked); `truncate public.check_ins` is a safe reset.
+- **Related privacy change (same migration):** 0043 drops the `follows_public_read`
+  policy so the follow graph is service-role-only — follow edges are private to the
+  two parties and no follower counts are public.
 
 ## Certification command
 

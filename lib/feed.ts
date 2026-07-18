@@ -4,9 +4,11 @@
 // No React, no fetch, no side effects — every export is a pure function so the
 // whole feed is covered by __tests__/feed.test.ts.
 
+import type { CheckIn } from "@/lib/checkIn";
 import type { Provenance } from "@/lib/curation";
 import { rankForYou, type ForYouContext } from "@/lib/forYou";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
+import { getNightArea } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 import { venueMapUrl as buildVenueMapUrl } from "@/lib/venueMapUrl";
@@ -56,7 +58,7 @@ export type OptimisticSpillState = {
 // A normalized feed item. `type` is a lane discriminant so the surface can grow
 // beyond raw pint drops (crawl stories, cheap-pint highlights) without the card
 // needing to know which lane produced it. Every lane resolves to this one shape.
-export type FeedItemType = "pint_drop" | "crawl_story" | "cheap_pint";
+export type FeedItemType = "pint_drop" | "crawl_story" | "cheap_pint" | "check_in";
 
 export type FeedItem = {
   type: FeedItemType;
@@ -85,6 +87,12 @@ export type FeedItem = {
   leaveByIso?: string | null;
   /** Optional Last Pint decision kind from the drop DTO (Wave F0). */
   lastTrainDecision?: LastPintDecisionKind | null;
+  /**
+   * Area-level location label for a `check_in` item ("Shoreditch", "Brixton") —
+   * the night-area name, never a coordinate. Present only on check-in items; the
+   * card renders it as the "we're out" location.
+   */
+  areaName?: string;
 };
 
 // The friendly label shown when an id has no resolvable pub name — kept here so
@@ -165,6 +173,38 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
   const optimistic = normalizeOptimistic(dto.optimistic);
   if (optimistic) item.optimistic = optimistic;
   return item;
+}
+
+/**
+ * Normalise a "we're out" check-in (lib/checkIn.ts CheckIn, as read from
+ * /api/check-ins) into a FeedItem so it merges into the same chronological feed
+ * as pint drops. Area-LEVEL only: `areaName` is the night-area label (never a
+ * coordinate), and the raw `venue-…` id is never surfaced as a name (there is no
+ * client venue index here — a tagged venue still sets `venueId` for the map link
+ * but the card leads with the area). Pure.
+ */
+export function normalizeCheckIn(checkIn: CheckIn): FeedItem {
+  const area = getNightArea(checkIn.areaSlug);
+  const areaName = area?.name ?? "London";
+  return {
+    type: "check_in",
+    id: checkIn.id,
+    createdAt: checkIn.createdAt,
+    handle: normalizeHandle(checkIn.handle),
+    venueId: checkIn.venueId ?? "",
+    // A check-in's "venue" line is its area; the map link opens the tagged venue
+    // when one exists, otherwise it is unused (the card links to the area).
+    venueName: areaName,
+    venueMapUrl: checkIn.venueId ? buildVenueMapUrl(checkIn.venueId) : "",
+    photoUrls: [],
+    caption: checkIn.note ?? "",
+    priceGbp: null,
+    vibeTags: [],
+    provenance: "contributor",
+    drink: "",
+    era: "",
+    areaName,
+  };
 }
 
 // ── Filters ──────────────────────────────────────────────────────────────────

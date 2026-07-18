@@ -33,7 +33,35 @@ export type FollowStore = {
    * Powers the Friends feed lane (lib/feed.ts).
    */
   listFollowing(handle: string): Promise<string[]>;
+  /**
+   * The HANDLES that follow this handle (its followers). The mirror of
+   * listFollowing. Returns [] for an unknown handle. Server-only — no follower
+   * list is ever surfaced publicly; this feeds the mutual-follow computation.
+   */
+  listFollowers(handle: string): Promise<string[]>;
+  /**
+   * The viewer's "lot": handles in a MUTUAL follow with this handle (each side
+   * follows the other). The intersection of listFollowing and listFollowers.
+   * This — not a one-way follow — is the Social Loop's definition of a friend.
+   */
+  listMutuals(handle: string): Promise<string[]>;
 };
+
+// The mutual set is the intersection of who a handle follows and who follows it.
+// Shared by both backends so "your lot" means the same thing everywhere.
+function intersectHandles(following: string[], followers: string[]): string[] {
+  const followerSet = new Set(followers.map((h) => normalizeHandle(h)));
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of following) {
+    const h = normalizeHandle(raw);
+    if (h && followerSet.has(h) && !seen.has(h)) {
+      seen.add(h);
+      out.push(h);
+    }
+  }
+  return out;
+}
 
 const TABLE = "follows";
 
@@ -122,6 +150,32 @@ export const supabaseFollowStore: FollowStore = {
     }
     return handles;
   },
+
+  async listFollowers(handle) {
+    const profile = await supabaseProfileStore.getByHandle(handle);
+    if (!profile) return [];
+    // The mirror join: the follower rows pointing AT this profile, embedding each
+    // follower's handle (FK follows.follower_id → profiles.id).
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("follower:follower_id ( handle )")
+      .eq("followee_id", profile.id);
+    if (error) throw new Error(error.message);
+    const handles: string[] = [];
+    for (const row of (data ?? []) as { follower?: { handle?: unknown } | null }[]) {
+      const h = normalizeHandle(String(row.follower?.handle ?? ""));
+      if (h) handles.push(h);
+    }
+    return handles;
+  },
+
+  async listMutuals(handle) {
+    const [following, followers] = await Promise.all([
+      this.listFollowing(handle),
+      this.listFollowers(handle),
+    ]);
+    return intersectHandles(following, followers);
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -187,6 +241,26 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
         if (h) handles.push(h);
       }
       return handles;
+    },
+    async listFollowers(handle) {
+      const profile = await profiles.getByHandle(handle);
+      if (!profile) return [];
+      // The edges pointing AT this profile; resolve each follower id → handle.
+      const handles: string[] = [];
+      for (const key of memoryEdges) {
+        const [from, to] = key.split(">");
+        if (to !== profile.id) continue;
+        const h = memoryHandleById.get(from);
+        if (h) handles.push(h);
+      }
+      return handles;
+    },
+    async listMutuals(handle) {
+      const [following, followers] = await Promise.all([
+        this.listFollowing(handle),
+        this.listFollowers(handle),
+      ]);
+      return intersectHandles(following, followers);
     },
   };
 }
