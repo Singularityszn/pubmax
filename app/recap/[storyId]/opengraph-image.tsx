@@ -2,9 +2,9 @@ import { ImageResponse } from "next/og";
 
 import {
   CardShell,
+  CrossingMark,
   OG,
   OG_SIZE,
-  PintGlyph,
   Wordmark,
   loadOgFonts,
 } from "@/lib/ogBrand";
@@ -178,7 +178,7 @@ function RichCard({ data }: { data: Extract<RecapCardData, { variant: "rich" }> 
         <Wordmark />
         <div style={{ display: "flex", alignItems: "center", color: OG.coral, fontSize: 22, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase" }}>
           <div style={{ display: "flex", marginRight: 12 }}>
-            <PintGlyph ink={OG.coral} size={26} />
+            <CrossingMark ink={OG.coral} size={26} />
           </div>
           Night recap
         </div>
