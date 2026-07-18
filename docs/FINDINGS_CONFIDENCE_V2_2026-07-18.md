@@ -1,5 +1,9 @@
 # Findings Confidence Ledger V2 — 2026-07-18
 
+> **Superseded by [`FINDINGS_CONFIDENCE_V3_2026-07-19.md`](FINDINGS_CONFIDENCE_V3_2026-07-19.md)**,
+> which re-verifies every non-final verdict against post-launch `main` HEAD. This document is
+> historical evidence of the pre-merge state.
+
 The **final** adversarial pass. V1 (`docs/FINDINGS_CONFIDENCE_2026-07-18.md`, 47 verdicts)
 covered the review corpus up to the data/recap/C8 stack. This V2 **appends the design +
 live-data + resilience programme (#345–#354)** so that *every PR in the programme carries a
