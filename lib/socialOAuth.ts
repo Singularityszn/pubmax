@@ -55,6 +55,14 @@ const SCOPES: Record<SocialProvider, string[]> = {
   tiktok: ["user.info.basic"],
 };
 
+// Every other server-side upstream call in the codebase is timed out; the OAuth
+// token-exchange and profile lookups were not, so a stalled provider could pin
+// the callback function until its own maxDuration, burning a full function slot.
+// A hard per-call abort keeps a hung provider from doing that; an abort surfaces
+// as a thrown fetch error, which the callback path already handles as a failed
+// connection (no happy-path behavior change).
+const OAUTH_FETCH_TIMEOUT_MS = 8000;
+
 const memoryOAuthStates = new Map<string, OAuthState>();
 const stateHash = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -197,6 +205,7 @@ export async function completeSocialOAuth(input: {
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: form,
       cache: "no-store",
+      signal: AbortSignal.timeout(OAUTH_FETCH_TIMEOUT_MS),
     }),
     "OAuth token exchange",
   );
@@ -209,19 +218,21 @@ export async function completeSocialOAuth(input: {
   if (input.provider === "x") {
     const profile = await jsonResponse(await fetch("https://api.x.com/2/users/me?user.fields=profile_image_url", {
       headers: { authorization: `Bearer ${accessToken}` }, cache: "no-store",
+      signal: AbortSignal.timeout(OAUTH_FETCH_TIMEOUT_MS),
     }), "X profile lookup");
     const data = (profile.data ?? {}) as Record<string, unknown>;
     accountId = String(data.id ?? "");
     username = typeof data.username === "string" ? data.username : undefined;
     profileUrl = username ? `https://x.com/${username}` : undefined;
   } else if (input.provider === "instagram") {
-    const profile = await jsonResponse(await fetch(`https://graph.instagram.com/me?fields=id,username,account_type&access_token=${encodeURIComponent(accessToken)}`, { cache: "no-store" }), "Instagram profile lookup");
+    const profile = await jsonResponse(await fetch(`https://graph.instagram.com/me?fields=id,username,account_type&access_token=${encodeURIComponent(accessToken)}`, { cache: "no-store", signal: AbortSignal.timeout(OAUTH_FETCH_TIMEOUT_MS) }), "Instagram profile lookup");
     accountId = String(profile.id ?? "");
     username = typeof profile.username === "string" ? profile.username : undefined;
     profileUrl = username ? `https://www.instagram.com/${username}/` : undefined;
   } else {
     const profile = await jsonResponse(await fetch("https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username", {
       headers: { authorization: `Bearer ${accessToken}` }, cache: "no-store",
+      signal: AbortSignal.timeout(OAUTH_FETCH_TIMEOUT_MS),
     }), "TikTok profile lookup");
     const user = ((profile.data ?? {}) as Record<string, unknown>).user as Record<string, unknown> | undefined;
     accountId = String(user?.open_id ?? "");
