@@ -27,15 +27,14 @@
 }
 
 @media (max-width: 640px) {
-  /* #353 tiers: the utility-corner icon owns the toggle on mobile. */
-  .mapVenueListToggle { display: none; }
-
   .mapVenueList {
     bottom: calc(var(--mobile-tab-clearance, 58px) + 12px);
   }
 }
 
-/* Toggle — the always-present affordance. */
+/* Toggle — the desktop affordance (the mobile rule that hides it lives BELOW
+   this block: both selectors have equal specificity, so the hide must come
+   later in source order to win). */
 .mapVenueListToggle {
   display: inline-flex;
   align-items: center;
@@ -68,6 +67,14 @@
 
 .mapVenueListToggle svg {
   color: var(--brass);
+}
+
+/* #353 tiers: the utility-corner icon owns the toggle on phones. This rule must
+   stay AFTER the base .mapVenueListToggle rule above (equal specificity; source
+   order decides) — it previously sat before it and silently lost, which is how
+   two list affordances ended up on screen at once. */
+@media (max-width: 640px) {
+  .mapVenueListToggle { display: none; }
 }
 
 .mapVenueListToggleCount {

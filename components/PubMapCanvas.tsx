@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Landmark as LandmarkIcon,
   MapPinned,
+  Navigation2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -298,6 +299,10 @@ export default function PubMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  // Live bearing for the compass reset — updated on rotate/move end, not per
+  // frame, so React stays out of the gesture's render path. Seeded from the
+  // opening camera so the compass is truthful before the first gesture.
+  const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
@@ -842,8 +847,11 @@ export default function PubMapCanvas({
         pitch: map.getPitch(),
         bearing: map.getBearing(),
       });
+      setMapBearing(map.getBearing());
       emitBounds();
     });
+    // moveend does not fire for a pure two-finger rotation, so track it too.
+    map.on("rotateend", () => setMapBearing(map.getBearing()));
     // Kick the initial viewport's shards (a restored session may open on an
     // Outer-London borough that core doesn't cover).
     map.once("idle", emitBounds);
@@ -1883,6 +1891,32 @@ export default function PubMapCanvas({
           >
             <Crosshair size={14} aria-hidden />
             Recenter
+          </button>
+        ) : null}
+        {/* Compass: visible whenever the map is rotated (incl. the designed
+            opening bearing). The needle mirrors the live bearing; tapping
+            settles the map back to north without touching the pitch. Two-finger
+            rotate on phones and right-drag on desktop stay available either
+            way; this is the recovery affordance MapLibre's hidden built-in
+            control used to provide. */}
+        {Math.abs(mapBearing) > 0.5 ? (
+          <button
+            type="button"
+            className="mapCompassBtn"
+            onClick={() => {
+              const map = mapRef.current;
+              if (!map) return;
+              map.easeTo({ bearing: 0, duration: reducedRef.current ? 0 : 450 });
+            }}
+            aria-label="Point north"
+            title="Point north"
+          >
+            <Navigation2
+              size={14}
+              aria-hidden
+              style={{ transform: `rotate(${-mapBearing}deg)` }}
+            />
+            N
           </button>
         ) : null}
       </div>

@@ -72,6 +72,10 @@ export function useMapCamera(refs: CameraRefs) {
         : 90,
       maxZoom: 15,
       duration: reducedRef.current ? 0 : 800,
+      // fitBounds defaults bearing to 0, silently flattening a rotated map on
+      // every route fit (and the flat camera then persists via the session
+      // snapshot). Preserve the user's current rotation instead.
+      bearing: map.getBearing(),
     }));
   }, [reducedRef, routeRef, scheduleCamera]);
 
@@ -108,6 +112,8 @@ export function useMapCamera(refs: CameraRefs) {
         : 90,
       maxZoom: 13,
       duration: reducedRef.current ? 0 : 800,
+      // Same flattening trap as fitRoute: keep the current rotation.
+      bearing: map.getBearing(),
     }));
   }, [reducedRef, scheduleCamera, venuesRef]);
 
@@ -127,6 +133,8 @@ export function useMapCamera(refs: CameraRefs) {
         maxZoom: 14.25,
         duration: reducedRef.current ? 0 : 700,
         pitch: isPhone ? 28 : 34,
+        // Keep the current rotation (fitBounds would zero it otherwise).
+        bearing: map.getBearing(),
       }));
     },
     [reducedRef, scheduleCamera],
