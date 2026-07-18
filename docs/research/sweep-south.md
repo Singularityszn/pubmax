@@ -14,6 +14,19 @@ Note on concrete pint prices: local *press* rarely prints £/pint, so region anc
 - World Cup 2026 drove a measurable South London trade spike: London pub/bar spending **+11%** during England's run (Dojo card data, 110k+ hospitality clients). SW Londoner, 2026-07-13. https://www.swlondoner.co.uk/food-drink/13072026-london-pubs-cash-in-as-englands-world-cup-run-boosts-bar-spending
 - Trade bodies predicted **6m extra pints** poured nationally for England v Argentina semi (bigger boost than NYE). Morning Advertiser, 2026-07-14. https://www.morningadvertiser.co.uk/Article/2026/07/14/pubs-to-sell-6m-extra-pints-during-england-v-argentina-world-cup-semi-final/
 - Ritual/texture piece on how SW London pubs (Clapham, Putney named) host big-match nights. SW Londoner, 2026-07-16. https://www.swlondoner.co.uk/life/16072026-how-london-pubs-bring-big-matches-to-life
+- Widely-cited **average London pint ≈ £5.01**, of which only ~12p is estimated pub profit after tax/costs (~£1.60 to duty). Pub Instagram post, Jul 2026. https://www.instagram.com/p/DaaSzpqDWm1/
+
+---
+
+## Concrete pint prices (last 30 days, Firecrawl REST → social sources)
+Self-reported; treat as directional. Listed where a specific pub + place is named.
+- **The Ramble Inn, Tooting (SW17)** — **£5.70** pint of Timothy Taylor Landlord ("really good drop… price point was great at under a fiver" for the Guinness; Landlord £5.70). Guinness Community group, Jul 2026. https://www.facebook.com/groups/guinnesscommunity/posts/4467280013589837/
+- **Brixton** (independent, self-described) — **£3 a pint all day; £4 pints; £3.50 cask ales 4–6pm**; "two-pint" draught deal (excl. Guinness). Pub Instagram, Jul 2026. https://www.instagram.com/reel/DZ-gq69s03v/ and https://www.instagram.com/p/DaaSzpqDWm1/
+- **"Cinatra's"** (Croydon-area query) — **£5.00** pint of Guinness "on the nose… very good price point." Instagram, Jul 2026. https://www.instagram.com/reel/DZzrdsAxHYU/
+- **Wetherspoon Joe's, Croydon** — match-night promo: **50% off** Guinness, Foster's, Moretti & Inches 10–11pm (England v Mexico). Instagram, Jul 2026. https://www.instagram.com/reel/DaaA96koZL5/
+- **The Rocket (Wetherspoon), Putney** — riverside Spoons flagged as the cheap-pint "offset" option (no exact £, cheapest-in-area framing). London Pub Map, Jul 2026. https://www.facebook.com/londonpubmap/posts/1014479751464336/
+- **Skehan's Free House, Nunhead/New Cross (SE)** & a "quiet Greenwich backstreet" pub — both self-reported **"excellent, under a fiver."** Instagram, Jul 2026. https://www.instagram.com/p/DafNUlgDEKA/ ; https://www.instagram.com/reel/DZ2uUubs0Lu/
+- Happy-hour marker: **"£5 pints, 2 for £20 spritz"** England-knockout extension at a "Hall Pass" happy hour (SW London). Instagram, Jul 2026. https://www.instagram.com/reel/DaOFyvvRCQR/
 
 ---
 
@@ -111,7 +124,7 @@ Note on concrete pint prices: local *press* rarely prints £/pint, so region anc
 ---
 
 ### Product implications
-1. **"Pint Price Index" has a real data gap in the suburbs.** Last-30-day local press almost never prints £/pint; only region anchors (UK £4.52, London £10 top-end) and chain promos (GK Peroni £3, 23–26 Jul) are reliably datable. PUBMAXX should treat crowd-sourced/user-submitted pint prices as first-class input for Penge/Catford/Croydon etc., because editorial sources won't fill it.
+1. **Pint prices live on social, not in the press — mine it.** Local press almost never prints £/pint (only region anchors: London ≈£5.01 avg, £10 top-end; GK Peroni £3 promo). But a Firecrawl pass over Instagram/Facebook/TikTok surfaced real figures — Ramble Inn Tooting £5.70 Landlord; a Brixton indie at £3–4; Guinness £5 flat; Spoons match-night 50%-off. PUBMAXX should treat social-post scraping + user-submitted prices as the first-class Pint Price Index source (with a "self-reported/verify" confidence flag), because editorial won't fill the suburbs.
 2. **Openings pipeline is a strong content spine.** Genuine new pubs in-window: The Hero's Return (Battersea Power Station), The Hill (Streatham), The Victory (East Dulwich), Model Market/German Kraft (Lewisham), Rattlin Bog (Brixton). A "New & Reopening in South London" auto-feed keyed off local press would stay fresh weekly.
 3. **Closure/threat tracker resonates locally.** Turtle Bay (Brixton), Bishop's Wine Bar (Croydon), Crown & Sceptre (Streatham, demolition-by-development), The Mitre (Penge, demolition), Baring Hall (Grove Park, saved/refurb). A "watchlist / save-this-pub" feature (with ACV/community-asset status) maps directly to what these neighbourhoods are already fighting about.
 4. **Operator-pedigree tagging.** Buzz clusters around WHO opens a pub: ex-St John (Hero's Return), ex-Palmerston (The Victory), Exhibit/Mamma Dough team (The Hill). A "from the people behind…" credibility badge would capture the signal locals actually use.

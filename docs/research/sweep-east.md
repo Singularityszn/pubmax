@@ -88,7 +88,27 @@
 - **£10 pints have arrived in London** — widely reported as a psychological threshold / "new normal" debate. (thinkmoney.co.uk, 2026-05-21; thecanary.co, 2026-05-29; harmoniousenvironment.com, 2026-07-02)
 - **Two-thirds of small businesses raised prices 3+ times in 5 years; a quarter planned another rise before summer's end.** (london24news.co.uk, 2026-06-18)
 - **Pubs closing ~2 a day in 2026**; UK pub market ~£24bn; tax takes ~£1 in every £3 over the bar. (mancavegeek.com Pub Statistics, 2026-06-22)
-- Named East-London figures found: **Dalston Superstore £5 pints** (event, 2026-07-14); **Star of Bethnal Green £5 margaritas**; **Lord Napier Star ~£10–20 spend band**. That's the ceiling of concrete pub-level pricing in-window — a real gap worth harvesting directly (see implications).
+- In-press named figures (dated, in-window): **Dalston Superstore £5 pints** (event, 2026-07-14); **Star of Bethnal Green £5 margaritas**; **Lord Napier Star ~£10–20 spend band**.
+
+**Concrete named-pub pint prices — crowd-sourced (pint-prices.com, scraped 2026-07-18).** *Caveat: these are user-submitted running estimates, not individually date-stamped, and the site's borough tagging is loose (some E3/Bow entries surface under "Hackney"). Treat the borough averages as the reliable signal and individual figures as indicative. This is the only source found with per-pub £ figures for East London — the direct answer to the price gap.*
+
+Borough averages (a genuinely useful East-London price gradient):
+- **Hackney ~£4.89** · **Waltham Forest ~£5.57** · **Tower Hamlets ~£6.19** · **Newham ~£7.00**. (Tower Hamlets — Canary Wharf/Docklands — runs ~£1.30 dearer than Hackney.)
+
+Selected named pubs + address + pint £ (pint-prices.com):
+- **The Rochester Castle** (Wetherspoon), 143–145 Stoke Newington High St, N16 — from **£1.99** (cheapest East entry found).
+- **The Eagle**, 103 Wick Rd, E9 — **£4.30**.
+- **Farr's Dalston**, 17–19 Dalston Ln, E8 — **£5.10**.
+- **The Three Crowns**, 175 Stoke Newington High St, N16 — **£5.00**.
+- **The Sun Tavern**, 441 Bethnal Green Rd, E2 — **£5.00–£5.50**.
+- **Royal Sovereign**, 64 Northwold Rd, E5 (Clapton) — **£5.50–£6.00**.
+- **Burke's Warehouse**, 37 Kingsland High St, E8 — **£5.60**; **Pub on the Park**, London Fields — **£5.60**.
+- **The Grapes**, 76 Narrow St, E14 (Limehouse) — **£5.50–£5.95**.
+- **The Coborn**, 8 Coborn Rd, Bow E3 — **£5.85–£6.95**; **The Morgan Arms**, 43 Morgan St, E3 — **£6.65**.
+- **The Ledger Building** (Wetherspoon), West India Quay, E14 (Canary Wharf) — **£4.13–£6.37**.
+- **The Duke**, 112 Wood St, E17 (Walthamstow) — **£5.10–£6.50**; **Lord Palmerston**, 252–254 Forest Rd, E17 — **£3.40**; **The Collab (Signature Brew)**, 198 Hoe St, E17 — **£5.00–£5.90**.
+- **The Shacklewell Arms**, E8 — **£7.00** (top of the Hackney range).
+- **Outer-area data desert confirmed:** pint-prices.com returned **no entries for Redbridge (Ilford) or Havering (Romford)** — nobody's logged prices there. Reinforces the "unsung outer areas are under-covered" thesis and the harvesting opportunity.
 
 ## Buzz / awards / festivals
 - **CAMRA Pub Design Awards 2026** (with Historic England): **Leyton Engineer + The European (Waltham Forest)** are the East-London winners — the strongest "unsung area" award story. (metro.co.uk, 2026-06-28; secretldn.com, 2026-06-26)
@@ -116,5 +136,5 @@
 ---
 
 ### API status (owner standing rule)
-- **Firecrawl MCP — DOWN.** Every `firecrawl_search` call returned **HTTP 401 (auth)** across the whole sweep. The Firecrawl key needs rotating/renewing. **This is a hard blocker on that provider and should be flagged to the owner.**
-- **Exa API — healthy** (HTTP 200 throughout). All ~23 queries succeeded; this brief is built entirely on Exa with 30/60-day date filters.
+- **Firecrawl MCP tools — DOWN (HTTP 401).** Every `firecrawl_search` MCP call failed. **Root cause (per team lead): stale env in the MCP process — the key itself is VALID.** Workaround: call the REST API directly (`POST https://api.firecrawl.dev/v1/{search,scrape}`, `Authorization: Bearer $FIRECRAWL_API_KEY`), which returned **HTTP 200**. The MCP server still needs restarting with fresh env, but the provider is usable. Flag the MCP staleness to the owner.
+- **Exa API — healthy** (HTTP 200 throughout). Main sweep built on Exa (30/60-day filters); the concrete pint-price section was filled via **Firecrawl REST** against pint-prices.com and pub-price guides.
