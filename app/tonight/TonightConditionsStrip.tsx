@@ -21,6 +21,8 @@ import { CloudSun } from "lucide-react";
 import { roundCoord } from "@/lib/geo";
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 
+import "./tonightConditions.css";
+
 type Props = {
   origin?: { lat: number; lng: number } | null;
 };

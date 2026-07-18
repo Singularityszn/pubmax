@@ -4,6 +4,7 @@ import { Route, Search, Wine, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import CitySwitcher from "@/components/map/CitySwitcher";
+import ConditionsChip from "@/components/desktop/ConditionsChip";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
@@ -137,6 +138,12 @@ export default function MapToolbar({
         </div>
 
         {isMobile === false ? <div className="mapToolbarDesktopExtras">{favoritePicker}</div> : null}
+
+        {/* Weather verdict, always visible on desktop (owner requirement). The
+            map cannot host the right rail (the venue drawer owns that edge), so
+            the toolbar carries the compact chip instead. Fail-soft: renders
+            nothing when the weather has no verdict. */}
+        {isMobile === false ? <ConditionsChip /> : null}
 
         <button
           type="button"

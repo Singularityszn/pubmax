@@ -1935,6 +1935,22 @@ html:not([data-theme="dark"]) .feedSpillCat svg {
   }
 }
 
+/* Desktop-only rail slot (D1): hidden on mobile so the feed stays
+   byte-identical below the grid breakpoint; a normal rail card above it. */
+.feedRailDesktopOnly {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .feedRailDesktopOnly {
+    display: block;
+  }
+
+  .feedRailDesktopOnly .tonightConditions {
+    margin: 0;
+  }
+}
+
 /* ── "We're out" check-in card (Social Loop v1) ───────────────────────────────
    A calm, area-level presence post. Reuses .feedCard's border/surface; adds a
    quiet layout for the who / where / note / when. No photo, price or reactions. */

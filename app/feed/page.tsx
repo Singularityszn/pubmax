@@ -9,6 +9,7 @@ import FeedFilters from "@/components/feed/FeedFilters";
 import PresenceStrip from "@/components/feed/PresenceStrip";
 import SocialTabs, { type SocialTab } from "@/components/feed/SocialTabs";
 import SiteNav from "@/components/nav/SiteNav";
+import TonightConditionsStrip from "@/app/tonight/TonightConditionsStrip";
 import EmptyState from "@/components/EmptyState";
 import { getAnonId } from "@/lib/anonId";
 import type { CheckIn } from "@/lib/checkIn";
@@ -792,6 +793,13 @@ export default function FeedPage() {
           unchanged. */}
       <div className="feedGrid">
         <div className="feedRail">
+          {/* Desktop-only (D1): the rail's parent is display:contents below
+              1024px, so this wrapper carries its own hide rule to keep the
+              mobile feed byte-identical. Conditions strip fails soft. */}
+          <div className="feedRailDesktopOnly">
+            <TonightConditionsStrip />
+          </div>
+
           <PresenceStrip spillingNow={spillingNow} />
 
           <SocialTabs active={tab} onChange={onTabChange} />
