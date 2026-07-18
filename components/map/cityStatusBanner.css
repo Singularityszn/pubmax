@@ -34,11 +34,13 @@
 }
 
 .cityStatusBanner[data-severity="major"] {
-  border-color: color-mix(in srgb, #d33 55%, var(--line));
+  /* Role token, not a bare hex; --brick is the app's destructive/severe red
+     and tracks both themes. */
+  border-color: color-mix(in srgb, var(--brick) 55%, var(--line));
 }
 
 .cityStatusBanner[data-severity="notable"] {
-  border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+  border-color: color-mix(in srgb, var(--amber) 50%, var(--line));
 }
 
 .cityStatusBannerLink {
@@ -55,15 +57,29 @@ a.cityStatusBannerLink:hover {
   text-decoration: underline;
 }
 
+/* A real, always-legible icon chip. The old bare glyph inherited a colour that
+   could collapse into the panel tint (a "ghost" icon in some themes); a tinted
+   backing disc guarantees the icon reads in both themes and at every severity. */
 .cityStatusBannerIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 16%, transparent);
   color: var(--brass);
 }
 
 .cityStatusBanner[data-severity="major"] .cityStatusBannerIcon {
-  color: #d33;
+  background: color-mix(in srgb, var(--brick) 22%, transparent);
+  color: var(--brick);
+}
+
+.cityStatusBanner[data-severity="notable"] .cityStatusBannerIcon {
+  background: color-mix(in srgb, var(--amber) 22%, transparent);
+  color: var(--amber);
 }
 
 .cityStatusBannerCopy {

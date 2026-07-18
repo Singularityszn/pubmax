@@ -1010,6 +1010,48 @@ export default function PubMap({
   const filteredVenueCount = filteredVenues.length;
   const firstRouteId = route[0]?.id ?? "";
   const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
+
+  // --- Search fly-to / fit (map search was a dead end) --------------------
+  // Typing a pub name narrowed the pin set but never moved the camera, so at
+  // city zoom the matches simply vanished. Now: a single match flies to and
+  // opens that venue (reusing selectVenue → the canvas cinematic + venue
+  // sheet); multiple matches re-frame the camera onto the matched set via a
+  // token the canvas watches. The live venue set is read through a ref so
+  // unrelated churn (drops/signals) never yanks the camera; only a query
+  // change drives a move.
+  const [searchFitToken, setSearchFitToken] = useState(0);
+  const filteredVenuesRef = useRef(filteredVenues);
+  useEffect(() => {
+    filteredVenuesRef.current = filteredVenues;
+  }, [filteredVenues]);
+  const selectTopSearchMatch = useCallback(() => {
+    const top = filteredVenuesRef.current[0];
+    if (top) selectVenue(top.id);
+  }, [selectVenue]);
+
+  const trimmedMapQuery = filters.query.trim();
+  const didMountSearchFlyRef = useRef(false);
+  useEffect(() => {
+    // Leave first paint to arrival framing; only react to user-driven typing.
+    if (!didMountSearchFlyRef.current) {
+      didMountSearchFlyRef.current = true;
+      return;
+    }
+    // Too short to be a deliberate lookup; don't move the camera on a stray key.
+    if (trimmedMapQuery.length < 2) return;
+    const handle = window.setTimeout(() => {
+      const matches = filteredVenuesRef.current;
+      if (matches.length === 1) {
+        // Exactly one match: fly to it and open its sheet (reuses the pin path).
+        selectVenue(matches[0].id);
+      } else if (matches.length > 1) {
+        // A set of matches: frame them all so none stay hidden off-screen.
+        setSearchFitToken((token) => token + 1);
+      }
+    }, 320);
+    return () => window.clearTimeout(handle);
+  }, [trimmedMapQuery, selectVenue]);
+
   const focusMapSearch = useCallback(() => {
     const search = (document.getElementById("mobileMapSearchInput") ?? document.getElementById("mapSearchInput")) as HTMLInputElement | null;
     if (search) search.focus();
@@ -1649,6 +1691,7 @@ export default function PubMap({
           }
           maxBounds={cityBounds}
           fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
+          searchFitToken={searchFitToken}
           userLocation={userLocation}
           poisPath={city.poisPath}
           transitLinesPath={city.transitLinesPath}
@@ -1667,6 +1710,7 @@ export default function PubMap({
         {!mobileViewport ? <MapToolbar
           query={filters.query}
           onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
+          onSubmitQuery={selectTopSearchMatch}
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
           drinkCategory={filters.drinkCategory}
@@ -1801,6 +1845,12 @@ export default function PubMap({
               id="mobileMapSearchInput"
               value={filters.query}
               onChange={(query) => setFilters((current) => ({ ...current, query }))}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  selectTopSearchMatch();
+                }
+              }}
               placeholder={`Search ${city.displayName} pubs or areas`}
               autoFocus
             />

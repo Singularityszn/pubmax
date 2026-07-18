@@ -173,6 +173,14 @@ type PubMapCanvasProps = {
    * style/load so outer-London places land framed, not on the city default.
    */
   fitQueryOnArrival?: boolean;
+  /**
+   * Reactive search framing. When a live search narrows to more than one match
+   * the parent bumps this token; each new value re-frames the camera onto the
+   * current (filtered) venue set so a query never dead-ends on vanished pins.
+   * A single match is handled by selection (the cinematic fly-to below), not
+   * this token. Starts at 0 (no-op) so first paint is untouched.
+   */
+  searchFitToken?: number;
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
   poiHidden?: Record<PoiCategory, boolean>;
@@ -253,6 +261,7 @@ export default function PubMapCanvas({
   tonightOverlayVisible = false,
   onTonightOpportunityClick,
   fitQueryOnArrival = false,
+  searchFitToken = 0,
   userLocation = null,
   poiHidden: controlledPoiHidden,
   onPoiHiddenChange,
@@ -1598,6 +1607,16 @@ export default function PubMapCanvas({
     didFitQueryOnArrivalRef.current = true;
     fitQueryVenues();
   }, [mapReady, fitQueryOnArrival, venues.length, selectedVenueId, fitQueryVenues]);
+
+  // Reactive search framing (issue: map search dead-ends). When a live search
+  // narrows to a multi-venue set the parent bumps `searchFitToken`; re-frame the
+  // camera onto the current filtered venues so the matches are actually shown
+  // instead of the pins silently vanishing at city zoom. Token 0 is the initial
+  // no-op so first paint (owned by arrival framing) is left alone.
+  useEffect(() => {
+    if (!mapReady || searchFitToken <= 0) return;
+    fitQueryVenues();
+  }, [searchFitToken, mapReady, fitQueryVenues]);
 
   // A granted location is a temporary map aid, not a persisted Home Area.
   // Frame the local pub cloud once, then leave the camera entirely under the
