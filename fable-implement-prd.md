@@ -183,6 +183,13 @@ Deep reviews (#321 app, #322 data) found: P1 prompt stacking (identity+push on o
 - **Owner directive: TfL zone price lens** — zone-lane launched (Opus 4.8, feat/zone-price-lens): nearest-station zone assignment (honest, provenance-labeled), zone picker chip on map + /pubs, playful "Zone 1 tax" median strip on pint-index (real numbers only, <10-venue zones say "not enough pints logged — fix that"). Boroughs already on the map (33 polygons); zones are the new lens.
 - **#295 updated**: F2 (APNs forwarding) + F3 (camera permission strings) fixed, plutil-validated.
 
+## CYCLE 8 PRD (don't-wait directive)
+
+Three lanes (Opus 4.8, worktrees, separate branches, Sol decides):
+1. **`feat/apns-transport`** (stacked on #300): implement the spec'd-but-stubbed APNs HTTP/2 + ES256 JWT transport in `apnsPushProvider` — fully unit-tested against mocks, activates the moment the paid-account env keys land. Closes the last engineering gap in the push story.
+2. **`feat/email-digest`**: weekly "your London week in pints" digest behind a provider seam (noop until email-provider keys — same pattern as push): digest content generator from real data (new cheapest near your area, drops logged, tonight highlights), send pipeline seam, owner decision on provider (Resend/Postmark) documented as config drop-in.
+3. **`feat/first-drop-nudge`**: drops-first growth — on unpriced venues' sheets, an honest nudge "No pint price logged here yet — be the first" wiring into the existing drop composer; targets the 658 unpriced outer pubs list. Careful: #303 touches the composer — build on main, additive, note rebase-by-intent if they collide.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
