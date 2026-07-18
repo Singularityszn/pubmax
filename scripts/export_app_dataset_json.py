@@ -12,15 +12,22 @@ from pathlib import Path
 SOURCE = Path("data/pint_prices_app_dataset.csv")
 DESTINATION = Path("public/data/pint_prices_app_dataset.json")
 
-# The scrape's borough labels are untrustworthy for rows whose ONLY borough
-# signal is a pint-prices.com site anomaly (hundreds of pubs mass-tagged under
-# Havering/Hillingdon/Redbridge — the F7 bug that labelled Prospect of Whitby,
-# Wapping, as "Havering" and made Havering top /borough). For those rows we
-# assign the borough geometrically: point-in-polygon against real Greater
-# London borough boundaries (see BOROUGH_BOUNDARIES provenance). Points outside
-# every polygon stay unclassified; nearest-vertex snapping is not evidence.
-# Kept in lockstep with
-# ANOMALY_BOROUGHS in scripts/build_app_dataset.py.
+# The scrape's borough labels are untrustworthy — not just for the F7 site
+# anomaly (hundreds of pubs mass-tagged under Havering/Hillingdon/Redbridge,
+# which put Prospect of Whitby, Wapping, in "Havering") but systematically:
+# #308's coverage report found the stored label disagrees with the pin's own
+# geometry for hundreds of core pubs (Camden 89, City of London 77 at the venue
+# level), e.g. Upper Street N1 pubs tagged "Camden" though they are the spine of
+# Islington, or Bankside/Butlers Wharf pubs tagged "City of London" though they
+# sit south of the river in Southwark. Geometry is the single source of truth:
+# `primary_borough` is assigned by point-in-polygon against real Greater London
+# borough boundaries (see data/london_boroughs_simplified.json provenance)
+# whenever the pin falls inside a borough polygon. Only points OUTSIDE every
+# polygon fall back to the scraped label — nearest-vertex snapping is not
+# evidence. ANOMALY_BOROUGHS is retained for documentation/lockstep with
+# scripts/build_app_dataset.py; geometry now overrides every borough, anomaly or
+# not. The same repair is applied to the committed dataset (which carries
+# post-export gazetteer rows) by scripts/repair_borough_labels.mjs.
 ANOMALY_BOROUGHS = {"Havering", "Hillingdon", "Redbridge"}
 
 # Greater London bounding box. Rows with coordinates outside this box are a
@@ -94,18 +101,17 @@ def parse_float(value: str) -> float | None:
 def resolve_primary_borough(
     geometric_borough: str, record: dict[str, object]
 ) -> str:
-    """Trust scraped boroughs unless the row's only signal is the site anomaly."""
-    primary = str(record["primary_borough"]).strip()
-    has_trusted_source = bool(
-        str(record["boroughs_visible"]).strip()
-        or str(record["boroughs_raw_embedded_non_anomaly"]).strip()
-    )
-    if has_trusted_source:
-        return primary
-    if primary and primary not in ANOMALY_BOROUGHS:
-        return primary
-    # Anomaly-only (or blank) borough: assign geometrically from coordinates.
-    return geometric_borough
+    """Geometry is authoritative; the scraped label is only a last resort.
+
+    Point-in-polygon against real borough boundaries wins whenever the pin lands
+    inside a borough (the scraped source labels are systematically wrong — see
+    the ANOMALY_BOROUGHS note above). Only when the classifier returns "" (the
+    point is outside every polygon, so there is no geometric evidence) do we keep
+    the scraped `primary_borough` rather than blank it out.
+    """
+    if geometric_borough:
+        return geometric_borough
+    return str(record["primary_borough"]).strip()
 
 
 def classify_boroughs(records: list[dict[str, object]]) -> list[str]:
