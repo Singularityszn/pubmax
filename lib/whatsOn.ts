@@ -295,12 +295,30 @@ export function londonServiceDayBounds(now: number = Date.now()): { start: strin
   return { start: new Date(startMs).toISOString(), end: new Date(endMs).toISOString() };
 }
 
-// Does the row's startsAt fall within tonight's window?
+// Is the row happening during tonight's evening window?
+//
+// Overlap, not start-containment. The original test asked only whether
+// `startsAt` fell inside [16:00, 04:00). That silently dropped every all-day
+// row whose clock start is BEFORE the window opens but which is plainly still
+// on through the evening — most visibly the Wetherspoon food deals, which all
+// carry startsAt 11:30 and endsAt 23:00 and were therefore excluded from
+// Tonight on EVERY night despite being live at 22:00. We now treat the row as
+// an interval [startsAt, endsAt] (a row with no endsAt stays a point at
+// startsAt) and include it when that interval overlaps the window. For rows
+// without an endsAt this is identical to the old start-containment test, so
+// quiz / music point rows behave exactly as before; only genuine spanning rows
+// (deals) newly — and correctly — surface.
 export function isOnTonight(row: WhatsOnRow, now: number = Date.now()): boolean {
   const { start, end } = londonServiceDayBounds(now);
   const startsAt = Date.parse(row.startsAt);
   if (!Number.isFinite(startsAt)) return false;
-  return startsAt >= Date.parse(start) && startsAt < Date.parse(end);
+  const windowStart = Date.parse(start);
+  const windowEnd = Date.parse(end);
+  const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : startsAt;
+  const effectiveEnd = Number.isFinite(parsedEnd) ? parsedEnd : startsAt;
+  // Half-open window [windowStart, windowEnd): the row must begin before the
+  // window closes and still be running at or after it opens.
+  return startsAt < windowEnd && effectiveEnd >= windowStart;
 }
 
 export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): WhatsOnRow[] {

@@ -144,6 +144,36 @@ describe("London tonight windowing (04:00 service-day rollback)", () => {
     expect(isOnTonight(after, now)).toBe(false);
     expect(filterTonight([inside, before, after], now).map((r) => r.id)).toEqual(["in"]);
   });
+
+  // Regression (#397): an all-day row whose clock start is before the 16:00
+  // window open but whose endsAt runs into the evening (the Wetherspoon food
+  // deals, 11:30 -> 23:00) must count as "on tonight". Start-containment used to
+  // drop all 384 of them on every night; interval-overlap keeps them.
+  it("includes an all-day deal that starts before 16:00 but runs into the evening", () => {
+    const now = Date.parse("2026-07-11T21:45:00.000Z"); // 22:45 London (BST)
+    const allDayDeal = makeRow({
+      id: "deal-allday",
+      kind: "deal",
+      startsAt: "2026-07-11T11:30:00+01:00",
+      endsAt: "2026-07-11T23:00:00+01:00",
+    });
+    expect(isOnTonight(allDayDeal, now)).toBe(true);
+  });
+
+  // The overlap change must NOT widen point rows (no endsAt): a lunchtime-only
+  // occurrence still ends before the window opens and stays excluded.
+  it("still excludes a daytime row that has finished before the window opens", () => {
+    const now = Date.parse("2026-07-11T21:45:00.000Z");
+    const lunchtimeOnly = makeRow({
+      id: "deal-lunch",
+      kind: "deal",
+      startsAt: "2026-07-11T11:30:00+01:00",
+      endsAt: "2026-07-11T14:00:00+01:00",
+    });
+    const pointBeforeWindow = makeRow({ id: "point-before", startsAt: "2026-07-11T12:00:00+01:00" });
+    expect(isOnTonight(lunchtimeOnly, now)).toBe(false);
+    expect(isOnTonight(pointBeforeWindow, now)).toBe(false);
+  });
 });
 
 describe("filterByKind + matchVenueId", () => {

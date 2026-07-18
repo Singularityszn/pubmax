@@ -78,8 +78,11 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 }
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
-  if (active === "feed" || active === "crawls" || active === "borough") return "discover";
-  if (active === "home") return undefined;
+  if (active === "feed" || active === "crawls") return "discover";
+  // Borough pages are data/discovery, not Stories. There is no primary tab for
+  // them, so they light nothing on the desktop nav rather than wrongly lighting
+  // Stories (the mobile tab bar already excludes /borough from its match set).
+  if (active === "borough" || active === "home") return undefined;
   if (active === "pubs" || active === "historic") return undefined;
   return active;
 }
