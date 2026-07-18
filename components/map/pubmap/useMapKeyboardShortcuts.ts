@@ -22,6 +22,10 @@ export function useMapKeyboardShortcuts({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onKeyDown = (event: KeyboardEvent) => {
+      // A popover that handled Escape (city switcher, layers, price, zone,
+      // status banner) claims the key via preventDefault — one Escape closes
+      // one layer, never the drawer underneath it too.
+      if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
       const typing =
         target?.tagName === "INPUT" ||

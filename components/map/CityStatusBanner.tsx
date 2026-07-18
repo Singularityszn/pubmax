@@ -246,7 +246,11 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpanded(false);
+      if (e.key === "Escape") {
+        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
+        e.preventDefault();
+        setExpanded(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

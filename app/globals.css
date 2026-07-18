@@ -1220,6 +1220,17 @@ input[type="range"] {
   color: var(--ink);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .mapToolbarClear {
+    transition:
+      color var(--duration-base) var(--ease-out),
+      transform var(--duration-press) var(--ease-out);
+  }
+  .mapToolbarClear:active {
+    transform: scale(0.97);
+  }
+}
+
 .planBtn {
   display: inline-flex;
   align-items: center;
@@ -1245,6 +1256,17 @@ input[type="range"] {
 
 .planBtn:hover {
   box-shadow: var(--shadow-btn-hover);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .planBtn {
+    transition:
+      box-shadow var(--duration-base) var(--ease-out),
+      transform var(--duration-press) var(--ease-out);
+  }
+  .planBtn:active {
+    transform: scale(0.97);
+  }
 }
 
 .planBtn.active {
@@ -1334,6 +1356,18 @@ input[type="range"] {
 .drawerClose:hover {
   color: var(--ink);
   border-color: var(--brass);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .drawerClose {
+    transition:
+      color var(--duration-base) var(--ease-out),
+      border-color var(--duration-base) var(--ease-out),
+      transform var(--duration-press) var(--ease-out);
+  }
+  .drawerClose:active {
+    transform: scale(0.97);
+  }
 }
 
 /* ── §4.5 curated-crawl onboarding overlay ─────────────────────────────────
