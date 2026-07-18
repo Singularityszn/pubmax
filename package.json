@@ -34,6 +34,7 @@
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
     "whats-on-refresh": "node scripts/refresh_whats_on.mjs",
+    "ingest:night-signals": "node scripts/ingest_night_signal_candidates.mjs",
     "refresh:night-signals": "node scripts/refresh_night_signal_claims.mjs",
     "refresh:weather": "node scripts/refresh_weather_snapshots.mjs",
     "refresh:events": "node scripts/whatson/eventsRefresh.mjs",
