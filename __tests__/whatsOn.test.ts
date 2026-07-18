@@ -10,6 +10,7 @@ import {
   filterTonight,
   filterByKind,
   matchVenueId,
+  normaliseEventTitle,
   mapThingsToDoToRows,
   fetchRawThingsToDoStartsAt,
   THINGS_TO_DO_KIND_MAP,
@@ -250,5 +251,56 @@ describe("fetchRawThingsToDoStartsAt", () => {
     expect(map.get("A")).toBe("2026-07-11T20:00:00+01:00");
     expect(map.has("B")).toBe(false);
     expect(map.has("C")).toBe(false);
+  });
+});
+
+describe("normaliseEventTitle", () => {
+  const EM = String.fromCharCode(0x2014); // em dash
+  const EN = String.fromCharCode(0x2013); // en dash
+
+  it("folds an em dash in an event title to a plain spaced hyphen", () => {
+    expect(normaliseEventTitle(`Skehan's ${EM} Live Music`)).toBe(
+      "Skehan's - Live Music",
+    );
+  });
+
+  it("folds an en dash too, and normalises spacing around it", () => {
+    expect(normaliseEventTitle(`Quiz${EN}Every Sunday`)).toBe("Quiz - Every Sunday");
+    expect(normaliseEventTitle(`Deal   ${EM}   Tuesdays`)).toBe("Deal - Tuesdays");
+  });
+
+  it("leaves a plain-hyphen title untouched", () => {
+    expect(normaliseEventTitle("Open mic - Thursdays")).toBe("Open mic - Thursdays");
+  });
+
+  it("no typographic dash survives a title through parseWhatsOnRows", () => {
+    const rows = parseWhatsOnRows(
+      [makeRow({ title: `Live Music ${EM} Fridays ${EN} 8pm` })],
+      NOW,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].title).not.toMatch(/[\u2013\u2014]/);
+    expect(rows[0].title).toBe("Live Music - Fridays - 8pm");
+  });
+
+  it("no typographic dash survives a CityMCP row through mapThingsToDoToRows", () => {
+    const result: ThingsToDoResult = {
+      window: "tonight",
+      opportunities: [
+        {
+          title: `Jazz ${EM} Late`,
+          kind: "gig",
+          place: { name: "The Blue Post", location: { lat: 51.5, lng: -0.1 } },
+          source: { label: "Skiddle", url: "https://skiddle.com/e/1" },
+        } as unknown as ThingsToDoOpportunity,
+      ],
+    };
+    const rows = mapThingsToDoToRows(result, {
+      now: NOW,
+      windowStart: "2026-07-11T19:00:00+01:00",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].title).not.toMatch(/[\u2013\u2014]/);
+    expect(rows[0].title).toBe("Jazz - Late");
   });
 });

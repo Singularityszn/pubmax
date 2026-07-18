@@ -105,7 +105,7 @@ export default function ZonePintIndexStrip({
 
       {!compact ? (
         <p className="zonePintIndexMethod">
-          Zones are each pub&rsquo;s <strong>nearest station&rsquo;s</strong> TfL fare
+          Zones are each pub&rsquo;s <strong>nearest station&rsquo;s</strong>{" "}TfL fare
           zone (a documented approximation, not an area boundary). Medians use real
           observed pints; a zone with fewer than {MIN_PRICED_VENUES} priced pubs is
           held back rather than guessed.

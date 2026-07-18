@@ -75,7 +75,7 @@ export default async function PintIndexPage() {
       <header className="pintIndexHead">
         <p className="pintIndexEyebrow">The London Pint Index</p>
         <h1 className="pintIndexTitle">
-          {rows.length ? "London pint prices, by borough" : "Public release pending"}
+          {rows.length ? "London pint prices, by borough" : "London pint prices, by fare zone"}
         </h1>
         <p className="pintIndexDek">
           The public Index publishes only observations with an explicit source,
@@ -102,7 +102,7 @@ export default async function PintIndexPage() {
         <h2 id="zoneHeading" className="pintIndexSectionTitle">The Zone pint index</h2>
         <p className="pintIndexNote">
           A pint in Zone 1 costs more than Zone 3. Here is by how much. Each pub
-          is placed in its <strong>nearest station&rsquo;s</strong> TfL fare zone
+          is placed in its <strong>nearest station&rsquo;s</strong>{" "}TfL fare zone
           (a documented approximation, not an area boundary), then we take the
           median of every zone&rsquo;s observed cheapest pint.
         </p>

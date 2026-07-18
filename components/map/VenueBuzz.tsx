@@ -19,6 +19,7 @@
 // No animation — trivially reduced-motion compliant.
 
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { ExternalLink, Newspaper } from "lucide-react";
 
 import { haversineKm } from "@/lib/haversine";
@@ -92,6 +93,52 @@ function isHttps(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+// The CityMCP summary embeds numeric press citations inline as "[1][2][3]".
+// Rendered raw they read as robotic mid-sentence brackets. Turn each marker
+// into a real superscript link to its press mention: the number n maps to
+// mentions[n-1] (the order the model cited), and only becomes a link when that
+// source exists and is https. An out-of-range or non-https marker renders as a
+// plain superscript number so the honest sourcing survives without a dead link.
+const CITATION_RE = /\[(\d+)\]/g;
+
+export function renderBuzzSummary(
+  summary: string,
+  mentions: CityBuzzMention[],
+): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  for (const match of summary.matchAll(CITATION_RE)) {
+    const start = match.index ?? 0;
+    if (start > last) nodes.push(summary.slice(last, start));
+    const n = Number(match[1]);
+    const mention = mentions[n - 1];
+    if (mention && isHttps(mention.url)) {
+      nodes.push(
+        <sup key={`cite-${key++}`} className="venueBuzzCite">
+          <a
+            href={mention.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={`Source ${n}: ${mention.label}`}
+          >
+            {n}
+          </a>
+        </sup>,
+      );
+    } else {
+      nodes.push(
+        <sup key={`cite-${key++}`} className="venueBuzzCite">
+          {n}
+        </sup>,
+      );
+    }
+    last = start + match[0].length;
+  }
+  if (last < summary.length) nodes.push(summary.slice(last));
+  return nodes;
 }
 
 export default function VenueBuzz({
@@ -173,7 +220,11 @@ export default function VenueBuzz({
           CityMCP
         </span>
       </div>
-      {buzz.summary ? <p className="venueBuzzSummary">{buzz.summary}</p> : null}
+      {buzz.summary ? (
+        <p className="venueBuzzSummary">
+          {renderBuzzSummary(buzz.summary, buzz.mentions)}
+        </p>
+      ) : null}
       {mentions.length > 0 ? (
         <ul className="venueBuzzMentions" aria-label="Press mentions">
           {mentions.map((m) => (
