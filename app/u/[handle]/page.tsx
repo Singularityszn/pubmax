@@ -13,6 +13,7 @@ import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
+import YourContributionsCard from "@/components/profile/YourContributionsCard";
 import SiteNav from "@/components/nav/SiteNav";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
@@ -557,6 +558,10 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
                   hero
                 />
               </div>
+            ) : null}
+
+            {isOwnProfile ? (
+              <YourContributionsCard handle={routeHandle} claimNudge />
             ) : null}
 
             {isYouRoute || isOwnProfile ? (

@@ -19,6 +19,7 @@ import {
   cleanVibeTags,
   cleanVisibility,
   dropMatchesCityScope,
+  hasPricedDropToday as hasPricedDropTodayMemory,
   keepHiddenPintDrop,
   listAllVisiblePintDrops,
   listByStatus,
@@ -43,6 +44,7 @@ function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
 }
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
+import { londonDayKey } from "@/lib/pintContributions";
 
 const TABLE = "visit_reports";
 
@@ -139,6 +141,15 @@ export type PintDropStore = {
   report(id: string, reason: string | undefined, actorHash: string): Promise<boolean>;
   /** Moderator decision: set the final status and stamp the review. False = unknown id. */
   moderate(id: string, status: PintDropStatus, note?: string): Promise<boolean>;
+  /**
+   * Duplicate guard (feat/price-drops-v2): true when `handle` has already logged
+   * a PRICED drop at `venueId` on the current London calendar day. The route
+   * pre-checks this and returns 409 before create, so one identity can't stack
+   * multiple price observations at one pub in a day. Note-only anecdotes are
+   * exempt (a memory is not a price observation). Both backends enforce the same
+   * venue+identity+day rule against their own rows.
+   */
+  hasPricedDropToday(venueId: string, handle: string): Promise<boolean>;
 };
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -448,6 +459,9 @@ export const memoryPintDropStore: PintDropStore = {
   async moderate(id, status, note) {
     return status === "visible" ? restorePintDrop(id, note) : keepHiddenPintDrop(id, note);
   },
+  async hasPricedDropToday(venueId, handle) {
+    return hasPricedDropTodayMemory(venueId, handle);
+  },
 };
 
 // Additive-column rollout safety: recognise the specific "the `vibe_tags`
@@ -744,6 +758,34 @@ export const supabasePintDropStore: PintDropStore = {
     const ok = (data ?? []).length > 0;
     if (ok && keysToPurge.length) await deletePhotos(keysToPurge);
     return ok;
+  },
+
+  /**
+   * Duplicate guard: the contributor's most recent PRICED drop at this venue,
+   * compared against the current London day in JS. We read the single newest
+   * priced row (indexed by migration 0040's
+   * (venue_id, handle, created_at) partial index) rather than computing a
+   * London-day boundary in SQL — `timezone('Europe/London', ...)` is only STABLE,
+   * not IMMUTABLE, so it can't anchor a durable unique index, and a one-row read
+   * keeps the day-bucket logic in the same londonDayKey() the streak uses (no
+   * drift). Handles are normalized on write, so the equality match is exact.
+   */
+  async hasPricedDropToday(venueId, handle) {
+    const who = normalizeViewerHandle(handle);
+    if (!who) return false;
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("created_at")
+      .eq("venue_id", venueId)
+      .eq("handle", who)
+      .not("price_gbp", "is", null)
+      .neq("status", "hidden")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const latest = (data ?? [])[0] as { created_at?: string } | undefined;
+    if (!latest?.created_at) return false;
+    return londonDayKey(latest.created_at) === londonDayKey(new Date());
   },
 };
 
