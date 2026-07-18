@@ -190,6 +190,8 @@ Three lanes (Opus 4.8, worktrees, separate branches, Sol decides):
 2. **`feat/email-digest`**: weekly "your London week in pints" digest behind a provider seam (noop until email-provider keys — same pattern as push): digest content generator from real data (new cheapest near your area, drops logged, tonight highlights), send pipeline seam, owner decision on provider (Resend/Postmark) documented as config drop-in.
 3. **`feat/first-drop-nudge`**: drops-first growth — on unpriced venues' sheets, an honest nudge "No pint price logged here yet — be the first" wiring into the existing drop composer; targets the 658 unpriced outer pubs list. Careful: #303 touches the composer — build on main, additive, note rebase-by-intent if they collide.
 
+- **Real-user slop feedback → both-theme audit + token-lane** (Opus 4.8, design/token-system-v2): diagnosis is SYSTEMIC — coral does everything, dark mode is flat inverted-light with a muddy brown wash, no elevation system, weak type hierarchy outside prices. Lane scope: token-level only (accent roles, dark elevation steps, wash removal, 3-level type scale, 1-2 signature moves like brass price-plaques) — no layout rewrites (those live in #305/#307/#311). Screenshots: scratchpad t-{light,dark}-{home,map,tonight,feed}.png.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
