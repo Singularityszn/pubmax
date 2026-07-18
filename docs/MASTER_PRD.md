@@ -385,6 +385,7 @@ The full release matrix includes:
 | `DESIGN_LANGUAGE_AND_NEXT_FEATURES_PRD_2026-07-08.md` | Absorbed | Provenance, rhythm, and interaction guidance |
 | `FABLE_PRODUCTION_AND_BROAD_APPEAL_PRD.md` | Absorbed | Broad-appeal and production defects |
 | `CYCLE15_PRD.md` | Authoritative appendix | Living London layer: fresh-facts dataset, Tonight Conditions, Social Loop v1, native readiness, anti-slop enforcement |
+| `UNIVERSAL_DAY0_PRD.md` | Authoritative appendix | Cycle 17 launch week: morning brief, concierge chat surface, growth loop, web push gap, category ingest lanes |
 | `PERSONA_DRINKS_AND_DESKTOP_PRD.md` | Authoritative appendix | Desktop parity lanes + sourced persona-drinks discovery lens with endorsement guardrails |
 | `IOS_APP_PRD.md` | Authoritative appendix | iPhone-app build/activation contract; native shell over this PRD's web product |
 | `FIRST_PRINCIPLES_MAP_SOCIAL_PRD.md` | Absorbed | Map/social first-principles framing |
