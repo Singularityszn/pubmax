@@ -1118,6 +1118,13 @@ export default function PubMap({
     focusMapSearch();
   }, [closePlanning, focusMapSearch, setFilters]);
 
+  // #395 R1: clear only the search query and unfilter the map. Used by the
+  // mobile active-search chip so a restored (or typed) query is never an
+  // invisible filter. Leaves every other filter and the camera untouched.
+  const clearMapQuery = useCallback(() => {
+    setFilters((current) => ({ ...current, query: "" }));
+  }, [setFilters]);
+
   const openComposerForLog = useCallback(() => {
     closePlanning();
     setVenueInitialTab("pints");
@@ -1889,6 +1896,8 @@ export default function PubMap({
           cityLabel={activeNightArea?.name ?? city.displayName}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
+          activeQuery={trimmedMapQuery}
+          onClearQuery={clearMapQuery}
           onNearMe={showNearbyMap}
           nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResult ? "ready" : nearbyError ? "error" : "idle"}
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
