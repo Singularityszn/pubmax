@@ -81,6 +81,17 @@
       "gate": "TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY (Skiddle needs written commercial approval). Baseline rows are hand-verified transforms; live layer also blends CityMCP at request time."
     },
     {
+      "id": "events_live_eventbrite",
+      "label": "Eventbrite own-org events (live, Tonight surface)",
+      "class": "live",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "live — fetched per request from eventbriteapi.com, cached in-process (5 min TTL per instance, never disk-cached)",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "live-per-request (app/api/events/tonight via lib/events/eventbrite)",
+      "gate": "EVENTBRITE_API_TOKEN. Capability-limited: Eventbrite removed public event search in 2019, so a private token can only surface the authenticated account's OWN organizations' events. Contributes 0 rows until the owner creates events under that account; lights up with no code change."
+    },
+    {
       "id": "pint_index_snapshot",
       "label": "London Pint Index (borough medians)",
       "class": "user-cadence",
