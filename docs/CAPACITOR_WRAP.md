@@ -20,6 +20,8 @@ datasets/screenshots into the iOS binary as dead weight, so don't.
 | Native camera seam | `lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx` |
 | Push registration seam | `lib/nativePush.ts` → `POST /api/push-tokens` |
 | Token storage (memory + Supabase) | `lib/pushTokenStore.ts`, `app/api/push-tokens/route.ts`, `supabase/migrations/20260717120000_0039_push_tokens.sql` |
+| Push **sending** provider seam | `lib/pushProvider.ts` (`noopPushProvider` / `apnsPushProvider` stub, `selectPushProvider`) |
+| Push **sending** fan-out | `lib/pushSender.ts` (resolves tokens, dispatches, prunes invalid) |
 | Universal links manifest | `public/.well-known/apple-app-site-association` (+ Content-Type header rule in `next.config.mjs`) |
 
 **Seam rule:** no file imports `@capacitor/*` except the `lib/native*.ts` seam
@@ -59,6 +61,46 @@ CommandLineTools).
      `.capacitorDidFailToRegisterForRemoteNotifications` notifications
      (canonical Capacitor 8 push setup). Not yet compiled locally — no Xcode
      on this machine; first `xcodebuild` will confirm.
+   - Create an APNs Auth Key in the Apple Developer portal. The server-side
+     **sending pipeline is now built** behind a provider seam
+     (`lib/pushProvider.ts` + `lib/pushSender.ts`); it runs the `noopPushProvider`
+     (logs + reports every token `skipped`) until the APNs env keys exist. To go
+     live, set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (bundle id is
+     `com.pubmaxx.app`) — `selectPushProvider()` then flips to `apnsPushProvider`
+     with no caller change. **Remaining APNs drop-in work:** `apnsPushProvider`
+     is a stub — implement the HTTP/2 POST to `api.push.apple.com` with a
+     per-request ES256 JWT (signed from `APNS_PRIVATE_KEY`, `APNS_KEY_ID` in the
+     JWT header, `APNS_TEAM_ID` as issuer, bundle id as `apns-topic`), mapping
+     the APNs response to `PerTokenResult` (`410`/`BadDeviceToken` → `invalid`
+     so the token is pruned). No APNs SDK is added yet.
+
+### Push sending: what fires today vs. what's dormant
+
+`lib/pushSender.ts` drives the fan-out. **Tokens are registered pre-auth**
+(`lib/nativePush.ts` posts on shell boot), so a token row carries **no
+user/plan identity**. Consequences, enforced in code:
+
+- **Night-signal "went live" broadcast — ACTIVE.** `GET /api/night-signals`
+  fires `maybeBroadcastNightSignalLive()` (fire-and-forget). Dedup is **durable**,
+  not per-instance: it claims a budget-of-1 rate-limit bucket keyed
+  `night-signal-broadcast:${generatedAt}` via `lib/pintDrops.isLimited` (the
+  shared Supabase RPC limiter, in-memory fallback when unconfigured), so a
+  snapshot version broadcasts **at most once globally** even across cold starts
+  and concurrent serverless instances. A per-instance `Set` is only a cheap
+  first check. The claim is consumed before the send (**at-most-once**: a failed
+  send is dropped, never retried into a duplicate). A live signal is public, so
+  wholesale delivery to `pushTokenStore().list()` is correct — this is the one
+  launch event that can target today.
+- **Plan-scoped sends (proposal decision, get-in change) — DORMANT.** The
+  proposal-decision route wires `notifyPlanUpdate()` fire-and-forget, but
+  `resolvePlanTokens()` returns `[]` (the PLAN-SCOPED SEAM) because there is no
+  token→plan link. Sending to all tokens would leak Plan A's updates to Plan B's
+  devices, so the path stays closed. `getin/route.ts` is read-only, so it has no
+  server write moment — its notification rides the plan mutation instead.
+  **To activate:** once a token row can be linked to a member/plan, wire
+  `resolvePlanTokens()` to that lookup; the rest of the pipeline is unchanged.
+   - Add the standard `AppDelegate` forwarding of APNs callbacks to Capacitor
+     if the template didn't include it (Capacitor docs → Push Notifications).
 4. **Universal links**
    - Add the *Associated Domains* capability with
      `applinks:pubmaxxing.com`.

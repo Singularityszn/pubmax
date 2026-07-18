@@ -5,6 +5,7 @@ import { collaborationErrorResponse, collaborationIdempotencyKey } from "@/lib/p
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { planStore } from "@/lib/planStore";
+import { fireAndForgetPush, notifyPlanUpdate } from "@/lib/pushSender";
 
 type Context = { params: Promise<{ id: string; proposalId: string }> };
 
@@ -21,5 +22,15 @@ export async function POST(request: Request, context: Context): Promise<Response
     return applied.ok;
   });
   if (!result.ok) return collaborationErrorResponse(result.error);
+  // Fire-and-forget: tell the Plan's crew the route changed. Plan-scoped
+  // targeting is dormant until push tokens gain identity (see lib/pushSender.ts
+  // PLAN-SCOPED SEAM), so this dispatches nothing today — but the moment is
+  // wired now and must never block or fail the decision response.
+  fireAndForgetPush(() => notifyPlanUpdate({
+    planId: id,
+    reason: decision === "accepted" ? "proposal_accepted" : "proposal_rejected",
+    title: "Plan updated",
+    body: decision === "accepted" ? "A new route was accepted." : "A proposed route was turned down.",
+  }));
   return jsonNoStore(result);
 }

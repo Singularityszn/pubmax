@@ -46,6 +46,13 @@ export function validatePushToken(raw: {
 export type PushTokenStore = {
   /** Register (or refresh) a device token. Idempotent per token. */
   save(input: PushTokenInput): Promise<PushTokenDTO>;
+  /** All registered device tokens. The send fan-out (lib/pushSender.ts) reads
+   *  this to resolve broadcast targets. Rows carry no identity, so this is the
+   *  ONLY targeting available until tokens gain identity — see pushSender. */
+  list(): Promise<PushTokenDTO[]>;
+  /** Remove a token the push provider reported invalid (APNs 410 /
+   *  BadDeviceToken). Idempotent — deleting an absent token is a no-op. */
+  delete(token: string): Promise<void>;
 };
 
 const TABLE = "push_tokens";
@@ -70,6 +77,23 @@ export const supabasePushTokenStore: PushTokenStore = {
       lastSeenAt: String(data.last_seen_at),
     };
   },
+  async list() {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("token, platform, created_at, last_seen_at")
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => ({
+      token: String(row.token),
+      platform: row.platform === "android" ? "android" : "ios",
+      createdAt: String(row.created_at),
+      lastSeenAt: String(row.last_seen_at),
+    }));
+  },
+  async delete(token) {
+    const { error } = await admin().from(TABLE).delete().eq("token", token);
+    if (error) throw new Error(error.message);
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -87,6 +111,12 @@ export const memoryPushTokenStore: PushTokenStore = {
     };
     memoryTokens.set(input.token, dto);
     return dto;
+  },
+  async list() {
+    return [...memoryTokens.values()];
+  },
+  async delete(token) {
+    memoryTokens.delete(token);
   },
 };
 
