@@ -15,7 +15,14 @@
 import { log } from "@/lib/log";
 
 /** A Next.js App-Router route handler: (request, ctx?) => Promise<Response>. */
-type RouteHandler = (request: Request, ...rest: never[]) => Promise<Response>;
+// Generic over the handler's trailing parameters so Next's generated
+// route-type validation still sees the exact original signature (the App
+// Router passes a `{ params: Promise<...> }` context object as the second
+// argument — erasing it to `never[]` fails the RouteHandlerConfig check).
+type RouteHandler<Rest extends unknown[]> = (
+  request: Request,
+  ...rest: Rest
+) => Promise<Response>;
 
 /** Pick the log level from an HTTP status: 5xx → error, 4xx → warn, else info. */
 function levelForStatus(status: number): "info" | "warn" | "error" {
@@ -35,8 +42,11 @@ function levelForStatus(status: number): "info" | "warn" | "error" {
  * @param route   stable static tag, e.g. "citymcp/status" (NEVER the URL).
  * @param handler the underlying `(request) => Promise<Response>` handler.
  */
-export function withRouteTiming(route: string, handler: RouteHandler): RouteHandler {
-  return async (request: Request, ...rest: never[]): Promise<Response> => {
+export function withRouteTiming<Rest extends unknown[]>(
+  route: string,
+  handler: RouteHandler<Rest>,
+): RouteHandler<Rest> {
+  return async (request: Request, ...rest: Rest): Promise<Response> => {
     const start = Date.now();
     const method = request.method ?? "GET";
     try {
