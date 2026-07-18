@@ -224,6 +224,10 @@ Lanes (Opus 4.8, worktrees, Sol decides):
 
 - **PRs #337/#338 — two-axis corpus review (Standards / Spec)**: Standards CLEAN (0 hard violations; DeliveryStatus + DAY_MS cleanups; seam repetition sanctioned). Spec: 3 fidelity gaps — early email capture NOT built (locked decision, needs a lane or a de-scope), #313 gates on 2nd calendar day vs locked "second visit" (owner confirm), USP bet 4 unresolved (bill-split decision). Issue map: #45 closable on #302 merge; #286 satisfied; #283 needs accessibility-matrix proof; #287/#282 correctly deferred.
 
+## CYCLE 10 — confidence hardening (owner directive)
+
+Raise every open finding from reviewer-prose to evidence-backed verdict, and close the confirmed gaps. Three Opus 4.8 lanes: (1) `review/findings-confidence` — every unfixed finding across all six review docs re-attacked mechanically → CONFIRMED/REFUTED/STALE/OWNER-DECISION table with quoted evidence; (2) `feat/email-capture` — builds the locked-but-missing Cycle-2 email capture (digest-purpose-limited inline capture on the identity nudge, double-opt-in, unconfirmed excluded from sends, migration 0042, full house pattern, cert 61→62); (3) `docs/a11y-matrix` — produces #283's missing accessibility-matrix proof (reduced-motion, focus, 44px, computed token contrast, aria) and fixes small failures inline.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
