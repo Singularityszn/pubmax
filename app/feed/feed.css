@@ -16,7 +16,12 @@
   --feed-shadow: 0 14px 32px color-mix(in srgb, var(--ink-deep) 10%, transparent),
     0 6px 14px color-mix(in srgb, var(--brass) 8%, transparent);
 
+  /* iOS Safari scroll stability: `vh` resolves to the LARGE viewport and, worse,
+     any `dvh` reflows as the URL bar collapses/expands mid-scroll — both make the
+     feed jump. `svh` is the SMALL (stable) viewport, so the shell never resizes
+     as the toolbar animates. `100vh` stays as the fallback for older engines. */
   min-height: 100vh;
+  min-height: 100svh;
   background:
     linear-gradient(105deg, transparent 0 16%, color-mix(in srgb, var(--river) 7%, transparent) 16% 17%, transparent 17% 100%),
     linear-gradient(150deg, transparent 0 72%, color-mix(in srgb, var(--amber) 8%, transparent) 72% 73%, transparent 73% 100%),
@@ -165,11 +170,18 @@
   white-space: nowrap;
 }
 
-/* "N new pints — tap to show" live pill (issue #37). Sits above the list; a
-   subtle reveal affordance that never yanks the reader's scroll. */
+/* "N new pints — tap to show" live pill (issue #37). A FLOATING overlay pinned
+   to the viewport (not an in-flow box), so it can appear/disappear on each live
+   poll WITHOUT displacing the reading surface — the reader is never shoved down
+   when new drops are buffered. (An in-flow pill relied on scroll anchoring to
+   keep the reader in place; iOS Safari doesn't implement it, so it jumped.)
+   Sits just below the floating SiteNav pill, centred, above the cards. */
 .feedNewPill {
-  align-self: center;
-  margin: 2px 0 -4px;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 66px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
   padding: 7px 16px;
   border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--feed-border));
   border-radius: 999px;
@@ -187,7 +199,7 @@
 }
 
 .feedNewPill:active {
-  transform: translateY(1px);
+  transform: translateX(-50%) translateY(1px);
 }
 
 .presenceList {

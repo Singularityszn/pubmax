@@ -388,7 +388,7 @@ export default function FeedPage() {
   // doesn't reshuffle under the viewer on every render/tick — it stays stable
   // for the session, matching the "screenshot-worthy, calm" feed intent.
   const [forYouNow] = useState(() => Date.now());
-  const reactionCounts = useMemo(() => {
+  const liveReactionCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const [id, summary] of Object.entries(summaries)) {
       let total = 0;
@@ -398,6 +398,26 @@ export default function FeedPage() {
     return counts;
   }, [summaries]);
 
+  // Scroll stability: the For-You lane ranks by recency×quality where "quality"
+  // folds in reaction counts. Those counts stream in per page as the reader
+  // scrolls (the batch-GET below), so feeding them LIVE into the sort re-orders
+  // the feed *under* the reader every time a page's summaries land — cards jump.
+  // Mirror the live pill's "defer reorders until the viewer is back at the top"
+  // rule: while the reader is at the top (pagesLoaded === 1, which onFilterChange
+  // resets) keep the ranking signal live, but the instant they load past page 1
+  // freeze the snapshot so summaries arriving mid-scroll can't reshuffle what
+  // they're reading. Only the For-You lane consumes these counts; every other
+  // lane sorts purely by createdAt|price, so this is a no-op there.
+  const [rankReactionCounts, setRankReactionCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    // Refresh the ranking snapshot ONLY while the reader is at the top; once
+    // they've loaded past page 1 it stays frozen so a page's summaries landing
+    // mid-scroll can't re-sort the feed under them. setState fires from a
+    // microtask (never the sync effect body) per react-hooks/set-state-in-effect.
+    if (pagesLoaded !== 1) return;
+    void Promise.resolve().then(() => setRankReactionCounts(liveReactionCounts));
+  }, [pagesLoaded, liveReactionCounts]);
+
   const filtered = useMemo(
     () =>
       applyFeedFilter(items, filter, {
@@ -406,11 +426,11 @@ export default function FeedPage() {
         // followed authors when the set is non-empty (never a hard filter).
         forYou: {
           now: forYouNow,
-          reactionCounts,
+          reactionCounts: rankReactionCounts,
           followingHandles: followingHandles ?? undefined,
         },
       }),
-    [items, filter, followingHandles, forYouNow, reactionCounts],
+    [items, filter, followingHandles, forYouNow, rankReactionCounts],
   );
   const { visible, nextCursor } = useMemo(() => {
     const acc: FeedItem[] = [];
