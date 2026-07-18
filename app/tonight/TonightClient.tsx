@@ -27,6 +27,7 @@ import {
 
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
+import TonightConditionsStrip from "./TonightConditionsStrip";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
@@ -209,6 +210,8 @@ export default function TonightClient() {
           </div>
         ) : null}
       </header>
+
+      <TonightConditionsStrip origin={origin} />
 
       {loading ? (
         <p className="tonightStatus" role="status">
