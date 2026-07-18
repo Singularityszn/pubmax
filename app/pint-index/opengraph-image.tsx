@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
-import { CardShell, OG, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
+import { CardShell, OG, OG_CACHE_HEADERS, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
 
 export const runtime = "nodejs";
 export const alt = "The London Pint Index public data status — PUBMAXX";
@@ -28,6 +28,6 @@ export default async function Image() {
       </div>
       <div style={{ display: "flex", color: OG.muted, fontSize: 21 }}>pubmaxxing.com/pint-index</div>
     </CardShell>,
-    { ...size, fonts: loadOgFonts() },
+    { ...size, fonts: loadOgFonts(), headers: OG_CACHE_HEADERS },
   );
 }

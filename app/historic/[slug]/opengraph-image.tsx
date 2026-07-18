@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { getHistoricPubBySlug, loadHistoricPubs } from "@/lib/historic";
 import { listedBadge } from "@/lib/historicFilter";
+import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 // Per-pub Historic Pubs OG share card (Next `opengraph-image` convention).
 // Renders the cited heritage of a single pub as a collectible "field-guide
@@ -270,6 +271,6 @@ export default async function Image({
         </div>
       </div>
     ),
-    size,
+    { ...size, headers: OG_CACHE_HEADERS },
   );
 }

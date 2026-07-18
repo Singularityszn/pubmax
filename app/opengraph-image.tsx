@@ -6,6 +6,7 @@ import { listEnabledCities } from "@/lib/cities";
 import {
   CardShell,
   OG,
+  OG_CACHE_HEADERS,
   OG_SIZE,
   Wordmark,
   loadOgFonts,
@@ -206,6 +207,6 @@ export default async function Image() {
         </div>
       </CardShell>
     ),
-    { ...size, fonts: loadOgFonts() },
+    { ...size, fonts: loadOgFonts(), headers: OG_CACHE_HEADERS },
   );
 }

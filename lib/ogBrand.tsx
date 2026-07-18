@@ -40,6 +40,20 @@ export const OG = {
 
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 
+// Shared Cache-Control for every dynamic OG image (metadata `opengraph-image`
+// routes + the `*-card` API routes). These render a font-loaded, fs-reading PNG
+// on a Node function; the per-request CSP nonce (proxy.ts) forces dynamic
+// rendering, so Next does NOT apply its static-image immutable cache — without
+// this header every social-crawler refetch (facebookexternalhit / Slackbot /
+// Twitterbot) re-rasterizes the card. A share card's content is stable-ish for a
+// URL, so we let the CDN hold it for an hour with a long stale-while-revalidate
+// window: the browser revalidates modestly (max-age=0) while the edge serves an
+// instant hit, and a redraw after a data change lands within the SWR window.
+// Applied via the `headers` option on `new ImageResponse(el, { ...size, headers })`.
+export const OG_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
+export const OG_CACHE_HEADERS = { "cache-control": OG_CACHE_CONTROL } as const;
+
 // The canonical page background: a near-black diagonal wash across the
 // elevation ladder. Kept as one string so every card opens on the same surface.
 export const OG_BG = `linear-gradient(150deg, ${OG.inkDeep} 0%, ${OG.panel} 52%, ${OG.paper} 100%)`;

@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 
+import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+
 import { fetchThingsToDo } from "@/lib/citymcp/client";
 import { buildTonightPosterModel } from "@/lib/tonightPoster";
 
@@ -100,6 +102,6 @@ export default async function Image() {
         </div>
       </div>
     ),
-    { ...size },
+    { ...size, headers: OG_CACHE_HEADERS },
   );
 }
