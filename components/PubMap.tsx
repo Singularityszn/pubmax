@@ -22,6 +22,8 @@ import {
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
+import { buildMapVenueListModel } from "@/lib/mapVenueList";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import PubMapCanvas from "@/components/PubMapCanvas";
 import MobileMapShell from "@/components/mobile/MobileMapShell";
 import { Sheet } from "@/components/ui/sheet";
@@ -67,6 +69,11 @@ const VenueInspector = dynamic(
 );
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
+  ssr: false,
+});
+// List view (a11y keyboard venue path) joins the off-critical-path dynamic set:
+// it renders on demand, so it must not enter the eager map chunk (#306 budget).
+const MapVenueList = dynamic(() => import("@/components/map/MapVenueList"), {
   ssr: false,
 });
 const MapPriceControl = dynamic(
@@ -467,6 +474,7 @@ export default function PubMap({
   );
   // W2: the live-events lane is map-first — a compact top chip until requested.
   const [tonightLaneOpen, setTonightLaneOpen] = useState(false);
+  const [mapListOpen, setMapListOpen] = useState(false);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
@@ -759,6 +767,12 @@ export default function PubMap({
   const canvasVenues = useMemo(
     () => withForcedVenue(mapMembershipVenues, venueById, selectedVenueId),
     [mapMembershipVenues, venueById, selectedVenueId],
+  );
+  // A11Y finding #1 — keyboard/SR-reachable model of the venues on the map,
+  // ordered nearest-first to the viewport centre. Same set the canvas paints.
+  const mapVenueListModel = useMemo(
+    () => buildMapVenueListModel(mapMembershipVenues, mapViewport.center),
+    [mapMembershipVenues, mapViewport.center],
   );
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams);
@@ -1347,6 +1361,13 @@ export default function PubMap({
     }
   }, [detailOpen]);
 
+  // A11Y finding #2 — desktop venue drawer focus-trap parity. The desktop right
+  // drawer already claims dialog/aria-modal at `full` and owns focus-in/restore
+  // (above) + Esc (useMapKeyboardShortcuts); the missing piece was trapping Tab
+  // and inert-ing the background. Reuse the SAME trap the mobile sheet uses.
+  const detailDrawerRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(!mobileViewport && detailOpen && sheetSnap === "full", detailDrawerRef);
+
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
   const activeBand = useMemo(
@@ -1732,6 +1753,20 @@ export default function PubMap({
           />
         ) : null}
 
+        {/* A11Y #1 — keyboard/SR "List view": the DOM parallel to the canvas
+            pins. Present on both viewports; selection drives the same
+            selectVenue the pin tap does. Hidden by CSS while a sheet owns the
+            map. */}
+        <MapVenueList
+          model={mapVenueListModel}
+          cityName={city.displayName}
+          open={mapListOpen}
+          onOpenChange={setMapListOpen}
+          loaded={loaded && loadedCityId === cityId}
+          onSelectVenue={selectVenue}
+          onPrefetchVenue={prefetchVenueDetail}
+        />
+
         <MobileMapShell
           cityLabel={activeNightArea?.name ?? city.displayName}
           overlay={mobileShellState.overlay}
@@ -1959,6 +1994,7 @@ export default function PubMap({
           fire above the gesture breakpoint, and the extra classes/attrs are
           no-ops there (see venueSheet.css / globals.css .mapDrawer rules). */}
       {!mobileViewport ? <div
+        ref={detailDrawerRef}
         className={
           (detailOpen ? "mapDrawer right open" : "mapDrawer right") +
           (detailOpen ? ` sheet-${sheetSnap}` : "") +

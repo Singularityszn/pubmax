@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 
 import { IconButton } from "@/components/ui/icon-button";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
@@ -43,37 +44,9 @@ export default function MobileSharedSheet({ kind, title, initialSnap = "half", r
     setSheetSnap(requestedSnap);
   }, [kind, requestedSnap, setSheetDragY, setSheetSnap]);
 
-  useEffect(() => {
-    if (!kind || sheetSnap !== "full") return;
-    const portal = portalRef.current;
-    const sheet = sheetRef.current;
-    if (!portal || !sheet) return;
-    const background = [...document.body.children].filter((node): node is HTMLElement =>
-      node instanceof HTMLElement && node !== portal,
-    );
-    const previous = background.map((node) => ({ node, inert: node.inert }));
-    for (const { node } of previous) node.inert = true;
-    const onTab = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") return;
-      const focusable = [...sheet.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
-        .filter((node) => node.offsetParent !== null);
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    sheet.addEventListener("keydown", onTab);
-    return () => {
-      sheet.removeEventListener("keydown", onTab);
-      for (const item of previous) item.node.inert = item.inert;
-    };
-  }, [kind, sheetSnap]);
+  // Modal trap only at the `full` detent (where the sheet covers ~the whole
+  // viewport). Shared with the desktop venue drawer via useFocusTrap.
+  useFocusTrap(Boolean(kind) && sheetSnap === "full", sheetRef);
 
   if (!kind || typeof document === "undefined") return null;
   const closeLabel = kind === "venue" ? "Close pub detail" : kind === "planner" ? "Close planner" : `Close ${title}`;
