@@ -1595,10 +1595,21 @@ export default function PubMap({
   const venuePanel = detailOpen && selectedVenue ? (
     <>
       <div className="mobileVenuePeekSummary" aria-label="Selected pub summary">
-        <span>
-          <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
-          <small>current recorded price</small>
-        </span>
+        {typeof selectedVenue.cheapestPrice === "number" ? (
+          <span>
+            <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
+            <small>current recorded price</small>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="mobileVenuePeekDrop"
+            onClick={openComposerForLog}
+          >
+            <strong>No price yet.</strong>
+            <small>Be the first →</small>
+          </button>
+        )}
         <span>
           <strong>
             {userLocation

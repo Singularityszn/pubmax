@@ -14,6 +14,7 @@ import {
   ArrowUpRight,
   Beer,
   CalendarClock,
+  ChevronDown,
   ExternalLink,
   Footprints,
   LocateFixed,
@@ -104,6 +105,10 @@ export default function TonightClient() {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
+  // The location card is a quiet, collapsed row until tapped — it must not be
+  // the first thing on the page. Once a position is shared it stays open so the
+  // last-train strip has somewhere to live.
+  const [locationOpen, setLocationOpen] = useState(false);
 
   useEffect(() => {
     trackEvent("tonight_screen_view");
@@ -145,6 +150,13 @@ export default function TonightClient() {
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.
   const thinNight = empty || (ready && rows.length <= THIN_NIGHT_MAX_ROWS);
+  const hasGeoRows =
+    ready &&
+    rows.some(
+      (row) => typeof row.lat === "number" && typeof row.lng === "number",
+    );
+  const showLocation = hasGeoRows || thinNight;
+  const locationExpanded = locationOpen || origin != null;
 
   return (
     <main className="tonightPage" data-testid="tonight-screen">
@@ -158,7 +170,7 @@ export default function TonightClient() {
         <h1 className="tonightTitle">What&rsquo;s on near you, right now.</h1>
         <p className="tonightLede">
           Quiz, sport, deals, and live music from sourced listings. The same
-          spine as the map. No invented nights; thin nights stay thin.
+          spine as the map.
         </p>
         {ready || empty ? (
           <p className="tonightProvenance">
@@ -166,50 +178,6 @@ export default function TonightClient() {
             <span aria-hidden="true"> · </span>
             {checkedLabel(asOf)} · via what&rsquo;s-on
           </p>
-        ) : null}
-        {(ready && rows.some((row) => typeof row.lat === "number" && typeof row.lng === "number")) ||
-        thinNight ? (
-          <div className="tonightLocation">
-            <p className="tonightLocationCopy">
-              Sharing location is optional. Walk times stay on this page; your
-              rough position (nearest 100m or so) is used once to check your
-              nearest station and last train, and is never saved.
-            </p>
-            {origin ? (
-              <button
-                type="button"
-                className="tonightLocationButton"
-                onClick={clearLocation}
-              >
-                <X size={15} aria-hidden="true" />
-                Remove location
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="tonightLocationButton"
-                onClick={requestLocation}
-                disabled={locationStatus === "requesting"}
-              >
-                <LocateFixed size={15} aria-hidden="true" />
-                {locationStatus === "requesting"
-                  ? "Finding your location…"
-                  : locationStatus === "unavailable"
-                    ? "Try location again"
-                    : "Share location for walk times and last train"}
-              </button>
-            )}
-            <span className="tonightSrOnly" role="status" aria-live="polite">
-              {locationStatus === "requesting"
-                ? "Finding your location."
-                : locationStatus === "unavailable"
-                  ? "Location unavailable. You can try again."
-                  : origin
-                    ? "Walk times are now shown."
-                    : ""}
-            </span>
-            {origin ? <TonightGetHomeStrip origin={origin} /> : null}
-          </div>
         ) : null}
       </header>
 
@@ -422,6 +390,74 @@ export default function TonightClient() {
               );
             })}
           </ul>
+        </section>
+      ) : null}
+
+      {showLocation ? (
+        <section
+          className="tonightLocation"
+          aria-label="Location for walk times and last train"
+        >
+          <button
+            type="button"
+            className="tonightLocationToggle pressable"
+            aria-expanded={locationExpanded}
+            onClick={() => setLocationOpen((open) => !open)}
+          >
+            <LocateFixed size={15} aria-hidden="true" />
+            <span className="tonightLocationToggleLabel">
+              Walk times and last train
+            </span>
+            <ChevronDown
+              size={16}
+              aria-hidden="true"
+              className="tonightLocationChevron"
+              data-open={locationExpanded}
+            />
+          </button>
+          {locationExpanded ? (
+            <div className="tonightLocationBody">
+              <p className="tonightLocationCopy">
+                Sharing location is optional. Walk times stay on this page; your
+                rough position (nearest 100m or so) is used once to check your
+                nearest station and last train, and is never saved.
+              </p>
+              {origin ? (
+                <button
+                  type="button"
+                  className="tonightLocationButton"
+                  onClick={clearLocation}
+                >
+                  <X size={15} aria-hidden="true" />
+                  Remove location
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="tonightLocationButton"
+                  onClick={requestLocation}
+                  disabled={locationStatus === "requesting"}
+                >
+                  <LocateFixed size={15} aria-hidden="true" />
+                  {locationStatus === "requesting"
+                    ? "Finding your location…"
+                    : locationStatus === "unavailable"
+                      ? "Try location again"
+                      : "Share location for walk times and last train"}
+                </button>
+              )}
+              <span className="tonightSrOnly" role="status" aria-live="polite">
+                {locationStatus === "requesting"
+                  ? "Finding your location."
+                  : locationStatus === "unavailable"
+                    ? "Location unavailable. You can try again."
+                    : origin
+                      ? "Walk times are now shown."
+                      : ""}
+              </span>
+              {origin ? <TonightGetHomeStrip origin={origin} /> : null}
+            </div>
+          ) : null}
         </section>
       ) : null}
     </main>

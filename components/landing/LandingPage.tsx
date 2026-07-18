@@ -129,7 +129,6 @@ export default function LandingPage() {
           </div>
 
           <div className="lpHeroCopy">
-            <p className="lpHeroKicker"><span /> London is live</p>
             <h1 id="hero-title">Real pint prices on a live map. Plan a crawl your mates will actually walk.</h1>
             <p className="lpHeroLede">Real pint prices on a live map. Plan a crawl your mates will actually walk.</p>
             <div className="lpHeroActions">
@@ -140,7 +139,7 @@ export default function LandingPage() {
                 <MapPin size={17} aria-hidden="true" /> Open the map
               </Link>
               <Link className="lpButton lpButtonQuiet" href="/pal">
-                <MessageSquareText size={17} aria-hidden="true" /> Meet your Pub Pal
+                <MessageSquareText size={17} aria-hidden="true" /> Plan my night
               </Link>
             </div>
             <div className="lpLiveReadout" aria-label="Product highlights">
@@ -151,7 +150,7 @@ export default function LandingPage() {
 
           <figure className="lpHeroMap">
             <ThamesHero />
-            <figcaption>Tap a drink-shaped signal to open that kind of night.</figcaption>
+            <figcaption>Each shape is a drink. Pick one to see the pubs that pour it.</figcaption>
           </figure>
         </section>
 
@@ -208,7 +207,7 @@ export default function LandingPage() {
           <div className="lpPalCallout" id="landlord">
             <span className="lpPalIcon"><MessageSquareText size={23} aria-hidden="true" /></span>
             <div><h3>Ask your Pub Pal</h3><p>Turn a mood, budget or half-formed idea into a grounded plan. Then confirm every change yourself.</p></div>
-            <Link href="/pal" className="lpTextLink">Meet your Pub Pal <ArrowRight size={16} aria-hidden="true" /></Link>
+            <Link href="/pal" className="lpTextLink">Plan my night <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>
 

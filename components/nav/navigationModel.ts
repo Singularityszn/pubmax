@@ -19,7 +19,10 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
     key: "stories",
     href: "/feed",
     label: "Stories",
-    match: ["/discover", "/feed", "/crawls", "/borough"],
+    // Borough pages are data/discovery, not Stories — the mobile tab bar must
+    // not light Stories there (desktop SiteNav still maps borough explicitly
+    // via its own legacy-active handler).
+    match: ["/discover", "/feed", "/crawls"],
   },
   { key: "you", href: "/u/you", label: "You", match: ["/u", "/pal"] },
 ] as const;

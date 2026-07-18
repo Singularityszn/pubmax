@@ -147,6 +147,10 @@ test("location is opt-in, removable, and only used for local walk times", async 
   ).toBe(0);
   await expect(page.getByTestId("tonight-row")).not.toContainText("min walk");
 
+  // The location card is a collapsed quiet row until tapped — open it first.
+  await page
+    .getByRole("button", { name: "Walk times and last train" })
+    .click();
   await page
     .getByRole("button", { name: "Share location for walk times" })
     .click();

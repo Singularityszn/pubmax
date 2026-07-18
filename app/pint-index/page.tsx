@@ -77,16 +77,11 @@ export default async function PintIndexPage() {
         <h1 className="pintIndexTitle">
           {rows.length ? "London pint prices, by borough" : "London pint prices, by fare zone"}
         </h1>
-        <p className="pintIndexDek">
-          The public Index publishes only observations with an explicit source,
-          licence where required, observed-at date, and canonical London borough.
-          The legacy map baseline is not eligible for citation and is excluded.
-        </p>
-        <p className="pintIndexStamp">
-          {window
-            ? `Observation window: ${formatDate(window.start)} to ${formatDate(window.end)}.`
-            : "No public observation window is currently available."}
-        </p>
+        {window ? (
+          <p className="pintIndexStamp">
+            {`Observation window: ${formatDate(window.start)} to ${formatDate(window.end)}.`}
+          </p>
+        ) : null}
 
         {summary.averageGbp !== null ? (
           <dl className="pintIndexStats">
@@ -141,6 +136,7 @@ export default async function PintIndexPage() {
 
       <section className="pintIndexSection" aria-labelledby="methodHeading">
         <h2 id="methodHeading" className="pintIndexSectionTitle">Methodology &amp; provenance</h2>
+        <p className="pintIndexNote pintIndexMethodLede">Only observations with a public source and observed-at date are published. The legacy map baseline is excluded.</p>
         <div className="pintIndexProse">
           <p><strong>Eligible evidence.</strong> Community submissions, a pub or brewery&rsquo;s own published material, and properly licensed open data may enter the public Index only with a public source URL and observed-at date.</p>
           <p><strong>Borough classification.</strong> Coordinates are assigned using point-in-polygon against the versioned Greater London boundary artifact. A point outside every polygon remains unclassified; it is never snapped to an arbitrary nearest borough.</p>
