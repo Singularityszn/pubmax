@@ -12,7 +12,8 @@
 // only path that changes existing columns.
 
 import { normalizeHandle } from "@/lib/profiles";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { requireSupabaseAdmin } from "@/lib/supabase";
+import { selectStore } from "@/lib/storeBackend";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
 
 export type ProfileRecord = {
@@ -362,7 +363,7 @@ export const memoryProfileStore: ProfileStore = {
 
 /** The single backend selection point (mirrors commentsStore / roundsStore). */
 export function profileStore(): ProfileStore {
-  return isSupabaseConfigured() ? supabaseProfileStore : memoryProfileStore;
+  return selectStore(memoryProfileStore, supabaseProfileStore);
 }
 
 /** Test-only: clear the in-memory profile map between cases. */

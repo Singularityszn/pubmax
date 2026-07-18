@@ -22,12 +22,7 @@
 // count — `confirms` stays an honest tally of distinct confirmers.
 
 import { CONFIRM_WINDOW_DAYS } from "@/lib/priceConfidence";
-import {
-  createMemoryFallbackWarner,
-  missingTables,
-  runStoreOp,
-  selectStore,
-} from "@/lib/storeBackend";
+import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type PriceConfirmResult = {
@@ -184,9 +179,11 @@ export const memoryPriceConfirmStore: PriceConfirmStore = {
 };
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-const { warn: warnSchemaMiss, resetWarnings: resetSchemaMissWarnings } =
-  createMemoryFallbackWarner("price-confirm", "apply migration 0025");
-const isMissingPriceConfirmsSchema = missingTables("price_confirms");
+const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
+  tag: "price-confirm",
+  tables: "price_confirms",
+  migrationHint: "apply migration 0025",
+});
 
 // Reduce raw confirm rows to a distinct-actor tally + latest timestamp. Guards
 // the untyped supabase-js projection: a malformed row is SKIPPED, never coerced.
@@ -234,15 +231,10 @@ export const supabasePriceConfirmStore: PriceConfirmStore = {
     const key = normalizeKey(input.venueId, input.priceGbp);
     if (!key) return { ...EMPTY };
     const actor = actorToken(input.actor, now);
-    return runStoreOp({
+    return guard({
       context: "confirm",
-      isSchemaMiss: isMissingPriceConfirmsSchema,
-      warnSchemaMiss,
       onSchemaMiss: () => memoryPriceConfirmStore.confirm(input, now),
-      logError: {
-        tag: "price-confirm",
-        message: "confirm failed — flagging degraded write",
-      },
+      message: "confirm failed — flagging degraded write",
       onError: () => ({ ...EMPTY, failed: true }),
       run: async () => {
         const { error } = await requireSupabaseAdmin()
@@ -267,15 +259,10 @@ export const supabasePriceConfirmStore: PriceConfirmStore = {
     const key = normalizeKey(query.venueId, query.priceGbp);
     if (!key) return { ...EMPTY };
     void now; // Supabase tally windows on wall-clock inside selectTally.
-    return runStoreOp({
+    return guard({
       context: "read",
-      isSchemaMiss: isMissingPriceConfirmsSchema,
-      warnSchemaMiss,
       onSchemaMiss: () => memoryPriceConfirmStore.read(query),
-      logError: {
-        tag: "price-confirm",
-        message: "read failed — returning empty tally",
-      },
+      message: "read failed — returning empty tally",
       onError: () => ({ ...EMPTY }),
       run: () => selectTally(key.venueId, key.pennies),
     });

@@ -124,3 +124,68 @@ export async function runStoreOp<T>(opts: RunStoreOpOptions<T>): Promise<T> {
     throw err;
   }
 }
+
+/** A single fail-soft operation for a guard: everything a store op still varies. */
+export type GuardedOp<T> = {
+  /** Label for logs and deduped schema-miss warns (e.g. "confirm", "read"). */
+  context: string;
+  run: () => Promise<T>;
+  /** When set, schema-miss warns (deduped) then routes here instead of rethrow. */
+  onSchemaMiss?: () => Promise<T>;
+  /** Fail-soft path for non-schema errors. When omitted, non-schema errors rethrow. */
+  onError?: (err: unknown) => T | Promise<T>;
+  /** Optional `[tag] <message>` log line before an onError fallback (tag bound). */
+  message?: string;
+};
+
+export type FailSoftGuard = {
+  /**
+   * Run a Supabase op with this guard's bound schema-miss predicate + deduped
+   * warner + log tag. Behaviour-identical to calling `runStoreOp` with those
+   * three fields spelled out on every call — it just stops each op repeating them.
+   */
+  guard<T>(op: GuardedOp<T>): Promise<T>;
+  /** Bound schema-miss predicate, for stores that also branch on it manually. */
+  isSchemaMiss: (err: unknown) => boolean;
+  /** Deduped fallback warner (same instance the guard uses). */
+  warn: MemoryFallbackWarner;
+  /** Reset the deduped schema-miss warnings — test-only. */
+  resetWarnings: () => void;
+};
+
+/**
+ * Bind the per-store fail-soft constants once — the log/warn tag, the durable
+ * table(s) whose absence routes to the memory fallback, and the migration hint —
+ * and hand back a `guard` that wraps each op. Collapses the boilerplate every
+ * fail-soft store otherwise repeats on every `runStoreOp` call (isSchemaMiss,
+ * warnSchemaMiss, logError.tag). No behaviour change: `guard` forwards to
+ * `runStoreOp` with exactly the values a hand-rolled call would pass.
+ */
+export function createFailSoftGuard(opts: {
+  /** Log/warn tag, e.g. "price-confirm". */
+  tag: string;
+  /** Durable table name(s) whose absence routes to the memory fallback. */
+  tables: string | readonly string[];
+  /** Human hint shown in the fallback warning, e.g. "apply migration 0025". */
+  migrationHint: string;
+}): FailSoftGuard {
+  const tables = Array.isArray(opts.tables) ? [...opts.tables] : [opts.tables];
+  const { warn, resetWarnings } = createMemoryFallbackWarner(opts.tag, opts.migrationHint);
+  const isSchemaMiss = missingTables(...tables);
+  return {
+    isSchemaMiss,
+    warn,
+    resetWarnings,
+    guard(op) {
+      return runStoreOp({
+        context: op.context,
+        run: op.run,
+        isSchemaMiss,
+        warnSchemaMiss: warn,
+        onSchemaMiss: op.onSchemaMiss,
+        onError: op.onError,
+        logError: op.message ? { tag: opts.tag, message: op.message } : undefined,
+      });
+    },
+  };
+}
