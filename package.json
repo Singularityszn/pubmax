@@ -33,6 +33,7 @@
     "whats-on-refresh": "node scripts/refresh_whats_on.mjs",
     "refresh:night-signals": "node scripts/refresh_night_signal_claims.mjs",
     "refresh:weather": "node scripts/refresh_weather_snapshots.mjs",
+    "refresh:events": "node scripts/whatson/eventsRefresh.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && npm audit --audit-level=high",
     "ci": "npm run verify && npm run build",
