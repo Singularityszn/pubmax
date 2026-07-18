@@ -33,8 +33,12 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
   // Honest copy: a confirmed-no-WebGL probe is the only case allowed to claim it.
   await expect(fallback).toContainText(/WebGL/i);
 
-  // The technical diagnostic line is present — this is the "diagnosable" half of
-  // the contract (the browser's own statusMessage / MapLibre's embedded message).
+  // The technical diagnostic is present but collapsed by default — calm,
+  // honest copy up front, the raw diagnostic only a tap away for a bug report.
+  const disclosure = page.locator(".mapFallbackDisclosure");
+  await expect(disclosure).toBeVisible();
+  await expect(page.locator(".mapFallbackDetail")).toHaveCount(0);
+  await disclosure.getByRole("button", { name: "Technical details" }).click();
   await expect(page.locator(".mapFallbackDetail")).toBeVisible();
 
   // Retry is hidden in the confirmed-no-WebGL case: a re-init can't produce a

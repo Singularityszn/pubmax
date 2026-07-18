@@ -326,6 +326,14 @@ export default function PubMapCanvas({
     // Retry would be pointless — this is the sole case that hides the button.
     noWebgl?: boolean;
   } | null>(null);
+  // Whether the collapsed technical-diagnostic disclosure is expanded. A plain
+  // React-controlled toggle rather than native <details>/<summary>: this mount
+  // effect's RAF loop (pin entrance / dash / pulse) never tears down just
+  // because mapError is set, and that continuous rendering activity raced
+  // native <details> click-activation in headless/CDP-driven clicks often
+  // enough to be a real flake (native toggle occasionally missed the click
+  // entirely). A controlled button+conditional-render has no such race.
+  const [detailOpen, setDetailOpen] = useState(false);
   const reportMapError = useCallback(
     (error: NonNullable<typeof mapError>) => {
       // Lift the parent's loading chrome so this honest error card is visible
@@ -723,6 +731,18 @@ export default function PubMapCanvas({
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
+
+      // MapLibre's constructor inserts its canvas-container DOM into
+      // `container` BEFORE it validates/creates a GL context — so a throw
+      // here still leaves those (now-orphaned, absolutely-positioned) nodes
+      // behind. `constructCleanup` is only wired up on success, so nothing
+      // else ever removes them; left alone, they silently overlay every
+      // future render into this same container element — including, once
+      // this reaches the honest fallback below, sitting on top of and
+      // swallowing clicks meant for the fallback's own disclosure/Retry
+      // controls. Strip them now so this attempt (auto-retry or the
+      // fallback that follows) always starts from a clean container.
+      container.replaceChildren();
 
       // Diagnostic probe on a throwaway canvas: does *any* WebGL context exist?
       // This distinguishes a truly WebGL-less browser (honest dead end, no
@@ -1774,7 +1794,19 @@ export default function PubMapCanvas({
             The pub list and crawl planner beside it still work as ever.
           </p>
           {mapError.detail ? (
-            <small className="mapFallbackDetail">{mapError.detail}</small>
+            <div className="mapFallbackDisclosure">
+              <button
+                type="button"
+                className="mapFallbackDisclosureToggle"
+                aria-expanded={detailOpen}
+                onClick={() => setDetailOpen((open) => !open)}
+              >
+                Technical details
+              </button>
+              {detailOpen ? (
+                <small className="mapFallbackDetail">{mapError.detail}</small>
+              ) : null}
+            </div>
           ) : null}
           {fallbackVenues.length > 0 ? (
             <ul className="mapFallbackVenues" aria-label="Pubs you can still browse">
@@ -1806,6 +1838,7 @@ export default function PubMapCanvas({
               className="mapFallbackRetry"
               onClick={() => {
                 setMapError(null);
+                setDetailOpen(false);
                 publishMapErrored(false);
                 publishMapReady(false);
                 setInitAttempt((a) => a + 1);

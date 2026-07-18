@@ -2244,11 +2244,48 @@ input[type="range"] {
   color: var(--muted);
 }
 
+/* The technical diagnostic now lives behind a collapsed disclosure — never
+   shown by default, still one tap away for a bug report. A plain controlled
+   button (not native <details>/<summary>): this fallback's mount effect
+   leaves its RAF loop running even after the error settles, and that
+   continuous background rendering raced native <details> click-activation
+   often enough in headless/automated clicks to occasionally miss the tap
+   entirely. A React-controlled toggle has no such race. */
+.mapFallbackDisclosure {
+  margin: 2px auto 0;
+  max-width: 340px;
+  text-align: center;
+}
+
+.mapFallbackDisclosureToggle {
+  max-width: 340px;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--brass);
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.mapFallbackDisclosureToggle:hover,
+.mapFallbackDisclosureToggle:focus-visible {
+  opacity: 1;
+}
+
+.mapFallbackDisclosureToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 /* The technical diagnostic — a printer's-mark footnote: monospaced, dim, so it
    reads as a stamp rather than prose. Wraps so long statusMessages don't clip. */
 .mapFallbackDetail {
+  display: block;
   max-width: 340px;
-  margin: 2px auto 0;
+  margin: 6px auto 0;
   font-family: var(--mono, ui-monospace, "SFMono-Regular", Menlo, monospace);
   font-size: 0.68rem;
   letter-spacing: 0.02em;

@@ -12,12 +12,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
+  Beer,
   CalendarClock,
   ExternalLink,
   Footprints,
   LocateFixed,
   MapPin,
   RefreshCw,
+  Route as RouteIcon,
+  TrainFront,
   Tv,
   X,
 } from "lucide-react";
@@ -56,6 +59,41 @@ function coverageLabel(count: number): string {
   if (count === 1) return "1 listing tonight";
   return `${count} listings tonight`;
 }
+
+// A thin night (0-2 confirmed listings) leaves the list short enough that the
+// page dies into empty gradient below it. Rather than invent listings (never
+// — "thin nights stay thin" is honest), fill the rest of the page with the
+// three things someone standing here actually still wants: where's cheap,
+// how do I get home, and what else is there to do tonight.
+const THIN_NIGHT_MAX_ROWS = 2;
+
+type QuietAlternative = {
+  href: string;
+  icon: typeof Beer;
+  title: string;
+  sub: string;
+};
+
+const QUIET_ALTERNATIVES: QuietAlternative[] = [
+  {
+    href: "/map",
+    icon: Beer,
+    title: "Cheapest pints near you",
+    sub: "Every venue on the map, priced",
+  },
+  {
+    href: "/map",
+    icon: TrainFront,
+    title: "Check your last train home",
+    sub: "Open a pub's Getting Home tab on the map",
+  },
+  {
+    href: "/crawls",
+    icon: RouteIcon,
+    title: "Browse crawls",
+    sub: "Multi-stop routes worth planning around",
+  },
+];
 
 export default function TonightClient() {
   const { rows, asOf, status, retry } = useWhatsOnTonight(true);
@@ -99,6 +137,10 @@ export default function TonightClient() {
   const empty = status === "empty";
   const errored = status === "error";
   const loading = status === "idle";
+  // Unfiltered `rows.length`, not the kind-filtered `visible.length` — a thin
+  // night stays thin regardless of which chip is active, and this must not
+  // flicker in/out as the user taps filters.
+  const thinNight = empty || (ready && rows.length <= THIN_NIGHT_MAX_ROWS);
 
   return (
     <main className="tonightPage" data-testid="tonight-screen">
@@ -331,6 +373,33 @@ export default function TonightClient() {
             </Link>
           </p>
         </>
+      ) : null}
+
+      {thinNight ? (
+        <section className="tonightQuiet" aria-label="While it's quiet">
+          <p className="tonightQuietLede">
+            Quiet one tonight. Still worth a look:
+          </p>
+          <ul className="tonightQuietList">
+            {QUIET_ALTERNATIVES.map((alt) => {
+              const Icon = alt.icon;
+              return (
+                <li key={alt.title} className="tonightQuietRow">
+                  <Link href={alt.href} className="tonightQuietLink pressable">
+                    <span className="tonightQuietIcon" aria-hidden="true">
+                      <Icon size={17} />
+                    </span>
+                    <span className="tonightQuietBody">
+                      <span className="tonightQuietTitle">{alt.title}</span>
+                      <span className="tonightQuietSub">{alt.sub}</span>
+                    </span>
+                    <ArrowUpRight size={15} aria-hidden="true" className="tonightQuietArrow" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       ) : null}
     </main>
   );
