@@ -508,36 +508,40 @@
    raised panel, brass weather icon, no card chrome beyond the panel. Lives
    above the listings so it reads first without shouting. Role tokens only, so
    light and dark themes both inherit correctly. */
-.tonightConditions {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  margin: 0 0 18px;
-  padding: 11px 13px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel-raised);
-}
+/* .tonightConditions* rules live in tonightConditions.css (component-owned,
+   multi-host: Tonight page + desktop rails). */
 
-.tonightConditionsIcon {
-  flex: none;
-  margin-top: 2px;
-  color: var(--brass);
-}
+/* Desktop rail (D1): on wide viewports the Tonight page becomes a two-column
+   grid; the Conditions strip and the rail block dock right and stay sticky so
+   the weather verdict is always in view (owner requirement). Below the
+   breakpoint everything stays in the existing single-column flow. */
+@media (min-width: 1024px) {
+  .tonightPage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    column-gap: 28px;
+    align-items: start;
+  }
 
-.tonightConditionsCopy {
-  margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
+  .tonightPage > * {
+    grid-column: 1;
+  }
 
-.tonightConditionsLead {
-  color: var(--ink);
-  font-weight: 650;
-}
+  .tonightPage > .tonightConditions {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 96px; /* clears the floating SiteNav pill, same offset as feedRail */
+    margin: 0;
+  }
 
-.tonightConditionsVenues {
-  color: var(--brass);
-  font-weight: 600;
+  .tonightPage > .tonightRail {
+    grid-column: 2;
+    grid-row: 2;
+    position: sticky;
+    top: 170px; /* below the stuck conditions strip */
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 }

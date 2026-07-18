@@ -1931,3 +1931,19 @@ html:not([data-theme="dark"]) .feedSpillCat svg {
     gap: 24px;
   }
 }
+
+/* Desktop-only rail slot (D1): hidden on mobile so the feed stays
+   byte-identical below the grid breakpoint; a normal rail card above it. */
+.feedRailDesktopOnly {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .feedRailDesktopOnly {
+    display: block;
+  }
+
+  .feedRailDesktopOnly .tonightConditions {
+    margin: 0;
+  }
+}

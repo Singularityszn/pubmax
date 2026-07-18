@@ -20,6 +20,8 @@ import { CloudSun } from "lucide-react";
 
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 
+import "./tonightConditions.css";
+
 type Props = {
   origin?: { lat: number; lng: number } | null;
 };
