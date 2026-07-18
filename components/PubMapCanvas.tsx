@@ -184,6 +184,18 @@ type PubMapCanvasProps = {
 // Hard ceiling on the tile-paint gate: slow or incomplete community tiles must
 // never leave the pub layer hidden indefinitely.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
+// First-painted-frame watchdog. `style.load` is a network/parse event — it can
+// fire (and retire the parent's loading chrome) in a browser whose WebGL
+// context was GRANTED but whose render loop never produces a frame (dead
+// software rasterizer, stalled rAF, GPU-process crash after context creation).
+// Without this, that browser sits on a permanently blank canvas with no
+// fallback: sceneSettled=true cleared the hang guard, and no error ever fires.
+// MapLibre's "render" event only fires from a real frame, so its absence for
+// this long after construction is the honest "the map never drew" signal.
+const FIRST_FRAME_TIMEOUT_MS = 10_000;
+// How many venues the no-map fallback lists so the venue content stays
+// reachable without a single WebGL frame.
+const FALLBACK_VENUE_COUNT = 6;
 // Every pub-source layer, gated together so pin paint can be withheld until the
 // basemap has actually painted (see the tile-paint gate in buildSceneBody).
 const PUB_PIN_LAYERS = [
@@ -298,7 +310,7 @@ export default function PubMapCanvas({
   const [mapError, setMapError] = useState<{
     message: string;
     detail?: string;
-    kind: "constructor" | "zero-size" | "context-lost" | "tiles";
+    kind: "constructor" | "zero-size" | "context-lost" | "tiles" | "no-frame";
     // true only when the detached-canvas probe returned no context at all, so
     // Retry would be pointless — this is the sole case that hides the button.
     noWebgl?: boolean;
@@ -1139,6 +1151,49 @@ export default function PubMapCanvas({
       contextLostTimer = undefined;
     });
 
+    // --- First-painted-frame watchdog (see FIRST_FRAME_TIMEOUT_MS). A single
+    // MapLibre "render" event proves the frame loop is alive and disarms it
+    // forever. If the timeout lapses with the tab visible and no frame ever
+    // rendered, the "ready" scene is a lie — degrade to the honest fallback
+    // (with Retry: a re-init can recover a crashed GPU process). While the tab
+    // is hidden the browser legitimately throttles rAF to zero, so a lapse
+    // there just re-arms rather than crying wolf at a background tab.
+    let firstFrameSeen = false;
+    let firstFrameTimer: ReturnType<typeof setTimeout> | undefined;
+    const onFirstFrame = () => {
+      firstFrameSeen = true;
+      if (firstFrameTimer) clearTimeout(firstFrameTimer);
+      firstFrameTimer = undefined;
+      map.off("render", onFirstFrame);
+    };
+    map.on("render", onFirstFrame);
+    const armFirstFrameWatchdog = () => {
+      firstFrameTimer = setTimeout(() => {
+        firstFrameTimer = undefined;
+        if (firstFrameSeen) return;
+        if (document.visibilityState === "hidden") {
+          armFirstFrameWatchdog();
+          return;
+        }
+        console.error("[pubmap] no basemap frame rendered", {
+          timeoutMs: FIRST_FRAME_TIMEOUT_MS,
+        });
+        // Settle the scene state so the style/tile hang guard can't race a
+        // second error card on top of this one.
+        sceneSettled = true;
+        clearTimeout(hangFailTimer);
+        queueMicrotask(() =>
+          reportMapError({
+            kind: "no-frame",
+            message:
+              "The map's renderer started but never drew a frame — this browser or device can't paint the map right now.",
+            detail: `No basemap frame within ${Math.round(FIRST_FRAME_TIMEOUT_MS / 1000)}s`,
+          }),
+        );
+      }, FIRST_FRAME_TIMEOUT_MS);
+    };
+    armFirstFrameWatchdog();
+
     // --- Click + cursor wiring (see components/map/canvas/interactions.ts).
     // Pub-first hit testing: a single map click queries pubs/route stops before
     // landmarks/POIs so dense central London taps open a pub sheet, not a
@@ -1267,6 +1322,8 @@ export default function PubMapCanvas({
     // not construction was deferred by the size gate.
     constructCleanup = () => {
       cancelAnimationFrame(rafId);
+      if (firstFrameTimer) clearTimeout(firstFrameTimer);
+      map.off("render", onFirstFrame);
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
@@ -1667,9 +1724,18 @@ export default function PubMapCanvas({
       ? "Map renderer unavailable"
       : mapError.kind === "tiles"
         ? "Map tiles unavailable"
-        : mapError.kind === "context-lost"
-          ? "Map lost its graphics"
-          : "Map couldn't start";
+        : mapError.kind === "no-frame"
+          ? "Map couldn't draw"
+          : mapError.kind === "context-lost"
+            ? "Map lost its graphics"
+            : "Map couldn't start";
+    // Static venue alternative: the slim pin index needs no WebGL, so surface
+    // the cheapest pours as tappable rows (opening the DOM venue sheet) plus
+    // the full directory link — the map going dark must never take the venue
+    // content with it.
+    const fallbackVenues = [...venues]
+      .sort((a, b) => (a.cheapestPrice ?? Infinity) - (b.cheapestPrice ?? Infinity))
+      .slice(0, FALLBACK_VENUE_COUNT);
     return (
       <div className="mapCanvasWrap">
         <div className="mapFallback" role="alert">
@@ -1682,6 +1748,30 @@ export default function PubMapCanvas({
           {mapError.detail ? (
             <small className="mapFallbackDetail">{mapError.detail}</small>
           ) : null}
+          {fallbackVenues.length > 0 ? (
+            <ul className="mapFallbackVenues" aria-label="Pubs you can still browse">
+              {fallbackVenues.map((venue) => (
+                <li key={venue.id}>
+                  <button
+                    type="button"
+                    className="mapFallbackVenue"
+                    onClick={() => onVenueClick(venue.id)}
+                  >
+                    <span className="mapFallbackVenueName">{venue.name}</span>
+                    <span className="mapFallbackVenueMeta">
+                      {venue.primaryBorough}
+                      {venue.cheapestPrice != null
+                        ? ` · ${formatPrice(venue.cheapestPrice)}`
+                        : ""}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <Link className="mapFallbackBrowse" href="/pubs">
+            Browse all pubs
+          </Link>
           {mapError.noWebgl ? null : (
             <button
               type="button"

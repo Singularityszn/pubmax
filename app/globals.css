@@ -2199,6 +2199,9 @@ input[type="range"] {
   text-align: center;
   background: var(--ink-deep);
   color: var(--paper);
+  /* The static venue list can outgrow a short viewport — scroll inside the
+     card rather than clipping the Retry button off-screen. */
+  overflow-y: auto;
 }
 
 .mapFallback strong {
@@ -2258,6 +2261,59 @@ input[type="range"] {
 .mapFallbackRetry:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+/* Static venue alternative inside the fallback — the venue content stays
+   reachable without a single WebGL frame. Rows open the DOM venue sheet. */
+.mapFallbackVenues {
+  display: grid;
+  gap: 6px;
+  margin: 14px auto 0;
+  padding: 0;
+  width: min(340px, 100%);
+  list-style: none;
+}
+
+.mapFallbackVenue {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--paper) 18%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--paper) 6%, transparent);
+  color: var(--paper);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mapFallbackVenue:hover,
+.mapFallbackVenue:focus-visible {
+  background: color-mix(in srgb, var(--paper) 12%, transparent);
+}
+
+.mapFallbackVenueName {
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.mapFallbackVenueMeta {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.mapFallbackBrowse {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--brass);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Lazy pub preview on map hover. Full venue detail is fetched only after hover,
