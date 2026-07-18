@@ -1,5 +1,9 @@
 # Findings Confidence Ledger — 2026-07-18
 
+> **Superseded by [`FINDINGS_CONFIDENCE_V3_2026-07-19.md`](FINDINGS_CONFIDENCE_V3_2026-07-19.md)**,
+> which re-verifies every non-final verdict against post-launch `main` HEAD. This document is
+> historical evidence of the pre-merge state.
+
 Every OPEN finding across the programme's review corpus, raised from reviewer-prose to a
 **confidence verdict** backed by mechanical evidence, so Sol merges on facts.
 
