@@ -1,0 +1,330 @@
+/* "Near me now" instant-answer surface. Card idioms + brass/ink tokens only;
+   no hardcoded colour. Transitions are transform/opacity ≤ 250ms ease-out with
+   0.97 press states, all disabled under reduced-motion. 44px min targets. */
+
+.nmn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* — Idle / call to action — */
+.nmnIntro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.nmnLede {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.nmnHint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.nmnLocate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 0 var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--brass);
+  color: var(--paper);
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 180ms ease-out, background-color 180ms ease-out;
+}
+
+.nmnLocate:hover {
+  background: var(--brass-bright);
+}
+
+.nmnLocate:active {
+  transform: scale(0.97);
+}
+
+/* — Requesting — */
+.nmnStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.nmnSpinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--brass) 35%, transparent);
+  border-top-color: var(--brass);
+  animation: nmnSpin 0.8s linear infinite;
+  flex: none;
+}
+
+@keyframes nmnSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* — Header — */
+.nmnHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.nmnHead h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.nmnSub,
+.nmnWiden {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.nmnWiden {
+  color: color-mix(in srgb, var(--amber) 70%, var(--ink-soft));
+}
+
+/* — Answer cards — */
+.nmnList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.nmnCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease-out, border-color 160ms ease-out;
+}
+
+.nmnCard:hover {
+  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+}
+
+.nmnCard:active {
+  transform: scale(0.97);
+}
+
+.nmnCardMain {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.nmnCardName {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nmnCardMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.nmnCardBorough {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nmnCardWalk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--ink-soft);
+}
+
+.nmnCardPrice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex: none;
+}
+
+.nmnCardPriceValue {
+  font-family: var(--font-data);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--pint);
+}
+
+.nmnCardPriceLabel {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+/* — Footer actions — */
+.nmnFoot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.nmnRetry,
+.nmnBack {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 160ms ease-out, border-color 160ms ease-out;
+}
+
+.nmnRetryGhost {
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.nmnRetry:active,
+.nmnBack:active {
+  transform: scale(0.97);
+}
+
+.nmnRetry:hover,
+.nmnBack:hover {
+  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+}
+
+.nmnBack {
+  align-self: flex-start;
+  min-height: 40px;
+  font-size: 0.8rem;
+}
+
+.nmnFresh {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+/* — Borough fallback — */
+.nmnFallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.nmnFallbackMsg {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+}
+
+.nmnBoroughs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.nmnBoroughChip {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 140ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
+}
+
+.nmnBoroughChip:hover {
+  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+}
+
+.nmnBoroughChip:active {
+  transform: scale(0.97);
+}
+
+.nmnLocate:focus-visible,
+.nmnCard:focus-visible,
+.nmnRetry:focus-visible,
+.nmnBack:focus-visible,
+.nmnBoroughChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nmnLocate,
+  .nmnCard,
+  .nmnRetry,
+  .nmnBack,
+  .nmnBoroughChip {
+    transition: none;
+  }
+  .nmnLocate:active,
+  .nmnCard:active,
+  .nmnRetry:active,
+  .nmnBack:active,
+  .nmnBoroughChip:active {
+    transform: none;
+  }
+  .nmnSpinner {
+    animation: none;
+  }
+}

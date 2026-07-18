@@ -13,7 +13,8 @@ export type MapOverlay =
   | "venue"
   | "planner"
   | "pub-pal"
-  | "moment";
+  | "moment"
+  | "near-me";
 
 export type MapSheetKind = Exclude<MapOverlay, "none" | "search">;
 export type MapSheetDetent = SheetSnap;
