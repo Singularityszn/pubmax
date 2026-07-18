@@ -51,7 +51,21 @@
 
 /* A stamp being pressed — a hair of travel on click. */
 .shareBar__btn:active {
-  transform: translateY(1px);
+  transform: scale(0.97);
+}
+
+/* Compact mode (feed card single action row) — the channel buttons only exist
+   in the DOM once expanded, so the folded state costs almost no width. Tap
+   target stays the full 44px (repo rule, verified by e2e/mobile-feed-actions);
+   only the gap tightens. */
+.shareBar--compact {
+  gap: 6px;
+}
+
+.shareBar__toggle[aria-expanded="true"] {
+  color: var(--brass);
+  border-color: var(--brass);
+  background: var(--panel-raised);
 }
 
 .shareBar__btn:focus-visible {
