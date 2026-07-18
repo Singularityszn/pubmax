@@ -253,6 +253,10 @@ Wayfinder next-wave note: with these, every filed finding in the programme is ei
 - **#345** design direction (the bar-mat thesis, top-8 deltas, collision map) · **#346** a11y features (List view + shared focus trap) · **#347** the logo system (Concept A "The Crossing" recommended — owner picks, one-commit activation) · **#348** design quick wins (D3/D4/D6, 22 radii migrated, AA holds) · **#349** live-data wayfinder (cadence audit, activation matrix, freshness spine — caught 3 stale crons on main; correction: digest/APNs are branch work, not dormant keys) · **#350** CityMCP stale-serve + observability drain · #320 harvest closed (enrichment +87 rows).
 - **Programme state: ~50 open PRs, zero merged, everything reviewed.** Construction backlog is EMPTY except owner-gated items. Next wave = activation: Sol merges (#316 v2 + #341 ledger), owner keys (Ticketmaster 2-min, EXA, Skiddle approval, Firecrawl fine, logo pick, #313 wording, bill-split), then real users on the funnel.
 
+### FABLE DEEP REVIEW (#352) + voice spec (#351) — the closing layer
+- **#351 voice spec**: the great voice exists, buried under plumbing-leak + SaaS registers; full rewrite table + 8 attachment moments, sequenced into owning PRs.
+- **#352 Fable fork systemic review**: 4 merge clusters must land as single sittings (partial prompt-cluster merge = P1 live in prod); cert-count bomb mapped (true final = 62, bump schedule for Sol); map chrome ruled OVER THE LINE post-merge (consolidation design ready as a next lane); **forgot: drop confirmations** (community-verified moat — recommended next build); **shouldn't ship: fake presence counts** — demo kill switch committed (NEXT_PUBLIC_DEMO_CONTENT=off), OWNER DECISION: flip before launch.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
