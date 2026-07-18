@@ -233,6 +233,10 @@ Raise every open finding from reviewer-prose to evidence-backed verdict, and clo
 - **feat/event-sources**: Tonight thin → research-first event ingestion via OFFICIAL APIs only (Ticketmaster Discovery free tier, Skiddle; Eventbrite search API deprecated — verifying). No aggregator scraping (ToS). Provider-keyed, noop until owner signs up (free keys).
 - **fix/feed-scroll-stability**: feed scroll bounces on iPhone Safari → CLS hunt (unreserved media heights, poll-reorders mid-scroll, iOS 100vh) + Playwright scroll-stability test.
 
+### Cycle 10 complete + owner bug sweep
+- **#339** a11y matrix (#283 proven, 1 fix, 3 filed) · **#340** route-stop names (owner report — symbol layer, brass halo text) · **#341** findings confidence ledger (47 verdicts: 10 stale, ~13 merge-time, 11 owner) · **#342** event sources (Ticketmaster free/instant + Skiddle gated; Eventbrite dead; seam key-activated) · **#343** early email capture (last missing locked decision, stacked on #312, double-opt-in) · **#344** feed scroll stability (owner report — iOS anchoring; regression test proven-failing pre-fix) · #329 token migration completed.
+- Owner activation shortlist: TICKETMASTER_API_KEY (2 min, fills Tonight), Skiddle approval, Firecrawl top-up (credits exhausted again). All three owner-side.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
