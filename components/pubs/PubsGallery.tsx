@@ -235,7 +235,7 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
 
       <p className="pubsCount" aria-live="polite">
         {visible.length} pub{visible.length === 1 ? "" : "s"}
-        {filter === "all" ? " from our scrapes" : ` · ${SCRAPED_SOURCE_LABELS[filter]}`}
+        {filter === "all" ? " we've checked" : ` · ${SCRAPED_SOURCE_LABELS[filter]}`}
         {zone !== "all" ? ` · Zone ${zone}` : ""}
       </p>
 

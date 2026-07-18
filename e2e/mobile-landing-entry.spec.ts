@@ -39,7 +39,12 @@ test.describe("mobile landing entry", () => {
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
 
-    await expect(page.getByRole("heading", { name: "Make tonight worth remembering.", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "Real pint prices on a live map. Plan a crawl your mates will actually walk.",
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
     await expectTappable(

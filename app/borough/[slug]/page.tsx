@@ -237,9 +237,7 @@ export default async function BoroughPage({ params }: PageProps) {
           ) : (
             <>
               {pubs.length} {pubs.length === 1 ? "pub" : "pubs"} in {name}, ranked
-              cheapest pint first. This is how locals actually talk about a night
-              out, by the area, so here&rsquo;s the corner of the map that
-              belongs to {name}.
+              cheapest pint first.
             </>
           )}
         </p>
@@ -385,7 +383,7 @@ export default async function BoroughPage({ params }: PageProps) {
             ) : null}
             {heritage.listedCount > 0 ? <> &middot; {heritage.listedCount} listed</> : null}.
           </p>
-          <p className="boroughHeritageProvenance">Cited from Wikipedia &mdash; never invented.</p>
+          <p className="boroughHeritageProvenance">Cited from Wikipedia.</p>
           <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
             {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => (
               <li key={pub.slug} className="boroughHeritageCard">
