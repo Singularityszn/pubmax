@@ -201,6 +201,8 @@ Three lanes (Opus 4.8, worktrees, separate branches, Sol decides):
 - **Harvest verdict** stands: drops are the price channel. **review-c8 lane** running: adversarial cross-PR pass over #323–#329 (zone×data-chain merge position, token drift, APNs crypto verification, digest PII, #323 adoption checklist + merge-order additions).
 - Open PR count: **~30 active** (#276, #295–#331 minus held/superseded). Sol's path: #316 v2 order + #321/#322 reviews + review-c8's amendment when it lands.
 
+- **PR #332 — deep review of Cycle 8**: all six approved. Routed fixes running: zone-lane rebasing #329 onto the data chain + migrating 32 raw --brass refs to #328's role tokens; digest-lane guarding the unsubscribe placeholder. #326's one-token nit → Sol's rebase note. Merge-order E5/F amendments drafted (acceptance gate: 4 components call claimPromptBudget). #329 slots as step 31 (after #317).
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
