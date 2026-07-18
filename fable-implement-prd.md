@@ -228,6 +228,11 @@ Lanes (Opus 4.8, worktrees, Sol decides):
 
 Raise every open finding from reviewer-prose to evidence-backed verdict, and close the confirmed gaps. Three Opus 4.8 lanes: (1) `review/findings-confidence` — every unfixed finding across all six review docs re-attacked mechanically → CONFIRMED/REFUTED/STALE/OWNER-DECISION table with quoted evidence; (2) `feat/email-capture` — builds the locked-but-missing Cycle-2 email capture (digest-purpose-limited inline capture on the identity nudge, double-opt-in, unconfirmed excluded from sends, migration 0042, full house pattern, cert 61→62); (3) `docs/a11y-matrix` — produces #283's missing accessibility-matrix proof (reduced-motion, focus, 44px, computed token contrast, aria) and fixes small failures inline.
 
+### Owner iPhone bug reports (live prod, screenshots) — 3 lanes launched
+- **fix/route-stop-labels**: route line + numbered stops render but carry no pub names (live main behavior, not merge-gated) → brass-chip labels on stops.
+- **feat/event-sources**: Tonight thin → research-first event ingestion via OFFICIAL APIs only (Ticketmaster Discovery free tier, Skiddle; Eventbrite search API deprecated — verifying). No aggregator scraping (ToS). Provider-keyed, noop until owner signs up (free keys).
+- **fix/feed-scroll-stability**: feed scroll bounces on iPhone Safari → CLS hunt (unreserved media heights, poll-reorders mid-scroll, iOS 100vh) + Playwright scroll-stability test.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
