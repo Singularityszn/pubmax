@@ -48,6 +48,7 @@
     "deadcode": "knip"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
     "@capacitor/camera": "^8.2.1",
     "@capacitor/push-notifications": "^8.1.2",
     "@elevenlabs/react": "^1.10.0",
