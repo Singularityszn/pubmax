@@ -185,10 +185,13 @@ describe("London tonight windowing (04:00 service-day rollback)", () => {
 describe("past-dated freshness guard (isPastDated / filterNotPast)", () => {
   const NOW_GUARD = Date.parse("2026-07-18T22:00:00.000Z"); // the #408 refresh instant
 
-  it("rowEffectiveEnd is endsAt when present, else startsAt", () => {
+  it("rowEffectiveEnd is endsAt when present, else startsAt + kind-aware grace", () => {
+    // Point row (quiz, no endsAt): effective end is startsAt + the quiz grace
+    // (3h, #417), no longer the bare startsAt, so an in-progress quiz stays live.
     expect(rowEffectiveEnd(makeRow({ startsAt: "2026-07-18T19:30:00+01:00" }))).toBe(
-      Date.parse("2026-07-18T19:30:00+01:00"),
+      Date.parse("2026-07-18T19:30:00+01:00") + 3 * 60 * 60 * 1000,
     );
+    // Interval row: exact endsAt, untouched by grace.
     expect(
       rowEffectiveEnd(makeRow({ startsAt: "2026-07-18T11:30:00+01:00", endsAt: "2026-07-18T23:00:00+01:00" })),
     ).toBe(Date.parse("2026-07-18T23:00:00+01:00"));
@@ -253,6 +256,60 @@ describe("past-dated freshness guard (isPastDated / filterNotPast)", () => {
       }),
     ];
     expect(filterNotPast(rows, NOW_GUARD).map((r) => r.id)).toEqual(["future-point", "running"]);
+  });
+});
+
+// #417: a point row (no endsAt) is no longer a zero-width instant at startsAt.
+// It carries a kind-aware effective duration, so an in-progress quiz or match is
+// still served until that duration elapses, then goes past. Fixed offsets from a
+// fixed start, no real clock.
+describe("point-row kind-aware effective duration (#417)", () => {
+  const HOUR = 60 * 60 * 1000;
+
+  it("keeps an in-progress quiz at start+2h59 and drops it at start+3h01 (3h grace)", () => {
+    const startsAt = "2026-07-18T19:30:00+01:00"; // 18:30:00Z
+    const quiz = makeRow({ id: "quiz-live", kind: "quiz", startsAt });
+    const start = Date.parse(startsAt);
+    const stillOn = start + 2 * HOUR + 59 * 60 * 1000; // start + 2h59
+    const over = start + 3 * HOUR + 60 * 1000; // start + 3h01
+    expect(isPastDated(quiz, stillOn)).toBe(false);
+    expect(filterNotPast([quiz], stillOn).map((r) => r.id)).toEqual(["quiz-live"]);
+    expect(isPastDated(quiz, over)).toBe(true);
+    expect(filterNotPast([quiz], over)).toEqual([]);
+  });
+
+  it("keeps a sport fixture during the match and drops it after (2.5h grace)", () => {
+    const startsAt = "2026-07-19T20:00:00+01:00"; // 19:00:00Z kickoff
+    const fixture = makeRow({ id: "sport-live", kind: "sport", startsAt, confidence: "derived" });
+    const start = Date.parse(startsAt);
+    const during = start + 2 * HOUR + 29 * 60 * 1000; // start + 2h29, inside 2.5h
+    const after = start + 2 * HOUR + 31 * 60 * 1000; // start + 2h31, past 2.5h
+    expect(isPastDated(fixture, during)).toBe(false);
+    expect(filterNotPast([fixture], during).map((r) => r.id)).toEqual(["sport-live"]);
+    expect(isPastDated(fixture, after)).toBe(true);
+    expect(filterNotPast([fixture], after)).toEqual([]);
+  });
+
+  it("gives quiz/music 3h, sport 2.5h, and no grace to a deal reaching here as a point", () => {
+    const startsAt = "2026-07-18T19:00:00+01:00";
+    const start = Date.parse(startsAt);
+    expect(rowEffectiveEnd(makeRow({ kind: "quiz", startsAt }))).toBe(start + 3 * HOUR);
+    expect(rowEffectiveEnd(makeRow({ kind: "music", startsAt }))).toBe(start + 3 * HOUR);
+    expect(rowEffectiveEnd(makeRow({ kind: "sport", startsAt }))).toBe(start + 2.5 * HOUR);
+    // A deal without endsAt (deals normally carry one) gets no invented grace.
+    expect(rowEffectiveEnd(makeRow({ kind: "deal", startsAt }))).toBe(start);
+  });
+
+  it("isOnTonight uses the same effective interval as the past-dated guard", () => {
+    // Window for this NOW is [16:00, next 04:00) London. A quiz starting 15:30,
+    // before the window opens, is still running into the evening under its 3h
+    // grace, so it now correctly counts as on tonight (the reading the guard uses
+    // too). A quiz that finishes (start + grace) before 16:00 does not.
+    const now = Date.parse("2026-07-11T20:00:00.000Z");
+    const quizBeforeOpen = makeRow({ id: "quiz-1530", kind: "quiz", startsAt: "2026-07-11T15:30:00+01:00" });
+    const quizFinishedBeforeOpen = makeRow({ id: "quiz-1230", kind: "quiz", startsAt: "2026-07-11T12:30:00+01:00" });
+    expect(isOnTonight(quizBeforeOpen, now)).toBe(true);
+    expect(isOnTonight(quizFinishedBeforeOpen, now)).toBe(false);
   });
 });
 

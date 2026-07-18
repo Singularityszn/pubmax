@@ -295,27 +295,46 @@ export function londonServiceDayBounds(now: number = Date.now()): { start: strin
   return { start: new Date(startMs).toISOString(), end: new Date(endMs).toISOString() };
 }
 
+// A point row carries no endsAt, so on its own it collapses to a zero-width
+// instant at startsAt. That made an in-progress event vanish the moment its
+// start passed: a 19:30 quiz dropped from the default path at 19:31 (#417).
+// Give a point row a kind-aware effective DURATION instead, so its interval is
+// [startsAt, startsAt + grace]. Each duration is the typical real run-length of
+// that activity, picked conservatively (better to keep a just-finished row a
+// little too long than to drop one that is still live):
+//   quiz  ~3h    a pub quiz plus its wind-down runs about three hours.
+//   music ~3h    a live-music or residency night runs a full set, about three hours.
+//   sport ~2.5h  a match plus build-up and reaction runs about two and a half hours.
+//   deal   0     deals always carry an explicit endsAt (their window is exact),
+//                so a deal reaching here as a point gets no invented grace.
+// Interval rows (any row WITH endsAt) are untouched: their endsAt stays exact.
+const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
+  quiz: 3 * 60 * 60 * 1000,
+  music: 3 * 60 * 60 * 1000,
+  sport: 2.5 * 60 * 60 * 1000,
+  deal: 0,
+};
+
 // Is the row happening during tonight's evening window?
 //
 // Overlap, not start-containment. The original test asked only whether
 // `startsAt` fell inside [16:00, 04:00). That silently dropped every all-day
 // row whose clock start is BEFORE the window opens but which is plainly still
-// on through the evening — most visibly the Wetherspoon food deals, which all
+// on through the evening: most visibly the Wetherspoon food deals, which all
 // carry startsAt 11:30 and endsAt 23:00 and were therefore excluded from
-// Tonight on EVERY night despite being live at 22:00. We now treat the row as
-// an interval [startsAt, endsAt] (a row with no endsAt stays a point at
-// startsAt) and include it when that interval overlaps the window. For rows
-// without an endsAt this is identical to the old start-containment test, so
-// quiz / music point rows behave exactly as before; only genuine spanning rows
-// (deals) newly — and correctly — surface.
+// Tonight on EVERY night despite being live at 22:00. We treat the row as an
+// interval [startsAt, effectiveEnd] via rowEffectiveEnd and include it when that
+// interval overlaps the window. An interval row uses its exact endsAt; a point
+// row uses its kind-aware effective end (POINT_ROW_GRACE_MS), so an in-progress
+// quiz or match still overlaps the window and tonight windowing never disagrees
+// with the past-dated guard (#417).
 export function isOnTonight(row: WhatsOnRow, now: number = Date.now()): boolean {
   const { start, end } = londonServiceDayBounds(now);
   const startsAt = Date.parse(row.startsAt);
   if (!Number.isFinite(startsAt)) return false;
   const windowStart = Date.parse(start);
   const windowEnd = Date.parse(end);
-  const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : startsAt;
-  const effectiveEnd = Number.isFinite(parsedEnd) ? parsedEnd : startsAt;
+  const effectiveEnd = rowEffectiveEnd(row);
   // Half-open window [windowStart, windowEnd): the row must begin before the
   // window closes and still be running at or after it opens.
   return startsAt < windowEnd && effectiveEnd >= windowStart;
@@ -326,19 +345,24 @@ export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): Wha
 }
 
 // The instant a row stops being relevant: its explicit endsAt, or (for a point
-// row that carries no endsAt) its startsAt. Same interval reading isOnTonight
-// uses (#409): a row is [startsAt, effectiveEnd]. Returns NaN only when
-// startsAt itself is unparseable (a row that would already fail isValidWhatsOnRow).
+// row that carries no endsAt) startsAt plus a kind-aware effective duration
+// (POINT_ROW_GRACE_MS above). Same interval reading isOnTonight uses (#409/#417):
+// a row is [startsAt, effectiveEnd]. Interval rows keep their exact endsAt; only
+// point rows gain grace. Returns NaN only when startsAt itself is unparseable (a
+// row that would already fail isValidWhatsOnRow).
 export function rowEffectiveEnd(row: WhatsOnRow): number {
   const startsAt = Date.parse(row.startsAt);
-  const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : startsAt;
-  return Number.isFinite(parsedEnd) ? parsedEnd : startsAt;
+  const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : NaN;
+  if (Number.isFinite(parsedEnd)) return parsedEnd; // interval row: exact endsAt
+  if (!Number.isFinite(startsAt)) return startsAt; // unparseable start -> NaN
+  return startsAt + POINT_ROW_GRACE_MS[row.kind]; // point row: kind-aware grace
 }
 
 // Freshness guard for the serving/build seam. A row is past-dated once its
-// interval has ended: effectiveEnd < now. A point row (no endsAt) is past the
-// instant its startsAt passes; an interval row (e.g. an all-day deal) stays
-// live while it is still running, exactly like isOnTonight's overlap test.
+// interval has ended: effectiveEnd < now. A point row (no endsAt) stays live for
+// its kind-aware grace after startsAt (POINT_ROW_GRACE_MS), then goes past; an
+// interval row (e.g. an all-day deal) stays live while it is still running,
+// exactly like isOnTonight's overlap test.
 //
 // This is the #408 defence: the hand-curated sport-fixtures seed goes stale the
 // moment a kickoff passes (crons are dead, so nothing re-derives it), and a
