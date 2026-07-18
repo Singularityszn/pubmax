@@ -288,6 +288,41 @@ Owner queue: Ticketmaster/EXA/Resend/APNs keys now light up MERGED code; logo pi
 - **Tracker at zero-debt**: 4 open issues (all deliberate: deferred waves #287/#282, companion depth #252, #168's follow-up adopters), 2 open PRs (#229 GA-hold confirmed vs maplibre 5.24, none other). #263/#264 closed superseded with evidence.
 - Outstanding: deploy-sheriff loop until production Ready + live signatures verified (multiple CI-only failures fixed in sequence; live site still serving pre-wave build until one deploy lands green).
 
-## Owner queue (unchanged)
+## CYCLE 13 — PRODUCTION GREEN + THE LIVE-DATA WAVE (2026-07-18 evening)
 
-Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
+**PRODUCTION IS LIVE.** The withRouteTiming generic fix (fcf60731) was the last blocker; pubmaxxing.com now serves the full launch build (near 200, freshness 200, about clean). Owner reviews the flow tonight.
+
+Owner supplied keys in-session (verified live before wiring): EVENTBRITE_API_TOKEN + EXA_API_KEY → Vercel production+preview env, .env.local, and EXA_API_KEY as a GitHub Actions secret. TfL confirmed working keyless. Meetup parked (OAuth2 + likely Pro subscription, weak fit).
+
+Six parallel lanes from the Londonmaxxing resources audit + key drop. Models: FHRS/police/heritage/Eventbrite/Exa = Opus 4.8 (claude-opus-4-8, standard integrations); TfL + perf = Fable forks (claude-fable-5, high effort). Fable reviewed every PR; merge-on-green per owner's standing instruction:
+
+- **#361 FHRS hygiene badge** (MERGED): FSA rating chip on the venue sheet; postcode + Sørensen-Dice fuzzy match, pub-over-cafe tie-break, fail-soft, 22 tests.
+- **#362 night calm context** (MERGED): data.police.uk aggregated to coarse Night Areas; relative night-relevant share → three reassuring bands; silent under 20-crime samples; tone-tested (no alarm words possible).
+- **#363 TfL get-home strip** (MERGED): Tonight page line pair from the EXISTING /api/last-train surface (lane correctly extended instead of duplicating lib/tfl.ts). Privacy copy made honest (coords rounded to ~110m, sent once, never saved); location block un-gated on thin nights.
+- **#364 Eventbrite provider seam** (CI rerunning after a fetch-mock type fix): capability probe proved a private token gets ZERO public discovery (search API removed 2019, account owns no orgs) — honest zero-row provider that lights up if the account ever owns events. **Ticketmaster key is now the only real path to filling Tonight.**
+- **#365 heritage pub facts** (CI running): 237 London pubs matched to NHLE listed buildings (1 Grade I, 12 Grade II*), conservative two-tier matcher with denylist guards, OGL attribution, build-time snapshot, brass-plaque styling + JSON-LD.
+- **#366 Exa buzz ingestion** (CI running): wired the existing Night Signals seam's missing producer — daily 07:45 UTC workflow stages PENDING candidates (publisher headlines verbatim, tracking-stripped URLs, human approval gates publication).
+
+Also this cycle: owner reported site slowness → measured (homepage TTFB ~1s no-store SSR MISS; ~1.1MB first-load JS) → **perf lane running as a Fable fork** (rendering-mode fixes toward edge-cached static/ISR + MapLibre code-split). Standing rule recorded: any Exa/Firecrawl credit exhaustion or scrape failure is reported to Karan immediately.
+
+## CYCLE 14 — OWNER SCREENSHOTS + FULL JOURNEY AUDIT WAVE (2026-07-18 night)
+
+Owner iPhone screenshots drove three Fable-fork fixes, then a desktop browser audit (13 ranked findings) drove three more lanes. All merged same-night, every one CI-green through CodeRabbit + Cursor security:
+
+- **#367 map UX** (Fable fork): duplicate List-view pill was a CSS rule-ordering bug; rotation was never disabled — fitBounds calls flattened bearing/pitch and the flat camera persisted via saved session; fits now preserve bearing, dead-flat saved viewports upgrade to the designed attitude, new brass compass with tap-to-north. NOTE for owner: the ambient idle ORBIT was removed deliberately (abeb471e, tile-churn flicker) and stays removed pending owner call.
+- **#368 venue sheet** (Fable fork): legacy drawer sticky-bar offsets leaked onto the portal sheet + iOS vh/dvh mismatch floated the command bar mid-content; dvh migration, offsets scoped :not(.mobileSharedSheet), Train duplicate removed (tab row owns navigation).
+- **#369 perf split** (Fable fork; owner REJECTED the CSP downgrade after AskUserQuestion): shipped only the safe wins — 3MB price-JSON out of the map chunk (7.9→5.2MB client JS), five render-nothing shell extras deferred post-hydration. Static rendering + edge cache PARKED behind hash-CSP.
+- **#370 brand** (Opus 4.8): The Crossing (Concept A) activated — favicon, icons, maskable, manifest, OG cards via new CrossingMark in ogBrand. theme_color left #16122a (doc says confirm, not invent).
+- **#371 search/routing** (Opus 4.8): search now flies to a unique match / fits multi-matches through the existing camera path; /stories 308→/feed; branded not-found; disruption banner severity-gated + role-tokened.
+- **#372 drawer polish** (Fable fork): mobile-only peek strip rendered unstyled on desktop (media-query leak) — the "collapsed text run" bug; martini-pin precedence fixed (categories outrank cocktails amenity); amenity chips humanized; light basemap Liberty→Positron (brand-tinted custom style JSON = follow-up).
+- **#373 copy/data** (Opus 4.8): em dashes killed at the event-title seam with regression test; Pint Index leads with real data not "Public release pending"; citation brackets → superscript links.
+
+Desktop audit remainder: map-boot blank canvas (rides on hash-CSP lane, running), demo-content flip (owner env), desktop feed layout (parked, design pass).
+
+Also this cycle: global `ideate` skill created (~/.claude/skills/ideate + rule in ~/.claude/CLAUDE.md): every new owner idea triggers grilling + top-tier agent panel + gated implement/verify/review/close pipeline, across all repos. 13 official Anthropic skills installed (webapp-testing, mcp-builder, skill-creator, pdf, theme-factory...). Standing rule: Exa/Firecrawl credit failures get reported to owner immediately.
+
+IN FLIGHT: hash-CSP lane (Fable fork) — strict CSP without nonce so public routes go static + edge-cached (the ~1s TTFB fix) with NO unsafe-inline (owner's constraint).
+
+## Owner queue
+
+TICKETMASTER_API_KEY (the sole events-discovery path) · demo-content flip (NEXT_PUBLIC_DEMO_CONTENT=off) · orbit decision (auto-rotate stays removed unless owner overrides) · Apple Developer enrollment · Search Console + Bing + sitemap · `hello@pubmaxxing.com` · #313 wording · bill-split decision · RESEND_API_KEY + EMAIL_FROM.
