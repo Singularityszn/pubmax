@@ -203,6 +203,8 @@ Three lanes (Opus 4.8, worktrees, separate branches, Sol decides):
 
 - **PR #332 — deep review of Cycle 8**: all six approved. Routed fixes running: zone-lane rebasing #329 onto the data chain + migrating 32 raw --brass refs to #328's role tokens; digest-lane guarding the unsubscribe placeholder. #326's one-token nit → Sol's rebase note. Merge-order E5/F amendments drafted (acceptance gate: 4 components call claimPromptBudget). #329 slots as step 31 (after #317).
 
+- **All #332 remediations closed**: #327 unsubscribe guard fail-safe (0550649b); #329 rebased into the data chain as step 31 (4a66e0e0 — 1919 venues intact, zone in every shard, 519KB eager, 0 raw brass). **Every open PR is now reviewed, cross-reviewed, and remediation-clean.** Data chain final shape: #315→#320→#319→#317→#329.
+
 ## Owner queue (unchanged)
 
 Apple Developer enrollment (deferred, still the longest pole) · Search Console + Bing verification + sitemap submit · `hello@pubmaxxing.com` inbox · EXA_API_KEY · Pint Index copy decision · branch-prune confirmation.
