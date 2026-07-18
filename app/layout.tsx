@@ -1,18 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import "./globals.css";
 import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
-import NightModeCard from "@/components/night/NightModeCard";
+import DeferredShellExtras from "@/components/DeferredShellExtras";
 import OfflineReady from "@/components/OfflineReady";
-import FirstRunTour from "@/components/onboarding/FirstRunTour";
-import A2HSInstallPrompt from "@/components/pwa/A2HSInstallPrompt";
-import NativePushPrompt from "@/components/native/NativePushPrompt";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
-import PubPalSummon from "@/components/pubpal/PubPalSummon";
 import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
@@ -251,25 +248,17 @@ export default async function RootLayout({
           <CommandPaletteProvider>
             {children}
             {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
-                display:none on desktop so the existing navs are untouched. */}
-            <MobileTabBar />
-            {/* Night Mode (Wave E2) — the "during the night" surface. A
-                persistent bottom card that appears across every screen while a
-                plan is on tonight; renders nothing otherwise. */}
-          <NightModeCard />
-          <PubPalSummon />
-            {/* One-time first-run onboarding tour — renders nothing on the
-                server / for returning users (gated on hasSeenTour). */}
-            <FirstRunTour />
-            {/* Add-to-Home-Screen install prompt (Cycle-4 Wave-C) — renders
-                nothing until PROVEN VALUE (second visit day or first completed
-                night) and only when the shared prompt budget is free, so it
-                never stacks on the first-run tour. */}
-            <A2HSInstallPrompt />
-            {/* Contextual native push pre-permission explainer (Capacitor
-                shell only) — renders nothing on web/SSR; budget-gated and
-                identity-first per docs/PROMPT_ORCHESTRATION.md. */}
-            <NativePushPrompt />
+                display:none on desktop so the existing navs are untouched.
+                Suspense boundary: it reads useSearchParams; under any future
+                prerendered route that read would otherwise bail the whole
+                page out to CSR. Harmless today, required tomorrow. */}
+            <Suspense fallback={null}>
+              <MobileTabBar />
+            </Suspense>
+            {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
+                native push explainer all render nothing on first paint, so they
+                load lazily after hydration — see DeferredShellExtras. */}
+            <DeferredShellExtras />
             {/* Silent offline SW registration (issue #32) — renders nothing,
                 production-only, registers after load. */}
             <OfflineReady />

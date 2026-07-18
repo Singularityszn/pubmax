@@ -1,19 +1,14 @@
 import {
   applyFoodPriceUpdatesToMenu,
-  parseFoodPriceUpdates,
   type FoodPriceUpdate,
 } from "@/lib/foodPriceUpdates";
 import type { FoodItem } from "@/lib/food";
 import { venueMenuLookupKeys, type VenueMenuVenue } from "@/lib/venueMenu";
-import rawFoodPriceUpdates from "../public/data/food_price_updates/latest.json";
 
-const updateFileGeneratedAt = Date.parse(
-  String((rawFoodPriceUpdates as { generatedAt?: unknown }).generatedAt ?? ""),
-);
-const foodPriceUpdates = parseFoodPriceUpdates(
-  rawFoodPriceUpdates,
-  Number.isFinite(updateFileGeneratedAt) ? updateFileGeneratedAt : Date.now(),
-);
+// Like lib/venueMenu.ts, the observed food-price updates
+// (public/data/food_price_updates/latest.json, ~1.5 MB) are loaded at runtime
+// via lib/priceUpdatesLoader.ts and passed in, never statically imported —
+// a static import bundled the whole file into the map's client JS.
 
 function applyFoodUpdatesForKeys(
   base: FoodItem[],
@@ -30,6 +25,9 @@ function applyFoodUpdatesForKeys(
 }
 
 /** Food menu for the venue inspector — sourced updates only (no seed layer yet). */
-export function venueFoodMenuForInspector(venue: VenueMenuVenue): FoodItem[] {
-  return applyFoodUpdatesForKeys([], venueMenuLookupKeys(venue), foodPriceUpdates);
+export function venueFoodMenuForInspector(
+  venue: VenueMenuVenue,
+  updates: FoodPriceUpdate[] = [],
+): FoodItem[] {
+  return applyFoodUpdatesForKeys([], venueMenuLookupKeys(venue), updates);
 }

@@ -1,9 +1,29 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { hasMenuBeyondPints } from "@/lib/drinkMenu";
+import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
+import { parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
 import type { VenuePrice } from "@/lib/venues";
 import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
 import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
+import rawDrinkPriceUpdates from "../public/data/drink_price_updates/latest.json";
+import rawFoodPriceUpdates from "../public/data/food_price_updates/latest.json";
+
+// The overlays are no longer statically bundled with the menu seams (they are
+// fetched at runtime by lib/priceUpdatesLoader.ts); tests parse the same files
+// directly and pass them in, keeping the behavioural assertions identical.
+function fileGeneratedAt(raw: unknown): number {
+  const stamp = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));
+  return Number.isFinite(stamp) ? stamp : Date.now();
+}
+const drinkUpdates = parseDrinkPriceUpdates(
+  rawDrinkPriceUpdates,
+  fileGeneratedAt(rawDrinkPriceUpdates),
+);
+const foodUpdates = parseFoodPriceUpdates(
+  rawFoodPriceUpdates,
+  fileGeneratedAt(rawFoodPriceUpdates),
+);
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -91,10 +111,13 @@ describe("venueMenuForInspector", () => {
   });
 
   it("applies demo drink-price overlays to the real Prospect menu", () => {
-    const menu = venueMenuForInspector({
-      id: SEEDED_VENUE_ID,
-      prices: [prospectPrice("p1", "Amstel", 6.1)],
-    });
+    const menu = venueMenuForInspector(
+      {
+        id: SEEDED_VENUE_ID,
+        prices: [prospectPrice("p1", "Amstel", 6.1)],
+      },
+      drinkUpdates,
+    );
 
     const luckySaint = menu.find((drink) => drink.name === "Lucky Saint 0.5%");
     expect(luckySaint).toBeDefined();
@@ -134,10 +157,13 @@ describe("venueMenuForInspector", () => {
   });
 
   it("attaches Prospect food updates from the food price layer", () => {
-    const food = venueFoodMenuForInspector({
-      id: SEEDED_VENUE_ID,
-      prices: [prospectPrice("p1", "Amstel", 6.1)],
-    });
+    const food = venueFoodMenuForInspector(
+      {
+        id: SEEDED_VENUE_ID,
+        prices: [prospectPrice("p1", "Amstel", 6.1)],
+      },
+      foodUpdates,
+    );
     expect(food.length).toBeGreaterThan(0);
     const chips = food.find((item) => item.name === "Fish & Chips");
     expect(chips?.priceGbp).toBe(19.95);
