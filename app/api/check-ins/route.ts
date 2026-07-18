@@ -8,15 +8,16 @@
 // Writes go through the service role (check_ins has no anon policy). Certified as
 // a mutating surface via the durable rate limit boundary (isLimited).
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { validateCheckInInput, type CheckInInputRaw } from "@/lib/checkIn";
+import { isCheckInLimited } from "@/lib/checkInRateLimit";
 import { checkInStore } from "@/lib/checkInStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
-import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { areaPublicCheckIns, visibleCheckInsForViewer } from "@/lib/socialFeed";
-import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
 
 assertServerEnv();
 
@@ -52,45 +53,61 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   // JWT-linked handle wins over a self-asserted body.handle when signed in.
   const handle = await resolveMessageHandle(request, readString(body.handle));
   if (!handle) {
-    return jsonNoStore(
-      { error: "Set a handle first. Drop a pint to claim one." },
-      { status: 400 },
+    return publicApiError(
+      "Set a handle first. Drop a pint to claim one.",
+      "HANDLE_REQUIRED",
+      400,
     );
   }
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    // A 5xx from the ownership store is a transient dependency (retryable); a
+    // 4xx is a correction the caller must make (auth/pick another handle).
+    const retryable = ownership.status >= 500;
+    return publicApiError(
+      ownership.error,
+      retryable ? "STORE_UNAVAILABLE" : "HANDLE_FORBIDDEN",
+      ownership.status,
+      { retryable },
+    );
   }
 
   // Rate-limit per handle + hashed IP so check-ins can't be spammed (raw IP is
-  // never keyed). This is also the route's certification boundary (rate_limit).
-  const key = `check-in:${ownership.handle}:${hashIp(clientIp(request))}`;
-  if (await isLimited(ownership.handle, key)) {
-    return jsonNoStore({ error: "Too many check-ins, slow down." }, { status: 429 });
+  // never keyed). The shared factory keys the in-memory and durable axes on the
+  // SAME `check-in:<handle>:<ipHash>` key. This is also the route's
+  // certification boundary (rate_limit).
+  if (await isCheckInLimited(request, ownership.handle)) {
+    return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
   }
 
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return jsonNoStore({ error: "Check-in storage is not configured." }, { status: 503 });
+    return publicApiError("Check-in storage is not configured.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
   }
 
   // Validate against the resolved handle (never the raw body handle).
   const raw: CheckInInputRaw = { ...body, handle: ownership.handle };
   const validation = validateCheckInInput(raw);
   if (!validation.ok) {
-    return jsonNoStore({ error: validation.error }, { status: 400 });
+    return publicApiError(validation.error, "INVALID_REQUEST", 400);
   }
 
   try {
     const checkIn = await checkInStore().create(validation.value);
     return jsonNoStore({ checkIn }, { status: 201 });
   } catch {
-    return jsonNoStore({ error: "Check-in storage is unavailable." }, { status: 503 });
+    return publicApiError("Check-in storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
   }
 }

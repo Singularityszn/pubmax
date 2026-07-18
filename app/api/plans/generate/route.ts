@@ -182,11 +182,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!query && !body.context) return publicApiError("Describe the night or provide Night Context.", "NIGHT_CONTEXT_REQUIRED", 400);
   const inferred = inferNightContext(query);
   const context = mergeContext(inferred.context, body.context);
-  if (!context.nightArea) return publicApiError("Choose a Night Area.", "NIGHT_AREA_REQUIRED", 422);
+  if (!context.nightArea) return publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422);
   const cityId = typeof body.cityId === "string" ? parseCityId(body.cityId) : DEFAULT_CITY_ID;
   if (!cityId) return publicApiError("cityId is invalid.", "CITY_INVALID", 400);
   const area = getNightArea(context.nightArea);
-  if (area.cityId !== cityId) return publicApiError("The selected Night Area is not available in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
+  if (area.cityId !== cityId) return publicApiError("That area isn't in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
 	const routeReady = isNightAreaRouteReady(area);
 	const coverage = publicNightAreaCoverage(area);
 	const requestNow = Date.now();

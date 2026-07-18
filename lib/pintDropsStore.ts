@@ -147,9 +147,10 @@ export type PintDropStore = {
    * pre-checks this and returns 409 before create, so one identity can't stack
    * multiple price observations at one pub in a day. Note-only anecdotes are
    * exempt (a memory is not a price observation). Both backends enforce the same
-   * venue+identity+day rule against their own rows.
+   * venue+identity+day rule against their own rows. `now` is injectable (default
+   * `Date.now()`) so the London-day comparison is testable against a fixed clock.
    */
-  hasPricedDropToday(venueId: string, handle: string): Promise<boolean>;
+  hasPricedDropToday(venueId: string, handle: string, now?: number): Promise<boolean>;
 };
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -459,8 +460,8 @@ export const memoryPintDropStore: PintDropStore = {
   async moderate(id, status, note) {
     return status === "visible" ? restorePintDrop(id, note) : keepHiddenPintDrop(id, note);
   },
-  async hasPricedDropToday(venueId, handle) {
-    return hasPricedDropTodayMemory(venueId, handle);
+  async hasPricedDropToday(venueId, handle, now = Date.now()) {
+    return hasPricedDropTodayMemory(venueId, handle, new Date(now));
   },
 };
 
@@ -770,7 +771,7 @@ export const supabasePintDropStore: PintDropStore = {
    * keeps the day-bucket logic in the same londonDayKey() the streak uses (no
    * drift). Handles are normalized on write, so the equality match is exact.
    */
-  async hasPricedDropToday(venueId, handle) {
+  async hasPricedDropToday(venueId, handle, now = Date.now()) {
     const who = normalizeViewerHandle(handle);
     if (!who) return false;
     const { data, error } = await admin()
@@ -785,7 +786,7 @@ export const supabasePintDropStore: PintDropStore = {
     if (error) throw new Error(error.message);
     const latest = (data ?? [])[0] as { created_at?: string } | undefined;
     if (!latest?.created_at) return false;
-    return londonDayKey(latest.created_at) === londonDayKey(new Date());
+    return londonDayKey(latest.created_at) === londonDayKey(new Date(now));
   },
 };
 
