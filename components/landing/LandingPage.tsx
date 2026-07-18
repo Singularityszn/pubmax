@@ -212,6 +212,9 @@ export default function LandingPage() {
           <Link href={primaryCtaHref} className="lpButton lpButtonPrimary" {...warmProps}>
             Open the map <ArrowRight size={18} aria-hidden="true" />
           </Link>
+          <Link href="/about" className="lpTextLink">
+            Our story <ArrowRight size={16} aria-hidden="true" />
+          </Link>
         </section>
       </main>
     </div>

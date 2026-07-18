@@ -129,6 +129,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
     { path: "/feed", priority: 0.5, changeFrequency: "daily", lastModified: now },
     { path: "/choose-city", priority: 0.5, changeFrequency: "monthly", lastModified: now },
+    { path: "/about", priority: 0.5, changeFrequency: "monthly", lastModified: now },
   ];
   for (const r of staticRoutes) {
     entries.push({
