@@ -470,6 +470,12 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
   // a real handle to adopt) — the passport's first-run CTA drives the next step.
   const headerActions = isOwnProfile ? (
     <>
+      {/* The crew-invite loop's entry point: your own add link. Opening it shows
+          the share surface (ConfirmFollow's self branch), so a friend can add
+          you at the table and you become each other's lot. */}
+      <Link className="profileInviteLink" href={`/add/${encodeURIComponent(routeHandle)}`}>
+        Invite your lot
+      </Link>
       <button
         type="button"
         className="profileEditToggle"

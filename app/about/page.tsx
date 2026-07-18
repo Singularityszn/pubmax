@@ -239,6 +239,10 @@ export default async function AboutPage() {
             </dd>
           </div>
           <div className="aboutPressRow">
+            <dt>Positioning</dt>
+            <dd>London runs on its pubs. This is the app that runs your night.</dd>
+          </div>
+          <div className="aboutPressRow">
             <dt>Contact</dt>
             <dd>
               <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
@@ -285,6 +289,44 @@ export default async function AboutPage() {
             </dd>
           </div>
         </dl>
+      </section>
+
+      {/* ── Story hooks (press angle) ──────────────────────────── */}
+      <section className="aboutSection aboutPress" aria-labelledby="press-hooks">
+        <h2 id="press-hooks" className="aboutH2">Story hooks</h2>
+        <p className="aboutBody">
+          London runs on its pubs. This is the app that runs your night. If you
+          are writing about the cost of a night out, the Pint Index is the angle.
+        </p>
+        <ul className="aboutEthos">
+          <li>
+            <strong>London&rsquo;s pint price league table.</strong> The Pint
+            Index ranks{" "}
+            <strong>{fmtInt(stats.boroughsCovered)}</strong> boroughs and
+            neighbourhoods by the price of a pint, from{" "}
+            <span className="aboutPriceStamp">{cheapest}</span> at the cheap end
+            to <span className="aboutPriceStamp">{dearest}</span> at the top,
+            built from{" "}
+            <strong>{fmtInt(stats.pintPricesObserved)}</strong> sourced
+            readings. Every figure links back to where it came from.
+          </li>
+          <li>
+            <strong>A price series, not a one-off headline.</strong> Because we
+            record the date on every reading, the Pint Index is longitudinal: it
+            can show how the price of a London pint moves over a season, not just
+            what it is today.
+          </li>
+          <li>
+            <strong>Sourced, never invented.</strong> When the data cannot
+            support an honest number for an area, the table shows nothing there.
+            No filler, no estimate dressed up as a fact.
+          </li>
+        </ul>
+        <p className="aboutBody">
+          <Link href="/pint-index" className="aboutLink">
+            See the league table
+          </Link>
+        </p>
       </section>
 
       <section className="aboutSection aboutCta" aria-labelledby="cta">
