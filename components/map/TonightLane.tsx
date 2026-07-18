@@ -42,6 +42,14 @@ type TonightLaneProps = {
   overlayActive?: boolean;
   onToggleOverlay?: () => void;
   onDismissOverlay?: () => void;
+  /**
+   * "map" (default) floats the lane at the map edge (absolute, translated,
+   * viewport-width math) with its own collapse affordance. "sheet" renders the
+   * same lane content in-flow inside a bottom sheet whose own header owns the
+   * single close affordance — so the map-edge chrome (absolute positioning,
+   * duplicate close ×) never leaks into the sheet portal.
+   */
+  variant?: "map" | "sheet";
 };
 
 export default function TonightLane({
@@ -55,7 +63,9 @@ export default function TonightLane({
   overlayActive = false,
   onToggleOverlay,
   onDismissOverlay,
+  variant = "map",
 }: TonightLaneProps) {
+  const inSheet = variant === "sheet";
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
@@ -77,7 +87,7 @@ export default function TonightLane({
   if (status === "error" && !toggleOverlay) {
     return (
       <section
-        className="tonightLane tonightLane--error"
+        className={`tonightLane tonightLane--error${inSheet ? " tonightLane--sheet" : ""}`}
         aria-label="On tonight near you"
       >
         <div className="tonightLaneTitleRow" role="status">
@@ -92,7 +102,23 @@ export default function TonightLane({
     );
   }
 
-  if (rows.length === 0 && !toggleOverlay) return null;
+  if (rows.length === 0 && !toggleOverlay) {
+    // In-sheet the viewer explicitly opened Tonight, so an empty portal reads as
+    // broken — say quietly that nothing is on rather than rendering nothing.
+    if (inSheet) {
+      return (
+        <section
+          className="tonightLane tonightLane--sheet tonightLane--open"
+          aria-label="On tonight near you"
+        >
+          <p className="tonightLaneEmpty" role="status">
+            Nothing listed on tonight near you right now.
+          </p>
+        </section>
+      );
+    }
+    return null;
+  }
 
   if (!isOpen) {
     return (
@@ -139,7 +165,7 @@ export default function TonightLane({
 
   return (
     <section
-      className="tonightLane tonightLane--open"
+      className={`tonightLane tonightLane--open${inSheet ? " tonightLane--sheet" : ""}`}
       aria-label="On tonight near you"
     >
       <div className="tonightLaneHead">
@@ -156,19 +182,26 @@ export default function TonightLane({
                   active={overlayActive}
                   onToggle={toggleOverlay}
                 />
-                {overlayActive && onDismissOverlay ? (
+                {/* In-sheet, the labeled Pins toggle is the only pins control:
+                    toggling it off hides the overlay, so the bare dismiss × is
+                    redundant and reads as a stray second close. */}
+                {!inSheet && overlayActive && onDismissOverlay ? (
                   <TonightOverlayDismiss onDismiss={onDismissOverlay} />
                 ) : null}
               </>
             ) : null}
-            <button
-              type="button"
-              className="tonightLaneClose pressable"
-              aria-label="Collapse on tonight"
-              onClick={() => changeOpen(false)}
-            >
-              <X size={17} aria-hidden="true" />
-            </button>
+            {/* The bottom sheet's own header owns the single close affordance;
+                the lane-internal collapse × belongs only to the map-edge float. */}
+            {!inSheet ? (
+              <button
+                type="button"
+                className="tonightLaneClose pressable"
+                aria-label="Collapse on tonight"
+                onClick={() => changeOpen(false)}
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
         </div>
         {facets.length > 1 ? (

@@ -1806,6 +1806,7 @@ export default function PubMap({
               asOf={whatsOnTonight.asOf}
               status={whatsOnTonight.status}
               open
+              variant="sheet"
               onOpenChange={() => undefined}
               onSelectVenue={selectVenue}
               overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0}
@@ -1840,7 +1841,7 @@ export default function PubMap({
                 <fieldset className="mobilePriceChoices"><legend>Maximum pint price</legend>{[10, 7, 6, 5.5].map((price) => <button type="button" key={price} className={filters.maxPrice === price ? "isActive" : ""} aria-pressed={filters.maxPrice === price} onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}>{price === 10 ? "Any" : `£${price.toFixed(2)}`}</button>)}</fieldset>
               </TabsContent>
               <TabsContent value="events">
-                <TonightLane rows={whatsOnTonight.rows} asOf={whatsOnTonight.asOf} status={whatsOnTonight.status} open onOpenChange={() => undefined} onSelectVenue={selectVenue} overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0} overlayActive={tonightOverlayVisible} onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)} onDismissOverlay={dismissTonightOverlay} />
+                <TonightLane rows={whatsOnTonight.rows} asOf={whatsOnTonight.asOf} status={whatsOnTonight.status} open variant="sheet" onOpenChange={() => undefined} onSelectVenue={selectVenue} overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0} overlayActive={tonightOverlayVisible} onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)} onDismissOverlay={dismissTonightOverlay} />
               </TabsContent>
               <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent>
             </Tabs>

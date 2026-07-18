@@ -105,6 +105,52 @@
   pointer-events: auto;
 }
 
+/* In-sheet variant: the bottom sheet owns positioning, chrome and scroll, so
+   strip the map-edge float (absolute position, translateX, viewport-width math,
+   panel background/border/shadow) and let the lane fill the sheet body in
+   normal flow. Placed after .tonightLane--open so it wins at equal specificity. */
+.tonightLane--sheet {
+  position: static;
+  inset: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transform: none;
+  animation: none;
+  pointer-events: auto;
+}
+
+/* Stack full-width cards vertically; the sheet body handles the scroll. */
+.tonightLane--sheet .tonightLaneScroll {
+  flex-direction: column;
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+.tonightLane--sheet .tonightLaneCard {
+  width: 100%;
+}
+
+.tonightLane--sheet .tonightLaneCardPlace span {
+  max-width: none;
+}
+
+.tonightLaneEmpty {
+  margin: 0;
+  padding: 8px 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .tonightLane--error {
   max-width: calc(100vw - 24px);
   padding: 8px 12px;
@@ -481,6 +527,14 @@
 
   .tonightLane--open {
     animation: tonightLaneSheetIn 180ms ease-out both;
+  }
+
+  /* The sheet float-in keyframe ends at translate(-50%, 0); with `both` its fill
+     would reinstate the map-edge -50% offset inside the sheet. In-sheet the lane
+     is static and needs no entrance of its own (the sheet animates in). */
+  .tonightLane--sheet {
+    animation: none;
+    transform: none;
   }
 
   .tonightLaneCard {
