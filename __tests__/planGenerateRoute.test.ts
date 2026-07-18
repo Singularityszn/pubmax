@@ -15,6 +15,13 @@ const { isLimitedMock, loadConciergeVenuesMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+// Hermetic weather: the live refresh workflow rewrites the shipped snapshot
+// (0 or 20 observations depending on the day), which would flip the "does not
+// invent weather" assertion below. Pin an empty snapshot so this file never
+// depends on whatever the cron last wrote. The only weather assertion wants null.
+vi.mock("@/public/data/weather/latest.json", () => ({
+  default: { version: 1, generatedAt: "2026-01-01T00:00:00.000Z", observations: [] },
+}));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
   return { ...actual, isLimited: isLimitedMock };
