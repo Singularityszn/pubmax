@@ -73,7 +73,7 @@ export const OG_BG = `linear-gradient(150deg, ${OG.inkDeep} 0%, ${OG.panel} 52%,
 type OgFont = {
   name: string;
   data: Buffer;
-  weight: 500 | 700;
+  weight: 400 | 500 | 700;
   style: "normal";
 };
 
@@ -89,6 +89,23 @@ export function loadOgFonts(): OgFont[] {
     { name: "Space Grotesk", data: bold, weight: 700, style: "normal" },
   ];
   return fontCache;
+}
+
+// Party accent for share-card vibe stamps (docs/VIBE_LAYER_SPEC_2026-07-19.md):
+// Bungee Regular, vendored like the Space Grotesk instances above. Loaded ONLY
+// by card routes that render a vibe stamp, and only alongside loadOgFonts() —
+// satori resolves unknown font-family strings to the first registered font, so
+// a card passing fonts must always register the Space Grotesk pair first and
+// Bungee last, keeping Bungee from swallowing the card's base typography.
+let partyFontCache: OgFont | null = null;
+
+export function loadPartyFont(): OgFont {
+  if (partyFontCache) return partyFontCache;
+  const data = readFileSync(
+    join(process.cwd(), "public", "fonts", "Bungee-Regular.ttf"),
+  );
+  partyFontCache = { name: "Bungee", data, weight: 400, style: "normal" };
+  return partyFontCache;
 }
 
 export const OG_FONT_FAMILY = "Space Grotesk";

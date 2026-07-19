@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
-import { CrossingMark } from "@/lib/ogBrand";
+import { CrossingMark, loadOgFonts, loadPartyFont } from "@/lib/ogBrand";
 import { planStore } from "@/lib/planStore";
 
 export const runtime = "nodejs";
@@ -25,6 +25,26 @@ const BRASS = "#d3a44a"; // single accent
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
+// Vibe stamp (docs/VIBE_LAYER_SPEC_2026-07-19.md, surface 3). The ?vibe= param
+// is validated against exactly the seven owner-locked chip slugs — an
+// unrecognised value renders the base card, never an arbitrary string onto the
+// image (user-controlled text on a shared OG card is an abuse surface). Labels
+// are the chip labels verbatim, uppercased by the stamp itself.
+const VIBE_STAMPS: Record<string, string> = {
+  "on-a-bender": "On a bender",
+  "get-lit": "Get lit",
+  "quiet-pint": "Quiet pint",
+  "cheeky-one-after-work": "Cheeky one after work",
+  "match-on": "Match on",
+  "big-brain-energy": "Big brain energy",
+  "date-night": "Date night",
+};
+
+// Stamp colours per spec: brass shade under coral face on ink dark. Coral is
+// the app's Candle-Coral action accent (lib/ogBrand OG.coral); the shade layer
+// is this card's own field-guide brass so the stamp sits in the card's palette.
+const STAMP_CORAL = "#ff5a5f";
+
 // Strip control chars and cap length. Plan title + venue names are user-entered,
 // so they are never rendered unbounded onto the card.
 function clamp(raw: string, max: number): string {
@@ -40,9 +60,12 @@ export async function GET(request: Request): Promise<Response> {
   const limited = await ogCardRateLimitedResponse(request, "og-plan-card");
   if (limited) return limited;
 
-  const id = new URL(request.url).searchParams.get("id") ?? "";
+  const params = new URL(request.url).searchParams;
+  const id = params.get("id") ?? "";
   const state = id ? await planStore().get(id) : null;
   if (!state) return new Response("Plan not found", { status: 404 });
+  // Validated vibe stamp or nothing; see VIBE_STAMPS above.
+  const vibeLabel = VIBE_STAMPS[params.get("vibe") ?? ""] ?? null;
   const stops = state.stops
     .slice()
     .sort((a, b) => a.position - b.position)
@@ -123,6 +146,10 @@ export async function GET(request: Request): Promise<Response> {
           </div>
           <div
             style={{
+              // display:flex is load-bearing: satori rejects any div holding
+              // more than one child node (text + expression counts) without an
+              // explicit display, 500ing the whole card.
+              display: "flex",
               fontFamily: serif,
               fontStyle: "italic",
               color: BRASS,
@@ -144,19 +171,80 @@ export async function GET(request: Request): Promise<Response> {
               paddingRight: 48,
             }}
           >
-            <div
-              style={{
-                color: BRASS,
-                fontSize: 22,
-                fontWeight: 700,
-                letterSpacing: 6,
-                textTransform: "uppercase",
-                marginBottom: 18,
-                display: "flex",
-              }}
-            >
-              Your night is sorted
-            </div>
+            {vibeLabel ? (
+              /* Vibe stamp: the crew's declared night, in the party face.
+                 Layered per spec — brass shade offset under the coral face —
+                 with a slight tilt so it reads as a stamp, not a heading. */
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  marginBottom: 20,
+                  transform: "rotate(-3deg)",
+                  transformOrigin: "left bottom",
+                }}
+              >
+                <div
+                  style={{
+                    color: BRASS,
+                    fontSize: 20,
+                    fontWeight: 700,
+                    letterSpacing: 6,
+                    textTransform: "uppercase",
+                    marginBottom: 10,
+                    display: "flex",
+                  }}
+                >
+                  Tonight
+                </div>
+                <div style={{ display: "flex", position: "relative" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      left: 4,
+                      display: "flex",
+                      fontFamily: "Bungee",
+                      fontSize: vibeLabel.length > 12 ? 34 : 46,
+                      lineHeight: 1.15,
+                      letterSpacing: 2,
+                      textTransform: "uppercase",
+                      color: BRASS,
+                      opacity: 0.55,
+                    }}
+                  >
+                    {vibeLabel}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      fontFamily: "Bungee",
+                      fontSize: vibeLabel.length > 12 ? 34 : 46,
+                      lineHeight: 1.15,
+                      letterSpacing: 2,
+                      textTransform: "uppercase",
+                      color: STAMP_CORAL,
+                    }}
+                  >
+                    {vibeLabel}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  color: BRASS,
+                  fontSize: 22,
+                  fontWeight: 700,
+                  letterSpacing: 6,
+                  textTransform: "uppercase",
+                  marginBottom: 18,
+                  display: "flex",
+                }}
+              >
+                Your night is sorted
+              </div>
+            )}
             <div
               style={{
                 display: "flex",
@@ -277,6 +365,12 @@ export async function GET(request: Request): Promise<Response> {
       headers: {
         "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
       },
+      // Fonts only when a stamp renders: satori resolves unknown family
+      // strings (this card's Georgia/Helvetica) to the FIRST registered font,
+      // so the Space Grotesk pair goes first (base typography lands on the
+      // brand face) and Bungee last (only nodes that ask for it get it). The
+      // unstamped card keeps its zero-font fast path exactly as before.
+      ...(vibeLabel ? { fonts: [...loadOgFonts(), loadPartyFont()] } : {}),
     },
   );
 }
