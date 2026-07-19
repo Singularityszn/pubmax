@@ -64,6 +64,8 @@ export const ANALYTICS_EVENTS = {
   // Vibe layer (docs/VIBE_LAYER_SPEC_2026-07-19.md): which mood chip was
   // pressed. The vibe id only — never free text, never location.
   tonight_vibe_select: ["vibe"],
+  // Plan-page crew vibe vote (share-loop tally). Same contract: chip id only.
+  plan_vibe_vote: ["vibe"],
   event_chip_view: ["kind"],
   // Wave D — sharing is a return-loop signal; alcohol quantity is never
   // represented as progression telemetry.
