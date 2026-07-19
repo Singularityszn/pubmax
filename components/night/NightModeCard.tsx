@@ -938,7 +938,7 @@ function NightEndingResult({
             ))}
           </ul>
         ) : (
-          <p>Food options for this Night Area still need review. Check the map before walking.</p>
+          <p>Food options round here still need review. Check the map before walking.</p>
         )}
         <p className="nightCard__endingFineprint">
           Kitchen hours can change; verify tonight before leaving the last pub.

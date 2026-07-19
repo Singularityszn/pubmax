@@ -24,11 +24,13 @@ import {
   readLastTrainDestination,
   writeLastTrainDestination,
 } from "@/lib/lastTrainDestination";
+import { nearestStaticStation } from "@/lib/staticStations";
 import {
   buildLastPintShareText,
   describeLeaveCountdown,
   lastPintShareHref,
   minutesUntilLeaveBy,
+  walkMinutesForKm,
   type LastPintDecision,
   type LastPintDecisionKind,
   type LastTrainResult,
@@ -193,6 +195,20 @@ async function dispatchCrewShare(shareText: string): Promise<CrewShareOutcome> {
 function readSessionDestination(): string {
   if (typeof window === "undefined") return "";
   return readLastTrainDestination(window.sessionStorage);
+}
+
+// Friction-sweep follow-up 7: when the live check fails entirely, the card
+// still hands over the one thing we know without any network — the nearest
+// bundled station (lib/staticStations, London-only) and a straight-line walk
+// estimate. Static value, clearly not live timings; null when no bundled
+// station is within a real walk (a misleading estimate is worse than none).
+export function staticStationLine(cityId: CityId, lat: number, lng: number): string | null {
+  if (cityId !== "london") return null;
+  const nearest = nearestStaticStation(lat, lng);
+  if (!nearest) return null;
+  const minutes = walkMinutesForKm(nearest.distanceKm);
+  if (!Number.isFinite(minutes) || minutes > 30) return null;
+  return `Nearest station on our map: ${nearest.name} (${nearest.lines.slice(0, 3).join(", ")}), about ${minutes} min on foot.`;
 }
 
 function emptyNoteForCity(cityId: CityId): string {
@@ -462,7 +478,12 @@ export default function LastTrainCard({
       ) : null}
 
       {displayState.status === "empty" ? (
-        <p style={styles.note}>{emptyNoteForCity(cityId)}</p>
+        <>
+          {staticStationLine(cityId, lat, lng) ? (
+            <p style={styles.note}>{staticStationLine(cityId, lat, lng)}</p>
+          ) : null}
+          <p style={styles.note}>{emptyNoteForCity(cityId)}</p>
+        </>
       ) : null}
 
       {readyData && showLondonStaticFallback(cityId, readyData) ? (

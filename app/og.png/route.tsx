@@ -138,7 +138,7 @@ export async function GET() {
               marginBottom: 22,
             }}
           >
-            Real prices · Live plans · Side quests
+            Real prices · Live plans · Proper nights
           </div>
           <div
             style={{

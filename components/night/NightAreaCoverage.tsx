@@ -33,7 +33,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
     return {
       bucket: "route_ready",
       label: "Route-ready",
-      detail: "The evidence gate is live. A Crawl Route can be planned.",
+      detail: "Prices here are checked and current. A crawl can be planned.",
       tone: "ready",
       actionLabel: "Open planner",
       href: "/plan",
