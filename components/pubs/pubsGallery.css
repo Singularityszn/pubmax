@@ -140,8 +140,8 @@
 
 .pubsJumpChip:hover,
 .pubsJumpChip:focus-visible {
-  border-color: var(--brass);
-  color: var(--brass);
+  border-color: var(--accent-action);
+  color: var(--accent-action);
 }
 
 .pubsJumpChip:active {
@@ -201,8 +201,8 @@
 
 .pubsShowMoreBtn:hover,
 .pubsShowMoreBtn:focus-visible {
-  border-color: var(--brass);
-  color: var(--brass);
+  border-color: var(--accent-action);
+  color: var(--accent-action);
 }
 
 .pubsShowMoreBtn:active {
