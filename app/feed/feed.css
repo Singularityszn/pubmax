@@ -1357,6 +1357,11 @@
     justify-content: flex-start;
     flex-wrap: nowrap;
     overflow-x: auto;
+    /* Judge-w2 polish 2 (second pass): tighter gap so all four primary labels
+       sit whole inside a 390px viewport and the at-rest cut lands BETWEEN
+       chips ("More" peeking under the fade), never mid-label — the w3 shot
+       still clipped "Cheap pints" mid-word at the edge. */
+    column-gap: 6px;
     /* Extra trailing pad so the last chip ("Cheapest") clears the edge-fade
        and isn't flush against the viewport edge — it used to read as cut off
        with no hint the strip kept scrolling. */
@@ -1369,6 +1374,9 @@
   .feedFilterChip {
     flex: 0 0 auto;
     min-height: 44px;
+    /* Narrower pill inset on phones (same reason as the gap above); the 44px
+       min-height keeps every chip a full-size tap target. */
+    padding: 8px 12px;
     scroll-snap-align: start;
   }
 

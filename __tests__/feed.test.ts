@@ -244,6 +244,18 @@ describe("applyFeedFilter", () => {
     ]);
   });
 
+  it("chip labels stay within the 390px strip budget (judge-w2 polish 2)", () => {
+    // "Cheap Legends" clipped mid-word at the 390px viewport edge; the strip
+    // fits its four primary chips whole only while every label stays at or
+    // under the longest that fits ("Cheap pints", 11 chars). A longer label
+    // reintroduces the mid-word cut, so the budget is pinned as a contract —
+    // shorten the label (house register says the thing plainly), don't widen it.
+    const budget = "Cheap pints".length;
+    for (const f of FEED_FILTERS) {
+      expect(f.label.length).toBeLessThanOrEqual(budget);
+    }
+  });
+
   it("empty input stays empty for every filter", () => {
     for (const f of ["tonight", "cheap", "golden-days", "friends"] as const) {
       expect(applyFeedFilter([], f)).toEqual([]);
