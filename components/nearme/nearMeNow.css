@@ -256,26 +256,87 @@
   color: var(--muted);
 }
 
-/* — Borough fallback — */
-.nmnFallback {
+/* — Area chooser (patch chips + demoted borough list) —
+   A floating panel anchored to "Change area" so opening it never shifts the
+   answer cards. Enter/exit is transform + opacity only (origin top-left),
+   200ms ease-out; the borough long-tail scrolls INSIDE the panel. */
+.nmnFootArea {
+  position: relative;
+}
+
+.nmnArea {
+  position: relative;
+}
+
+.nmnAreaCaretOpen {
+  transform: rotate(180deg);
+}
+
+.nmnAreaPanel {
+  position: absolute;
+  z-index: 30;
+  bottom: calc(100% + var(--space-2));
+  left: 0;
+  width: min(88vw, 340px);
+  max-height: 35vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--panel-raised);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 18%, transparent);
+  transform-origin: bottom left;
+  transform: scale(0.97) translateY(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1), opacity 200ms ease-out;
 }
 
-.nmnFallbackMsg {
-  margin: 0;
-  font-size: 0.92rem;
-  color: var(--ink-soft);
+.nmnAreaPanelOpen {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
-.nmnBoroughs {
+.nmnAreaChips {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+.nmnAreaBoroughs {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line-soft);
+}
+
+.nmnAreaMore {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nmnAreaMore:hover {
+  color: var(--ink-soft);
+}
+
+.nmnBoroughChip[data-active] {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
 }
 
 .nmnBoroughChip {
@@ -314,7 +375,8 @@
   .nmnCard,
   .nmnRetry,
   .nmnBack,
-  .nmnBoroughChip {
+  .nmnBoroughChip,
+  .nmnAreaPanel {
     transition: none;
   }
   .nmnLocate:active,
