@@ -2,7 +2,7 @@
   "name": "PUBMAXX",
   "short_name": "PUBMAXX",
   "description": "Price-aware nightlife map, planner, and stories worth remembering.",
-  "start_url": "/map",
+  "start_url": "/tonight",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
