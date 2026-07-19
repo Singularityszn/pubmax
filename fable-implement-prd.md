@@ -326,3 +326,19 @@ IN FLIGHT: hash-CSP lane (Fable fork) — strict CSP without nonce so public rou
 ## Owner queue
 
 TICKETMASTER_API_KEY (the sole events-discovery path) · demo-content flip (NEXT_PUBLIC_DEMO_CONTENT=off) · orbit decision (auto-rotate stays removed unless owner overrides) · Apple Developer enrollment · Search Console + Bing + sitemap · `hello@pubmaxxing.com` · #313 wording · bill-split decision · RESEND_API_KEY + EMAIL_FROM.
+
+## Cycle 15-16 close + Cycle 17 (launch week, 2026-07-19/20)
+
+Cycles 15-16 (overnight research + clarity loops) closed into the launch: regional sweeps, slop filter (#376), native readiness (#377), Tonight Conditions (#378), Social Loop v1 (#379), wayfinder clarity #393-#397 closed with judge evidence. Full detail in FABLE_HANDOFF.md history and docs/UNIVERSAL_DAY0_PRD.md.
+
+Cycle 17 (docs/UNIVERSAL_DAY0_PRD.md = canonical): 26 PRs merged in one owner-steered day+night, #409-#416 + #418-#434. Three arcs:
+
+1. **Data + platform truth** (#409 tonight interval overlap root cause, #410 map boot two-clock, #415 API envelope + limiter symmetry, #416 sport reseed + past-dated guard, #420 point-row kind-aware grace, #419 store-factory batch 1, #418 confidence V3 ledger).
+2. **Owner-driven mobile taste** (#414 /today + six tabs, #422 six-tab equal rhythm, #421 rotation + restored idle auto-orbit (owner call, supersedes abeb471e) + #423 6s first-impression, #427 borough wall replaced by pints-first curated patches, #429 one remembered patch across map/Tonight/Today, #426/#432 friction-state voice sweeps with CI fences, #428 judge w1 (+ prod-deploy unbreaker), #431 feed density + pal glance, #430 token tail, #434 polish w3, #433 judge w2 CLEAN PASS verdict).
+3. **Vibe layer** (docs/VIBE_LAYER_SPEC_2026-07-19.md, owner-grilled + two-fork panel: #424 seven chips on Tonight + pal in British sesh register, "On a bender" kept by owner override; #425 Bungee --font-party + validated OG vibe stamp + fixed plan share cards silently 500ing since #413).
+
+Ops: GNHF CLI run produced 0 tokens (backend never engaged) — native Fable lane loop did the work. 226 stale local branches pruned under proof contract (83 kept with reasons). Old gnhf shareSheet/bar-tab work confirmed already on main under rebased hashes.
+
+## Owner queue (current)
+
+GitHub Actions billing (revives all crons — highest leverage) · VAPID keypair + APNS_PRIVATE_KEY after store enrollment #390 · TICKETMASTER_API_KEY #385 · Exa/Firecrawl credit top-ups · OpenRouter funding (concierge narration flip) · Sol start on PRD Lanes B (web push, rescoped) + E (category ingest) · pid 33497 forgotten claude session holding worktree locks · two dirty worktrees salvage call (routeObservability edits; CSP double-build) · 50 unmerged-content branches archaeology (email digest, price drops v2 may hold value).
