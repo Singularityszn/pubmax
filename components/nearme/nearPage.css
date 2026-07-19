@@ -10,7 +10,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  /* Owner screenshot 2026-07-19: first content line clipped behind the iPhone
+     status area — respect the notch/Dynamic Island on standalone/PWA views. */
+  padding: calc(var(--space-3) + env(safe-area-inset-top, 0px)) var(--space-4) var(--space-3);
   border-bottom: 1px solid var(--line-soft);
 }
 

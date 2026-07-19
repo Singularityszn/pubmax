@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
+import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
@@ -18,10 +18,21 @@ import {
   type NearMeScope,
   type PricedPoint,
 } from "@/lib/nearMeAnswer";
+import {
+  CENTRAL_PATCH,
+  NIGHT_PATCHES,
+  readRememberedArea,
+  resolveNightPatch,
+  writeRememberedArea,
+  type NightPatch,
+} from "@/lib/nightPatches";
 
 import "./nearMeNow.css";
 
 type LocateState = "idle" | "requesting" | "ready" | "denied" | "unavailable";
+
+/** Why we're answering from a patch instead of the viewer's own spot. */
+type PatchReason = "denied" | "unavailable" | "none" | null;
 
 export type NearMeNowProps = {
   cityId?: CityId | string;
@@ -64,6 +75,8 @@ export default function NearMeNow({
   const [cards, setCards] = useState<NearMeCard[]>([]);
   const [scope, setScope] = useState<NearMeScope>("none");
   const [borough, setBorough] = useState<string | null>(null);
+  const [patch, setPatch] = useState<NightPatch | null>(null);
+  const [patchReason, setPatchReason] = useState<PatchReason>(null);
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
 
@@ -72,7 +85,7 @@ export default function NearMeNow({
   // Resolve the priced index once and memoise on the instance. In map mode the
   // caller hands us `venues` already in memory; otherwise fetch the slim index.
   // Never throws to the caller — a miss yields an empty list so the surface
-  // degrades to the borough picker rather than a crash.
+  // degrades to the patch answer rather than a crash.
   const loadSlim = useCallback(async (): Promise<PricedPoint[]> => {
     if (slimRef.current) return slimRef.current;
     if (!loadingSlimRef.current) {
@@ -86,10 +99,60 @@ export default function NearMeNow({
     return loadingSlimRef.current;
   }, [cityId]);
 
+  // Answer from a patch centre with the same ranker the located path uses, so
+  // walk minutes stay real (they read from the patch's walking heart).
+  const pickPatch = useCallback(
+    (next: NightPatch, reason: PatchReason = null) => {
+      void loadSlim().then((slim) => {
+        const answer = rankNearMe(next.lat, next.lng, slim);
+        setCards(answer.cards);
+        setScope(answer.scope);
+        setPatch(next);
+        setBorough(null);
+        if (reason !== null) setPatchReason(reason);
+        setState("ready");
+        writeRememberedArea({ kind: "patch", id: next.id });
+      });
+    },
+    [loadSlim],
+  );
+
+  const pickBorough = useCallback(
+    (name: string) => {
+      void loadSlim().then((slim) => {
+        setCards(rankBoroughCheapest(slim, name));
+        setBorough(name);
+        setPatch(null);
+        setScope("walkable");
+        setState("ready");
+        writeRememberedArea({ kind: "borough", name });
+      });
+    },
+    [loadSlim],
+  );
+
+  // No fix (denied / unavailable / nothing priced in range): answer anyway.
+  // Last remembered area first, central London otherwise — the pint before
+  // the question, always.
+  const answerWithoutFix = useCallback(
+    (reason: Exclude<PatchReason, null>) => {
+      const remembered = readRememberedArea();
+      if (remembered?.kind === "borough") {
+        setPatchReason(reason);
+        pickBorough(remembered.name);
+        return;
+      }
+      const rememberedPatch =
+        remembered?.kind === "patch" ? resolveNightPatch(remembered.id) : null;
+      pickPatch(rememberedPatch ?? CENTRAL_PATCH, reason);
+    },
+    [pickBorough, pickPatch],
+  );
+
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setState("unavailable");
-      void loadSlim();
+      answerWithoutFix("unavailable");
       return;
     }
     setState("requesting");
@@ -97,21 +160,30 @@ export default function NearMeNow({
       (position) => {
         void loadSlim().then((slim) => {
           const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
+          if (answer.scope === "none") {
+            // Located fine, but nothing priced in range — answer from an area
+            // instead of showing a dead end.
+            answerWithoutFix("none");
+            return;
+          }
           setCards(answer.cards);
           setScope(answer.scope);
           setState("ready");
           setBorough(null);
+          setPatch(null);
+          setPatchReason(null);
         });
       },
       (error) => {
-        // PERMISSION_DENIED === 1; anything else (timeout, position unavailable)
-        // is treated as unavailable — both routes lead to the borough picker.
-        setState(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable");
-        void loadSlim();
+        // PERMISSION_DENIED === 1; anything else (timeout, position
+        // unavailable) is treated as unavailable — both answer from an area.
+        const reason = error.code === error.PERMISSION_DENIED ? "denied" : "unavailable";
+        setState(reason);
+        answerWithoutFix(reason);
       },
       GEO_OPTS,
     );
-  }, [loadSlim]);
+  }, [loadSlim, answerWithoutFix]);
 
   useEffect(() => {
     // Map mode: a location is already resolved — answer immediately, no prompt.
@@ -135,17 +207,6 @@ export default function NearMeNow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLocate, initialLocation]);
 
-  const pickBorough = useCallback(
-    (name: string) => {
-      void loadSlim().then((slim) => {
-        setCards(rankBoroughCheapest(slim, name));
-        setBorough(name);
-        setScope("walkable");
-      });
-    },
-    [loadSlim],
-  );
-
   const openVenue = useCallback(
     (id: string) => {
       if (onSelectVenue) onSelectVenue(id);
@@ -155,6 +216,15 @@ export default function NearMeNow({
   );
 
   const collectedLabel = `Prices collected ${formatMonthYear(PINT_DATASET_OBSERVED_AT)}`;
+  const areaLabel = borough ?? patch?.label ?? null;
+  const patchMessage =
+    areaLabel && patchReason
+      ? patchReason === "denied"
+        ? `Location's off, so here's ${areaLabel}. Not your patch?`
+        : patchReason === "none"
+          ? `Nothing priced within reach, so here's ${areaLabel}.`
+          : `No location on this device, so here's ${areaLabel}.`
+      : null;
 
   return (
     <section className="nmn" aria-label="Cheapest pints near you now">
@@ -175,7 +245,16 @@ export default function NearMeNow({
         </div>
       ) : null}
 
-      {state === "ready" && !borough ? (
+      {state === "denied" || state === "unavailable" ? (
+        // answerWithoutFix is already resolving an area answer; this shows only
+        // for the beat the slim index takes to arrive.
+        <div className="nmnStatus" role="status">
+          <span className="nmnSpinner" aria-hidden="true" />
+          Pulling up the cheapest pints in town…
+        </div>
+      ) : null}
+
+      {state === "ready" && !borough && !patch ? (
         <>
           <header className="nmnHead">
             <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest pints near you"}</h2>
@@ -186,37 +265,41 @@ export default function NearMeNow({
             )}
           </header>
           <NearMeCardList cards={cards} onOpen={openVenue} />
-          {cards.length === 0 ? (
-            <BoroughPicker onPick={pickBorough} loadSlim={loadSlim} reason="none" />
-          ) : (
-            <footer className="nmnFoot">
-              <a className="nmnRetry" href={resolvedMapHref}>
-                <MapPin size={16} aria-hidden="true" /> Open the full map
-              </a>
-              <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
-                <RotateCw size={15} aria-hidden="true" /> Update location
-              </button>
-            </footer>
-          )}
+          <footer className="nmnFoot">
+            <a className="nmnRetry" href={resolvedMapHref}>
+              <MapPin size={16} aria-hidden="true" /> Open the full map
+            </a>
+            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
+              <RotateCw size={15} aria-hidden="true" /> Update location
+            </button>
+          </footer>
           <p className="nmnFresh">{collectedLabel}</p>
         </>
       ) : null}
 
-      {state === "ready" && borough ? (
+      {state === "ready" && areaLabel ? (
         <>
           <header className="nmnHead">
-            <h2>Cheapest in {borough}</h2>
-            <button type="button" className="nmnBack" onClick={locate}>
-              <LocateFixed size={15} aria-hidden="true" /> Use my location instead
-            </button>
+            <h2>{borough ? `Cheapest in ${borough}` : `Cheapest around ${patch?.label}`}</h2>
+            {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
           </header>
           <NearMeCardList cards={cards} onOpen={openVenue} />
+          {cards.length === 0 ? (
+            <p className="nmnSub">Nothing priced here yet. Pick another area.</p>
+          ) : null}
+          <footer className="nmnFoot nmnFootArea">
+            <AreaPicker
+              activeLabel={areaLabel}
+              loadSlim={loadSlim}
+              onPickPatch={(next) => pickPatch(next)}
+              onPickBorough={pickBorough}
+            />
+            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
+              <LocateFixed size={15} aria-hidden="true" /> Try my location again
+            </button>
+          </footer>
           <p className="nmnFresh">{collectedLabel}</p>
         </>
-      ) : null}
-
-      {state === "denied" || state === "unavailable" ? (
-        <BoroughPicker onPick={pickBorough} loadSlim={loadSlim} reason={state} onRetry={locate} />
       ) : null}
     </section>
   );
@@ -253,20 +336,28 @@ function NearMeCardList({ cards, onOpen }: { cards: NearMeCard[]; onOpen: (id: s
   );
 }
 
-function BoroughPicker({
-  onPick,
+/**
+ * Compact area chooser. Eight night patches people actually say, in nightlife
+ * order — the full borough list demoted behind "More areas". Renders as a
+ * floating panel (transform/opacity only) so opening it never shifts the cards.
+ */
+function AreaPicker({
+  activeLabel,
   loadSlim,
-  reason,
-  onRetry,
+  onPickPatch,
+  onPickBorough,
 }: {
-  onPick: (borough: string) => void;
+  activeLabel: string;
   loadSlim: () => Promise<PricedPoint[]>;
-  reason: "denied" | "unavailable" | "none";
-  onRetry?: () => void;
+  onPickPatch: (patch: NightPatch) => void;
+  onPickBorough: (name: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [showBoroughs, setShowBoroughs] = useState(false);
   const [boroughs, setBoroughs] = useState<string[]>([]);
 
   useEffect(() => {
+    if (!showBoroughs || boroughs.length > 0) return;
     let alive = true;
     void loadSlim().then((slim) => {
       if (alive) setBoroughs(boroughsWithPrices(slim));
@@ -274,32 +365,82 @@ function BoroughPicker({
     return () => {
       alive = false;
     };
-  }, [loadSlim]);
+  }, [showBoroughs, boroughs.length, loadSlim]);
 
-  const message =
-    reason === "denied"
-      ? "No problem. Location is off. Pick your area and we'll show the cheapest pints there."
-      : reason === "none"
-        ? "No priced pubs turned up nearby. Pick an area to see the cheapest pints there."
-        : "Location isn't available here. Pick your area to see the cheapest pints there.";
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const close = () => {
+    setOpen(false);
+    setShowBoroughs(false);
+  };
 
   return (
-    <div className="nmnFallback">
-      <p className="nmnFallbackMsg">{message}</p>
-      {onRetry ? (
-        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onRetry}>
-          <LocateFixed size={15} aria-hidden="true" /> Try my location again
-        </button>
-      ) : null}
-      <ul className="nmnBoroughs" aria-label="Pick a London area">
-        {boroughs.map((name) => (
-          <li key={name}>
-            <button type="button" className="nmnBoroughChip" onClick={() => onPick(name)}>
-              {name}
-            </button>
-          </li>
-        ))}
-      </ul>
+    <div className="nmnArea">
+      <button
+        type="button"
+        className="nmnRetry"
+        aria-expanded={open}
+        onClick={() => (open ? close() : setOpen(true))}
+      >
+        <MapPin size={15} aria-hidden="true" /> Change area
+        <ChevronDown size={14} aria-hidden="true" className={open ? "nmnAreaCaretOpen" : undefined} />
+      </button>
+      <div className={`nmnAreaPanel${open ? " nmnAreaPanelOpen" : ""}`} aria-hidden={!open}>
+        <ul className="nmnAreaChips" aria-label="Pick a night area">
+          {NIGHT_PATCHES.map((entry) => (
+            <li key={entry.id}>
+              <button
+                type="button"
+                className="nmnBoroughChip"
+                data-active={entry.label === activeLabel || undefined}
+                tabIndex={open ? undefined : -1}
+                onClick={() => {
+                  onPickPatch(entry);
+                  close();
+                }}
+              >
+                {entry.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {showBoroughs ? (
+          <ul className="nmnAreaChips nmnAreaBoroughs" aria-label="All London boroughs">
+            {boroughs.map((name) => (
+              <li key={name}>
+                <button
+                  type="button"
+                  className="nmnBoroughChip"
+                  data-active={name === activeLabel || undefined}
+                  tabIndex={open ? undefined : -1}
+                  onClick={() => {
+                    onPickBorough(name);
+                    close();
+                  }}
+                >
+                  {name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <button
+            type="button"
+            className="nmnAreaMore"
+            tabIndex={open ? undefined : -1}
+            onClick={() => setShowBoroughs(true)}
+          >
+            More areas <ChevronDown size={13} aria-hidden="true" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
