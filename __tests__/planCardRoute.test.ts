@@ -8,6 +8,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 import { GET } from "@/app/api/plan-card/route";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { __resetPlanCollaboration, planCollaborationStore } from "@/lib/planCollaborationStore";
 
 // Vercel runs vitest under NODE_ENV=production; neutralize the prod-only
 // guards (durable rate-limit path, Supabase reads) the same way
@@ -19,6 +20,7 @@ const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 beforeEach(() => {
   __resetMemoryPlans();
   __resetPintDrops();
+  __resetPlanCollaboration();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
@@ -71,5 +73,25 @@ describe("GET /api/plan-card", () => {
 
     expect(responses.slice(0, 30).every((res) => res.status === 200)).toBe(true);
     expect(responses[30].status).toBe(429);
+  });
+
+  it("renders the crew vibe tally without breaking the card when the plan has votes", async () => {
+    const created = await memoryPlanStore.create({
+      title: "Thursday, sorted",
+      startTime: "2026-07-19T17:30:00.000Z",
+      creatorName: "Karan",
+      stops: [{ venueId: "venue-1", venueName: "The George" }],
+    });
+    if (!created.ok) throw new Error("fixture Plan was not created");
+    const id = created.plan.plan.id;
+    const guest = await memoryPlanStore.join(id, "Mate", { collaborationAuthorized: true });
+    if (!guest.ok) throw new Error("guest join failed");
+    const store = planCollaborationStore();
+    expect(await store.recordVibeVote(id, created.memberToken, "bender", "card-vibe-1")).toMatchObject({ ok: true });
+    expect(await store.recordVibeVote(id, guest.memberToken, "quiet", "card-vibe-2")).toMatchObject({ ok: true });
+
+    const response = await GET(new Request(`http://localhost/api/plan-card?id=${id}&vibe=on-a-bender`, { headers: { "x-forwarded-for": "198.51.100.44" } }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("image/png");
   });
 });
