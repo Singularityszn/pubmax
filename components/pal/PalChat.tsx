@@ -24,15 +24,9 @@ import { trackEvent } from "@/lib/analytics";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
 import { createPalChatSession } from "@/lib/palChatClient";
+import { VIBE_CHIPS } from "@/lib/vibeChips";
 
 import "./palChat.css";
-
-const EXAMPLE_PROMPTS = [
-  "Quiet-ish near Bank, 4 of us",
-  "Quiz tonight in Soho",
-  "Cheap pint, big group",
-  "Beer garden near the river",
-] as const;
 
 type Entry =
   | { kind: "user"; id: string; text: string }
@@ -180,6 +174,25 @@ export default function PalChat() {
     trackEvent("concierge_result_tap");
   }, []);
 
+  // Vibe deep link (?ask=...): a Tonight vibe chip can hand its preset ask to
+  // this surface pre-fired. Read from location once on mount — a client-only,
+  // fire-once concern, so plain location.search avoids wrapping the page in a
+  // useSearchParams Suspense boundary. The ref (not `pending`) guards double
+  // fire under StrictMode re-mounts.
+  const autoAskedRef = useRef(false);
+  useEffect(() => {
+    if (autoAskedRef.current) return;
+    autoAskedRef.current = true;
+    const preset = new URLSearchParams(window.location.search).get("ask");
+    const text = preset?.trim() ?? "";
+    if (!text || text.length > 500) return;
+    // Defer out of the effect body (React 19 idiom, as TonightClient's
+    // settle()): ask() sets state, which must not run synchronously here.
+    const timer = setTimeout(() => void ask(text), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on mount
+  }, []);
+
   const empty = entries.length === 0 && !pending;
 
   return (
@@ -254,15 +267,21 @@ export default function PalChat() {
         </div>
 
         {empty ? (
-          <div className="palChatExamples" aria-label="Example asks">
-            {EXAMPLE_PROMPTS.map((prompt) => (
+          /* Vibe quick-asks (docs/VIBE_LAYER_SPEC_2026-07-19.md): the chip
+             label is the user's voice; the press fires the chip's parser-tuned
+             preset through the same deterministic ask path as typed text. */
+          <div className="palChatExamples" aria-label="Pick a vibe">
+            {VIBE_CHIPS.map((chip) => (
               <button
-                key={prompt}
+                key={chip.id}
                 type="button"
-                className="palChatChip pressable"
-                onClick={() => void ask(prompt)}
+                className="palChatChip palChatChip--vibe pressable"
+                onClick={() => {
+                  trackEvent("tonight_vibe_select", { vibe: chip.id });
+                  void ask(chip.ask);
+                }}
               >
-                {prompt}
+                {chip.label}
               </button>
             ))}
           </div>

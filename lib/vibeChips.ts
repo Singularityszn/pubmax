@@ -1,0 +1,121 @@
+// Vibe chips — the mood layer from docs/VIBE_LAYER_SPEC_2026-07-19.md.
+//
+// Doctrine (spec, binding): a chip is the USER'S voice declaring their night,
+// never the brand speaking. Slang lives ONLY in these labels and preset asks;
+// every chip maps onto an existing deterministic seam (concierge mood ranking
+// or the grounded What's-On lookup) so each press returns receipts or an
+// honest empty line — never invented venues.
+//
+// Every `ask` string below is PARSER-TUNED and pinned by hermetic tests:
+// - Chips whose `moods` are non-empty must deterministically parse to those
+//   moods via parseConciergeIntent (no model), so the venue ranking hears the
+//   register the label promises.
+// - Chips backed by a What's-On kind must trigger detectWhatsOnIntent with
+//   exactly that kind; the bender ask must NOT (it is a venue-ranking crawl
+//   request, and a stray kind term would steal it into the lookup path).
+// - "near me" style phrases are banned in asks: the area detectors capture the
+//   junk token and silently filter every venue out.
+// Reword an ask only with the tests open.
+
+import type { WhatsOnKind } from "@/lib/whatsOn";
+import type { ConciergeMood } from "@/lib/concierge/rank";
+
+export type VibeChipId =
+  | "bender"
+  | "lit"
+  | "quiet"
+  | "cheeky"
+  | "match"
+  | "quiz"
+  | "date";
+
+// What a press does on the Tonight page: kind-backed chips compose the existing
+// kind filter (a night with zero rows of that kind shows the page's own honest
+// empty line); rank-backed chips have no What's-On kind, so they hand the ask
+// to the Pub Pal, where the concierge mood ranking can answer with receipts.
+export type VibeTonightAction =
+  | { type: "filter"; kind: WhatsOnKind }
+  | { type: "ask" };
+
+export type VibeChip = {
+  id: VibeChipId;
+  /** User-voice label. Register lives here and in `ask` only. */
+  label: string;
+  /** Preset question fired through the existing deterministic ask path. */
+  ask: string;
+  tonight: VibeTonightAction;
+  /**
+   * Moods the ask must deterministically parse to ([] = the ask rides the
+   * What's-On lookup instead of mood ranking). Pinned by tests.
+   */
+  moods: readonly ConciergeMood[];
+};
+
+export const VIBE_CHIPS: readonly VibeChip[] = [
+  {
+    id: "bender",
+    label: "On a bender",
+    ask: "Plan us a proper bender, four of us, cheap pints, lively",
+    tonight: { type: "filter", kind: "deal" },
+    moods: ["lively"],
+  },
+  {
+    id: "lit",
+    label: "Get lit",
+    ask: "Live music tonight, somewhere buzzing",
+    tonight: { type: "filter", kind: "music" },
+    moods: [],
+  },
+  {
+    id: "quiet",
+    label: "Quiet pint",
+    ask: "Somewhere calm for a quiet pint and a chat",
+    tonight: { type: "ask" },
+    moods: ["quiet"],
+  },
+  {
+    id: "cheeky",
+    label: "Cheeky one after work",
+    ask: "Cheapest decent pint for a quick one after work",
+    tonight: { type: "ask" },
+    moods: [],
+  },
+  {
+    id: "match",
+    label: "Match on",
+    ask: "Who is showing the match tonight, and what is a pint there",
+    tonight: { type: "filter", kind: "sport" },
+    moods: [],
+  },
+  {
+    id: "quiz",
+    label: "Big brain energy",
+    ask: "Find us a pub quiz tonight worth losing",
+    tonight: { type: "filter", kind: "quiz" },
+    moods: [],
+  },
+  {
+    id: "date",
+    label: "Date night",
+    ask: "A date-night pub with some history, calm not loud",
+    tonight: { type: "ask" },
+    moods: ["date", "heritage", "quiet"],
+  },
+] as const;
+
+/** Killed register (spec kill-list). Pinned absent from every chip surface. */
+export const VIBE_KILLED_TERMS = [
+  "turnt",
+  "no cap",
+  "bussin",
+  "real ones",
+] as const;
+
+export function vibeChipById(id: string): VibeChip | undefined {
+  return VIBE_CHIPS.find((chip) => chip.id === id);
+}
+
+/** Deep link that opens the Pub Pal with this chip's ask pre-fired. */
+export function palChatHref(chip: VibeChip): string {
+  return `/pal/chat?ask=${encodeURIComponent(chip.ask)}`;
+}
