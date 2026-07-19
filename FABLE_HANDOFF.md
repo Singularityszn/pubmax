@@ -18,13 +18,14 @@ Cycle-17 morning wave (2026-07-19, all merged + live-verified on prod): #411 voi
 
 Cycle-17 night wave 2 (2026-07-19/20 owner-steered evening + overnight, all merged): #423 orbit first-impression 6s/20s split · #424 vibe chips on Tonight + pal quick-asks (docs/VIBE_LAYER_SPEC_2026-07-19.md is canonical: owner locked British sesh register, "On a bender" KEPT over store-risk warning with pre-approved fallback "Big one tonight"; chips are the USER'S voice doctrine) · #425 Bungee --font-party + validated vibe stamp on plan-card OG + fixed plan share cards silently 500ing since #413 (satori two-child div) · #426 friction-state sweep (value before apology on five states + frictionVoice fence test) · #427 borough wall DEAD (lib/nightPatches.ts: 8 curated patches nightlife-gravity order, pints-first denied state, remembered-area localStorage seam) · #428 judge-w1 (For You->Yours, pal chip Bungee specificity, compass unburied on mobile; ALSO the prod-deploy unbreaker: #424 kill-list constant vs #425 containment grep collided only on main, deploys red from #425 merge until #428) · #429 Tonight+Today read the remembered patch (resolveTonightNear precedence, byte-identical requests when absent). Prod verified serving Bungee chips + all copy fixes.
 
+Night wave 3 (overnight loop, closed 03:00 with evidence): #430 brass token tail (V3 rows 35/36/53 closed) · #431 feed density (control stack 260->185px) + pal first-open "Tonight at a glance" (real whats-on counts, no fake examples) · #432 friction tail (TfL static nearest-station fallback, "side quest" stragglers x5 surfaces incl og.png tagline, plumbing register out of PlanComposer/NightModeCard/coverage, fence widened) · #433 judge w2 CLEAN PASS verdict (0 blocking across all six core surfaces + both fixed states, both themes; docs/JUDGE_W2_VERDICT_2026-07-20.md + 16 shots + reusable scripts/judge_w2_shots.mjs).
+
 ## Running lanes (cycle 17, see docs/UNIVERSAL_DAY0_PRD.md for full briefs)
 
 - Lane B (SOL/Codex): web push VAPID + sw.js handler + daily brief sender (RESCOPED — APNs transport/token store already on main; read PRD Lane B first)
 - Lane E (SOL/Codex): restaurants + attractions ingest through slop filter + provenance bar
-- lane-wave2-polish (Fable fork): feed density + pal first-open value (judge-w1 deferred structural items)
-- lane-token-tail (Fable fork): raw --brass retirement (V3 rows 35/36/53)
-- GNHF CLI run attempted for the overnight loop: worker produced 0 tokens (claude backend never engaged, reused stale old worktree); native lane loop continues instead. Old branch gnhf/objective-make-every-f07487 holds possibly-unmerged shareSheet + bar-tab OG work from a PREVIOUS run — untouched, evaluate salvage.
+- Fable overnight taste loop CLOSED at judge-w2 clean pass. Next-wave polish backlog (ranked, none blocking, in the w2 verdict doc): pal mid-zone ~250px, feed tab-strip truncation, /near header idiom, landing coach-chip transient overlap, map first-frame attitude (watch only).
+- GNHF CLI attempted: worker produced 0 tokens (claude backend never engaged, stale worktree reuse); native lane loop did the work instead. Old branch gnhf/objective-make-every-f07487 holds possibly-unmerged shareSheet + bar-tab OG work from a PREVIOUS run — untouched, evaluate salvage.
 - CSP line CLOSED (v3 refuted; owner conversation pending, three options recorded in session).
 
 ## Standing watchers/protocol
