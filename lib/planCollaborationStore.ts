@@ -5,6 +5,8 @@ import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey
 import { cleanText } from "@/lib/textClean";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
+import { isVibeChipId, type VibeChipId } from "@/lib/vibeChips";
+import { EMPTY_VIBE_TALLY, tallyVibeVotes, type VibeTally } from "@/lib/vibeTally";
 
 export type PlanInvite = {
   id: string;
@@ -41,6 +43,19 @@ export type PlanVote = {
   createdAt: string;
 };
 
+// One vibe vote per plan member (docs/VIBE_LAYER_SPEC_2026-07-19.md, surface 3):
+// the crew's declared night, tallied for the share-card stamp. Revote replaces
+// (upsert keyed on plan + member); the vote's own value is one of the seven
+// owner-locked chip ids (VibeChipId), validated here, never a free string.
+export type PlanVibeVote = {
+  planId: string;
+  memberId: string;
+  vibe: VibeChipId;
+  createdAt: string;
+};
+
+export type { VibeTally } from "@/lib/vibeTally";
+
 export type PlanRouteProposal = {
   id: string;
   planId: string;
@@ -64,6 +79,8 @@ type CollaborationMemory = {
   constraints: Map<string, PlanConstraint>;
   proposals: Map<string, PlanRouteProposal>;
   votes: Map<string, PlanVote>;
+  // Keyed `${planId}:${memberId}` so a revote overwrites the member's row.
+  vibeVotes: Map<string, PlanVibeVote>;
   idempotency: Map<string, unknown>;
 };
 
@@ -73,6 +90,7 @@ const memory = globalMemory.__pubmaxPlanCollaboration ??= {
   constraints: new Map(),
   proposals: new Map(),
   votes: new Map(),
+  vibeVotes: new Map(),
   idempotency: new Map(),
 };
 
@@ -171,6 +189,14 @@ function voteFromRow(row: Record<string, unknown>): PlanVote {
   return { id: String(row.id), planId: String(row.plan_id), proposalId: String(row.proposal_id), memberId: String(row.member_id), value: row.value as PlanVote["value"], createdAt: String(row.created_at) };
 }
 
+function vibeVoteFromRow(row: Record<string, unknown>): PlanVibeVote {
+  return { planId: String(row.plan_id), memberId: String(row.member_id), vibe: row.vibe as VibeChipId, createdAt: String(row.created_at) };
+}
+
+function vibeKey(planId: string, memberId: string): string {
+  return `${planId}:${memberId}`;
+}
+
 async function member(planId: string, token: unknown, role?: PlanMemberRole) {
   const result = await planMemberIdentityResult(planId, token);
   if (!result.ok) throw new Error("plan collaboration capability lookup failed");
@@ -199,6 +225,11 @@ export type PlanCollaborationStore = {
   resolveConstraint(planId: string, token: unknown, constraintId: string, input: { evidence: PlanConstraintEvidence; idempotencyKey: string; now?: Date }): Promise<{ ok: true; constraint: PlanConstraint } | Failure>;
   createProposal(planId: string, token: unknown, input: { reason: string; expectedRouteRevision: number; stops: PlanStopDTO[]; resolvedConstraintIds: string[]; idempotencyKey: string; now?: Date }): Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>;
   vote(planId: string, token: unknown, proposalId: string, value: PlanVote["value"], key: string, now?: Date): Promise<{ ok: true; vote: PlanVote } | Failure>;
+  // Vibe votes (share-loop tally). recordVibeVote is member-capability bound and
+  // upserts (revote replaces); vibeTally is a tokenless aggregate read for the
+  // public share card and the read endpoint (counts only, no member identity).
+  recordVibeVote(planId: string, token: unknown, vibe: VibeChipId, key: string, now?: Date): Promise<{ ok: true; vote: PlanVibeVote } | Failure>;
+  vibeTally(planId: string): Promise<{ ok: true; tally: VibeTally } | Failure>;
   decideProposal(planId: string, token: unknown, proposalId: string, decision: "accepted" | "rejected", key: string, apply: (proposal: PlanRouteProposal) => Promise<boolean>, now?: Date): Promise<{ ok: true; proposal: PlanRouteProposal } | Failure>;
   list(planId: string, token: unknown): Promise<{ ok: true; memberId: string; invites: PlanInvite[]; constraints: PlanConstraint[]; proposals: PlanRouteProposal[]; votes: PlanVote[] } | Failure>;
 };
@@ -374,6 +405,30 @@ const memoryStore: PlanCollaborationStore = {
     return structuredClone(result);
   },
 
+  async recordVibeVote(planId, token, vibe, key, now = new Date()) {
+    if (!isPlanId(planId) || !validKey(key) || !isVibeChipId(vibe)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const idem = idempotencyKey(planId, identity.memberId, "vibe-vote", key);
+    const replay = memory.idempotency.get(idem) as { ok: true; vote: PlanVibeVote } | undefined;
+    if (replay) return structuredClone(replay);
+    const mapKey = vibeKey(planId, identity.memberId);
+    const existing = memory.vibeVotes.get(mapKey);
+    // Upsert: one row per member, revote replaces the vibe, createdAt is the
+    // first cast (mirrors the proposal vote's createdAt semantics).
+    const vote: PlanVibeVote = { planId, memberId: identity.memberId, vibe, createdAt: existing?.createdAt ?? now.toISOString() };
+    memory.vibeVotes.set(mapKey, vote);
+    const result = { ok: true as const, vote: { ...vote } };
+    memory.idempotency.set(idem, result);
+    return structuredClone(result);
+  },
+
+  async vibeTally(planId) {
+    if (!isPlanId(planId)) return { ok: false, error: "invalid" };
+    const votes = [...memory.vibeVotes.values()].filter((vote) => vote.planId === planId);
+    return { ok: true, tally: votes.length === 0 ? EMPTY_VIBE_TALLY : tallyVibeVotes(votes) };
+  },
+
   async decideProposal(planId, token, proposalId, decision, key, apply, now = new Date()) {
     if (!isPlanId(planId) || !validKey(key) || !["accepted", "rejected"].includes(decision)) return { ok: false, error: "invalid" };
     const identity = await member(planId, token, "host");
@@ -418,6 +473,7 @@ const INVITES = "plan_invites";
 const CONSTRAINTS = "plan_constraints";
 const PROPOSALS = "plan_route_proposals";
 const VOTES = "plan_votes";
+const VIBE_VOTES = "plan_vibe_votes";
 
 const supabaseStore: PlanCollaborationStore = {
   async createInvite(planId, token, input) {
@@ -582,6 +638,29 @@ const supabaseStore: PlanCollaborationStore = {
     return { ok: true, vote: voteFromRow(voteRow as Record<string, unknown>) };
   },
 
+  async recordVibeVote(planId, token, vibe, key, now = new Date()) {
+    if (!isPlanId(planId) || !validKey(key) || !isVibeChipId(vibe)) return { ok: false, error: "invalid" };
+    const identity = await member(planId, token);
+    if (!identity) return { ok: false, error: "forbidden" };
+    const admin = requireSupabaseAdmin();
+    const { data: voteRow, error } = await admin.rpc("record_plan_vibe_vote_atomic", {
+      p_plan_id: planId, p_member_id: identity.memberId, p_vibe: vibe,
+      p_idempotency_key: key.trim(), p_vote_id: randomUUID(), p_created_at: now.toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    if (!voteRow || typeof voteRow !== "object") return { ok: false, error: "conflict" };
+    return { ok: true, vote: vibeVoteFromRow(voteRow as Record<string, unknown>) };
+  },
+
+  async vibeTally(planId) {
+    if (!isPlanId(planId)) return { ok: false, error: "invalid" };
+    const admin = requireSupabaseAdmin();
+    const { data, error } = await admin.from(VIBE_VOTES).select("plan_id,member_id,vibe,created_at").eq("plan_id", planId);
+    if (error) return { ok: false, error: "error" };
+    const votes = (data ?? []).map((row) => vibeVoteFromRow(row as Record<string, unknown>));
+    return { ok: true, tally: votes.length === 0 ? EMPTY_VIBE_TALLY : tallyVibeVotes(votes) };
+  },
+
   async decideProposal(planId, token, proposalId, decision, key, apply, now = new Date()) {
     if (!isPlanId(planId) || !validKey(key) || !["accepted", "rejected"].includes(decision)) return { ok: false, error: "invalid" };
     if (!(await member(planId, token, "host"))) return { ok: false, error: "forbidden" };
@@ -650,5 +729,6 @@ export function __resetPlanCollaboration(): void {
   memory.constraints.clear();
   memory.proposals.clear();
   memory.votes.clear();
+  memory.vibeVotes.clear();
   memory.idempotency.clear();
 }

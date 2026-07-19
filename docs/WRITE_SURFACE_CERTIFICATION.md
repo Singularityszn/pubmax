@@ -6,11 +6,12 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 63 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 64 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
-> Social Loop "we're out" `POST /api/check-ins`). Token-gated GET
-> confirm/unsubscribe endpoints and the Social Loop's read-only GETs are
-> deliberately excluded from the mutating-verb inventory. The number is a
+> Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
+> `POST /api/plans/[id]/vibe-votes`). Token-gated GET confirm/unsubscribe
+> endpoints and read-only GETs (the Social Loop reads, the vibe-vote tally read)
+> are deliberately excluded from the mutating-verb inventory. The number is a
 > merge-conflict coordination point across in-flight branches — reconcile it (not
 > silently overwrite) when branches meet.
 
@@ -100,6 +101,36 @@ Plan member capability and use idempotency keys or atomic store operations.
 - **Related privacy change (same migration):** 0043 drops the `follows_public_read`
   policy so the follow graph is service-role-only — follow edges are private to the
   two parties and no follower counts are public.
+
+### `app/api/plans/[id]/vibe-votes` — crew vibe vote (route 64)
+
+- **Route / method:** `POST app/api/plans/[id]/vibe-votes/route.ts` (Vibe Layer
+  share loop, `feat/vibe-votes`, docs/VIBE_LAYER_SPEC_2026-07-19.md surface 3).
+  The route also exports a read-only `GET` (the aggregate tally: counts + top
+  vibe) which is NOT a mutating verb and is not counted.
+- **Validation:** `isVibeChipId` (`lib/vibeChips.ts`) — the vote must be one of
+  the seven owner-locked chip ids (`bender`, `lit`, `quiet`, `cheeky`, `match`,
+  `quiz`, `date`); anything else 400s before the store is touched. The store
+  re-validates (defence in depth) and the migration's `check` constraint plus the
+  RPC guard reject a bad value at the durable layer too.
+- **Rate limit (boundary):** durable per-plan + hashed-IP `isLimited` with key
+  `plan-vibe-vote:${id}:${hashIp(clientIp(request))}` (raw IP never keyed) — 429
+  `{ retryable: true }` on exceed. This is the certification boundary (rate_limit
+  class); the route also carries the Plan member capability (see below).
+- **Auth stance:** member-capability bound — `planMemberCapability` resolves the
+  private member token (Authorization bearer, path-scoped cookie, or body
+  fallback) and the store admits only the host or a collaboration-authorized
+  guest, the same authority as a route proposal vote. Upsert on (plan, member)
+  keeps a revote idempotent and table growth bounded by crew size.
+- **Read stance:** the `GET` tally is tokenless — counts only, no member
+  identity — so the public share card (`app/api/plan-card`) and the read endpoint
+  can render the crew tally without a capability, consistent with the plan card
+  already being publicly renderable from its unguessable id.
+- **Rollback / kill:** durable rows live in `public.plan_vibe_votes` +
+  `public.plan_vibe_vote_requests` (migration 0044, RLS on, anon/authenticated
+  revoked, service_role only); `truncate` both is a safe reset. Until the owner
+  applies 0044 the durable write 503s and the tally read drops the share-card
+  line (the card still renders) — no crash, no fake success.
 
 ## Certification command
 

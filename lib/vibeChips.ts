@@ -111,6 +111,14 @@ export const VIBE_KILLED_TERMS = [
   "real ones",
 ] as const;
 
+/** The seven owner-locked chip ids — the ONLY valid vibe votes (spec, binding). */
+export const VIBE_CHIP_IDS: readonly VibeChipId[] = VIBE_CHIPS.map((chip) => chip.id);
+
+/** Runtime guard: is `value` one of the seven owner-locked chip ids. */
+export function isVibeChipId(value: unknown): value is VibeChipId {
+  return typeof value === "string" && (VIBE_CHIP_IDS as readonly string[]).includes(value);
+}
+
 export function vibeChipById(id: string): VibeChip | undefined {
   return VIBE_CHIPS.find((chip) => chip.id === id);
 }

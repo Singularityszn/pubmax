@@ -2,7 +2,9 @@ import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { CrossingMark, loadOgFonts, loadPartyFont } from "@/lib/ogBrand";
+import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planStore } from "@/lib/planStore";
+import { vibeTallyLine } from "@/lib/vibeTally";
 
 export const runtime = "nodejs";
 
@@ -66,6 +68,12 @@ export async function GET(request: Request): Promise<Response> {
   if (!state) return new Response("Plan not found", { status: 404 });
   // Validated vibe stamp or nothing; see VIBE_STAMPS above.
   const vibeLabel = VIBE_STAMPS[params.get("vibe") ?? ""] ?? null;
+  // Crew vibe tally (share loop, surface 3). Additive: a line renders only when
+  // the plan has votes, so the no-votes render path stays byte-identical. Reads
+  // fail-soft — a tally error just drops the line, the card still renders. The
+  // line is house prose (serif), never the party face (Bungee is stamp-only).
+  const tallyResult = await planCollaborationStore().vibeTally(id);
+  const tallyLine = tallyResult.ok ? vibeTallyLine(tallyResult.tally) : null;
   const stops = state.stops
     .slice()
     .sort((a, b) => a.position - b.position)
@@ -256,6 +264,23 @@ export async function GET(request: Request): Promise<Response> {
             >
               {clamp(state.plan.title, 62)}
             </div>
+            {tallyLine ? (
+              /* Crew vibe tally: house prose under the title, never the party
+                 face. Only rendered when the plan has votes. */
+              <div
+                style={{
+                  display: "flex",
+                  marginTop: 22,
+                  fontFamily: serif,
+                  fontStyle: "italic",
+                  fontSize: 25,
+                  lineHeight: 1.25,
+                  color: CREAM_DIM,
+                }}
+              >
+                {clamp(tallyLine, 90)}
+              </div>
+            ) : null}
           </div>
           <div
             style={{
