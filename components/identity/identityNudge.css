@@ -97,8 +97,8 @@
 
 .identityNudgeEmailInput:focus-visible {
   outline: none;
-  border-color: var(--brass);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 35%, transparent);
+  border-color: var(--accent-action);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-action) 35%, transparent);
 }
 
 .identityNudgeEmailInput:disabled {
