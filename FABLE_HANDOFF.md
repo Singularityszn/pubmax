@@ -20,6 +20,8 @@ Cycle-17 night wave 2 (2026-07-19/20 owner-steered evening + overnight, all merg
 
 Night wave 3 (overnight loop, closed 03:00 with evidence): #430 brass token tail (V3 rows 35/36/53 closed) · #431 feed density (control stack 260->185px) + pal first-open "Tonight at a glance" (real whats-on counts, no fake examples) · #432 friction tail (TfL static nearest-station fallback, "side quest" stragglers x5 surfaces incl og.png tagline, plumbing register out of PlanComposer/NightModeCard/coverage, fence widened) · #433 judge w2 CLEAN PASS verdict (0 blocking across all six core surfaces + both fixed states, both themes; docs/JUDGE_W2_VERDICT_2026-07-20.md + 16 shots + reusable scripts/judge_w2_shots.mjs).
 
+Night wave 4 (post-#434): #434 polish w3 (pal cheapest glance, feed "Cheap pints", /near header pill) · MAIN-RED INCIDENT: docs push 4f35de82 (implementation log naming --font-party in prose) tripped the containment grep — root markdown counted as a component family, both prod deploys red ~40 min; recovered by #436 (grep scoped to app/components/lib, docs immune forever; same semantic-collision class as #428) · #435 vibe votes backend (Opus 4.8 lane): one vote per member on plan-collaboration seam (dual backend, record_plan_vibe_vote_atomic RPC mirroring 0031, advisory lock + idempotency ledger), POST/GET /api/plans/[id]/vibe-votes (cert 63->64), lib/vibeTally.ts pure tally line ("coward" jab ONLY on unique leader + exactly one dissenting vote; ties state the split), OG card renders tally in house serif under the vibe stamp, fail-soft everywhere. **MIGRATION 0044 NEEDS OWNER APPLICATION** (supabase/migrations/20260719130000_0044_plan_vibe_votes.sql, additive-only, verified: no drop/truncate/delete; until applied durable vote writes 503 and the card drops the tally line but still renders).
+
 ## Running lanes (cycle 17, see docs/UNIVERSAL_DAY0_PRD.md for full briefs)
 
 - Lane B (SOL/Codex): web push VAPID + sw.js handler + daily brief sender (RESCOPED — APNs transport/token store already on main; read PRD Lane B first)
@@ -34,6 +36,7 @@ PR watchers = background bash until-loops (gh pr checks N; grep -c pending = 0 �
 
 ## Remaining this week (in order)
 
+0. FIRST ACTION NEXT SESSION: vibe-vote frontend wiring lane (Fable fork xhigh, worktree, branch feat/vibe-wire). Brief: plan-page chip picker (labels verbatim from lib/vibeChips.ts, existing member-token pattern, picker only for host/collab-authorized, viewers see tally only), tally line via lib/vibeTally (never duplicate copy logic), share URL gains ?vibe=<slug> when tally.top exists (slug mapping bender->on-a-bender, lit->get-lit, quiet->quiet-pint, cheeky->cheeky-one-after-work, match->match-on, quiz->big-brain-energy, date->date-night; put canonical export in lib/vibeChips.ts, keep plan-card VIBE_STAMPS byte-compatible + in-sync test), Bungee optional (plan surface = 3rd family, AT the containment cap; house sans if it overwhelms), 503/429 fail soft, full local vitest before PR (semantic-collision guard). NOT launched tonight: session hit the 200-agent spawn cap, and wiring has no end-to-end value until owner applies migration 0044 anyway.
 1. Sol lanes B (web push, rescoped) + E (category ingest) per docs/UNIVERSAL_DAY0_PRD.md; design-judge loop on /today + /pal/chat (both themes, 390x844) day 4-5; Capacitor sync day 6.
 2. Update fable-implement-prd.md with cycle 15/16 close + cycle 17 open.
 3. Store-factory batches 2-4 per #168 checklist (pintDrops LOW first; planStore DEFERRED until THE-LOCAL lane lands). Token-hygiene tail from confidence V3 open ledger (rows 15/16/35/36/42/53).
@@ -42,7 +45,7 @@ PR watchers = background bash until-loops (gh pr checks N; grep -c pending = 0 �
 
 ## Owner morning list
 
-GitHub Actions billing (Settings->Billing, raise $0 limit — revives weather/signals/ingest crons) · TICKETMASTER_API_KEY (ticket #385, sole real events path) · store enrollment (ticket #390) · soft-launch runbook items (ticket #392) · review the night's design changes on his iPhone.
+**APPLY MIGRATION 0044** (supabase/migrations/20260719130000_0044_plan_vibe_votes.sql — additive-only, verified; vibe votes 503 durably until applied) · GitHub Actions billing (Settings->Billing, raise $0 limit — revives weather/signals/ingest crons) · TICKETMASTER_API_KEY (ticket #385, sole real events path) · store enrollment (ticket #390) · soft-launch runbook items (ticket #392) · review the night's design changes on his iPhone.
 
 ## Wayfinder
 
