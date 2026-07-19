@@ -295,7 +295,7 @@ export default function MomentCapture(): React.JSX.Element {
         <section className="momentIntent" aria-label="Choose what to capture">
           <div className="momentIntentCurrent">
             <Camera size={21} aria-hidden="true" />
-            <div><strong>Private Moment</strong><span>Photos, people, places and side quests</span></div>
+            <div><strong>Private Moment</strong><span>Photos, people, places and detours</span></div>
           </div>
           <Link href="/map?log=1" className="momentIntentLink">
             <MapPin size={21} aria-hidden="true" />
@@ -352,7 +352,7 @@ export default function MomentCapture(): React.JSX.Element {
             <div className="momentFieldPair">
               <label>
                 <span>Name this night</span>
-                <input value={draft.memoryTitle} onChange={(event) => update({ memoryTitle: event.target.value })} maxLength={120} placeholder="Friday side quest" />
+                <input value={draft.memoryTitle} onChange={(event) => update({ memoryTitle: event.target.value })} maxLength={120} placeholder="Friday detour" />
               </label>
               <label>
                 <span>Venue reference <small>optional</small></span>

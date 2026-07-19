@@ -173,7 +173,7 @@ const speciesDescriptions: Record<PubPalAppearance["species"], string> = {
   hound: "an alert signal hound with a loyal expression and collar beacon",
   raven: "an observant signal raven with a long profile and lore lens",
   fox: "a quick signal fox with bright eyes and route compass",
-  rabbit: "an alert neon rabbit ready for an unexpected side quest",
+  rabbit: "an alert neon rabbit ready for a detour on the way home",
   turtle: "a steady chrome turtle who never rushes a good night",
   squirrel: "a bright holographic squirrel collecting stories instead of acorns",
   bot: "a pocket-sized Night Bot with an expressive screen face",

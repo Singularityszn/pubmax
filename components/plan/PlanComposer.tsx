@@ -217,10 +217,10 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
       };
       const areaId = payload.nightArea?.id ?? payload.district?.id;
       const area = NIGHT_AREAS.find((candidate) => candidate.slug === areaId);
-      const areaName = area?.name ?? "This Night Area";
+      const areaName = area?.name ?? "This area";
       const serverMessage = typeof message === "string" && message.trim()
         ? message.trim()
-        : "We're still checking this Night Area before planning a Crawl Route.";
+        : "We're still checking this area before a crawl can be planned.";
       return `${areaName} is not ready for route planning yet. ${serverMessage} Choose a ready area to continue.`;
     }
     if (typeof message === "string" && message.trim()) return message;
@@ -261,7 +261,7 @@ export function nightAreaCoverageSummary(
   if (isNightAreaRouteReady(area, now)) {
     return {
       label: "Route-ready",
-      detail: "Crawl Routes can be planned here now.",
+      detail: "Crawls can be planned here now.",
       tone: "ready",
     };
   }
@@ -450,7 +450,12 @@ function PlanComposerForm({
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
-      if (!suggested.length) throw new Error("No grounded venues matched that request. Try a nearby area or a broader mood.");
+      if (!suggested.length) {
+        // Zero matches is guidance, not failure (friction sweep follow-up 9):
+        // the polite status slot, never the red error banner.
+        setConciergeNote("No venues matched that ask. Try a nearby area or a broader mood.");
+        return;
+      }
       setStops(suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
@@ -486,7 +491,7 @@ function PlanComposerForm({
       return;
     }
     if (nightContext && completeStops.length !== 3) {
-      setError("A generated Crawl Route needs exactly three grounded stops before you lock it in.");
+      setError("A generated crawl needs exactly three grounded stops before you lock it in.");
       return;
     }
     if (routeStale) {
@@ -643,7 +648,7 @@ function PlanComposerForm({
       <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
         <details>
           <summary>
-            <span id="plan-coverage-title">Night Area coverage</span>
+            <span id="plan-coverage-title">Area coverage</span>
             <span className="planComposer__coverageMeta">
               {readyAreas.length} higher confidence · {areasInProgress.length} with warnings
             </span>

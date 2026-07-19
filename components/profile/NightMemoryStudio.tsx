@@ -30,7 +30,8 @@ const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
   venue: "Place",
   quote: "Quote",
   person: "Person",
-  side_quest: "Side quest",
+  // Stored kind id stays side_quest; only the label follows the voice spec.
+  side_quest: "Detour",
 };
 
 export default function NightMemoryStudio({ userId }: { userId: string }) {
@@ -430,7 +431,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         <form onSubmit={createMemory}>
           <span className="memoryStudioStep">1</span>
           <h4>Start a Memory</h4>
-          <label><span>Name this night</span><input value={draft.memoryTitle} onChange={(event) => update({ memoryTitle: event.target.value })} maxLength={120} placeholder="Friday side quest" required /></label>
+          <label><span>Name this night</span><input value={draft.memoryTitle} onChange={(event) => update({ memoryTitle: event.target.value })} maxLength={120} placeholder="Friday detour" required /></label>
           <button type="submit" disabled={saving}>Create private Memory</button>
         </form>
 
