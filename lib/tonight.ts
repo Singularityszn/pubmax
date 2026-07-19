@@ -11,6 +11,7 @@
 // taxonomy we might not be able to populate.
 
 import { haversineKm } from "@/lib/haversine";
+import { resolveNightPatch, type RememberedArea } from "@/lib/nightPatches";
 import { labelForKind, opportunityMapHref } from "@/lib/thingsToDoMap";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 
@@ -120,6 +121,35 @@ export function walkMinutes(
 export function walkLabel(minutes: number | null): string | null {
   if (minutes == null || !Number.isFinite(minutes)) return null;
   return `~${minutes} min walk`;
+}
+
+// ── Remembered-patch continuity (#427 nightPatches seam) ────────────────────
+
+/** Where Tonight's rows should order from, and whether to say so. */
+export type TonightNear = {
+  near: Coord;
+  /** Patch label to name in the provenance line; null when the order comes
+   *  from the viewer's real position (the header already says "near you"). */
+  patchLabel: string | null;
+};
+
+/**
+ * One ordering answer for the Tonight page: the viewer's real position when
+ * they've shared it, else the heart of the area they last chose anywhere in
+ * the app (the map's Near me writes it), else nothing. A remembered BOROUGH
+ * has no single heart to order from, so it stays null rather than pretending.
+ * Pure so the precedence is hermetically testable.
+ */
+export function resolveTonightNear(
+  origin: Coord | null,
+  remembered: RememberedArea | null,
+): TonightNear | null {
+  if (isFiniteCoord(origin)) return { near: origin, patchLabel: null };
+  if (remembered?.kind === "patch") {
+    const patch = resolveNightPatch(remembered.id);
+    if (patch) return { near: { lat: patch.lat, lng: patch.lng }, patchLabel: patch.label };
+  }
+  return null;
 }
 
 // ── Venue ↔ opportunity matching (Wave A · A1 sheet chips) ──────────────────

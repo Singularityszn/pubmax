@@ -35,7 +35,8 @@ import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
-import { walkLabel, walkMinutes } from "@/lib/tonight";
+import { resolveTonightNear, walkLabel, walkMinutes } from "@/lib/tonight";
+import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import {
@@ -102,9 +103,12 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
 ];
 
 export default function TonightClient() {
-  const { rows, asOf, status, retry } = useWhatsOnTonight(true);
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
+  // The area the viewer last chose anywhere in the app (#427 nightPatches
+  // seam, written by the map's Near me). Read in an effect: localStorage is
+  // browser-only and the first paint must match SSR.
+  const [remembered, setRemembered] = useState<RememberedArea | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
   // The location card is a quiet, collapsed row until tapped — it must not be
   // the first thing on the page. Once a position is shared it stays open so the
@@ -113,7 +117,21 @@ export default function TonightClient() {
 
   useEffect(() => {
     trackEvent("tonight_screen_view");
+    let cancelled = false;
+    // Deferred like useWhatsOnTonight's setState (react-hooks rule): the
+    // remembered area lands next microtask, before the first fetch settles.
+    void Promise.resolve().then(() => {
+      if (!cancelled) setRemembered(readRememberedArea());
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  // Real position wins; else the remembered patch's heart; else store order —
+  // the same answer the map's Near me gives, so tabs stop disagreeing.
+  const tonightNear = resolveTonightNear(origin, remembered);
+  const { rows, asOf, status, retry } = useWhatsOnTonight(true, tonightNear?.near ?? null);
 
   const requestLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -178,6 +196,11 @@ export default function TonightClient() {
             {coverageLabel(rows.length)}
             <span aria-hidden="true"> · </span>
             {checkedLabel(asOf)} · via what&rsquo;s-on
+            {/* The one quiet continuity line: when the order comes from a
+                remembered patch (not a live position), say which. */}
+            {ready && tonightNear?.patchLabel
+              ? ` · nearest ${tonightNear.patchLabel} first`
+              : null}
           </p>
         ) : null}
       </header>
@@ -185,14 +208,17 @@ export default function TonightClient() {
       <TonightConditionsStrip origin={origin} />
       {/* Wide viewports place the strip plus this block in a sticky right rail
           (tonight.css grid); below the breakpoint the rail block simply follows
-          the strip in flow. Area news needs a coarse area: derived from the
-          shared location's nearest Night Area, never stored. */}
+          the strip in flow. Area news needs a coarse area: the shared
+          location's nearest Night Area (never stored), else the heart of the
+          viewer's remembered patch — the area they TOLD us, so no new ask. */}
       <div className="tonightRail">
         <AreaNewsRail
           area={
-            origin
-              ? (nearestNightAreaForViewport("london", [origin.lng, origin.lat])
-                  ?.slug ?? null)
+            tonightNear
+              ? (nearestNightAreaForViewport("london", [
+                  tonightNear.near.lng,
+                  tonightNear.near.lat,
+                ])?.slug ?? null)
               : null
           }
         />

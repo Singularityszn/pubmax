@@ -18,6 +18,7 @@
 // this module builds).
 
 import { evaluateDrinkWeather } from "@/lib/drinkWeather";
+import { haversineKm } from "@/lib/haversine";
 import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
 import { firstHttp } from "@/lib/httpUrl";
 import type { NightAreaSlug } from "@/lib/nightAreas";
@@ -165,6 +166,10 @@ export type TonightPickDto = {
   /** True when href leaves the app (an external source page). */
   external: boolean;
   priceGbp: number | null;
+  /** Venue coordinate when the row carries one; lets the client order picks
+   *  around the viewer's remembered patch (#427) without another fetch. */
+  lat: number | null;
+  lng: number | null;
 };
 
 const KIND_LABEL: Record<WhatsOnKind, string> = {
@@ -197,7 +202,33 @@ export function toTonightPickDto(row: WhatsOnRow): TonightPickDto {
     href,
     external,
     priceGbp: typeof row.priceGbp === "number" ? row.priceGbp : null,
+    lat: typeof row.lat === "number" && Number.isFinite(row.lat) ? row.lat : null,
+    lng: typeof row.lng === "number" && Number.isFinite(row.lng) ? row.lng : null,
   };
+}
+
+/**
+ * Stable-reorder the (already server-chosen) picks so the ones nearest a point
+ * lead. Same picks, same count — only the order moves; rows without a
+ * coordinate keep their relative order at the tail. Pure for hermetic tests;
+ * the client calls it with the remembered patch's heart (#427 seam) so Today
+ * agrees with the map's Near me about which corner of London is "yours".
+ */
+export function orderPicksNear(
+  picks: readonly TonightPickDto[],
+  point: { lat: number; lng: number } | null,
+): TonightPickDto[] {
+  if (!point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)) {
+    return [...picks];
+  }
+  const km = (pick: TonightPickDto): number =>
+    pick.lat != null && pick.lng != null
+      ? haversineKm([pick.lng, pick.lat], [point.lng, point.lat])
+      : Number.POSITIVE_INFINITY;
+  return picks
+    .map((pick, index) => ({ pick, index, km: km(pick) }))
+    .sort((a, b) => a.km - b.km || a.index - b.index)
+    .map((entry) => entry.pick);
 }
 
 // ---------------------------------------------------------------------------

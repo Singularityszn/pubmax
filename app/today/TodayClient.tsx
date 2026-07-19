@@ -17,8 +17,12 @@ import {
   MapPin,
 } from "lucide-react";
 
+import { useEffect, useState } from "react";
+
 import SiteNav from "@/components/nav/SiteNav";
-import type { TodayFact, TonightPickDto, WeatherBrief } from "@/lib/todayBrief";
+import { readRememberedArea } from "@/lib/nightPatches";
+import { resolveTonightNear } from "@/lib/tonight";
+import { orderPicksNear, type TodayFact, type TonightPickDto, type WeatherBrief } from "@/lib/todayBrief";
 
 import TodayGetThereStrip from "./TodayGetThereStrip";
 import "./today.css";
@@ -215,6 +219,25 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
 }
 
 export default function TodayClient({ dateLabel, weather, picks, fact }: Props) {
+  // Silent continuity (#427 seam): if the viewer chose an area anywhere in the
+  // app, lead with the picks nearest it. Same server-chosen picks, same count,
+  // order only; no remembered area = server order untouched. localStorage is
+  // read inside the effect so the first paint always matches SSR.
+  const [orderedPicks, setOrderedPicks] = useState(picks);
+  useEffect(() => {
+    let cancelled = false;
+    // Deferred like useWhatsOnTonight's setState: reading localStorage is the
+    // external-system sync; the state lands next microtask (react-hooks rule).
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      const near = resolveTonightNear(null, readRememberedArea());
+      setOrderedPicks(near ? orderPicksNear(picks, near.near) : picks);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [picks]);
+
   return (
     <main className="todayPage" data-testid="today-screen">
       <SiteNav active="today" />
@@ -230,7 +253,7 @@ export default function TodayClient({ dateLabel, weather, picks, fact }: Props) 
 
       <div className="todayStack">
         <WeatherCard weather={weather} />
-        <PicksCard picks={picks} />
+        <PicksCard picks={orderedPicks} />
         <TodayGetThereStrip />
         <FactCard fact={fact} />
       </div>

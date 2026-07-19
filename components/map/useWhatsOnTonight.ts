@@ -49,6 +49,9 @@ export type LoadTonightOpts = {
   timeoutMs?: number;
   /** External abort (unmount). Timeout aborts are internal and map to "error". */
   signal?: AbortSignal;
+  /** Order rows by nearness to this point (the store sorts server-side).
+   *  Omitted = the store's own order, exactly as before. */
+  near?: { lat: number; lng: number } | null;
 };
 
 /**
@@ -67,7 +70,11 @@ export async function loadWhatsOnTonight(
   opts.signal?.addEventListener("abort", onOuterAbort, { once: true });
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetchImpl("/api/whats-on?window=tonight&limit=60", {
+    const near =
+      opts.near && Number.isFinite(opts.near.lat) && Number.isFinite(opts.near.lng)
+        ? `&near=${opts.near.lat},${opts.near.lng}`
+        : "";
+    const res = await fetchImpl(`/api/whats-on?window=tonight&limit=60${near}`, {
       signal: controller.signal,
       headers: { accept: "application/json" },
     });
@@ -95,7 +102,10 @@ export async function loadWhatsOnTonight(
 
 const EMPTY_SUMMARY = new Map<string, VenueWhatsOnSummary>();
 
-export function useWhatsOnTonight(enabled: boolean): WhatsOnTonight {
+export function useWhatsOnTonight(
+  enabled: boolean,
+  near: { lat: number; lng: number } | null = null,
+): WhatsOnTonight {
   const [rows, setRows] = useState<WhatsOnRow[]>([]);
   const [asOf, setAsOf] = useState<string | null>(null);
   const [status, setStatus] = useState<WhatsOnTonightStatus>("idle");
@@ -104,6 +114,11 @@ export function useWhatsOnTonight(enabled: boolean): WhatsOnTonight {
     setStatus("idle");
     setRetryAttempt((attempt) => attempt + 1);
   }, []);
+
+  // Depend on the coordinate VALUES, not the object identity, so a caller
+  // passing a fresh literal each render doesn't refetch in a loop.
+  const nearLat = near?.lat ?? null;
+  const nearLng = near?.lng ?? null;
 
   useEffect(() => {
     if (!enabled) {
@@ -115,7 +130,9 @@ export function useWhatsOnTonight(enabled: boolean): WhatsOnTonight {
       return;
     }
     const controller = new AbortController();
-    void loadWhatsOnTonight({ signal: controller.signal }).then((result) => {
+    const load: LoadTonightOpts = { signal: controller.signal };
+    if (nearLat != null && nearLng != null) load.near = { lat: nearLat, lng: nearLng };
+    void loadWhatsOnTonight(load).then((result) => {
       if (controller.signal.aborted) return;
       void Promise.resolve().then(() => {
         if (controller.signal.aborted) return;
@@ -125,7 +142,7 @@ export function useWhatsOnTonight(enabled: boolean): WhatsOnTonight {
       });
     });
     return () => controller.abort();
-  }, [enabled, retryAttempt]);
+  }, [enabled, retryAttempt, nearLat, nearLng]);
 
   const summary = useMemo(
     () => (rows.length === 0 ? EMPTY_SUMMARY : summariseWhatsOnByVenue(rows)),
