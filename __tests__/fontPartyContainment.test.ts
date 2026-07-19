@@ -8,13 +8,11 @@ import { describe, expect, it } from "vitest";
 // moment a fourth family (or a banned surface) adopts the token.
 
 // Files allowed to mention --font-party without counting as consumers:
-// the token's definition (layout), global token docs, the spec itself, and
-// this test.
+// the token's definition sites. Docs and this test never count — the grep
+// below is scoped to code surfaces, so prose can name the token freely.
 const DEFINITION_SITES = new Set([
   "app/layout.tsx",
   "app/globals.css",
-  "docs/VIBE_LAYER_SPEC_2026-07-19.md",
-  "__tests__/fontPartyContainment.test.ts",
 ]);
 
 // Surfaces the spec bans outright — a --font-party reference here is a leak
@@ -27,9 +25,12 @@ const BANNED_PREFIXES = [
 ];
 
 function trackedFilesReferencingToken(): string[] {
+  // Scoped to code surfaces on purpose: only code can leak the accent onto a
+  // banned surface, and docs referencing the token by name must not trip the
+  // family budget (a handoff note once turned main red exactly this way).
   const out = execFileSync(
     "git",
-    ["grep", "-l", "--", "--font-party"],
+    ["grep", "-l", "--", "--font-party", "app", "components", "lib"],
     { encoding: "utf8", cwd: process.cwd() },
   );
   return out.split("\n").filter(Boolean);
