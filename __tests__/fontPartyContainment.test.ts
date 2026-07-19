@@ -68,6 +68,11 @@ describe("party accent containment (vibe layer spec)", () => {
   it("keeps the killed register out of the tracked tree's product strings", () => {
     // Spec kill-list: these terms are banned everywhere, not just chips.
     // git grep -w keeps this honest (no substring hits inside larger words).
+    // lib/vibeChips.ts is the kill-list's one canonical DEFINITION site (its
+    // KILLED_VIBE_TERMS constant powers the chip-surface tests) — the terms
+    // appearing there are the ban itself, not product copy, so it is the one
+    // sanctioned hit. Anything else is a leak.
+    const KILL_LIST_DEFINITION_SITE = "lib/vibeChips.ts";
     for (const term of ["turnt", "bussin"]) {
       let hits = "";
       try {
@@ -79,7 +84,11 @@ describe("party accent containment (vibe layer spec)", () => {
       } catch {
         // git grep exits 1 on zero matches — the passing case.
       }
-      expect(hits.split("\n").filter(Boolean), `killed term "${term}" found`).toEqual([]);
+      const leaks = hits
+        .split("\n")
+        .filter(Boolean)
+        .filter((file) => file !== KILL_LIST_DEFINITION_SITE);
+      expect(leaks, `killed term "${term}" found`).toEqual([]);
     }
   });
 });
