@@ -73,8 +73,8 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         </>
       ) : (
         <p className="todayCardEmpty">
-          We only show a verdict when the snapshot is fresh enough to trust. Nothing to
-          call right now.
+          No fresh read on the sky just now. Have a look out the window, we&apos;ll
+          catch up shortly.
         </p>
       )}
     </section>
@@ -152,10 +152,18 @@ function PicksCard({ picks }: { picks: TonightPickDto[] }) {
           </p>
         </>
       ) : (
-        <p className="todayCardEmpty">
-          Nothing confirmed for tonight yet. We only show what the listings actually
-          return. Check back later.
-        </p>
+        <>
+          <p className="todayCardEmpty">
+            Nothing confirmed for tonight yet. Listings firm up through the
+            afternoon.
+          </p>
+          <p className="todayCardFootRow">
+            <Link href="/map" className="todayCardFootLink">
+              Meanwhile, the map knows the cheap pints
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </Link>
+          </p>
+        </>
       )}
     </section>
   );
@@ -171,7 +179,7 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
         <div>
           <p className="todayCardEyebrow">Pub of the day</p>
           <h2 className="todayCardTitle" id="today-fact-title">
-            {fact ? fact.pubName : "No sourced pub fact today."}
+            {fact ? fact.pubName : "Still in the archive"}
           </h2>
         </div>
       </div>
@@ -198,8 +206,8 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
         </>
       ) : (
         <p className="todayCardEmpty">
-          Nothing sourced to surface today. We would rather show nothing than an
-          unattributed fact.
+          Every pub of the day comes with receipts, and today&apos;s are still in
+          the archive. Back tomorrow.
         </p>
       )}
     </section>
