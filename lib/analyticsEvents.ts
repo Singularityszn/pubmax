@@ -61,6 +61,9 @@ export const ANALYTICS_EVENTS = {
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
+  // Vibe layer (docs/VIBE_LAYER_SPEC_2026-07-19.md): which mood chip was
+  // pressed. The vibe id only — never free text, never location.
+  tonight_vibe_select: ["vibe"],
   event_chip_view: ["kind"],
   // Wave D — sharing is a return-loop signal; alcohol quantity is never
   // represented as progression telemetry.

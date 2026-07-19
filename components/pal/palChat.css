@@ -349,6 +349,18 @@
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
 }
 
+/* Vibe quick-asks (docs/VIBE_LAYER_SPEC_2026-07-19.md) — second of the ≤3
+   sanctioned party-font families. Falls back to the display face until the
+   accent lane lands --font-party. */
+.palChatChip--vibe {
+  border-color: color-mix(in srgb, var(--brass) 32%, var(--line));
+  font-family: var(--font-party, var(--font-display));
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .palChatChip:active {
   transform: scale(0.98);
 }
