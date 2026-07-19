@@ -216,8 +216,12 @@ export default function TonightClient() {
 
       {empty ? (
         <p className="tonightStatus" role="status">
-          Nothing confirmed in London tonight yet. We only show what the
-          upstream actually returns. Check back later.
+          The city&apos;s having a quiet one tonight. We only list what&apos;s
+          really on, and nothing&apos;s confirmed yet.{" "}
+          <Link href="/map" className="tonightStatusLink">
+            The map still knows where the cheap pints are
+          </Link>
+          .
         </p>
       ) : null}
 

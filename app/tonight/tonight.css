@@ -195,6 +195,14 @@
   color: color-mix(in srgb, var(--ink) 70%, crimson 30%);
 }
 
+/* The one exit on an empty night: same quiet register as the status line,
+   underlined so it reads as a door, not a shout. */
+.tonightStatusLink {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .tonightRetry {
   margin-top: 10px;
 }

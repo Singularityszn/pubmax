@@ -1339,7 +1339,7 @@ export default function PubMap({
           filters.stopCount,
         );
         if (ids.length === 0) {
-          setNearbyError("No pubs match your filters near you. Try widening them.");
+          setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
           return;
         }
         setMode("build");
@@ -1350,7 +1350,7 @@ export default function PubMap({
       },
       () => {
         setNearbyLoading(false);
-        setNearbyError("Couldn't get your location. Grant access and try again.");
+        setNearbyError("Location's off, so Near me can't reach you. The map still works, and every price on it stands.");
       },
     );
   }, [
@@ -1401,7 +1401,7 @@ export default function PubMap({
       },
       () => {
         setNearbyLoading(false);
-        setNearbyError("Couldn't get your location. Grant access and try again.");
+        setNearbyError("Location's off, so Near me can't reach you. The map still works, and every price on it stands.");
       },
       { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 },
     );
