@@ -243,7 +243,10 @@ export const FEED_FILTERS: FeedFilterDef[] = [
   // The id stays "for-you" — it is a stored filter key, not user-facing.
   { id: "for-you", label: "Yours", demo: false },
   { id: "tonight", label: "Tonight", demo: false },
-  { id: "cheap", label: "Cheap Legends", demo: false },
+  // Label "Cheap pints", not "Cheap Legends": the long label clipped mid-word
+  // at the 390px strip edge (judge-w2 polish 2) and the voice spec's own
+  // register says the thing plainly. The id stays "cheap" — stored filter key.
+  { id: "cheap", label: "Cheap pints", demo: false },
   { id: "golden-days", label: "Golden Days", demo: false },
 ];
 

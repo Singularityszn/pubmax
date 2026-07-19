@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  cheapestGlanceLine,
   countTonightKinds,
   GLANCE_QUIET_EXIT,
   GLANCE_QUIET_LINE,
   tonightGlanceLine,
 } from "@/lib/palGlance";
+import { formatPrice } from "@/lib/venues";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 function makeRow(overrides: Partial<WhatsOnRow> = {}): WhatsOnRow {
@@ -79,5 +81,51 @@ describe("glance voice", () => {
   it("quiet night hands the user a real exit", () => {
     expect(GLANCE_QUIET_LINE).toContain("quiet one");
     expect(GLANCE_QUIET_EXIT).toContain("map");
+  });
+});
+
+// Judge-w2 polish item 1: the cheapest-pint row names a real ranked card or
+// says nothing at all.
+describe("cheapestGlanceLine", () => {
+  it("names area, price, venue, and walk when the ranker vouched for it", () => {
+    expect(
+      cheapestGlanceLine(
+        "Soho",
+        { name: "The Three Tuns", cheapestPrice: 2.95, walkMinutes: 11 },
+        formatPrice,
+      ),
+    ).toBe("Cheapest round Soho: £2.95 at The Three Tuns, about 11 min on foot.");
+  });
+
+  it("drops the walk clause when minutes are unknown", () => {
+    expect(
+      cheapestGlanceLine(
+        "central London",
+        { name: "The Coach & Horses", cheapestPrice: 5.1, walkMinutes: null },
+        formatPrice,
+      ),
+    ).toBe("Cheapest round central London: £5.10 at The Coach & Horses.");
+  });
+
+  it("returns null with no card or a priceless card (renders nothing)", () => {
+    expect(cheapestGlanceLine("Soho", null, formatPrice)).toBeNull();
+    expect(
+      cheapestGlanceLine(
+        "Soho",
+        { name: "The Ghost", cheapestPrice: Number.NaN, walkMinutes: 3 },
+        formatPrice,
+      ),
+    ).toBeNull();
+  });
+
+  it("stays em-dash and exclamation free", () => {
+    const line =
+      cheapestGlanceLine(
+        "Hackney",
+        { name: "The Dove", cheapestPrice: 4.2, walkMinutes: 7 },
+        formatPrice,
+      ) ?? "";
+    expect(line.includes("—")).toBe(false);
+    expect(line.includes("!")).toBe(false);
   });
 });
