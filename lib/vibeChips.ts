@@ -127,3 +127,37 @@ export function vibeChipById(id: string): VibeChip | undefined {
 export function palChatHref(chip: VibeChip): string {
   return `/pal/chat?ask=${encodeURIComponent(chip.ask)}`;
 }
+
+/**
+ * The seven locked public share slugs — the ONLY values `?vibe=` accepts on
+ * share links and the plan-card OG route. These slugs are a public contract:
+ * they already live in group chats, so they never change even if a chip label
+ * is reworded (e.g. the pre-approved "Big one tonight" store fallback). The
+ * plan-card route keeps its own VIBE_STAMPS literal for satori; a sync test
+ * (__tests__/vibeSlugs.test.ts) pins that literal to this canonical map.
+ */
+export const VIBE_SLUGS: Record<VibeChipId, string> = {
+  bender: "on-a-bender",
+  lit: "get-lit",
+  quiet: "quiet-pint",
+  cheeky: "cheeky-one-after-work",
+  match: "match-on",
+  quiz: "big-brain-energy",
+  date: "date-night",
+};
+
+/** Runtime guard: is `value` one of the seven locked share slugs. */
+export function isVibeSlug(value: unknown): value is string {
+  return typeof value === "string" && Object.values(VIBE_SLUGS).includes(value);
+}
+
+/**
+ * The `?vibe=` slug a plan share or OG URL should carry: an explicitly
+ * requested valid slug wins (a stamped link already in the wild keeps its
+ * stamp), else the crew's single top vibe, else none. Anything unrecognised
+ * is dropped, never echoed — user-controlled OG text is an abuse surface.
+ */
+export function shareVibeSlug(requested: unknown, top: VibeChipId | null): string | null {
+  if (isVibeSlug(requested)) return requested;
+  return top ? VIBE_SLUGS[top] : null;
+}
