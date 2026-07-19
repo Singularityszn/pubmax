@@ -86,6 +86,7 @@
 
 .planSummary,
 .planCrew,
+.planVibe,
 .planShare,
 .planComposer {
   position: relative;
@@ -198,6 +199,7 @@
 .planCollab__actions button[aria-pressed="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 28%, transparent); }
 .planSummary__heading h2,
 .planCrew h2,
+.planVibe h2,
 .planShare h2 { margin: 0; font-size: clamp(1.65rem, 4vw, 2.8rem); line-height: 1; }
 
 .planSummary__rail {
@@ -345,6 +347,7 @@
 }
 
 .planCrew,
+.planVibe,
 .planShare { padding: 26px; }
 .planCrew__heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
 .planCrew__heading > span { min-width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--paper); font-weight: 800; }
@@ -381,6 +384,41 @@
 
 .planShare > p:not(.planPage__eyebrow) { color: var(--ink-soft); line-height: 1.5; }
 .planShare .shareBar { margin-top: 20px; }
+
+/* Crew vibe picker (vibe layer, surface 3 wiring; issue #438). Chips keep the
+   Tonight pill silhouette but deliberately stay on the house face: at sidebar
+   density these labels sit far below the 20px+ floor the party accent demands,
+   so the plan surface leaves the Bungee quarantine budget untouched and the
+   register rides the words alone. */
+.planVibe__lede { margin: 12px 0 0; color: var(--ink-soft); line-height: 1.5; font-size: 0.85rem; }
+.planVibe__row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.planVibe__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.planVibe__chip:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+.planVibe__chip:disabled { opacity: 0.58; cursor: wait; }
+.planVibe__chip[data-active="true"] {
+  border-color: var(--plan-accent);
+  background: color-mix(in srgb, var(--plan-accent) 15%, var(--panel));
+  color: var(--plan-accent-strong);
+  font-weight: 850;
+}
+/* The tally is the same line the share card prints (lib/vibeTally), so it
+   reads as a caption of the stamp, not another data row. */
+.planVibe__tally { margin: 16px 0 0; color: var(--ink-soft); font-style: italic; line-height: 1.5; }
+.planVibe__note { margin: 10px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
 
 .planComposer { max-width: 920px; margin: 0 auto; padding: clamp(22px, 5vw, 46px); display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 .planComposer__templates {
@@ -508,6 +546,7 @@ html[data-theme="dark"] .planPage {
 }
 html[data-theme="dark"] .planSummary,
 html[data-theme="dark"] .planCrew,
+html[data-theme="dark"] .planVibe,
 html[data-theme="dark"] .planShare,
 html[data-theme="dark"] .planComposer { border-radius: 12px; }
 html[data-theme="dark"] .planSummary__marker,
