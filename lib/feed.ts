@@ -238,7 +238,10 @@ export type FeedFilterDef = {
 // composes over them internally); only the chip is gone.
 export const FEED_FILTERS: FeedFilterDef[] = [
   { id: "latest", label: "Latest", demo: false },
-  { id: "for-you", label: "For You", demo: false },
+  // Label "Yours", never "For You": the voice spec (rule 3) names "For You"
+  // as a banned Apple-ism; ownership words do the same job in house register.
+  // The id stays "for-you" — it is a stored filter key, not user-facing.
+  { id: "for-you", label: "Yours", demo: false },
   { id: "tonight", label: "Tonight", demo: false },
   { id: "cheap", label: "Cheap Legends", demo: false },
   { id: "golden-days", label: "Golden Days", demo: false },

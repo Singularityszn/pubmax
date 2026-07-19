@@ -42,13 +42,18 @@
     display: none !important;
   }
 
-  /* #367 compass recovery on mobile: keep the stack alive, drop it top-right
-     just under the mobile top bar, and let the compass button be the only child
-     that renders (it only mounts when the map is actually rotated). Still
-     cleared by the shared .sheet-full / .planning-open hide rules in globals so
-     it never fights a full sheet. */
+  /* #367/#421 compass on mobile: keep the stack alive and let the compass be
+     the only child that renders. Since #421 the compass is ALWAYS visible, and
+     the old "+8px under the top bar" offset parked it in the same band as the
+     Near me / Tonight / Filters pill row, where the Filters pill buried it
+     (judge-w1 finding: clipped red edge peeking from behind the pill). The
+     right edge below the bar is a stack: pill row ends ~116px from viewport
+     top, then the moment badge and list-view floaters run to ~224px — so the
+     compass drops beneath them (+172px clears the floaters with an 8px gap,
+     measured at 390x844). Still cleared by the shared .sheet-full /
+     .planning-open hide rules in globals so it never fights a full sheet. */
   .appShell .mapStage .mapCameraControls {
-    top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 8px);
+    top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 172px);
     right: 10px;
     gap: 4px;
   }

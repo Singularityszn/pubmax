@@ -350,9 +350,10 @@
 }
 
 /* Vibe quick-asks (docs/VIBE_LAYER_SPEC_2026-07-19.md) — second of the ≤3
-   sanctioned party-font families. Falls back to the display face until the
-   accent lane lands --font-party. */
-.palChatChip--vibe {
+   sanctioned party-font families. The `.palChat` prefix is load-bearing:
+   `.palChat button { font: inherit }` above is (0,1,1) and silently reset
+   these chips to the body face until this rule outranked it. */
+.palChat .palChatChip--vibe {
   border-color: color-mix(in srgb, var(--brass) 32%, var(--line));
   font-family: var(--font-party, var(--font-display));
   font-size: 0.72rem;
