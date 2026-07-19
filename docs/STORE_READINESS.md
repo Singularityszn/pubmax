@@ -215,11 +215,59 @@ Screenshots already exist in `docs/screenshots` from the Gate Z set (`docs/scree
 - Apple: 6.7" (1290x2796) and 6.5" (1242x2688) are the two that satisfy the current iPhone requirement. One set can cover both if uploaded at 6.7". iPad screenshots only needed if the app is offered on iPad (it is universal-capable, so either provide 12.9" iPad shots or set availability to iPhone only).
 - Google Play: minimum two, up to eight, phone screenshots at 16:9 or 9:16, min 320px, max 3840px. The 430-wide frames upscale fine. A feature graphic (1024x500) is also required, build it from the brand mark on the coral field.
 
-**Feature graphic (Google Play, 1024x500):** coral field (`#ff5a5f`), the Crossing mark, wordmark "PUBMAXX", tagline "Cheap pints near you." Reuse `assets/splash.png` composition as the starting point.
+**Feature graphic (Google Play, 1024x500):** ink-deep field (`#060607`) with the coral Crossing mark, per the identity lock in section 7, plus wordmark "PUBMAXX" and tagline "Cheap pints near you." (text is fine on the feature graphic, the no-text rule applies to the icon and splash). Start from the `public/store-assets/splash.svg` composition.
 
 ---
 
-## 7. Owner-only remaining steps
+## 7. Store visual identity: icon + splash set (issue #440)
+
+**Owner lock:** the Crossing mark in candle-coral on the ink-dark field, no text in the icon; the splash follows the icon. This supersedes the earlier coral-field sources in `assets/` (from the #377 native-readiness pass); regenerate the native projects from these masters at the next `npx cap sync` (see wiring below).
+
+### SVG masters (source of truth, `public/store-assets/`)
+
+| File | Native size | Role |
+| --- | --- | --- |
+| `icon-square.svg` | 1024 | Icon master: ink-deep field, coral crossing, faint candle glow. Full bleed, no rounding (both stores mask). |
+| `icon-square-small.svg` | 64 | Small-size optics for exports at or under 64px: arms 8.5 to 10.5, node r 3.2 to 4.6, glow dropped. |
+| `play-adaptive-foreground.svg` | 1024 | Play adaptive foreground: coral crossing on transparent, 108dp canvas, mark inside the 66dp safe circle (farthest cap edge 25.7dp from centre). |
+| `play-adaptive-background.svg` | 1024 | Play adaptive background: solid ink-deep, deliberately flat (parallax layer). |
+| `splash.svg` | 2732 | Splash: ink-deep field, centred coral mark (~15% span), faint glow. One splash serves light and dark. |
+
+Colour and geometry are pinned to `lib/ogBrand.tsx` / `docs/BRAND_MARK.md` by `__tests__/storeAssets.test.ts` (hexes, canonical arm endpoints, no `<text>`, flat background layer).
+
+### PNG export set (committed, `public/store-assets/png/`)
+
+Regenerate any time the masters change:
+
+```
+node scripts/gen-store-assets.mjs
+```
+
+| Output | Sizes | Notes |
+| --- | --- | --- |
+| `ios/AppIcon-{size}.png` | 20, 29, 40, 58, 60, 76, 80, 87, 120, 152, 167, 180, 1024 | Opaque, alpha stripped (the 1024 marketing slot rejects alpha). Sizes at or under 64 render from the small-optics master. |
+| `play/play-store-512.png` | 512 | Play Console listing icon. |
+| `play/adaptive-foreground-432.png` | 432 | 108dp at xxxhdpi, keeps transparency. |
+| `play/adaptive-background-432.png` | 432 | Flat ink-deep. |
+| `splash/splash-2732.png` | 2732 | Capacitor splash source, covers the largest iPad requirement. |
+
+### Legibility at small sizes (checked)
+
+Coral `#ff5a5f` on ink-deep `#060607` measures ~6.6:1 contrast. At 29px the canonical 8.5 stroke renders 3.9px arms, readable, but the r 3.2 node falls under 3px and vanishes; the small-optics master thickens arms to 10.5 and grows the node to r 4.6, so the 20 to 64px tier keeps the mark's weight and lit centre. Verified by rendering and inspecting the 29px and 1024px exports.
+
+### Wiring into the native shells (when syncing)
+
+- **iOS:** `ios/App/App/Assets.xcassets/AppIcon.appiconset/` uses a single universal 1024 (`AppIcon-512@2x.png`); replace its contents with `png/ios/AppIcon-1024.png` at the next native pass. The full classic slot set exists for older Xcode setups and App Store Connect uploads.
+- **Android / Play:** upload `play-store-512.png` in the Play Console; the adaptive layers feed `@capacitor/assets` (or hand-placed `mipmap` resources) at sync time.
+- **Capacitor splash:** feed `splash/splash-2732.png` as both `splash` and `splash-dark` sources, the ink-dark art is the same for both, then `npx @capacitor/assets@3 generate` (fetched ephemerally, see the header of `scripts/gen-native-app-icons.mjs` for the npm-audit rationale).
+
+### Manual export fallback (no sharp)
+
+`scripts/gen-store-assets.mjs` needs the `sharp` package (already a dependency). If it cannot load in some environment, do not add a new raster dependency: open each SVG master in any renderer (`rsvg-convert -w <size> -h <size>`, Inkscape, Figma) and export the table above, using `icon-square-small.svg` for sizes at or under 64px and stripping alpha on the iOS set.
+
+---
+
+## 8. Owner-only remaining steps
 
 Everything above is done or ready to paste. The steps below need a real account, real money, or a physical signing step, and only the owner can do them. Nothing here is blocked by the codebase.
 
