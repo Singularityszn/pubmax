@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 64 64">
+  <!--
+    Splash master (issue #440): the splash follows the icon, per owner lock.
+    Ink-deep field, centred coral Crossing at scale 0.28 (the mark spans ~15% of
+    the canvas, ~424px at 2732, the same optical size as the previous splash),
+    with a faint candle glow behind it. One splash serves light and dark: the
+    field IS the dark theme's deepest well, and a bright launch flash is exactly
+    what a night-out app should not do.
+  -->
+  <defs>
+    <radialGradient id="candle" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff5a5f" stop-opacity="0.10"/>
+      <stop offset="0.6" stop-color="#ff5a5f" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#ff5a5f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" fill="#060607"/>
+  <circle cx="32" cy="32" r="11" fill="url(#candle)"/>
+  <g transform="translate(32 32) scale(0.28) translate(-32 -32)">
+    <path d="M18.5 18.5 L45.5 45.5" stroke="#ff5a5f" stroke-width="8.5" stroke-linecap="round"/>
+    <path d="M45.5 18.5 L18.5 45.5" stroke="#ff5a5f" stroke-width="8.5" stroke-linecap="round"/>
+    <circle cx="32" cy="32" r="3.2" fill="#ff7a55"/>
+  </g>
+</svg>
