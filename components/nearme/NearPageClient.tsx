@@ -22,12 +22,14 @@ export default function NearPageClient() {
   return (
     <div className="nmnPage">
       <header className="nmnPageNav">
-        <Link href="/" className="nmnPageBack" aria-label="Back to home">
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <Link href="/" className="nmnPageBrand" aria-label="PUBMAXXING home">
-          <PubmaxxWordmark />
-        </Link>
+        <div className="nmnPageNavPill">
+          <Link href="/" className="nmnPageBack" aria-label="Back to home">
+            <ArrowLeft size={18} aria-hidden="true" />
+          </Link>
+          <Link href="/" className="nmnPageBrand" aria-label="PUBMAXXING home">
+            <PubmaxxWordmark />
+          </Link>
+        </div>
       </header>
       <main className="nmnPageBody">
         <NearMeNow cityId={cityId} autoLocate />
