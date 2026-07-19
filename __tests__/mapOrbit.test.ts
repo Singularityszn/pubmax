@@ -1,20 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { createIdleOrbit } from "@/lib/mapOrbit";
 
+const FIRST_MS = 6_000;
+const INTERACTION_MS = 20_000;
+
 function harness({ reduced = false }: { reduced?: boolean } = {}) {
   let nextId = 1;
   const timers = new Map<number, { callback: () => void; ms: number }>();
   const calls: string[] = [];
+  const armedDelays: number[] = [];
   let isReduced = reduced;
 
   const orbit = createIdleOrbit({
-    idleDelayMs: 20_000,
+    firstDelayMs: FIRST_MS,
+    interactionDelayMs: INTERACTION_MS,
     isReduced: () => isReduced,
     startChunk: () => calls.push("start"),
     stopChunk: () => calls.push("stop"),
     setTimer: (callback, ms) => {
       const id = nextId++;
       timers.set(id, { callback, ms });
+      armedDelays.push(ms);
       return id;
     },
     clearTimer: (id) => timers.delete(id),
@@ -24,6 +30,7 @@ function harness({ reduced = false }: { reduced?: boolean } = {}) {
     orbit,
     calls,
     timers,
+    armedDelays,
     setReduced(value: boolean) {
       isReduced = value;
     },
@@ -103,6 +110,38 @@ describe("idle orbit state machine", () => {
 
     h.orbit.setSuspended(false);
     expect(h.orbit.state()).toBe("waiting");
+  });
+
+  it("first arm waits only the first-impression delay", () => {
+    const h = harness();
+    h.orbit.setEnabled(true);
+    expect(h.armedDelays).toEqual([FIRST_MS]);
+  });
+
+  it("after any interaction every re-arm waits the generous interaction delay", () => {
+    const h = harness();
+    h.orbit.setEnabled(true);
+    h.fireTimer(); // first orbit began after FIRST_MS
+    h.orbit.noteInteraction();
+    expect(h.armedDelays).toEqual([FIRST_MS, INTERACTION_MS]);
+
+    // Sticky across suspend/resume once interacted.
+    h.orbit.setSuspended(true);
+    h.orbit.setSuspended(false);
+    expect(h.armedDelays).toEqual([FIRST_MS, INTERACTION_MS, INTERACTION_MS]);
+  });
+
+  it("suspend/resume BEFORE any interaction still re-arms with the first delay", () => {
+    // The live-verification path: tab hidden then visible again while the user
+    // has never touched the map (visibilitychange -> setSuspended(false) must
+    // re-arm, and with the short delay).
+    const h = harness();
+    h.orbit.setEnabled(true);
+    h.orbit.setSuspended(true);
+    expect(h.timers.size).toBe(0);
+    h.orbit.setSuspended(false);
+    expect(h.orbit.state()).toBe("waiting");
+    expect(h.armedDelays).toEqual([FIRST_MS, FIRST_MS]);
   });
 
   it("disable tears down and dispose is terminal", () => {

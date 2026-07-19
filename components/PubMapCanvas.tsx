@@ -42,7 +42,8 @@ import {
   createIdleOrbit,
   ORBIT_CHUNK_MS,
   ORBIT_DEG_PER_SEC,
-  ORBIT_IDLE_DELAY_MS,
+  ORBIT_FIRST_DELAY_MS,
+  ORBIT_INTERACTION_DELAY_MS,
   type IdleOrbit,
 } from "@/lib/mapOrbit";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
@@ -1721,7 +1722,8 @@ export default function PubMapCanvas({
     if (!map || !mapReady || !container) return;
     let onScreen = true;
     const orbit = createIdleOrbit({
-      idleDelayMs: ORBIT_IDLE_DELAY_MS,
+      firstDelayMs: ORBIT_FIRST_DELAY_MS,
+      interactionDelayMs: ORBIT_INTERACTION_DELAY_MS,
       isReduced: () => reducedRef.current,
       startChunk: () => {
         const live = mapRef.current;
