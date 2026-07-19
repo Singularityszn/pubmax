@@ -1,0 +1,58 @@
+// Pal first-open "tonight at a glance" (judge-w1 deferred item, wave 2).
+//
+// Before the first ask, /pal/chat is a chip stack over a large dead zone. This
+// module turns tonight's REAL What's-On rows (the same /api/whats-on spine the
+// map and Tonight already fetch) into one quiet line of value for that gap, so
+// the page opens with receipts instead of silence. Pure so the wording and
+// count edges are hermetically testable.
+//
+// Honesty rules, same as everywhere: counts come only from validated rows the
+// spine returned; a quiet night says so and hands the user the map; an outage
+// renders NOTHING here (the glance is a bonus, not a surface that may
+// apologise — the ask path reports outages when the user actually asks).
+
+import type { WhatsOnRow } from "@/lib/whatsOn";
+
+export type TonightGlanceCounts = {
+  quiz: number;
+  music: number;
+  sport: number;
+  deal: number;
+};
+
+export function countTonightKinds(rows: readonly WhatsOnRow[]): TonightGlanceCounts {
+  const counts: TonightGlanceCounts = { quiz: 0, music: 0, sport: 0, deal: 0 };
+  for (const row of rows) counts[row.kind] += 1;
+  return counts;
+}
+
+// Pub words, not taxonomy: quiz rows are quizzes, sport rows are matches on a
+// screen, music rows are gigs, deal rows are deals. Order is the evening's own
+// arc: quiz first, then the match, then the gig, then what it costs.
+const KIND_WORDS: ReadonlyArray<{
+  kind: keyof TonightGlanceCounts;
+  one: string;
+  many: string;
+}> = [
+  { kind: "quiz", one: "pub quiz", many: "pub quizzes" },
+  { kind: "sport", one: "match on", many: "matches on" },
+  { kind: "music", one: "gig", many: "gigs" },
+  { kind: "deal", one: "deal running", many: "deals running" },
+];
+
+/**
+ * One line for the glance panel, or null when there is nothing honest to say
+ * (no rows). Only non-zero kinds are named, in evening order, e.g.
+ * "On across London tonight: 12 pub quizzes, 3 matches on, 31 deals running."
+ */
+export function tonightGlanceLine(counts: TonightGlanceCounts): string | null {
+  const parts = KIND_WORDS.filter(({ kind }) => counts[kind] > 0).map(
+    ({ kind, one, many }) => `${counts[kind]} ${counts[kind] === 1 ? one : many}`,
+  );
+  if (parts.length === 0) return null;
+  return `On across London tonight: ${parts.join(", ")}.`;
+}
+
+/** The quiet-night line: honest, and hands the user somewhere real to go. */
+export const GLANCE_QUIET_LINE = "The city's having a quiet one tonight.";
+export const GLANCE_QUIET_EXIT = "The map still knows where the cheap pints are.";

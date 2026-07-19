@@ -16,7 +16,7 @@
 // only. Every ask forwards ONLY the current query, so the engine has no
 // conversational memory, and nothing is persisted.
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
@@ -24,7 +24,9 @@ import { trackEvent } from "@/lib/analytics";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
 import { createPalChatSession } from "@/lib/palChatClient";
+import { countTonightKinds, GLANCE_QUIET_EXIT, GLANCE_QUIET_LINE, tonightGlanceLine } from "@/lib/palGlance";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
+import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 
 import "./palChat.css";
 
@@ -194,6 +196,14 @@ export default function PalChat() {
   }, []);
 
   const empty = entries.length === 0 && !pending;
+  // Tonight-at-a-glance data: the same /api/whats-on spine the map fetches,
+  // enabled only while the transcript is empty (one light fetch; the glance
+  // leaves the moment the conversation starts).
+  const glance = useWhatsOnTonight(empty);
+  const glanceLine = useMemo(
+    () => tonightGlanceLine(countTonightKinds(glance.rows)),
+    [glance.rows],
+  );
 
   return (
     <main className="palChat">
@@ -284,6 +294,32 @@ export default function PalChat() {
                 {chip.label}
               </button>
             ))}
+          </div>
+        ) : null}
+
+        {/* Tonight at a glance (judge-w1 wave 2): real spine counts fill the
+            first-open dead zone with receipts. Renders only before the first
+            ask; an outage renders nothing (the glance never apologises — the
+            ask path owns error honesty when the user actually asks). */}
+        {empty && glance.status === "ready" && glanceLine ? (
+          <div className="palGlance" role="note" aria-label="Tonight at a glance">
+            <span className="palGlanceLabel">
+              <Sparkles size={13} aria-hidden="true" /> Tonight
+            </span>
+            <p className="palGlanceLine">{glanceLine}</p>
+          </div>
+        ) : null}
+        {empty && glance.status === "empty" ? (
+          <div className="palGlance" role="note" aria-label="Tonight at a glance">
+            <span className="palGlanceLabel">
+              <Sparkles size={13} aria-hidden="true" /> Tonight
+            </span>
+            <p className="palGlanceLine">
+              {GLANCE_QUIET_LINE}{" "}
+              <Link className="palGlanceExit" href={`/map/${DEFAULT_CITY_ID}`}>
+                {GLANCE_QUIET_EXIT}
+              </Link>
+            </p>
           </div>
         ) : null}
       </div>
