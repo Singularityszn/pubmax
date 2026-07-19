@@ -366,6 +366,63 @@
   transform: scale(0.98);
 }
 
+/* — Tonight at a glance (judge-w1 wave 2) —
+   One quiet panel of real spine counts under the vibe chips, filling the
+   first-open dead zone with receipts. Enters with transform+opacity only
+   (ease-out, under 300ms); the zone below is empty and the composer is
+   pinned, so the entrance shifts nothing. */
+.palGlance {
+  width: min(30rem, 100%);
+  margin: 0.9rem auto 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  animation: palGlanceIn var(--duration-base, 0.22s) var(--ease-out, ease-out) both;
+}
+
+.palGlanceLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--brass);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.palGlanceLine {
+  margin: 0.3rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.palGlanceExit {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--brass) 55%, transparent);
+}
+
+@keyframes palGlanceIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .palGlance {
+    animation: none;
+  }
+}
+
 /* — Composer — */
 .palChatComposer {
   flex: 0 0 auto;

@@ -1283,20 +1283,43 @@
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* Wave I1: tab bar centre Drop owns compose — hide the redundant header CTA. */
-  .feedDropCta {
+  /* Wave I1: tab bar centre Drop owns compose — hide the redundant header CTA.
+     Wave 2 (judge-w1 control-stack density): the Moment capture CTA falls to
+     the same reasoning — the tab bar's raised centre button IS "Capture a
+     Moment" on phones, so the header copy of it is pure duplication. Only
+     "We're out" (no tab of its own) keeps a header seat. */
+  .feedDropCta,
+  .feedMomentCta[href="/moment"] {
     display: none;
   }
 
-  /* Wave K3 — denser mobile stream: smaller title, tighter cards, tab clearance. */
+  /* Wave K3 — denser mobile stream; tightened again by the judge-w1 wave-2
+     pass: the control stack (title, CTA, scope tabs, filter chips) ran ~260px
+     before the first card. One header ROW (title left, We're out right), a
+     calmer title size, and tighter block gaps put the first card ~185px in.
+     Editorial density, not compression: every tap target stays 44px+. */
   .feedShell {
-    padding: 16px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
-    gap: 14px;
+    padding: 12px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
+    gap: 10px;
+  }
+
+  .feedHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: left;
+    padding: 0 2px;
   }
 
   .feedTitle {
-    font-size: clamp(1.85rem, 8vw, 2.35rem);
-    margin-bottom: 6px;
+    font-size: clamp(1.3rem, 5.5vw, 1.6rem);
+    margin-bottom: 0;
+  }
+
+  .feedComposeActions {
+    margin-top: 0;
+    flex: 0 0 auto;
   }
 
   .feedLede {
@@ -1304,16 +1327,20 @@
     line-height: 1.45;
   }
 
+  .feedSocialTabs {
+    margin-bottom: 8px;
+  }
+
   .feedList {
-    gap: 14px;
+    gap: 12px;
   }
 
   .feedCardHead {
-    padding: 12px 14px;
+    padding: 10px 14px 8px;
   }
 
   .feedCardBody {
-    padding: 12px;
+    padding: 10px 12px;
   }
 
   .feedSpill {
