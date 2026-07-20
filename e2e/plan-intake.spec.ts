@@ -1,4 +1,24 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function continueIntake(page: Page): Promise<void> {
+  const continueButton = page.getByRole("button", { name: "Continue" });
+  await expect(continueButton).toBeEnabled();
+  await continueButton.click();
+}
+
+async function chooseClaphamAndContinue(page: Page): Promise<void> {
+  const timeHeading = page.getByRole("heading", { name: "When are you heading out?" });
+  await page.getByRole("button", { name: "Clapham" }).click();
+  if (await timeHeading.isVisible()) return;
+  const continueButton = page.getByRole("button", { name: "Continue" });
+  await expect(continueButton).toBeEnabled();
+  try {
+    await continueButton.click({ timeout: 2_000 });
+  } catch (error) {
+    if (!(await timeHeading.isVisible())) throw error;
+  }
+  await expect(timeHeading).toBeVisible();
+}
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -50,8 +70,7 @@ test("reloading a recovered draft does not extend its near expiry", async ({ pag
 test("a typed exact time rejects an autumn overlap once both occurrences have passed", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-10-25T01:30:00.000Z"));
   await page.goto("/plan");
-  await page.getByRole("button", { name: "Clapham" }).click();
-  await page.getByRole("button", { name: "Continue" }).press("Enter");
+  await chooseClaphamAndContinue(page);
   await page.getByRole("button", { name: /Evening/ }).click();
 
   await page.getByLabel("Exact first pint").fill("2026-10-25T01:30");
@@ -68,8 +87,7 @@ test("single-value intake fields advance with Enter without submitting the Plan"
   });
 
   await page.goto("/plan");
-  await page.getByRole("button", { name: "Clapham" }).click();
-  await page.getByRole("button", { name: "Continue" }).press("Enter");
+  await chooseClaphamAndContinue(page);
   await page.getByRole("button", { name: /Evening/ }).click();
 
   const exactTime = page.getByLabel("Exact first pint");
@@ -128,10 +146,9 @@ test("editing the exact start marks a generated preview stale", async ({ page })
   });
 
   await page.goto("/plan");
-  await page.getByRole("button", { name: "Clapham" }).click();
-  await page.getByRole("button", { name: "Continue" }).press("Enter");
+  await chooseClaphamAndContinue(page);
   await page.getByRole("button", { name: /Evening/ }).click();
-  await page.getByRole("button", { name: "Continue" }).press("Enter");
+  await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Plan my night" }).click();
   await expect(page.getByText("Three grounded stops, shaped by the editable context below.")).toBeVisible();
@@ -180,10 +197,9 @@ test("submission revalidates that the exact start is still in the future", async
   });
 
   await page.goto("/plan");
-  await page.getByRole("button", { name: "Clapham" }).click();
-  await page.getByRole("button", { name: "Continue" }).press("Enter");
+  await chooseClaphamAndContinue(page);
   await page.getByRole("button", { name: /Evening/ }).click();
-  await page.getByRole("button", { name: "Continue" }).press("Enter");
+  await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Plan my night" }).click();
   await expect(page.getByText("Three grounded stops, shaped by the editable context below.")).toBeVisible();
