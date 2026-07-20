@@ -93,13 +93,12 @@ export async function DELETE(request: Request): Promise<Response> {
   let authoritativeMutationVersion = mutation.input.mutationVersion;
   try {
     if (body.all === true) {
-      authoritativeMutationVersion = await pushTokenStore().unlinkInstallationForAccount(
-        mutation.input.installationId,
+      authoritativeMutationVersion = await pushTokenStore().unlinkAllForAccount(
         authority.userId,
         authority.sessionId,
+        mutation.input.installationId,
         mutation.input.mutationVersion,
       );
-      await pushTokenStore().unlinkAllForAccount(authority.userId);
     } else if (body.installationOnly === true) {
       authoritativeMutationVersion = await pushTokenStore().unlinkInstallationForAccount(
         mutation.input.installationId,

@@ -170,7 +170,12 @@ describe("memoryPushTokenStore", () => {
       await memoryPushTokenStore.save({ token, platform: "ios" });
       await linkAccount(token, "user-a", "session-a");
     }
-    await memoryPushTokenStore.unlinkAllForAccount("user-a");
+    await memoryPushTokenStore.unlinkAllForAccount(
+      "user-a",
+      "session-a",
+      INSTALLATION_ID,
+      2,
+    );
 
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
     expect(await memoryPushTokenStore.list()).toHaveLength(2);
@@ -214,10 +219,12 @@ describe("memoryPushTokenStore", () => {
     await expect(linkAccount("tok-1", "user-a", "session-new", 3))
       .resolves.toBe("linked");
 
-    // Server arrival is authoritative even if this browser counter reset.
-    await expect(unlinkAccount("tok-1", "user-a", "session-old", 2)).resolves.toBe(4);
-    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
-    await expect(linkAccount("tok-1", "user-a", "session-new", 3)).resolves.toBe("stale");
+    // A stale old-session DELETE tombstones only that session. It cannot clear
+    // or advance the fence over the newer session's current link.
+    await expect(unlinkAccount("tok-1", "user-a", "session-old", 2)).resolves.toBe(2);
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
+    await expect(linkAccount("tok-1", "user-a", "session-new", 3)).resolves.toBe("replayed");
+    await expect(linkAccount("tok-1", "user-a", "session-old", 4)).resolves.toBe("conflict");
   });
 
   it("orders concurrent in-memory Plan link then unlink to an unlinked final state", async () => {
@@ -305,5 +312,51 @@ describe("memoryPushTokenStore", () => {
     await expect(unlinkPlan("tok-1", "plan-a", "member-a", 1)).rejects.toThrow(/exhausted/);
     expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
     expect(await memoryPushTokenStore.listForPlan("plan-a")).toHaveLength(1);
+  });
+
+  it("makes wrong-owner installation unlink a zero-mutation flat no-op at MAX_SAFE_INTEGER", async () => {
+    await memoryPushTokenStore.save({ token: "owned", platform: "ios" });
+    await linkAccount("owned", "user-b", "session-b", MAX_PUSH_MUTATION_VERSION);
+
+    await expect(memoryPushTokenStore.unlinkInstallationForAccount(
+      INSTALLATION_ID,
+      "user-a",
+      "session-a",
+      1,
+    )).resolves.toBe(1);
+    expect(await memoryPushTokenStore.listForAccount("user-b")).toHaveLength(1);
+
+    // A second token on the same opaque installation proves the wrong-owner
+    // no-op did not leave an installation/session tombstone behind.
+    await memoryPushTokenStore.save({ token: "fresh", platform: "ios" });
+    await expect(linkAccount("fresh", "user-a", "session-a", 1)).resolves.toBe("linked");
+  });
+
+  it("tombstones a missing-token DELETE so its delayed POST cannot attach later", async () => {
+    await expect(unlinkAccount("not-registered", "user-a", "session-a", 2)).resolves.toBe(2);
+    await memoryPushTokenStore.save({ token: "arrived-later", platform: "ios" });
+    await expect(linkAccount("arrived-later", "user-a", "session-a", 1)).resolves.toBe("conflict");
+  });
+
+  it("preflights all-device overflow before clearing any account link", async () => {
+    const otherInstallation = "11111111-1111-4111-8111-111111111111";
+    await memoryPushTokenStore.save({ token: "normal", platform: "ios", installationId: INSTALLATION_ID });
+    await memoryPushTokenStore.save({ token: "exhausted", platform: "ios", installationId: otherInstallation });
+    await linkAccount("normal", "user-a", "session-a", 1);
+    await memoryPushTokenStore.linkAccount(
+      "exhausted",
+      "user-a",
+      "session-b",
+      otherInstallation,
+      MAX_PUSH_MUTATION_VERSION,
+    );
+
+    await expect(memoryPushTokenStore.unlinkAllForAccount(
+      "user-a",
+      "session-a",
+      INSTALLATION_ID,
+      2,
+    )).rejects.toThrow(/exhausted/);
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(2);
   });
 });

@@ -26,6 +26,7 @@ import { MAX_PUSH_MUTATION_VERSION } from "@/lib/pushInstallation";
 
 const URL = "http://localhost/api/push-tokens/account";
 const INSTALLATION_ID = "00000000-0000-4000-8000-000000000047";
+const OTHER_INSTALLATION_ID = "11111111-1111-4111-8111-111111111111";
 
 function request(method: "POST" | "DELETE", body: unknown, mutationVersion = 1): Request {
   const payload = body && typeof body === "object" && !Array.isArray(body)
@@ -110,6 +111,24 @@ describe("push account identity route", () => {
     expect(await memoryPushTokenStore.listForAccount("user-b")).toHaveLength(1);
   });
 
+  it("keeps wrong-owner installation unlink flat and mutation-free at MAX_SAFE_INTEGER", async () => {
+    await memoryPushTokenStore.linkAccount(
+      "device-token",
+      "user-b",
+      "session-b",
+      INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION,
+    );
+    const wrongOwner = await DELETE(request("DELETE", { installationOnly: true }, 1));
+    const missing = await DELETE(request("DELETE", {
+      installationOnly: true,
+      installationId: OTHER_INSTALLATION_ID,
+    }, 1));
+    expect(wrongOwner.status).toBe(200);
+    expect(await wrongOwner.json()).toEqual(await missing.json());
+    expect(await memoryPushTokenStore.listForAccount("user-b")).toHaveLength(1);
+  });
+
   it("supports verified privacy unlink-all without deleting public registration", async () => {
     await memoryPushTokenStore.linkAccount("device-token", "user-a", "session-a", INSTALLATION_ID, 1);
     const response = await DELETE(request("DELETE", { all: true, userId: "user-b" }));
@@ -130,6 +149,34 @@ describe("push account identity route", () => {
       sessionId: "session-new",
     });
     expect((await POST(request("POST", body, 3))).status).toBe(200);
+  });
+
+  it("does not let a stale old-session unlink clear or fence a newer session", async () => {
+    const body = { token: "device-token", platform: "ios" };
+    expect((await POST(request("POST", body, 10))).status).toBe(200);
+    callerAuthSessionIdentityMock.mockResolvedValue({
+      id: "user-a",
+      email: "a@example.com",
+      sessionId: "session-new",
+    });
+    expect((await POST(request("POST", body, 11))).status).toBe(200);
+
+    callerAuthSessionIdentityMock.mockResolvedValue({
+      id: "user-a",
+      email: "a@example.com",
+      sessionId: "session-a",
+    });
+    const staleUnlink = await DELETE(request("DELETE", { installationOnly: true }, 1));
+    expect(await staleUnlink.json()).toEqual({ ok: true, linked: false, mutationVersion: 1 });
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
+    expect((await POST(request("POST", body, 12))).status).toBe(409);
+
+    callerAuthSessionIdentityMock.mockResolvedValue({
+      id: "user-a",
+      email: "a@example.com",
+      sessionId: "session-new",
+    });
+    expect((await POST(request("POST", body, 11))).status).toBe(200);
   });
 
   it("revokes by installation without recovering a raw provider token", async () => {
@@ -171,5 +218,43 @@ describe("push account identity route", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ code: "PUSH_ACCOUNT_UNLINK_UNAVAILABLE" });
     expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
+  });
+
+  it("tombstones a missing-token DELETE before a delayed registration and POST", async () => {
+    const deletion = await DELETE(request(
+      "DELETE",
+      { token: "not-yet-registered", platform: "ios" },
+      2,
+    ));
+    expect(deletion.status).toBe(200);
+    await memoryPushTokenStore.save({
+      token: "not-yet-registered",
+      platform: "ios",
+      installationId: INSTALLATION_ID,
+    });
+    expect((await POST(request(
+      "POST",
+      { token: "not-yet-registered", platform: "ios" },
+      1,
+    ))).status).toBe(409);
+  });
+
+  it("keeps all-device cleanup atomic when any fence is exhausted", async () => {
+    await memoryPushTokenStore.linkAccount("device-token", "user-a", "session-a", INSTALLATION_ID, 1);
+    await memoryPushTokenStore.save({
+      token: "exhausted-token",
+      platform: "ios",
+      installationId: OTHER_INSTALLATION_ID,
+    });
+    await memoryPushTokenStore.linkAccount(
+      "exhausted-token",
+      "user-a",
+      "session-b",
+      OTHER_INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION,
+    );
+    const response = await DELETE(request("DELETE", { all: true }, 2));
+    expect(response.status).toBe(503);
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(2);
   });
 });

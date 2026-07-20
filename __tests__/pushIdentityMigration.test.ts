@@ -90,14 +90,53 @@ describe("push identity migration", () => {
       migration.indexOf("function public.unlink_push_token_plan_member_atomic"),
       migration.indexOf("revoke all on function"),
     );
-    for (const fn of [accountUnlink, installationUnlink, planUnlink]) {
+    for (const fn of [accountUnlink, planUnlink]) {
       expect(fn).toMatch(/returns bigint/);
       expect(fn).toMatch(/v_authoritative := greatest\(v_version \+ 1, p_mutation_version\)/);
       expect(fn).toMatch(/push mutation watermark exhausted/);
       expect(fn).toMatch(/return v_authoritative/);
     }
+    expect(installationUnlink).toMatch(/returns bigint/);
+    expect(installationUnlink).toMatch(/then greatest\(v_version \+ 1, p_mutation_version\)/);
+    expect(installationUnlink).toMatch(/push mutation watermark exhausted/);
+    expect(installationUnlink).toMatch(/return v_authoritative/);
     expect(accountUnlink).not.toMatch(/if p_mutation_version >= v_version/);
     expect(installationUnlink).not.toMatch(/account_mutation_version, 0\) <= p_mutation_version/);
     expect(planUnlink).not.toMatch(/mutation_version <= p_mutation_version/);
+  });
+
+  it("keeps owner and auth-session authority ahead of installation ordering", () => {
+    const accountLink = migration.slice(
+      migration.indexOf("function public.link_push_token_account_atomic"),
+      migration.indexOf("function public.unlink_push_token_account_atomic"),
+    );
+    const accountUnlink = migration.slice(
+      migration.indexOf("function public.unlink_push_token_account_atomic"),
+      migration.indexOf("function public.unlink_push_installation_account_atomic"),
+    );
+    const installationUnlink = migration.slice(
+      migration.indexOf("function public.unlink_push_installation_account_atomic"),
+      migration.indexOf("function public.unlink_all_push_tokens_for_account"),
+    );
+    const wrongOwnerReturn = installationUnlink.indexOf("account_user_id <> p_user_id");
+    const firstRevocation = installationUnlink.indexOf("insert into public.push_installation_account_revocations");
+    expect(wrongOwnerReturn).toBeGreaterThan(-1);
+    expect(wrongOwnerReturn).toBeLessThan(firstRevocation);
+    expect(installationUnlink).toMatch(/account_session_id = p_session_id/);
+    expect(accountUnlink).toMatch(/account_session_id is distinct from p_session_id[\s\S]*return p_mutation_version/);
+    expect(accountUnlink).toMatch(/if not found[\s\S]*insert into public\.push_installation_account_revocations/);
+    expect(accountLink).toMatch(/push-installation:[\s\S]*push-account:/);
+  });
+
+  it("implements all-device cleanup as one overflow-preflighted RPC", () => {
+    const allUnlink = migration.slice(
+      migration.indexOf("function public.unlink_all_push_tokens_for_account"),
+      migration.indexOf("function public.link_push_token_plan_member_atomic"),
+    );
+    expect(allUnlink).toMatch(/\(\s*p_user_id uuid, p_session_id uuid, p_installation_id uuid,[\s\S]*\) returns bigint/);
+    expect(allUnlink).toMatch(/Preflight every fence before any mutation/);
+    expect(allUnlink.indexOf("push mutation watermark exhausted"))
+      .toBeLessThan(allUnlink.indexOf("insert into public.push_token_account_revocations"));
+    expect(migration).toMatch(/grant execute on function public\.unlink_all_push_tokens_for_account\(uuid, uuid, uuid, bigint\) to service_role/);
   });
 });

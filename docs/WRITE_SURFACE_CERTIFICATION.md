@@ -162,18 +162,23 @@ Plan member capability and use idempotency keys or atomic store operations.
   Unlink is owner-matched and idempotent. Success always has the same flat
   shape, including missing/wrong-owner rows, and includes the authoritative
   mutation watermark that the browser must persist before reporting success.
+  The installation UUID is not account authority: installation-scoped unlink
+  against another current owner is a zero-mutation no-op, including at an
+  exhausted watermark.
 - **Ordering authority:** registration binds the delivery token once to a
   random installation UUID. That UUID is not identity and contains no provider
   material. Every account intent carries a local monotonic mutation version;
   the server atomically compares it with the per-token/installation watermark.
   Per-token/session and installation/session revocation rows are unique, retain
   multiple old sessions, expire after 30 days, and are pruned during mutations.
-  A verified unlink advances the server watermark above both the stored value
-  and the submitted value, then returns it. Consequently a browser whose local
-  counter reset can send DELETE(v1) against a stored link(v10), receive v11,
-  and still defeat delayed POST(v10). Counter exhaustion fails closed without
-  clearing the join. A revoked session stays blocked for the access-JWT
-  lifetime; a fresh verified session may issue a later version.
+  A verified unlink for the currently linked auth session advances the server
+  watermark above both the stored and submitted values, then returns it. Thus
+  that same session can send DELETE(v1) against link(v10), receive v11, and
+  defeat delayed POST(v10) after a local counter reset. A late DELETE from an
+  older session records only that old session's tombstone; it neither clears
+  nor advances the fence over a newer session link. Counter exhaustion fails
+  closed without clearing the join. Missing-token DELETE records the same
+  installation/session tombstone in both stores, blocking a later delayed link.
 - **Logout/privacy:** logout stops new joins, then uses authenticated
   revoke-by-installation while the JWT verifies. It does not need the raw APNs
   token, so denied OS permission and a restarted WebView cannot hide an older
@@ -182,9 +187,9 @@ Plan member capability and use idempotency keys or atomic store operations.
   without signing other devices out. Failed or hard-timeout revocation keeps
   the user signed in and displays an honest retry error. Failure to durably
   persist the returned server watermark is also treated as revocation failure.
-  PushManager recovery,
-  native recovery, and every push fetch have hard timeouts. The all-device
-  unlink remains the account-erasure seam.
+  PushManager recovery, native recovery, response headers, and response body
+  consumption all share hard timeouts. The all-device unlink is one atomic RPC
+  with an overflow preflight, so failure cannot leave a partially erased set.
   Provider-invalid token deletion, account deletion, or explicit unlink removes
   targeting authority; public delivery opt-in remains independent.
 

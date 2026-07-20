@@ -24,6 +24,7 @@ import {
   unlinkPushInstallationFromClaimedAccount,
 } from "@/lib/pushIdentityClient";
 import { __resetPushInstallation, nextPushIdentityMutation } from "@/lib/pushInstallation";
+import { PUSH_FETCH_TIMEOUT_MS } from "@/lib/pushTimeout";
 
 function storageHarness(): Storage {
   const values = new Map<string, string>();
@@ -285,5 +286,20 @@ describe("push identity client", () => {
       ok: false,
       status: "retryable",
     });
+  });
+
+  it("fails logout retryably when response headers arrive but the body stalls", async () => {
+    await rememberDevice();
+    getAccessTokenMock.mockResolvedValue("verified-jwt");
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream({
+      pull: () => new Promise<void>(() => {}),
+    }), { status: 200 })));
+
+    const pending = unlinkPushInstallationFromClaimedAccount();
+    const assertion = expect(pending).resolves.toEqual({ ok: false, status: "retryable" });
+    await vi.advanceTimersByTimeAsync(PUSH_FETCH_TIMEOUT_MS * 3 + 1_000);
+    await assertion;
+    vi.useRealTimers();
   });
 });

@@ -70,11 +70,13 @@ export type PushTokenStore = {
   /** Remove only the caller's account link. Missing/wrong-owner rows are the
    * same idempotent result so the endpoint cannot enumerate registrations. */
   unlinkAccount(token: string, userId: string, sessionId: string, installationId: string, mutationVersion: number): Promise<number>;
-  /** Revoke every registration bound to this opaque installation, even when
-   * native permission prevents recovery of the current provider token. */
+  /** Revoke matching current-session joins on this opaque installation, even
+   * when native permission prevents recovery of the provider token. Another
+   * owner is a strict no-op; stale sessions receive only their own tombstone. */
   unlinkInstallationForAccount(installationId: string, userId: string, sessionId: string, mutationVersion: number): Promise<number>;
-  /** Privacy/account-erasure seam: clear every link for one verified account. */
-  unlinkAllForAccount(userId: string): Promise<void>;
+  /** Privacy/account-erasure seam: atomically fence and clear every link for
+   * one verified account, returning the caller installation's watermark. */
+  unlinkAllForAccount(userId: string, sessionId: string, installationId: string, mutationVersion: number): Promise<number>;
   /** Link one existing registration to one verified member per Plan. */
   linkPlan(token: string, planId: string, memberId: string, installationId: string, mutationVersion: number): Promise<PushIdentityJoinResult>;
   /** Remove only the matching verified member's Plan link, idempotently. */
@@ -182,11 +184,15 @@ export const supabasePushTokenStore: PushTokenStore = {
     if (error) throw new Error(error.message);
     return mutationVersionResult(data);
   },
-  async unlinkAllForAccount(userId) {
-    const { error } = await admin().rpc("unlink_all_push_tokens_for_account", {
+  async unlinkAllForAccount(userId, sessionId, installationId, mutationVersion) {
+    const { data, error } = await admin().rpc("unlink_all_push_tokens_for_account", {
       p_user_id: userId,
+      p_session_id: sessionId,
+      p_installation_id: installationId,
+      p_mutation_version: mutationVersion,
     });
     if (error) throw new Error(error.message);
+    return mutationVersionResult(data);
   },
   async linkPlan(token, planId, memberId, installationId, mutationVersion) {
     const { data, error } = await admin().rpc("link_push_token_plan_member_atomic", {
@@ -315,8 +321,16 @@ export const memoryPushTokenStore: PushTokenStore = {
   },
   async unlinkAccount(token, userId, sessionId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
-    if (!row || row.installationId !== installationId) return mutationVersion;
+    if (!row || row.installationId !== installationId) {
+      memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
+      return mutationVersion;
+    }
     if (row.accountUserId && row.accountUserId !== userId) return mutationVersion;
+    if (row.accountUserId === userId && row.accountSessionId !== sessionId) {
+      memoryAccountRevocations.add(accountRevocationKey(token, sessionId));
+      memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
+      return mutationVersion;
+    }
     const versionKey = accountVersionKey(token, installationId);
     const currentVersion = memoryAccountVersions.get(versionKey) ?? 0;
     if (currentVersion >= MAX_PUSH_MUTATION_VERSION) {
@@ -334,25 +348,34 @@ export const memoryPushTokenStore: PushTokenStore = {
     return authoritativeVersion;
   },
   async unlinkInstallationForAccount(installationId, userId, sessionId, mutationVersion) {
+    const installationRows = [...memoryTokens.entries()]
+      .filter(([, row]) => row.installationId === installationId);
+    if (installationRows.some(([, row]) => row.accountUserId && row.accountUserId !== userId)) {
+      return mutationVersion;
+    }
+    const fenceRows = installationRows.filter(([, row]) =>
+      row.accountUserId === null
+      || (row.accountUserId === userId && row.accountSessionId === sessionId));
     let currentVersion = 0;
-    for (const [token, row] of memoryTokens) {
-      if (row.installationId !== installationId) continue;
+    for (const [token] of fenceRows) {
       currentVersion = Math.max(
         currentVersion,
         memoryAccountVersions.get(accountVersionKey(token, installationId)) ?? 0,
       );
     }
-    if (currentVersion >= MAX_PUSH_MUTATION_VERSION) {
+    if (fenceRows.length > 0 && currentVersion >= MAX_PUSH_MUTATION_VERSION) {
       throw new Error("Push mutation watermark exhausted.");
     }
-    const authoritativeVersion = Math.max(currentVersion + 1, mutationVersion);
+    const authoritativeVersion = fenceRows.length > 0
+      ? Math.max(currentVersion + 1, mutationVersion)
+      : mutationVersion;
     memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
-    for (const [token, row] of memoryTokens) {
-      if (row.installationId !== installationId) continue;
+    for (const [token, row] of installationRows) {
       memoryAccountRevocations.add(accountRevocationKey(token, sessionId));
+      if (!fenceRows.some(([fenceToken]) => fenceToken === token)) continue;
       const versionKey = accountVersionKey(token, installationId);
       memoryAccountVersions.set(versionKey, authoritativeVersion);
-      if (row.accountUserId === userId) {
+      if (row.accountUserId === userId && row.accountSessionId === sessionId) {
         row.accountUserId = null;
         row.accountSessionId = null;
         row.blockedAccountSessionId = sessionId;
@@ -360,20 +383,51 @@ export const memoryPushTokenStore: PushTokenStore = {
     }
     return authoritativeVersion;
   },
-  async unlinkAllForAccount(userId) {
-    for (const [token, row] of memoryTokens) {
-      if (row.accountUserId === userId) {
-        if (row.accountSessionId) {
-          memoryAccountRevocations.add(accountRevocationKey(token, row.accountSessionId));
-          memoryInstallationRevocations.add(
-            installationRevocationKey(row.installationId, row.accountSessionId),
-          );
-        }
-        row.blockedAccountSessionId = row.accountSessionId;
-        row.accountUserId = null;
-        row.accountSessionId = null;
+  async unlinkAllForAccount(userId, sessionId, installationId, mutationVersion) {
+    const wrongOwnerOnInstallation = [...memoryTokens.values()].some((row) =>
+      row.installationId === installationId
+      && row.accountUserId !== null
+      && row.accountUserId !== userId);
+    const fenceRows = [...memoryTokens.entries()].filter(([, row]) =>
+      row.accountUserId === userId
+      || (!wrongOwnerOnInstallation
+        && row.installationId === installationId
+        && row.accountUserId === null));
+    let returnedVersion = mutationVersion;
+    const authoritativeByToken = new Map<string, number>();
+    for (const [token, row] of fenceRows) {
+      const current = memoryAccountVersions.get(accountVersionKey(token, row.installationId)) ?? 0;
+      if (current >= MAX_PUSH_MUTATION_VERSION) {
+        throw new Error("Push mutation watermark exhausted.");
       }
+      const authoritative = Math.max(
+        current + 1,
+        row.installationId === installationId ? mutationVersion : 1,
+      );
+      authoritativeByToken.set(token, authoritative);
+      returnedVersion = Math.max(returnedVersion, authoritative);
     }
+    if (!wrongOwnerOnInstallation) {
+      memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
+    }
+    for (const [token, row] of fenceRows) {
+      const authoritative = authoritativeByToken.get(token)!;
+      memoryAccountVersions.set(accountVersionKey(token, row.installationId), authoritative);
+      if (row.installationId === installationId) {
+        memoryAccountRevocations.add(accountRevocationKey(token, sessionId));
+      }
+      if (row.accountUserId !== userId) continue;
+      if (row.accountSessionId) {
+        memoryAccountRevocations.add(accountRevocationKey(token, row.accountSessionId));
+        memoryInstallationRevocations.add(
+          installationRevocationKey(row.installationId, row.accountSessionId),
+        );
+      }
+      row.blockedAccountSessionId = row.accountSessionId;
+      row.accountUserId = null;
+      row.accountSessionId = null;
+    }
+    return returnedVersion;
   },
   async linkPlan(token, planId, memberId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
