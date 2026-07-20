@@ -5,6 +5,10 @@
   color: var(--ink);
 }
 
+.firstRunOnboardingGate {
+  min-height: 100dvh;
+}
+
 .firstRunOnboarding,
 .firstRunOnboarding *,
 .firstRunOnboarding *::before,

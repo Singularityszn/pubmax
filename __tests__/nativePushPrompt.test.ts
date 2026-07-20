@@ -15,6 +15,7 @@ describe("shouldOfferPushPrompt", () => {
         alreadyEnabled: false,
         dismissedAtSeq: null,
         currentSeq: 5,
+        triggeredThisDocument: true,
       }),
     ).toBe(false);
   });
@@ -26,6 +27,7 @@ describe("shouldOfferPushPrompt", () => {
         alreadyEnabled: false,
         dismissedAtSeq: null,
         currentSeq: 0,
+        triggeredThisDocument: false,
       }),
     ).toBe(false);
   });
@@ -37,8 +39,21 @@ describe("shouldOfferPushPrompt", () => {
         alreadyEnabled: false,
         dismissedAtSeq: null,
         currentSeq: 1,
+        triggeredThisDocument: true,
       }),
     ).toBe(true);
+  });
+
+  it("does not resurrect a persisted action on a fresh boot", () => {
+    expect(
+      shouldOfferPushPrompt({
+        isNative: true,
+        alreadyEnabled: false,
+        dismissedAtSeq: null,
+        currentSeq: 1,
+        triggeredThisDocument: false,
+      }),
+    ).toBe(false);
   });
 
   it("never offers again once the user has enabled push", () => {
@@ -48,6 +63,7 @@ describe("shouldOfferPushPrompt", () => {
         alreadyEnabled: true,
         dismissedAtSeq: null,
         currentSeq: 3,
+        triggeredThisDocument: true,
       }),
     ).toBe(false);
   });
@@ -59,6 +75,7 @@ describe("shouldOfferPushPrompt", () => {
         alreadyEnabled: false,
         dismissedAtSeq: 1,
         currentSeq: 1,
+        triggeredThisDocument: true,
       }),
     ).toBe(false);
   });
@@ -70,6 +87,7 @@ describe("shouldOfferPushPrompt", () => {
         alreadyEnabled: false,
         dismissedAtSeq: 1,
         currentSeq: 2,
+        triggeredThisDocument: true,
       }),
     ).toBe(true);
   });

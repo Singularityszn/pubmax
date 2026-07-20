@@ -20,9 +20,22 @@
 import { isNativeApp } from "@/lib/nativePlatform";
 
 const STORAGE_KEY = "pubmax:nativeFirstRun:routed:v1";
+const HANDOFF_KEY = "pubmax:nativeFirstRun:handoff:v1";
+/** Long enough for a slow client transition, short enough to never become a bookmark. */
+export const NATIVE_FIRST_RUN_HANDOFF_MAX_AGE_MS = 5 * 60 * 1000;
 
 function hasStorage(): boolean {
   return typeof window !== "undefined" && !!window.localStorage;
+}
+
+function resolveSessionStorage(storage?: Storage | null): Storage | null {
+  if (storage) return storage;
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
 }
 
 export type NativeFirstRunState = {
@@ -66,6 +79,62 @@ export function markNativeFirstRunRouted(): void {
     // is a second no-op check next launch, never a loop (isNativeApp() +
     // hasCityPreference still gate it, and the redirect target is idempotent).
   }
+}
+
+/**
+ * Issue the one-time eligibility handoff immediately before the root entry
+ * decision replaces `/` with `/onboarding`. Session scope prevents a URL from
+ * carrying eligibility, and the timestamp bounds abandoned transitions.
+ */
+export function issueNativeFirstRunHandoff(
+  storage?: Storage | null,
+  now: number = Date.now(),
+): void {
+  const store = resolveSessionStorage(storage);
+  if (!store) return;
+  try {
+    store.setItem(HANDOFF_KEY, String(now));
+  } catch {
+    // Storage unavailable. The guarded route will fail closed to /tonight.
+  }
+}
+
+/** Remove an abandoned or inapplicable first-run handoff. */
+export function clearNativeFirstRunHandoff(storage?: Storage | null): void {
+  const store = resolveSessionStorage(storage);
+  if (!store) return;
+  try {
+    store.removeItem(HANDOFF_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Consume a fresh handoff once. Eligibility is native-only and always removed
+ * before returning so refreshes, direct links and returning visits fail closed.
+ */
+export function consumeNativeFirstRunHandoff(
+  isNative: boolean = isNativeApp(),
+  storage?: Storage | null,
+  now: number = Date.now(),
+): boolean {
+  const store = resolveSessionStorage(storage);
+  if (!store) return false;
+  let issuedAt: number | null = null;
+  try {
+    const raw = store.getItem(HANDOFF_KEY);
+    store.removeItem(HANDOFF_KEY);
+    if (raw !== null) {
+      const parsed = Number(raw);
+      issuedAt = Number.isFinite(parsed) ? parsed : null;
+    }
+  } catch {
+    return false;
+  }
+  if (!isNative || issuedAt === null) return false;
+  const age = now - issuedAt;
+  return age >= 0 && age <= NATIVE_FIRST_RUN_HANDOFF_MAX_AGE_MS;
 }
 
 /** Clear the flag so the redirect fires again — handy for local testing. */

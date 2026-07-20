@@ -37,6 +37,12 @@ export default function FirstRunOnboarding({
     claimTourPromptBudget();
     const remembered = readFirstRunCompanion();
     if (remembered) void Promise.resolve().then(() => setCompanion(remembered));
+    const releaseBudget = () => releaseTourPromptBudget();
+    window.addEventListener("pagehide", releaseBudget);
+    return () => {
+      window.removeEventListener("pagehide", releaseBudget);
+      releaseBudget();
+    };
   }, []);
 
   const selectedCompanion = useMemo(
@@ -64,6 +70,7 @@ export default function FirstRunOnboarding({
   function skipOnboarding() {
     markTourSeen();
     trackEvent("tour_complete", { completed: false });
+    releaseTourPromptBudget();
     router.replace("/tonight");
   }
 

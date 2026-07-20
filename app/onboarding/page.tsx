@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
+import FirstRunOnboardingGate from "@/components/onboarding/FirstRunOnboardingGate";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 
 import "../pal/pal.css";
@@ -21,5 +21,5 @@ export default function OnboardingPage() {
       transportAnchor: area.transportAnchors[0]!,
     }));
 
-  return <FirstRunOnboarding reviewedAreas={reviewedAreas} />;
+  return <FirstRunOnboardingGate reviewedAreas={reviewedAreas} />;
 }
