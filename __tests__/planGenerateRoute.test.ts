@@ -139,6 +139,20 @@ describe("POST /api/plans/generate", () => {
     });
   });
 
+	it("rejects oversized bodies with the public API envelope before rate limiting", async () => {
+		const response = await POST(new Request("http://localhost/api/plans/generate", {
+			method: "POST",
+			body: JSON.stringify({ query: "x".repeat(17_000) }),
+		}));
+		expect(response.status).toBe(413);
+		expect(await response.json()).toEqual({
+			error: "Request body is too large.",
+			code: "REQUEST_TOO_LARGE",
+			retryable: false,
+		});
+		expect(isLimitedMock).not.toHaveBeenCalled();
+	});
+
   it("uses the same privacy-safe per-client bucket for local and durable limiting", async () => {
     const rawIp = "203.0.113.42";
     const response = await POST(new Request("http://localhost/api/plans/generate", {
@@ -362,9 +376,10 @@ describe("POST /api/plans/generate", () => {
     }));
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ code, retryable: false });
+		expect(isLimitedMock).not.toHaveBeenCalled();
   });
 
-  it("returns an honest unsupported result for Hackney instead of routing Shoreditch", async () => {
+	it("returns an honest unsupported result for Hackney instead of routing Shoreditch", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({
@@ -377,10 +392,24 @@ describe("POST /api/plans/generate", () => {
     expect(await response.json()).toMatchObject({
       code: "NIGHT_PATCH_UNSUPPORTED",
       details: { patchId: "hackney" },
-    });
-  });
+	});
+	});
 
-  it("returns no route when the exact selected patch lacks route-feasibility evidence", async () => {
+	it.each(["soho", "shoreditch", "camden", "london-bridge", "brixton", "clapham", "islington"] as const)(
+		"generates for mapped Night Patch %s regardless of readiness metadata",
+		async (patchId) => {
+			const response = await POST(new Request("http://localhost/api/plans/generate", {
+				method: "POST",
+				body: JSON.stringify({ intake: generationIntake({ area: { kind: "night-patch", id: patchId } }) }),
+			}));
+			expect(response.status).toBe(200);
+			const body = await response.json();
+			expect(body.stops).toHaveLength(3);
+			expect(body.contextFieldSources.nightArea).toBe("intake");
+		},
+	);
+
+	it("generates a low-confidence route when the mapped patch lacks route-feasibility metadata", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({
@@ -388,11 +417,12 @@ describe("POST /api/plans/generate", () => {
         intake: generationIntake({ area: { kind: "night-patch", id: "shoreditch" } }),
       }),
     }));
-    expect(response.status).toBe(422);
-    expect(await response.json()).toMatchObject({
-      code: "NIGHT_PATCH_ROUTE_NOT_READY",
-      details: { patchId: "shoreditch", nightArea: "shoreditch" },
-    });
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({
+			inferredContext: { nightArea: "shoreditch" },
+			planningConfidence: { level: "low", routeReady: false },
+			stops: [{}, {}, {}],
+		});
   });
 
   it("makes the exact intake patch authoritative over conflicting inference", async () => {
@@ -405,8 +435,11 @@ describe("POST /api/plans/generate", () => {
       }),
     }));
     const body = await response.json();
-    expect(response.status).toBe(200);
-    expect(body.inferredContext.nightArea).toBe("clapham");
+		expect(response.status).toBe(200);
+		expect(body.inferredContext.nightArea).toBe("clapham");
+		expect(body.contextFieldSources.nightArea).toBe("intake");
+		expect(body.explanations.filter((reason: { field: string }) => reason.field === "nightArea"))
+			.toEqual([expect.objectContaining({ explanation: expect.stringContaining("Plan intake") })]);
     expect(body.constraintReport).toMatchObject({
       version: 1,
       source: "plan-intake-v1",
@@ -418,7 +451,7 @@ describe("POST /api/plans/generate", () => {
     });
   });
 
-  it("enforces the total price ceiling on stops and every swap alternative", async () => {
+	it("fails closed when custom candidates cannot be joined to canonical price evidence", async () => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1", { cheapestPrice: 9 }),
       generatedVenue("v2", { cheapestPrice: 6 }),
@@ -434,22 +467,11 @@ describe("POST /api/plans/generate", () => {
       }),
     }));
     const body = await response.json();
-    expect(response.status).toBe(200);
-    expect(body.budgetSummary).toMatchObject({
-      limitPence: 1_200,
-      withinLimit: true,
-    });
-    expect(body.budgetSummary.estimatedPerPersonPence).toBeLessThanOrEqual(1_200);
-    for (let position = 0; position < body.stops.length; position += 1) {
-      for (const alternative of body.stops[position].alternatives) {
-        const replacementTotal = body.stops.reduce(
-          (total: number, stop: { estimatedPintPricePence: number }, index: number) =>
-            total + (index === position ? alternative.estimatedPintPricePence : stop.estimatedPintPricePence),
-          0,
-        );
-        expect(replacementTotal).toBeLessThanOrEqual(1_200);
-      }
-    }
+		expect(response.status).toBe(422);
+		expect(body).toMatchObject({
+			code: "GROUNDED_CONSTRAINTS_UNSATISFIED",
+			details: { rejected: { budgetEvidence: 5 } },
+		});
   });
 
   it("never returns a stop without confirmed required accessibility", async () => {
@@ -500,6 +522,18 @@ describe("POST /api/plans/generate", () => {
     });
   });
 
+	it.each(["seating", "low-noise"] as const)(
+		"returns no real-catalogue route when distinct %s evidence is unavailable",
+		async (need) => {
+			const response = await POST(new Request("http://localhost/api/plans/generate", {
+				method: "POST",
+				body: JSON.stringify({ intake: generationIntake({ accessibilityNeeds: [need] }) }),
+			}));
+			expect(response.status).toBe(422);
+			expect(await response.json()).toMatchObject({ code: "GROUNDED_CONSTRAINTS_UNSATISFIED" });
+		},
+	);
+
   it("makes missing dated opening evidence explicit on the route and every stop", async () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-20T12:00:00.000Z"));
     loadConciergeVenuesMock.mockResolvedValueOnce([
@@ -527,6 +561,11 @@ describe("POST /api/plans/generate", () => {
         code: "opening_hours",
         status: "flagged",
       }));
+			expect(body.routeTiming).toMatchObject({
+				walkingSpeedKmh: 4.8,
+				transferUncertaintyMinutes: 10,
+				basis: expect.stringContaining("five minutes"),
+			});
       expect(body.stops.every((stop: { constraintFlags: Array<{ code: string }> }) =>
         stop.constraintFlags.some((flag) => flag.code === "opening_hours_unconfirmed"))).toBe(true);
       expect(body.stops.flatMap((stop: { alternatives: Array<{ constraintFlags: Array<{ code: string }> }> }) => stop.alternatives)
