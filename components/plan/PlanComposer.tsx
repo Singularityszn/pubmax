@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
+import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
@@ -465,6 +465,7 @@ function PlanComposerForm({
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
       markPalRouteActivation();
+      trackEvent("plan_generated", { stops: suggested.length, grounded: true });
       setConciergeNote("Three grounded stops, shaped by the editable context below.");
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       if (body.inferredContext) {
@@ -518,6 +519,9 @@ function PlanComposerForm({
       if (!response.ok || !body?.plan?.plan?.id) {
         throw new Error(body?.error || "The plan could not be created.");
       }
+      const grounded = nightContext !== null && routeRevision !== null;
+      trackEvent("plan_accepted", { stops: completeStops.length, grounded });
+      trackMeaningfulCoreAction("plan_accepted");
       // lane_to_plan only counts creations with lane provenance (?src=…, set
       // by lane surfaces such as the W1 Tonight lane). window.location is read
       // at submit time — not via useSearchParams — so this client component
@@ -545,6 +549,8 @@ function PlanComposerForm({
         });
         if (!metadataResponse.ok) throw new Error("The route was created, but its Night Context could not be saved. Please try again.");
       }
+      trackEvent("plan_saved", { stops: completeStops.length, grounded });
+      trackMeaningfulCoreAction("plan_saved");
       try {
         sessionStorage.removeItem(PLAN_DRAFT_KEY);
         localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY);

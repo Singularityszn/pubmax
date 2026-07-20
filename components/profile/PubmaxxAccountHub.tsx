@@ -222,6 +222,7 @@ export default function PubmaxxAccountHub() {
 
   async function claim(event: FormEvent) {
     event.preventDefault();
+    if (!currentHandle) trackEvent("claim_started", { source: "you" });
     const response = await authedFetch(currentHandle ? "/api/identity/handle/rename" : "/api/identity/handle/claim", {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ handle }),
     });
@@ -229,7 +230,10 @@ export default function PubmaxxAccountHub() {
     if (!response.ok || !body.handle) return setMessage(body.error ?? "That handle is unavailable.");
     try { localStorage.setItem("pubmax_handle", body.handle); } catch { /* account ownership still persists */ }
     emitIdentityHandleChanged(body.handle);
-    if (!currentHandle) trackEvent("account_claimed", { source: "you" });
+    if (!currentHandle) {
+      trackEvent("claim_completed", { source: "you" });
+      trackEvent("account_claimed", { source: "you" });
+    }
     router.push(`/u/${encodeURIComponent(body.handle)}`);
   }
 

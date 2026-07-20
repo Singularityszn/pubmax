@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Check, Eye, LockKeyhole, UserPlus } from "lucide-react";
 
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { NightMomentKind } from "@/lib/nightMemory";
 import {
@@ -403,6 +403,8 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       setConfirmation(null);
       if (!await refreshWorkspace(workspace.story.id)) return;
       trackEvent("night_story_published", { contributors: workspace.contributors.length, moments: selectedMomentIds.length });
+      trackEvent("story_published", { visibility: publishVisibility, contributors: workspace.contributors.length, moments: selectedMomentIds.length });
+      trackMeaningfulCoreAction("story_published");
       setMessage("Story published here in Stories. Your private Memory remains private.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Story could not be published.");

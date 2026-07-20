@@ -18,6 +18,7 @@ import {
   sanitizeEvent,
   type AnalyticsEventName,
   type AnalyticsProps,
+  type WeeklyMeaningfulCoreAction,
 } from "@/lib/analyticsEvents";
 import {
   ANONYMOUS_ANALYTICS_STORAGE_KEY,
@@ -138,6 +139,16 @@ export function trackEvent(
   } catch {
     /* analytics must never break a flow */
   }
+}
+
+/**
+ * Record one of the reviewed actions that qualifies a person for Weekly
+ * Meaningful Pubmaxxers. Call this only beside the confirmed primary loop
+ * event; keeping the roll-up separate makes the metric definition queryable
+ * without treating route generation, claim steps, or passive views as value.
+ */
+export function trackMeaningfulCoreAction(action: WeeklyMeaningfulCoreAction): void {
+  trackEvent("meaningful_core_action", { action });
 }
 
 // ---------------------------------------------------------------------------

@@ -31,7 +31,7 @@ import {
   markNightModeActiveFired,
   type ActivePlanRef,
 } from "@/lib/activePlan";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import type { CrawlEnding, EndingSelection, PlanCompletionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
@@ -281,6 +281,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   // blank gap between the ending result and its recap invitation.
   const [recapSeeding, setRecapSeeding] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
+  const [recapReviewed, setRecapReviewed] = useState(false);
   const [recapSaving, setRecapSaving] = useState(false);
   const recapSavingRef = useRef(false);
   const [recapMessage, setRecapMessage] = useState("");
@@ -503,6 +504,8 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         throw new Error("The ending response was not canonical. Nothing was marked complete in this view.");
       }
       setPlan(canonical);
+      trackEvent("plan_completed", { ending });
+      trackMeaningfulCoreAction("plan_completed");
       const completed = body && typeof body === "object" && "completion" in body
         ? (body as { completion?: PlanCompletionDTO }).completion ?? null
         : null;
@@ -722,7 +725,15 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
                 <div className="nightCard__recapInvite">
                   <p className="nightCard__recapLede">That&rsquo;s the night. Keep it as a private Memory. The route and any words you add, nothing posted.</p>
                   <div className="nightCard__recapActions">
-                    <button type="button" className="nightCard__endingLink" onClick={() => setRecapOpen((open) => !open)} aria-expanded={recapOpen}>
+                    <button type="button" className="nightCard__endingLink" onClick={() => {
+                      const opening = !recapOpen;
+                      setRecapOpen(opening);
+                      if (opening && !recapReviewed) {
+                        setRecapReviewed(true);
+                        trackEvent("memory_reviewed", { source: "inline_recap" });
+                        trackMeaningfulCoreAction("memory_reviewed");
+                      }
+                    }} aria-expanded={recapOpen}>
                       <BookOpen size={16} aria-hidden="true" /> {recapOpen ? "Hide recap" : "Review private recap"}
                     </button>
                     <button type="button" className="nightCard__quietButton" onClick={() => { resolvePendingPlanRecap(recap, "discarded"); setRecap(null); setRecapOpen(false); }}>

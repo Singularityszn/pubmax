@@ -6,6 +6,7 @@ import {
   laneSourceFromSearch,
   setAnalyticsConsent,
   trackEvent,
+  trackMeaningfulCoreAction,
 } from "@/lib/analytics";
 import { consentAwareBeforeSend } from "@/components/ConsentAwareVercelAnalytics";
 
@@ -151,6 +152,19 @@ describe("trackEvent", () => {
       .sendBeacon as ReturnType<typeof vi.fn>;
     expect(beacon).not.toHaveBeenCalled();
     expect(consentAwareBeforeSend({ type: "pageview", url: "/tonight" })).toBeNull();
+  });
+
+  it("sends the reviewed Weekly Meaningful Pubmaxxers roll-up through the same consent gate", () => {
+    setWindow();
+    trackMeaningfulCoreAction("plan_completed");
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).not.toHaveBeenCalled();
+
+    setAnalyticsConsent(true);
+    trackMeaningfulCoreAction("memory_reviewed");
+    expect(beacon).toHaveBeenCalledTimes(1);
+    expect(beacon.mock.calls[0]?.[0]).toBe("/api/events");
   });
 
   it("allows Vercel pageviews only after consent and still honors DNT", () => {

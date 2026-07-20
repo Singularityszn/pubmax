@@ -140,3 +140,42 @@ pwa_standalone_launch: [],
 - `__tests__/planCollaborationRoutes.test.ts` (pre-existing, unmodified)
   still passes with `upgradeMemberInvite`'s widened return type — it asserts
   via `toMatchObject`, so the added `inviteId` field is additive.
+
+## Wave 0.5 loop metrics
+
+The closed registry also carries the complete Plan to Memory to Story loop.
+All timing comes from PostHog event timestamps for the existing pseudonymous
+`distinct_id`; the client does not send timestamps, durations, account ids,
+Plan ids, raw coordinates, free text, or user content as event props.
+
+| Event | Confirmed seam | Allowed props |
+|---|---|---|
+| `plan_generated` | A non-empty grounded route returns from `/api/plans/generate` | `stops`, `grounded` |
+| `plan_accepted` | The person explicitly locks the preview and Plan creation succeeds | `stops`, `grounded` |
+| `plan_saved` | The created Plan and its route metadata finish saving | `stops`, `grounded` |
+| `claim_started` | A new handle claim is submitted, excluding renames | `source` |
+| `claim_completed` | That new handle claim succeeds | `source` |
+| `plan_completed` | The completion response is checked against canonical completed Plan state | `ending` |
+| `memory_reviewed` | The completed Plan's private recap is explicitly opened | `source` |
+| `story_published` | The separate Story publication confirmation succeeds | `visibility`, `contributors`, `moments` |
+
+Activation is the elapsed time from `plan_generated` to the first
+`plan_accepted` or `plan_saved` with `grounded = true` for the same
+pseudonymous identity. Manual Plans remain visible in the loop events with
+`grounded = false`, but do not enter this grounded-route activation measure.
+
+Weekly Meaningful Pubmaxxers is the number of distinct pseudonymous identities
+with at least one `meaningful_core_action` in a seven-day window. Its `action`
+is a fixed enum and can only be one of:
+
+- `plan_accepted`
+- `plan_saved`
+- `plan_completed`
+- `memory_reviewed`
+- `story_published`
+
+Route generation, claim steps, page views, install signals, and passive opens
+do not qualify. Each qualifying event is emitted beside its primary loop event
+only after the corresponding product action succeeds. Confirmed Planned Nights
+use `plan_completed`; loop depth uses `memory_reviewed` after completion; Story
+publication remains separately queryable through `story_published`.

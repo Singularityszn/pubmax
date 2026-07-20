@@ -4,6 +4,7 @@ import {
   ANALYTICS_EVENTS,
   isKnownEvent,
   sanitizeEvent,
+  WEEKLY_MEANINGFUL_CORE_ACTIONS,
 } from "@/lib/analyticsEvents";
 
 describe("isKnownEvent", () => {
@@ -173,6 +174,55 @@ describe("sanitizeEvent", () => {
         name: "pwa_standalone_launch",
         props: {},
       });
+    });
+  });
+
+  describe("loop metrics (Wave 0.5)", () => {
+    it("registers every requested loop outcome with privacy-minimised props", () => {
+      expect(sanitizeEvent("plan_generated", {
+        stops: 3,
+        grounded: true,
+        query: "quiet near my home",
+        coordinates: "51.5,-0.1",
+      })).toEqual({ name: "plan_generated", props: { stops: 3, grounded: true } });
+      expect(sanitizeEvent("plan_accepted", { stops: 3, grounded: true, planId: "private-plan" }))
+        .toEqual({ name: "plan_accepted", props: { stops: 3, grounded: true } });
+      expect(sanitizeEvent("plan_saved", { stops: 3, grounded: false, title: "Friday with Jamie" }))
+        .toEqual({ name: "plan_saved", props: { stops: 3, grounded: false } });
+      expect(sanitizeEvent("claim_started", { source: "you", handle: "private_handle" }))
+        .toEqual({ name: "claim_started", props: { source: "you" } });
+      expect(sanitizeEvent("claim_completed", { source: "you", email: "private@example.com" }))
+        .toEqual({ name: "claim_completed", props: { source: "you" } });
+      expect(sanitizeEvent("plan_completed", { ending: "food", finalVenueId: "private-venue" }))
+        .toEqual({ name: "plan_completed", props: { ending: "food" } });
+      expect(sanitizeEvent("memory_reviewed", { source: "inline_recap", caption: "private words" }))
+        .toEqual({ name: "memory_reviewed", props: { source: "inline_recap" } });
+      expect(sanitizeEvent("story_published", {
+        visibility: "unlisted",
+        contributors: 3,
+        moments: 4,
+        storyId: "private-story",
+      })).toEqual({
+        name: "story_published",
+        props: { visibility: "unlisted", contributors: 3, moments: 4 },
+      });
+    });
+
+    it("defines Weekly Meaningful Pubmaxxers from explicit core actions only", () => {
+      expect(WEEKLY_MEANINGFUL_CORE_ACTIONS).toEqual([
+        "plan_accepted",
+        "plan_saved",
+        "plan_completed",
+        "memory_reviewed",
+        "story_published",
+      ]);
+      for (const action of WEEKLY_MEANINGFUL_CORE_ACTIONS) {
+        expect(sanitizeEvent("meaningful_core_action", { action, note: "never sent" }))
+          .toEqual({ name: "meaningful_core_action", props: { action } });
+      }
+      expect(sanitizeEvent("meaningful_core_action", { action: "plan_generated" })?.props).toEqual({});
+      expect(sanitizeEvent("meaningful_core_action", { action: "claim_completed" })?.props).toEqual({});
+      expect(sanitizeEvent("meaningful_core_action", { action: "arrived" })?.props).toEqual({});
     });
   });
 });
