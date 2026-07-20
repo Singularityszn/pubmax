@@ -1,13 +1,19 @@
-# Capacitor iOS Wrap
+# Capacitor Native Wrap
 
 PUBMAXX ships to the App Store as a Capacitor shell around the production PWA.
 The Next.js app is **server-rendered** — there is no static export — so the
-shell runs in **remote-URL mode**: `capacitor.config.ts` points
+shells run in **remote-URL mode**: `capacitor.config.ts` points
 `server.url` at `https://pubmaxxing.com` and the WKWebView loads the live site.
-Do not attempt `next export`; `webDir: "native/web-stub"` (a one-file
+Do not attempt `next export`; `webDir: "native/web-stub"` (a two-file
 placeholder page) exists only to satisfy the CLI's copy step and is never
-served inside the shell — pointing webDir at `public/` would bake its ~6 MB of
+served during a healthy launch — pointing webDir at `public/` would bake its ~6 MB of
 datasets/screenshots into the iOS binary as dead weight, so don't.
+
+`server.errorPath: "offline.html"` is the one exception: if the first main-frame
+load cannot reach production, Capacitor serves the bundled
+`native/web-stub/offline.html`. It says that live data is unavailable, shows no
+stale prices or times, and offers a retry. The site's service worker remains the
+later-session fallback after at least one healthy remote load.
 
 ## What's in the repo
 
@@ -15,14 +21,18 @@ datasets/screenshots into the iOS binary as dead weight, so don't.
 | --- | --- |
 | Capacitor config (remote-URL mode) | `capacitor.config.ts` |
 | webDir stub (keeps public/ out of the binary) | `native/web-stub/index.html` |
-| Native Xcode project (SPM, no CocoaPods) | `ios/` (`npx cap add ios` output; `ios/.gitignore` excludes generated copies) |
+| Honest first-load outage fallback | `native/web-stub/offline.html`, `server.errorPath` |
+| Native projects | `ios/` (SPM, no CocoaPods) and `android/` |
 | Platform detection seam | `lib/nativePlatform.ts` (`isNativeApp()` / `nativePlatform()`) |
 | Native camera seam | `lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx` |
+| Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx` |
+| Universal/app-link route seam | `lib/nativeDeepLinks.ts`, mounted by `components/native/NativeDeepLinks.tsx` |
 | Push registration seam | `lib/nativePush.ts` → `POST /api/push-tokens` |
 | Token storage (memory + Supabase) | `lib/pushTokenStore.ts`, `app/api/push-tokens/route.ts`, `supabase/migrations/20260717120000_0039_push_tokens.sql` |
-| Push **sending** provider seam | `lib/pushProvider.ts` (`noopPushProvider` / `apnsPushProvider` stub, `selectPushProvider`) |
+| Push **sending** provider seam | `lib/pushProvider.ts` (`noopPushProvider` / HTTP/2 `apnsPushProvider`, `selectPushProvider`) |
 | Push **sending** fan-out | `lib/pushSender.ts` (resolves tokens, dispatches, prunes invalid) |
 | Universal links manifest | `public/.well-known/apple-app-site-association` (+ Content-Type header rule in `next.config.mjs`) |
+| Android HTTPS deep-link filters | `android/app/src/main/AndroidManifest.xml` |
 
 **Seam rule:** no file imports `@capacitor/*` except the `lib/native*.ts` seam
 modules. Everything else branches on `isNativeApp()`.
@@ -30,8 +40,8 @@ modules. Everything else branches on `isNativeApp()`.
 ## Developer workflow
 
 ```sh
-npm install                 # installs @capacitor/{core,cli,ios,camera,push-notifications}
-npx cap sync ios            # refresh plugins/config into ios/ after dependency changes
+npm install                 # installs the core/platform + app/camera/push plugins
+npx cap sync                # refresh both checked-in native projects
 npx cap open ios            # open ios/App in Xcode (requires full Xcode, not just CLT)
 ```
 
@@ -39,6 +49,11 @@ npx cap open ios            # open ios/App in Xcode (requires full Xcode, not ju
 (`ios/App/CapApp-SPM`) — CocoaPods is not required. Building/running does
 require full Xcode (`xcode-select` must point at an Xcode.app, not
 CommandLineTools).
+
+Before sync, hash or copy intentional native files (`AppDelegate.swift`,
+`Info.plist`, `AndroidManifest.xml`, and `MainActivity.java`), then compare them
+afterward. The 2026-07-20 Gate Z refresh did this and sync preserved all four;
+see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
 
 ## Remaining manual steps (need Apple developer access)
 
@@ -51,9 +66,6 @@ CommandLineTools).
    default in `lib/nativeCamera.ts`) — add the key only if that changes.
 3. **Push (APNs)**
    - Add the *Push Notifications* capability to the App target.
-   - Create an APNs Auth Key in the Apple Developer portal; store it wherever
-     the server-side sender will live. Server-side push **sending** is not
-     built yet — `/api/push-tokens` only registers device tokens.
    - ~~AppDelegate forwarding~~ — **done in repo**: `ios/App/App/AppDelegate.swift`
      forwards `didRegisterForRemoteNotificationsWithDeviceToken` /
      `didFailToRegisterForRemoteNotificationsWithError` to Capacitor's
@@ -62,17 +74,13 @@ CommandLineTools).
      (canonical Capacitor 8 push setup). Not yet compiled locally — no Xcode
      on this machine; first `xcodebuild` will confirm.
    - Create an APNs Auth Key in the Apple Developer portal. The server-side
-     **sending pipeline is now built** behind a provider seam
+     **sending pipeline and HTTP/2 transport are built** behind a provider seam
      (`lib/pushProvider.ts` + `lib/pushSender.ts`); it runs the `noopPushProvider`
      (logs + reports every token `skipped`) until the APNs env keys exist. To go
      live, set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (bundle id is
-     `com.pubmaxx.app`) — `selectPushProvider()` then flips to `apnsPushProvider`
-     with no caller change. **Remaining APNs drop-in work:** `apnsPushProvider`
-     is a stub — implement the HTTP/2 POST to `api.push.apple.com` with a
-     per-request ES256 JWT (signed from `APNS_PRIVATE_KEY`, `APNS_KEY_ID` in the
-     JWT header, `APNS_TEAM_ID` as issuer, bundle id as `apns-topic`), mapping
-     the APNs response to `PerTokenResult` (`410`/`BadDeviceToken` → `invalid`
-     so the token is pruned). No APNs SDK is added yet.
+     `com.pubmaxx.app`) — `selectPushProvider()` then flips to
+     `apnsPushProvider` with no caller change. Live delivery still requires the
+     entitlement, credentials, signed build, and a real device-token smoke.
 
 ### Push sending: what fires today vs. what's dormant
 
@@ -98,9 +106,7 @@ user/plan identity**. Consequences, enforced in code:
   devices, so the path stays closed. `getin/route.ts` is read-only, so it has no
   server write moment — its notification rides the plan mutation instead.
   **To activate:** once a token row can be linked to a member/plan, wire
-  `resolvePlanTokens()` to that lookup; the rest of the pipeline is unchanged.
-   - Add the standard `AppDelegate` forwarding of APNs callbacks to Capacitor
-     if the template didn't include it (Capacitor docs → Push Notifications).
+   `resolvePlanTokens()` to that lookup; the rest of the pipeline is unchanged.
 4. **Universal links**
    - Add the *Associated Domains* capability with
      `applinks:pubmaxxing.com`.
@@ -110,10 +116,15 @@ user/plan identity**. Consequences, enforced in code:
      `/plan/*`, `/rounds/*`, `/p/*`.
    - Deploy, then verify `https://pubmaxxing.com/.well-known/apple-app-site-association`
      returns `Content-Type: application/json` (header rule in `next.config.mjs`).
+   - Android already declares unverified HTTPS filters for the same three paths.
+     `@capacitor/app` forwards cold and warm opens through the allow-listed
+     `lib/nativeDeepLinks.ts` route seam.
+     Publish `/.well-known/assetlinks.json` with the release signing fingerprint
+     before claiming verified Android App Links.
 5. **Supabase migration** — apply
    `supabase/migrations/20260717120000_0039_push_tokens.sql` to production
    (`supabase db push` per the usual ledger flow); until then the API route
    falls back to the process-memory store.
-6. **Wire `registerNativePush()`** into the app boot path once product decides
-   *when* to prompt (it is deliberately not called anywhere yet — iOS permission
-   prompts are one-shot, so the trigger moment is a product decision).
+6. **Contextual prompt** — done in repo. `components/native/NativePushPrompt.tsx`
+   calls `registerNativePush()` only after the user taps Enable on an explainer
+   armed by a qualifying plan action. It never requests permission at boot.

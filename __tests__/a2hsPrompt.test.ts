@@ -153,9 +153,9 @@ describe("isNativeAppShell (Capacitor bridge probe)", () => {
     expect(isNativeAppShell()).toBe(false);
   });
 
-  it("treats a bridge object without isNativePlatform() as native (older Capacitor)", () => {
+  it("does not guess native when a partial bridge lacks isNativePlatform()", () => {
     (globalThis as { window?: WinWithCap }).window = { Capacitor: {} };
-    expect(isNativeAppShell()).toBe(true);
+    expect(isNativeAppShell()).toBe(false);
   });
 
   it("never throws if the probe blows up", () => {
