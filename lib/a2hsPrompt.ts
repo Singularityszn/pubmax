@@ -19,6 +19,8 @@
 // distinct buckets tells us "came back on another day" with nothing private in
 // it.
 
+import { isNativeApp } from "@/lib/nativePlatform";
+
 /** Milliseconds in one UTC day. */
 export const MS_PER_DAY = 86_400_000;
 
@@ -90,31 +92,20 @@ export type PlatformSnapshot = {
    * WKWebView is NOT display-mode standalone, navigator.standalone is false,
    * and its UA misses every suppression regex below — so without this flag the
    * installed app would beg the user to "Add to Home Screen". The caller
-   * (readPlatform in the component) probes `window.Capacitor` SSR-safely.
+   * (readPlatform in the component) reads the canonical native seam SSR-safely.
    *
-   * SEAM: once lib/nativePlatform.ts (isNativeApp()) lands on this branch's
-   * base, feed its result in here and drop the inline probe.
+   * The caller feeds the canonical lib/nativePlatform.ts bridge result here.
    */
   isNativeApp?: boolean;
 };
 
 /**
- * SSR-safe probe for the native Capacitor shell. Mirrors the standard
- * `window.Capacitor` bridge check so an installed native build is detected even
- * though it is not a home-screen PWA. Kept here (not on navigator) because the
- * bridge hangs off `window`, not `navigator`.
- *
- * SEAM: replace with lib/nativePlatform.ts `isNativeApp()` when it exists.
+ * Backwards-compatible name used by the A2HS component. The actual bridge
+ * probe remains centralised in lib/nativePlatform.ts, preserving the native
+ * seam contract and its SSR-safe behaviour.
  */
 export function isNativeAppShell(): boolean {
-  try {
-    if (typeof window === "undefined") return false;
-    const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-    if (!cap) return false;
-    return typeof cap.isNativePlatform === "function" ? cap.isNativePlatform() : true;
-  } catch {
-    return false;
-  }
+  return isNativeApp();
 }
 
 // In-app browsers (webviews) can't install to the home screen; treat as

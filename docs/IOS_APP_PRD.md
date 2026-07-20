@@ -5,6 +5,14 @@
 **Date:** 2026-07-18.
 **Scope:** London-only v1. Every claim below is grounded in the repo; file references are inline.
 
+> **Historical implementation snapshot.** This PRD records the 18 July review
+> state and is not the current build ledger. Since then, F1-F3 have landed,
+> native cold start is owner-locked to `/tonight`, the APNs HTTP/2 transport is
+> implemented behind its no-op/configured provider seam, and Android is also
+> scaffolded. F4 (real Team ID + Associated Domains) remains owner-blocked.
+> Use `docs/CAPACITOR_WRAP.md` and
+> `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md` for current build truth.
+
 Source branches read for this PRD (all open, none merged — Sol's queue):
 - `#295` `feat/capacitor-ios-wrap` — shell, seams, `ios/` scaffold, push-token API + migration, AASA. Base of the native stack.
 - `#299` `feat/native-first-run` (stacked on #295) — first-run redirect + contextual push prompt.

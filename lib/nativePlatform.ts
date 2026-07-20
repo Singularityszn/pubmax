@@ -11,8 +11,12 @@ type CapacitorBridge = {
 };
 
 function bridge(): CapacitorBridge | undefined {
-  if (typeof window === "undefined") return undefined;
-  return (window as { Capacitor?: CapacitorBridge }).Capacitor;
+  try {
+    if (typeof window === "undefined") return undefined;
+    return (window as { Capacitor?: CapacitorBridge }).Capacitor;
+  } catch {
+    return undefined;
+  }
 }
 
 /** True only inside the Capacitor native shell. SSR-safe (false on the server). */

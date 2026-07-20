@@ -14,7 +14,7 @@
 | Version name | 1.0 | `android/app/build.gradle` `versionName`; iOS `MARKETING_VERSION` |
 | Version code / build | 1 | `android/app/build.gradle` `versionCode`; iOS `CURRENT_PROJECT_VERSION` |
 | Category | Food & Drink | Both stores |
-| Min OS | iOS 14+ (Capacitor 8 default); Android 7.0, API 24 | `android/variables.gradle` `minSdkVersion = 24` |
+| Min OS | iOS 15+; Android 7.0, API 24 | `ios/App/CapApp-SPM/Package.swift`; `android/variables.gradle` `minSdkVersion = 24` |
 | Target SDK (Android) | 36 | `android/variables.gradle` `targetSdkVersion = 36`, clears the Play 2025 target-API floor |
 
 ---
@@ -278,7 +278,7 @@ Everything above is done or ready to paste. The steps below need a real account,
 - [ ] `npm ci` then `npx cap sync ios`, then `npx cap open ios` to open the project in Xcode.
 - [ ] **Signing:** App target > Signing & Capabilities, select the team, confirm bundle id `com.pubmaxx.app`. Let Xcode manage signing.
 - [ ] **Certificates and profiles** are auto-managed by Xcode once the team is set. No manual keychain work needed for a first upload.
-- [ ] **Push (only when you want notifications live):** add the Push Notifications capability, create an APNs Auth Key in the developer portal, set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` on the server. Note: the APNs sender transport is still a stub (`lib/pushProvider.ts`), it must be built before push actually delivers. See `docs/IOS_APP_PRD.md` section 4.
+- [ ] **Push (only when you want notifications live):** add the Push Notifications capability, create an APNs Auth Key in the developer portal, set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` on the server, and verify a signed-device delivery. The APNs HTTP/2 transport exists in `lib/pushProvider.ts`; credentials and entitlement remain owner-only. See `docs/CAPACITOR_WRAP.md`.
 - [ ] **Universal links (optional for v1):** add the Associated Domains capability `applinks:pubmaxxing.com`, and replace the `TEAMID` placeholder in `public/.well-known/apple-app-site-association` with the real Team ID.
 - [ ] **Create the app record** in App Store Connect: name PUBMAXX, bundle id `com.pubmaxx.app`, primary language English (UK), category Food & Drink.
 - [ ] **Paste metadata** from sections 1 to 5 of this doc. Upload screenshots from section 6.
