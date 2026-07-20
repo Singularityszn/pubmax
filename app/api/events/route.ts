@@ -146,6 +146,7 @@ export async function POST(req: Request): Promise<Response> {
       anonymousId,
       analyticsConsent,
       ...(delivery ? { insertId: delivery.eventId } : {}),
+      ...(delivery ? { occurredAt: new Date(delivery.issuedAt).toISOString() } : {}),
     });
 
     if (delivery) {

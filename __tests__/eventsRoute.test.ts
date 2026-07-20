@@ -131,13 +131,16 @@ describe("POST /api/events", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(console, "log").mockImplementation(() => {});
 
+    const before = Date.now();
     const res = await POST(post(JSON.stringify({
       name: "plan_created",
       props: { count: 3, freeText: "do not forward" },
       path: "/plan?memberToken=secret",
       anonymousId: "anon_0123456789abcdef",
       analyticsConsent: true,
+      ts: 123,
     })));
+    const after = Date.now();
 
     expect(res.status).toBe(204);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -147,9 +150,12 @@ describe("POST /api/events", () => {
       api_key: string;
       event: string;
       properties: Record<string, unknown>;
+      timestamp: string;
     };
     expect(payload.api_key).toBe("phc_test_project");
     expect(payload.event).toBe("plan_created");
+    expect(Date.parse(payload.timestamp)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(payload.timestamp)).toBeLessThanOrEqual(after);
     expect(payload.properties).toMatchObject({
       count: 3,
       path: "/plan",
@@ -186,6 +192,27 @@ describe("POST /api/events", () => {
     const providerPayload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
     expect(providerPayload.properties.$insert_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(JSON.stringify(providerPayload)).not.toContain(deliveryToken);
+  });
+
+  it("preserves the signed occurrence timestamp across delayed verified delivery", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const event = { name: "plan_completed" as const, props: { ending: "get_home" } };
+    const occurredAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1_000).toISOString();
+    const deliveryToken = mintVerifiedAnalyticsToken(event, "completion:delayed", occurredAt);
+
+    const response = await POST(post(JSON.stringify({
+      ...event,
+      deliveryToken,
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(response.headers.get("x-analytics-delivery")).toBe("delivered");
+    const providerPayload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(providerPayload.timestamp).toBe(occurredAt);
   });
 
   it("rejects spoofed acceptance and completion events without a server token", async () => {

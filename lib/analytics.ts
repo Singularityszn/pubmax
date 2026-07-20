@@ -33,6 +33,8 @@ let inMemoryAnonymousId: string | null = null;
 let inMemoryConsentGranted = false;
 const inMemoryVerifiedOutbox = new Map<string, string>();
 let verifiedFlush: Promise<void> | null = null;
+let verifiedFlushAbort: AbortController | null = null;
+let analyticsConsentEpoch = 0;
 
 type TrackEventOptions = { deliveryToken?: string };
 
@@ -77,22 +79,42 @@ function removeVerifiedOutboxItem(token: string): void {
 export async function flushVerifiedAnalyticsOutbox(): Promise<void> {
   if (verifiedFlush) return verifiedFlush;
   if (typeof window === "undefined" || !analyticsCollectionAllowed()) return;
-  verifiedFlush = (async () => {
+  const epoch = analyticsConsentEpoch;
+  const controller = new AbortController();
+  verifiedFlushAbort = controller;
+  const active = () => (
+    epoch === analyticsConsentEpoch
+    && !controller.signal.aborted
+    && analyticsCollectionAllowed()
+  );
+  const run = (async () => {
+    if (!active()) return;
     const items = persistedVerifiedOutbox();
     for (const [token, payload] of items) {
+      if (!active()) return;
       try {
         const response = await fetch(ENDPOINT, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: payload,
           keepalive: true,
+          signal: controller.signal,
         });
+        if (!active()) return;
         const status = response.headers.get("x-analytics-delivery");
-        if (response.ok && (status === "delivered" || status === "discard")) removeVerifiedOutboxItem(token);
+        if (response.ok && (status === "delivered" || status === "discard")) {
+          if (!active()) return;
+          removeVerifiedOutboxItem(token);
+        }
       } catch { /* retain for the next mount or event */ }
     }
-  })().finally(() => { verifiedFlush = null; });
-  return verifiedFlush;
+  })();
+  verifiedFlush = run;
+  void run.finally(() => {
+    if (verifiedFlush === run) verifiedFlush = null;
+    if (verifiedFlushAbort === controller) verifiedFlushAbort = null;
+  });
+  return run;
 }
 
 function newAnonymousAnalyticsId(): string {
@@ -125,6 +147,13 @@ export function anonymousAnalyticsId(): string | null {
 
 export function setAnalyticsConsent(granted: boolean): void {
   if (typeof window === "undefined") return;
+  // Every consent transition invalidates snapshots captured by an older
+  // flush. Abort immediately, then let the epoch checks prevent a fetch that
+  // ignored abort from sending the next item or mutating a re-granted queue.
+  analyticsConsentEpoch += 1;
+  verifiedFlushAbort?.abort();
+  verifiedFlushAbort = null;
+  verifiedFlush = null;
   try {
     if (granted) {
       inMemoryConsentGranted = true;

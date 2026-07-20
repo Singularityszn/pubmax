@@ -177,12 +177,18 @@ and the API independently fails closed for stale, forged, or cross-operation pro
 Acceptance and completion loop events use a consent-gated verified-delivery
 path. Their canonical API responses return stable signed tokens on both the
 original response and every idempotent replay. The browser keeps unacknowledged
-tokens in a bounded local outbox and retries them; `/api/events` verifies the
+tokens in a bounded local outbox and retries them. Revoking consent aborts any
+active delivery request, clears the outbox, and advances a consent epoch so a
+stale response cannot send another item or remove an event queued after consent
+is granted again. `/api/events` verifies the
 exact sanitized event, claims a service-role-only `analytics_event_receipts`
 row, and forwards a stable derived event id as PostHog `$insert_id`. The signed
 token, Plan/completion id, and receipt hash are never event props. Provider or
 acknowledgement loss leaves the receipt pending for retry; completed receipts
-make later submissions no-ops. This delivery rail is funnel telemetry only and
+make later submissions no-ops. Verified events use the occurrence time signed
+into their token as the provider timestamp, including after a delayed retry;
+ordinary events continue to use server receipt time and ignore client-supplied
+timestamps. This delivery rail is funnel telemetry only and
 does not change the PNC ledger authority below.
 
 Weekly Meaningful Pubmaxxers is the number of distinct pseudonymous identities

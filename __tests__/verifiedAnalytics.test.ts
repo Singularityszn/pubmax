@@ -27,6 +27,15 @@ describe("verified analytics delivery", () => {
     expect(verifyAnalyticsDeliveryToken(first, { ...event, props: { stops: 2, grounded: true } }, Date.parse(occurredAt) + 1_000)).toBeNull();
   });
 
+  it("rejects expired tokens and occurrence times beyond the clock-skew bound", () => {
+    const issuedAt = Date.parse(occurredAt);
+    const token = mintVerifiedAnalyticsToken(event, "plan:bounded", occurredAt);
+    const futureToken = mintVerifiedAnalyticsToken(event, "plan:future", new Date(issuedAt + 31_000).toISOString());
+
+    expect(verifyAnalyticsDeliveryToken(token, event, issuedAt + 31 * 24 * 60 * 60 * 1_000)).toBeNull();
+    expect(verifyAnalyticsDeliveryToken(futureToken, event, issuedAt)).toBeNull();
+  });
+
   it("durably claims one event id and reports delivered on replay", async () => {
     const token = mintVerifiedAnalyticsToken(event, "plan:one", occurredAt);
     const claims = verifyAnalyticsDeliveryToken(token, event, Date.parse(occurredAt) + 1_000)!;

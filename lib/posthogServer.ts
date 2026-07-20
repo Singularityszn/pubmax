@@ -10,6 +10,7 @@ export async function capturePosthogEvent(input: {
   anonymousId: unknown;
   analyticsConsent: unknown;
   insertId?: string;
+  occurredAt?: string;
 }): Promise<boolean> {
   const apiKey = process.env.POSTHOG_PROJECT_API_KEY?.trim();
   if (!apiKey || input.analyticsConsent !== true || !isAnonymousAnalyticsId(input.anonymousId)) return false;
@@ -28,7 +29,7 @@ export async function capturePosthogEvent(input: {
           $process_person_profile: false,
           ...(input.insertId ? { $insert_id: input.insertId } : {}),
         },
-        timestamp: new Date().toISOString(),
+        timestamp: input.occurredAt ?? new Date().toISOString(),
       }),
       cache: "no-store",
       signal: AbortSignal.timeout(POSTHOG_TIMEOUT_MS),

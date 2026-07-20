@@ -87,6 +87,42 @@ describe("trackEvent", () => {
     expect(beacon).not.toHaveBeenCalled();
   });
 
+  it("cancels an active flush on revocation and cannot remove a re-granted event", async () => {
+    setWindow();
+    setAnalyticsConsent(true);
+    await flushVerifiedAnalyticsOutbox();
+    let resolveFirst!: (response: Response) => void;
+    const firstResponse = new Promise<Response>((resolve) => { resolveFirst = resolve; });
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValue(new Response(null, {
+        status: 204,
+        headers: { "x-analytics-delivery": "delivered" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "revocation-token-a" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    trackEvent("plan_completed", { ending: "get_home" }, { deliveryToken: "revocation-token-b" });
+
+    setAnalyticsConsent(false);
+    const firstSignal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal as AbortSignal | undefined;
+    expect(firstSignal?.aborted).toBe(true);
+
+    setAnalyticsConsent(true);
+    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "revocation-token-a" });
+    resolveFirst(new Response(null, {
+      status: 204,
+      headers: { "x-analytics-delivery": "delivered" },
+    }));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await flushVerifiedAnalyticsOutbox();
+
+    const deliveredTokens = fetchMock.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)).deliveryToken);
+    expect(deliveredTokens).toEqual(["revocation-token-a", "revocation-token-a"]);
+    expect(deliveredTokens).not.toContain("revocation-token-b");
+  });
+
   it("creates no persistent id before consent and clears it after revocation", () => {
     setWindow();
     expect(anonymousAnalyticsId()).toBeNull();
