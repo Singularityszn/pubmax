@@ -14,9 +14,11 @@
 // "Later" persists and is re-offered only after the NEXT qualifying plan
 // action, not immediately — otherwise every subsequent join/vote in the same
 // session would re-show the sheet. We track that with a monotonic action
-// sequence number (bumped once per recordPlanHighIntentAction call) and
-// remember which sequence number was current when the user last dismissed;
-// the gate only reopens once the sequence has moved past it.
+// sequence number (bumped once per recordPlanHighIntentAction call), remember
+// which sequence number was current when the user last dismissed, and keep an
+// in-memory arm for the document where the action happened. That final guard
+// is what makes this contextual: persisted action history can never resurrect
+// the sheet on a later cold boot.
 //
 // Storage mirrors the lib/firstRunTour.ts / lib/cityPreference.ts idiom:
 // localStorage-backed, SSR-safe, same-tab CHANGE_EVENT for
@@ -87,7 +89,12 @@ export type PushPromptGateState = {
   dismissedAtSeq: number | null;
   /** Action sequence number as of the current check. */
   currentSeq: number;
+  /** A qualifying action fired in this live document, rather than a past boot. */
+  triggeredThisDocument: boolean;
 };
+
+/** Sequence armed by a qualifying action in this JS document; resets on boot. */
+let documentTriggeredSeq: number | null = null;
 
 /**
  * Pure gate function — exported for unit testing. No storage/DOM access.
@@ -98,6 +105,7 @@ export type PushPromptGateState = {
 export function shouldOfferPushPrompt(state: PushPromptGateState): boolean {
   if (!state.isNative) return false;
   if (state.alreadyEnabled) return false;
+  if (!state.triggeredThisDocument) return false;
   if (state.currentSeq <= 0) return false;
   if (state.dismissedAtSeq !== null && state.currentSeq <= state.dismissedAtSeq) return false;
   return true;
@@ -124,11 +132,13 @@ function dismissedAtSeq(): number | null {
  */
 export function recordPlanHighIntentAction(): void {
   if (!isNativeApp() || !hasStorage()) return;
+  const nextSeq = currentActionSeq() + 1;
   try {
-    window.localStorage.setItem(SEQ_KEY, String(currentActionSeq() + 1));
+    window.localStorage.setItem(SEQ_KEY, String(nextSeq));
   } catch {
     return;
   }
+  documentTriggeredSeq = nextSeq;
   notify();
 }
 
@@ -139,6 +149,7 @@ export function getPushPromptVisibleSnapshot(): boolean {
     alreadyEnabled: hasEnabledNativePush(),
     dismissedAtSeq: dismissedAtSeq(),
     currentSeq: currentActionSeq(),
+    triggeredThisDocument: documentTriggeredSeq === currentActionSeq(),
   });
 }
 
@@ -164,6 +175,7 @@ export function markPushPromptEnabled(): void {
   if (!hasStorage()) return;
   try {
     window.localStorage.setItem(ENABLED_KEY, "1");
+    documentTriggeredSeq = null;
     notify();
   } catch {
     // Storage full / disabled / private mode — degrade silently.
@@ -175,6 +187,7 @@ export function markPushPromptDismissed(): void {
   if (!hasStorage()) return;
   try {
     window.localStorage.setItem(DISMISSED_SEQ_KEY, String(currentActionSeq()));
+    documentTriggeredSeq = null;
     notify();
   } catch {
     // ignore
@@ -188,6 +201,7 @@ export function resetPushPrompt(): void {
     window.localStorage.removeItem(ENABLED_KEY);
     window.localStorage.removeItem(DISMISSED_SEQ_KEY);
     window.localStorage.removeItem(SEQ_KEY);
+    documentTriggeredSeq = null;
     notify();
   } catch {
     // ignore

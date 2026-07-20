@@ -15,11 +15,15 @@
 import {
   claimPromptBudget,
   hasPromptBudgetFor,
+  releasePromptBudget,
   type PromptSurface,
 } from "@/lib/promptBudget";
+import { PAL_ONBOARDING_SPECIES } from "@/lib/pubPal";
 
 /** Bump the `v1` suffix if the tour content changes enough to re-show it. */
 const STORAGE_KEY = "pubmax-tour-v1-done";
+/** Device-level choice that seeds the later, account-owned Pub Pal setup. */
+const COMPANION_KEY = "pubmax:first-run-companion:v1";
 /** Same-tab notify so useSyncExternalStore clients re-read after a write. */
 const CHANGE_EVENT = "pubmax:first-run-tour";
 
@@ -102,6 +106,65 @@ export function getTourSeenSnapshot(): boolean {
  */
 export const TOUR_PROMPT_SURFACE: PromptSurface = "first-run-tour";
 
+export type FirstRunCompanion = (typeof PAL_ONBOARDING_SPECIES)[number];
+
+/** The launch cast and its plain-language role in a first Plan. */
+export const FIRST_RUN_COMPANIONS: readonly {
+  id: FirstRunCompanion;
+  label: string;
+  note: string;
+}[] = [
+  { id: "greyhound", label: "Greyhound", note: "Loyal and perceptive" },
+  { id: "cat", label: "Black Cat", note: "Calm and mischievous" },
+  { id: "fox", label: "Fox", note: "Curious and quick" },
+  { id: "pigeon", label: "Pigeon", note: "Streetwise and social" },
+  { id: "badger", label: "Badger", note: "Steady and protective" },
+  { id: "corgi", label: "Corgi", note: "Bright and encouraging" },
+];
+
+/** Runtime guard for persisted or URL-derived companion values. */
+export function isFirstRunCompanion(value: unknown): value is FirstRunCompanion {
+  return typeof value === "string" && PAL_ONBOARDING_SPECIES.includes(value as FirstRunCompanion);
+}
+
+/** Read the remembered first-run companion. Invalid values fail closed. */
+export function readFirstRunCompanion(storage?: Storage | null): FirstRunCompanion | null {
+  const store = storage ?? (hasStorage() ? window.localStorage : null);
+  if (!store) return null;
+  try {
+    const value = store.getItem(COMPANION_KEY);
+    return isFirstRunCompanion(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the chosen companion once so later Pal setup starts from it. */
+export function writeFirstRunCompanion(
+  companion: FirstRunCompanion,
+  storage?: Storage | null,
+): void {
+  if (!isFirstRunCompanion(companion)) return;
+  const store = storage ?? (hasStorage() ? window.localStorage : null);
+  if (!store) return;
+  try {
+    store.setItem(COMPANION_KEY, companion);
+  } catch {
+    // Storage full / disabled / private mode. Planning remains available.
+  }
+}
+
+/** Clear the companion choice for local testing. */
+export function resetFirstRunCompanion(storage?: Storage | null): void {
+  const store = storage ?? (hasStorage() ? window.localStorage : null);
+  if (!store) return;
+  try {
+    store.removeItem(COMPANION_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Whether the tour may interrupt this session — true when the shared prompt
  * budget is free or already held by the tour. Mirrors A2HS's pre-show check.
@@ -118,6 +181,15 @@ export function tourHasPromptBudget(storage?: Storage | null): boolean {
  */
 export function claimTourPromptBudget(storage?: Storage | null): boolean {
   return claimPromptBudget(TOUR_PROMPT_SURFACE, storage);
+}
+
+/**
+ * Release onboarding's hold immediately before its explicit Plan handoff.
+ * The page and the later push explainer never overlap: onboarding unmounts
+ * first, then push may claim the same budget only after route generation.
+ */
+export function releaseTourPromptBudget(storage?: Storage | null): void {
+  releasePromptBudget(TOUR_PROMPT_SURFACE, storage);
 }
 
 /** Server snapshot — always "seen" so nothing renders during SSR. */
