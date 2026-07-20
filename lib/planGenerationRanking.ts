@@ -29,10 +29,6 @@ function priceAndZeroProof(venue: ConciergeVenue, context: NightContext): ScoreA
 function occasionFit(venue: ConciergeVenue, context: NightContext): ScoreAccumulator {
   const reasons: string[] = [];
   let score = 0;
-  if (context.daypart === "after_work" && venue.canonical) {
-    score += 1.25;
-    reasons.push("reliable after-work anchor");
-  }
   if ((context.daypart === "late_night" || context.daypart === "get_home") && venue.amenities.food) {
     score += 1.5;
     reasons.push("food-aware late stop");
@@ -40,10 +36,6 @@ function occasionFit(venue: ConciergeVenue, context: NightContext): ScoreAccumul
   if (context.partyType === "work" && venue.amenities.food) {
     score += 1;
     reasons.push("works for a group with food backup");
-  }
-  if ((context.groupSize ?? 0) >= 5 && venue.canonical) {
-    score += 0.75;
-    reasons.push("safer pick for a bigger group");
   }
   if (context.foodNeeds.length > 0 && venue.amenities.food) {
     score += 2;
