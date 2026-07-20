@@ -10,6 +10,13 @@ import {
   __listMemoryPushTokens,
   __resetMemoryPushTokens,
 } from "@/lib/pushTokenStore";
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
+
+const WEB_TOKEN = encodeWebPushSubscription({
+  endpoint: "https://push.example.test/subscriptions/abc",
+  expirationTime: null,
+  keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+})!;
 
 beforeEach(() => {
   __resetMemoryPushTokens();
@@ -37,11 +44,20 @@ describe("validatePushToken", () => {
   });
 
   it("rejects unknown platforms", () => {
-    for (const platform of [undefined, "web", "IOS", 1]) {
+    for (const platform of [undefined, "desktop", "IOS", 1]) {
       const result = validatePushToken({ token: "tok", platform });
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toMatch(/ios or android/);
+      if (!result.ok) expect(result.error).toMatch(/ios, android or web/);
     }
+  });
+
+  it("accepts a valid identity-free web subscription only on the web platform", () => {
+    expect(validatePushToken({ token: WEB_TOKEN, platform: "web" })).toEqual({
+      ok: true,
+      input: { token: WEB_TOKEN, platform: "web" },
+    });
+    expect(validatePushToken({ token: WEB_TOKEN, platform: "ios" }).ok).toBe(false);
+    expect(validatePushToken({ token: "not-a-subscription", platform: "web" }).ok).toBe(false);
   });
 });
 
@@ -68,5 +84,12 @@ describe("memoryPushTokenStore", () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
     await memoryPushTokenStore.save({ token: "tok-2", platform: "android" });
     expect(__listMemoryPushTokens().map((t) => t.token)).toEqual(["tok-1", "tok-2"]);
+  });
+
+  it("stores a web subscription without attaching identity", async () => {
+    const row = await memoryPushTokenStore.save({ token: WEB_TOKEN, platform: "web" });
+    expect(row).toMatchObject({ token: WEB_TOKEN, platform: "web" });
+    expect(row).not.toHaveProperty("userId");
+    expect(row).not.toHaveProperty("planId");
   });
 });

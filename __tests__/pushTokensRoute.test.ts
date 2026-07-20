@@ -30,6 +30,7 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 
 import { POST } from "@/app/api/push-tokens/route";
 import { __listMemoryPushTokens, __resetMemoryPushTokens } from "@/lib/pushTokenStore";
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const URL_BASE = "http://localhost/api/push-tokens";
 
@@ -86,11 +87,24 @@ describe("POST /api/push-tokens", () => {
     expect(__listMemoryPushTokens()).toHaveLength(0);
   });
 
+  it("registers a valid identity-free web subscription", async () => {
+    const token = encodeWebPushSubscription({
+      endpoint: "https://push.example.test/subscriptions/route",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    })!;
+    const res = await post({ token, platform: "web" });
+    expect(res.status).toBe(200);
+    expect(__listMemoryPushTokens()).toEqual([
+      expect.objectContaining({ token, platform: "web" }),
+    ]);
+  });
+
   it("400s on an unknown platform", async () => {
-    const res = await post({ token: "tok", platform: "web" });
+    const res = await post({ token: "tok", platform: "desktop" });
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
-      error: "Platform must be ios or android.",
+      error: "Platform must be ios, android or web.",
       code: "INVALID_REQUEST",
       retryable: false,
     });

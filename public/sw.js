@@ -78,6 +78,75 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Web Push payloads are always user-visible. Treat provider data as untrusted:
+// copy only short strings and reduce click-through to a same-origin path. A
+// malformed or empty push still shows a useful, honest fallback notification.
+function pushText(value, fallback, maxLength) {
+  return typeof value === "string" && value.trim()
+    ? value.trim().slice(0, maxLength)
+    : fallback;
+}
+
+function safeNotificationPath(value) {
+  if (typeof value !== "string" || !value.startsWith("/")) return "/today";
+  try {
+    const url = new URL(value, self.location.origin);
+    if (url.origin !== self.location.origin) return "/today";
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return "/today";
+  }
+}
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {};
+  }
+  const data = payload && typeof payload.data === "object" && payload.data !== null
+    ? payload.data
+    : {};
+  const url = safeNotificationPath(data.url);
+  event.waitUntil(
+    self.registration.showNotification(
+      pushText(payload.title, "PUBMAXX", 80),
+      {
+        body: pushText(payload.body, "Your London brief is ready.", 240),
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag: pushText(payload.tag, "pubmax-update", 80),
+        data: { url },
+      },
+    ),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const path = safeNotificationPath(event.notification.data?.url);
+  const target = new URL(path, self.location.origin).toString();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const exact = windows.find((client) => client.url === target);
+    if (exact) return exact.focus();
+
+    const existing = windows.find((client) => {
+      try {
+        return new URL(client.url).origin === self.location.origin;
+      } catch {
+        return false;
+      }
+    });
+    if (existing) {
+      if (typeof existing.navigate === "function") await existing.navigate(target);
+      return existing.focus();
+    }
+    return self.clients.openWindow(target);
+  })());
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   // Rule 3: never intercept writes. POST/PUT/etc. go straight to the network.

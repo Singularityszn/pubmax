@@ -19,6 +19,7 @@ vi.mock("@/lib/pushProvider", async (importOriginal) => {
 
 import {
   broadcastNightSignalLive,
+  broadcastDailyBrief,
   maybeBroadcastNightSignalLive,
   notifyPlanUpdate,
   __resetNightSignalBroadcasts,
@@ -28,6 +29,7 @@ import {
   __listMemoryPushTokens,
   __resetMemoryPushTokens,
 } from "@/lib/pushTokenStore";
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 // The durable broadcast claim uses the real in-memory limiter (Supabase is
 // unconfigured in tests) — reset its bucket state between cases so a version
 // key never leaks across tests.
@@ -158,6 +160,31 @@ describe("maybeBroadcastNightSignalLive", () => {
     expect(sendMock).toHaveBeenCalledTimes(1);
     const winners = [x, y].filter((s) => s.targeted > 0);
     expect(winners).toHaveLength(1);
+  });
+});
+
+describe("broadcastDailyBrief", () => {
+  it("targets explicit web subscriptions only and deep-links to /today", async () => {
+    await seed("native-token");
+    const webToken = encodeWebPushSubscription({
+      endpoint: "https://push.example.test/subscriptions/daily",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    })!;
+    await memoryPushTokenStore.save({ token: webToken, platform: "web" });
+
+    const summary = await broadcastDailyBrief({
+      weatherLine: "Warm and dry. Beer garden weather.",
+      topPickTitle: "Pub quiz",
+      topPickPlace: "The Anchor",
+    });
+
+    expect(sendMock).toHaveBeenCalledWith([webToken], expect.objectContaining({
+      title: "Today in London",
+      body: "Warm and dry. Beer garden weather. Tonight: Pub quiz at The Anchor.",
+      data: { kind: "daily_brief", url: "/today" },
+    }));
+    expect(summary).toMatchObject({ targeted: 1, sent: 1 });
   });
 });
 
