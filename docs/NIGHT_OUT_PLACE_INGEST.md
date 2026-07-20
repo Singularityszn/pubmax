@@ -28,10 +28,22 @@ source page itself exposes a matching Schema.org JSON-LD object containing:
 The description passes through `lib/slopFilter.ts`. Missing descriptions,
 marketing filler, malformed provenance, non-London coordinates, and incomplete
 rows are rejected. Pages containing multiple matching place objects are treated
-as ambiguous directories and rejected. Source URLs have tracking parameters
-removed, reject credentials, nonstandard ports, local/literal hosts, and pass a
-public-DNS pin/recheck before being sent to Firecrawl. Firecrawl requests keep
-TLS verification enabled and use its lockdown mode. Every accepted
+as ambiguous directories and rejected. Source URLs remove only an explicit
+tracking allowlist (`utm_*`, `gclid`, `fbclid`, and equivalent ad identifiers);
+all remaining query parameters are sorted and preserved as page identity.
+Credentials, nonstandard ports, and local/literal hosts are rejected.
+
+Local DNS resolution is an advisory early rejection of special-use addresses,
+using `ipaddr.js`'s maintained range taxonomy. It cannot pin the DNS answer used
+by a remote provider and is not represented as a rebinding guarantee. The
+provider boundary instead requires a live Firecrawl request with `maxAge: 0`,
+`storeInCache: false`, `lockdown: false`, and `skipTlsVerification: false`, then
+requires the requested URL, returned `metadata.sourceURL`, final `metadata.url`,
+and any returned canonical/final URL fields to have the exact same normalized
+identity. Missing identity metadata, redirects, cache markers, and stale exposed
+fetch timestamps fail closed. `observedAt` is the authenticated Firecrawl API
+response receipt time, never the Exa search time or a cached-page timestamp.
+Every accepted
 row expires after 30 days, and the runtime drops expired, future-observed, or
 over-age rows even if an old artifact is accidentally deployed.
 

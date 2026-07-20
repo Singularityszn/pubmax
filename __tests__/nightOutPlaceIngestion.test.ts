@@ -8,9 +8,9 @@ import { describe, expect, it, vi } from "vitest";
 // with fixtures; these tests never contact Exa or Firecrawl.
 import {
   ProviderHaltError,
+  assertAdvisoryPublicResolution,
   buildPlaceRows,
   classifyProviderFailure,
-  createPublicDnsGuard,
   fetchDiscoveries,
   isPublicIpAddress,
   isValidPlaceSnapshot,
@@ -27,6 +27,19 @@ const OBSERVED_AT = "2026-07-20T12:00:00.000Z";
 
 function jsonLdPage(value: unknown): string {
   return `<html><head><script type="application/ld+json">${JSON.stringify(value)}</script></head></html>`;
+}
+
+function firecrawlPage(url: string, rawHtml: string, metadata: Record<string, unknown> = {}) {
+  return {
+    url,
+    rawHtml,
+    metadata: {
+      sourceURL: url,
+      url,
+      statusCode: 200,
+      ...metadata,
+    },
+  };
 }
 
 const restaurant = {
@@ -58,6 +71,15 @@ describe("night-out place ingestion", () => {
     expect(normalizeSourceUrl("https://0x7f000001/place")).toBeNull();
     expect(normalizeSourceUrl("https://[::1]/place")).toBeNull();
     expect(normalizeSourceUrl("https://example.com:8443/place")).toBeNull();
+    expect(normalizeSourceUrl("https://example.com/place?b=2&utm_source=x&a=1#g")).toBe(
+      "https://example.com/place?a=1&b=2",
+    );
+    expect(normalizeSourceUrl("https://example.com/place?id=A&gclid=x&fbclid=y")).toBe(
+      "https://example.com/place?id=A",
+    );
+    expect(normalizeSourceUrl("https://example.com/place?id=A")).not.toBe(
+      normalizeSourceUrl("https://example.com/place?id=B"),
+    );
   });
 
   it("extracts JSON-LD blocks and ignores malformed neighbours", () => {
@@ -93,10 +115,14 @@ describe("night-out place ingestion", () => {
     for (const value of [
       { ...restaurant, url: undefined },
       { ...restaurant, url: "https://example.com/london/venue-b" },
+      { ...restaurant, url: `${restaurant.url}?id=B` },
     ]) {
       expect(
         sourcePageToPlace(
-          { url: "https://example.com/london/venue-a", rawHtml: jsonLdPage(value) },
+          {
+            url: value.url?.includes("?id=") ? `${restaurant.url}?id=A` : "https://example.com/london/venue-a",
+            rawHtml: jsonLdPage(value),
+          },
           { category: "restaurant", discoveredVia: "exa", observedAt: OBSERVED_AT },
         ),
       ).toBeNull();
@@ -176,31 +202,53 @@ describe("night-out place ingestion", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("pins public DNS and rejects a public-to-private rebind", async () => {
+  it("uses DNS as an advisory public-resolution preflight without claiming a pin", async () => {
     const lookup = vi
       .fn()
       .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])
+      .mockResolvedValueOnce([{ address: "1.1.1.1", family: 4 }])
       .mockResolvedValueOnce([{ address: "127.0.0.1", family: 4 }]);
-    const guard = createPublicDnsGuard(lookup);
-    await expect(guard("https://example.com/venue")).resolves.toBe(
+    await expect(assertAdvisoryPublicResolution("https://example.com/venue", lookup)).resolves.toBe(
       "https://example.com/venue",
     );
-    await expect(guard("https://example.com/venue")).rejects.toThrow("OWNER ACTION");
+    await expect(assertAdvisoryPublicResolution("https://example.com/venue", lookup)).resolves.toBe(
+      "https://example.com/venue",
+    );
+    await expect(assertAdvisoryPublicResolution("https://example.com/venue", lookup)).rejects.toThrow(
+      "OWNER ACTION",
+    );
   });
 
   it("rejects private, loopback, link-local and mapped DNS answers", () => {
     for (const address of [
       "10.0.0.1",
+      "0.0.0.0",
       "100.64.0.1",
       "127.0.0.1",
       "169.254.1.1",
       "172.16.0.1",
       "192.168.0.1",
+      "192.88.99.1",
+      "192.0.2.1",
+      "198.18.0.1",
+      "198.51.100.1",
+      "203.0.113.1",
+      "224.0.0.1",
+      "240.0.0.1",
+      "255.255.255.255",
+      "::",
       "::1",
       "fc00::1",
       "fe80::1",
       "::ffff:127.0.0.1",
       "::ffff:7f00:1",
+      "2001:2::1",
+      "2001:10::1",
+      "2001:db8::1",
+      "64:ff9b::1",
+      "2001::1",
+      "2002::1",
+      "ff00::1",
     ]) {
       expect(isPublicIpAddress(address), address).toBe(false);
     }
@@ -208,18 +256,31 @@ describe("night-out place ingestion", () => {
     expect(isPublicIpAddress("2606:2800:220:1:248:1893:25c8:1946")).toBe(true);
   });
 
-  it("sends explicit TLS verification and lockdown controls to Firecrawl", async () => {
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+  it("requires a live uncached TLS-verified Firecrawl fetch", async () => {
+    const requests: Array<{
+      url: string;
+      body: Record<string, unknown>;
+      cache?: RequestCache;
+      headers: Record<string, string>;
+    }> = [];
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
-      requests.push({ url, body: JSON.parse(String(init?.body)) });
+      requests.push({
+        url,
+        body: JSON.parse(String(init?.body)),
+        cache: init?.cache,
+        headers: init?.headers as Record<string, string>,
+      });
       if (url.includes("api.exa.ai")) {
         return new Response(JSON.stringify({ results: [{ url: restaurant.url }] }));
       }
       if (url.endsWith("/search")) {
         return new Response(JSON.stringify({ success: true, data: { web: [] } }));
       }
-      return new Response(JSON.stringify({ success: true, data: { rawHtml: jsonLdPage(restaurant) } }));
+      return new Response(JSON.stringify({
+        success: true,
+        data: firecrawlPage(restaurant.url, jsonLdPage(restaurant)),
+      }));
     });
     const lookup = vi.fn().mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     await fetchDiscoveries(
@@ -233,13 +294,88 @@ describe("night-out place ingestion", () => {
     expect(search).not.toHaveLength(0);
     expect(scrape).not.toHaveLength(0);
     for (const request of search) {
+      expect(request.cache).toBe("no-store");
+      expect(request.headers.authorization).toBe("Bearer fc-test");
+      expect(request.headers["cache-control"]).toBe("no-cache");
       expect(request.body).toMatchObject({
-        scrapeOptions: { skipTlsVerification: false, lockdown: true },
+        scrapeOptions: {
+          maxAge: 0,
+          storeInCache: false,
+          skipTlsVerification: false,
+          lockdown: false,
+        },
       });
+      expect(request.body.scrapeOptions).not.toHaveProperty("minAge");
     }
     for (const request of scrape) {
-      expect(request.body).toMatchObject({ skipTlsVerification: false, lockdown: true });
+      expect(request.cache).toBe("no-store");
+      expect(request.headers.authorization).toBe("Bearer fc-test");
+      expect(request.headers["cache-control"]).toBe("no-cache");
+      expect(request.body).toMatchObject({
+        maxAge: 0,
+        storeInCache: false,
+        skipTlsVerification: false,
+        lockdown: false,
+      });
+      expect(request.body).not.toHaveProperty("minAge");
     }
+  });
+
+  it("derives source observation time from the authenticated Firecrawl response", async () => {
+    const responseAt = "2026-07-20T12:34:56.000Z";
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("api.exa.ai")) return new Response(JSON.stringify({ results: [] }));
+      return new Response(JSON.stringify({
+        success: true,
+        data: { web: [firecrawlPage(restaurant.url, jsonLdPage(restaurant))] },
+      }));
+    });
+    const lookup = vi.fn().mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    const discoveries = await fetchDiscoveries(
+      { exaKey: "exa-test", firecrawlKey: "fc-test", limit: 1 },
+      fetchMock as typeof fetch,
+      lookup,
+      () => new Date(responseAt),
+    );
+    expect(discoveries).not.toHaveLength(0);
+    expect(discoveries.every((discovery: { observedAt?: string }) => discovery.observedAt === responseAt)).toBe(true);
+  });
+
+  it.each([
+    ["cross-host redirect", "https://redirected.example/venue", {}],
+    ["cross-path redirect", "https://example.com/other", {}],
+    ["identity-query redirect", `${restaurant.url}?id=B`, {}],
+    ["source URL mismatch", restaurant.url, { sourceURL: "https://other.example/venue" }],
+    ["missing source URL", restaurant.url, { sourceURL: undefined }],
+    ["missing final URL", restaurant.url, { url: undefined }],
+    ["cache marker", restaurant.url, { cached: true }],
+    ["stale provider timestamp", restaurant.url, { scrapedAt: "2026-07-19T00:00:00.000Z" }],
+  ])("rejects Firecrawl %s metadata", async (_label, finalUrl, extraMetadata) => {
+    const requested = finalUrl.includes("?id=") ? `${restaurant.url}?id=A` : restaurant.url;
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("api.exa.ai")) return new Response(JSON.stringify({ results: [] }));
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          web: [{
+            ...firecrawlPage(requested, jsonLdPage(restaurant), {
+              url: finalUrl,
+              ...extraMetadata,
+            }),
+            url: requested,
+          }],
+        },
+      }));
+    });
+    const lookup = vi.fn().mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    await expect(fetchDiscoveries(
+      { exaKey: "exa-test", firecrawlKey: "fc-test", limit: 1 },
+      fetchMock as typeof fetch,
+      lookup,
+      () => new Date(OBSERVED_AT),
+    )).rejects.toThrow("OWNER ACTION");
   });
 
   it.each([
@@ -279,6 +415,39 @@ describe("night-out place ingestion", () => {
       }),
     ).rejects.toThrow("OWNER ACTION");
     expect(readFileSync(outputPath)).toEqual(before);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("publishes the live Firecrawl response receipt time, not the discovery time", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "night-out-live-ingest-"));
+    const outputPath = join(dir, "latest.json");
+    cpSync(join(process.cwd(), "public", "data", "night_out_places", "latest.json"), outputPath);
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("api.exa.ai")) {
+        return new Response(JSON.stringify({ results: [{ url: restaurant.url }] }));
+      }
+      if (url.endsWith("/search")) {
+        return new Response(JSON.stringify({ success: true, data: { web: [] } }));
+      }
+      return new Response(JSON.stringify({
+        success: true,
+        data: firecrawlPage(restaurant.url, jsonLdPage(restaurant)),
+      }));
+    });
+    const lookup = vi.fn().mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    const snapshot = await runIngestion({
+      outputPath,
+      exaKey: "exa-test",
+      firecrawlKey: "fc-test",
+      fetchImpl: fetchMock as typeof fetch,
+      lookupImpl: lookup,
+      nowImpl: () => new Date(OBSERVED_AT),
+    }) as { generatedAt: string; places: Array<{ observedAt: string }> };
+    expect(snapshot.generatedAt).toBe(OBSERVED_AT);
+    expect(snapshot.places).toHaveLength(1);
+    expect(snapshot.places[0]?.observedAt).toBe(OBSERVED_AT);
+    expect(JSON.parse(readFileSync(outputPath, "utf8"))).toEqual(snapshot);
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -329,5 +498,14 @@ describe("night-out place ingestion", () => {
     expect(registry.producers.find((provider: { id: string }) => provider.id === "firecrawl").factSource).toBe(
       "source_page_json_ld_only",
     );
+    expect(registry.producers.find((provider: { id: string }) => provider.id === "firecrawl")).toMatchObject({
+      liveRequest: {
+        maxAge: 0,
+        storeInCache: false,
+        lockdown: false,
+        skipTlsVerification: false,
+      },
+      observedAtBasis: "authenticated_firecrawl_response_receipt",
+    });
   });
 });

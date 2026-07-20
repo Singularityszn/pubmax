@@ -21,9 +21,9 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { isIP } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import ipaddr from "ipaddr.js";
 
 import { presentableDescription } from "../lib/slopFilter.ts";
 import {
@@ -39,7 +39,16 @@ const EXA_ENDPOINT = "https://api.exa.ai/search";
 const FIRECRAWL_SEARCH_ENDPOINT = "https://api.firecrawl.dev/v2/search";
 const FIRECRAWL_SCRAPE_ENDPOINT = "https://api.firecrawl.dev/v2/scrape";
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000;
+const MAX_PROVIDER_TIMESTAMP_SKEW_MS = 5 * 60 * 1_000;
 const DEFAULT_LIMIT_PER_QUERY = 5;
+const FIRECRAWL_LIVE_OPTIONS = {
+  formats: ["rawHtml"],
+  onlyMainContent: false,
+  maxAge: 0,
+  storeInCache: false,
+  lockdown: false,
+  skipTlsVerification: false,
+};
 
 export const PLACE_QUERY_SET = [
   {
@@ -213,7 +222,7 @@ export function buildPlaceRows(discoveries, { observedAt }) {
     const place = sourcePageToPlace(discovery, {
       category: discovery.category,
       discoveredVia: discovery.discoveredVia,
-      observedAt,
+      observedAt: validIso(discovery.observedAt) ? discovery.observedAt : observedAt,
     });
     if (place && !byId.has(place.id)) byId.set(place.id, place);
   }
@@ -244,108 +253,54 @@ export function classifyProviderFailure(provider, status) {
   return new ProviderHaltError(provider, "request failed", status);
 }
 
-function isPublicIpv4(address) {
-  const octets = address.split(".").map(Number);
-  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
-    return false;
-  }
-  const [a, b, c] = octets;
-  return !(
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 0 && c === 0) ||
-    (a === 192 && b === 168) ||
-    (a === 192 && b === 88 && c === 99) ||
-    (a === 198 && (b === 18 || b === 19)) ||
-    (a === 198 && b === 51 && c === 100) ||
-    (a === 203 && b === 0 && c === 113) ||
-    a >= 224
-  );
-}
-
-function ipv6Bytes(address) {
-  let raw = address.toLowerCase().split("%")[0];
-  if (raw.includes(".")) {
-    const lastColon = raw.lastIndexOf(":");
-    const ipv4 = raw.slice(lastColon + 1).split(".").map(Number);
-    if (ipv4.length !== 4 || ipv4.some((part) => part < 0 || part > 255)) return null;
-    raw = `${raw.slice(0, lastColon)}:${((ipv4[0] << 8) | ipv4[1]).toString(16)}:${((ipv4[2] << 8) | ipv4[3]).toString(16)}`;
-  }
-  const halves = raw.split("::");
-  if (halves.length > 2) return null;
-  const left = halves[0] ? halves[0].split(":") : [];
-  const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
-  const fill = halves.length === 2 ? 8 - left.length - right.length : 0;
-  const groups = [...left, ...Array.from({ length: fill }, () => "0"), ...right];
-  if (groups.length !== 8 || groups.some((group) => !/^[0-9a-f]{1,4}$/.test(group))) return null;
-  return groups.flatMap((group) => {
-    const value = Number.parseInt(group, 16);
-    return [value >> 8, value & 0xff];
-  });
-}
-
 export function isPublicIpAddress(address) {
   if (typeof address !== "string") return false;
-  const family = isIP(address);
-  if (family === 4) return isPublicIpv4(address);
-  if (family !== 6) return false;
-  const bytes = ipv6Bytes(address);
-  if (!bytes) return false;
-  const mapped = bytes.slice(0, 10).every((byte) => byte === 0) && bytes[10] === 0xff && bytes[11] === 0xff;
-  if (mapped) {
-    return isPublicIpv4(bytes.slice(12).join("."));
+  try {
+    // ipaddr.js maintains the IANA-style IPv4/IPv6 range taxonomy. Processing
+    // first converts IPv4-mapped IPv6 so it cannot bypass the IPv4 decision.
+    return ipaddr.process(address).range() === "unicast";
+  } catch {
+    return false;
   }
-  const isDocumentation = bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0x0d && bytes[3] === 0xb8;
-  // Globally routable IPv6 currently occupies 2000::/3. This excludes
-  // unspecified, loopback, ULA, link-local, multicast and other special-use
-  // blocks; documentation space is explicitly removed from that range.
-  return bytes[0] >= 0x20 && bytes[0] <= 0x3f && !isDocumentation;
 }
 
 /**
- * Resolve before a discovered URL crosses the provider boundary. Re-resolving
- * the same host must yield the exact pinned public set, so a public-to-private
- * DNS rebinding attempt halts before Firecrawl receives the URL.
+ * Advisory local preflight only. Firecrawl resolves the target independently,
+ * so this cannot pin its DNS answer or guarantee against rebinding. The actual
+ * provider boundary is a live Firecrawl fetch plus returned-final-URL checks.
  */
-export function createPublicDnsGuard(lookupImpl = dnsLookup) {
-  const pinned = new Map();
-  return async (value) => {
-    const canonical = normalizeSourceUrl(value);
-    if (!canonical) throw new ProviderHaltError("Source URL", "failed the public URL contract");
-    const hostname = new URL(canonical).hostname;
-    let answers;
-    try {
-      answers = await lookupImpl(hostname, { all: true, verbatim: true });
-    } catch {
-      throw new ProviderHaltError("Source URL", "DNS resolution failed");
-    }
-    if (
-      !Array.isArray(answers) ||
-      answers.length === 0 ||
-      answers.some(
-        (answer) =>
-          !isRecord(answer) ||
-          typeof answer.address !== "string" ||
-          !isPublicIpAddress(answer.address),
-      )
-    ) {
-      throw new ProviderHaltError("Source URL", "resolved to a non-public address");
-    }
-    const resolved = [...new Set(answers.map((answer) => answer.address.toLowerCase()))].sort();
-    const previous = pinned.get(hostname);
-    if (previous && JSON.stringify(previous) !== JSON.stringify(resolved)) {
-      throw new ProviderHaltError("Source URL", "DNS answers changed before provider request");
-    }
-    pinned.set(hostname, resolved);
-    return canonical;
-  };
+export async function assertAdvisoryPublicResolution(value, lookupImpl = dnsLookup) {
+  const canonical = normalizeSourceUrl(value);
+  if (!canonical) throw new ProviderHaltError("Source URL", "failed the public URL contract");
+  const hostname = new URL(canonical).hostname;
+  let answers;
+  try {
+    answers = await lookupImpl(hostname, { all: true, verbatim: true });
+  } catch {
+    throw new ProviderHaltError("Source URL", "DNS resolution failed");
+  }
+  if (
+    !Array.isArray(answers) ||
+    answers.length === 0 ||
+    answers.some(
+      (answer) =>
+        !isRecord(answer) ||
+        typeof answer.address !== "string" ||
+        !isPublicIpAddress(answer.address),
+    )
+  ) {
+    throw new ProviderHaltError("Source URL", "resolved to a non-public address");
+  }
+  return canonical;
 }
 
-async function requestJson(provider, url, init, fetchImpl = fetch) {
+async function requestJson(
+  provider,
+  url,
+  init,
+  fetchImpl = fetch,
+  nowImpl = () => new Date(),
+) {
   let response;
   try {
     response = await fetchImpl(url, init);
@@ -358,17 +313,75 @@ async function requestJson(provider, url, init, fetchImpl = fetch) {
     if (!isRecord(payload)) {
       throw new ProviderHaltError(provider, "returned a malformed response");
     }
-    return payload;
+    const receivedAt = nowImpl().toISOString();
+    if (!validIso(receivedAt)) {
+      throw new ProviderHaltError(provider, "could not establish response receipt time");
+    }
+    return { payload, receivedAt };
   } catch (error) {
     if (error instanceof ProviderHaltError) throw error;
     throw new ProviderHaltError(provider, "returned an invalid response");
   }
 }
 
-async function exaDiscover(apiKey, limit, fetchImpl, guardSourceUrl) {
+function firecrawlResponseIsCached(data) {
+  const metadata = data.metadata;
+  if (!isRecord(metadata)) return true;
+  if (
+    metadata.cached === true ||
+    metadata.fromCache === true ||
+    metadata.cacheHit === true ||
+    (typeof metadata.cacheStatus === "string" && metadata.cacheStatus.toLowerCase() !== "miss") ||
+    (typeof metadata.cacheAge === "number" && metadata.cacheAge > 0) ||
+    metadata.cachedAt !== undefined
+  ) {
+    return true;
+  }
+  return typeof data.warning === "string" && /\bcach(?:e|ed)\b/i.test(data.warning);
+}
+
+function validateProviderTimestamp(metadata, receivedAt) {
+  for (const key of ["fetchedAt", "scrapedAt"]) {
+    if (metadata[key] === undefined) continue;
+    const timestamp = Date.parse(metadata[key]);
+    const received = Date.parse(receivedAt);
+    if (
+      !Number.isFinite(timestamp) ||
+      timestamp > received + MAX_PROVIDER_TIMESTAMP_SKEW_MS ||
+      received - timestamp > MAX_PROVIDER_TIMESTAMP_SKEW_MS
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function liveFirecrawlPage(data, requestedUrl, receivedAt) {
+  if (!isRecord(data) || !text(data.rawHtml) || !isRecord(data.metadata)) return null;
+  const requested = normalizeSourceUrl(requestedUrl);
+  const identityValues = [data.metadata.sourceURL, data.metadata.url];
+  for (const optionalKey of ["finalURL", "finalUrl", "canonicalURL", "canonicalUrl"]) {
+    if (data.metadata[optionalKey] !== undefined) identityValues.push(data.metadata[optionalKey]);
+  }
+  const identities = identityValues.map(normalizeSourceUrl);
+  if (
+    !requested ||
+    identities.some((identity) => identity === null || identity !== requested) ||
+    !Number.isInteger(data.metadata.statusCode) ||
+    data.metadata.statusCode < 200 ||
+    data.metadata.statusCode >= 300 ||
+    firecrawlResponseIsCached(data) ||
+    !validateProviderTimestamp(data.metadata, receivedAt)
+  ) {
+    return null;
+  }
+  return { url: requested, rawHtml: data.rawHtml, observedAt: receivedAt };
+}
+
+async function exaDiscover(apiKey, limit, fetchImpl, nowImpl) {
   const discoveries = [];
   for (const query of PLACE_QUERY_SET) {
-    const payload = await requestJson(
+    const { payload } = await requestJson(
       "Exa",
       EXA_ENDPOINT,
       {
@@ -383,6 +396,7 @@ async function exaDiscover(apiKey, limit, fetchImpl, guardSourceUrl) {
         }),
       },
       fetchImpl,
+      nowImpl,
     );
     if (!Array.isArray(payload.results)) {
       throw new ProviderHaltError("Exa", "returned a malformed search response");
@@ -390,23 +404,24 @@ async function exaDiscover(apiKey, limit, fetchImpl, guardSourceUrl) {
     for (const result of payload.results) {
       const url = isRecord(result) ? normalizeSourceUrl(result.url) : null;
       if (!url) throw new ProviderHaltError("Exa", "returned an invalid result URL");
-      await guardSourceUrl(url);
       discoveries.push({ category: query.category, discoveredVia: "exa", url });
     }
   }
   return discoveries;
 }
 
-async function firecrawlDiscover(apiKey, limit, fetchImpl, guardSourceUrl) {
+async function firecrawlDiscover(apiKey, limit, fetchImpl, lookupImpl, nowImpl) {
   const discoveries = [];
   for (const query of PLACE_QUERY_SET) {
-    const payload = await requestJson(
+    const { payload, receivedAt } = await requestJson(
       "Firecrawl",
       FIRECRAWL_SEARCH_ENDPOINT,
       {
         method: "POST",
+        cache: "no-store",
         headers: {
           authorization: `Bearer ${apiKey}`,
+          "cache-control": "no-cache",
           "content-type": "application/json",
         },
         body: JSON.stringify({
@@ -416,81 +431,90 @@ async function firecrawlDiscover(apiKey, limit, fetchImpl, guardSourceUrl) {
           location: "London, England, United Kingdom",
           country: "GB",
           ignoreInvalidURLs: true,
-          scrapeOptions: {
-            formats: ["rawHtml"],
-            onlyMainContent: false,
-            skipTlsVerification: false,
-            lockdown: true,
-          },
+          scrapeOptions: FIRECRAWL_LIVE_OPTIONS,
         }),
       },
       fetchImpl,
+      nowImpl,
     );
     if (payload.success !== true || !isRecord(payload.data) || !Array.isArray(payload.data.web)) {
       throw new ProviderHaltError("Firecrawl", "returned a malformed search response");
     }
+    if (typeof payload.warning === "string" && /\bcach(?:e|ed)\b/i.test(payload.warning)) {
+      throw new ProviderHaltError("Firecrawl", "search response disclosed cached content");
+    }
     for (const result of payload.data.web) {
-      const url = isRecord(result)
-        ? normalizeSourceUrl(result.url ?? (isRecord(result.metadata) ? result.metadata.sourceURL : null))
+      const requestedUrl = isRecord(result) ? normalizeSourceUrl(result.url) : null;
+      const page = requestedUrl
+        ? liveFirecrawlPage(result, requestedUrl, receivedAt)
         : null;
-      if (!url || !text(result?.rawHtml)) {
-        throw new ProviderHaltError("Firecrawl", "returned an incomplete search result");
+      if (!page) {
+        throw new ProviderHaltError(
+          "Firecrawl",
+          "returned stale, cached, redirected, or incomplete search content",
+        );
       }
-      await guardSourceUrl(url);
+      await assertAdvisoryPublicResolution(page.url, lookupImpl);
       discoveries.push({
         category: query.category,
         discoveredVia: "firecrawl",
-        url,
-        rawHtml: result.rawHtml,
+        ...page,
       });
     }
   }
   return discoveries;
 }
 
-async function firecrawlScrape(apiKey, url, fetchImpl, guardSourceUrl) {
-  await guardSourceUrl(url);
-  const payload = await requestJson(
+async function firecrawlScrape(apiKey, url, fetchImpl, lookupImpl, nowImpl) {
+  await assertAdvisoryPublicResolution(url, lookupImpl);
+  const { payload, receivedAt } = await requestJson(
     "Firecrawl",
     FIRECRAWL_SCRAPE_ENDPOINT,
     {
       method: "POST",
+      cache: "no-store",
       headers: {
         authorization: `Bearer ${apiKey}`,
+        "cache-control": "no-cache",
         "content-type": "application/json",
       },
       body: JSON.stringify({
         url,
-        formats: ["rawHtml"],
-        onlyMainContent: false,
+        ...FIRECRAWL_LIVE_OPTIONS,
         removeBase64Images: true,
         blockAds: true,
-        skipTlsVerification: false,
-        lockdown: true,
         location: { country: "GB", languages: ["en-GB"] },
       }),
     },
     fetchImpl,
+    nowImpl,
   );
-  if (payload.success !== true || !isRecord(payload.data) || !text(payload.data.rawHtml)) {
-    throw new ProviderHaltError("Firecrawl", "returned a malformed scrape response");
+  const page = payload.success === true &&
+    !(typeof payload.warning === "string" && /\bcach(?:e|ed)\b/i.test(payload.warning))
+    ? liveFirecrawlPage(payload.data, url, receivedAt)
+    : null;
+  if (!page) {
+    throw new ProviderHaltError(
+      "Firecrawl",
+      "returned stale, cached, redirected, or incomplete scrape content",
+    );
   }
-  return payload.data.rawHtml;
+  return page;
 }
 
 export async function fetchDiscoveries(
   { exaKey, firecrawlKey, limit = DEFAULT_LIMIT_PER_QUERY },
   fetchImpl = fetch,
   lookupImpl = dnsLookup,
+  nowImpl = () => new Date(),
 ) {
   if (!text(exaKey)) throw new ProviderHaltError("Exa", "API key is missing");
   if (!text(firecrawlKey)) {
     throw new ProviderHaltError("Firecrawl", "API key is missing");
   }
-  const guardSourceUrl = createPublicDnsGuard(lookupImpl);
   const [exa, firecrawl] = await Promise.all([
-    exaDiscover(exaKey, limit, fetchImpl, guardSourceUrl),
-    firecrawlDiscover(firecrawlKey, limit, fetchImpl, guardSourceUrl),
+    exaDiscover(exaKey, limit, fetchImpl, nowImpl),
+    firecrawlDiscover(firecrawlKey, limit, fetchImpl, lookupImpl, nowImpl),
   ]);
   // Search providers frequently find the same official page. Consolidate it
   // before scraping so one source URL costs at most one Firecrawl page fetch.
@@ -509,12 +533,14 @@ export async function fetchDiscoveries(
   const discoveries = [...bySource.values()];
   for (const discovery of discoveries) {
     if (!text(discovery.rawHtml)) {
-      discovery.rawHtml = await firecrawlScrape(
+      const page = await firecrawlScrape(
         firecrawlKey,
         discovery.url,
         fetchImpl,
-        guardSourceUrl,
+        lookupImpl,
+        nowImpl,
       );
+      Object.assign(discovery, page);
     }
   }
   return discoveries;
@@ -646,24 +672,34 @@ function parseArgs(argv) {
 export async function runIngestion({
   dryRun = false,
   limit = DEFAULT_LIMIT_PER_QUERY,
-  observedAt = new Date().toISOString(),
+  observedAt,
   outputPath = OUTPUT,
   exaKey = process.env.EXA_API_KEY?.trim(),
   firecrawlKey = process.env.FIRECRAWL_API_KEY?.trim(),
   fetchImpl = fetch,
   lookupImpl = dnsLookup,
+  nowImpl,
 } = {}) {
-  const existing = loadCurrentPlaces(Date.parse(observedAt), outputPath);
+  const clock = nowImpl ?? (observedAt
+    ? () => new Date(observedAt)
+    : () => new Date());
+  const startedAt = observedAt ?? clock().toISOString();
+  if (!validIso(startedAt)) {
+    throw new ProviderHaltError("Ingestion clock", "returned an invalid timestamp");
+  }
+  const existing = loadCurrentPlaces(Date.parse(startedAt), outputPath);
   const discoveries = await fetchDiscoveries(
     { exaKey, firecrawlKey, limit },
     fetchImpl,
     lookupImpl,
+    clock,
   );
-  const incoming = buildPlaceRows(discoveries, { observedAt });
+  const generatedAt = observedAt ?? clock().toISOString();
+  const incoming = buildPlaceRows(discoveries, { observedAt: generatedAt });
   const places = mergePlaceRows(existing, incoming);
   const snapshot = {
     version: 1,
-    generatedAt: observedAt,
+    generatedAt,
     status: places.length > 0 ? "published" : "empty",
     provenanceRegistryVersion: 1,
     places,

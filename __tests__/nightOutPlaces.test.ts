@@ -37,11 +37,16 @@ describe("night-out place contract", () => {
 
   it("rejects missing provenance, mismatched jobs, slop and dirty URLs", () => {
     expect(isValidNightOutPlace(place({ sourceUrl: "" }))).toBe(false);
-    expect(isValidNightOutPlace(place({ sourceUrl: "https://example.com/place?tracking=1" }))).toBe(false);
+    expect(isValidNightOutPlace(place({ sourceUrl: "https://example.com/place?utm_source=test" }))).toBe(false);
     expect(isValidNightOutPlace(place({ sourceName: "another.example" }))).toBe(false);
     expect(isValidNightOutPlace(place({ sourceUrl: "https://localhost/place", sourceName: "localhost" }))).toBe(false);
     expect(isValidNightOutPlace(place({ job: "pre_pub_attraction" }))).toBe(false);
     expect(isValidNightOutPlace(place({ description: "Welcome to this vibrant hidden gem!" }))).toBe(false);
+  });
+
+  it("preserves canonical identity query parameters", () => {
+    expect(isValidNightOutPlace(place({ sourceUrl: "https://example.com/place?id=A" }))).toBe(true);
+    expect(isValidNightOutPlace(place({ sourceUrl: "https://example.com/place?b=2&a=1" }))).toBe(false);
   });
 
   it("requires empty and published snapshot states to tell the truth", () => {

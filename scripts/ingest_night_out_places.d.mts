@@ -6,6 +6,7 @@ export type PlaceDiscovery = {
   discoveredVia: PlaceDiscoveryProvider;
   url: string;
   rawHtml?: string | null;
+  observedAt?: string;
 };
 
 export type IngestedNightOutPlace = {
@@ -68,14 +69,16 @@ export function fetchDiscoveries(
     hostname: string,
     options: { all: true; verbatim: true },
   ) => Promise<Array<{ address: string; family: number }>>,
+  nowImpl?: () => Date,
 ): Promise<PlaceDiscovery[]>;
 export function isPublicIpAddress(address: string): boolean;
-export function createPublicDnsGuard(
+export function assertAdvisoryPublicResolution(
+  value: unknown,
   lookupImpl?: (
     hostname: string,
     options: { all: true; verbatim: true },
   ) => Promise<Array<{ address: string; family: number }>>,
-): (value: unknown) => Promise<string>;
+): Promise<string>;
 export function mergePlaceRows<T extends { id?: string }>(
   existing: T[],
   incoming: T[],
@@ -98,4 +101,5 @@ export function runIngestion(options?: {
     hostname: string,
     options: { all: true; verbatim: true },
   ) => Promise<Array<{ address: string; family: number }>>;
+  nowImpl?: () => Date;
 }): Promise<unknown>;

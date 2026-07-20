@@ -17,6 +17,17 @@
       "env": "FIRECRAWL_API_KEY",
       "endpoint": "https://api.firecrawl.dev/v2/scrape",
       "acceptedFormat": "rawHtml",
+      "liveRequest": {
+        "maxAge": 0,
+        "storeInCache": false,
+        "lockdown": false,
+        "skipTlsVerification": false
+      },
+      "requiredReturnedIdentityFields": [
+        "metadata.sourceURL",
+        "metadata.url"
+      ],
+      "observedAtBasis": "authenticated_firecrawl_response_receipt",
       "mayPublishFacts": true,
       "factSource": "source_page_json_ld_only"
     }
