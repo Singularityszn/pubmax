@@ -7,8 +7,8 @@
 // Supabase Auth. It never touches privileged tables.
 //
 // Flow: PKCE (the supabase-js default). The code-verifier is minted and stored
-// in this browser's localStorage; `detectSessionInUrl` lets the client finish
-// the exchange when it lands back on a URL carrying `?code=` — see
+// in this browser's localStorage; AuthProvider explicitly finishes the exchange
+// when it lands back on a URL carrying our marked `?code=` — see
 // components/auth/AuthProvider.tsx and app/auth/callback/route.ts.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -39,9 +39,9 @@ export function getSupabaseBrowser(): SupabaseClient | null {
           // Keep the session in this browser and refresh it in the background.
           persistSession: true,
           autoRefreshToken: true,
-          // Complete the PKCE exchange when the browser lands on a URL with a
-          // `?code=` param (our callback forwards the code back to the app).
-          detectSessionInUrl: true,
+          // AuthProvider completes PKCE explicitly so exchange failures can be
+          // surfaced and one-time URL parameters are always removed.
+          detectSessionInUrl: false,
           flowType: "pkce",
         },
       })

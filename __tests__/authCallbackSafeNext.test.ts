@@ -54,7 +54,8 @@ describe("auth callback flow", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(`${ORIGIN}/map?area=soho&code=pkce-code`);
+    expect(response.headers.get("location"))
+      .toBe(`${ORIGIN}/map?area=soho&code=pkce-code&_authCallback=1`);
   });
 
   it("drops a hostile destination while still completing the callback", async () => {
@@ -62,7 +63,7 @@ describe("auth callback flow", () => {
       new Request(`${ORIGIN}/auth/callback?code=pkce-code&next=${encodeURIComponent("//evil.com")}`),
     );
 
-    expect(response.headers.get("location")).toBe(`${ORIGIN}/?code=pkce-code`);
+    expect(response.headers.get("location")).toBe(`${ORIGIN}/?code=pkce-code&_authCallback=1`);
   });
 
   it("returns safely to anonymous browsing when the link is invalid or expired", async () => {
@@ -71,7 +72,8 @@ describe("auth callback flow", () => {
       new Request(`${ORIGIN}/auth/callback?error=access_denied&next=%2Fmap`),
     );
 
-    expect(missing.headers.get("location")).toBe(`${ORIGIN}/?authError=1`);
-    expect(rejected.headers.get("location")).toBe(`${ORIGIN}/?authError=1`);
+    expect(missing.headers.get("location")).toBe(`${ORIGIN}/?_authCallback=1&authError=1`);
+    expect(rejected.headers.get("location"))
+      .toBe(`${ORIGIN}/map?_authCallback=1&authError=1`);
   });
 });

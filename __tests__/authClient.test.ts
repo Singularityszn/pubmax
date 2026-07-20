@@ -58,7 +58,7 @@ describe("browser auth client", () => {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true,
+          detectSessionInUrl: false,
           flowType: "pkce",
         },
       },

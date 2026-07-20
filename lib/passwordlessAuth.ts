@@ -12,6 +12,14 @@ export type MagicLinkResult = {
 
 type OtpError = { message?: string; status?: number; code?: string } | null;
 
+const ACCOUNT_STATE_ERROR_CODES = new Set([
+  "email_exists",
+  "identity_already_exists",
+  "signup_disabled",
+  "user_banned",
+  "user_not_found",
+]);
+
 export type PasswordlessAuthClient = {
   signInWithOtp: (input: {
     email: string;
@@ -21,10 +29,18 @@ export type PasswordlessAuthClient = {
 
 function isRateLimited(error: Exclude<OtpError, null>): boolean {
   const searchable = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
-  return error.status === 429 || /rate|too many|over.*limit/.test(searchable);
+  return (
+    error.status === 429 ||
+    error.code === "over_email_send_rate_limit" ||
+    /too many|over.*limit/.test(searchable)
+  );
 }
 
 function couldRevealAccountState(error: Exclude<OtpError, null>): boolean {
+  // Auth error prose is not an API. Prefer stable GoTrue codes/statuses and keep
+  // the message fallback only for older deployments that omit `code`.
+  if (error.code && ACCOUNT_STATE_ERROR_CODES.has(error.code)) return true;
+  if (typeof error.status === "number" && error.status >= 400 && error.status < 500) return true;
   const searchable = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
   return /user.*(not found|exists)|already.*registered|signup|signups|account.*exists/.test(searchable);
 }

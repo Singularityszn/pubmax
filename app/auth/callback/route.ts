@@ -2,8 +2,8 @@
 // redirects here
 // with a `?code=` after the user approves. We hand that code back to the browser
 // so the browser Supabase client — which holds the PKCE code-verifier in its own
-// localStorage — completes `exchangeCodeForSession` on load (see
-// lib/authClient.ts `detectSessionInUrl` and components/auth/AuthProvider.tsx).
+// localStorage — explicitly completes `exchangeCodeForSession` on load (see
+// lib/authClient.ts and components/auth/AuthProvider.tsx).
 //
 // Why forward instead of exchanging on the server: this app depends only on
 // @supabase/supabase-js (no @supabase/ssr cookie adapter), so the verifier never
@@ -12,11 +12,11 @@
 // exchanges it and then strips it from the URL. If @supabase/ssr is adopted
 // later, a cookie-based `exchangeCodeForSession(code)` can move here unchanged.
 //
-// Errors (no code, or the IdP returned ?error=) degrade to /?authError=1 so the
-// app always lands somewhere valid — anonymous browsing is never blocked.
+// Errors (no code, or the IdP returned ?error=) return to the safe target with
+// an authError flag so the app can explain the failure without blocking browsing.
 
 import { NextResponse } from "next/server";
-import { safeAuthNext } from "@/lib/authRedirect";
+import { AUTH_CALLBACK_MARKER, safeAuthNext } from "@/lib/authRedirect";
 
 /**
  * Only same-origin absolute paths are honoured.
@@ -42,14 +42,19 @@ export async function GET(request: Request): Promise<Response> {
   const next = safeNext(url.searchParams.get("next"), url.origin);
 
   // Google/Supabase reported a failure, or no code came back → land on the app
-  // with a flag the UI can read, rather than a dead callback page.
+  // with a flag the UI renders, rather than a dead callback page. Preserve the
+  // safe return path so a cancelled/expired attempt does not lose user context.
   if (oauthError || !code) {
-    return NextResponse.redirect(new URL("/?authError=1", url.origin));
+    const dest = new URL(next, url.origin);
+    dest.searchParams.set(AUTH_CALLBACK_MARKER, "1");
+    dest.searchParams.set("authError", "1");
+    return NextResponse.redirect(dest);
   }
 
-  // Forward the code to the target path; the browser client completes the PKCE
-  // exchange via detectSessionInUrl, then removes the code from the address bar.
+  // Forward the code to the target path; AuthProvider completes the PKCE
+  // exchange explicitly, then removes the one-time parameters from the URL.
   const dest = new URL(next, url.origin);
   dest.searchParams.set("code", code);
+  dest.searchParams.set(AUTH_CALLBACK_MARKER, "1");
   return NextResponse.redirect(dest);
 }

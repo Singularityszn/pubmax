@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { buildAuthCallbackUrl } from "@/lib/authRedirect";
+import {
+  buildAuthCallbackUrl,
+  cleanAuthCallbackUrl,
+  readAuthCallbackAttempt,
+  rememberAuthReturnFragment,
+} from "@/lib/authRedirect";
 import {
   MAGIC_LINK_ERROR_MESSAGE,
   MAGIC_LINK_RATE_LIMIT_MESSAGE,
@@ -39,6 +44,37 @@ describe("passwordless magic-link auth", () => {
     }
   });
 
+  it("neutralizes stable account-state codes even when provider prose changes", async () => {
+    for (const code of [
+      "email_exists",
+      "identity_already_exists",
+      "signup_disabled",
+      "user_banned",
+      "user_not_found",
+    ]) {
+      const auth: PasswordlessAuthClient = {
+        signInWithOtp: vi.fn().mockResolvedValue({
+          error: { code, message: "Provider wording changed" },
+        }),
+      };
+      await expect(
+        requestMagicLink(auth, "person@example.com", "https://pubmaxxing.com/auth/callback"),
+      ).resolves.toEqual({ status: "sent", message: MAGIC_LINK_SENT_MESSAGE });
+    }
+  });
+
+  it("neutralizes unknown client policy errors rather than exposing an oracle", async () => {
+    const auth: PasswordlessAuthClient = {
+      signInWithOtp: vi.fn().mockResolvedValue({
+        error: { status: 422, code: "future_account_policy", message: "Policy denied" },
+      }),
+    };
+
+    await expect(
+      requestMagicLink(auth, "person@example.com", "https://pubmaxxing.com/auth/callback"),
+    ).resolves.toEqual({ status: "sent", message: MAGIC_LINK_SENT_MESSAGE });
+  });
+
   it("normalizes provider failures that are not account-specific", async () => {
     const auth: PasswordlessAuthClient = {
       signInWithOtp: vi.fn().mockResolvedValue({
@@ -74,7 +110,77 @@ describe("passwordless magic-link auth", () => {
 describe("auth callback URL safety", () => {
   it("preserves a same-origin deep link", () => {
     expect(buildAuthCallbackUrl("https://pubmaxxing.com/map?area=soho#venue"))
-      .toBe("https://pubmaxxing.com/auth/callback?next=%2Fmap%3Farea%3Dsoho%23venue");
+      .toBe("https://pubmaxxing.com/auth/callback?next=%2Fmap%3Farea%3Dsoho");
+  });
+
+  it("keeps a capability fragment local and restores it only to the matching path", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+    const current = "https://pubmaxxing.com/plan/abc#invite=SECRET-CAPABILITY";
+
+    rememberAuthReturnFragment(current, undefined, storage, 1_000);
+    const callback = buildAuthCallbackUrl(current);
+
+    expect(callback).toBe("https://pubmaxxing.com/auth/callback?next=%2Fplan%2Fabc");
+    expect(callback).not.toContain("SECRET-CAPABILITY");
+    expect(
+      cleanAuthCallbackUrl(
+        "https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1",
+        storage,
+        2_000,
+      ),
+    ).toBe("/plan/abc#invite=SECRET-CAPABILITY");
+    expect(values.size).toBe(0);
+  });
+
+  it("drops stored fragments on path mismatch or expiry", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+
+    rememberAuthReturnFragment(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET",
+      undefined,
+      storage,
+      1_000,
+    );
+    expect(
+      cleanAuthCallbackUrl(
+        "https://pubmaxxing.com/plan/other?code=pkce&_authCallback=1",
+        storage,
+        2_000,
+      ),
+    ).toBe("/plan/other");
+
+    rememberAuthReturnFragment(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET",
+      undefined,
+      storage,
+      1_000,
+    );
+    expect(
+      cleanAuthCallbackUrl(
+        "https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1",
+        storage,
+        3_602_000,
+      ),
+    ).toBe("/plan/abc");
+  });
+
+  it("recognizes only marked callback codes while accepting the legacy error flag", () => {
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?code=ordinary"))
+      .toBeNull();
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?code=pkce&_authCallback=1"))
+      .toEqual({ code: "pkce", providerError: false });
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/?authError=1"))
+      .toEqual({ code: null, providerError: true });
   });
 
   it("rejects external, protocol-relative, and backslash next targets", () => {

@@ -26,10 +26,17 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
+import "@/app/auth/auth.css";
 import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
 import IdentityNudge from "@/components/identity/IdentityNudge";
+import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
-import { buildAuthCallbackUrl } from "@/lib/authRedirect";
+import {
+  buildAuthCallbackUrl,
+  cleanAuthCallbackUrl,
+  readAuthCallbackAttempt,
+  rememberAuthReturnFragment,
+} from "@/lib/authRedirect";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
@@ -40,6 +47,8 @@ import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 const HANDLE_KEY = "pubmax_handle";
 const SYNCED_USER_KEY = "pubmax_identity_synced_user";
 const CLAIM_DEFERRED_KEY = "pubmax_claim_deferred";
+const AUTH_CALLBACK_ERROR_MESSAGE =
+  "Sign-in could not be completed. The link may be invalid or expired. Try again.";
 
 type ClaimPreviewResponse = ClaimPreview & { needsClaim: boolean };
 
@@ -90,6 +99,22 @@ function writeDeviceHandle(handle: string): void {
     // storage disabled — server link still proceeds
   }
   emitIdentityHandleChanged(handle);
+}
+
+function browserLocalStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function prepareAuthCallback(currentUrl: string, requestedNext?: string): string | null {
+  const callback = buildAuthCallbackUrl(currentUrl, requestedNext);
+  if (callback) {
+    rememberAuthReturnFragment(currentUrl, requestedNext, browserLocalStorage());
+  }
+  return callback;
 }
 
 /** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
@@ -152,9 +177,15 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [claimBusy, setClaimBusy] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [canonicalHandle, setCanonicalHandle] = useState<string | null>(null);
+  const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
   const configured = isAuthConfigured();
   // Guard overlapping sync runs (getSession + SIGNED_IN can both fire).
   const syncInFlight = useRef<string | null>(null);
+  // React Strict Mode replays effects in development. Reuse one exchange so a
+  // one-time PKCE code is never redeemed twice by the replayed mount effect.
+  const callbackExchangeInFlight = useRef<
+    Promise<{ session: Session | null; failed: boolean }> | null
+  >(null);
 
   useEffect(() => {
     const user = session?.user ?? null;
@@ -311,12 +342,21 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   useEffect(() => {
     const supabase = getSupabaseBrowser();
+    const callbackAttempt = readAuthCallbackAttempt(window.location.href);
+    const cleanCallbackLocation = () => {
+      if (!callbackAttempt) return;
+      const cleanUrl = cleanAuthCallbackUrl(window.location.href, browserLocalStorage());
+      window.history.replaceState(window.history.state, "", cleanUrl);
+    };
     // Unconfigured / SSR-only: nothing to subscribe to. Flip loading off in a
     // microtask so we never setState synchronously in the effect body.
     if (!supabase) {
       let cancelled = false;
       queueMicrotask(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        cleanCallbackLocation();
+        if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        setLoading(false);
       });
       return () => {
         cancelled = true;
@@ -331,23 +371,6 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     const loadingTimeout = window.setTimeout(() => {
       if (active) setLoading(false);
     }, 2500);
-
-    // Prime from any persisted session (async → setState is safe here).
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (!active) return;
-        window.clearTimeout(loadingTimeout);
-        setSession(data.session ?? null);
-        setLoading(false);
-        // Wave L3: refresh identity sync for an already-persisted session.
-        if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
-      })
-      .catch(() => {
-        if (!active) return;
-        window.clearTimeout(loadingTimeout);
-        setLoading(false);
-      });
 
     // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
     // the ONLY place these setStates run — never the effect body.
@@ -372,6 +395,53 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       }
     });
 
+    // Prime from a callback code or any persisted session. PKCE is explicit so
+    // missing-verifier, expired-code, and network failures become visible and
+    // one-time URL parameters are removed on both success and failure.
+    void (async () => {
+      await Promise.resolve();
+      let exchangedSession: Session | null = null;
+      let exchangeFailed = Boolean(
+        callbackAttempt && (callbackAttempt.providerError || !callbackAttempt.code),
+      );
+      if (callbackAttempt?.code && !callbackAttempt.providerError) {
+        if (!callbackExchangeInFlight.current) {
+          callbackExchangeInFlight.current = exchangeAuthCallbackCode(
+            supabase.auth,
+            callbackAttempt.code,
+          );
+        }
+        const exchange = await callbackExchangeInFlight.current;
+        exchangedSession = exchange.session;
+        exchangeFailed = exchange.failed;
+      }
+      cleanCallbackLocation();
+      if (!active) return;
+      if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+
+      if (exchangedSession) {
+        window.clearTimeout(loadingTimeout);
+        setSession(exchangedSession);
+        setLoading(false);
+        void syncIdentityAfterSignIn(exchangedSession.user);
+        return;
+      }
+
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+        window.clearTimeout(loadingTimeout);
+        setSession(data.session ?? null);
+        setLoading(false);
+        // Wave L3: refresh identity sync for an already-persisted session.
+        if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
+      } catch {
+        if (!active) return;
+        window.clearTimeout(loadingTimeout);
+        setLoading(false);
+      }
+    })();
+
     return () => {
       active = false;
       window.clearTimeout(loadingTimeout);
@@ -386,7 +456,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
     // origin is only read inside this handler (post-mount, browser-only), so it
     // is SSR-safe. redirectTo must be an allowed URL in Supabase Auth settings.
-    const callback = typeof window !== "undefined" ? buildAuthCallbackUrl(window.location.href) : null;
+    const callback = typeof window !== "undefined" ? prepareAuthCallback(window.location.href) : null;
     if (!callback) return { error: "Sign-in is unavailable on this page." };
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -400,7 +470,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     if (!supabase) {
       return { error: "Sign-in is not configured." };
     }
-    const callback = typeof window !== "undefined" ? buildAuthCallbackUrl(window.location.href) : null;
+    const callback = typeof window !== "undefined" ? prepareAuthCallback(window.location.href) : null;
     if (!callback) return { error: "Sign-in is unavailable on this page." };
     // Supabase's Microsoft provider id is "azure". Request email so we can
     // derive a handle the same way as Google.
@@ -422,7 +492,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       }
       const callback =
         typeof window !== "undefined"
-          ? buildAuthCallbackUrl(window.location.href, next)
+          ? prepareAuthCallback(window.location.href, next)
           : null;
       if (!callback) {
         return { status: "error", message: "Sign-in is unavailable on this page." };
@@ -457,6 +527,14 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {authCallbackError ? (
+        <div className="authCallbackNotice" role="alert">
+          <span>{authCallbackError}</span>
+          <button type="button" onClick={() => setAuthCallbackError(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
       <IdentityNudge />
