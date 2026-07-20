@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  acceptPushIdentityMutationVersion,
   __resetPushInstallation,
+  MAX_PUSH_MUTATION_VERSION,
   nextPushIdentityMutation,
+  PUSH_MUTATION_VERSION_KEY,
   pushInstallationId,
   validatePushIdentityMutation,
 } from "@/lib/pushInstallation";
@@ -39,6 +42,26 @@ describe("push installation epoch", () => {
     const second = nextPushIdentityMutation();
     expect(second.installationId).toBe(first.installationId);
     expect(second.mutationVersion).toBe(first.mutationVersion + 1);
+  });
+
+  it("persists a returned server watermark before issuing the next intent", () => {
+    expect(nextPushIdentityMutation().mutationVersion).toBe(1);
+    expect(acceptPushIdentityMutationVersion(40)).toBe(true);
+    __resetPushInstallation();
+    expect(nextPushIdentityMutation().mutationVersion).toBe(41);
+  });
+
+  it("never overwrites a higher durable watermark from another browser context", () => {
+    nextPushIdentityMutation();
+    window.localStorage.setItem(PUSH_MUTATION_VERSION_KEY, "50");
+    expect(acceptPushIdentityMutationVersion(40)).toBe(true);
+    expect(nextPushIdentityMutation().mutationVersion).toBe(51);
+  });
+
+  it("rejects invalid and overflowing server watermarks", () => {
+    pushInstallationId();
+    expect(acceptPushIdentityMutationVersion(0)).toBe(false);
+    expect(acceptPushIdentityMutationVersion(MAX_PUSH_MUTATION_VERSION + 1)).toBe(false);
   });
 
   it("rejects forged installation epochs and non-integer versions", () => {

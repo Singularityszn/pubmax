@@ -90,9 +90,10 @@ export async function DELETE(request: Request): Promise<Response> {
   const mutation = validatePushIdentityMutation(body);
   if (!mutation.ok) return publicApiError(mutation.error, "INVALID_REQUEST", 400);
 
+  let authoritativeMutationVersion = mutation.input.mutationVersion;
   try {
     if (body.all === true) {
-      await pushTokenStore().unlinkInstallationForAccount(
+      authoritativeMutationVersion = await pushTokenStore().unlinkInstallationForAccount(
         mutation.input.installationId,
         authority.userId,
         authority.sessionId,
@@ -100,7 +101,7 @@ export async function DELETE(request: Request): Promise<Response> {
       );
       await pushTokenStore().unlinkAllForAccount(authority.userId);
     } else if (body.installationOnly === true) {
-      await pushTokenStore().unlinkInstallationForAccount(
+      authoritativeMutationVersion = await pushTokenStore().unlinkInstallationForAccount(
         mutation.input.installationId,
         authority.userId,
         authority.sessionId,
@@ -109,7 +110,7 @@ export async function DELETE(request: Request): Promise<Response> {
     } else {
       const validation = validatePushToken(body);
       if (!validation.ok) return publicApiError(validation.error, "INVALID_REQUEST", 400);
-      await pushTokenStore().unlinkAccount(
+      authoritativeMutationVersion = await pushTokenStore().unlinkAccount(
         validation.input.token,
         authority.userId,
         authority.sessionId,
@@ -121,5 +122,9 @@ export async function DELETE(request: Request): Promise<Response> {
     return publicApiError("Could not unlink notifications. Try again.", "PUSH_ACCOUNT_UNLINK_UNAVAILABLE", 503, { retryable: true });
   }
   // Always the same idempotent response, including absent/wrong-owner tokens.
-  return jsonNoStore({ ok: true, linked: false }, { status: 200 });
+  return jsonNoStore({
+    ok: true,
+    linked: false,
+    mutationVersion: authoritativeMutationVersion,
+  }, { status: 200 });
 }

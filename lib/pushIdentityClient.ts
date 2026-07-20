@@ -8,7 +8,11 @@
 
 import { getAccessToken } from "@/lib/authClient";
 import { readActivePlan } from "@/lib/activePlan";
-import { nextPushIdentityMutation, type PushIdentityMutation } from "@/lib/pushInstallation";
+import {
+  acceptPushIdentityMutationVersion,
+  nextPushIdentityMutation,
+  type PushIdentityMutation,
+} from "@/lib/pushInstallation";
 import { pushFetch, withPushTimeout } from "@/lib/pushTimeout";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
@@ -220,6 +224,21 @@ async function accountMutationRequest(
         body: JSON.stringify(body),
       });
       if (response.ok) {
+        if (method === "DELETE") {
+          let result: unknown;
+          try {
+            result = await response.json();
+          } catch {
+            result = null;
+          }
+          const mutationVersion = result && typeof result === "object" && !Array.isArray(result)
+            ? (result as Record<string, unknown>).mutationVersion
+            : null;
+          if (!acceptPushIdentityMutationVersion(mutationVersion)) {
+            setAccountLifecycleStatus("error");
+            return { ok: false, status: "retryable" };
+          }
+        }
         setAccountLifecycleStatus(method === "POST" ? "linked" : "unlinked");
         return { ok: true, status: method === "POST" ? "linked" : "unlinked" };
       }
@@ -373,7 +392,12 @@ export function unlinkCurrentPushFromPlan(planId: string, memberToken?: string):
         headers,
         body: JSON.stringify({ ...registration, ...mutation }),
       });
-      return response.ok;
+      if (!response.ok) return false;
+      const result: unknown = await response.json();
+      const mutationVersion = result && typeof result === "object" && !Array.isArray(result)
+        ? (result as Record<string, unknown>).mutationVersion
+        : null;
+      return acceptPushIdentityMutationVersion(mutationVersion);
     } catch {
       return false;
     }

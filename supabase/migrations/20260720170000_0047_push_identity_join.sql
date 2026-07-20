@@ -12,6 +12,10 @@ alter table public.push_tokens
   add column if not exists account_mutation_version bigint,
   add column if not exists account_linked_at timestamptz;
 
+alter table public.push_tokens
+  add constraint push_tokens_account_mutation_version_safe
+  check (account_mutation_version is null or account_mutation_version between 1 and 9007199254740991);
+
 create index if not exists push_tokens_installation_idx on public.push_tokens(installation_id);
 create index if not exists push_tokens_account_user_idx on public.push_tokens(account_user_id)
   where account_user_id is not null;
@@ -19,7 +23,7 @@ create index if not exists push_tokens_account_user_idx on public.push_tokens(ac
 create table if not exists public.push_token_account_mutation_versions (
   token text not null references public.push_tokens(token) on delete cascade,
   installation_id uuid not null,
-  mutation_version bigint not null check (mutation_version > 0),
+  mutation_version bigint not null check (mutation_version between 1 and 9007199254740991),
   expires_at timestamptz not null default (now() + interval '30 days'),
   primary key (token, installation_id)
 );
@@ -29,7 +33,7 @@ create table if not exists public.push_token_account_mutation_versions (
 create table if not exists public.push_token_account_revocations (
   token text not null references public.push_tokens(token) on delete cascade,
   session_id uuid not null,
-  revoked_version bigint not null check (revoked_version > 0),
+  revoked_version bigint not null check (revoked_version between 1 and 9007199254740991),
   expires_at timestamptz not null default (now() + interval '30 days'),
   primary key (token, session_id)
 );
@@ -39,7 +43,7 @@ create table if not exists public.push_token_account_revocations (
 create table if not exists public.push_installation_account_revocations (
   installation_id uuid not null,
   session_id uuid not null,
-  revoked_version bigint not null check (revoked_version > 0),
+  revoked_version bigint not null check (revoked_version between 1 and 9007199254740991),
   expires_at timestamptz not null default (now() + interval '30 days'),
   primary key (installation_id, session_id)
 );
@@ -52,7 +56,7 @@ create table if not exists public.push_token_plan_memberships (
   plan_id uuid not null,
   member_id uuid not null,
   installation_id uuid not null,
-  mutation_version bigint not null check (mutation_version > 0),
+  mutation_version bigint not null check (mutation_version between 1 and 9007199254740991),
   linked_at timestamptz not null default now(),
   primary key (token, plan_id),
   constraint push_token_plan_memberships_member_plan_fk
@@ -65,7 +69,7 @@ create table if not exists public.push_token_plan_mutation_versions (
   token text not null references public.push_tokens(token) on delete cascade,
   installation_id uuid not null,
   plan_id uuid not null,
-  mutation_version bigint not null check (mutation_version > 0),
+  mutation_version bigint not null check (mutation_version between 1 and 9007199254740991),
   expires_at timestamptz not null default (now() + interval '30 days'),
   primary key (token, installation_id, plan_id)
 );
@@ -143,7 +147,8 @@ as $$
 declare v_token public.push_tokens%rowtype; v_version bigint;
 begin
   if p_token is null or p_user_id is null or p_session_id is null or p_installation_id is null
-     or p_mutation_version is null or p_mutation_version <= 0 or p_linked_at is null then return 'missing'; end if;
+     or p_mutation_version is null or p_mutation_version <= 0
+     or p_mutation_version > 9007199254740991 or p_linked_at is null then return 'missing'; end if;
   perform pg_advisory_xact_lock(hashtextextended('push-account:' || p_token || ':' || p_installation_id::text, 0));
   delete from public.push_token_account_revocations where expires_at <= now();
   delete from public.push_installation_account_revocations where expires_at <= now();
@@ -183,24 +188,29 @@ $$;
 create or replace function public.unlink_push_token_account_atomic(
   p_token text, p_user_id uuid, p_session_id uuid, p_installation_id uuid,
   p_mutation_version bigint
-) returns text
+) returns bigint
 language plpgsql security invoker set search_path = public
 as $$
-declare v_token public.push_tokens%rowtype; v_version bigint;
+declare v_token public.push_tokens%rowtype; v_version bigint; v_authoritative bigint;
 begin
   if p_token is null or p_user_id is null or p_session_id is null or p_installation_id is null
-     or p_mutation_version is null or p_mutation_version <= 0 then return 'unlinked'; end if;
+     or p_mutation_version is null or p_mutation_version <= 0
+     or p_mutation_version > 9007199254740991 then
+    raise exception 'invalid push identity mutation';
+  end if;
   perform pg_advisory_xact_lock(hashtextextended('push-account:' || p_token || ':' || p_installation_id::text, 0));
   select * into v_token from public.push_tokens where token = p_token for update;
-  if not found or v_token.installation_id is distinct from p_installation_id then return 'unlinked'; end if;
-  insert into public.push_token_account_revocations(token, session_id, revoked_version, expires_at)
-    values (p_token, p_session_id, p_mutation_version, now() + interval '30 days')
-    on conflict (token, session_id) do update set revoked_version = greatest(public.push_token_account_revocations.revoked_version, excluded.revoked_version),
-      expires_at = greatest(public.push_token_account_revocations.expires_at, excluded.expires_at);
-  insert into public.push_installation_account_revocations(installation_id, session_id, revoked_version, expires_at)
-    values (p_installation_id, p_session_id, p_mutation_version, now() + interval '30 days')
-    on conflict (installation_id, session_id) do update set revoked_version = greatest(public.push_installation_account_revocations.revoked_version, excluded.revoked_version),
-      expires_at = greatest(public.push_installation_account_revocations.expires_at, excluded.expires_at);
+  if not found or v_token.installation_id is distinct from p_installation_id then
+    insert into public.push_installation_account_revocations(installation_id, session_id, revoked_version, expires_at)
+      values (p_installation_id, p_session_id, p_mutation_version, now() + interval '30 days')
+      on conflict (installation_id, session_id) do update
+        set revoked_version = greatest(public.push_installation_account_revocations.revoked_version, excluded.revoked_version),
+          expires_at = greatest(public.push_installation_account_revocations.expires_at, excluded.expires_at);
+    return p_mutation_version;
+  end if;
+  if v_token.account_user_id is not null and v_token.account_user_id <> p_user_id then
+    return p_mutation_version;
+  end if;
   select mutation_version into v_version from public.push_token_account_mutation_versions
     where token = p_token and installation_id = p_installation_id for update;
   v_version := greatest(
@@ -208,48 +218,75 @@ begin
     case when v_token.account_installation_id = p_installation_id
       then coalesce(v_token.account_mutation_version, 0) else 0 end
   );
-  insert into public.push_token_account_mutation_versions(token, installation_id, mutation_version, expires_at)
-    values (p_token, p_installation_id, greatest(v_version, p_mutation_version), now() + interval '30 days')
-    on conflict (token, installation_id) do update set mutation_version = greatest(public.push_token_account_mutation_versions.mutation_version, excluded.mutation_version),
-      expires_at = excluded.expires_at;
-  if p_mutation_version >= v_version then
-    update public.push_tokens set account_user_id = null, account_session_id = null,
-      account_installation_id = null, account_mutation_version = p_mutation_version, account_linked_at = null
-    where token = p_token and account_user_id = p_user_id and account_session_id = p_session_id
-      and account_installation_id = p_installation_id;
+  if v_version >= 9007199254740991 then
+    raise exception 'push mutation watermark exhausted';
   end if;
-  return 'unlinked';
+  v_authoritative := greatest(v_version + 1, p_mutation_version);
+  insert into public.push_token_account_revocations(token, session_id, revoked_version, expires_at)
+    values (p_token, p_session_id, v_authoritative, now() + interval '30 days')
+    on conflict (token, session_id) do update set revoked_version = greatest(public.push_token_account_revocations.revoked_version, excluded.revoked_version),
+      expires_at = greatest(public.push_token_account_revocations.expires_at, excluded.expires_at);
+  insert into public.push_installation_account_revocations(installation_id, session_id, revoked_version, expires_at)
+    values (p_installation_id, p_session_id, v_authoritative, now() + interval '30 days')
+    on conflict (installation_id, session_id) do update set revoked_version = greatest(public.push_installation_account_revocations.revoked_version, excluded.revoked_version),
+      expires_at = greatest(public.push_installation_account_revocations.expires_at, excluded.expires_at);
+  insert into public.push_token_account_mutation_versions(token, installation_id, mutation_version, expires_at)
+    values (p_token, p_installation_id, v_authoritative, now() + interval '30 days')
+    on conflict (token, installation_id) do update set mutation_version = excluded.mutation_version,
+      expires_at = excluded.expires_at;
+  update public.push_tokens set account_user_id = null, account_session_id = null,
+    account_installation_id = null, account_mutation_version = v_authoritative, account_linked_at = null
+  where token = p_token and account_user_id = p_user_id
+    and account_installation_id = p_installation_id;
+  return v_authoritative;
 end;
 $$;
 
 create or replace function public.unlink_push_installation_account_atomic(
   p_installation_id uuid, p_user_id uuid, p_session_id uuid, p_mutation_version bigint
-) returns text
+) returns bigint
 language plpgsql security invoker set search_path = public
 as $$
+declare v_version bigint; v_authoritative bigint;
 begin
   if p_installation_id is null or p_user_id is null or p_session_id is null
-     or p_mutation_version is null or p_mutation_version <= 0 then return 'unlinked'; end if;
+     or p_mutation_version is null or p_mutation_version <= 0
+     or p_mutation_version > 9007199254740991 then
+    raise exception 'invalid push identity mutation';
+  end if;
   perform pg_advisory_xact_lock(hashtextextended('push-installation:' || p_installation_id::text, 0));
+  perform 1 from public.push_tokens where installation_id = p_installation_id for update;
+  select greatest(
+    coalesce((select max(mutation_version)
+      from public.push_token_account_mutation_versions
+      where installation_id = p_installation_id), 0),
+    coalesce((select max(account_mutation_version)
+      from public.push_tokens
+      where installation_id = p_installation_id
+        and account_installation_id = p_installation_id), 0)
+  ) into v_version;
+  if v_version >= 9007199254740991 then
+    raise exception 'push mutation watermark exhausted';
+  end if;
+  v_authoritative := greatest(v_version + 1, p_mutation_version);
   insert into public.push_installation_account_revocations(installation_id, session_id, revoked_version, expires_at)
-    values (p_installation_id, p_session_id, p_mutation_version, now() + interval '30 days')
+    values (p_installation_id, p_session_id, v_authoritative, now() + interval '30 days')
     on conflict (installation_id, session_id) do update set revoked_version = greatest(public.push_installation_account_revocations.revoked_version, excluded.revoked_version),
       expires_at = greatest(public.push_installation_account_revocations.expires_at, excluded.expires_at);
   insert into public.push_token_account_revocations(token, session_id, revoked_version, expires_at)
-    select token, p_session_id, p_mutation_version, now() + interval '30 days'
+    select token, p_session_id, v_authoritative, now() + interval '30 days'
     from public.push_tokens where installation_id = p_installation_id
     on conflict (token, session_id) do update set revoked_version = greatest(public.push_token_account_revocations.revoked_version, excluded.revoked_version),
       expires_at = greatest(public.push_token_account_revocations.expires_at, excluded.expires_at);
   insert into public.push_token_account_mutation_versions(token, installation_id, mutation_version, expires_at)
-    select token, p_installation_id, p_mutation_version, now() + interval '30 days'
+    select token, p_installation_id, v_authoritative, now() + interval '30 days'
     from public.push_tokens where installation_id = p_installation_id
-    on conflict (token, installation_id) do update set mutation_version = greatest(public.push_token_account_mutation_versions.mutation_version, excluded.mutation_version),
+    on conflict (token, installation_id) do update set mutation_version = excluded.mutation_version,
       expires_at = excluded.expires_at;
   update public.push_tokens set account_user_id = null, account_session_id = null,
-    account_installation_id = null, account_mutation_version = p_mutation_version, account_linked_at = null
-  where installation_id = p_installation_id and account_user_id = p_user_id
-    and coalesce(account_mutation_version, 0) <= p_mutation_version;
-  return 'unlinked';
+    account_installation_id = null, account_mutation_version = v_authoritative, account_linked_at = null
+  where installation_id = p_installation_id and account_user_id = p_user_id;
+  return v_authoritative;
 end;
 $$;
 
@@ -284,7 +321,8 @@ as $$
 declare v_link public.push_token_plan_memberships%rowtype; v_version bigint; v_had_link boolean;
 begin
   if p_token is null or p_plan_id is null or p_member_id is null or p_installation_id is null
-     or p_mutation_version is null or p_mutation_version <= 0 or p_linked_at is null then return 'missing'; end if;
+     or p_mutation_version is null or p_mutation_version <= 0
+     or p_mutation_version > 9007199254740991 or p_linked_at is null then return 'missing'; end if;
   perform pg_advisory_xact_lock(hashtextextended('push-plan:' || p_token || ':' || p_installation_id::text || ':' || p_plan_id::text, 0));
   delete from public.push_token_plan_mutation_versions where expires_at <= now();
   perform 1 from public.push_tokens where token = p_token and installation_id = p_installation_id for update;
@@ -327,16 +365,22 @@ $$;
 create or replace function public.unlink_push_token_plan_member_atomic(
   p_token text, p_plan_id uuid, p_member_id uuid, p_installation_id uuid,
   p_mutation_version bigint
-) returns text
+) returns bigint
 language plpgsql security invoker set search_path = public
 as $$
-declare v_version bigint;
+declare v_link public.push_token_plan_memberships%rowtype; v_version bigint; v_authoritative bigint;
 begin
   if p_token is null or p_plan_id is null or p_member_id is null or p_installation_id is null
-     or p_mutation_version is null or p_mutation_version <= 0 then return 'unlinked'; end if;
+     or p_mutation_version is null or p_mutation_version <= 0
+     or p_mutation_version > 9007199254740991 then
+    raise exception 'invalid push identity mutation';
+  end if;
   perform pg_advisory_xact_lock(hashtextextended('push-plan:' || p_token || ':' || p_installation_id::text || ':' || p_plan_id::text, 0));
   perform 1 from public.push_tokens where token = p_token and installation_id = p_installation_id for update;
-  if not found then return 'unlinked'; end if;
+  if not found then return p_mutation_version; end if;
+  select * into v_link from public.push_token_plan_memberships
+    where token = p_token and plan_id = p_plan_id for update;
+  if found and v_link.member_id <> p_member_id then return p_mutation_version; end if;
   select mutation_version into v_version from public.push_token_plan_mutation_versions
     where token = p_token and installation_id = p_installation_id and plan_id = p_plan_id for update;
   v_version := greatest(
@@ -344,16 +388,17 @@ begin
     coalesce((select mutation_version from public.push_token_plan_memberships
       where token = p_token and plan_id = p_plan_id and installation_id = p_installation_id), 0)
   );
-  insert into public.push_token_plan_mutation_versions(token, installation_id, plan_id, mutation_version, expires_at)
-    values (p_token, p_installation_id, p_plan_id, greatest(v_version, p_mutation_version), now() + interval '30 days')
-    on conflict (token, installation_id, plan_id) do update set mutation_version = greatest(public.push_token_plan_mutation_versions.mutation_version, excluded.mutation_version),
-      expires_at = excluded.expires_at;
-  if p_mutation_version >= v_version then
-    delete from public.push_token_plan_memberships where token = p_token and plan_id = p_plan_id
-      and member_id = p_member_id and installation_id = p_installation_id
-      and mutation_version <= p_mutation_version;
+  if v_version >= 9007199254740991 then
+    raise exception 'push mutation watermark exhausted';
   end if;
-  return 'unlinked';
+  v_authoritative := greatest(v_version + 1, p_mutation_version);
+  insert into public.push_token_plan_mutation_versions(token, installation_id, plan_id, mutation_version, expires_at)
+    values (p_token, p_installation_id, p_plan_id, v_authoritative, now() + interval '30 days')
+    on conflict (token, installation_id, plan_id) do update set mutation_version = excluded.mutation_version,
+      expires_at = excluded.expires_at;
+  delete from public.push_token_plan_memberships where token = p_token and plan_id = p_plan_id
+    and member_id = p_member_id and installation_id = p_installation_id;
+  return v_authoritative;
 end;
 $$;
 

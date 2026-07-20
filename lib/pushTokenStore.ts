@@ -11,6 +11,7 @@
 // part of the public DTO or the broadcast list.
 
 import { admin, selectStore } from "@/lib/storeBackend";
+import { isPushMutationVersion, MAX_PUSH_MUTATION_VERSION } from "@/lib/pushInstallation";
 import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 export type PushPlatform = "ios" | "android" | "web";
@@ -68,16 +69,16 @@ export type PushTokenStore = {
   linkAccount(token: string, userId: string, sessionId: string, installationId: string, mutationVersion: number): Promise<PushIdentityJoinResult>;
   /** Remove only the caller's account link. Missing/wrong-owner rows are the
    * same idempotent result so the endpoint cannot enumerate registrations. */
-  unlinkAccount(token: string, userId: string, sessionId: string, installationId: string, mutationVersion: number): Promise<void>;
+  unlinkAccount(token: string, userId: string, sessionId: string, installationId: string, mutationVersion: number): Promise<number>;
   /** Revoke every registration bound to this opaque installation, even when
    * native permission prevents recovery of the current provider token. */
-  unlinkInstallationForAccount(installationId: string, userId: string, sessionId: string, mutationVersion: number): Promise<void>;
+  unlinkInstallationForAccount(installationId: string, userId: string, sessionId: string, mutationVersion: number): Promise<number>;
   /** Privacy/account-erasure seam: clear every link for one verified account. */
   unlinkAllForAccount(userId: string): Promise<void>;
   /** Link one existing registration to one verified member per Plan. */
   linkPlan(token: string, planId: string, memberId: string, installationId: string, mutationVersion: number): Promise<PushIdentityJoinResult>;
   /** Remove only the matching verified member's Plan link, idempotently. */
-  unlinkPlan(token: string, planId: string, memberId: string, installationId: string, mutationVersion: number): Promise<void>;
+  unlinkPlan(token: string, planId: string, memberId: string, installationId: string, mutationVersion: number): Promise<number>;
   /** Remove a token the push provider reported invalid (APNs 410 /
    *  BadDeviceToken). Idempotent — deleting an absent token is a no-op. */
   delete(token: string): Promise<void>;
@@ -161,7 +162,7 @@ export const supabasePushTokenStore: PushTokenStore = {
     return joinResult(data);
   },
   async unlinkAccount(token, userId, sessionId, installationId, mutationVersion) {
-    const { error } = await admin().rpc("unlink_push_token_account_atomic", {
+    const { data, error } = await admin().rpc("unlink_push_token_account_atomic", {
       p_token: token,
       p_user_id: userId,
       p_session_id: sessionId,
@@ -169,15 +170,17 @@ export const supabasePushTokenStore: PushTokenStore = {
       p_mutation_version: mutationVersion,
     });
     if (error) throw new Error(error.message);
+    return mutationVersionResult(data);
   },
   async unlinkInstallationForAccount(installationId, userId, sessionId, mutationVersion) {
-    const { error } = await admin().rpc("unlink_push_installation_account_atomic", {
+    const { data, error } = await admin().rpc("unlink_push_installation_account_atomic", {
       p_installation_id: installationId,
       p_user_id: userId,
       p_session_id: sessionId,
       p_mutation_version: mutationVersion,
     });
     if (error) throw new Error(error.message);
+    return mutationVersionResult(data);
   },
   async unlinkAllForAccount(userId) {
     const { error } = await admin().rpc("unlink_all_push_tokens_for_account", {
@@ -198,7 +201,7 @@ export const supabasePushTokenStore: PushTokenStore = {
     return joinResult(data);
   },
   async unlinkPlan(token, planId, memberId, installationId, mutationVersion) {
-    const { error } = await admin().rpc("unlink_push_token_plan_member_atomic", {
+    const { data, error } = await admin().rpc("unlink_push_token_plan_member_atomic", {
       p_token: token,
       p_plan_id: planId,
       p_member_id: memberId,
@@ -206,6 +209,7 @@ export const supabasePushTokenStore: PushTokenStore = {
       p_mutation_version: mutationVersion,
     });
     if (error) throw new Error(error.message);
+    return mutationVersionResult(data);
   },
   async delete(token) {
     const { error } = await admin().from(TABLE).delete().eq("token", token);
@@ -247,6 +251,12 @@ function joinResult(value: unknown): PushIdentityJoinResult {
   return value === "linked" || value === "replayed" || value === "conflict" || value === "stale" || value === "missing"
     ? value
     : "error";
+}
+
+function mutationVersionResult(value: unknown): number {
+  const parsed = typeof value === "string" ? Number(value) : value;
+  if (!isPushMutationVersion(parsed)) throw new Error("Invalid push mutation watermark.");
+  return parsed;
 }
 
 export const memoryPushTokenStore: PushTokenStore = {
@@ -305,32 +315,50 @@ export const memoryPushTokenStore: PushTokenStore = {
   },
   async unlinkAccount(token, userId, sessionId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
-    memoryAccountRevocations.add(accountRevocationKey(token, sessionId));
-    memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
+    if (!row || row.installationId !== installationId) return mutationVersion;
+    if (row.accountUserId && row.accountUserId !== userId) return mutationVersion;
     const versionKey = accountVersionKey(token, installationId);
     const currentVersion = memoryAccountVersions.get(versionKey) ?? 0;
-    if (mutationVersion > currentVersion) memoryAccountVersions.set(versionKey, mutationVersion);
-    if (row?.installationId === installationId && mutationVersion >= currentVersion
-      && row.accountUserId === userId && row.accountSessionId === sessionId) {
+    if (currentVersion >= MAX_PUSH_MUTATION_VERSION) {
+      throw new Error("Push mutation watermark exhausted.");
+    }
+    const authoritativeVersion = Math.max(currentVersion + 1, mutationVersion);
+    memoryAccountRevocations.add(accountRevocationKey(token, sessionId));
+    memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
+    memoryAccountVersions.set(versionKey, authoritativeVersion);
+    if (row.accountUserId === userId) {
       row.accountUserId = null;
       row.accountSessionId = null;
       row.blockedAccountSessionId = sessionId;
     }
+    return authoritativeVersion;
   },
   async unlinkInstallationForAccount(installationId, userId, sessionId, mutationVersion) {
+    let currentVersion = 0;
+    for (const [token, row] of memoryTokens) {
+      if (row.installationId !== installationId) continue;
+      currentVersion = Math.max(
+        currentVersion,
+        memoryAccountVersions.get(accountVersionKey(token, installationId)) ?? 0,
+      );
+    }
+    if (currentVersion >= MAX_PUSH_MUTATION_VERSION) {
+      throw new Error("Push mutation watermark exhausted.");
+    }
+    const authoritativeVersion = Math.max(currentVersion + 1, mutationVersion);
     memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
     for (const [token, row] of memoryTokens) {
       if (row.installationId !== installationId) continue;
       memoryAccountRevocations.add(accountRevocationKey(token, sessionId));
       const versionKey = accountVersionKey(token, installationId);
-      const currentVersion = memoryAccountVersions.get(versionKey) ?? 0;
-      if (mutationVersion > currentVersion) memoryAccountVersions.set(versionKey, mutationVersion);
-      if (mutationVersion >= currentVersion && row.accountUserId === userId) {
+      memoryAccountVersions.set(versionKey, authoritativeVersion);
+      if (row.accountUserId === userId) {
         row.accountUserId = null;
         row.accountSessionId = null;
         row.blockedAccountSessionId = sessionId;
       }
     }
+    return authoritativeVersion;
   },
   async unlinkAllForAccount(userId) {
     for (const [token, row] of memoryTokens) {
@@ -368,11 +396,18 @@ export const memoryPushTokenStore: PushTokenStore = {
   },
   async unlinkPlan(token, planId, memberId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
+    if (!row || row.installationId !== installationId) return mutationVersion;
+    const linkedMemberId = row.planMembers.get(planId);
+    if (linkedMemberId && linkedMemberId !== memberId) return mutationVersion;
     const versionKey = planVersionKey(token, installationId, planId);
     const currentVersion = memoryPlanVersions.get(versionKey) ?? 0;
-    if (mutationVersion > currentVersion) memoryPlanVersions.set(versionKey, mutationVersion);
-    if (row?.installationId === installationId && mutationVersion >= currentVersion
-      && row.planMembers.get(planId) === memberId) row.planMembers.delete(planId);
+    if (currentVersion >= MAX_PUSH_MUTATION_VERSION) {
+      throw new Error("Push mutation watermark exhausted.");
+    }
+    const authoritativeVersion = Math.max(currentVersion + 1, mutationVersion);
+    memoryPlanVersions.set(versionKey, authoritativeVersion);
+    if (linkedMemberId === memberId) row.planMembers.delete(planId);
+    return authoritativeVersion;
   },
   async delete(token) {
     memoryTokens.delete(token);

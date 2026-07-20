@@ -95,6 +95,24 @@ export function nextPushIdentityMutation(): PushIdentityMutation {
   return { installationId, mutationVersion };
 }
 
+/** Persist a server-authoritative watermark returned by privacy revocation.
+ * The caller must not report logout success when this cannot be confirmed. */
+export function acceptPushIdentityMutationVersion(value: unknown): boolean {
+  if (!isPushMutationVersion(value) || !volatileInstallationDurable) return false;
+  const storage = installationStorage();
+  try {
+    const stored = Number(storage?.getItem(PUSH_MUTATION_VERSION_KEY));
+    const durableVersion = isPushMutationVersion(stored) ? stored : 0;
+    const next = Math.max(volatileMutationVersion, durableVersion, value);
+    storage?.setItem(PUSH_MUTATION_VERSION_KEY, String(next));
+    if (storage?.getItem(PUSH_MUTATION_VERSION_KEY) !== String(next)) return false;
+    volatileMutationVersion = next;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 export function validatePushIdentityMutation(raw: Record<string, unknown>):
   | { ok: true; input: PushIdentityMutation }
   | { ok: false; error: string } {

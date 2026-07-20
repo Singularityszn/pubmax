@@ -23,7 +23,7 @@ import {
   unlinkPushRegistrationFromClaimedAccount,
   unlinkPushInstallationFromClaimedAccount,
 } from "@/lib/pushIdentityClient";
-import { __resetPushInstallation } from "@/lib/pushInstallation";
+import { __resetPushInstallation, nextPushIdentityMutation } from "@/lib/pushInstallation";
 
 function storageHarness(): Storage {
   const values = new Map<string, string>();
@@ -35,6 +35,14 @@ function storageHarness(): Storage {
     removeItem: (key) => { values.delete(key); },
     setItem: (key, value) => { values.set(key, value); },
   };
+}
+
+function successfulMutationResponse(init?: RequestInit, authoritativeVersion?: number): Response {
+  if (init?.method !== "DELETE") return new Response(null, { status: 200 });
+  const body = JSON.parse(String(init.body)) as { mutationVersion: number };
+  return new Response(JSON.stringify({
+    mutationVersion: authoritativeVersion ?? body.mutationVersion,
+  }), { status: 200 });
 }
 
 beforeEach(() => {
@@ -95,7 +103,11 @@ describe("push identity client", () => {
   it("unlinks the current account before logout and supports all-device privacy cleanup", async () => {
     await rememberDevice();
     getAccessTokenMock.mockResolvedValue("verified-jwt");
-    const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }));
+    let deleteCount = 0;
+    const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
+      if (init?.method === "DELETE") deleteCount += 1;
+      return successfulMutationResponse(init, deleteCount === 1 ? 40 : undefined);
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(unlinkCurrentPushFromClaimedAccount()).resolves.toEqual({ ok: true, status: "unlinked" });
@@ -105,12 +117,12 @@ describe("push identity client", () => {
     expect(calls[0][1]).toMatchObject({ token: "device-token", platform: "ios" });
     expect(calls[1][0]).toBe("DELETE");
     expect(calls[1][1]).toMatchObject({ all: true });
-    expect(calls[1][1].mutationVersion).toBeGreaterThan(calls[0][1].mutationVersion);
+    expect(calls[1][1].mutationVersion).toBe(41);
   });
 
   it("joins and revokes a Plan with capability but no client member id", async () => {
     await rememberDevice();
-    const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }));
+    const fetchMock = vi.fn<typeof fetch>(async (_url, init) => successfulMutationResponse(init, 40));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(linkCurrentPushToPlan("plan-id", "member-capability")).resolves.toBe(true);
@@ -126,6 +138,7 @@ describe("push identity client", () => {
       });
     }
     expect(fetchMock.mock.calls.map(([, init]) => init?.method)).toEqual(["POST", "DELETE"]);
+    expect(nextPushIdentityMutation().mutationVersion).toBe(41);
   });
 
   it("does not call account or Plan routes without a registration", async () => {
@@ -156,7 +169,7 @@ describe("push identity client", () => {
       const method = String(init?.method);
       methods.push(method);
       if (method === "POST") return postResponse;
-      return new Response(null, { status: 200 });
+      return successfulMutationResponse(init);
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -186,7 +199,7 @@ describe("push identity client", () => {
 
   it("revokes the opaque installation without a raw provider token", async () => {
     getAccessTokenMock.mockResolvedValue("verified-jwt");
-    const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }));
+    const fetchMock = vi.fn<typeof fetch>(async (_url, init) => successfulMutationResponse(init));
     vi.stubGlobal("fetch", fetchMock);
     stopAccountPushJoins();
     await expect(unlinkPushInstallationFromClaimedAccount()).resolves.toEqual({
@@ -230,7 +243,7 @@ describe("push identity client", () => {
     const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
       const method = String(init?.method);
       methods.push(method);
-      return method === "POST" ? postResponse : new Response(null, { status: 200 });
+      return method === "POST" ? postResponse : successfulMutationResponse(init);
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -255,5 +268,22 @@ describe("push identity client", () => {
     unsubscribe();
     rememberPushRegistration({ token: "new-token", platform: "ios" });
     expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("does not report logout success when the returned watermark cannot persist", async () => {
+    await rememberDevice();
+    getAccessTokenMock.mockResolvedValue("verified-jwt");
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    vi.spyOn(window.localStorage, "setItem").mockImplementation((key, value) => {
+      if (value === "42") throw new Error("storage unavailable");
+      originalSetItem(key, value);
+    });
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (_url, init) =>
+      successfulMutationResponse(init, 42)));
+
+    await expect(unlinkPushInstallationFromClaimedAccount()).resolves.toEqual({
+      ok: false,
+      status: "retryable",
+    });
   });
 });

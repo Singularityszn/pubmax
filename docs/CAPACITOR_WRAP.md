@@ -133,8 +133,10 @@ user/plan identity**. Consequences, enforced in code:
    Registration binds an opaque installation epoch before permission/token
    delivery. Native logout revokes that installation with the still-valid JWT,
    so denied permission or a WebView restart never requires raw-token recovery.
-   Per-session revocations plus monotonic mutation watermarks make DELETE intent
-   authoritative under reversed network/database order. Revocation has a hard
-   timeout and logout fails closed; successful logout uses Supabase local scope
-   because only this installation was revoked. The 30-day private tombstone and
-   watermark rows are expiry-indexed and pruned by identity mutations.
+   Per-session revocations plus server-advanced mutation watermarks make DELETE
+   intent authoritative under reversed network/database order and after a
+   browser counter reset. The client persists the returned watermark before it
+   reports success. Revocation has a hard timeout and logout fails closed;
+   successful logout uses Supabase local scope because only this installation
+   was revoked. The 30-day private tombstone and watermark rows are
+   expiry-indexed and pruned by identity mutations.

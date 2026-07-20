@@ -110,15 +110,19 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   if (!mutation.ok) return publicApiError(mutation.error, "INVALID_REQUEST", 400);
 
   try {
-    await pushTokenStore().unlinkPlan(
+    const authoritativeMutationVersion = await pushTokenStore().unlinkPlan(
       validation.input.token,
       parts.planId,
       authority.memberId,
       mutation.input.installationId,
       mutation.input.mutationVersion,
     );
+    return jsonNoStore({
+      ok: true,
+      linked: false,
+      mutationVersion: authoritativeMutationVersion,
+    }, { status: 200 });
   } catch {
     return publicApiError("Could not unlink Plan notifications. Try again.", "PUSH_PLAN_UNLINK_UNAVAILABLE", 503, { retryable: true });
   }
-  return jsonNoStore({ ok: true, linked: false }, { status: 200 });
 }

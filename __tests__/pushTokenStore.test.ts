@@ -10,6 +10,7 @@ import {
   __listMemoryPushTokens,
   __resetMemoryPushTokens,
 } from "@/lib/pushTokenStore";
+import { MAX_PUSH_MUTATION_VERSION } from "@/lib/pushInstallation";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const WEB_TOKEN = encodeWebPushSubscription({
@@ -213,9 +214,10 @@ describe("memoryPushTokenStore", () => {
     await expect(linkAccount("tok-1", "user-a", "session-new", 3))
       .resolves.toBe("linked");
 
-    // A late DELETE from the old session cannot unlink the fresh session.
-    await unlinkAccount("tok-1", "user-a", "session-old", 2);
-    expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
+    // Server arrival is authoritative even if this browser counter reset.
+    await expect(unlinkAccount("tok-1", "user-a", "session-old", 2)).resolves.toBe(4);
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
+    await expect(linkAccount("tok-1", "user-a", "session-new", 3)).resolves.toBe("stale");
   });
 
   it("orders concurrent in-memory Plan link then unlink to an unlinked final state", async () => {
@@ -271,5 +273,37 @@ describe("memoryPushTokenStore", () => {
     );
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
     await expect(linkAccount("tok-1", "user-a", "session-a", 1)).resolves.toBe("conflict");
+  });
+
+  it("advances account and Plan watermarks above a reset local counter", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await linkAccount("tok-1", "user-a", "session-a", 10);
+    await linkPlan("tok-1", "plan-a", "member-a", 10);
+
+    await expect(memoryPushTokenStore.unlinkInstallationForAccount(
+      INSTALLATION_ID,
+      "user-a",
+      "session-a",
+      1,
+    )).resolves.toBe(11);
+    await expect(unlinkPlan("tok-1", "plan-a", "member-a", 1)).resolves.toBe(11);
+    await expect(linkAccount("tok-1", "user-a", "session-a", 10)).resolves.toBe("conflict");
+    await expect(linkPlan("tok-1", "plan-a", "member-a", 10)).resolves.toBe("stale");
+  });
+
+  it("rejects watermark overflow without claiming or applying revocation", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await linkAccount("tok-1", "user-a", "session-a", MAX_PUSH_MUTATION_VERSION);
+    await linkPlan("tok-1", "plan-a", "member-a", MAX_PUSH_MUTATION_VERSION);
+
+    await expect(memoryPushTokenStore.unlinkInstallationForAccount(
+      INSTALLATION_ID,
+      "user-a",
+      "session-a",
+      1,
+    )).rejects.toThrow(/exhausted/);
+    await expect(unlinkPlan("tok-1", "plan-a", "member-a", 1)).rejects.toThrow(/exhausted/);
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
+    expect(await memoryPushTokenStore.listForPlan("plan-a")).toHaveLength(1);
   });
 });

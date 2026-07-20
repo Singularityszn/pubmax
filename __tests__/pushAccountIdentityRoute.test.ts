@@ -22,6 +22,7 @@ import {
   __resetMemoryPushTokens,
   memoryPushTokenStore,
 } from "@/lib/pushTokenStore";
+import { MAX_PUSH_MUTATION_VERSION } from "@/lib/pushInstallation";
 
 const URL = "http://localhost/api/push-tokens/account";
 const INSTALLATION_ID = "00000000-0000-4000-8000-000000000047";
@@ -104,8 +105,8 @@ describe("push account identity route", () => {
     const first = await DELETE(request("DELETE", { token: "device-token", platform: "ios" }));
     const second = await DELETE(request("DELETE", { token: "device-token", platform: "ios" }));
     expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({ ok: true, linked: false });
-    expect(await second.json()).toEqual({ ok: true, linked: false });
+    expect(await first.json()).toEqual({ ok: true, linked: false, mutationVersion: 1 });
+    expect(await second.json()).toEqual({ ok: true, linked: false, mutationVersion: 1 });
     expect(await memoryPushTokenStore.listForAccount("user-b")).toHaveLength(1);
   });
 
@@ -145,5 +146,30 @@ describe("push account identity route", () => {
     expect((await DELETE(request("DELETE", token, 2))).status).toBe(200);
     expect((await POST(request("POST", token, 1))).status).toBe(409);
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
+  });
+
+  it("repairs a reset browser counter with a returned server watermark", async () => {
+    const token = { token: "device-token", platform: "ios" };
+    expect((await POST(request("POST", token, 10))).status).toBe(200);
+
+    const revoked = await DELETE(request("DELETE", { installationOnly: true }, 1));
+    expect(revoked.status).toBe(200);
+    expect(await revoked.json()).toEqual({ ok: true, linked: false, mutationVersion: 11 });
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
+    expect((await POST(request("POST", token, 10))).status).toBe(409);
+  });
+
+  it("fails closed when the server watermark cannot advance safely", async () => {
+    await memoryPushTokenStore.linkAccount(
+      "device-token",
+      "user-a",
+      "session-a",
+      INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION,
+    );
+    const response = await DELETE(request("DELETE", { installationOnly: true }, 1));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "PUSH_ACCOUNT_UNLINK_UNAVAILABLE" });
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
   });
 });

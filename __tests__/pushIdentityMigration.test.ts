@@ -51,6 +51,8 @@ describe("push identity migration", () => {
     expect(migration).toMatch(/delete from public\.push_token_account_revocations where expires_at <= now\(\)/);
     expect(migration).toMatch(/delete from public\.push_token_plan_mutation_versions where expires_at <= now\(\)/);
     expect(migration).toMatch(/greatest\(public\.push_token_account_revocations\.revoked_version/);
+    expect(migration).toMatch(/between 1 and 9007199254740991/);
+    expect(migration.match(/p_mutation_version > 9007199254740991/g)?.length).toBeGreaterThanOrEqual(5);
   });
 
   it("makes reversed server acquisition order deterministic for account and Plan", () => {
@@ -73,5 +75,29 @@ describe("push identity migration", () => {
     expect(accountUnlink).toMatch(/insert into public\.push_token_account_mutation_versions/);
     expect(planLink).toMatch(/p_mutation_version < v_version then return 'stale'/);
     expect(planUnlink).toMatch(/insert into public\.push_token_plan_mutation_versions/);
+  });
+
+  it("makes verified revocation server-authoritative after a reset client counter", () => {
+    const accountUnlink = migration.slice(
+      migration.indexOf("function public.unlink_push_token_account_atomic"),
+      migration.indexOf("function public.unlink_push_installation_account_atomic"),
+    );
+    const installationUnlink = migration.slice(
+      migration.indexOf("function public.unlink_push_installation_account_atomic"),
+      migration.indexOf("function public.unlink_all_push_tokens_for_account"),
+    );
+    const planUnlink = migration.slice(
+      migration.indexOf("function public.unlink_push_token_plan_member_atomic"),
+      migration.indexOf("revoke all on function"),
+    );
+    for (const fn of [accountUnlink, installationUnlink, planUnlink]) {
+      expect(fn).toMatch(/returns bigint/);
+      expect(fn).toMatch(/v_authoritative := greatest\(v_version \+ 1, p_mutation_version\)/);
+      expect(fn).toMatch(/push mutation watermark exhausted/);
+      expect(fn).toMatch(/return v_authoritative/);
+    }
+    expect(accountUnlink).not.toMatch(/if p_mutation_version >= v_version/);
+    expect(installationUnlink).not.toMatch(/account_mutation_version, 0\) <= p_mutation_version/);
+    expect(planUnlink).not.toMatch(/mutation_version <= p_mutation_version/);
   });
 });

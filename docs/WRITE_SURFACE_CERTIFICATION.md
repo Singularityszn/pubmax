@@ -159,16 +159,20 @@ Plan member capability and use idempotency keys or atomic store operations.
 - **Anti-hijack/enumeration:** the service-role-only atomic RPC row-locks the
   token. Same-account replay succeeds; a different linked account can never
   reassign it. Missing-token and cross-account results collapse to the same 409.
-  Unlink is owner-matched, idempotent, and always returns the same success body,
-  including missing/wrong-owner rows.
+  Unlink is owner-matched and idempotent. Success always has the same flat
+  shape, including missing/wrong-owner rows, and includes the authoritative
+  mutation watermark that the browser must persist before reporting success.
 - **Ordering authority:** registration binds the delivery token once to a
   random installation UUID. That UUID is not identity and contains no provider
   material. Every account intent carries a local monotonic mutation version;
   the server atomically compares it with the per-token/installation watermark.
   Per-token/session and installation/session revocation rows are unique, retain
   multiple old sessions, expire after 30 days, and are pruned during mutations.
-  Consequently DELETE(v2) defeats delayed POST(v1) even when DELETE acquires the
-  database lock first. A revoked session stays blocked for the access-JWT
+  A verified unlink advances the server watermark above both the stored value
+  and the submitted value, then returns it. Consequently a browser whose local
+  counter reset can send DELETE(v1) against a stored link(v10), receive v11,
+  and still defeat delayed POST(v10). Counter exhaustion fails closed without
+  clearing the join. A revoked session stays blocked for the access-JWT
   lifetime; a fresh verified session may issue a later version.
 - **Logout/privacy:** logout stops new joins, then uses authenticated
   revoke-by-installation while the JWT verifies. It does not need the raw APNs
@@ -176,7 +180,9 @@ Plan member capability and use idempotency keys or atomic store operations.
   durable association. Only after confirmed revocation does Supabase sign out
   with `{ scope: "local" }`, matching the current-installation privacy action
   without signing other devices out. Failed or hard-timeout revocation keeps
-  the user signed in and displays an honest retry error. PushManager recovery,
+  the user signed in and displays an honest retry error. Failure to durably
+  persist the returned server watermark is also treated as revocation failure.
+  PushManager recovery,
   native recovery, and every push fetch have hard timeouts. The all-device
   unlink remains the account-erasure seam.
   Provider-invalid token deletion, account deletion, or explicit unlink removes

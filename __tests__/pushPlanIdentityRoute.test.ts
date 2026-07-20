@@ -18,6 +18,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { DELETE, POST } from "@/app/api/plans/[id]/push-tokens/route";
+import { MAX_PUSH_MUTATION_VERSION } from "@/lib/pushInstallation";
 import { __resetMemoryPushTokens, memoryPushTokenStore } from "@/lib/pushTokenStore";
 
 const PLAN_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -98,8 +99,8 @@ describe("push Plan identity route", () => {
     const first = await DELETE(request("DELETE", { token: "device-token", platform: "ios" }), context);
     const second = await DELETE(request("DELETE", { token: "device-token", platform: "ios" }), context);
     expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({ ok: true, linked: false });
-    expect(await second.json()).toEqual({ ok: true, linked: false });
+    expect(await first.json()).toEqual({ ok: true, linked: false, mutationVersion: 1 });
+    expect(await second.json()).toEqual({ ok: true, linked: false, mutationVersion: 1 });
     expect(await memoryPushTokenStore.listForPlan(PLAN_ID)).toHaveLength(1);
   });
 
@@ -108,5 +109,34 @@ describe("push Plan identity route", () => {
     expect((await DELETE(request("DELETE", body, "member-capability", 2), context)).status).toBe(200);
     expect((await POST(request("POST", body, "member-capability", 1), context)).status).toBe(409);
     expect(await memoryPushTokenStore.listForPlan(PLAN_ID)).toEqual([]);
+  });
+
+  it("repairs a reset browser counter with a returned Plan watermark", async () => {
+    const body = { token: "device-token", platform: "ios" };
+    expect((await POST(request("POST", body, "member-capability", 10), context)).status).toBe(200);
+    const revoked = await DELETE(request("DELETE", body, "member-capability", 1), context);
+    expect(revoked.status).toBe(200);
+    expect(await revoked.json()).toEqual({ ok: true, linked: false, mutationVersion: 11 });
+    expect(await memoryPushTokenStore.listForPlan(PLAN_ID)).toEqual([]);
+    expect((await POST(request("POST", body, "member-capability", 10), context)).status).toBe(409);
+  });
+
+  it("fails closed when the Plan watermark cannot advance safely", async () => {
+    await memoryPushTokenStore.linkPlan(
+      "device-token",
+      PLAN_ID,
+      MEMBER_A,
+      INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION,
+    );
+    const response = await DELETE(request(
+      "DELETE",
+      { token: "device-token", platform: "ios" },
+      "member-capability",
+      1,
+    ), context);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "PUSH_PLAN_UNLINK_UNAVAILABLE" });
+    expect(await memoryPushTokenStore.listForPlan(PLAN_ID)).toHaveLength(1);
   });
 });
