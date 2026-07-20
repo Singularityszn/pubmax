@@ -12,8 +12,8 @@
 // the conservative name+proximity matcher (scripts/lib/areaNewsMatch.mjs); when
 // in doubt, no match, because a wrong badge is worse than a missing one.
 //
-// Node-backed loader (reads the committed JSON) — import loadAreaNews only from
-// server code. The pure helpers are isomorphic and safe to unit-test directly.
+// The dataset loader lives in areaNews.server.ts. This module is imported by
+// client components, so it must remain free of Node built-ins.
 
 import { LONDON_BOROUGHS, slugifyBorough } from "@/lib/boroughs";
 import type { NightAreaSlug } from "@/lib/nightAreas";
@@ -305,33 +305,4 @@ export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
     }
   }
   return problems;
-}
-
-// ---- Server-only loader ------------------------------------------------------
-
-let cache: AreaNewsDataset | null = null;
-
-/** Read the committed dataset once. Never throws: a read/parse failure yields an
- *  empty dataset so every surface fails soft to "nothing here" rather than 500. */
-export async function loadAreaNews(): Promise<AreaNewsDataset> {
-  if (cache) return cache;
-  try {
-    const { readFile } = await import("node:fs/promises");
-    const path = await import("node:path");
-    const file = path.join(process.cwd(), "data", "area_news.json");
-    const parsed = JSON.parse(await readFile(file, "utf8")) as Partial<AreaNewsDataset>;
-    cache = {
-      version: typeof parsed.version === "number" ? parsed.version : 1,
-      generatedAt: typeof parsed.generatedAt === "string" ? parsed.generatedAt : "",
-      entries: Array.isArray(parsed.entries) ? parsed.entries : [],
-    };
-  } catch {
-    cache = { version: 1, generatedAt: "", entries: [] };
-  }
-  return cache;
-}
-
-/** Test-only: drop the in-memory cache between cases. */
-export function __resetAreaNewsCache(): void {
-  cache = null;
 }
