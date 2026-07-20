@@ -34,6 +34,11 @@ import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
 import { emitIdentityHandleChanged, IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
+import {
+  linkCurrentPushToClaimedAccount,
+  unlinkCurrentPushFromClaimedAccount,
+} from "@/lib/pushIdentityClient";
+import { refreshExistingNativePushRegistration } from "@/lib/nativePush";
 
 const HANDLE_KEY = "pubmax_handle";
 const SYNCED_USER_KEY = "pubmax_identity_synced_user";
@@ -90,6 +95,12 @@ function writeDeviceHandle(handle: string): void {
   emitIdentityHandleChanged(handle);
 }
 
+function joinClaimedPushRegistration(): void {
+  void linkCurrentPushToClaimedAccount().then((linked) => {
+    if (!linked) void refreshExistingNativePushRegistration();
+  });
+}
+
 /** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
 async function linkAuthHandleQuick(user: User, authHandle: string): Promise<boolean> {
   writeDeviceHandle(authHandle);
@@ -101,6 +112,7 @@ async function linkAuthHandleQuick(user: User, authHandle: string): Promise<bool
     });
     if (!res.ok) return false;
     markSynced(user.id);
+    joinClaimedPushRegistration();
     return true;
   } catch {
     return false;
@@ -288,6 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
               : claimPreview.authHandle;
         if (handle) writeDeviceHandle(handle);
         markSynced(session.user.id);
+        joinClaimedPushRegistration();
         clearClaimDeferred();
         closeClaim();
       } catch {
@@ -411,6 +424,13 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const signOut = useCallback(async (): Promise<void> => {
     const supabase = getSupabaseBrowser();
     if (!supabase) return;
+    // Detach person-targeting while the access token still verifies. Failure is
+    // fail-soft for logout; cross-account reassignment still remains blocked
+    // server-side until the original owner successfully unlinks.
+    await Promise.race([
+      unlinkCurrentPushFromClaimedAccount(),
+      new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), 1_500)),
+    ]);
     await supabase.auth.signOut();
     // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
   }, []);

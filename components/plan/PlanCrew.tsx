@@ -6,9 +6,11 @@ import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/li
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { trackEvent } from "@/lib/analytics";
 import { isIdentityNudgePending, recordPlanNudgeTrigger } from "@/lib/identityNudge";
-import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
+import { parsePlanCapabilitySnapshot, PLAN_HTTP_ONLY_SESSION, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
+import { refreshExistingNativePushRegistration } from "@/lib/nativePush";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
+import { linkCurrentPushToPlan, subscribePushRegistration } from "@/lib/pushIdentityClient";
 
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   in: "In",
@@ -88,6 +90,25 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
       .catch(() => { if (active) setSessionUnavailable(true); });
     return () => { active = false; };
   }, [memberToken, planId, sessionAttempt]);
+
+  useEffect(() => {
+    if (!memberToken) return;
+    // Membership and notification permission can arrive in either order. The
+    // endpoint derives member identity from this capability or the existing
+    // path-scoped HttpOnly session; no client member id crosses the boundary.
+    const join = () => {
+      void linkCurrentPushToPlan(
+        planId,
+        memberToken === PLAN_HTTP_ONLY_SESSION ? undefined : memberToken,
+      ).then((linked) => {
+        // Web can recover its PushSubscription directly. Native must ask APNs
+        // to re-emit an older token after restart, but never requests permission.
+        if (!linked) void refreshExistingNativePushRegistration();
+      });
+    };
+    join();
+    return subscribePushRegistration(join);
+  }, [memberToken, planId]);
 
   useEffect(() => {
     if (!memberToken) return;

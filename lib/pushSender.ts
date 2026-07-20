@@ -3,16 +3,16 @@
 // (lib/pushProvider.ts), summarises the per-token results, and prunes any token
 // the provider reports invalid (APNs 410 / BadDeviceToken).
 //
-// ── IDENTITY LIMITATION (read before adding a plan-scoped send) ──────────────
-// Push tokens are registered PRE-AUTH (lib/nativePush.ts posts on shell boot),
-// so a token row carries NO user/plan identity. Plan-scoped targeting — "notify
-// only this Plan's crew" — is therefore impossible today. Two consequences:
+// ── TARGETED-DELIVERY FENCE (read before adding a plan-scoped send) ──────────
+// Push tokens are registered PRE-AUTH (lib/nativePush.ts posts on shell boot).
+// Wave 1.4 added separate verified account/Plan joins and private query methods,
+// but intentionally did NOT approve or activate targeted sends. Two consequences:
 //   • Broadcast (night-signal "went live") CAN send: every token is a valid
 //     target, so broadcastNightSignalLive() fans out to store.list() wholesale.
 //   • Plan-scoped events (proposal decision, get-in change) CANNOT target, so
 //     resolvePlanTokens() returns [] and notifyPlanUpdate() is a plumbed no-op
-//     behind the PLAN-SCOPED SEAM below. It activates unchanged the day tokens
-//     gain identity — wire resolvePlanTokens() to a token→plan lookup then.
+//     behind the PLAN-SCOPED SEAM below. A later reviewed delivery ticket may
+//     wire it to listForPlan(); this identity-join ticket must not do so.
 // Sending to ALL tokens for a plan-scoped event would be a privacy leak (crew A
 // gets crew B's Plan updates), so that path stays closed until identity exists.
 
@@ -151,8 +151,8 @@ export type DailyBriefHighlight = {
 };
 
 /** Manual installed-web daily brief. It is a city-wide public broadcast and
- * therefore does not pretend to have identity targeting before Wave 1.4. Only
- * explicit web subscriptions are selected; native APNs behaviour is unchanged. */
+ * is deliberately identity-free. Only explicit web subscriptions are selected;
+ * account/Plan joins do not change eligibility and native APNs is unchanged. */
 export async function broadcastDailyBrief(
   highlight: DailyBriefHighlight,
 ): Promise<PushDispatchSummary> {
@@ -224,18 +224,16 @@ export function __resetNightSignalBroadcasts(): void {
   broadcastedVersions.clear();
 }
 
-// ── PLAN-SCOPED SEAM (dormant until tokens gain identity) ────────────────────
+// ── PLAN-SCOPED SEAM (dormant pending targeted-delivery review) ──────────────
 
 /**
- * Resolve the device tokens for a Plan's crew. Returns [] today because tokens
- * carry no identity — see the IDENTITY LIMITATION at the top of this file.
- * TODO(push-identity): once a token row can be linked to a member/plan, look up
- * this plan's tokens here; notifyPlanUpdate() then delivers with no other
- * change. Do NOT fall back to store.list() — that would leak Plan A's updates
- * to Plan B's devices.
+ * Resolve the device tokens for a Plan's crew. Wave 1.4's private per-Plan
+ * store query exists, but this resolver deliberately returns []: joining
+ * identity and authorising delivery are separate review boundaries. Do NOT
+ * wire that query or fall back to the broadcast list in this ticket.
  */
 async function resolvePlanTokens(planId: string): Promise<string[]> {
-  void planId; // Dormant: no token→plan link exists yet (see IDENTITY LIMITATION).
+  void planId;
   return [];
 }
 

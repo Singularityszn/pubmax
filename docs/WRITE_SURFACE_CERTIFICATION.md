@@ -6,10 +6,11 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 64 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 66 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
-> `POST /api/plans/[id]/vibe-votes`). Token-gated GET confirm/unsubscribe
+> `POST /api/plans/[id]/vibe-votes`) → 65 (claimed-account push join/revoke) →
+> 66 (Plan-member push join/revoke). Token-gated GET confirm/unsubscribe
 > endpoints and read-only GETs (the Social Loop reads, the vibe-vote tally read)
 > are deliberately excluded from the mutating-verb inventory. The number is a
 > merge-conflict coordination point across in-flight branches — reconcile it (not
@@ -140,6 +141,50 @@ Plan member capability and use idempotency keys or atomic store operations.
   revoked, service_role only); `truncate` both is a safe reset. Until the owner
   applies 0044 the durable write 503s and the tally read drops the share-card
   line (the card still renders) — no crash, no fake success.
+
+### `app/api/push-tokens/account` — claimed-account push join (route 65)
+
+- **Route / methods:** `POST` links one existing anonymous iOS, Android, or Web
+  registration to the caller's account; `DELETE` unlinks the current device or,
+  with `{ all: true }`, every account link for privacy/account erasure. Neither
+  method deletes the anonymous registration, changes public brief eligibility,
+  or sends a notification.
+- **Authority:** `callerUserId` verifies the Supabase bearer JWT, then
+  `profileStore().getByUserId` proves the account-claim seam completed. No user
+  id from the body is read. Missing JWT is 401; a signed-in but unclaimed account
+  is 403; account-store uncertainty is 503.
+- **Anti-hijack/enumeration:** the service-role-only atomic RPC row-locks the
+  token. Same-account replay succeeds; a different linked account can never
+  reassign it. Missing-token and cross-account results collapse to the same 409.
+  Unlink is owner-matched, idempotent, and always returns the same success body,
+  including missing/wrong-owner rows.
+- **Logout/privacy:** the auth provider attempts current-device unlink before
+  invalidating the JWT. The all-device unlink is the account-erasure seam.
+  Provider-invalid token deletion, account deletion, or explicit unlink removes
+  targeting authority; public delivery opt-in remains independent.
+
+### `app/api/plans/[id]/push-tokens` — Plan-member push join (route 66)
+
+- **Route / methods:** `POST` links one existing anonymous registration to a
+  verified member of the path Plan; `DELETE` revokes only that member's link.
+  It establishes the future recipient-query contract only. Plan-targeted sender
+  activation remains deliberately out of scope.
+- **Authority:** `planMemberCapability` reads the existing bearer, path-scoped
+  HttpOnly session, or legacy body fallback. `planMemberIdentityResult` derives
+  the canonical member id server-side. Client `planId` and `memberId` values are
+  ignored. Missing/invalid capabilities fail before the push store is touched.
+- **Anti-hijack/enumeration:** one token can link to one member per Plan and to
+  multiple Plans. Same-member replay succeeds; another member cannot reassign
+  that Plan's link. Missing and cross-member joins share one 409; unlink is
+  member-matched and idempotent with a flat success response.
+- **Storage and revocation:** migration 0047 adds the private
+  `push_token_plan_memberships` table. Token, Plan, and member foreign keys
+  cascade deletion. RLS is enabled; public/anon/authenticated have no grants;
+  the table grants only select/insert/delete to `service_role`, and the five
+  search-path-pinned RPCs are execute-only for `service_role`. Keyless account
+  joins honestly return 401 because no verified auth identity exists; keyless
+  Plan joins use the bounded in-memory registry only after the normal in-memory
+  Plan capability verifies.
 
 ## Certification command
 

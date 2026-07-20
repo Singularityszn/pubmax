@@ -1,12 +1,14 @@
-// Identity-free push registry for the Capacitor shell and installed web app.
+// Push registry for the Capacitor shell and installed web app.
 // ONE interface, TWO storage implementations (process-memory + Supabase
 // public.push_tokens), same seam pattern as the other stores. A row is keyed by
 // its opaque native token / serialized web subscription; re-registration is an
 // idempotent last_seen_at refresh.
 //
-// No auth: native registration happens before sign-in and web registration only
-// after explicit browser permission, but neither carries identity. A row means
-// only "this device/browser can receive public pushes".
+// Registration remains identity-free: native registration happens before
+// sign-in and web registration only after explicit browser permission. Separate
+// server-authorised joins may later associate that existing registration with a
+// claimed account or verified Plan membership. Those joins never make identity
+// part of the public DTO or the broadcast list.
 
 import { admin, selectStore } from "@/lib/storeBackend";
 import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
@@ -54,16 +56,34 @@ export function validatePushToken(raw: {
 export type PushTokenStore = {
   /** Register (or refresh) a device token. Idempotent per token. */
   save(input: PushTokenInput): Promise<PushTokenDTO>;
-  /** All registered device tokens. The send fan-out (lib/pushSender.ts) reads
-   *  this to resolve broadcast targets. Rows carry no identity, so this is the
-   *  ONLY targeting available until tokens gain identity — see pushSender. */
+  /** All registered device tokens. Public city-wide broadcasts use this list;
+   * identity joins do not change that identity-free behaviour. */
   list(): Promise<PushTokenDTO[]>;
+  /** Tokens linked to a VERIFIED claimed account. Server-internal only. */
+  listForAccount(userId: string): Promise<PushTokenDTO[]>;
+  /** Tokens linked by a VERIFIED member capability to this Plan. Server-internal only. */
+  listForPlan(planId: string): Promise<PushTokenDTO[]>;
+  /** Atomically link an existing registration to one claimed account. A token
+   * can never be reassigned while another account owns its link. */
+  linkAccount(token: string, userId: string): Promise<PushIdentityJoinResult>;
+  /** Remove only the caller's account link. Missing/wrong-owner rows are the
+   * same idempotent result so the endpoint cannot enumerate registrations. */
+  unlinkAccount(token: string, userId: string): Promise<void>;
+  /** Privacy/account-erasure seam: clear every link for one verified account. */
+  unlinkAllForAccount(userId: string): Promise<void>;
+  /** Link one existing registration to one verified member per Plan. */
+  linkPlan(token: string, planId: string, memberId: string): Promise<PushIdentityJoinResult>;
+  /** Remove only the matching verified member's Plan link, idempotently. */
+  unlinkPlan(token: string, planId: string, memberId: string): Promise<void>;
   /** Remove a token the push provider reported invalid (APNs 410 /
    *  BadDeviceToken). Idempotent — deleting an absent token is a no-op. */
   delete(token: string): Promise<void>;
 };
 
+export type PushIdentityJoinResult = "linked" | "replayed" | "conflict" | "missing" | "error";
+
 const TABLE = "push_tokens";
+const PLAN_LINKS = "push_token_plan_memberships";
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePushTokenStore: PushTokenStore = {
@@ -98,6 +118,70 @@ export const supabasePushTokenStore: PushTokenStore = {
       lastSeenAt: String(row.last_seen_at),
     }));
   },
+  async listForAccount(userId) {
+    if (!userId) return [];
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("token, platform, created_at, last_seen_at")
+      .eq("account_user_id", userId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(tokenFromRow);
+  },
+  async listForPlan(planId) {
+    if (!planId) return [];
+    const { data, error } = await admin()
+      .from(PLAN_LINKS)
+      .select("linked_at,push_tokens!inner(token,platform,created_at,last_seen_at)")
+      .eq("plan_id", planId)
+      .order("linked_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).flatMap((link) => {
+      const related = (link as Record<string, unknown>).push_tokens;
+      const row = Array.isArray(related) ? related[0] : related;
+      return row && typeof row === "object" ? [tokenFromRow(row as Record<string, unknown>)] : [];
+    });
+  },
+  async linkAccount(token, userId) {
+    const { data, error } = await admin().rpc("link_push_token_account_atomic", {
+      p_token: token,
+      p_user_id: userId,
+      p_linked_at: new Date().toISOString(),
+    });
+    if (error) return "error";
+    return joinResult(data);
+  },
+  async unlinkAccount(token, userId) {
+    const { error } = await admin().rpc("unlink_push_token_account_atomic", {
+      p_token: token,
+      p_user_id: userId,
+    });
+    if (error) throw new Error(error.message);
+  },
+  async unlinkAllForAccount(userId) {
+    const { error } = await admin().rpc("unlink_all_push_tokens_for_account", {
+      p_user_id: userId,
+    });
+    if (error) throw new Error(error.message);
+  },
+  async linkPlan(token, planId, memberId) {
+    const { data, error } = await admin().rpc("link_push_token_plan_member_atomic", {
+      p_token: token,
+      p_plan_id: planId,
+      p_member_id: memberId,
+      p_linked_at: new Date().toISOString(),
+    });
+    if (error) return "error";
+    return joinResult(data);
+  },
+  async unlinkPlan(token, planId, memberId) {
+    const { error } = await admin().rpc("unlink_push_token_plan_member_atomic", {
+      p_token: token,
+      p_plan_id: planId,
+      p_member_id: memberId,
+    });
+    if (error) throw new Error(error.message);
+  },
   async delete(token) {
     const { error } = await admin().from(TABLE).delete().eq("token", token);
     if (error) throw new Error(error.message);
@@ -105,7 +189,28 @@ export const supabasePushTokenStore: PushTokenStore = {
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
-const memoryTokens = new Map<string, PushTokenDTO>();
+type MemoryRegistration = {
+  registration: PushTokenDTO;
+  accountUserId: string | null;
+  planMembers: Map<string, string>;
+};
+
+const memoryTokens = new Map<string, MemoryRegistration>();
+
+function tokenFromRow(row: Record<string, unknown>): PushTokenDTO {
+  return {
+    token: String(row.token),
+    platform: row.platform === "web" ? "web" : row.platform === "android" ? "android" : "ios",
+    createdAt: String(row.created_at),
+    lastSeenAt: String(row.last_seen_at),
+  };
+}
+
+function joinResult(value: unknown): PushIdentityJoinResult {
+  return value === "linked" || value === "replayed" || value === "conflict" || value === "missing"
+    ? value
+    : "error";
+}
 
 export const memoryPushTokenStore: PushTokenStore = {
   async save(input) {
@@ -114,14 +219,58 @@ export const memoryPushTokenStore: PushTokenStore = {
     const dto: PushTokenDTO = {
       token: input.token,
       platform: input.platform,
-      createdAt: existing?.createdAt ?? now,
+      createdAt: existing?.registration.createdAt ?? now,
       lastSeenAt: now,
     };
-    memoryTokens.set(input.token, dto);
+    memoryTokens.set(input.token, {
+      registration: dto,
+      accountUserId: existing?.accountUserId ?? null,
+      planMembers: existing?.planMembers ?? new Map(),
+    });
     return dto;
   },
   async list() {
-    return [...memoryTokens.values()];
+    return [...memoryTokens.values()].map((row) => ({ ...row.registration }));
+  },
+  async listForAccount(userId) {
+    return [...memoryTokens.values()]
+      .filter((row) => row.accountUserId === userId)
+      .map((row) => ({ ...row.registration }));
+  },
+  async listForPlan(planId) {
+    return [...memoryTokens.values()]
+      .filter((row) => row.planMembers.has(planId))
+      .map((row) => ({ ...row.registration }));
+  },
+  async linkAccount(token, userId) {
+    const row = memoryTokens.get(token);
+    if (!row) return "missing";
+    if (row.accountUserId === userId) return "replayed";
+    if (row.accountUserId) return "conflict";
+    row.accountUserId = userId;
+    return "linked";
+  },
+  async unlinkAccount(token, userId) {
+    const row = memoryTokens.get(token);
+    if (row?.accountUserId === userId) row.accountUserId = null;
+  },
+  async unlinkAllForAccount(userId) {
+    for (const row of memoryTokens.values()) {
+      if (row.accountUserId === userId) row.accountUserId = null;
+    }
+  },
+  async linkPlan(token, planId, memberId) {
+    const row = memoryTokens.get(token);
+    if (!row) return "missing";
+    const existing = row.planMembers.get(planId);
+    if (existing === memberId) return "replayed";
+    if (existing) return "conflict";
+    row.planMembers.set(planId, memberId);
+    return "linked";
+  },
+  async unlinkPlan(token, planId, memberId) {
+    const row = memoryTokens.get(token);
+    if (row?.planMembers.get(planId) === memberId) row.planMembers.delete(planId);
   },
   async delete(token) {
     memoryTokens.delete(token);
@@ -135,7 +284,7 @@ export function pushTokenStore(): PushTokenStore {
 
 /** Test-only: current in-memory registrations (insertion order). */
 export function __listMemoryPushTokens(): PushTokenDTO[] {
-  return [...memoryTokens.values()];
+  return [...memoryTokens.values()].map((row) => ({ ...row.registration }));
 }
 
 /** Test-only: clear the in-memory registry between cases. */

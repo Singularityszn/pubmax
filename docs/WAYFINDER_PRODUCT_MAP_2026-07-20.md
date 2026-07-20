@@ -14,7 +14,7 @@ The complete loop live in London: anonymous grounded Plan, account claim, gated 
 - Lane discipline unchanged: isolated worktree, own branch, non-draft PR, full local vitest at latest main before opening (semantic-collision guard), merge on full green (Vercel chengdu + pubmax, CodeRabbit, Cursor security), squash merge, delete branch, remove worktree.
 - Frontend lanes = Fable forks xhigh; backend lanes = Opus 4.8 xhigh or Sol; mixed scopes split.
 - Migrations additive only, owner applies, search_path pinned on functions.
-- Verification bar per lane: vitest green local + Vercel, tsc clean, no em dashes in product copy, provenance label on every sourced claim, hermetic tests, write-surface certification bumped in the same commit as any new mutating route (count currently 64), both-theme screenshots for UI lanes.
+- Verification bar per lane: vitest green local + Vercel, tsc clean, no em dashes in product copy, provenance label on every sourced claim, hermetic tests, write-surface certification bumped in the same commit as any new mutating route (count currently 66 after Wave 1.4), both-theme screenshots for UI lanes.
 
 ## Decisions so far (owner, 2026-07-20)
 
@@ -55,7 +55,7 @@ Exit gate: 0.1 items done by owner, 0.2 settled with evidence, 0.5 events flowin
 | 1.1 | #441 first-run onboarding, locked shape: London, companion pick, contextual notification ask AFTER first plan action (never on boot). Build ON lib/entryDecision.ts (deep-link bypass and /tonight invariants are test-pinned) and lib/firstRunTour.ts + prompt budget (lib/promptBudget.ts). The roadmap's "one useful Plan first" principle folds in as the onboarding's landing action, not a new flow | seams EXIST | Fable fork |
 | 1.2 | #443 wrapped-build evidence refresh (Gate Z style): Capacitor sync (capacitor.config.ts remote-URL shell, ios/ + android/ EXIST), safe areas, status bar, offline fallback for remote-URL shell, both-theme evidence set on the wrapped build | config EXISTS | Opus |
 | 1.3 | Lane B continuation (Sol): web-push VAPID provider behind the existing lib/pushProvider.ts seam (APNs transport already on main; read lib/pushTokenStore.ts, lib/pushSender.ts, lib/nativePush.ts first, do not rebuild), push event + click-through handler in public/sw.js, manual daily brief sender script (crons dead). No-op loudly without VAPID keys | PARTIAL | Sol |
-| 1.4 | Push identity join (new, surfaced by inventory): push tokens currently register pre-auth carrying no user or plan identity, so plan-scoped and person-scoped targeting is impossible. Add an identity join on the token store (claimed account or plan membership) before any targeted push ships. Write-surface certification applies | gap | Sol |
+| 1.4 | Push identity join (new, surfaced by inventory): push tokens register pre-auth, then join only through a verified claimed account or verified Plan member capability. Code complete on the Wave 1.4 lane; migration 0047 is additive and owner-applied. Targeted delivery remains fenced off for a later review | OWNER MIGRATION | Sol |
 | 1.5 | Lane E continuation (Sol): restaurants + attractions ingest through lib/slopFilter.ts + provenance registry + freshness registry (lib/freshness.ts, data/freshness_registry.json). Per-row source URL + observed-at date or the row does not ship; honest empty states; halt on credit failure and report owner | pipeline EXISTS | Sol |
 
 Exit gate: #437 closes (every ticket + wrapped-build evidence pass), store listing assets final.

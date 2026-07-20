@@ -3,6 +3,7 @@
 // real user action, preserving the shared prompt budget and consent boundary.
 
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
+import { rememberPushRegistration } from "@/lib/pushIdentityClient";
 
 function applicationServerKey(value: string): Uint8Array<ArrayBuffer> | null {
   try {
@@ -51,6 +52,7 @@ export async function registerWebPush(): Promise<boolean> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token, platform: "web" }),
     });
+    if (response.ok) rememberPushRegistration({ token, platform: "web" });
     return response.ok;
   } catch {
     return false;

@@ -68,7 +68,7 @@ export default function NativePushPrompt(): React.JSX.Element | null {
           Stay in the loop
         </p>
         <p id="native-push-prompt-body" className="nativePushPrompt__body">
-          Get pinged when your crew votes or the get-in closes.
+          Get fresh London night signals. Private crew alerts stay off until targeted delivery is ready.
         </p>
         <div className="nativePushPrompt__actions">
           <button type="button" className="nativePushPrompt__later pressable" onClick={handleLater}>

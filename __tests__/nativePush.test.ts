@@ -26,9 +26,10 @@ vi.mock("@capacitor/push-notifications", () => ({
   },
 }));
 
-import { registerNativePush } from "@/lib/nativePush";
+import { __resetNativePushRecovery, refreshExistingNativePushRegistration, registerNativePush } from "@/lib/nativePush";
 
 beforeEach(() => {
+  __resetNativePushRecovery();
   isNativeApp.mockReturnValue(true);
   nativePlatform.mockReturnValue("ios");
   checkPermissions.mockResolvedValue({ receive: "granted" });
@@ -118,6 +119,21 @@ describe("registerNativePush", () => {
 
     await expect(registerNativePush()).resolves.toBe(false);
 
+    expect(addListener).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it("refreshes an existing native token only when permission is already granted", async () => {
+    await expect(refreshExistingNativePushRegistration()).resolves.toBe(true);
+    expect(requestPermissions).not.toHaveBeenCalled();
+    expect(addListener).toHaveBeenCalledWith("registration", expect.any(Function));
+    expect(register).toHaveBeenCalledOnce();
+  });
+
+  it("never prompts while trying to recover an older registration", async () => {
+    checkPermissions.mockResolvedValue({ receive: "prompt" });
+    await expect(refreshExistingNativePushRegistration()).resolves.toBe(false);
+    expect(requestPermissions).not.toHaveBeenCalled();
     expect(addListener).not.toHaveBeenCalled();
     expect(register).not.toHaveBeenCalled();
   });
