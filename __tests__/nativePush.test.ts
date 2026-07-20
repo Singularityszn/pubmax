@@ -26,7 +26,12 @@ vi.mock("@capacitor/push-notifications", () => ({
   },
 }));
 
-import { __resetNativePushRecovery, refreshExistingNativePushRegistration, registerNativePush } from "@/lib/nativePush";
+import {
+  __resetNativePushRecovery,
+  recoverNativePushRegistration,
+  refreshExistingNativePushRegistration,
+  registerNativePush,
+} from "@/lib/nativePush";
 
 beforeEach(() => {
   __resetNativePushRecovery();
@@ -124,10 +129,35 @@ describe("registerNativePush", () => {
   });
 
   it("refreshes an existing native token only when permission is already granted", async () => {
+    register.mockImplementationOnce(async () => {
+      const onRegistration = addListener.mock.calls.find(([event]) => event === "registration")?.[1];
+      queueMicrotask(() => onRegistration({ value: "recovered-token" }));
+    });
     await expect(refreshExistingNativePushRegistration()).resolves.toBe(true);
     expect(requestPermissions).not.toHaveBeenCalled();
     expect(addListener).toHaveBeenCalledWith("registration", expect.any(Function));
     expect(register).toHaveBeenCalledOnce();
+  });
+
+  it("returns the exact OS token needed for logout after a WebView restart", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+    register.mockImplementationOnce(async () => {
+      const onRegistration = addListener.mock.calls.find(([event]) => event === "registration")?.[1];
+      queueMicrotask(() => onRegistration({ value: "shared-device-token" }));
+    });
+
+    await expect(recoverNativePushRegistration()).resolves.toEqual({
+      status: "registration",
+      registration: { token: "shared-device-token", platform: "ios" },
+    });
+    expect(requestPermissions).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the OS cannot re-emit a previously permitted token", async () => {
+    register.mockRejectedValueOnce(new Error("APNs unavailable"));
+    await expect(recoverNativePushRegistration()).resolves.toEqual({ status: "failed" });
+    expect(requestPermissions).not.toHaveBeenCalled();
   });
 
   it("never prompts while trying to recover an older registration", async () => {

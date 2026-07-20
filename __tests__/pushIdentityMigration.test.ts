@@ -29,10 +29,16 @@ describe("push identity migration", () => {
   });
 
   it("atomically rejects cross-owner/member reassignment and cascades revocation", () => {
-    expect(migration).toMatch(/account_user_id is not null then return 'conflict'/);
+    expect(migration).toMatch(/account_user_id is not null and v_token\.account_user_id <> p_user_id then return 'conflict'/);
+    expect(migration).toMatch(/account_blocked_session_id = p_session_id then return 'conflict'/);
     expect(migration).toMatch(/v_link\.member_id = p_member_id then return 'replayed'/);
     expect(migration).toMatch(/return 'conflict'/);
     expect(migration).toMatch(/references public\.push_tokens\(token\) on delete cascade/);
     expect(migration).toMatch(/foreign key \(plan_id, member_id\)[\s\S]*references public\.plan_crew_members\(plan_id, id\)[\s\S]*on delete cascade/);
+  });
+
+  it("serializes Plan link and unlink with the same transaction lock", () => {
+    const locks = migration.match(/pg_advisory_xact_lock\(hashtextextended\('push-plan:' \|\| p_token \|\| ':' \|\| p_plan_id::text, 0\)\)/g) ?? [];
+    expect(locks).toHaveLength(2);
   });
 });

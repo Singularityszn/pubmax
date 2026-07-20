@@ -65,10 +65,10 @@ export type PushTokenStore = {
   listForPlan(planId: string): Promise<PushTokenDTO[]>;
   /** Atomically link an existing registration to one claimed account. A token
    * can never be reassigned while another account owns its link. */
-  linkAccount(token: string, userId: string): Promise<PushIdentityJoinResult>;
+  linkAccount(token: string, userId: string, sessionId: string): Promise<PushIdentityJoinResult>;
   /** Remove only the caller's account link. Missing/wrong-owner rows are the
    * same idempotent result so the endpoint cannot enumerate registrations. */
-  unlinkAccount(token: string, userId: string): Promise<void>;
+  unlinkAccount(token: string, userId: string, sessionId: string): Promise<void>;
   /** Privacy/account-erasure seam: clear every link for one verified account. */
   unlinkAllForAccount(userId: string): Promise<void>;
   /** Link one existing registration to one verified member per Plan. */
@@ -142,19 +142,21 @@ export const supabasePushTokenStore: PushTokenStore = {
       return row && typeof row === "object" ? [tokenFromRow(row as Record<string, unknown>)] : [];
     });
   },
-  async linkAccount(token, userId) {
+  async linkAccount(token, userId, sessionId) {
     const { data, error } = await admin().rpc("link_push_token_account_atomic", {
       p_token: token,
       p_user_id: userId,
+      p_session_id: sessionId,
       p_linked_at: new Date().toISOString(),
     });
     if (error) return "error";
     return joinResult(data);
   },
-  async unlinkAccount(token, userId) {
+  async unlinkAccount(token, userId, sessionId) {
     const { error } = await admin().rpc("unlink_push_token_account_atomic", {
       p_token: token,
       p_user_id: userId,
+      p_session_id: sessionId,
     });
     if (error) throw new Error(error.message);
   },
@@ -192,6 +194,8 @@ export const supabasePushTokenStore: PushTokenStore = {
 type MemoryRegistration = {
   registration: PushTokenDTO;
   accountUserId: string | null;
+  accountSessionId: string | null;
+  blockedAccountSessionId: string | null;
   planMembers: Map<string, string>;
 };
 
@@ -225,6 +229,8 @@ export const memoryPushTokenStore: PushTokenStore = {
     memoryTokens.set(input.token, {
       registration: dto,
       accountUserId: existing?.accountUserId ?? null,
+      accountSessionId: existing?.accountSessionId ?? null,
+      blockedAccountSessionId: existing?.blockedAccountSessionId ?? null,
       planMembers: existing?.planMembers ?? new Map(),
     });
     return dto;
@@ -242,21 +248,31 @@ export const memoryPushTokenStore: PushTokenStore = {
       .filter((row) => row.planMembers.has(planId))
       .map((row) => ({ ...row.registration }));
   },
-  async linkAccount(token, userId) {
+  async linkAccount(token, userId, sessionId) {
     const row = memoryTokens.get(token);
     if (!row) return "missing";
-    if (row.accountUserId === userId) return "replayed";
-    if (row.accountUserId) return "conflict";
+    if (row.accountUserId === userId && row.accountSessionId === sessionId) return "replayed";
+    if (row.blockedAccountSessionId === sessionId) return "conflict";
+    if (row.accountUserId && row.accountUserId !== userId) return "conflict";
     row.accountUserId = userId;
+    row.accountSessionId = sessionId;
     return "linked";
   },
-  async unlinkAccount(token, userId) {
+  async unlinkAccount(token, userId, sessionId) {
     const row = memoryTokens.get(token);
-    if (row?.accountUserId === userId) row.accountUserId = null;
+    if (row?.accountUserId === userId && row.accountSessionId === sessionId) {
+      row.accountUserId = null;
+      row.accountSessionId = null;
+      row.blockedAccountSessionId = sessionId;
+    }
   },
   async unlinkAllForAccount(userId) {
     for (const row of memoryTokens.values()) {
-      if (row.accountUserId === userId) row.accountUserId = null;
+      if (row.accountUserId === userId) {
+        row.blockedAccountSessionId = row.accountSessionId;
+        row.accountUserId = null;
+        row.accountSessionId = null;
+      }
     }
   },
   async linkPlan(token, planId, memberId) {

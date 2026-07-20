@@ -14,10 +14,13 @@ import {
   linkCurrentPushToClaimedAccount,
   linkCurrentPushToPlan,
   rememberPushRegistration,
+  resumeAccountPushJoins,
+  stopAccountPushJoins,
   subscribePushRegistration,
   unlinkAllPushFromClaimedAccount,
   unlinkCurrentPushFromClaimedAccount,
   unlinkCurrentPushFromPlan,
+  unlinkPushRegistrationFromClaimedAccount,
 } from "@/lib/pushIdentityClient";
 
 function storageHarness(): Storage {
@@ -74,7 +77,7 @@ describe("push identity client", () => {
     const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(linkCurrentPushToClaimedAccount()).resolves.toBe(true);
+    await expect(linkCurrentPushToClaimedAccount()).resolves.toEqual({ ok: true, status: "linked" });
     const [, init] = fetchMock.mock.calls[0];
     expect(new Headers(init?.headers).get("authorization")).toBe("Bearer verified-jwt");
     expect(JSON.parse(String(init?.body))).toEqual({ token: "device-token", platform: "ios" });
@@ -86,8 +89,8 @@ describe("push identity client", () => {
     const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(unlinkCurrentPushFromClaimedAccount()).resolves.toBe(true);
-    await expect(unlinkAllPushFromClaimedAccount()).resolves.toBe(true);
+    await expect(unlinkCurrentPushFromClaimedAccount()).resolves.toEqual({ ok: true, status: "unlinked" });
+    await expect(unlinkAllPushFromClaimedAccount()).resolves.toEqual({ ok: true, status: "unlinked" });
     expect(fetchMock.mock.calls.map(([, init]) => [init?.method, JSON.parse(String(init?.body))])).toEqual([
       ["DELETE", { token: "device-token", platform: "ios" }],
       ["DELETE", { all: true }],
@@ -113,9 +116,99 @@ describe("push identity client", () => {
     getAccessTokenMock.mockResolvedValue("verified-jwt");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    await expect(linkCurrentPushToClaimedAccount()).resolves.toBe(false);
+    await expect(linkCurrentPushToClaimedAccount()).resolves.toEqual({ ok: true, status: "no_registration" });
     await expect(linkCurrentPushToPlan("plan-id", "member-capability")).resolves.toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not treat an empty volatile registration as a successful unlink", async () => {
+    getAccessTokenMock.mockResolvedValue("verified-jwt");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(unlinkCurrentPushFromClaimedAccount()).resolves.toEqual({ ok: false, status: "retryable" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("drains an accepted account POST and sends DELETE last during logout", async () => {
+    await rememberDevice();
+    resumeAccountPushJoins();
+    getAccessTokenMock.mockResolvedValue("verified-jwt");
+    let resolvePost!: (response: Response) => void;
+    const postResponse = new Promise<Response>((resolve) => { resolvePost = resolve; });
+    const methods: string[] = [];
+    const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
+      const method = String(init?.method);
+      methods.push(method);
+      if (method === "POST") return postResponse;
+      return new Response(null, { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const linking = linkCurrentPushToClaimedAccount();
+    await vi.waitFor(() => expect(methods).toEqual(["POST"]));
+    stopAccountPushJoins();
+    const unlinking = unlinkPushRegistrationFromClaimedAccount({ token: "device-token", platform: "ios" });
+    await Promise.resolve();
+    expect(methods).toEqual(["POST"]);
+    resolvePost(new Response(null, { status: 200 }));
+    await linking;
+    await expect(unlinking).resolves.toEqual({ ok: true, status: "unlinked" });
+    expect(methods).toEqual(["POST", "DELETE"]);
+  });
+
+  it("stops new joins synchronously once logout begins", async () => {
+    await rememberDevice();
+    getAccessTokenMock.mockResolvedValue("verified-jwt");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    stopAccountPushJoins();
+    await expect(linkCurrentPushToClaimedAccount()).resolves.toEqual({ ok: false, status: "stopped" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("recovers Web PushManager state after reload and retries bounded transient failures", async () => {
+    const subscription = {
+      endpoint: "https://fcm.googleapis.com/fcm/send/recovered",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    };
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        ready: Promise.resolve({ pushManager: { getSubscription: vi.fn(async () => ({ toJSON: () => subscription })) } }),
+      },
+    });
+    getAccessTokenMock.mockResolvedValue("verified-jwt");
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(linkCurrentPushToClaimedAccount()).resolves.toEqual({ ok: true, status: "linked" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("serializes Plan link and unlink despite response reordering pressure", async () => {
+    await rememberDevice();
+    let resolvePost!: (response: Response) => void;
+    const postResponse = new Promise<Response>((resolve) => { resolvePost = resolve; });
+    const methods: string[] = [];
+    const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
+      const method = String(init?.method);
+      methods.push(method);
+      return method === "POST" ? postResponse : new Response(null, { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const link = linkCurrentPushToPlan("plan-id", "member-capability");
+    await vi.waitFor(() => expect(methods).toEqual(["POST"]));
+    const unlink = unlinkCurrentPushFromPlan("plan-id", "member-capability");
+    await Promise.resolve();
+    expect(methods).toEqual(["POST"]);
+    resolvePost(new Response(null, { status: 200 }));
+    await expect(link).resolves.toBe(true);
+    await expect(unlink).resolves.toBe(true);
+    expect(methods).toEqual(["POST", "DELETE"]);
   });
 
   it("wakes a waiting Plan join when an async native token arrives", async () => {

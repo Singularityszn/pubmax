@@ -35,10 +35,13 @@ import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
 import { emitIdentityHandleChanged, IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
 import {
-  linkCurrentPushToClaimedAccount,
-  unlinkCurrentPushFromClaimedAccount,
+  linkPushRegistrationToClaimedAccount,
+  recoverCurrentPushRegistration,
+  resumeAccountPushJoins,
+  stopAccountPushJoins,
+  unlinkPushRegistrationFromClaimedAccount,
 } from "@/lib/pushIdentityClient";
-import { refreshExistingNativePushRegistration } from "@/lib/nativePush";
+import { recoverNativePushRegistration } from "@/lib/nativePush";
 
 const HANDLE_KEY = "pubmax_handle";
 const SYNCED_USER_KEY = "pubmax_identity_synced_user";
@@ -95,12 +98,6 @@ function writeDeviceHandle(handle: string): void {
   emitIdentityHandleChanged(handle);
 }
 
-function joinClaimedPushRegistration(): void {
-  void linkCurrentPushToClaimedAccount().then((linked) => {
-    if (!linked) void refreshExistingNativePushRegistration();
-  });
-}
-
 /** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
 async function linkAuthHandleQuick(user: User, authHandle: string): Promise<boolean> {
   writeDeviceHandle(authHandle);
@@ -111,8 +108,6 @@ async function linkAuthHandleQuick(user: User, authHandle: string): Promise<bool
       body: JSON.stringify({}),
     });
     if (!res.ok) return false;
-    markSynced(user.id);
-    joinClaimedPushRegistration();
     return true;
   } catch {
     return false;
@@ -132,8 +127,10 @@ export type AuthContextValue = {
   signInWithGoogle: () => Promise<{ error: string | null }>;
   /** Start the Microsoft (Azure) OAuth redirect. No-op when unconfigured. */
   signInWithMicrosoft: () => Promise<{ error: string | null }>;
-  /** Clear the local session. */
-  signOut: () => Promise<void>;
+  /** Clear the local session only after push identity unlink is authoritative. */
+  signOut: () => Promise<{ error: string | null }>;
+  /** Honest background/last-logout push identity failure, if any. */
+  pushIdentityError: string | null;
   /**
    * A normalized handle derived from the signed-in email local-part, or null
    * when signed out. Used by the Profile tab to link to /u/<handle>.
@@ -159,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [claimPreview, setClaimPreview] = useState<ClaimPreview | null>(null);
   const [claimBusy, setClaimBusy] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [pushIdentityError, setPushIdentityError] = useState<string | null>(null);
   const [canonicalHandle, setCanonicalHandle] = useState<string | null>(null);
   const configured = isAuthConfigured();
   // Guard overlapping sync runs (getSession + SIGNED_IN can both fire).
@@ -195,6 +193,34 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     setClaimPreview(preview);
   }, []);
 
+  const finishAccountPushSync = useCallback(async (userId: string): Promise<boolean> => {
+    const web = await recoverCurrentPushRegistration();
+    let registration = web.status === "registration" ? web.registration : null;
+    if (!registration) {
+      const recovered = await recoverNativePushRegistration();
+      if (recovered.status === "registration") registration = recovered.registration;
+      else if (recovered.status === "failed" || (web.status === "failed" && recovered.status === "not_native")) {
+        setPushIdentityError("Your account is claimed, but notification identity could not be recovered. We will retry before enabling personal alerts.");
+        return false;
+      }
+      // not_native/not_permitted means there is no native registration to join.
+    }
+    if (registration) {
+      const result = await linkPushRegistrationToClaimedAccount(registration);
+      if (!result.ok) {
+        setPushIdentityError(
+          result.status === "conflict"
+            ? "This notification registration is still linked to another signed-in account. Sign out there first, then retry."
+            : "Your account is claimed, but notification identity is temporarily unavailable. We will retry safely.",
+        );
+        return false;
+      }
+    }
+    markSynced(userId);
+    setPushIdentityError(null);
+    return true;
+  }, []);
+
   const closeClaim = useCallback(() => {
     setClaimPreview(null);
     setClaimError(null);
@@ -221,7 +247,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           // Same (or empty) handle: still ask the server whether activity /
           // conflicts require the dialog — empty device skips preview.
           if (!deviceHandle) {
-            await linkAuthHandleQuick(user, authHandle);
+            if (await linkAuthHandleQuick(user, authHandle)) {
+              await finishAccountPushSync(user.id);
+            }
             return;
           }
 
@@ -232,7 +260,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           if (!res.ok) {
             // Preview failed — fall back to quick link only when handles match
             // (no overwrite risk of a different device handle).
-            if (deviceHandle === authHandle) await linkAuthHandleQuick(user, authHandle);
+            if (deviceHandle === authHandle && await linkAuthHandleQuick(user, authHandle)) {
+              await finishAccountPushSync(user.id);
+            }
             return;
           }
           const body = (await res.json()) as ClaimPreviewResponse;
@@ -240,7 +270,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
             openClaim(body);
             return;
           }
-          await linkAuthHandleQuick(user, authHandle);
+          if (await linkAuthHandleQuick(user, authHandle)) {
+            await finishAccountPushSync(user.id);
+          }
           return;
         }
 
@@ -265,7 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         if (syncInFlight.current === user.id) syncInFlight.current = null;
       }
     },
-    [openClaim],
+    [finishAccountPushSync, openClaim],
   );
 
   const onClaimConfirm = useCallback(
@@ -299,8 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
               ? claimPreview.deviceHandle
               : claimPreview.authHandle;
         if (handle) writeDeviceHandle(handle);
-        markSynced(session.user.id);
-        joinClaimedPushRegistration();
+        await finishAccountPushSync(session.user.id);
         clearClaimDeferred();
         closeClaim();
       } catch {
@@ -309,7 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         setClaimBusy(false);
       }
     },
-    [claimPreview, closeClaim, session],
+    [claimPreview, closeClaim, finishAccountPushSync, session],
   );
 
   const onClaimSkip = useCallback(() => {
@@ -350,7 +381,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         setSession(data.session ?? null);
         setLoading(false);
         // Wave L3: refresh identity sync for an already-persisted session.
-        if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
+        if (data.session?.user) {
+          resumeAccountPushJoins();
+          void syncIdentityAfterSignIn(data.session.user);
+        }
       })
       .catch(() => {
         if (!active) return;
@@ -368,9 +402,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       setLoading(false);
       // Wave L3: on sign-in, maybe open Claim your night (never silent overwrite).
       if (event === "SIGNED_IN" && nextSession?.user) {
+        resumeAccountPushJoins();
         void syncIdentityAfterSignIn(nextSession.user);
       }
       if (event === "SIGNED_OUT") {
+        stopAccountPushJoins();
         try {
           window.sessionStorage.removeItem(SYNCED_USER_KEY);
         } catch {
@@ -421,18 +457,47 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     return { error: error ? error.message : null };
   }, []);
 
-  const signOut = useCallback(async (): Promise<void> => {
+  const signOut = useCallback(async (): Promise<{ error: string | null }> => {
     const supabase = getSupabaseBrowser();
-    if (!supabase) return;
-    // Detach person-targeting while the access token still verifies. Failure is
-    // fail-soft for logout; cross-account reassignment still remains blocked
-    // server-side until the original owner successfully unlinks.
-    await Promise.race([
-      unlinkCurrentPushFromClaimedAccount(),
-      new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), 1_500)),
-    ]);
-    await supabase.auth.signOut();
+    if (!supabase) return { error: "Sign-out is not configured." };
+
+    // Privacy barrier first. New/retrying joins stop synchronously; an already
+    // accepted POST is drained, then DELETE is queued as the last authoritative
+    // account mutation while the JWT still verifies.
+    stopAccountPushJoins();
+    const web = await recoverCurrentPushRegistration();
+    let registration = web.status === "registration" ? web.registration : null;
+    if (!registration) {
+      const recovered = await recoverNativePushRegistration();
+      if (recovered.status === "registration") registration = recovered.registration;
+      else if (recovered.status === "failed" || (web.status === "failed" && recovered.status === "not_native")) {
+        resumeAccountPushJoins();
+        const error = "Could not verify notification privacy before sign-out. Try again when the device is online.";
+        setPushIdentityError(error);
+        return { error };
+      }
+      // not_native/not_permitted proves there is no native registration. Web
+      // was already checked through PushManager by currentPushRegistration().
+    }
+    if (registration) {
+      const unlinked = await unlinkPushRegistrationFromClaimedAccount(registration);
+      if (!unlinked.ok) {
+        resumeAccountPushJoins();
+        const error = "Could not unlink personal notifications, so you are still signed in. Try again when the device is online.";
+        setPushIdentityError(error);
+        return { error };
+      }
+    }
+
+    const { error: authError } = await supabase.auth.signOut();
+    if (authError) {
+      resumeAccountPushJoins();
+      setPushIdentityError(authError.message);
+      return { error: authError.message };
+    }
+    setPushIdentityError(null);
     // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
+    return { error: null };
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
@@ -445,9 +510,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       signInWithGoogle,
       signInWithMicrosoft,
       signOut,
+      pushIdentityError,
       handle: canonicalHandle ?? handleFromUser(user),
     };
-  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut, canonicalHandle]);
+  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut, pushIdentityError, canonicalHandle]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -480,7 +546,8 @@ export function useAuth(): AuthContextValue {
     configured: false,
     signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
     signInWithMicrosoft: async () => ({ error: "Sign-in is not configured." }),
-    signOut: async () => {},
+    signOut: async () => ({ error: null }),
+    pushIdentityError: null,
     handle: null,
   };
 }

@@ -9,8 +9,8 @@ describe("push identity security fences", () => {
   it("never trusts client-supplied account, member, or Plan identity", () => {
     const accountRoute = read("app/api/push-tokens/account/route.ts");
     const planRoute = read("app/api/plans/[id]/push-tokens/route.ts");
-    expect(accountRoute).toMatch(/callerUserId\(request\)/);
-    expect(accountRoute).toMatch(/getByUserId\(userId\)/);
+    expect(accountRoute).toMatch(/callerAuthSessionIdentity\(request\)/);
+    expect(accountRoute).toMatch(/getByUserId\(identity\.id\)/);
     expect(accountRoute).not.toMatch(/body\.(?:userId|accountUserId)/);
     expect(planRoute).toMatch(/planMemberCapability\(request, body\.memberToken\)/);
     expect(planRoute).toMatch(/planMemberIdentityResult\(planId, capability\)/);
@@ -29,7 +29,7 @@ describe("push identity security fences", () => {
 
   it("unlinks person targeting before invalidating the local auth session", () => {
     const provider = read("components/auth/AuthProvider.tsx");
-    const unlink = provider.indexOf("unlinkCurrentPushFromClaimedAccount(),");
+    const unlink = provider.indexOf("unlinkPushRegistrationFromClaimedAccount(registration)");
     const signOut = provider.indexOf("await supabase.auth.signOut();", unlink);
     expect(unlink).toBeGreaterThan(-1);
     expect(signOut).toBeGreaterThan(unlink);

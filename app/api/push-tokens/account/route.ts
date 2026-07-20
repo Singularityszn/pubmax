@@ -7,7 +7,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { callerUserId } from "@/lib/authServer";
+import { callerAuthSessionIdentity } from "@/lib/authServer";
 import { profileStore } from "@/lib/profileStore";
 import { pushTokenStore, validatePushToken } from "@/lib/pushTokenStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -15,18 +15,18 @@ import { assertServerEnv } from "@/lib/serverEnv";
 assertServerEnv();
 
 async function verifiedClaimedAccount(request: Request): Promise<
-  | { ok: true; userId: string }
+  | { ok: true; userId: string; sessionId: string }
   | { ok: false; response: Response }
 > {
-  const userId = await callerUserId(request);
-  if (!userId) {
+  const identity = await callerAuthSessionIdentity(request);
+  if (!identity) {
     return {
       ok: false,
       response: publicApiError("Sign in to link this notification registration.", "PUSH_ACCOUNT_AUTH_REQUIRED", 401),
     };
   }
   try {
-    const profile = await profileStore().getByUserId(userId);
+    const profile = await profileStore().getByUserId(identity.id);
     if (!profile) {
       return {
         ok: false,
@@ -39,7 +39,7 @@ async function verifiedClaimedAccount(request: Request): Promise<
       response: publicApiError("Account identity is temporarily unavailable.", "PUSH_ACCOUNT_IDENTITY_UNAVAILABLE", 503, { retryable: true }),
     };
   }
-  return { ok: true, userId };
+  return { ok: true, userId: identity.id, sessionId: identity.sessionId };
 }
 
 async function bodyOf(request: Request): Promise<Record<string, unknown> | null> {
@@ -61,7 +61,11 @@ export async function POST(request: Request): Promise<Response> {
   const validation = validatePushToken(body);
   if (!validation.ok) return publicApiError(validation.error, "INVALID_REQUEST", 400);
 
-  const result = await pushTokenStore().linkAccount(validation.input.token, authority.userId);
+  const result = await pushTokenStore().linkAccount(
+    validation.input.token,
+    authority.userId,
+    authority.sessionId,
+  );
   if (result === "linked" || result === "replayed") {
     return jsonNoStore({ ok: true, linked: true }, { status: 200 });
   }
@@ -85,7 +89,11 @@ export async function DELETE(request: Request): Promise<Response> {
     } else {
       const validation = validatePushToken(body);
       if (!validation.ok) return publicApiError(validation.error, "INVALID_REQUEST", 400);
-      await pushTokenStore().unlinkAccount(validation.input.token, authority.userId);
+      await pushTokenStore().unlinkAccount(
+        validation.input.token,
+        authority.userId,
+        authority.sessionId,
+      );
     }
   } catch {
     return publicApiError("Could not unlink notifications. Try again.", "PUSH_ACCOUNT_UNLINK_UNAVAILABLE", 503, { retryable: true });

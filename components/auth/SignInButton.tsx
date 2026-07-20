@@ -80,7 +80,7 @@ export default function SignInButton({
    */
   compact?: boolean;
 }): React.JSX.Element | null {
-  const { user, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut } = useAuth();
+  const { user, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut, pushIdentityError } = useAuth();
   const [busy, setBusy] = useState<"google" | "microsoft" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -179,7 +179,9 @@ export default function SignInButton({
 
   const onSignOut = useCallback(async () => {
     setBusy("out");
-    await signOut();
+    setError(null);
+    const result = await signOut();
+    if (result.error) setError(result.error);
     setBusy(null);
   }, [signOut]);
 
@@ -220,6 +222,11 @@ export default function SignInButton({
         >
           Sign out
         </button>
+        {error || pushIdentityError ? (
+          <span className="authError" role="alert">
+            {error ?? pushIdentityError}
+          </span>
+        ) : null}
       </div>
     );
   }

@@ -9,7 +9,9 @@
 
 alter table public.push_tokens
   add column if not exists account_user_id uuid references auth.users(id) on delete set null,
-  add column if not exists account_linked_at timestamptz;
+  add column if not exists account_linked_at timestamptz,
+  add column if not exists account_session_id uuid,
+  add column if not exists account_blocked_session_id uuid;
 
 create index if not exists push_tokens_account_user_idx
   on public.push_tokens(account_user_id)
@@ -45,6 +47,8 @@ grant select, insert, delete on public.push_token_plan_memberships to service_ro
 
 comment on column public.push_tokens.account_user_id is
   'Optional verified account join. Set only by the service-role RPC after JWT verification and claimed-profile lookup.';
+comment on column public.push_tokens.account_blocked_session_id is
+  'Logout tombstone: a delayed mutation from this verified auth session may not relink the registration.';
 comment on table public.push_token_plan_memberships is
   'Private push targeting joins. Member ids are derived server-side from hashed Plan capabilities; never accepted from a client.';
 
@@ -55,6 +59,7 @@ comment on table public.push_token_plan_memberships is
 create or replace function public.link_push_token_account_atomic(
   p_token text,
   p_user_id uuid,
+  p_session_id uuid,
   p_linked_at timestamptz
 ) returns text
 language plpgsql
@@ -64,13 +69,16 @@ as $$
 declare
   v_token public.push_tokens%rowtype;
 begin
-  if p_token is null or p_user_id is null or p_linked_at is null then return 'missing'; end if;
+  if p_token is null or p_user_id is null or p_session_id is null or p_linked_at is null then return 'missing'; end if;
   select * into v_token from public.push_tokens where token = p_token for update;
   if not found then return 'missing'; end if;
-  if v_token.account_user_id = p_user_id then return 'replayed'; end if;
-  if v_token.account_user_id is not null then return 'conflict'; end if;
+  if v_token.account_user_id = p_user_id and v_token.account_session_id = p_session_id then return 'replayed'; end if;
+  if v_token.account_blocked_session_id = p_session_id then return 'conflict'; end if;
+  if v_token.account_user_id is not null and v_token.account_user_id <> p_user_id then return 'conflict'; end if;
   update public.push_tokens
-  set account_user_id = p_user_id, account_linked_at = p_linked_at
+  set account_user_id = p_user_id,
+      account_session_id = p_session_id,
+      account_linked_at = p_linked_at
   where token = p_token;
   return 'linked';
 end;
@@ -81,17 +89,23 @@ $$;
 -- another account's registrations.
 create or replace function public.unlink_push_token_account_atomic(
   p_token text,
-  p_user_id uuid
+  p_user_id uuid,
+  p_session_id uuid
 ) returns text
 language plpgsql
 security invoker
 set search_path = public
 as $$
 begin
-  if p_token is null or p_user_id is null then return 'unlinked'; end if;
+  if p_token is null or p_user_id is null or p_session_id is null then return 'unlinked'; end if;
   update public.push_tokens
-  set account_user_id = null, account_linked_at = null
-  where token = p_token and account_user_id = p_user_id;
+  set account_user_id = null,
+      account_session_id = null,
+      account_blocked_session_id = p_session_id,
+      account_linked_at = null
+  where token = p_token
+    and account_user_id = p_user_id
+    and account_session_id = p_session_id;
   return 'unlinked';
 end;
 $$;
@@ -109,7 +123,10 @@ as $$
 begin
   if p_user_id is null then return 'unlinked'; end if;
   update public.push_tokens
-  set account_user_id = null, account_linked_at = null
+  set account_blocked_session_id = account_session_id,
+      account_user_id = null,
+      account_session_id = null,
+      account_linked_at = null
   where account_user_id = p_user_id;
   return 'unlinked';
 end;
@@ -132,6 +149,7 @@ declare
   v_link public.push_token_plan_memberships%rowtype;
 begin
   if p_token is null or p_plan_id is null or p_member_id is null or p_linked_at is null then return 'missing'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('push-plan:' || p_token || ':' || p_plan_id::text, 0));
   perform 1 from public.push_tokens where token = p_token for update;
   if not found then return 'missing'; end if;
   perform 1 from public.plan_crew_members where id = p_member_id and plan_id = p_plan_id;
@@ -165,20 +183,21 @@ set search_path = public
 as $$
 begin
   if p_token is null or p_plan_id is null or p_member_id is null then return 'unlinked'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('push-plan:' || p_token || ':' || p_plan_id::text, 0));
   delete from public.push_token_plan_memberships
   where token = p_token and plan_id = p_plan_id and member_id = p_member_id;
   return 'unlinked';
 end;
 $$;
 
-revoke all on function public.link_push_token_account_atomic(text, uuid, timestamptz) from public, anon, authenticated;
-revoke all on function public.unlink_push_token_account_atomic(text, uuid) from public, anon, authenticated;
+revoke all on function public.link_push_token_account_atomic(text, uuid, uuid, timestamptz) from public, anon, authenticated;
+revoke all on function public.unlink_push_token_account_atomic(text, uuid, uuid) from public, anon, authenticated;
 revoke all on function public.unlink_all_push_tokens_for_account(uuid) from public, anon, authenticated;
 revoke all on function public.link_push_token_plan_member_atomic(text, uuid, uuid, timestamptz) from public, anon, authenticated;
 revoke all on function public.unlink_push_token_plan_member_atomic(text, uuid, uuid) from public, anon, authenticated;
 
-grant execute on function public.link_push_token_account_atomic(text, uuid, timestamptz) to service_role;
-grant execute on function public.unlink_push_token_account_atomic(text, uuid) to service_role;
+grant execute on function public.link_push_token_account_atomic(text, uuid, uuid, timestamptz) to service_role;
+grant execute on function public.unlink_push_token_account_atomic(text, uuid, uuid) to service_role;
 grant execute on function public.unlink_all_push_tokens_for_account(uuid) to service_role;
 grant execute on function public.link_push_token_plan_member_atomic(text, uuid, uuid, timestamptz) to service_role;
 grant execute on function public.unlink_push_token_plan_member_atomic(text, uuid, uuid) to service_role;

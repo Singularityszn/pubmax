@@ -149,17 +149,26 @@ Plan member capability and use idempotency keys or atomic store operations.
   with `{ all: true }`, every account link for privacy/account erasure. Neither
   method deletes the anonymous registration, changes public brief eligibility,
   or sends a notification.
-- **Authority:** `callerUserId` verifies the Supabase bearer JWT, then
+- **Authority:** `callerAuthSessionIdentity` verifies the Supabase bearer JWT
+  and derives both account and auth-session ids from that verified token; then
   `profileStore().getByUserId` proves the account-claim seam completed. No user
-  id from the body is read. Missing JWT is 401; a signed-in but unclaimed account
-  is 403; account-store uncertainty is 503.
+  or session id from the body is read. Missing/invalid session authority is 401;
+  a signed-in but unclaimed account is 403; account-store uncertainty is 503.
 - **Anti-hijack/enumeration:** the service-role-only atomic RPC row-locks the
   token. Same-account replay succeeds; a different linked account can never
   reassign it. Missing-token and cross-account results collapse to the same 409.
   Unlink is owner-matched, idempotent, and always returns the same success body,
   including missing/wrong-owner rows.
-- **Logout/privacy:** the auth provider attempts current-device unlink before
-  invalidating the JWT. The all-device unlink is the account-erasure seam.
+- **Logout/privacy:** account mutations are serialized client-side: logout
+  synchronously stops new/retrying joins, drains an accepted POST, then issues
+  DELETE while the JWT still verifies and only then invalidates auth. A
+  per-registration verified-session tombstone also rejects a delayed POST that
+  reaches the server after DELETE (including cross-tab/network reordering),
+  while a fresh auth session may link again. After a WebView restart, Web state
+  is recovered from `PushManager` and native asks the OS to re-emit an already
+  permitted token without prompting. Recovery/unlink failure keeps the user
+  signed in and surfaces an honest retry error. The all-device unlink is the
+  account-erasure seam.
   Provider-invalid token deletion, account deletion, or explicit unlink removes
   targeting authority; public delivery opt-in remains independent.
 
@@ -176,7 +185,9 @@ Plan member capability and use idempotency keys or atomic store operations.
 - **Anti-hijack/enumeration:** one token can link to one member per Plan and to
   multiple Plans. Same-member replay succeeds; another member cannot reassign
   that Plan's link. Missing and cross-member joins share one 409; unlink is
-  member-matched and idempotent with a flat success response.
+  member-matched and idempotent with a flat success response. Link and unlink
+  share the same transaction advisory lock, and the browser serializes its Plan
+  mutations, so a delayed link response cannot resurrect a revoked membership.
 - **Storage and revocation:** migration 0047 adds the private
   `push_token_plan_memberships` table. Token, Plan, and member foreign keys
   cascade deletion. RLS is enabled; public/anon/authenticated have no grants;

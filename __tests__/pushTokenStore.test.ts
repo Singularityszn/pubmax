@@ -118,8 +118,8 @@ describe("memoryPushTokenStore", () => {
   it("links an account idempotently without exposing identity in public reads", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
 
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a")).resolves.toBe("linked");
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a")).resolves.toBe("replayed");
+    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a")).resolves.toBe("linked");
+    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a")).resolves.toBe("replayed");
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([
       expect.objectContaining({ token: "tok-1" }),
     ]);
@@ -130,21 +130,21 @@ describe("memoryPushTokenStore", () => {
 
   it("refuses cross-account reassignment until the verified owner unlinks", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
-    await memoryPushTokenStore.linkAccount("tok-1", "user-a");
+    await memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a");
 
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-b")).resolves.toBe("conflict");
-    await memoryPushTokenStore.unlinkAccount("tok-1", "user-b");
+    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-b", "session-b")).resolves.toBe("conflict");
+    await memoryPushTokenStore.unlinkAccount("tok-1", "user-b", "session-b");
     expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
 
-    await memoryPushTokenStore.unlinkAccount("tok-1", "user-a");
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-b")).resolves.toBe("linked");
+    await memoryPushTokenStore.unlinkAccount("tok-1", "user-a", "session-a");
+    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-b", "session-b")).resolves.toBe("linked");
     expect(await memoryPushTokenStore.listForAccount("user-b")).toHaveLength(1);
   });
 
   it("supports privacy unlink-all without deleting identity-free registrations", async () => {
     for (const token of ["tok-1", "tok-2"]) {
       await memoryPushTokenStore.save({ token, platform: "ios" });
-      await memoryPushTokenStore.linkAccount(token, "user-a");
+      await memoryPushTokenStore.linkAccount(token, "user-a", "session-a");
     }
     await memoryPushTokenStore.unlinkAllForAccount("user-a");
 
@@ -165,7 +165,7 @@ describe("memoryPushTokenStore", () => {
 
   it("makes wrong-member Plan unlink a no-op and cascades identity on token delete", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
-    await memoryPushTokenStore.linkAccount("tok-1", "user-a");
+    await memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a");
     await memoryPushTokenStore.linkPlan("tok-1", "plan-a", "member-a");
 
     await memoryPushTokenStore.unlinkPlan("tok-1", "plan-a", "member-b");
@@ -176,7 +176,30 @@ describe("memoryPushTokenStore", () => {
   });
 
   it("does not invent identity joins for missing registrations", async () => {
-    await expect(memoryPushTokenStore.linkAccount("missing", "user-a")).resolves.toBe("missing");
+    await expect(memoryPushTokenStore.linkAccount("missing", "user-a", "session-a")).resolves.toBe("missing");
     await expect(memoryPushTokenStore.linkPlan("missing", "plan-a", "member-a")).resolves.toBe("missing");
+  });
+
+  it("tombstones a logged-out auth session against delayed relink", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-old");
+    await memoryPushTokenStore.unlinkAccount("tok-1", "user-a", "session-old");
+
+    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-old"))
+      .resolves.toBe("conflict");
+    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-new"))
+      .resolves.toBe("linked");
+
+    // A late DELETE from the old session cannot unlink the fresh session.
+    await memoryPushTokenStore.unlinkAccount("tok-1", "user-a", "session-old");
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
+  });
+
+  it("orders concurrent in-memory Plan link then unlink to an unlinked final state", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    const linked = memoryPushTokenStore.linkPlan("tok-1", "plan-a", "member-a");
+    const unlinked = memoryPushTokenStore.unlinkPlan("tok-1", "plan-a", "member-a");
+    await Promise.all([linked, unlinked]);
+    expect(await memoryPushTokenStore.listForPlan("plan-a")).toEqual([]);
   });
 });
