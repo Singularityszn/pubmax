@@ -111,7 +111,7 @@ describe("push account identity route", () => {
     expect(await memoryPushTokenStore.listForAccount("user-b")).toHaveLength(1);
   });
 
-  it("keeps wrong-owner installation unlink flat and mutation-free at MAX_SAFE_INTEGER", async () => {
+  it("keeps foreign-owner installation unlink flat at MAX_SAFE_INTEGER", async () => {
     await memoryPushTokenStore.linkAccount(
       "device-token",
       "user-b",
@@ -129,12 +129,83 @@ describe("push account identity route", () => {
     expect(await memoryPushTokenStore.listForAccount("user-b")).toHaveLength(1);
   });
 
+  it("returns a flat success while applying mixed-owner installation logout per row", async () => {
+    for (const token of ["foreign-token", "new-session-token", "anonymous-token"]) {
+      await memoryPushTokenStore.save({ token, platform: "ios", installationId: INSTALLATION_ID });
+    }
+    await memoryPushTokenStore.linkAccount("device-token", "user-a", "session-a", INSTALLATION_ID, 4);
+    await memoryPushTokenStore.linkAccount(
+      "foreign-token",
+      "user-b",
+      "session-b",
+      INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION,
+    );
+    await memoryPushTokenStore.linkAccount(
+      "new-session-token",
+      "user-a",
+      "session-new",
+      INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION,
+    );
+
+    const response = await DELETE(request("DELETE", { installationOnly: true }, 1));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, linked: false, mutationVersion: 5 });
+    expect((await memoryPushTokenStore.listForAccount("user-a")).map((row) => row.token))
+      .toEqual(["new-session-token"]);
+    expect((await memoryPushTokenStore.listForAccount("user-b")).map((row) => row.token))
+      .toEqual(["foreign-token"]);
+    await expect(memoryPushTokenStore.linkAccount(
+      "anonymous-token",
+      "user-a",
+      "session-a",
+      INSTALLATION_ID,
+      6,
+    )).resolves.toBe("conflict");
+  });
+
   it("supports verified privacy unlink-all without deleting public registration", async () => {
     await memoryPushTokenStore.linkAccount("device-token", "user-a", "session-a", INSTALLATION_ID, 1);
     const response = await DELETE(request("DELETE", { all: true, userId: "user-b" }));
     expect(response.status).toBe(200);
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
     expect(await memoryPushTokenStore.list()).toHaveLength(1);
+  });
+
+  it("applies all-device authority per row without touching a mixed-in foreign owner", async () => {
+    for (const token of ["foreign-token", "new-session-token", "anonymous-token"]) {
+      await memoryPushTokenStore.save({ token, platform: "ios", installationId: INSTALLATION_ID });
+    }
+    await memoryPushTokenStore.linkAccount("device-token", "user-a", "session-a", INSTALLATION_ID, 4);
+    await memoryPushTokenStore.linkAccount(
+      "foreign-token",
+      "user-b",
+      "session-b",
+      INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION,
+    );
+    await memoryPushTokenStore.linkAccount(
+      "new-session-token",
+      "user-a",
+      "session-new",
+      INSTALLATION_ID,
+      5,
+    );
+
+    const response = await DELETE(request("DELETE", { all: true }, 1));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, linked: false, mutationVersion: 6 });
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
+    expect((await memoryPushTokenStore.listForAccount("user-b")).map((row) => row.token))
+      .toEqual(["foreign-token"]);
+    await expect(memoryPushTokenStore.linkAccount(
+      "anonymous-token",
+      "user-a",
+      "session-a",
+      INSTALLATION_ID,
+      7,
+    )).resolves.toBe("conflict");
   });
 
   it("blocks a delayed POST from the logged-out session but permits a fresh session", async () => {

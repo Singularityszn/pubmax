@@ -152,6 +152,10 @@ begin
   -- Share the installation lock with permission-independent logout. This also
   -- closes register/link racing a DELETE that began before the token existed.
   perform pg_advisory_xact_lock(hashtextextended('push-installation:' || p_installation_id::text, 0));
+  -- Account-wide erasure takes the same lock between the installation and
+  -- token locks. Whichever transaction acquires it first determines whether
+  -- this link is observed and cleared or rejected by its session tombstone.
+  perform pg_advisory_xact_lock(hashtextextended('push-account-all:' || p_user_id::text, 0));
   perform pg_advisory_xact_lock(hashtextextended('push-account:' || p_token || ':' || p_installation_id::text, 0));
   delete from public.push_token_account_revocations where expires_at <= now();
   delete from public.push_installation_account_revocations where expires_at <= now();
@@ -273,17 +277,12 @@ begin
   end if;
   perform pg_advisory_xact_lock(hashtextextended('push-installation:' || p_installation_id::text, 0));
   perform 1 from public.push_tokens where installation_id = p_installation_id
+    and (account_user_id is null
+      or (account_user_id = p_user_id and account_session_id = p_session_id))
     order by token for update;
-  -- An opaque installation id proves no account authority. A currently linked
-  -- different owner makes this entire installation-scoped request a flat no-op.
-  if exists (
-    select 1 from public.push_tokens
-    where installation_id = p_installation_id
-      and account_user_id is not null
-      and account_user_id <> p_user_id
-  ) then
-    return p_mutation_version;
-  end if;
+  -- Installation possession is not account authority. Apply the caller's
+  -- logout row by row: anonymous registrations and this exact account/session
+  -- may be fenced, while foreign owners and newer sessions remain untouched.
   select exists (
     select 1 from public.push_tokens
     where installation_id = p_installation_id
@@ -314,12 +313,10 @@ begin
     on conflict (installation_id, session_id) do update set revoked_version = greatest(public.push_installation_account_revocations.revoked_version, excluded.revoked_version),
       expires_at = greatest(public.push_installation_account_revocations.expires_at, excluded.expires_at);
   insert into public.push_token_account_revocations(token, session_id, revoked_version, expires_at)
-    select token, p_session_id,
-      case when account_user_id is null
-        or (account_user_id = p_user_id and account_session_id = p_session_id)
-        then v_authoritative else p_mutation_version end,
-      now() + interval '30 days'
+    select token, p_session_id, v_authoritative, now() + interval '30 days'
     from public.push_tokens where installation_id = p_installation_id
+      and (account_user_id is null
+        or (account_user_id = p_user_id and account_session_id = p_session_id))
     on conflict (token, session_id) do update set revoked_version = greatest(public.push_token_account_revocations.revoked_version, excluded.revoked_version),
       expires_at = greatest(public.push_token_account_revocations.expires_at, excluded.expires_at);
   insert into public.push_token_account_mutation_versions(token, installation_id, mutation_version, expires_at)
@@ -348,7 +345,6 @@ declare
   v_current bigint;
   v_authoritative bigint;
   v_returned bigint;
-  v_wrong_owner boolean;
 begin
   if p_user_id is null or p_session_id is null or p_installation_id is null
      or p_mutation_version is null or p_mutation_version <= 0
@@ -357,22 +353,25 @@ begin
   end if;
   perform pg_advisory_xact_lock(hashtextextended('push-installation:' || p_installation_id::text, 0));
   perform pg_advisory_xact_lock(hashtextextended('push-account-all:' || p_user_id::text, 0));
-  perform 1 from public.push_tokens
-    where account_user_id = p_user_id or installation_id = p_installation_id
-    order by token for update;
-  select exists (
-    select 1 from public.push_tokens
-    where installation_id = p_installation_id
-      and account_user_id is not null
-      and account_user_id <> p_user_id
-  ) into v_wrong_owner;
+  -- Acquire every token lock before any matching row lock. The installation
+  -- and account-wide locks keep the eligible set stable while we do so.
+  for v_token in
+    select * from public.push_tokens
+    where account_user_id = p_user_id
+      or (installation_id = p_installation_id and account_user_id is null)
+    order by token
+  loop
+    perform pg_advisory_xact_lock(hashtextextended(
+      'push-account:' || v_token.token || ':' || v_token.installation_id::text, 0
+    ));
+  end loop;
 
   -- Preflight every fence before any mutation so overflow rolls the whole
   -- account-erasure scope back rather than partially clearing it.
   for v_token in
     select * from public.push_tokens
     where account_user_id = p_user_id
-      or (not v_wrong_owner and installation_id = p_installation_id and account_user_id is null)
+      or (installation_id = p_installation_id and account_user_id is null)
     order by token
     for update
   loop
@@ -394,7 +393,7 @@ begin
   for v_token in
     select * from public.push_tokens
     where account_user_id = p_user_id
-      or (not v_wrong_owner and installation_id = p_installation_id and account_user_id is null)
+      or (installation_id = p_installation_id and account_user_id is null)
     order by token
     for update
   loop
@@ -450,13 +449,11 @@ begin
   end loop;
   -- Even with no current token on the requesting installation, retain its
   -- session tombstone so a delayed register-then-link cannot recreate identity.
-  if not v_wrong_owner then
-    insert into public.push_installation_account_revocations(installation_id, session_id, revoked_version, expires_at)
-      values (p_installation_id, p_session_id, p_mutation_version, now() + interval '30 days')
-      on conflict (installation_id, session_id) do update
-        set revoked_version = greatest(public.push_installation_account_revocations.revoked_version, excluded.revoked_version),
-          expires_at = greatest(public.push_installation_account_revocations.expires_at, excluded.expires_at);
-  end if;
+  insert into public.push_installation_account_revocations(installation_id, session_id, revoked_version, expires_at)
+    values (p_installation_id, p_session_id, p_mutation_version, now() + interval '30 days')
+    on conflict (installation_id, session_id) do update
+      set revoked_version = greatest(public.push_installation_account_revocations.revoked_version, excluded.revoked_version),
+        expires_at = greatest(public.push_installation_account_revocations.expires_at, excluded.expires_at);
   return v_returned;
 end;
 $$;

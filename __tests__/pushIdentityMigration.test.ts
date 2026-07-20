@@ -105,7 +105,7 @@ describe("push identity migration", () => {
     expect(planUnlink).not.toMatch(/mutation_version <= p_mutation_version/);
   });
 
-  it("keeps owner and auth-session authority ahead of installation ordering", () => {
+  it("applies installation logout authority per row and always records its session tombstone", () => {
     const accountLink = migration.slice(
       migration.indexOf("function public.link_push_token_account_atomic"),
       migration.indexOf("function public.unlink_push_token_account_atomic"),
@@ -118,14 +118,39 @@ describe("push identity migration", () => {
       migration.indexOf("function public.unlink_push_installation_account_atomic"),
       migration.indexOf("function public.unlink_all_push_tokens_for_account"),
     );
-    const wrongOwnerReturn = installationUnlink.indexOf("account_user_id <> p_user_id");
-    const firstRevocation = installationUnlink.indexOf("insert into public.push_installation_account_revocations");
-    expect(wrongOwnerReturn).toBeGreaterThan(-1);
-    expect(wrongOwnerReturn).toBeLessThan(firstRevocation);
-    expect(installationUnlink).toMatch(/account_session_id = p_session_id/);
+    expect(installationUnlink).not.toMatch(/account_user_id <> p_user_id[\s\S]*return p_mutation_version/);
+    expect(installationUnlink).toMatch(/account_user_id is null\s+or \(account_user_id = p_user_id and account_session_id = p_session_id\)/);
+    expect(installationUnlink).toMatch(/insert into public\.push_token_account_revocations[\s\S]*account_user_id is null[\s\S]*account_session_id = p_session_id/);
+    expect(installationUnlink).toMatch(/insert into public\.push_installation_account_revocations/);
     expect(accountUnlink).toMatch(/account_session_id is distinct from p_session_id[\s\S]*return p_mutation_version/);
     expect(accountUnlink).toMatch(/if not found[\s\S]*insert into public\.push_installation_account_revocations/);
-    expect(accountLink).toMatch(/push-installation:[\s\S]*push-account:/);
+    expect(accountLink).toMatch(/push-installation:[\s\S]*push-account-all:[\s\S]*push-account:/);
+  });
+
+  it("serializes account link and all-device unlink in installation/account/token lock order", () => {
+    const accountLink = migration.slice(
+      migration.indexOf("function public.link_push_token_account_atomic"),
+      migration.indexOf("function public.unlink_push_token_account_atomic"),
+    );
+    const allUnlink = migration.slice(
+      migration.indexOf("function public.unlink_all_push_tokens_for_account"),
+      migration.indexOf("function public.link_push_token_plan_member_atomic"),
+    );
+    const linkInstallation = accountLink.indexOf("push-installation:");
+    const linkAccountWide = accountLink.indexOf("push-account-all:");
+    const linkToken = accountLink.indexOf("push-account:' || p_token");
+    expect([linkInstallation, linkAccountWide, linkToken].every((index) => index >= 0)).toBe(true);
+    expect(linkInstallation).toBeLessThan(linkAccountWide);
+    expect(linkAccountWide).toBeLessThan(linkToken);
+
+    const unlinkInstallation = allUnlink.indexOf("push-installation:");
+    const unlinkAccountWide = allUnlink.indexOf("push-account-all:");
+    const unlinkToken = allUnlink.indexOf("push-account:' || v_token.token");
+    expect([unlinkInstallation, unlinkAccountWide, unlinkToken].every((index) => index >= 0)).toBe(true);
+    expect(unlinkInstallation).toBeLessThan(unlinkAccountWide);
+    expect(unlinkAccountWide).toBeLessThan(unlinkToken);
+    expect(unlinkToken).toBeLessThan(allUnlink.indexOf("for update"));
+    expect(migration.match(/push-account-all:/g)).toHaveLength(2);
   });
 
   it("implements all-device cleanup as one overflow-preflighted RPC", () => {
@@ -135,6 +160,8 @@ describe("push identity migration", () => {
     );
     expect(allUnlink).toMatch(/\(\s*p_user_id uuid, p_session_id uuid, p_installation_id uuid,[\s\S]*\) returns bigint/);
     expect(allUnlink).toMatch(/Preflight every fence before any mutation/);
+    expect(allUnlink).not.toMatch(/v_wrong_owner/);
+    expect(allUnlink).toMatch(/account_user_id = p_user_id\s+or \(installation_id = p_installation_id and account_user_id is null\)/);
     expect(allUnlink.indexOf("push mutation watermark exhausted"))
       .toBeLessThan(allUnlink.indexOf("insert into public.push_token_account_revocations"));
     expect(migration).toMatch(/grant execute on function public\.unlink_all_push_tokens_for_account\(uuid, uuid, uuid, bigint\) to service_role/);

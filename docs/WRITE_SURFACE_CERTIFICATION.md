@@ -163,14 +163,19 @@ Plan member capability and use idempotency keys or atomic store operations.
   shape, including missing/wrong-owner rows, and includes the authoritative
   mutation watermark that the browser must persist before reporting success.
   The installation UUID is not account authority: installation-scoped unlink
-  against another current owner is a zero-mutation no-op, including at an
-  exhausted watermark.
+  applies authority independently per row. It fences anonymous rows and clears
+  only the caller's exact account/session link; foreign-owner and newer-session
+  rows are untouched, even at an exhausted watermark. A caller-session
+  installation tombstone is always written, including on a mixed installation.
 - **Ordering authority:** registration binds the delivery token once to a
   random installation UUID. That UUID is not identity and contains no provider
   material. Every account intent carries a local monotonic mutation version;
   the server atomically compares it with the per-token/installation watermark.
   Per-token/session and installation/session revocation rows are unique, retain
   multiple old sessions, expire after 30 days, and are pruned during mutations.
+  Account link and account-wide unlink share an account advisory lock, acquired
+  between the installation and token locks, so account erasure is serializable
+  against a concurrent link.
   A verified unlink for the currently linked auth session advances the server
   watermark above both the stored and submitted values, then returns it. Thus
   that same session can send DELETE(v1) against link(v10), receive v11, and
@@ -187,11 +192,15 @@ Plan member capability and use idempotency keys or atomic store operations.
   without signing other devices out. Failed or hard-timeout revocation keeps
   the user signed in and displays an honest retry error. Failure to durably
   persist the returned server watermark is also treated as revocation failure.
-  PushManager recovery, native recovery, response headers, and response body
-  consumption all share hard timeouts. The all-device unlink is one atomic RPC
+  PushManager recovery, native recovery, response headers, and streaming response
+  body consumption all share hard timeouts. The reader counts chunks against a
+  64 KiB cumulative cap and immediately cancels and aborts an oversized body.
+  The all-device unlink is one atomic RPC
   with an overflow preflight, so failure cannot leave a partially erased set.
-  Provider-invalid token deletion, account deletion, or explicit unlink removes
-  targeting authority; public delivery opt-in remains independent.
+  Provider-invalid token deletion cascades token-scoped account/Plan watermarks
+  and revocations while retaining installation/session logout tombstones;
+  account deletion or explicit unlink also removes targeting authority. Public
+  delivery opt-in remains independent.
 
 ### `app/api/plans/[id]/push-tokens` — Plan-member push join (route 66)
 
