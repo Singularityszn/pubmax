@@ -13,10 +13,14 @@ describe("push identity migration", () => {
     expect(migration).toMatch(/add column if not exists account_user_id/);
     expect(migration).toMatch(/create table if not exists public\.push_token_plan_memberships/);
     expect(migration).toMatch(/create table if not exists public\.push_token_account_revocations/);
+    expect(migration).toMatch(/create table if not exists public\.push_account_session_revocations/);
     expect(migration).toMatch(/create table if not exists public\.push_installation_account_revocations/);
     expect(migration).toMatch(/create table if not exists public\.push_token_plan_mutation_versions/);
     expect(migration).toMatch(/enable row level security/);
+    expect(migration).toMatch(/alter table public\.push_account_session_revocations enable row level security/);
     expect(migration).toMatch(/revoke all on public\.push_token_plan_memberships from public, anon, authenticated/);
+    expect(migration).toMatch(/revoke all on public\.push_account_session_revocations from public, anon, authenticated/);
+    expect(migration).toMatch(/grant select, insert, update, delete on public\.push_account_session_revocations to service_role/);
     expect(migration).not.toMatch(/grant (?:select|insert|update|delete|all).* to (?:anon|authenticated)/i);
   });
 
@@ -49,6 +53,7 @@ describe("push identity migration", () => {
   it("bounds and prunes durable revocations and mutation watermarks", () => {
     expect(migration).toMatch(/interval '30 days'/);
     expect(migration).toMatch(/delete from public\.push_token_account_revocations where expires_at <= now\(\)/);
+    expect(migration).toMatch(/delete from public\.push_account_session_revocations where expires_at <= now\(\)/);
     expect(migration).toMatch(/delete from public\.push_token_plan_mutation_versions where expires_at <= now\(\)/);
     expect(migration).toMatch(/greatest\(public\.push_token_account_revocations\.revoked_version/);
     expect(migration).toMatch(/between 1 and 9007199254740991/);
@@ -70,6 +75,7 @@ describe("push identity migration", () => {
     );
     const planUnlink = migration.slice(migration.indexOf("function public.unlink_push_token_plan_member_atomic"));
     expect(accountLink).toMatch(/push_token_account_revocations[\s\S]*return 'conflict'/);
+    expect(accountLink).toMatch(/push_account_session_revocations[\s\S]*return 'conflict'/);
     expect(accountLink).toMatch(/p_mutation_version < v_version then return 'stale'/);
     expect(accountUnlink).toMatch(/insert into public\.push_token_account_revocations/);
     expect(accountUnlink).toMatch(/insert into public\.push_token_account_mutation_versions/);
@@ -119,8 +125,9 @@ describe("push identity migration", () => {
       migration.indexOf("function public.unlink_all_push_tokens_for_account"),
     );
     expect(installationUnlink).not.toMatch(/account_user_id <> p_user_id[\s\S]*return p_mutation_version/);
-    expect(installationUnlink).toMatch(/account_user_id is null\s+or \(account_user_id = p_user_id and account_session_id = p_session_id\)/);
-    expect(installationUnlink).toMatch(/insert into public\.push_token_account_revocations[\s\S]*account_user_id is null[\s\S]*account_session_id = p_session_id/);
+    expect(installationUnlink).not.toMatch(/account_user_id is null/);
+    expect(installationUnlink).toMatch(/account_user_id = p_user_id and account_session_id = p_session_id/);
+    expect(installationUnlink).toMatch(/insert into public\.push_token_account_revocations[\s\S]*account_user_id = p_user_id and account_session_id = p_session_id/);
     expect(installationUnlink).toMatch(/insert into public\.push_installation_account_revocations/);
     expect(accountUnlink).toMatch(/account_session_id is distinct from p_session_id[\s\S]*return p_mutation_version/);
     expect(accountUnlink).toMatch(/if not found[\s\S]*insert into public\.push_installation_account_revocations/);
@@ -161,9 +168,13 @@ describe("push identity migration", () => {
     expect(allUnlink).toMatch(/\(\s*p_user_id uuid, p_session_id uuid, p_installation_id uuid,[\s\S]*\) returns bigint/);
     expect(allUnlink).toMatch(/Preflight every fence before any mutation/);
     expect(allUnlink).not.toMatch(/v_wrong_owner/);
-    expect(allUnlink).toMatch(/account_user_id = p_user_id\s+or \(installation_id = p_installation_id and account_user_id is null\)/);
+    expect(allUnlink).not.toMatch(/account_user_id is null/);
+    expect(allUnlink).toMatch(/where account_user_id = p_user_id/);
+    expect(allUnlink).toMatch(/insert into public\.push_account_session_revocations\(user_id, session_id/);
     expect(allUnlink.indexOf("push mutation watermark exhausted"))
       .toBeLessThan(allUnlink.indexOf("insert into public.push_token_account_revocations"));
+    expect(allUnlink.indexOf("push mutation watermark exhausted"))
+      .toBeLessThan(allUnlink.indexOf("insert into public.push_account_session_revocations"));
     expect(migration).toMatch(/grant execute on function public\.unlink_all_push_tokens_for_account\(uuid, uuid, uuid, bigint\) to service_role/);
   });
 });

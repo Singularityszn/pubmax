@@ -134,12 +134,13 @@ user/plan identity**. Consequences, enforced in code:
    delivery. Native logout revokes that installation with the still-valid JWT,
    so denied permission or a WebView restart never requires raw-token recovery.
    The opaque installation epoch is a routing key, never account authority: a
-   mixed-owner installation is handled row by row. Anonymous rows and the
-   caller's exact account/session are fenced, while foreign owners and newer
-   sessions remain untouched; the caller's installation/session tombstone is
-   always retained. For the matching current auth session, revocations plus a
-   server-advanced watermark make DELETE authoritative under reversed order and
-   after a browser counter reset. A stale older-session DELETE only tombstones
+   mixed-owner installation is handled row by row. Only the caller's exact
+   account/session contributes a watermark or is cleared; anonymous rows rely
+   solely on the caller's installation/session tombstone, so even an old
+   exhausted anonymous watermark cannot block logout. Foreign owners and newer
+   sessions remain untouched. For the matching current auth session,
+   revocations plus a server-advanced watermark make DELETE authoritative under
+   reversed order and after a browser counter reset. A stale older-session DELETE only tombstones
    that old session and cannot clear or fence over a newer session link. The
    client persists the returned watermark before reporting success. Headers and
    streamed response bodies share the hard request deadline and a 64 KiB
@@ -147,5 +148,8 @@ user/plan identity**. Consequences, enforced in code:
    successful logout uses Supabase local scope because only the matching
    installation/session link was revoked. Account-wide erasure is one atomic,
    overflow-preflighted RPC; account link and erase share an account advisory
-   lock in installation → account → token order. The 30-day private tombstone
-   and watermark rows are expiry-indexed and pruned by identity mutations.
+   lock in installation → account → token order. It also records an exact
+   account/session tombstone across installations: delayed work from that
+   logged-out session is rejected, while a genuinely new session can link.
+   The 30-day private tombstone and watermark rows are expiry-indexed and
+   pruned by identity mutations.

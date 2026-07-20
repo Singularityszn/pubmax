@@ -163,19 +163,24 @@ Plan member capability and use idempotency keys or atomic store operations.
   shape, including missing/wrong-owner rows, and includes the authoritative
   mutation watermark that the browser must persist before reporting success.
   The installation UUID is not account authority: installation-scoped unlink
-  applies authority independently per row. It fences anonymous rows and clears
-  only the caller's exact account/session link; foreign-owner and newer-session
-  rows are untouched, even at an exhausted watermark. A caller-session
-  installation tombstone is always written, including on a mixed installation.
+  applies authority independently per row. Only the caller's exact
+  account/session link contributes a watermark or is cleared. Anonymous rows
+  rely solely on the installation/session tombstone and therefore cannot cause
+  overflow; foreign-owner and newer-session rows are untouched. The tombstone
+  is always written, including on a mixed installation.
 - **Ordering authority:** registration binds the delivery token once to a
   random installation UUID. That UUID is not identity and contains no provider
   material. Every account intent carries a local monotonic mutation version;
   the server atomically compares it with the per-token/installation watermark.
-  Per-token/session and installation/session revocation rows are unique, retain
-  multiple old sessions, expire after 30 days, and are pruned during mutations.
+  Per-token/session, installation/session, and account/session-wide revocation
+  rows are unique, retain multiple old sessions, expire after 30 days, and are
+  pruned during mutations.
   Account link and account-wide unlink share an account advisory lock, acquired
   between the installation and token locks, so account erasure is serializable
-  against a concurrent link.
+  against a concurrent link. Account-wide unlink also records a durable exact
+  account/session tombstone. Per-installation counters are deliberately not
+  compared across devices: any delayed link from that logged-out session is
+  rejected during retention, while a different auth session remains eligible.
   A verified unlink for the currently linked auth session advances the server
   watermark above both the stored and submitted values, then returns it. Thus
   that same session can send DELETE(v1) against link(v10), receive v11, and
@@ -222,7 +227,7 @@ Plan member capability and use idempotency keys or atomic store operations.
 - **Storage and revocation:** migration 0047 adds the private
   `push_token_plan_memberships` table. Token, Plan, and member foreign keys
   cascade deletion. RLS is enabled; public/anon/authenticated have no grants;
-  all five identity tables deny public/anon/authenticated access, and the seven
+  all six identity tables deny public/anon/authenticated access, and the seven
   search-path-pinned RPCs are execute-only for `service_role`. Keyless account
   joins honestly return 401 because no verified auth identity exists; keyless
   Plan joins use the bounded in-memory registry only after the normal in-memory

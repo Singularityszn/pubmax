@@ -38,6 +38,18 @@ create table if not exists public.push_token_account_revocations (
   primary key (token, session_id)
 );
 
+-- Account-wide logout must also fence a delayed link whose anonymous token is
+-- registered on another installation. Mutation counters are installation-local,
+-- so the exact verified account/session pair is the authority, not a cross-device
+-- numeric comparison. A genuinely new auth session has a different session id.
+create table if not exists public.push_account_session_revocations (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  session_id uuid not null,
+  revoked_version bigint not null check (revoked_version between 1 and 9007199254740991),
+  expires_at timestamptz not null default (now() + interval '30 days'),
+  primary key (user_id, session_id)
+);
+
 -- Native permission can be denied while an old APNs token remains durable.
 -- This installation/session tombstone revokes without knowing the raw token.
 create table if not exists public.push_installation_account_revocations (
@@ -78,6 +90,8 @@ create index if not exists push_token_plan_memberships_plan_idx
   on public.push_token_plan_memberships(plan_id, linked_at);
 create index if not exists push_account_revocations_expiry_idx
   on public.push_token_account_revocations(expires_at);
+create index if not exists push_account_session_revocations_expiry_idx
+  on public.push_account_session_revocations(expires_at);
 create index if not exists push_installation_revocations_expiry_idx
   on public.push_installation_account_revocations(expires_at);
 create index if not exists push_account_versions_expiry_idx
@@ -88,22 +102,27 @@ create index if not exists push_plan_versions_expiry_idx
 alter table public.push_token_plan_memberships enable row level security;
 alter table public.push_token_account_mutation_versions enable row level security;
 alter table public.push_token_account_revocations enable row level security;
+alter table public.push_account_session_revocations enable row level security;
 alter table public.push_installation_account_revocations enable row level security;
 alter table public.push_token_plan_mutation_versions enable row level security;
 
 revoke all on public.push_token_plan_memberships from public, anon, authenticated;
 revoke all on public.push_token_account_mutation_versions from public, anon, authenticated;
 revoke all on public.push_token_account_revocations from public, anon, authenticated;
+revoke all on public.push_account_session_revocations from public, anon, authenticated;
 revoke all on public.push_installation_account_revocations from public, anon, authenticated;
 revoke all on public.push_token_plan_mutation_versions from public, anon, authenticated;
 grant select, insert, update, delete on public.push_token_plan_memberships to service_role;
 grant select, insert, update, delete on public.push_token_account_mutation_versions to service_role;
 grant select, insert, update, delete on public.push_token_account_revocations to service_role;
+grant select, insert, update, delete on public.push_account_session_revocations to service_role;
 grant select, insert, update, delete on public.push_installation_account_revocations to service_role;
 grant select, insert, update, delete on public.push_token_plan_mutation_versions to service_role;
 
 comment on table public.push_token_account_revocations is
   'Per-token/session logout tombstones retained for 30 days and pruned on identity mutations.';
+comment on table public.push_account_session_revocations is
+  'Account-wide logout tombstone for one verified auth session across every installation; versions from different installations are not compared.';
 comment on table public.push_installation_account_revocations is
   'Permission-independent logout authority for an opaque installation epoch; contains no provider token.';
 comment on table public.push_token_plan_mutation_versions is
@@ -121,6 +140,7 @@ begin
   -- Registration is the high-frequency bounded cleanup seam, so expired
   -- tombstones cannot accumulate when logged-out installations never return.
   delete from public.push_token_account_revocations where expires_at <= now();
+  delete from public.push_account_session_revocations where expires_at <= now();
   delete from public.push_installation_account_revocations where expires_at <= now();
   delete from public.push_token_account_mutation_versions where expires_at <= now();
   delete from public.push_token_plan_mutation_versions where expires_at <= now();
@@ -158,11 +178,14 @@ begin
   perform pg_advisory_xact_lock(hashtextextended('push-account-all:' || p_user_id::text, 0));
   perform pg_advisory_xact_lock(hashtextextended('push-account:' || p_token || ':' || p_installation_id::text, 0));
   delete from public.push_token_account_revocations where expires_at <= now();
+  delete from public.push_account_session_revocations where expires_at <= now();
   delete from public.push_installation_account_revocations where expires_at <= now();
   delete from public.push_token_account_mutation_versions where expires_at <= now();
   select * into v_token from public.push_tokens where token = p_token for update;
   if not found or v_token.installation_id is distinct from p_installation_id then return 'missing'; end if;
-  if exists (select 1 from public.push_token_account_revocations
+  if exists (select 1 from public.push_account_session_revocations
+      where user_id = p_user_id and session_id = p_session_id and expires_at > now())
+     or exists (select 1 from public.push_token_account_revocations
       where token = p_token and session_id = p_session_id and expires_at > now())
      or exists (select 1 from public.push_installation_account_revocations
       where installation_id = p_installation_id and session_id = p_session_id and expires_at > now())
@@ -277,30 +300,27 @@ begin
   end if;
   perform pg_advisory_xact_lock(hashtextextended('push-installation:' || p_installation_id::text, 0));
   perform 1 from public.push_tokens where installation_id = p_installation_id
-    and (account_user_id is null
-      or (account_user_id = p_user_id and account_session_id = p_session_id))
+    and account_user_id = p_user_id and account_session_id = p_session_id
     order by token for update;
   -- Installation possession is not account authority. Apply the caller's
-  -- logout row by row: anonymous registrations and this exact account/session
-  -- may be fenced, while foreign owners and newer sessions remain untouched.
+  -- logout row by row: only this exact account/session contributes a watermark
+  -- or is cleared. Anonymous registrations are covered by the installation
+  -- tombstone alone; foreign owners and newer sessions remain untouched.
   select exists (
     select 1 from public.push_tokens
     where installation_id = p_installation_id
-      and (account_user_id is null
-        or (account_user_id = p_user_id and account_session_id = p_session_id))
+      and account_user_id = p_user_id and account_session_id = p_session_id
   ) into v_has_fence_rows;
   select greatest(
     coalesce((select max(mutation_version)
       from public.push_token_account_mutation_versions as versions
       join public.push_tokens as tokens on tokens.token = versions.token
       where versions.installation_id = p_installation_id
-        and (tokens.account_user_id is null
-          or (tokens.account_user_id = p_user_id and tokens.account_session_id = p_session_id))), 0),
+        and tokens.account_user_id = p_user_id and tokens.account_session_id = p_session_id), 0),
     coalesce((select max(account_mutation_version)
       from public.push_tokens
       where installation_id = p_installation_id
-        and (account_user_id is null
-          or (account_user_id = p_user_id and account_session_id = p_session_id))), 0)
+        and account_user_id = p_user_id and account_session_id = p_session_id), 0)
   ) into v_version;
   if v_has_fence_rows and v_version >= 9007199254740991 then
     raise exception 'push mutation watermark exhausted';
@@ -315,15 +335,13 @@ begin
   insert into public.push_token_account_revocations(token, session_id, revoked_version, expires_at)
     select token, p_session_id, v_authoritative, now() + interval '30 days'
     from public.push_tokens where installation_id = p_installation_id
-      and (account_user_id is null
-        or (account_user_id = p_user_id and account_session_id = p_session_id))
+      and account_user_id = p_user_id and account_session_id = p_session_id
     on conflict (token, session_id) do update set revoked_version = greatest(public.push_token_account_revocations.revoked_version, excluded.revoked_version),
       expires_at = greatest(public.push_token_account_revocations.expires_at, excluded.expires_at);
   insert into public.push_token_account_mutation_versions(token, installation_id, mutation_version, expires_at)
     select token, p_installation_id, v_authoritative, now() + interval '30 days'
     from public.push_tokens where installation_id = p_installation_id
-      and (account_user_id is null
-        or (account_user_id = p_user_id and account_session_id = p_session_id))
+      and account_user_id = p_user_id and account_session_id = p_session_id
     on conflict (token, installation_id) do update set mutation_version = excluded.mutation_version,
       expires_at = excluded.expires_at;
   update public.push_tokens set account_user_id = null, account_session_id = null,
@@ -358,7 +376,6 @@ begin
   for v_token in
     select * from public.push_tokens
     where account_user_id = p_user_id
-      or (installation_id = p_installation_id and account_user_id is null)
     order by token
   loop
     perform pg_advisory_xact_lock(hashtextextended(
@@ -371,7 +388,6 @@ begin
   for v_token in
     select * from public.push_tokens
     where account_user_id = p_user_id
-      or (installation_id = p_installation_id and account_user_id is null)
     order by token
     for update
   loop
@@ -393,7 +409,6 @@ begin
   for v_token in
     select * from public.push_tokens
     where account_user_id = p_user_id
-      or (installation_id = p_installation_id and account_user_id is null)
     order by token
     for update
   loop
@@ -454,6 +469,11 @@ begin
     on conflict (installation_id, session_id) do update
       set revoked_version = greatest(public.push_installation_account_revocations.revoked_version, excluded.revoked_version),
         expires_at = greatest(public.push_installation_account_revocations.expires_at, excluded.expires_at);
+  insert into public.push_account_session_revocations(user_id, session_id, revoked_version, expires_at)
+    values (p_user_id, p_session_id, p_mutation_version, now() + interval '30 days')
+    on conflict (user_id, session_id) do update
+      set revoked_version = greatest(public.push_account_session_revocations.revoked_version, excluded.revoked_version),
+        expires_at = greatest(public.push_account_session_revocations.expires_at, excluded.expires_at);
   return v_returned;
 end;
 $$;

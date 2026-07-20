@@ -76,7 +76,8 @@ export type PushTokenStore = {
    * tombstoned so a delayed join cannot recreate identity. */
   unlinkInstallationForAccount(installationId: string, userId: string, sessionId: string, mutationVersion: number): Promise<number>;
   /** Privacy/account-erasure seam: atomically fence and clear every link for
-   * one verified account, returning the caller installation's watermark. */
+   * one verified account, tombstone this auth session across installations,
+   * and return the caller installation's watermark. */
   unlinkAllForAccount(userId: string, sessionId: string, installationId: string, mutationVersion: number): Promise<number>;
   /** Link one existing registration to one verified member per Plan. */
   linkPlan(token: string, planId: string, memberId: string, installationId: string, mutationVersion: number): Promise<PushIdentityJoinResult>;
@@ -237,11 +238,13 @@ type MemoryRegistration = {
 const memoryTokens = new Map<string, MemoryRegistration>();
 const memoryAccountVersions = new Map<string, number>();
 const memoryAccountRevocations = new Set<string>();
+const memoryAccountSessionRevocations = new Map<string, number>();
 const memoryInstallationRevocations = new Set<string>();
 const memoryPlanVersions = new Map<string, number>();
 
 const accountVersionKey = (token: string, installationId: string) => `${token}\u0000${installationId}`;
 const accountRevocationKey = (token: string, sessionId: string) => `${token}\u0000${sessionId}`;
+const accountSessionRevocationKey = (userId: string, sessionId: string) => `${userId}\u0000${sessionId}`;
 const installationRevocationKey = (installationId: string, sessionId: string) => `${installationId}\u0000${sessionId}`;
 const planVersionKey = (token: string, installationId: string, planId: string) => `${token}\u0000${installationId}\u0000${planId}`;
 
@@ -306,7 +309,8 @@ export const memoryPushTokenStore: PushTokenStore = {
   async linkAccount(token, userId, sessionId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
     if (!row || row.installationId !== installationId) return "missing";
-    if (memoryAccountRevocations.has(accountRevocationKey(token, sessionId))
+    if (memoryAccountSessionRevocations.has(accountSessionRevocationKey(userId, sessionId))
+      || memoryAccountRevocations.has(accountRevocationKey(token, sessionId))
       || memoryInstallationRevocations.has(installationRevocationKey(installationId, sessionId))) return "conflict";
     const versionKey = accountVersionKey(token, installationId);
     const currentVersion = memoryAccountVersions.get(versionKey) ?? 0;
@@ -352,8 +356,7 @@ export const memoryPushTokenStore: PushTokenStore = {
     const installationRows = [...memoryTokens.entries()]
       .filter(([, row]) => row.installationId === installationId);
     const fenceRows = installationRows.filter(([, row]) =>
-      row.accountUserId === null
-      || (row.accountUserId === userId && row.accountSessionId === sessionId));
+      row.accountUserId === userId && row.accountSessionId === sessionId);
     let currentVersion = 0;
     for (const [token] of fenceRows) {
       currentVersion = Math.max(
@@ -382,8 +385,7 @@ export const memoryPushTokenStore: PushTokenStore = {
   },
   async unlinkAllForAccount(userId, sessionId, installationId, mutationVersion) {
     const fenceRows = [...memoryTokens.entries()].filter(([, row]) =>
-      row.accountUserId === userId
-      || (row.installationId === installationId && row.accountUserId === null));
+      row.accountUserId === userId);
     let returnedVersion = mutationVersion;
     const authoritativeByToken = new Map<string, number>();
     for (const [token, row] of fenceRows) {
@@ -399,6 +401,11 @@ export const memoryPushTokenStore: PushTokenStore = {
       returnedVersion = Math.max(returnedVersion, authoritative);
     }
     memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
+    const accountSessionKey = accountSessionRevocationKey(userId, sessionId);
+    memoryAccountSessionRevocations.set(
+      accountSessionKey,
+      Math.max(memoryAccountSessionRevocations.get(accountSessionKey) ?? 0, mutationVersion),
+    );
     for (const [token, row] of fenceRows) {
       const authoritative = authoritativeByToken.get(token)!;
       memoryAccountVersions.set(accountVersionKey(token, row.installationId), authoritative);
@@ -482,6 +489,7 @@ export function __resetMemoryPushTokens(): void {
   memoryTokens.clear();
   memoryAccountVersions.clear();
   memoryAccountRevocations.clear();
+  memoryAccountSessionRevocations.clear();
   memoryInstallationRevocations.clear();
   memoryPlanVersions.clear();
 }

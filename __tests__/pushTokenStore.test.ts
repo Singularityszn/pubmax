@@ -356,6 +356,8 @@ describe("memoryPushTokenStore", () => {
     await linkAccount("caller", "user-a", "session-a", 4);
     await linkAccount("foreign", "user-b", "session-b", MAX_PUSH_MUTATION_VERSION);
     await linkAccount("new-session", "user-a", "session-new", MAX_PUSH_MUTATION_VERSION);
+    await linkAccount("anonymous", "user-z", "session-z", MAX_PUSH_MUTATION_VERSION - 1);
+    await unlinkAccount("anonymous", "user-z", "session-z", 1);
 
     await expect(memoryPushTokenStore.unlinkInstallationForAccount(
       INSTALLATION_ID,
@@ -382,14 +384,26 @@ describe("memoryPushTokenStore", () => {
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
 
     __resetMemoryPushTokens();
-    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    const otherInstallation = "11111111-1111-4111-8111-111111111111";
+    await memoryPushTokenStore.save({
+      token: "tok-1",
+      platform: "ios",
+      installationId: otherInstallation,
+    });
     const [unlinked, linked] = await Promise.all([
       memoryPushTokenStore.unlinkAllForAccount("user-a", "session-a", INSTALLATION_ID, 2),
-      linkAccount("tok-1", "user-a", "session-a", 1),
+      memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a", otherInstallation, 1),
     ]);
     expect(unlinked).toBe(2);
     expect(linked).toBe("conflict");
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
+    await expect(memoryPushTokenStore.linkAccount(
+      "tok-1",
+      "user-a",
+      "session-new",
+      otherInstallation,
+      1,
+    )).resolves.toBe("linked");
   });
 
   it("tombstones a missing-token DELETE so its delayed POST cannot attach later", async () => {

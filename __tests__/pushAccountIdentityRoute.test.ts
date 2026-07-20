@@ -148,6 +148,20 @@ describe("push account identity route", () => {
       INSTALLATION_ID,
       MAX_PUSH_MUTATION_VERSION,
     );
+    await memoryPushTokenStore.linkAccount(
+      "anonymous-token",
+      "user-z",
+      "session-z",
+      INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION - 1,
+    );
+    await memoryPushTokenStore.unlinkAccount(
+      "anonymous-token",
+      "user-z",
+      "session-z",
+      INSTALLATION_ID,
+      1,
+    );
 
     const response = await DELETE(request("DELETE", { installationOnly: true }, 1));
     expect(response.status).toBe(200);
@@ -192,6 +206,20 @@ describe("push account identity route", () => {
       INSTALLATION_ID,
       5,
     );
+    await memoryPushTokenStore.linkAccount(
+      "anonymous-token",
+      "user-z",
+      "session-z",
+      INSTALLATION_ID,
+      MAX_PUSH_MUTATION_VERSION - 1,
+    );
+    await memoryPushTokenStore.unlinkAccount(
+      "anonymous-token",
+      "user-z",
+      "session-z",
+      INSTALLATION_ID,
+      1,
+    );
 
     const response = await DELETE(request("DELETE", { all: true }, 1));
     expect(response.status).toBe(200);
@@ -206,6 +234,32 @@ describe("push account identity route", () => {
       INSTALLATION_ID,
       7,
     )).resolves.toBe("conflict");
+  });
+
+  it("fences delayed same-session account links on another installation after unlink-all", async () => {
+    await memoryPushTokenStore.save({
+      token: "other-installation-token",
+      platform: "ios",
+      installationId: OTHER_INSTALLATION_ID,
+    });
+
+    const response = await DELETE(request("DELETE", { all: true }, 2));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, linked: false, mutationVersion: 2 });
+    await expect(memoryPushTokenStore.linkAccount(
+      "other-installation-token",
+      "user-a",
+      "session-a",
+      OTHER_INSTALLATION_ID,
+      1,
+    )).resolves.toBe("conflict");
+    await expect(memoryPushTokenStore.linkAccount(
+      "other-installation-token",
+      "user-a",
+      "session-new",
+      OTHER_INSTALLATION_ID,
+      1,
+    )).resolves.toBe("linked");
   });
 
   it("blocks a delayed POST from the logged-out session but permits a fresh session", async () => {
