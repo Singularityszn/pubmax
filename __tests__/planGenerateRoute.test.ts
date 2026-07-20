@@ -33,6 +33,7 @@ vi.mock("@/lib/concierge/venues.server", async (importOriginal) => {
 });
 
 import { GET, POST } from "@/app/api/plans/generate/route";
+import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
 import { hashIp } from "@/lib/supabase";
 
 describe("POST /api/plans/generate", () => {
@@ -60,6 +61,10 @@ describe("POST /api/plans/generate", () => {
     expect(body.grounded).toBe(true);
     expect(body.inferredContext).toMatchObject({ nightArea: "clapham", daypart: "after_work", groupSize: 4 });
     expect(body.stops).toHaveLength(3);
+    expect(verifyPlanGroundingProof(
+      body.groundingProof,
+      body.stops.map((stop: { venueId: string }) => stop.venueId),
+    )).toBe(true);
     expect(body.stops[0]).toMatchObject({
       venueId: expect.any(String),
       venueName: expect.any(String),

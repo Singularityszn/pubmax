@@ -4,6 +4,7 @@ import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { isLimited } from "@/lib/pintDrops";
 import { planStore } from "@/lib/planStore";
+import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -38,6 +39,10 @@ export async function POST(request: Request): Promise<Response> {
   if (stops.some((stop) => stop === null)) {
     return publicApiError("Choose venues from the Venue Dataset.", "PLAN_VENUES_INVALID", 400);
   }
+  const grounded = verifyPlanGroundingProof(
+    body.groundingProof,
+    stops.flatMap((stop) => stop ? [stop.venueId] : []),
+  );
   const result = await planStore().create({ ...body, stops }, { idempotencyKey });
   if (!result.ok) {
     return publicApiError(
@@ -50,7 +55,15 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   return attachPlanMemberSession(
-    jsonNoStore({ plan: result.plan, memberToken: result.memberToken, role: result.role }, { status: 201 }),
+    jsonNoStore({
+      plan: result.plan,
+      memberToken: result.memberToken,
+      role: result.role,
+      created: result.created,
+      // The signature binds the accepted venue ids to a server-generated
+      // candidate set. Client grounding flags and edited proofs are ignored.
+      grounded,
+    }, { status: 201 }),
     request,
     result.plan.plan.id,
     result.memberToken,

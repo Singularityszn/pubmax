@@ -9,7 +9,10 @@ import {
   nightAreaOptionLabel,
   nightAreaSelectorGroups,
   nightContextChanged,
+  parsePlanRouteDraft,
+  planAcceptanceTelemetry,
   routeStopsFromGenerated,
+  serverPlanCreationAttribution,
   swapDraftStop,
 } from "@/components/plan/PlanComposer";
 import { getNightArea } from "@/lib/nightAreas";
@@ -110,6 +113,26 @@ describe("PlanComposer Night Area coverage states", () => {
 });
 
 describe("PlanComposer route preview seam", () => {
+  it("never restores client-writable grounding attribution from local storage", () => {
+    const restored = parsePlanRouteDraft(JSON.stringify({
+      stops: [
+        { key: 1, venueId: "a", venueName: "A", alternatives: [] },
+        { key: 2, venueId: "b", venueName: "B", alternatives: [] },
+        { key: 3, venueId: "c", venueName: "C", alternatives: [] },
+      ],
+      routeGrounded: true,
+    }));
+
+    expect(restored).not.toHaveProperty("routeGrounded");
+  });
+
+  it("emits acceptance only for a server-attributed first creation", () => {
+    expect(planAcceptanceTelemetry({ created: true, grounded: true }, 3)).toEqual({ stops: 3, grounded: true });
+    expect(planAcceptanceTelemetry({ created: false, grounded: true }, 3)).toBeNull();
+    expect(planAcceptanceTelemetry({ created: true, grounded: "true" }, 3)).toBeNull();
+    expect(serverPlanCreationAttribution({ created: false, grounded: false })).toEqual({ created: false, grounded: false });
+  });
+
   it("uses the generator's explicit grounding assertion instead of route revision metadata", () => {
     const stops = routeStopsFromGenerated([
       { venueId: "a", venueName: "A" },
@@ -117,9 +140,9 @@ describe("PlanComposer route preview seam", () => {
       { venueId: "c", venueName: "C" },
     ]);
 
-    expect(isGroundedGeneratedRoute({ grounded: true }, stops)).toBe(true);
+    expect(isGroundedGeneratedRoute({ grounded: true, groundingProof: "signed-proof" }, stops)).toBe(true);
     expect(isGroundedGeneratedRoute({ routeRevision: 7 }, stops)).toBe(false);
-    expect(isGroundedGeneratedRoute({ grounded: true }, stops.slice(0, 2))).toBe(false);
+    expect(isGroundedGeneratedRoute({ grounded: true, groundingProof: "signed-proof" }, stops.slice(0, 2))).toBe(false);
   });
 
   it("keeps exactly three generated stops and attaches the top-level alternative pool", () => {

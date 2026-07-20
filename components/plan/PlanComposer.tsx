@@ -35,8 +35,28 @@ export type StoredRouteDraft = {
   nightContext: NightContext | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
-  routeGrounded: boolean;
+  groundingProof: string | null;
 };
+
+export type ServerPlanCreationAttribution = {
+  created: boolean;
+  grounded: boolean;
+};
+
+/** Validate attribution returned by POST /api/plans; never source it from draft storage. */
+export function serverPlanCreationAttribution(value: unknown): ServerPlanCreationAttribution | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as { created?: unknown; grounded?: unknown };
+  if (typeof row.created !== "boolean" || typeof row.grounded !== "boolean") return null;
+  return { created: row.created, grounded: row.grounded };
+}
+
+/** Return acceptance telemetry only for the server's first successful creation. */
+export function planAcceptanceTelemetry(value: unknown, stops: number): { stops: number; grounded: boolean } | null {
+  const attribution = serverPlanCreationAttribution(value);
+  if (!attribution?.created || !Number.isInteger(stops) || stops < 1 || stops > 50) return null;
+  return { stops, grounded: attribution.grounded };
+}
 
 /** Trust only the generator's explicit server-owned grounding assertion. */
 export function isGroundedGeneratedRoute(value: unknown, stops: readonly DraftStop[]): boolean {
@@ -44,6 +64,8 @@ export function isGroundedGeneratedRoute(value: unknown, stops: readonly DraftSt
     value
     && typeof value === "object"
     && (value as { grounded?: unknown }).grounded === true
+    && typeof (value as { groundingProof?: unknown }).groundingProof === "string"
+    && Boolean((value as { groundingProof: string }).groundingProof)
     && stops.length === 3,
   );
 }
@@ -176,7 +198,9 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
       nightContext: cleanNightContext(value.nightContext) ?? null,
       routeRevision: cleanRouteRevision(value.routeRevision),
       routeStale: value.routeStale === true,
-      routeGrounded: value.routeGrounded === true,
+      groundingProof: typeof value.groundingProof === "string" && value.groundingProof.length <= 8_000
+        ? value.groundingProof
+        : null,
     };
   } catch {
     return null;
@@ -359,7 +383,7 @@ function PlanComposerForm({
   const [nightContext, setNightContext] = useState<NightContext | null>(recoveredRouteDraft?.nightContext ?? null);
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(recoveredRouteDraft?.routeRevision ?? null);
   const [routeStale, setRouteStale] = useState(recoveredRouteDraft?.routeStale ?? false);
-  const [routeGrounded, setRouteGrounded] = useState(recoveredRouteDraft?.routeGrounded ?? false);
+  const [groundingProof, setGroundingProof] = useState(recoveredRouteDraft?.groundingProof ?? null);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -411,18 +435,21 @@ function PlanComposerForm({
         nightContext,
         routeRevision,
         routeStale,
-        routeGrounded,
+        groundingProof,
       } satisfies StoredRouteDraft));
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [nightContext, routeGrounded, routeRevision, routeStale, stops]);
+  }, [groundingProof, nightContext, routeRevision, routeStale, stops]);
 
   function chooseVenue(key: number, venueName: string) {
     const match = venues.find((venue) => venue.name.toLocaleLowerCase() === venueName.trim().toLocaleLowerCase());
     setStops((current) => current.map((stop) => stop.key === key
       ? { ...stop, venueName, venueId: match?.id ?? "", alternatives: [] }
       : stop));
+    // Manual edits are still canonicalized by POST /api/plans, but they no
+    // longer carry provenance from the generated candidate set.
+    setGroundingProof(null);
     setRouteStatus("Stop edited in the route preview. Review it before locking.");
   }
 
@@ -479,7 +506,7 @@ function PlanComposerForm({
       }
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
-      setRouteGrounded(grounded);
+      setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
       markPalRouteActivation();
       trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote("Three grounded stops, shaped by the editable context below.");
@@ -524,6 +551,7 @@ function PlanComposerForm({
         creatorName,
         startTime: new Date(startTime).toISOString(),
         stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+        ...(groundingProof ? { groundingProof } : {}),
       };
       const operationKey = await persistentPlanMutationKey("create", createPayload);
       const response = await fetch("/api/plans", {
@@ -535,23 +563,28 @@ function PlanComposerForm({
       if (!response.ok || !body?.plan?.plan?.id) {
         throw new Error(body?.error || "The plan could not be created.");
       }
-      const grounded = routeGrounded;
-      trackEvent("plan_accepted", { stops: completeStops.length, grounded });
-      trackMeaningfulCoreAction("plan_accepted");
+      const attribution = serverPlanCreationAttribution(body);
+      if (!attribution) throw new Error("The plan was created without verifiable route attribution. Please reload it before continuing.");
+      const { grounded } = attribution;
+      const acceptanceTelemetry = planAcceptanceTelemetry(body, completeStops.length);
+      if (acceptanceTelemetry) {
+        trackEvent("plan_accepted", acceptanceTelemetry);
+        trackMeaningfulCoreAction("plan_accepted");
+      }
       // lane_to_plan only counts creations with lane provenance (?src=…, set
       // by lane surfaces such as the W1 Tonight lane). window.location is read
       // at submit time — not via useSearchParams — so this client component
       // needs no Suspense boundary on the server-rendered /plan page. Without
       // a known src the event stays silent: honest zero > invented signal.
       const laneSource = laneSourceFromSearch(window.location.search);
-      if (laneSource) {
+      if (attribution.created && laneSource) {
         trackEvent("lane_to_plan", { source: laneSource, stops: completeStops.length });
       }
-      trackEvent("plan_created", { count: completeStops.length });
+      if (attribution.created) trackEvent("plan_created", { count: completeStops.length });
       // First high-intent action → arm the signed-out account nudge (self-gates
       // on auth/cooldown; browsing was never gated). In the native shell this
       // wins over the push prompt, which defers via isIdentityNudgePending().
-      recordPlanNudgeTrigger();
+      if (attribution.created) recordPlanNudgeTrigger();
       if (body.memberToken) {
         const planId = body.plan.plan.id as string;
         writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });

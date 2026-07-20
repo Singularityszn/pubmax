@@ -152,7 +152,7 @@ user content.
 | Event | Confirmed seam | Allowed props |
 |---|---|---|
 | `plan_generated` | A non-empty grounded route returns from `/api/plans/generate` | `stops`, `grounded` |
-| `plan_accepted` | The person explicitly locks the preview and Plan creation succeeds | `stops`, `grounded` |
+| `plan_accepted` | The person explicitly locks the preview and the idempotent Plan create returns `created = true`; replays never emit it | `stops`, `grounded` |
 | `plan_saved` | The created Plan and its route metadata finish saving | `stops`, `grounded` |
 | `claim_started` | The AuthProvider account-preservation claim is submitted to `/api/identity/claim`, excluding handle creation and renames | `source` (`auth`) |
 | `claim_completed` | That account-preservation claim succeeds | `source` (`auth`) |
@@ -164,6 +164,12 @@ Activation is the elapsed time from `plan_generated` to the first
 `plan_accepted` or `plan_saved` with `grounded = true` for the same
 pseudonymous identity. Manual Plans remain visible in the loop events with
 `grounded = false`, but do not enter this grounded-route activation measure.
+`grounded` on acceptance/save is server-owned: generation returns an HMAC proof
+covering its candidate venue ids, and Plan creation verifies the exact accepted
+three-stop route against that proof after canonical Venue Dataset resolution.
+Draft storage may retain the signed proof for recovery, but never a writable
+grounding boolean; manual venue edits invalidate the proof in the composer and
+the API independently fails closed if a stale or forged proof is submitted.
 
 Weekly Meaningful Pubmaxxers is the number of distinct pseudonymous identities
 with at least one `meaningful_core_action` in a seven-day window. Its `action`

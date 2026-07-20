@@ -7,6 +7,7 @@ import { haversineKm } from "@/lib/haversine";
 import { cleanNightContext, cleanNightContextPatch, inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { buildPlanEndingRecommendations } from "@/lib/planEndings";
+import { mintPlanGroundingProof } from "@/lib/planGrounding.server";
 import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
 import { filterTonight, type WhatsOnRow } from "@/lib/whatsOn";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
@@ -287,6 +288,17 @@ export async function POST(request: Request): Promise<Response> {
 		lateFood: rankedLateFood,
 		extensions,
 	});
+	const alternativesByVenue = new Map(chosen.map(({ venue }) => [
+		venue.id,
+		candidates
+			.filter(({ venue: alternative }) => !chosen.some(({ venue: selected }) => selected.id === alternative.id))
+			.sort((left, right) => distanceKm(venue, left.venue) - distanceKm(venue, right.venue))
+			.slice(0, 2),
+	]));
+	const groundingCandidateIds = [
+		...chosen.map(({ venue }) => venue.id),
+		...[...alternativesByVenue.values()].flat().map(({ venue }) => venue.id),
+	];
 	const nightArea = { id: area.slug, ...coverage };
   return jsonNoStore({
     // This response is assembled exclusively from the reviewed venue dataset
@@ -294,6 +306,7 @@ export async function POST(request: Request): Promise<Response> {
     // The explicit flag lets clients distinguish server-grounded generation
     // from a manual draft without guessing from unrelated revision metadata.
     grounded: true,
+    groundingProof: mintPlanGroundingProof(groundingCandidateIds),
     inferredContext: context,
     confidence: inferred.confidence,
 		planningConfidence,
@@ -324,8 +337,7 @@ export async function POST(request: Request): Promise<Response> {
 				}] : []),
 			],
 	      reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
-	      alternatives: candidates
-				.filter(({ venue: alternative }) => !chosen.some(({ venue: selected }) => selected.id === alternative.id))
+	      alternatives: (alternativesByVenue.get(venue.id) ?? [])
 				.map(({ venue: alternative }) => ({
 					venueId: alternative.id,
 					venueName: alternative.name,
@@ -333,8 +345,7 @@ export async function POST(request: Request): Promise<Response> {
 					estimatedPintPricePence: alternative.cheapestPrice === null ? null : Math.round(alternative.cheapestPrice * 100),
 					provenance: [{ kind: "venue_dataset", label: `PUBMAXX venue record for ${alternative.name}` }],
 				}))
-				.sort((left, right) => left.distanceKm - right.distanceKm)
-				.slice(0, 2),
+				.sort((left, right) => left.distanceKm - right.distanceKm),
 	    })),
 	    contextEffects: [
 	      "budget",

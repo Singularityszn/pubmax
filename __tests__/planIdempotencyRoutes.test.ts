@@ -16,6 +16,7 @@ import { POST as CREATE } from "@/app/api/plans/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
+import { mintPlanGroundingProof } from "@/lib/planGrounding.server";
 import type { PlanState } from "@/lib/plan";
 
 const URL = "http://localhost/api/plans";
@@ -24,6 +25,9 @@ const payload = {
   title: "Retry-safe Friday",
   startTime: "2026-07-16T19:00:00.000Z",
   creatorName: "Host",
+  // Deliberately forged: the endpoint must derive attribution from canonical
+  // venue resolution instead of reflecting this client field.
+  grounded: true,
   stops: [{ venueId: "venue-xjf3n0" }, { venueId: "venue-16pnwmm" }],
 };
 
@@ -33,7 +37,7 @@ async function create(key: string, body: Record<string, unknown> = payload) {
     headers: { "idempotency-key": key },
     body: JSON.stringify(body),
   }));
-  return { response, body: await response.json() as { plan: PlanState; memberToken: string; code?: string } };
+  return { response, body: await response.json() as { plan: PlanState; memberToken: string; code?: string; created?: boolean; grounded?: boolean } };
 }
 
 beforeEach(() => __resetMemoryPlans());
@@ -61,10 +65,30 @@ describe("Plan mutation idempotency", () => {
     expect(replay.response.status).toBe(201);
     expect(replay.body.plan.plan.id).toBe(first.body.plan.plan.id);
     expect(replay.body.memberToken).toBe(first.body.memberToken);
+    expect(first.body).toMatchObject({ created: true, grounded: false });
+    expect(replay.body).toMatchObject({ created: false, grounded: false });
 
     const conflict = await create("create-recovery-1", { ...payload, title: "Different intent" });
     expect(conflict.response.status).toBe(409);
     expect(conflict.body).toMatchObject({ code: "PLAN_IDEMPOTENCY_CONFLICT" });
+  });
+
+  it("attributes grounding only to an intact server-minted candidate proof", async () => {
+    const stops = [
+      { venueId: "venue-xjf3n0" },
+      { venueId: "venue-16pnwmm" },
+      { venueId: "venue-1f5ygjb" },
+    ];
+    const proof = mintPlanGroundingProof(stops.map((stop) => stop.venueId));
+    const accepted = await create("grounded-create-proof", { ...payload, stops, groundingProof: proof });
+    const edited = await create("edited-create-proof", {
+      ...payload,
+      stops: [stops[0], stops[1], { venueId: "venue-3h52h" }],
+      groundingProof: proof,
+    });
+
+    expect(accepted.body).toMatchObject({ created: true, grounded: true });
+    expect(edited.body).toMatchObject({ created: true, grounded: false });
   });
 
   it("does not add a second guest when an ordinary join response is retried", async () => {
