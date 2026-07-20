@@ -57,6 +57,7 @@ describe("POST /api/plans/generate", () => {
     }));
     const body = await response.json();
     expect(response.status).toBe(200);
+    expect(body.grounded).toBe(true);
     expect(body.inferredContext).toMatchObject({ nightArea: "clapham", daypart: "after_work", groupSize: 4 });
     expect(body.stops).toHaveLength(3);
     expect(body.stops[0]).toMatchObject({

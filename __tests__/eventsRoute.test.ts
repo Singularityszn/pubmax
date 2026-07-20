@@ -60,6 +60,26 @@ describe("POST /api/events", () => {
     expect(log).not.toHaveBeenCalled();
   });
 
+  it.each([undefined, "arrived", "plan_generated"])(
+    "silently drops a meaningful core action with discriminator %s",
+    async (action) => {
+      process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+      const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const res = await POST(post(JSON.stringify({
+        name: "meaningful_core_action",
+        props: action === undefined ? {} : { action },
+        anonymousId: "anon_0123456789abcdef",
+        analyticsConsent: true,
+      })));
+
+      expect(res.status).toBe(204);
+      expect(log).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("fail-softs on malformed JSON without throwing", async () => {
     const res = await POST(post("{not json"));
     expect(res.status).toBe(204);

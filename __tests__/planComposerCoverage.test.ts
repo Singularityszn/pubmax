@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   errorMessageFromBody,
+  isGroundedGeneratedRoute,
   nightAreaCoverageSummary,
   nightAreaCoverageMeta,
   nightAreaMapHref,
@@ -109,6 +110,18 @@ describe("PlanComposer Night Area coverage states", () => {
 });
 
 describe("PlanComposer route preview seam", () => {
+  it("uses the generator's explicit grounding assertion instead of route revision metadata", () => {
+    const stops = routeStopsFromGenerated([
+      { venueId: "a", venueName: "A" },
+      { venueId: "b", venueName: "B" },
+      { venueId: "c", venueName: "C" },
+    ]);
+
+    expect(isGroundedGeneratedRoute({ grounded: true }, stops)).toBe(true);
+    expect(isGroundedGeneratedRoute({ routeRevision: 7 }, stops)).toBe(false);
+    expect(isGroundedGeneratedRoute({ grounded: true }, stops.slice(0, 2))).toBe(false);
+  });
+
   it("keeps exactly three generated stops and attaches the top-level alternative pool", () => {
     const stops = routeStopsFromGenerated([
       { venueId: "a", venueName: "A" },

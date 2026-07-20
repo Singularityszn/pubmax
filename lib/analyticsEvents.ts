@@ -162,7 +162,7 @@ const SAFE_STRING_VALUES = new Set([
   "android", "ios-safari", "standalone", "unsupported",
   "CLS", "FCP", "INP", "LCP", "TTFB", "good", "needs-improvement", "poor",
   // Wave 0.5 fixed loop vocabulary.
-  "inline_recap", "full_recap",
+  "auth", "inline_recap", "full_recap",
   "plan_accepted", "plan_saved", "plan_completed", "memory_reviewed", "story_published",
   ...NIGHT_AREA_SLUGS,
   ...COVERAGE_STATUSES,
@@ -184,13 +184,25 @@ function isAllowedDistrictEventProp(name: AnalyticsEventName, key: string, value
 }
 
 function isAllowedLoopEventProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
-  if (typeof value !== "string") return true;
-  if ((name === "claim_started" || name === "claim_completed") && key === "source") return value === "you";
-  if (name === "plan_completed" && key === "ending") return ["food", "get_home", "keep_going"].includes(value);
-  if (name === "memory_reviewed" && key === "source") return ["inline_recap", "full_recap"].includes(value);
-  if (name === "story_published" && key === "visibility") return ["public", "unlisted"].includes(value);
+  if (["plan_generated", "plan_accepted", "plan_saved"].includes(name)) {
+    if (key === "stops") return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10;
+    if (key === "grounded") return typeof value === "boolean";
+  }
+  if ((name === "claim_started" || name === "claim_completed") && key === "source") return value === "auth";
+  if (name === "plan_completed" && key === "ending") {
+    return typeof value === "string" && ["food", "get_home", "keep_going"].includes(value);
+  }
+  if (name === "memory_reviewed" && key === "source") {
+    return typeof value === "string" && ["inline_recap", "full_recap"].includes(value);
+  }
+  if (name === "story_published") {
+    if (key === "visibility") return typeof value === "string" && ["public", "unlisted"].includes(value);
+    if (key === "contributors" || key === "moments") {
+      return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 100;
+    }
+  }
   if (name === "meaningful_core_action" && key === "action") {
-    return (WEEKLY_MEANINGFUL_CORE_ACTIONS as readonly string[]).includes(value);
+    return typeof value === "string" && (WEEKLY_MEANINGFUL_CORE_ACTIONS as readonly string[]).includes(value);
   }
   return true;
 }
@@ -256,5 +268,9 @@ export function sanitizeEvent(
       if (valid) out[key] = value as string | number | boolean;
     }
   }
+  // The roll-up is meaningful only with its exact reviewed action. Unlike
+  // ordinary optional props, a missing/invalid discriminator must reject the
+  // whole event so ingest can never record an ambiguous core action.
+  if (name === "meaningful_core_action" && out.action === undefined) return null;
   return { name, props: out };
 }

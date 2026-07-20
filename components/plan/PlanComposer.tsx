@@ -35,7 +35,18 @@ export type StoredRouteDraft = {
   nightContext: NightContext | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
+  routeGrounded: boolean;
 };
+
+/** Trust only the generator's explicit server-owned grounding assertion. */
+export function isGroundedGeneratedRoute(value: unknown, stops: readonly DraftStop[]): boolean {
+  return Boolean(
+    value
+    && typeof value === "object"
+    && (value as { grounded?: unknown }).grounded === true
+    && stops.length === 3,
+  );
+}
 
 function cleanRouteRevision(value: unknown): RouteRevision | null {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -165,6 +176,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
       nightContext: cleanNightContext(value.nightContext) ?? null,
       routeRevision: cleanRouteRevision(value.routeRevision),
       routeStale: value.routeStale === true,
+      routeGrounded: value.routeGrounded === true,
     };
   } catch {
     return null;
@@ -347,6 +359,7 @@ function PlanComposerForm({
   const [nightContext, setNightContext] = useState<NightContext | null>(recoveredRouteDraft?.nightContext ?? null);
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(recoveredRouteDraft?.routeRevision ?? null);
   const [routeStale, setRouteStale] = useState(recoveredRouteDraft?.routeStale ?? false);
+  const [routeGrounded, setRouteGrounded] = useState(recoveredRouteDraft?.routeGrounded ?? false);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -398,11 +411,12 @@ function PlanComposerForm({
         nightContext,
         routeRevision,
         routeStale,
+        routeGrounded,
       } satisfies StoredRouteDraft));
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [nightContext, routeRevision, routeStale, stops]);
+  }, [nightContext, routeGrounded, routeRevision, routeStale, stops]);
 
   function chooseVenue(key: number, venueName: string) {
     const match = venues.find((venue) => venue.name.toLocaleLowerCase() === venueName.trim().toLocaleLowerCase());
@@ -457,6 +471,7 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
         setNightContext(inferredContext);
@@ -464,8 +479,9 @@ function PlanComposerForm({
       }
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
+      setRouteGrounded(grounded);
       markPalRouteActivation();
-      trackEvent("plan_generated", { stops: suggested.length, grounded: true });
+      trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote("Three grounded stops, shaped by the editable context below.");
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       if (body.inferredContext) {
@@ -519,7 +535,7 @@ function PlanComposerForm({
       if (!response.ok || !body?.plan?.plan?.id) {
         throw new Error(body?.error || "The plan could not be created.");
       }
-      const grounded = nightContext !== null && routeRevision !== null;
+      const grounded = routeGrounded;
       trackEvent("plan_accepted", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_accepted");
       // lane_to_plan only counts creations with lane provenance (?src=…, set

@@ -289,6 +289,11 @@ export async function POST(request: Request): Promise<Response> {
 	});
 	const nightArea = { id: area.slug, ...coverage };
   return jsonNoStore({
+    // This response is assembled exclusively from the reviewed venue dataset
+    // above and only exists when three canonical venue records were selected.
+    // The explicit flag lets clients distinguish server-grounded generation
+    // from a manual draft without guessing from unrelated revision metadata.
+    grounded: true,
     inferredContext: context,
     confidence: inferred.confidence,
 		planningConfidence,

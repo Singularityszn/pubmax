@@ -28,6 +28,7 @@ import type { Session, User } from "@supabase/supabase-js";
 
 import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
 import IdentityNudge from "@/components/identity/IdentityNudge";
+import { trackEvent } from "@/lib/analytics";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
@@ -262,6 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       setClaimBusy(true);
       setClaimError(null);
       try {
+        trackEvent("claim_started", { source: "auth" });
         const res = await authedFetch("/api/identity/claim", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -287,6 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
               ? claimPreview.deviceHandle
               : claimPreview.authHandle;
         if (handle) writeDeviceHandle(handle);
+        trackEvent("claim_completed", { source: "auth" });
         markSynced(session.user.id);
         clearClaimDeferred();
         closeClaim();

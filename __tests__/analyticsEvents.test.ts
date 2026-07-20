@@ -189,14 +189,16 @@ describe("sanitizeEvent", () => {
         .toEqual({ name: "plan_accepted", props: { stops: 3, grounded: true } });
       expect(sanitizeEvent("plan_saved", { stops: 3, grounded: false, title: "Friday with Jamie" }))
         .toEqual({ name: "plan_saved", props: { stops: 3, grounded: false } });
-      expect(sanitizeEvent("claim_started", { source: "you", handle: "private_handle" }))
-        .toEqual({ name: "claim_started", props: { source: "you" } });
-      expect(sanitizeEvent("claim_completed", { source: "you", email: "private@example.com" }))
-        .toEqual({ name: "claim_completed", props: { source: "you" } });
+      expect(sanitizeEvent("claim_started", { source: "auth", handle: "private_handle" }))
+        .toEqual({ name: "claim_started", props: { source: "auth" } });
+      expect(sanitizeEvent("claim_completed", { source: "auth", email: "private@example.com" }))
+        .toEqual({ name: "claim_completed", props: { source: "auth" } });
       expect(sanitizeEvent("plan_completed", { ending: "food", finalVenueId: "private-venue" }))
         .toEqual({ name: "plan_completed", props: { ending: "food" } });
       expect(sanitizeEvent("memory_reviewed", { source: "inline_recap", caption: "private words" }))
         .toEqual({ name: "memory_reviewed", props: { source: "inline_recap" } });
+      expect(sanitizeEvent("memory_reviewed", { source: "full_recap" }))
+        .toEqual({ name: "memory_reviewed", props: { source: "full_recap" } });
       expect(sanitizeEvent("story_published", {
         visibility: "unlisted",
         contributors: 3,
@@ -206,6 +208,21 @@ describe("sanitizeEvent", () => {
         name: "story_published",
         props: { visibility: "unlisted", contributors: 3, moments: 4 },
       });
+    });
+
+    it("enforces exact loop prop types and ranges", () => {
+      expect(sanitizeEvent("plan_generated", { stops: 51, grounded: 1 })?.props).toEqual({});
+      expect(sanitizeEvent("plan_accepted", { stops: 0, grounded: "true" })?.props).toEqual({});
+      expect(sanitizeEvent("plan_saved", { stops: 3, grounded: true })?.props)
+        .toEqual({ stops: 3, grounded: true });
+      expect(sanitizeEvent("claim_started", { source: "you" })?.props).toEqual({});
+      expect(sanitizeEvent("plan_completed", { ending: true })?.props).toEqual({});
+      expect(sanitizeEvent("memory_reviewed", { source: 51 })?.props).toEqual({});
+      expect(sanitizeEvent("story_published", {
+        visibility: "private",
+        contributors: 3.5,
+        moments: 101,
+      })?.props).toEqual({});
     });
 
     it("defines Weekly Meaningful Pubmaxxers from explicit core actions only", () => {
@@ -220,9 +237,10 @@ describe("sanitizeEvent", () => {
         expect(sanitizeEvent("meaningful_core_action", { action, note: "never sent" }))
           .toEqual({ name: "meaningful_core_action", props: { action } });
       }
-      expect(sanitizeEvent("meaningful_core_action", { action: "plan_generated" })?.props).toEqual({});
-      expect(sanitizeEvent("meaningful_core_action", { action: "claim_completed" })?.props).toEqual({});
-      expect(sanitizeEvent("meaningful_core_action", { action: "arrived" })?.props).toEqual({});
+      expect(sanitizeEvent("meaningful_core_action", { action: "plan_generated" })).toBeNull();
+      expect(sanitizeEvent("meaningful_core_action", { action: "claim_completed" })).toBeNull();
+      expect(sanitizeEvent("meaningful_core_action", { action: "arrived" })).toBeNull();
+      expect(sanitizeEvent("meaningful_core_action")).toBeNull();
     });
   });
 });

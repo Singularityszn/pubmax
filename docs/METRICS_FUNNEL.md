@@ -144,19 +144,20 @@ pwa_standalone_launch: [],
 ## Wave 0.5 loop metrics
 
 The closed registry also carries the complete Plan to Memory to Story loop.
-All timing comes from PostHog event timestamps for the existing pseudonymous
-`distinct_id`; the client does not send timestamps, durations, account ids,
-Plan ids, raw coordinates, free text, or user content as event props.
+All timing comes from server-owned PostHog event timestamps for the existing
+pseudonymous `distinct_id`; client-supplied timestamps are ignored. Event props
+never include durations, account ids, Plan ids, raw coordinates, free text, or
+user content.
 
 | Event | Confirmed seam | Allowed props |
 |---|---|---|
 | `plan_generated` | A non-empty grounded route returns from `/api/plans/generate` | `stops`, `grounded` |
 | `plan_accepted` | The person explicitly locks the preview and Plan creation succeeds | `stops`, `grounded` |
 | `plan_saved` | The created Plan and its route metadata finish saving | `stops`, `grounded` |
-| `claim_started` | A new handle claim is submitted, excluding renames | `source` |
-| `claim_completed` | That new handle claim succeeds | `source` |
+| `claim_started` | The AuthProvider account-preservation claim is submitted to `/api/identity/claim`, excluding handle creation and renames | `source` (`auth`) |
+| `claim_completed` | That account-preservation claim succeeds | `source` (`auth`) |
 | `plan_completed` | The completion response is checked against canonical completed Plan state | `ending` |
-| `memory_reviewed` | The completed Plan's private recap is explicitly opened | `source` |
+| `memory_reviewed` | The completed Plan's inline editor or full private recap is explicitly opened | `source` (`inline_recap` or `full_recap`) |
 | `story_published` | The separate Story publication confirmation succeeds | `visibility`, `contributors`, `moments` |
 
 Activation is the elapsed time from `plan_generated` to the first
@@ -174,8 +175,11 @@ is a fixed enum and can only be one of:
 - `memory_reviewed`
 - `story_published`
 
-Route generation, claim steps, page views, install signals, and passive opens
+Route generation, claim steps, generic page views, install signals, and passive opens
 do not qualify. Each qualifying event is emitted beside its primary loop event
 only after the corresponding product action succeeds. Confirmed Planned Nights
-use `plan_completed`; loop depth uses `memory_reviewed` after completion; Story
+remain defined solely by the durable, service-role-only
+`pnc_qualified_completions` view. The browser `plan_completed` event is only
+funnel and Weekly Meaningful Pubmaxxers telemetry; it cannot increment or
+replace PNC. Loop depth uses `memory_reviewed` after completion, while Story
 publication remains separately queryable through `story_published`.
