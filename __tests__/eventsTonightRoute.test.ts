@@ -76,6 +76,13 @@ describe("GET /api/events/tonight", () => {
   });
 
   it("honours the flat { error, rows: [] } contract with a 429 when rate-limited", async () => {
+    // The limiter allows the first 60 requests through to the provider. Keep
+    // this contract test hermetic: using the real fetch here turns it into 60
+    // Eventbrite network calls and makes the limiter assertion depend on
+    // external latency rather than application behaviour.
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ organizations: [] }), { status: 200 }),
+    );
     // Exhaust the 60/min in-memory budget from one IP.
     const req = () =>
       new Request("http://localhost/api/events/tonight", { headers: { "x-forwarded-for": "9.9.9.9" } });
