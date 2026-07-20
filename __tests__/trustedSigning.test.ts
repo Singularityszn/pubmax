@@ -1,4 +1,6 @@
 import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const analyticsEvent = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
@@ -23,6 +25,28 @@ afterEach(() => {
 });
 
 describe("externally trusted signing keys", () => {
+  it("injects one fresh strong signing key through Vitest config, never its command", async () => {
+    vi.resetModules();
+    const firstConfig = (await import("../vitest.config")).default as {
+      test?: { env?: Record<string, string> };
+    };
+    const firstSecret = firstConfig.test?.env?.PLAN_IDEMPOTENCY_SECRET;
+    expect(firstSecret).toBeTruthy();
+    expect(Buffer.from(firstSecret!, "base64url")).toHaveLength(32);
+
+    vi.resetModules();
+    const secondConfig = (await import("../vitest.config")).default as {
+      test?: { env?: Record<string, string> };
+    };
+    expect(secondConfig.test?.env?.PLAN_IDEMPOTENCY_SECRET).not.toBe(firstSecret);
+
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    expect(packageJson.scripts.test).not.toContain("PLAN_IDEMPOTENCY_SECRET");
+    expect(packageJson.scripts.test).not.toContain(firstSecret!);
+  });
+
   it("injects a fresh strong signing secret into each production-style Playwright server", async () => {
     vi.stubEnv("PW_SCREENSHOTS", "");
     vi.resetModules();
@@ -53,6 +77,7 @@ describe("externally trusted signing keys", () => {
 
   it("fails closed when a Supabase-backed process has no signing secret", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    clearSigningEnv();
     process.env.SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     const analytics = await import("@/lib/verifiedAnalytics.server");
@@ -80,6 +105,7 @@ describe("externally trusted signing keys", () => {
 
   it("uses RATE_LIMIT_SALT as the configured trusted fallback", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    clearSigningEnv();
     process.env.SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     process.env.RATE_LIMIT_SALT = "configured-random-rate-salt-0123456789abcdef";

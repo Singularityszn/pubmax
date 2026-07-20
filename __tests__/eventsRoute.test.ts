@@ -5,6 +5,8 @@ import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryAnalyticsReceipts } from "@/lib/analyticsReceiptStore";
 import { mintVerifiedAnalyticsToken } from "@/lib/verifiedAnalytics.server";
 
+const VITEST_PLAN_SIGNING_SECRET = process.env.PLAN_IDEMPOTENCY_SECRET;
+
 function post(body: string, headers: Record<string, string> = {}): Request {
   return new Request("http://localhost/api/events", {
     method: "POST",
@@ -20,7 +22,7 @@ function post(body: string, headers: Record<string, string> = {}): Request {
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  delete process.env.PLAN_IDEMPOTENCY_SECRET;
+  if (VITEST_PLAN_SIGNING_SECRET) process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
   delete process.env.RATE_LIMIT_SALT;
   delete process.env.POSTHOG_PROJECT_API_KEY;
   __resetPintDrops();
@@ -31,7 +33,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  delete process.env.PLAN_IDEMPOTENCY_SECRET;
+  if (VITEST_PLAN_SIGNING_SECRET) process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
   delete process.env.RATE_LIMIT_SALT;
 });
 

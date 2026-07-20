@@ -21,6 +21,7 @@ import type { PlanState } from "@/lib/plan";
 
 const URL = "http://localhost/api/plans";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+const VITEST_PLAN_SIGNING_SECRET = process.env.PLAN_IDEMPOTENCY_SECRET;
 const payload = {
   title: "Retry-safe Friday",
   startTime: "2026-07-16T19:00:00.000Z",
@@ -87,7 +88,7 @@ describe("Plan mutation idempotency", () => {
     expect(unavailable.response.headers.get("retry-after")).toBe("60");
     expect(unavailable.body).toMatchObject({ code: "PLAN_SIGNING_UNAVAILABLE", retryable: true });
 
-    delete process.env.PLAN_IDEMPOTENCY_SECRET;
+    process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET!;
     const retry = await create("create-signing-retry");
     expect(retry.response.status).toBe(201);
     expect(retry.body).toMatchObject({ created: true, eventTokens: {

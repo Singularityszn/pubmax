@@ -26,6 +26,7 @@ import { GET as GET_COMPLETION, POST as COMPLETE } from "@/app/api/plans/[id]/co
 import { __resetMemoryPlans, planStore } from "@/lib/planStore";
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+const VITEST_PLAN_SIGNING_SECRET = process.env.PLAN_IDEMPOTENCY_SECRET;
 
 async function createPlan() {
   const response = await CREATE(new Request("http://localhost/api/plans", {
@@ -193,7 +194,7 @@ describe("Plan Completion", () => {
     const beforeRetry = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
     expect(await beforeRetry.json()).toEqual({ completion: null });
 
-    delete process.env.PLAN_IDEMPOTENCY_SECRET;
+    process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET!;
     const retry = await COMPLETE(request(), ctx(id));
     expect(retry.status).toBe(201);
     expect(await retry.json()).toMatchObject({

@@ -1,4 +1,23 @@
 // Test-environment isolation.
+
+import { afterEach, beforeEach } from "vitest";
+
+// vitest.config.ts creates this once per run and test.env distributes the same
+// value to every worker. Some security tests intentionally delete or replace
+// it; restore the worker baseline around every test so later route tests never
+// become order-dependent. Never print or snapshot this value.
+const VITEST_PLAN_SIGNING_SECRET = process.env.PLAN_IDEMPOTENCY_SECRET;
+if (!VITEST_PLAN_SIGNING_SECRET) {
+  throw new Error("Vitest signing harness was not initialized.");
+}
+
+function restoreVitestSigningSecret(): void {
+  process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
+}
+
+beforeEach(restoreVitestSigningSecret);
+afterEach(restoreVitestSigningSecret);
+
 //
 // `npm run ci` executes vitest inside Vercel's build pipeline, where the
 // platform exports deployment env vars (VERCEL_ENV=production on Production
