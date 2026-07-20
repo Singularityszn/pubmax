@@ -144,13 +144,14 @@ describe("Plan Completion", () => {
     });
     expect(firstBody.completion).not.toHaveProperty("actorMemberId");
     expect(JSON.stringify(firstBody)).not.toContain(created.memberToken);
+    expect(firstBody).toHaveProperty("eventTokens.planCompleted");
 
     // Replays use the stored, host-confirmed completion. Current food evidence
     // may expire between a successful response and a network retry.
     vi.mocked(Date.now).mockReturnValue(Date.parse("2027-07-16T23:00:00.000Z"));
     const retry = await COMPLETE(request(), ctx(id));
     expect(retry.status).toBe(200);
-    expect(await retry.json()).toMatchObject({ created: false, completion: firstBody.completion });
+    expect(await retry.json()).toMatchObject({ created: false, completion: firstBody.completion, eventTokens: firstBody.eventTokens });
 
     const get = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
     expect(get.status).toBe(200);

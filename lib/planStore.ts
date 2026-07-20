@@ -22,7 +22,7 @@ export type PlanCompletionResult =
   | { ok: false; error: PlanWriteError };
 
 export type PlanStore = {
-  create(input: CreatePlanInput, options?: { idempotencyKey?: string }): Promise<PlanCreateResult>;
+  create(input: CreatePlanInput, options?: { idempotencyKey?: string; groundingProofDigest?: string }): Promise<PlanCreateResult>;
   get(id: string): Promise<PlanState | null>;
   join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
@@ -135,7 +135,9 @@ export const supabasePlanStore: PlanStore = {
     if (!clean) return { ok: false, error: "invalid" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const keyHash = planIdempotencyDigest("plan-create-key", key);
-    const requestHash = planRequestDigest(clean);
+    const requestHash = options.groundingProofDigest
+      ? planRequestDigest({ plan: clean, groundingProofDigest: options.groundingProofDigest })
+      : planRequestDigest(clean);
     const id = planIdempotentUuid("plan-create-id", key);
     const memberToken = planIdempotencyDigest("plan-create-token", key);
     const memberId = planIdempotentUuid("plan-create-member", key);
@@ -435,7 +437,9 @@ export const memoryPlanStore: PlanStore = {
     if (!clean) return { ok: false, error: "invalid" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const keyHash = planIdempotencyDigest("plan-create-key", key);
-    const requestHash = planRequestDigest(clean);
+    const requestHash = options.groundingProofDigest
+      ? planRequestDigest({ plan: clean, groundingProofDigest: options.groundingProofDigest })
+      : planRequestDigest(clean);
     const replay = planMemory.createRequests.get(keyHash);
     if (replay) {
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };

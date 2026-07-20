@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
@@ -8,6 +10,7 @@ import { cleanNightContext, cleanNightContextPatch, inferNightContext, type Nigh
 import type { PlanBudgetSummary, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { buildPlanEndingRecommendations } from "@/lib/planEndings";
 import { mintPlanGroundingProof } from "@/lib/planGrounding.server";
+import { isPlanIdempotencyKey } from "@/lib/planStore";
 import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
 import { filterTonight, type WhatsOnRow } from "@/lib/whatsOn";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
@@ -181,6 +184,9 @@ export async function POST(request: Request): Promise<Response> {
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });
   const query = typeof body.query === "string" ? body.query.trim() : "";
   if (!query && !body.context) return publicApiError("Describe the night or provide Night Context.", "NIGHT_CONTEXT_REQUIRED", 400);
+  const operationKey = isPlanIdempotencyKey(body.operationKey)
+    ? body.operationKey.trim()
+    : `create-${randomUUID()}`;
   const inferred = inferNightContext(query);
   const context = mergeContext(inferred.context, body.context);
   if (!context.nightArea) return publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422);
@@ -306,7 +312,8 @@ export async function POST(request: Request): Promise<Response> {
     // The explicit flag lets clients distinguish server-grounded generation
     // from a manual draft without guessing from unrelated revision metadata.
     grounded: true,
-    groundingProof: mintPlanGroundingProof(groundingCandidateIds),
+    groundingProof: mintPlanGroundingProof(groundingCandidateIds, operationKey, requestNow),
+    operationKey,
     inferredContext: context,
     confidence: inferred.confidence,
 		planningConfidence,

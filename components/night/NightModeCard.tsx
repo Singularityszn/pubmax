@@ -75,6 +75,26 @@ function readMemberToken(planId: string): string {
 
 export type PlanRouteRevision = string | number;
 
+export function completionTelemetryFromBody(value: unknown): {
+  ending: CrawlEnding;
+  planCompletedToken: string;
+  meaningfulCoreActionToken: string;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as { completion?: unknown; eventTokens?: unknown };
+  if (!row.completion || typeof row.completion !== "object" || !row.eventTokens || typeof row.eventTokens !== "object") return null;
+  const ending = (row.completion as { ending?: unknown }).ending;
+  const tokens = row.eventTokens as { planCompleted?: unknown; meaningfulCoreAction?: unknown };
+  if (!(["food", "get_home", "keep_going"] as const).includes(ending as CrawlEnding)) return null;
+  if (typeof tokens.planCompleted !== "string" || !tokens.planCompleted || tokens.planCompleted.length > 2_000
+    || typeof tokens.meaningfulCoreAction !== "string" || !tokens.meaningfulCoreAction || tokens.meaningfulCoreAction.length > 2_000) return null;
+  return {
+    ending: ending as CrawlEnding,
+    planCompletedToken: tokens.planCompleted,
+    meaningfulCoreActionToken: tokens.meaningfulCoreAction,
+  };
+}
+
 export function routeRevisionFromPlan(value: PlanState | null): PlanRouteRevision | null {
   if (!value) return null;
   const direct = (value as PlanState & { routeRevision?: unknown }).routeRevision;
@@ -504,8 +524,11 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         throw new Error("The ending response was not canonical. Nothing was marked complete in this view.");
       }
       setPlan(canonical);
-      trackEvent("plan_completed", { ending });
-      trackMeaningfulCoreAction("plan_completed");
+      const completionTelemetry = completionTelemetryFromBody(body);
+      if (completionTelemetry) {
+        trackEvent("plan_completed", { ending: completionTelemetry.ending }, { deliveryToken: completionTelemetry.planCompletedToken });
+        trackMeaningfulCoreAction("plan_completed", completionTelemetry.meaningfulCoreActionToken);
+      }
       const completed = body && typeof body === "object" && "completion" in body
         ? (body as { completion?: PlanCompletionDTO }).completion ?? null
         : null;

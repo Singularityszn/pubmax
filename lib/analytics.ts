@@ -10,9 +10,10 @@
 // allow-listed primitive props (validated again here as defence in depth), and
 // carries a stable pseudonymous identifier only after explicit analytics
 // consent; without consent the server does not forward the event to PostHog.
-// Fire-and-forget: uses navigator.sendBeacon so it survives a page
-// unload/navigation, falls back to keepalive fetch, and swallows every error so
-// analytics can never break a user flow.
+// Ordinary events use sendBeacon/keepalive and stay fire-and-forget. Server-
+// verified acceptance/completion outcomes use a bounded, consent-cleared local
+// outbox and acknowledged keepalive fetch so lost responses can be retried
+// safely against the durable dedupe receipt.
 
 import {
   sanitizeEvent,
@@ -27,8 +28,72 @@ import {
 } from "@/lib/analyticsIdentity";
 
 const ENDPOINT = "/api/events";
+const VERIFIED_OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
 let inMemoryAnonymousId: string | null = null;
 let inMemoryConsentGranted = false;
+const inMemoryVerifiedOutbox = new Map<string, string>();
+let verifiedFlush: Promise<void> | null = null;
+
+type TrackEventOptions = { deliveryToken?: string };
+
+function persistedVerifiedOutbox(): Map<string, string> {
+  const items = new Map(inMemoryVerifiedOutbox);
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(VERIFIED_OUTBOX_KEY) ?? "[]") as unknown;
+    if (Array.isArray(parsed)) {
+      for (const row of parsed.slice(-20)) {
+        if (!row || typeof row !== "object") continue;
+        const token = (row as { token?: unknown }).token;
+        const payload = (row as { payload?: unknown }).payload;
+        if (typeof token === "string" && typeof payload === "string") items.set(token, payload);
+      }
+    }
+  } catch { /* in-memory retry still works for this page lifetime */ }
+  return items;
+}
+
+function writeVerifiedOutbox(items: Map<string, string>): void {
+  inMemoryVerifiedOutbox.clear();
+  for (const [token, payload] of [...items.entries()].slice(-20)) inMemoryVerifiedOutbox.set(token, payload);
+  try {
+    window.localStorage.setItem(
+      VERIFIED_OUTBOX_KEY,
+      JSON.stringify([...inMemoryVerifiedOutbox].map(([token, payload]) => ({ token, payload }))),
+    );
+  } catch { /* in-memory queue remains */ }
+}
+
+function clearVerifiedOutbox(): void {
+  inMemoryVerifiedOutbox.clear();
+  try { window.localStorage.removeItem(VERIFIED_OUTBOX_KEY); } catch { /* best effort */ }
+}
+
+function removeVerifiedOutboxItem(token: string): void {
+  const current = persistedVerifiedOutbox();
+  current.delete(token);
+  writeVerifiedOutbox(current);
+}
+
+export async function flushVerifiedAnalyticsOutbox(): Promise<void> {
+  if (verifiedFlush) return verifiedFlush;
+  if (typeof window === "undefined" || !analyticsCollectionAllowed()) return;
+  verifiedFlush = (async () => {
+    const items = persistedVerifiedOutbox();
+    for (const [token, payload] of items) {
+      try {
+        const response = await fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: payload,
+          keepalive: true,
+        });
+        const status = response.headers.get("x-analytics-delivery");
+        if (response.ok && (status === "delivered" || status === "discard")) removeVerifiedOutboxItem(token);
+      } catch { /* retain for the next mount or event */ }
+    }
+  })().finally(() => { verifiedFlush = null; });
+  return verifiedFlush;
+}
 
 function newAnonymousAnalyticsId(): string {
   const random = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -64,15 +129,20 @@ export function setAnalyticsConsent(granted: boolean): void {
     if (granted) {
       inMemoryConsentGranted = true;
       window.localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, "granted");
+      void flushVerifiedAnalyticsOutbox();
     } else {
       inMemoryConsentGranted = false;
       window.localStorage.removeItem(ANALYTICS_CONSENT_STORAGE_KEY);
       window.localStorage.removeItem(ANONYMOUS_ANALYTICS_STORAGE_KEY);
       inMemoryAnonymousId = null;
+      clearVerifiedOutbox();
     }
   } catch {
     inMemoryConsentGranted = granted;
-    if (!granted) inMemoryAnonymousId = null;
+    if (!granted) {
+      inMemoryAnonymousId = null;
+      clearVerifiedOutbox();
+    }
   }
 }
 
@@ -107,6 +177,7 @@ export function analyticsCollectionAllowed(): boolean {
 export function trackEvent(
   name: AnalyticsEventName,
   props?: AnalyticsProps,
+  options?: TrackEventOptions,
 ): void {
   try {
     if (typeof window === "undefined") return;
@@ -122,8 +193,22 @@ export function trackEvent(
       path: window.location?.pathname ?? null,
       anonymousId,
       analyticsConsent: true,
+      ...(options?.deliveryToken ? { deliveryToken: options.deliveryToken } : {}),
       ts: Date.now(),
     });
+
+    if (options?.deliveryToken) {
+      if (options.deliveryToken.length > 2_000) return;
+      const items = persistedVerifiedOutbox();
+      items.set(options.deliveryToken, payload);
+      writeVerifiedOutbox(items);
+      if (verifiedFlush) {
+        void verifiedFlush.then(() => flushVerifiedAnalyticsOutbox());
+      } else {
+        void flushVerifiedAnalyticsOutbox();
+      }
+      return;
+    }
 
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
       const blob = new Blob([payload], { type: "application/json" });
@@ -147,8 +232,8 @@ export function trackEvent(
  * event; keeping the roll-up separate makes the metric definition queryable
  * without treating route generation, claim steps, or passive views as value.
  */
-export function trackMeaningfulCoreAction(action: WeeklyMeaningfulCoreAction): void {
-  trackEvent("meaningful_core_action", { action });
+export function trackMeaningfulCoreAction(action: WeeklyMeaningfulCoreAction, deliveryToken?: string): void {
+  trackEvent("meaningful_core_action", { action }, deliveryToken ? { deliveryToken } : undefined);
 }
 
 // ---------------------------------------------------------------------------

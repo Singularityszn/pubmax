@@ -1,13 +1,31 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
-import { cleanEndingSelection, isPlanId, type CrawlEnding } from "@/lib/plan";
+import { cleanEndingSelection, isPlanId, type CrawlEnding, type PlanCompletionDTO, type PlanState } from "@/lib/plan";
 import { planCompletionResult, planMemberIdentityResult, planStateResult, planStore } from "@/lib/planStore";
 import { canonicalEndingSelection } from "@/lib/planEndingSelection.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { cleanText } from "@/lib/textClean";
+import { completionLoopEventTokens } from "@/lib/verifiedAnalytics.server";
 
 type Context = { params: Promise<{ id: string }> };
 const ENDINGS: CrawlEnding[] = ["food", "get_home", "keep_going"];
+
+function completionResponse(
+  plan: PlanState,
+  completion: PlanCompletionDTO,
+  created: boolean,
+): Record<string, unknown> {
+  return {
+    plan,
+    completion,
+    created,
+    eventTokens: completionLoopEventTokens({
+      completionId: completion.id,
+      completedAt: completion.completedAt,
+      ending: completion.ending,
+    }),
+  };
+}
 
 export async function GET(_request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
@@ -42,7 +60,7 @@ export async function POST(request: Request, context: Context): Promise<Response
     const identityLookup = await planMemberIdentityResult(id, memberToken);
     if (!identityLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
     if (identityLookup.identity?.role !== "host") return publicApiError("That member capability cannot complete this Plan.", "PLAN_COMPLETION_FORBIDDEN", 403);
-    return jsonNoStore({ plan: planLookup.plan, completion: completionLookup.completion, created: false });
+    return jsonNoStore(completionResponse(planLookup.plan, completionLookup.completion, false));
   }
   const canonicalSelection = await canonicalEndingSelection(planLookup.plan, endingSelection, terminalVenueId);
   if (!canonicalSelection) {
@@ -60,5 +78,5 @@ export async function POST(request: Request, context: Context): Promise<Response
     result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : result.error === "error" ? 503 : 400,
     { retryable: result.error === "error" || result.error === "conflict" },
   );
-  return jsonNoStore({ plan: result.plan, completion: result.completion, created: result.created }, { status: result.created ? 201 : 200 });
+  return jsonNoStore(completionResponse(result.plan, result.completion, result.created), { status: result.created ? 201 : 200 });
 }

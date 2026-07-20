@@ -152,7 +152,7 @@ user content.
 | Event | Confirmed seam | Allowed props |
 |---|---|---|
 | `plan_generated` | A non-empty grounded route returns from `/api/plans/generate` | `stops`, `grounded` |
-| `plan_accepted` | The person explicitly locks the preview and the idempotent Plan create returns `created = true`; replays never emit it | `stops`, `grounded` |
+| `plan_accepted` | The person explicitly locks the preview; original and replay responses return the same server-signed delivery token, while ingest records/forwards it once | `stops`, `grounded` |
 | `plan_saved` | The created Plan and its route metadata finish saving | `stops`, `grounded` |
 | `claim_started` | The AuthProvider account-preservation claim is submitted to `/api/identity/claim`, excluding handle creation and renames | `source` (`auth`) |
 | `claim_completed` | That account-preservation claim succeeds | `source` (`auth`) |
@@ -164,12 +164,26 @@ Activation is the elapsed time from `plan_generated` to the first
 `plan_accepted` or `plan_saved` with `grounded = true` for the same
 pseudonymous identity. Manual Plans remain visible in the loop events with
 `grounded = false`, but do not enter this grounded-route activation measure.
-`grounded` on acceptance/save is server-owned: generation returns an HMAC proof
-covering its candidate venue ids, and Plan creation verifies the exact accepted
-three-stop route against that proof after canonical Venue Dataset resolution.
-Draft storage may retain the signed proof for recovery, but never a writable
-grounding boolean; manual venue edits invalidate the proof in the composer and
-the API independently fails closed if a stale or forged proof is submitted.
+`grounded` on acceptance/save is server-owned: generation returns a two-hour
+HMAC proof covering its candidate venue ids and one create idempotency operation.
+Plan creation verifies the exact accepted three-stop route against that proof
+after canonical Venue Dataset resolution. The proof digest is part of the
+durable create request hash, so a replay cannot remove or replace attribution;
+the original Plan creation time reconstructs the same result after proof expiry.
+Draft storage may retain the signed proof and operation for recovery, but never
+a writable grounding boolean. Manual venue edits invalidate both in the composer,
+and the API independently fails closed for stale, forged, or cross-operation proof reuse.
+
+Acceptance and completion loop events use a consent-gated verified-delivery
+path. Their canonical API responses return stable signed tokens on both the
+original response and every idempotent replay. The browser keeps unacknowledged
+tokens in a bounded local outbox and retries them; `/api/events` verifies the
+exact sanitized event, claims a service-role-only `analytics_event_receipts`
+row, and forwards a stable derived event id as PostHog `$insert_id`. The signed
+token, Plan/completion id, and receipt hash are never event props. Provider or
+acknowledgement loss leaves the receipt pending for retry; completed receipts
+make later submissions no-ops. This delivery rail is funnel telemetry only and
+does not change the PNC ledger authority below.
 
 Weekly Meaningful Pubmaxxers is the number of distinct pseudonymous identities
 with at least one `meaningful_core_action` in a seven-day window. Its `action`

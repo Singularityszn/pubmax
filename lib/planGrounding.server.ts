@@ -3,10 +3,14 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const PROOF_VERSION = 1;
 const PROOF_MAX_LENGTH = 8_000;
 const VENUE_ID_MAX = 120;
+export const PLAN_GROUNDING_PROOF_TTL_MS = 2 * 60 * 60 * 1_000;
 
 type GroundingPayload = {
   v: typeof PROOF_VERSION;
   venueIds: string[];
+  operationDigest: string;
+  issuedAt: number;
+  expiresAt: number;
 };
 
 function groundingSecret(): string {
@@ -28,32 +32,87 @@ function signature(encodedPayload: string): Buffer {
     .digest();
 }
 
+function operationDigest(operationKey: string): string {
+  return createHmac("sha256", groundingSecret())
+    .update(`plan-grounding-operation:v${PROOF_VERSION}:${operationKey.trim()}`)
+    .digest("hex");
+}
+
+export type PlanGroundingClaims = GroundingPayload;
+
 /** Mint a signed proof that a set of venues came from server-side generation. */
-export function mintPlanGroundingProof(venueIds: readonly string[]): string {
+export function mintPlanGroundingProof(
+  venueIds: readonly string[],
+  operationKey: string,
+  now = Date.now(),
+): string {
   const canonical = canonicalVenueIds(venueIds);
-  if (!canonical) throw new Error("A grounding proof needs at least three canonical venues.");
-  const payload: GroundingPayload = { v: PROOF_VERSION, venueIds: canonical };
+  if (!canonical || !operationKey.trim()) throw new Error("A grounding proof needs canonical venues and one create operation.");
+  const payload: GroundingPayload = {
+    v: PROOF_VERSION,
+    venueIds: canonical,
+    operationDigest: operationDigest(operationKey),
+    issuedAt: now,
+    expiresAt: now + PLAN_GROUNDING_PROOF_TTL_MS,
+  };
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${encoded}.${signature(encoded).toString("base64url")}`;
 }
 
 /** Verify that exactly three accepted stops were covered by a server-minted proof. */
-export function verifyPlanGroundingProof(proof: unknown, acceptedVenueIds: readonly string[]): boolean {
-  if (typeof proof !== "string" || !proof || proof.length > PROOF_MAX_LENGTH) return false;
-  if (acceptedVenueIds.length !== 3 || new Set(acceptedVenueIds).size !== 3) return false;
+export function readPlanGroundingClaims(
+  proof: unknown,
+  acceptedVenueIds: readonly string[],
+  operationKey: string,
+): PlanGroundingClaims | null {
+  if (typeof proof !== "string" || !proof || proof.length > PROOF_MAX_LENGTH) return null;
+  if (!operationKey.trim() || acceptedVenueIds.length !== 3 || new Set(acceptedVenueIds).size !== 3) return null;
   const parts = proof.split(".");
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return false;
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   try {
     const supplied = Buffer.from(parts[1], "base64url");
     const expected = signature(parts[0]);
-    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return false;
+    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
     const payload = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as Partial<GroundingPayload>;
-    if (payload.v !== PROOF_VERSION || !Array.isArray(payload.venueIds)) return false;
+    if (payload.v !== PROOF_VERSION || !Array.isArray(payload.venueIds)) return null;
     const allowed = canonicalVenueIds(payload.venueIds);
-    if (!allowed || allowed.length !== payload.venueIds.length) return false;
+    if (!allowed || allowed.length !== payload.venueIds.length) return null;
+    if (payload.operationDigest !== operationDigest(operationKey)) return null;
+    if (typeof payload.issuedAt !== "number" || !Number.isSafeInteger(payload.issuedAt)
+      || typeof payload.expiresAt !== "number" || !Number.isSafeInteger(payload.expiresAt)) return null;
+    if (payload.expiresAt !== payload.issuedAt + PLAN_GROUNDING_PROOF_TTL_MS) return null;
     const allowedSet = new Set(allowed);
-    return acceptedVenueIds.every((venueId) => allowedSet.has(venueId));
+    return acceptedVenueIds.every((venueId) => allowedSet.has(venueId))
+      ? payload as PlanGroundingClaims
+      : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function verifyPlanGroundingProof(
+  proof: unknown,
+  acceptedVenueIds: readonly string[],
+  operationKey: string,
+  now = Date.now(),
+): boolean {
+  const claims = readPlanGroundingClaims(proof, acceptedVenueIds, operationKey);
+  return Boolean(claims && claims.issuedAt <= now && now <= claims.expiresAt);
+}
+
+/** Reconstruct the immutable create-time attribution on an idempotent replay. */
+export function wasPlanGroundedAtCreation(
+  proof: unknown,
+  acceptedVenueIds: readonly string[],
+  operationKey: string,
+  createdAt: string,
+): boolean {
+  const claims = readPlanGroundingClaims(proof, acceptedVenueIds, operationKey);
+  const createdAtMs = Date.parse(createdAt);
+  return Boolean(
+    claims
+    && Number.isFinite(createdAtMs)
+    && createdAtMs >= claims.issuedAt - 30_000
+    && createdAtMs <= claims.expiresAt,
+  );
 }

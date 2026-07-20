@@ -128,7 +128,7 @@ describe("PlanComposer route preview seam", () => {
 
   it("emits acceptance only for a server-attributed first creation", () => {
     expect(planAcceptanceTelemetry({ created: true, grounded: true }, 3)).toEqual({ stops: 3, grounded: true });
-    expect(planAcceptanceTelemetry({ created: false, grounded: true }, 3)).toBeNull();
+    expect(planAcceptanceTelemetry({ created: false, grounded: true }, 3)).toEqual({ stops: 3, grounded: true });
     expect(planAcceptanceTelemetry({ created: true, grounded: "true" }, 3)).toBeNull();
     expect(serverPlanCreationAttribution({ created: false, grounded: false })).toEqual({ created: false, grounded: false });
   });

@@ -64,6 +64,7 @@ describe("POST /api/plans/generate", () => {
     expect(verifyPlanGroundingProof(
       body.groundingProof,
       body.stops.map((stop: { venueId: string }) => stop.venueId),
+      body.operationKey,
     )).toBe(true);
     expect(body.stops[0]).toMatchObject({
       venueId: expect.any(String),

@@ -1,0 +1,135 @@
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+
+import { sanitizeEvent, type AnalyticsEvent } from "@/lib/analyticsEvents";
+
+const TOKEN_VERSION = 1;
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
+const TOKEN_MAX_LENGTH = 2_000;
+
+type VerifiedAnalyticsClaims = {
+  v: typeof TOKEN_VERSION;
+  eventId: string;
+  name: AnalyticsEvent["name"];
+  props: AnalyticsEvent["props"];
+  issuedAt: number;
+  expiresAt: number;
+};
+
+function secret(): string {
+  return process.env.PLAN_IDEMPOTENCY_SECRET
+    ?? process.env.RATE_LIMIT_SALT
+    ?? "pubmax-verified-analytics-development-only";
+}
+
+function canonicalEvent(event: AnalyticsEvent): AnalyticsEvent | null {
+  const sanitized = sanitizeEvent(event.name, event.props);
+  if (!sanitized) return null;
+  const props = Object.fromEntries(Object.entries(sanitized.props).sort(([left], [right]) => left.localeCompare(right)));
+  return { name: sanitized.name, props };
+}
+
+function signature(encoded: string): Buffer {
+  return createHmac("sha256", secret()).update(`verified-analytics:v${TOKEN_VERSION}:${encoded}`).digest();
+}
+
+function eventId(subject: string, event: AnalyticsEvent): string {
+  const hex = createHmac("sha256", secret())
+    .update(`verified-analytics-event:${subject}:${event.name}:${JSON.stringify(event.props)}`)
+    .digest("hex")
+    .slice(0, 32)
+    .split("");
+  hex[12] = "4";
+  hex[16] = ((Number.parseInt(hex[16]!, 16) & 0x3) | 0x8).toString(16);
+  const value = hex.join("");
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+}
+
+export function mintVerifiedAnalyticsToken(
+  event: AnalyticsEvent,
+  subject: string,
+  occurredAt: string,
+): string {
+  const canonical = canonicalEvent(event);
+  const issuedAt = Date.parse(occurredAt);
+  if (!canonical || !subject || !Number.isFinite(issuedAt)) throw new Error("Verified analytics needs a canonical event and occurrence.");
+  const claims: VerifiedAnalyticsClaims = {
+    v: TOKEN_VERSION,
+    eventId: eventId(subject, canonical),
+    name: canonical.name,
+    props: canonical.props,
+    issuedAt,
+    expiresAt: issuedAt + TOKEN_TTL_MS,
+  };
+  const encoded = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
+  return `${encoded}.${signature(encoded).toString("base64url")}`;
+}
+
+export function verifyAnalyticsDeliveryToken(
+  token: unknown,
+  event: AnalyticsEvent,
+  now = Date.now(),
+): VerifiedAnalyticsClaims | null {
+  if (typeof token !== "string" || !token || token.length > TOKEN_MAX_LENGTH) return null;
+  const parts = token.split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  try {
+    const supplied = Buffer.from(parts[1], "base64url");
+    const expected = signature(parts[0]);
+    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
+    const claims = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as Partial<VerifiedAnalyticsClaims>;
+    const canonical = canonicalEvent(event);
+    if (!canonical || claims.v !== TOKEN_VERSION || typeof claims.eventId !== "string") return null;
+    if (claims.name !== canonical.name || JSON.stringify(claims.props) !== JSON.stringify(canonical.props)) return null;
+    if (typeof claims.issuedAt !== "number" || !Number.isSafeInteger(claims.issuedAt)
+      || typeof claims.expiresAt !== "number" || !Number.isSafeInteger(claims.expiresAt)) return null;
+    if (claims.expiresAt !== claims.issuedAt + TOKEN_TTL_MS || now > claims.expiresAt) return null;
+    if (claims.issuedAt > now + 30_000) return null;
+    if (!/^[0-9a-f-]{36}$/i.test(claims.eventId)) return null;
+    return claims as VerifiedAnalyticsClaims;
+  } catch {
+    return null;
+  }
+}
+
+export function analyticsDeliveryTokenDigest(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export function planLoopEventTokens(input: {
+  planId: string;
+  createdAt: string;
+  stops: number;
+  grounded: boolean;
+}): { planAccepted: string; meaningfulCoreAction: string } {
+  return {
+    planAccepted: mintVerifiedAnalyticsToken(
+      { name: "plan_accepted", props: { stops: input.stops, grounded: input.grounded } },
+      `plan:${input.planId}`,
+      input.createdAt,
+    ),
+    meaningfulCoreAction: mintVerifiedAnalyticsToken(
+      { name: "meaningful_core_action", props: { action: "plan_accepted" } },
+      `plan:${input.planId}:accepted`,
+      input.createdAt,
+    ),
+  };
+}
+
+export function completionLoopEventTokens(input: {
+  completionId: string;
+  completedAt: string;
+  ending: "food" | "get_home" | "keep_going";
+}): { planCompleted: string; meaningfulCoreAction: string } {
+  return {
+    planCompleted: mintVerifiedAnalyticsToken(
+      { name: "plan_completed", props: { ending: input.ending } },
+      `completion:${input.completionId}`,
+      input.completedAt,
+    ),
+    meaningfulCoreAction: mintVerifiedAnalyticsToken(
+      { name: "meaningful_core_action", props: { action: "plan_completed" } },
+      `completion:${input.completionId}:meaningful`,
+      input.completedAt,
+    ),
+  };
+}

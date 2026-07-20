@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   analyticsCollectionAllowed,
   anonymousAnalyticsId,
+  flushVerifiedAnalyticsOutbox,
   laneSourceFromSearch,
   setAnalyticsConsent,
   trackEvent,
@@ -63,6 +64,27 @@ describe("trackEvent", () => {
     const [url, blob] = beacon.mock.calls[0];
     expect(url).toBe("/api/events");
     expect(blob).toBeInstanceOf(Blob);
+  });
+
+  it("retains a verified event after lost delivery and retries without a beacon", async () => {
+    setWindow();
+    setAnalyticsConsent(true);
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error("response lost"))
+      .mockResolvedValueOnce(new Response(null, {
+        status: 204,
+        headers: { "x-analytics-delivery": "delivered" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "signed-delivery-token" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await flushVerifiedAnalyticsOutbox();
+    if (fetchMock.mock.calls.length === 1) await flushVerifiedAnalyticsOutbox();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator.sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).not.toHaveBeenCalled();
   });
 
   it("creates no persistent id before consent and clears it after revocation", () => {

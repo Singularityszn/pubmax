@@ -3,12 +3,13 @@ import { publicApiError } from "@/lib/apiError";
 import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { isLimited } from "@/lib/pintDrops";
-import { planStore } from "@/lib/planStore";
-import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
+import { planRequestDigest, planStore } from "@/lib/planStore";
+import { verifyPlanGroundingProof, wasPlanGroundedAtCreation } from "@/lib/planGrounding.server";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { planLoopEventTokens } from "@/lib/verifiedAnalytics.server";
 
 assertServerEnv();
 
@@ -39,11 +40,14 @@ export async function POST(request: Request): Promise<Response> {
   if (stops.some((stop) => stop === null)) {
     return publicApiError("Choose venues from the Venue Dataset.", "PLAN_VENUES_INVALID", 400);
   }
-  const grounded = verifyPlanGroundingProof(
-    body.groundingProof,
-    stops.flatMap((stop) => stop ? [stop.venueId] : []),
+  const acceptedVenueIds = stops.flatMap((stop) => stop ? [stop.venueId] : []);
+  const groundingProofDigest = typeof body.groundingProof === "string" && body.groundingProof
+    ? planRequestDigest(body.groundingProof)
+    : undefined;
+  const result = await planStore().create(
+    { ...body, stops },
+    { idempotencyKey, ...(groundingProofDigest ? { groundingProofDigest } : {}) },
   );
-  const result = await planStore().create({ ...body, stops }, { idempotencyKey });
   if (!result.ok) {
     return publicApiError(
       result.error === "invalid" ? "Add a start time, your name, and at least one venue."
@@ -54,6 +58,14 @@ export async function POST(request: Request): Promise<Response> {
       { retryable: result.error === "error" },
     );
   }
+  const grounded = result.created
+    ? verifyPlanGroundingProof(body.groundingProof, acceptedVenueIds, idempotencyKey)
+    : wasPlanGroundedAtCreation(
+        body.groundingProof,
+        acceptedVenueIds,
+        idempotencyKey,
+        result.plan.plan.createdAt,
+      );
   return attachPlanMemberSession(
     jsonNoStore({
       plan: result.plan,
@@ -63,6 +75,12 @@ export async function POST(request: Request): Promise<Response> {
       // The signature binds the accepted venue ids to a server-generated
       // candidate set. Client grounding flags and edited proofs are ignored.
       grounded,
+      eventTokens: planLoopEventTokens({
+        planId: result.plan.plan.id,
+        createdAt: result.plan.plan.createdAt,
+        stops: result.plan.stops.length,
+        grounded,
+      }),
     }, { status: 201 }),
     request,
     result.plan.plan.id,

@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { analyticsSurfaceFromPath, POST } from "@/app/api/events/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { __resetMemoryAnalyticsReceipts } from "@/lib/analyticsReceiptStore";
+import { mintVerifiedAnalyticsToken } from "@/lib/verifiedAnalytics.server";
 
 function post(body: string, headers: Record<string, string> = {}): Request {
   return new Request("http://localhost/api/events", {
@@ -20,6 +22,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.POSTHOG_PROJECT_API_KEY;
   __resetPintDrops();
+  __resetMemoryAnalyticsReceipts();
 });
 
 afterEach(() => {
@@ -155,6 +158,52 @@ describe("POST /api/events", () => {
     });
     expect(JSON.stringify(payload)).not.toContain("memberToken");
     expect(JSON.stringify(payload)).not.toContain("freeText");
+  });
+
+  it("durably deduplicates a verified event and never forwards its token", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const event = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
+    const deliveryToken = mintVerifiedAnalyticsToken(event, "plan:dedupe", new Date().toISOString());
+    const body = JSON.stringify({
+      ...event,
+      deliveryToken,
+      path: "/plan",
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    });
+
+    const first = await POST(post(body));
+    const replay = await POST(post(body));
+
+    expect(first.headers.get("x-analytics-delivery")).toBe("delivered");
+    expect(replay.headers.get("x-analytics-delivery")).toBe("delivered");
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(deliveryToken);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const providerPayload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(providerPayload.properties.$insert_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(JSON.stringify(providerPayload)).not.toContain(deliveryToken);
+  });
+
+  it("rejects spoofed acceptance and completion events without a server token", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const response = await POST(post(JSON.stringify({
+      name: "plan_completed",
+      props: { ending: "get_home" },
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(response.headers.get("x-analytics-delivery")).toBe("discard");
+    expect(log).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("templates dynamic paths before logging or forwarding", async () => {

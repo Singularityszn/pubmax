@@ -36,6 +36,7 @@ export type StoredRouteDraft = {
   routeRevision: RouteRevision | null;
   routeStale: boolean;
   groundingProof: string | null;
+  createOperationKey: string | null;
 };
 
 export type ServerPlanCreationAttribution = {
@@ -51,11 +52,19 @@ export function serverPlanCreationAttribution(value: unknown): ServerPlanCreatio
   return { created: row.created, grounded: row.grounded };
 }
 
-/** Return acceptance telemetry only for the server's first successful creation. */
+/** Rebuild the exact server-attributed event on originals and idempotent replays. */
 export function planAcceptanceTelemetry(value: unknown, stops: number): { stops: number; grounded: boolean } | null {
   const attribution = serverPlanCreationAttribution(value);
-  if (!attribution?.created || !Number.isInteger(stops) || stops < 1 || stops > 50) return null;
+  if (!attribution || !Number.isInteger(stops) || stops < 1 || stops > 50) return null;
   return { stops, grounded: attribution.grounded };
+}
+
+function responseEventToken(value: unknown, key: "planAccepted" | "meaningfulCoreAction"): string | null {
+  if (!value || typeof value !== "object") return null;
+  const tokens = (value as { eventTokens?: unknown }).eventTokens;
+  if (!tokens || typeof tokens !== "object") return null;
+  const token = (tokens as Record<string, unknown>)[key];
+  return typeof token === "string" && token.length <= 2_000 ? token : null;
 }
 
 /** Trust only the generator's explicit server-owned grounding assertion. */
@@ -200,6 +209,9 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
       routeStale: value.routeStale === true,
       groundingProof: typeof value.groundingProof === "string" && value.groundingProof.length <= 8_000
         ? value.groundingProof
+        : null,
+      createOperationKey: typeof value.createOperationKey === "string" && value.createOperationKey.length <= 120
+        ? value.createOperationKey
         : null,
     };
   } catch {
@@ -384,6 +396,7 @@ function PlanComposerForm({
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(recoveredRouteDraft?.routeRevision ?? null);
   const [routeStale, setRouteStale] = useState(recoveredRouteDraft?.routeStale ?? false);
   const [groundingProof, setGroundingProof] = useState(recoveredRouteDraft?.groundingProof ?? null);
+  const [createOperationKey, setCreateOperationKey] = useState(recoveredRouteDraft?.createOperationKey ?? null);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -436,11 +449,12 @@ function PlanComposerForm({
         routeRevision,
         routeStale,
         groundingProof,
+        createOperationKey,
       } satisfies StoredRouteDraft));
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [groundingProof, nightContext, routeRevision, routeStale, stops]);
+  }, [createOperationKey, groundingProof, nightContext, routeRevision, routeStale, stops]);
 
   function chooseVenue(key: number, venueName: string) {
     const match = venues.find((venue) => venue.name.toLocaleLowerCase() === venueName.trim().toLocaleLowerCase());
@@ -450,6 +464,7 @@ function PlanComposerForm({
     // Manual edits are still canonicalized by POST /api/plans, but they no
     // longer carry provenance from the generated candidate set.
     setGroundingProof(null);
+    setCreateOperationKey(null);
     setRouteStatus("Stop edited in the route preview. Review it before locking.");
   }
 
@@ -507,6 +522,7 @@ function PlanComposerForm({
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
       setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
+      setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       markPalRouteActivation();
       trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote("Three grounded stops, shaped by the editable context below.");
@@ -553,7 +569,7 @@ function PlanComposerForm({
         stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
         ...(groundingProof ? { groundingProof } : {}),
       };
-      const operationKey = await persistentPlanMutationKey("create", createPayload);
+      const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload);
       const response = await fetch("/api/plans", {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
@@ -567,9 +583,11 @@ function PlanComposerForm({
       if (!attribution) throw new Error("The plan was created without verifiable route attribution. Please reload it before continuing.");
       const { grounded } = attribution;
       const acceptanceTelemetry = planAcceptanceTelemetry(body, completeStops.length);
-      if (acceptanceTelemetry) {
-        trackEvent("plan_accepted", acceptanceTelemetry);
-        trackMeaningfulCoreAction("plan_accepted");
+      const acceptedToken = responseEventToken(body, "planAccepted");
+      const meaningfulToken = responseEventToken(body, "meaningfulCoreAction");
+      if (acceptanceTelemetry && acceptedToken && meaningfulToken) {
+        trackEvent("plan_accepted", acceptanceTelemetry, { deliveryToken: acceptedToken });
+        trackMeaningfulCoreAction("plan_accepted", meaningfulToken);
       }
       // lane_to_plan only counts creations with lane provenance (?src=…, set
       // by lane surfaces such as the W1 Tonight lane). window.location is read

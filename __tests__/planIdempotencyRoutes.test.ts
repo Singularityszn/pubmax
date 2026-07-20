@@ -37,7 +37,7 @@ async function create(key: string, body: Record<string, unknown> = payload) {
     headers: { "idempotency-key": key },
     body: JSON.stringify(body),
   }));
-  return { response, body: await response.json() as { plan: PlanState; memberToken: string; code?: string; created?: boolean; grounded?: boolean } };
+  return { response, body: await response.json() as { plan: PlanState; memberToken: string; code?: string; created?: boolean; grounded?: boolean; eventTokens?: Record<string, string> } };
 }
 
 beforeEach(() => __resetMemoryPlans());
@@ -67,6 +67,8 @@ describe("Plan mutation idempotency", () => {
     expect(replay.body.memberToken).toBe(first.body.memberToken);
     expect(first.body).toMatchObject({ created: true, grounded: false });
     expect(replay.body).toMatchObject({ created: false, grounded: false });
+    expect(first.body).toHaveProperty("eventTokens.planAccepted");
+    expect(replay.body).toMatchObject({ eventTokens: first.body.eventTokens });
 
     const conflict = await create("create-recovery-1", { ...payload, title: "Different intent" });
     expect(conflict.response.status).toBe(409);
@@ -79,16 +81,37 @@ describe("Plan mutation idempotency", () => {
       { venueId: "venue-16pnwmm" },
       { venueId: "venue-1f5ygjb" },
     ];
-    const proof = mintPlanGroundingProof(stops.map((stop) => stop.venueId));
+    const proof = mintPlanGroundingProof(stops.map((stop) => stop.venueId), "grounded-create-proof");
     const accepted = await create("grounded-create-proof", { ...payload, stops, groundingProof: proof });
     const edited = await create("edited-create-proof", {
       ...payload,
       stops: [stops[0], stops[1], { venueId: "venue-3h52h" }],
-      groundingProof: proof,
+      groundingProof: mintPlanGroundingProof(stops.map((stop) => stop.venueId), "edited-create-proof"),
     });
 
     expect(accepted.body).toMatchObject({ created: true, grounded: true });
     expect(edited.body).toMatchObject({ created: true, grounded: false });
+  });
+
+  it("keeps create-time grounding stable on replay after proof expiry", async () => {
+    const issuedAt = Date.parse("2026-07-20T12:00:00.000Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(issuedAt);
+    const stops = [
+      { venueId: "venue-xjf3n0" },
+      { venueId: "venue-16pnwmm" },
+      { venueId: "venue-1f5ygjb" },
+    ];
+    const key = "grounding-expiry-replay";
+    const body = { ...payload, stops, groundingProof: mintPlanGroundingProof(stops.map((stop) => stop.venueId), key, issuedAt) };
+    const first = await create(key, body);
+    clock.mockReturnValue(issuedAt + 3 * 60 * 60 * 1_000);
+    const replay = await create(key, body);
+    const alteredReplay = await create(key, { ...payload, stops });
+
+    expect(first.body).toMatchObject({ created: true, grounded: true });
+    expect(replay.body).toMatchObject({ created: false, grounded: true, eventTokens: first.body.eventTokens });
+    expect(alteredReplay.response.status).toBe(409);
+    clock.mockRestore();
   });
 
   it("does not add a second guest when an ordinary join response is retried", async () => {
