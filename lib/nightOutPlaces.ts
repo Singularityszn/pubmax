@@ -1,4 +1,8 @@
 import { haversineKm } from "@/lib/haversine";
+import {
+  isCanonicalNightOutPlaceSourceUrl,
+  nightOutPlaceSourceName,
+} from "@/lib/nightOutPlaceSourceUrl.mjs";
 import { isSlopDescription } from "@/lib/slopFilter";
 
 export const NIGHT_OUT_PLACE_CATEGORIES = ["restaurant", "attraction"] as const;
@@ -48,27 +52,6 @@ const text = (value: unknown, max: number): value is string =>
 const iso = (value: unknown): value is string =>
   typeof value === "string" && Number.isFinite(Date.parse(value));
 
-function isCleanHttpsUrl(value: unknown): value is string {
-  if (!text(value, 2_000)) return false;
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    return (
-      url.protocol === "https:" &&
-      !url.username &&
-      !url.password &&
-      !url.port &&
-      !url.search &&
-      !url.hash &&
-      host !== "localhost" &&
-      !host.endsWith(".local") &&
-      !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)
-    );
-  } catch {
-    return false;
-  }
-}
-
 function isLondonLocation(value: unknown): value is { lat: number; lng: number } {
   if (typeof value !== "object" || value === null) return false;
   const location = value as Record<string, unknown>;
@@ -108,10 +91,16 @@ export function isValidNightOutPlace(value: unknown): value is NightOutPlace {
   if (!text(row.description, 600) || isSlopDescription(row.description)) return false;
   if (!text(row.address, 300) || !text(row.area, 120)) return false;
   if (!isLondonLocation(row.location)) return false;
-  if (!isCleanHttpsUrl(row.sourceUrl) || !text(row.sourceName, 160)) return false;
-  if (new URL(row.sourceUrl).hostname.replace(/^www\./, "") !== row.sourceName) return false;
+  if (!isCanonicalNightOutPlaceSourceUrl(row.sourceUrl) || !text(row.sourceName, 160)) return false;
+  if (nightOutPlaceSourceName(row.sourceUrl) !== row.sourceName) return false;
   if (!iso(row.observedAt) || !iso(row.expiresAt)) return false;
   if (Date.parse(row.expiresAt) <= Date.parse(row.observedAt)) return false;
+  if (
+    Date.parse(row.expiresAt) - Date.parse(row.observedAt) >
+    NIGHT_OUT_PLACE_MAX_AGE_HOURS * 3_600_000
+  ) {
+    return false;
+  }
   if (!(["exa", "firecrawl"] as const).includes(row.discoveredVia as "exa" | "firecrawl")) {
     return false;
   }

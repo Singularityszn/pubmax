@@ -13,16 +13,24 @@
 // touched. The previous trusted snapshot remains byte-identical.
 
 import { createHash } from "node:crypto";
+import { lookup as dnsLookup } from "node:dns/promises";
 import {
   existsSync,
   readFileSync,
   renameSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
+import { isIP } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { presentableDescription } from "../lib/slopFilter.ts";
+import {
+  canonicalizeNightOutPlaceSourceUrl,
+  isCanonicalNightOutPlaceSourceUrl,
+  nightOutPlaceSourceName,
+} from "../lib/nightOutPlaceSourceUrl.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = join(ROOT, "public", "data", "night_out_places", "latest.json");
@@ -68,34 +76,10 @@ function finiteNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-export function normalizeSourceUrl(value) {
-  if (!text(value, 2_000)) return null;
-  try {
-    const url = new URL(value.trim());
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      url.hostname === "localhost" ||
-      url.hostname.endsWith(".local") ||
-      /^\d{1,3}(?:\.\d{1,3}){3}$/.test(url.hostname)
-    ) {
-      return null;
-    }
-    const pathname = url.pathname.replace(/\/+$/, "") || "/";
-    return `${url.origin}${pathname}`;
-  } catch {
-    return null;
-  }
-}
+export const normalizeSourceUrl = canonicalizeNightOutPlaceSourceUrl;
 
 export function sourceNameFromUrl(value) {
-  try {
-    return new URL(value).hostname.replace(/^www\./, "") || null;
-  } catch {
-    return null;
-  }
+  return nightOutPlaceSourceName(value);
 }
 
 function stablePlaceId(category, sourceUrl) {
@@ -168,12 +152,6 @@ function locationFromJsonLd(value) {
   return { lat, lng };
 }
 
-function sourceUrlMatchesJsonLd(sourceUrl, value) {
-  const declared = normalizeSourceUrl(value?.url);
-  if (!declared) return true;
-  return new URL(declared).hostname === new URL(sourceUrl).hostname;
-}
-
 /**
  * Convert one source page into a publishable row. No generated provider text
  * participates: all fields below come from a matching JSON-LD object.
@@ -188,8 +166,15 @@ export function sourcePageToPlace(
   const observedMs = Date.parse(observedAt);
   if (!Number.isFinite(observedMs)) return null;
 
-  const candidates = parseJsonLdBlocks(page?.rawHtml).filter(
-    (value) => typeMatches(value, category) && sourceUrlMatchesJsonLd(sourceUrl, value),
+  const categoryCandidates = parseJsonLdBlocks(page?.rawHtml).filter((value) =>
+    typeMatches(value, category),
+  );
+  // Directory/list pages are ambiguous even when one entry happens to declare
+  // the discovered URL. Publish only a single place entity whose canonical
+  // JSON-LD URL exactly identifies this page, including its path.
+  if (categoryCandidates.length !== 1) return null;
+  const candidates = categoryCandidates.filter(
+    (value) => normalizeSourceUrl(value?.url) === sourceUrl,
   );
   for (const value of candidates) {
     const name = text(value.name, 160) ? value.name.trim() : null;
@@ -259,6 +244,107 @@ export function classifyProviderFailure(provider, status) {
   return new ProviderHaltError(provider, "request failed", status);
 }
 
+function isPublicIpv4(address) {
+  const octets = address.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+  const [a, b, c] = octets;
+  return !(
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 0 && c === 0) ||
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 88 && c === 99) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113) ||
+    a >= 224
+  );
+}
+
+function ipv6Bytes(address) {
+  let raw = address.toLowerCase().split("%")[0];
+  if (raw.includes(".")) {
+    const lastColon = raw.lastIndexOf(":");
+    const ipv4 = raw.slice(lastColon + 1).split(".").map(Number);
+    if (ipv4.length !== 4 || ipv4.some((part) => part < 0 || part > 255)) return null;
+    raw = `${raw.slice(0, lastColon)}:${((ipv4[0] << 8) | ipv4[1]).toString(16)}:${((ipv4[2] << 8) | ipv4[3]).toString(16)}`;
+  }
+  const halves = raw.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":") : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const fill = halves.length === 2 ? 8 - left.length - right.length : 0;
+  const groups = [...left, ...Array.from({ length: fill }, () => "0"), ...right];
+  if (groups.length !== 8 || groups.some((group) => !/^[0-9a-f]{1,4}$/.test(group))) return null;
+  return groups.flatMap((group) => {
+    const value = Number.parseInt(group, 16);
+    return [value >> 8, value & 0xff];
+  });
+}
+
+export function isPublicIpAddress(address) {
+  if (typeof address !== "string") return false;
+  const family = isIP(address);
+  if (family === 4) return isPublicIpv4(address);
+  if (family !== 6) return false;
+  const bytes = ipv6Bytes(address);
+  if (!bytes) return false;
+  const mapped = bytes.slice(0, 10).every((byte) => byte === 0) && bytes[10] === 0xff && bytes[11] === 0xff;
+  if (mapped) {
+    return isPublicIpv4(bytes.slice(12).join("."));
+  }
+  const isDocumentation = bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0x0d && bytes[3] === 0xb8;
+  // Globally routable IPv6 currently occupies 2000::/3. This excludes
+  // unspecified, loopback, ULA, link-local, multicast and other special-use
+  // blocks; documentation space is explicitly removed from that range.
+  return bytes[0] >= 0x20 && bytes[0] <= 0x3f && !isDocumentation;
+}
+
+/**
+ * Resolve before a discovered URL crosses the provider boundary. Re-resolving
+ * the same host must yield the exact pinned public set, so a public-to-private
+ * DNS rebinding attempt halts before Firecrawl receives the URL.
+ */
+export function createPublicDnsGuard(lookupImpl = dnsLookup) {
+  const pinned = new Map();
+  return async (value) => {
+    const canonical = normalizeSourceUrl(value);
+    if (!canonical) throw new ProviderHaltError("Source URL", "failed the public URL contract");
+    const hostname = new URL(canonical).hostname;
+    let answers;
+    try {
+      answers = await lookupImpl(hostname, { all: true, verbatim: true });
+    } catch {
+      throw new ProviderHaltError("Source URL", "DNS resolution failed");
+    }
+    if (
+      !Array.isArray(answers) ||
+      answers.length === 0 ||
+      answers.some(
+        (answer) =>
+          !isRecord(answer) ||
+          typeof answer.address !== "string" ||
+          !isPublicIpAddress(answer.address),
+      )
+    ) {
+      throw new ProviderHaltError("Source URL", "resolved to a non-public address");
+    }
+    const resolved = [...new Set(answers.map((answer) => answer.address.toLowerCase()))].sort();
+    const previous = pinned.get(hostname);
+    if (previous && JSON.stringify(previous) !== JSON.stringify(resolved)) {
+      throw new ProviderHaltError("Source URL", "DNS answers changed before provider request");
+    }
+    pinned.set(hostname, resolved);
+    return canonical;
+  };
+}
+
 async function requestJson(provider, url, init, fetchImpl = fetch) {
   let response;
   try {
@@ -268,13 +354,18 @@ async function requestJson(provider, url, init, fetchImpl = fetch) {
   }
   if (!response.ok) throw classifyProviderFailure(provider, response.status);
   try {
-    return await response.json();
-  } catch {
+    const payload = await response.json();
+    if (!isRecord(payload)) {
+      throw new ProviderHaltError(provider, "returned a malformed response");
+    }
+    return payload;
+  } catch (error) {
+    if (error instanceof ProviderHaltError) throw error;
     throw new ProviderHaltError(provider, "returned an invalid response");
   }
 }
 
-async function exaDiscover(apiKey, limit, fetchImpl = fetch) {
+async function exaDiscover(apiKey, limit, fetchImpl, guardSourceUrl) {
   const discoveries = [];
   for (const query of PLACE_QUERY_SET) {
     const payload = await requestJson(
@@ -293,15 +384,20 @@ async function exaDiscover(apiKey, limit, fetchImpl = fetch) {
       },
       fetchImpl,
     );
-    for (const result of Array.isArray(payload?.results) ? payload.results : []) {
-      const url = normalizeSourceUrl(result?.url);
-      if (url) discoveries.push({ category: query.category, discoveredVia: "exa", url });
+    if (!Array.isArray(payload.results)) {
+      throw new ProviderHaltError("Exa", "returned a malformed search response");
+    }
+    for (const result of payload.results) {
+      const url = isRecord(result) ? normalizeSourceUrl(result.url) : null;
+      if (!url) throw new ProviderHaltError("Exa", "returned an invalid result URL");
+      await guardSourceUrl(url);
+      discoveries.push({ category: query.category, discoveredVia: "exa", url });
     }
   }
   return discoveries;
 }
 
-async function firecrawlDiscover(apiKey, limit, fetchImpl = fetch) {
+async function firecrawlDiscover(apiKey, limit, fetchImpl, guardSourceUrl) {
   const discoveries = [];
   for (const query of PLACE_QUERY_SET) {
     const payload = await requestJson(
@@ -323,29 +419,37 @@ async function firecrawlDiscover(apiKey, limit, fetchImpl = fetch) {
           scrapeOptions: {
             formats: ["rawHtml"],
             onlyMainContent: false,
+            skipTlsVerification: false,
+            lockdown: true,
           },
         }),
       },
       fetchImpl,
     );
-    if (payload?.success !== true) {
-      throw new ProviderHaltError("Firecrawl", "search did not complete");
+    if (payload.success !== true || !isRecord(payload.data) || !Array.isArray(payload.data.web)) {
+      throw new ProviderHaltError("Firecrawl", "returned a malformed search response");
     }
-    for (const result of Array.isArray(payload?.data?.web) ? payload.data.web : []) {
-      const url = normalizeSourceUrl(result?.url ?? result?.metadata?.sourceURL);
-      if (!url) continue;
+    for (const result of payload.data.web) {
+      const url = isRecord(result)
+        ? normalizeSourceUrl(result.url ?? (isRecord(result.metadata) ? result.metadata.sourceURL : null))
+        : null;
+      if (!url || !text(result?.rawHtml)) {
+        throw new ProviderHaltError("Firecrawl", "returned an incomplete search result");
+      }
+      await guardSourceUrl(url);
       discoveries.push({
         category: query.category,
         discoveredVia: "firecrawl",
         url,
-        rawHtml: text(result?.rawHtml) ? result.rawHtml : null,
+        rawHtml: result.rawHtml,
       });
     }
   }
   return discoveries;
 }
 
-async function firecrawlScrape(apiKey, url, fetchImpl = fetch) {
+async function firecrawlScrape(apiKey, url, fetchImpl, guardSourceUrl) {
+  await guardSourceUrl(url);
   const payload = await requestJson(
     "Firecrawl",
     FIRECRAWL_SCRAPE_ENDPOINT,
@@ -361,28 +465,32 @@ async function firecrawlScrape(apiKey, url, fetchImpl = fetch) {
         onlyMainContent: false,
         removeBase64Images: true,
         blockAds: true,
+        skipTlsVerification: false,
+        lockdown: true,
         location: { country: "GB", languages: ["en-GB"] },
       }),
     },
     fetchImpl,
   );
-  if (payload?.success !== true) {
-    throw new ProviderHaltError("Firecrawl", "scrape did not complete");
+  if (payload.success !== true || !isRecord(payload.data) || !text(payload.data.rawHtml)) {
+    throw new ProviderHaltError("Firecrawl", "returned a malformed scrape response");
   }
-  return text(payload?.data?.rawHtml) ? payload.data.rawHtml : "";
+  return payload.data.rawHtml;
 }
 
 export async function fetchDiscoveries(
   { exaKey, firecrawlKey, limit = DEFAULT_LIMIT_PER_QUERY },
   fetchImpl = fetch,
+  lookupImpl = dnsLookup,
 ) {
   if (!text(exaKey)) throw new ProviderHaltError("Exa", "API key is missing");
   if (!text(firecrawlKey)) {
     throw new ProviderHaltError("Firecrawl", "API key is missing");
   }
+  const guardSourceUrl = createPublicDnsGuard(lookupImpl);
   const [exa, firecrawl] = await Promise.all([
-    exaDiscover(exaKey, limit, fetchImpl),
-    firecrawlDiscover(firecrawlKey, limit, fetchImpl),
+    exaDiscover(exaKey, limit, fetchImpl, guardSourceUrl),
+    firecrawlDiscover(firecrawlKey, limit, fetchImpl, guardSourceUrl),
   ]);
   // Search providers frequently find the same official page. Consolidate it
   // before scraping so one source URL costs at most one Firecrawl page fetch.
@@ -401,23 +509,103 @@ export async function fetchDiscoveries(
   const discoveries = [...bySource.values()];
   for (const discovery of discoveries) {
     if (!text(discovery.rawHtml)) {
-      discovery.rawHtml = await firecrawlScrape(firecrawlKey, discovery.url, fetchImpl);
+      discovery.rawHtml = await firecrawlScrape(
+        firecrawlKey,
+        discovery.url,
+        fetchImpl,
+        guardSourceUrl,
+      );
     }
   }
   return discoveries;
 }
 
-function loadCurrentPlaces(nowMs) {
-  if (!existsSync(OUTPUT)) return [];
+function validIso(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function validPlaceRow(row) {
+  if (!isRecord(row)) return false;
+  const expectedJob = row.category === "restaurant"
+    ? "near_pub_food"
+    : row.category === "attraction"
+      ? "pre_pub_attraction"
+      : null;
+  const description = text(row.description, 600)
+    ? presentableDescription(row.description)
+    : null;
+  return (
+    text(row.id, 120) &&
+    expectedJob !== null &&
+    row.job === expectedJob &&
+    text(row.name, 160) &&
+    description !== null &&
+    description === row.description.trim() &&
+    text(row.address, 300) &&
+    text(row.area, 120) &&
+    isRecord(row.location) &&
+    Number.isFinite(row.location.lat) &&
+    row.location.lat >= 51.26 &&
+    row.location.lat <= 51.72 &&
+    Number.isFinite(row.location.lng) &&
+    row.location.lng >= -0.55 &&
+    row.location.lng <= 0.3 &&
+    isCanonicalNightOutPlaceSourceUrl(row.sourceUrl) &&
+    text(row.sourceName, 160) &&
+    sourceNameFromUrl(row.sourceUrl) === row.sourceName &&
+    validIso(row.observedAt) &&
+    validIso(row.expiresAt) &&
+    Date.parse(row.expiresAt) > Date.parse(row.observedAt) &&
+    Date.parse(row.expiresAt) - Date.parse(row.observedAt) <= MAX_AGE_MS &&
+    ["exa", "firecrawl"].includes(row.discoveredVia) &&
+    row.extractedVia === "firecrawl"
+  );
+}
+
+export function isValidPlaceSnapshot(snapshot) {
+  if (
+    !isRecord(snapshot) ||
+    snapshot.version !== 1 ||
+    snapshot.provenanceRegistryVersion !== 1 ||
+    !validIso(snapshot.generatedAt) ||
+    !["published", "empty"].includes(snapshot.status) ||
+    !Array.isArray(snapshot.places) ||
+    (snapshot.status === "empty" && snapshot.places.length !== 0) ||
+    (snapshot.status === "published" && snapshot.places.length === 0)
+  ) {
+    return false;
+  }
+  const ids = new Set();
+  return snapshot.places.every((row) => {
+    if (
+      !validPlaceRow(row) ||
+      ids.has(row.id) ||
+      Date.parse(row.observedAt) > Date.parse(snapshot.generatedAt)
+    ) {
+      return false;
+    }
+    ids.add(row.id);
+    return true;
+  });
+}
+
+export function loadCurrentPlaces(nowMs, outputPath = OUTPUT) {
+  if (!existsSync(outputPath)) {
+    throw new ProviderHaltError("Current artifact", "is required but missing");
+  }
   try {
-    const snapshot = JSON.parse(readFileSync(OUTPUT, "utf8"));
-    return (Array.isArray(snapshot?.places) ? snapshot.places : []).filter((place) => {
+    const snapshot = JSON.parse(readFileSync(outputPath, "utf8"));
+    if (!isValidPlaceSnapshot(snapshot)) {
+      throw new ProviderHaltError("Current artifact", "failed validation");
+    }
+    return snapshot.places.filter((place) => {
       const observed = Date.parse(place?.observedAt);
       const expires = Date.parse(place?.expiresAt);
       return Number.isFinite(observed) && observed <= nowMs && expires > nowMs;
     });
-  } catch {
-    return [];
+  } catch (error) {
+    if (error instanceof ProviderHaltError) throw error;
+    throw new ProviderHaltError("Current artifact", "could not be parsed");
   }
 }
 
@@ -429,10 +617,18 @@ export function mergePlaceRows(existing, incoming) {
   return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function writeSnapshot(snapshot) {
-  const temp = `${OUTPUT}.tmp-${process.pid}`;
-  writeFileSync(temp, `${JSON.stringify(snapshot, null, 2)}\n`, { flag: "wx" });
-  renameSync(temp, OUTPUT);
+export function writeSnapshot(snapshot, outputPath = OUTPUT) {
+  if (!isValidPlaceSnapshot(snapshot)) {
+    throw new ProviderHaltError("Candidate artifact", "failed validation");
+  }
+  const temp = `${outputPath}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    writeFileSync(temp, `${JSON.stringify(snapshot, null, 2)}\n`, { flag: "wx" });
+    renameSync(temp, outputPath);
+  } catch (error) {
+    if (existsSync(temp)) unlinkSync(temp);
+    throw error;
+  }
 }
 
 function parseArgs(argv) {
@@ -447,16 +643,24 @@ function parseArgs(argv) {
   return { dryRun, limit };
 }
 
-async function main() {
-  const { dryRun, limit } = parseArgs(process.argv);
-  const observedAt = new Date().toISOString();
-  const discoveries = await fetchDiscoveries({
-    exaKey: process.env.EXA_API_KEY?.trim(),
-    firecrawlKey: process.env.FIRECRAWL_API_KEY?.trim(),
-    limit,
-  });
+export async function runIngestion({
+  dryRun = false,
+  limit = DEFAULT_LIMIT_PER_QUERY,
+  observedAt = new Date().toISOString(),
+  outputPath = OUTPUT,
+  exaKey = process.env.EXA_API_KEY?.trim(),
+  firecrawlKey = process.env.FIRECRAWL_API_KEY?.trim(),
+  fetchImpl = fetch,
+  lookupImpl = dnsLookup,
+} = {}) {
+  const existing = loadCurrentPlaces(Date.parse(observedAt), outputPath);
+  const discoveries = await fetchDiscoveries(
+    { exaKey, firecrawlKey, limit },
+    fetchImpl,
+    lookupImpl,
+  );
   const incoming = buildPlaceRows(discoveries, { observedAt });
-  const places = mergePlaceRows(loadCurrentPlaces(Date.parse(observedAt)), incoming);
+  const places = mergePlaceRows(existing, incoming);
   const snapshot = {
     version: 1,
     generatedAt: observedAt,
@@ -464,10 +668,19 @@ async function main() {
     provenanceRegistryVersion: 1,
     places,
   };
-  if (!dryRun) writeSnapshot(snapshot);
+  if (!isValidPlaceSnapshot(snapshot)) {
+    throw new ProviderHaltError("Candidate artifact", "failed post-merge validation");
+  }
+  if (!dryRun) writeSnapshot(snapshot, outputPath);
   console.log(
     `${dryRun ? "Dry run:" : "Wrote"} ${incoming.length} new, ${places.length} current sourced place(s).`,
   );
+  return snapshot;
+}
+
+async function main() {
+  const { dryRun, limit } = parseArgs(process.argv);
+  await runIngestion({ dryRun, limit });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

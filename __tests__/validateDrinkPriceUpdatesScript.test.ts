@@ -30,8 +30,10 @@ function setupScratch(files: Record<string, unknown>): string {
   const scratchScripts = join(scratchRoot, "scripts");
   const scratchData = join(scratchRoot, "public", "data");
   const scratchGeneratedData = join(scratchRoot, "data", "generated");
+  const scratchLib = join(scratchRoot, "lib");
   mkdirSync(scratchScripts, { recursive: true });
   mkdirSync(join(scratchScripts, "lib"), { recursive: true });
+  mkdirSync(scratchLib, { recursive: true });
   mkdirSync(scratchData, { recursive: true });
   mkdirSync(scratchGeneratedData, { recursive: true });
   // Copy the real script (unmodified) and the real bundled datasets it also
@@ -44,6 +46,10 @@ function setupScratch(files: Record<string, unknown>): string {
   cpSync(
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
     join(scratchScripts, "lib", "slimShards.mjs"),
+  );
+  cpSync(
+    join(ROOT, "lib", "nightOutPlaceSourceUrl.mjs"),
+    join(scratchLib, "nightOutPlaceSourceUrl.mjs"),
   );
   for (const f of [
     "london_pois.json",
@@ -66,6 +72,15 @@ function setupScratch(files: Record<string, unknown>): string {
   cpSync(
     join(ROOT, "public", "data", "night_signals", "latest.json"),
     join(scratchData, "night_signals", "latest.json"),
+  );
+  mkdirSync(join(scratchData, "night_out_places"), { recursive: true });
+  cpSync(
+    join(ROOT, "public", "data", "night_out_places", "latest.json"),
+    join(scratchData, "night_out_places", "latest.json"),
+  );
+  cpSync(
+    join(ROOT, "data", "night_out_place_provenance_registry.json"),
+    join(scratchRoot, "data", "night_out_place_provenance_registry.json"),
   );
   mkdirSync(join(scratchData, "weather"), { recursive: true });
   cpSync(
@@ -161,6 +176,14 @@ const GOOD_ROW = {
 };
 
 describe("validate-data.mjs drink-price-update extension", () => {
+  it("fails when the required night-out places artifact is absent", () => {
+    const scriptsDir = setupScratch({});
+    rmSync(join(scriptsDir, "..", "public", "data", "night_out_places", "latest.json"));
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).not.toBe(0);
+    expect(stdout).toContain("FAIL public/data/night_out_places/latest.json: required artifact is missing");
+  });
+
   it("passes with no drink_price_updates files present", () => {
     const scriptsDir = setupScratch({});
     const { code, stdout } = runValidate(scriptsDir);

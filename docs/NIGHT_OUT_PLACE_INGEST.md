@@ -21,12 +21,17 @@ source page itself exposes a matching Schema.org JSON-LD object containing:
 - a restaurant or attraction type;
 - name and factual description;
 - full address and Greater London coordinates;
-- an HTTPS source URL;
+- an HTTPS source URL that exactly matches the JSON-LD URL after canonical
+  query/fragment and trailing-slash normalization, including the full path;
 - the real ingestion observation instant.
 
 The description passes through `lib/slopFilter.ts`. Missing descriptions,
 marketing filler, malformed provenance, non-London coordinates, and incomplete
-rows are rejected. Source URLs have tracking parameters removed. Every accepted
+rows are rejected. Pages containing multiple matching place objects are treated
+as ambiguous directories and rejected. Source URLs have tracking parameters
+removed, reject credentials, nonstandard ports, local/literal hosts, and pass a
+public-DNS pin/recheck before being sent to Firecrawl. Firecrawl requests keep
+TLS verification enabled and use its lockdown mode. Every accepted
 row expires after 30 days, and the runtime drops expired, future-observed, or
 over-age rows even if an old artifact is accidentally deployed.
 
@@ -55,10 +60,14 @@ npm test -- __tests__/nightOutPlaceIngestion.test.ts __tests__/nightOutPlaces.te
 ```
 
 Missing keys, HTTP 401/403, exhausted credits (402), rate/credit limits (429),
-network failures, and malformed provider responses halt with a non-zero exit
+network failures, missing raw HTML, and malformed HTTP-200 provider responses
+halt with a non-zero exit
 and an `OWNER ACTION` message. The script writes only after every provider call
 has succeeded, using an atomic rename, so a failure leaves the trusted snapshot
-untouched. A successful refresh merges current existing rows and removes only
+untouched. The committed `latest.json` is required, including when its status is
+`empty`; a missing or invalid current snapshot fails validation and ingestion.
+The existing and merged snapshots are fully validated before any temporary file
+is renamed. A successful refresh merges current existing rows and removes only
 expired ones; it does not replace trusted current rows with an empty search.
 
 No scheduled workflow is enabled yet. GitHub Actions runner allocation and the

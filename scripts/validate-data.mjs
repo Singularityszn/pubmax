@@ -18,6 +18,10 @@ import {
   buildShardManifest,
   classifySlimShards,
 } from "./lib/slimShards.mjs";
+import {
+  isCanonicalNightOutPlaceSourceUrl,
+  nightOutPlaceSourceName,
+} from "../lib/nightOutPlaceSourceUrl.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -1376,12 +1380,9 @@ function validateLateFoodEvidenceSnapshot() {
 function validateNightOutPlacesSnapshot() {
   const name = "public/data/night_out_places/latest.json";
   const path = join(DATA_DIR, "night_out_places", "latest.json");
-  // Preserve the scratch-copy contract used by the validator integration
-  // tests. Production carries this artifact and the freshness registry also
-  // asserts its presence.
   if (!existsSync(path)) {
-    console.log(`SKIP ${name}: file not present`);
-    return { ok: true, count: 0 };
+    console.log(`FAIL ${name}: required artifact is missing`);
+    return { ok: false, count: 0 };
   }
   const errs = makeCollector();
   let data;
@@ -1392,15 +1393,6 @@ function validateNightOutPlacesSnapshot() {
   }
   const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
   const text = (value, max) => typeof value === "string" && value.trim().length > 0 && value.length <= max;
-  const cleanHttps = (value) => {
-    if (!text(value, 2_000)) return false;
-    try {
-      const url = new URL(value);
-      const host = url.hostname.toLowerCase();
-      return url.protocol === "https:" && !url.username && !url.password && !url.port && !url.search && !url.hash &&
-        host !== "localhost" && !host.endsWith(".local") && !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
-    } catch { return false; }
-  };
   // Mirror lib/slopFilter.ts because this validator stays dependency-free and
   // scratch-copyable. The focused ingestion tests pin the live filter itself.
   const slopPhrases = [
@@ -1435,18 +1427,21 @@ function validateNightOutPlacesSnapshot() {
     if (!text(row?.address, 300) || !text(row?.area, 120)) errs.add(`${where}: address and area are required`);
     if (!isFiniteNumber(row?.location?.lat) || !isFiniteNumber(row?.location?.lng) ||
         !inLondon(row?.location?.lng, row?.location?.lat)) errs.add(`${where}: location must be in Greater London bounds`);
-    if (!cleanHttps(row?.sourceUrl) || !text(row?.sourceName, 160) ||
-        (cleanHttps(row?.sourceUrl) && new URL(row.sourceUrl).hostname.replace(/^www\./, "") !== row.sourceName)) {
+    if (!isCanonicalNightOutPlaceSourceUrl(row?.sourceUrl) || !text(row?.sourceName, 160) ||
+        nightOutPlaceSourceName(row?.sourceUrl) !== row.sourceName) {
       errs.add(`${where}: source URL/name provenance is invalid`);
     }
     if (!iso(row?.observedAt) || !iso(row?.expiresAt) || Date.parse(row?.expiresAt) <= Date.parse(row?.observedAt) ||
+        Date.parse(row?.expiresAt) - Date.parse(row?.observedAt) > 30 * 24 * 60 * 60 * 1_000 ||
         Date.parse(row?.observedAt) > Date.parse(data.generatedAt)) errs.add(`${where}: observation/expiry dates are invalid`);
     if (!["exa", "firecrawl"].includes(row?.discoveredVia) || row?.extractedVia !== "firecrawl") {
       errs.add(`${where}: producer lineage is invalid`);
     }
   }
   const provenancePath = join(ROOT_DIR, "data", "night_out_place_provenance_registry.json");
-  if (existsSync(provenancePath)) {
+  if (!existsSync(provenancePath)) {
+    errs.add("required provenance registry is missing");
+  } else {
     try {
       const registry = JSON.parse(readFileSync(provenancePath, "utf8"));
       const ids = Array.isArray(registry?.producers) ? registry.producers.map((p) => p?.id) : [];

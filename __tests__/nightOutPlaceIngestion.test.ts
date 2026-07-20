@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
@@ -9,11 +10,17 @@ import {
   ProviderHaltError,
   buildPlaceRows,
   classifyProviderFailure,
+  createPublicDnsGuard,
   fetchDiscoveries,
+  isPublicIpAddress,
+  isValidPlaceSnapshot,
+  loadCurrentPlaces,
   mergePlaceRows,
   normalizeSourceUrl,
   parseJsonLdBlocks,
+  runIngestion,
   sourcePageToPlace,
+  writeSnapshot,
 } from "@/scripts/ingest_night_out_places.mjs";
 
 const OBSERVED_AT = "2026-07-20T12:00:00.000Z";
@@ -45,7 +52,12 @@ describe("night-out place ingestion", () => {
     expect(normalizeSourceUrl("http://example.com/place")).toBeNull();
     expect(normalizeSourceUrl("https://user:pass@example.com/place")).toBeNull();
     expect(normalizeSourceUrl("https://localhost/place")).toBeNull();
+    expect(normalizeSourceUrl("https://localhost./place")).toBeNull();
+    expect(normalizeSourceUrl("https://service.localhost/place")).toBeNull();
     expect(normalizeSourceUrl("https://127.0.0.1/place")).toBeNull();
+    expect(normalizeSourceUrl("https://0x7f000001/place")).toBeNull();
+    expect(normalizeSourceUrl("https://[::1]/place")).toBeNull();
+    expect(normalizeSourceUrl("https://example.com:8443/place")).toBeNull();
   });
 
   it("extracts JSON-LD blocks and ignores malformed neighbours", () => {
@@ -75,6 +87,29 @@ describe("night-out place ingestion", () => {
     });
     if (!row) throw new Error("fixture row should pass the ingest contract");
     expect(Date.parse(row.expiresAt) - Date.parse(row.observedAt)).toBe(30 * 24 * 60 * 60 * 1_000);
+  });
+
+  it("requires exact canonical JSON-LD page attribution", () => {
+    for (const value of [
+      { ...restaurant, url: undefined },
+      { ...restaurant, url: "https://example.com/london/venue-b" },
+    ]) {
+      expect(
+        sourcePageToPlace(
+          { url: "https://example.com/london/venue-a", rawHtml: jsonLdPage(value) },
+          { category: "restaurant", discoveredVia: "exa", observedAt: OBSERVED_AT },
+        ),
+      ).toBeNull();
+    }
+    expect(
+      sourcePageToPlace(
+        {
+          url: restaurant.url,
+          rawHtml: jsonLdPage([restaurant, { ...restaurant, name: "Another venue" }]),
+        },
+        { category: "restaurant", discoveredVia: "exa", observedAt: OBSERVED_AT },
+      ),
+    ).toBeNull();
   });
 
   it("drops slop, incomplete provenance, missing coordinates and out-of-London rows", () => {
@@ -139,6 +174,132 @@ describe("night-out place ingestion", () => {
       fetchDiscoveries({ exaKey: "exa-test", firecrawlKey: "" }, fetchMock),
     ).rejects.toMatchObject({ name: "ProviderHaltError", provider: "Firecrawl" });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("pins public DNS and rejects a public-to-private rebind", async () => {
+    const lookup = vi
+      .fn()
+      .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])
+      .mockResolvedValueOnce([{ address: "127.0.0.1", family: 4 }]);
+    const guard = createPublicDnsGuard(lookup);
+    await expect(guard("https://example.com/venue")).resolves.toBe(
+      "https://example.com/venue",
+    );
+    await expect(guard("https://example.com/venue")).rejects.toThrow("OWNER ACTION");
+  });
+
+  it("rejects private, loopback, link-local and mapped DNS answers", () => {
+    for (const address of [
+      "10.0.0.1",
+      "100.64.0.1",
+      "127.0.0.1",
+      "169.254.1.1",
+      "172.16.0.1",
+      "192.168.0.1",
+      "::1",
+      "fc00::1",
+      "fe80::1",
+      "::ffff:127.0.0.1",
+      "::ffff:7f00:1",
+    ]) {
+      expect(isPublicIpAddress(address), address).toBe(false);
+    }
+    expect(isPublicIpAddress("93.184.216.34")).toBe(true);
+    expect(isPublicIpAddress("2606:2800:220:1:248:1893:25c8:1946")).toBe(true);
+  });
+
+  it("sends explicit TLS verification and lockdown controls to Firecrawl", async () => {
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, body: JSON.parse(String(init?.body)) });
+      if (url.includes("api.exa.ai")) {
+        return new Response(JSON.stringify({ results: [{ url: restaurant.url }] }));
+      }
+      if (url.endsWith("/search")) {
+        return new Response(JSON.stringify({ success: true, data: { web: [] } }));
+      }
+      return new Response(JSON.stringify({ success: true, data: { rawHtml: jsonLdPage(restaurant) } }));
+    });
+    const lookup = vi.fn().mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    await fetchDiscoveries(
+      { exaKey: "exa-test", firecrawlKey: "fc-test", limit: 1 },
+      fetchMock as typeof fetch,
+      lookup,
+    );
+    const firecrawl = requests.filter((request) => request.url.includes("firecrawl"));
+    const search = firecrawl.filter((request) => request.url.endsWith("/search"));
+    const scrape = firecrawl.filter((request) => request.url.endsWith("/scrape"));
+    expect(search).not.toHaveLength(0);
+    expect(scrape).not.toHaveLength(0);
+    for (const request of search) {
+      expect(request.body).toMatchObject({
+        scrapeOptions: { skipTlsVerification: false, lockdown: true },
+      });
+    }
+    for (const request of scrape) {
+      expect(request.body).toMatchObject({ skipTlsVerification: false, lockdown: true });
+    }
+  });
+
+  it.each([
+    ["malformed Exa search", "exa"],
+    ["Firecrawl search result without raw HTML", "firecrawl-search"],
+    ["Firecrawl scrape result without raw HTML", "firecrawl-scrape"],
+  ])("leaves the artifact byte-identical for %s", async (_label, failure) => {
+    const dir = mkdtempSync(join(tmpdir(), "night-out-ingest-"));
+    const outputPath = join(dir, "latest.json");
+    cpSync(join(process.cwd(), "public", "data", "night_out_places", "latest.json"), outputPath);
+    const before = readFileSync(outputPath);
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("api.exa.ai")) {
+        const payload = failure === "exa"
+          ? { unexpected: [] }
+          : { results: failure === "firecrawl-scrape" ? [{ url: restaurant.url }] : [] };
+        return new Response(JSON.stringify(payload));
+      }
+      if (url.endsWith("/search")) {
+        const web = failure === "firecrawl-search"
+          ? [{ url: restaurant.url }]
+          : [];
+        return new Response(JSON.stringify({ success: true, data: { web } }));
+      }
+      return new Response(JSON.stringify({ success: true, data: {} }));
+    });
+    const lookup = vi.fn().mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    await expect(
+      runIngestion({
+        outputPath,
+        observedAt: OBSERVED_AT,
+        exaKey: "exa-test",
+        firecrawlKey: "fc-test",
+        fetchImpl: fetchMock as typeof fetch,
+        lookupImpl: lookup,
+      }),
+    ).rejects.toThrow("OWNER ACTION");
+    expect(readFileSync(outputPath)).toEqual(before);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("rejects invalid existing and post-merge snapshots before rename", () => {
+    const dir = mkdtempSync(join(tmpdir(), "night-out-snapshot-"));
+    const outputPath = join(dir, "latest.json");
+    const original = '{"version":1,"places":[{"id":"broken"}]}\n';
+    writeFileSync(outputPath, original);
+    expect(() => loadCurrentPlaces(Date.parse(OBSERVED_AT), outputPath)).toThrow("OWNER ACTION");
+    expect(readFileSync(outputPath, "utf8")).toBe(original);
+    const invalidCandidate = {
+      version: 1,
+      generatedAt: OBSERVED_AT,
+      status: "published",
+      provenanceRegistryVersion: 1,
+      places: [{ id: "broken" }],
+    };
+    expect(isValidPlaceSnapshot(invalidCandidate)).toBe(false);
+    expect(() => writeSnapshot(invalidCandidate, outputPath)).toThrow("OWNER ACTION");
+    expect(readFileSync(outputPath, "utf8")).toBe(original);
+    rmSync(dir, { recursive: true, force: true });
   });
 
   it("classifies authentication, credits and rate limits as owner-action halts", () => {

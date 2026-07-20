@@ -64,8 +64,38 @@ export function fetchDiscoveries(
     limit?: number;
   },
   fetchImpl?: typeof fetch,
+  lookupImpl?: (
+    hostname: string,
+    options: { all: true; verbatim: true },
+  ) => Promise<Array<{ address: string; family: number }>>,
 ): Promise<PlaceDiscovery[]>;
+export function isPublicIpAddress(address: string): boolean;
+export function createPublicDnsGuard(
+  lookupImpl?: (
+    hostname: string,
+    options: { all: true; verbatim: true },
+  ) => Promise<Array<{ address: string; family: number }>>,
+): (value: unknown) => Promise<string>;
 export function mergePlaceRows<T extends { id?: string }>(
   existing: T[],
   incoming: T[],
 ): T[];
+export function isValidPlaceSnapshot(snapshot: unknown): boolean;
+export function loadCurrentPlaces(
+  nowMs: number,
+  outputPath?: string,
+): IngestedNightOutPlace[];
+export function writeSnapshot(snapshot: unknown, outputPath?: string): void;
+export function runIngestion(options?: {
+  dryRun?: boolean;
+  limit?: number;
+  observedAt?: string;
+  outputPath?: string;
+  exaKey?: string;
+  firecrawlKey?: string;
+  fetchImpl?: typeof fetch;
+  lookupImpl?: (
+    hostname: string,
+    options: { all: true; verbatim: true },
+  ) => Promise<Array<{ address: string; family: number }>>;
+}): Promise<unknown>;
