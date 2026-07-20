@@ -1,0 +1,40 @@
+{
+  "$comment": "Governed producer registry for public/data/night_out_places/latest.json. Exa may discover source pages, but no Exa-generated summary is a place fact. Firecrawl may retrieve raw HTML, but no LLM extract or summary is accepted. A published row must come from source-page JSON-LD and carry its original HTTPS URL plus the real observation instant.",
+  "version": 1,
+  "producers": [
+    {
+      "id": "exa",
+      "label": "Exa Search",
+      "role": "discovery_only",
+      "env": "EXA_API_KEY",
+      "endpoint": "https://api.exa.ai/search",
+      "mayPublishFacts": false
+    },
+    {
+      "id": "firecrawl",
+      "label": "Firecrawl",
+      "role": "source_page_transport",
+      "env": "FIRECRAWL_API_KEY",
+      "endpoint": "https://api.firecrawl.dev/v2/scrape",
+      "acceptedFormat": "rawHtml",
+      "mayPublishFacts": true,
+      "factSource": "source_page_json_ld_only"
+    }
+  ],
+  "requiredRowFields": [
+    "id",
+    "category",
+    "job",
+    "name",
+    "description",
+    "address",
+    "area",
+    "location",
+    "sourceUrl",
+    "sourceName",
+    "observedAt",
+    "expiresAt",
+    "discoveredVia",
+    "extractedVia"
+  ]
+}
