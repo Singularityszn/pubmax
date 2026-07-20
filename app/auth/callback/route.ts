@@ -16,7 +16,12 @@
 // an authError flag so the app can explain the failure without blocking browsing.
 
 import { NextResponse } from "next/server";
-import { AUTH_CALLBACK_MARKER, safeAuthNext } from "@/lib/authRedirect";
+import {
+  AUTH_ATTEMPT_PARAM,
+  AUTH_CALLBACK_MARKER,
+  isAuthAttemptId,
+  safeAuthNext,
+} from "@/lib/authRedirect";
 
 /**
  * Only same-origin absolute paths are honoured.
@@ -40,13 +45,16 @@ export async function GET(request: Request): Promise<Response> {
   const code = url.searchParams.get("code");
   const oauthError = url.searchParams.get("error");
   const next = safeNext(url.searchParams.get("next"), url.origin);
+  const rawAttemptId = url.searchParams.get(AUTH_ATTEMPT_PARAM);
+  const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
 
   // Google/Supabase reported a failure, or no code came back → land on the app
   // with a flag the UI renders, rather than a dead callback page. Preserve the
   // safe return path so a cancelled/expired attempt does not lose user context.
-  if (oauthError || !code) {
+  if (oauthError || !code || !attemptId) {
     const dest = new URL(next, url.origin);
     dest.searchParams.set(AUTH_CALLBACK_MARKER, "1");
+    if (attemptId) dest.searchParams.set(AUTH_ATTEMPT_PARAM, attemptId);
     dest.searchParams.set("authError", "1");
     return NextResponse.redirect(dest);
   }
@@ -56,5 +64,6 @@ export async function GET(request: Request): Promise<Response> {
   const dest = new URL(next, url.origin);
   dest.searchParams.set("code", code);
   dest.searchParams.set(AUTH_CALLBACK_MARKER, "1");
+  dest.searchParams.set(AUTH_ATTEMPT_PARAM, attemptId);
   return NextResponse.redirect(dest);
 }

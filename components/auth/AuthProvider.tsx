@@ -32,10 +32,11 @@ import IdentityNudge from "@/components/identity/IdentityNudge";
 import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
-  buildAuthCallbackUrl,
-  cleanAuthCallbackUrl,
-  readAuthCallbackAttempt,
-  rememberAuthReturnFragment,
+  beginCoordinatedAuthAttempt,
+  releaseAuthAttempt,
+  scrubAuthCallback,
+  type AuthAttemptStart,
+  type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
@@ -109,12 +110,17 @@ function browserLocalStorage(): Storage | null {
   }
 }
 
-function prepareAuthCallback(currentUrl: string, requestedNext?: string): string | null {
-  const callback = buildAuthCallbackUrl(currentUrl, requestedNext);
-  if (callback) {
-    rememberAuthReturnFragment(currentUrl, requestedNext, browserLocalStorage());
-  }
-  return callback;
+async function prepareAuthCallback(
+  currentUrl: string,
+  requestedNext?: string,
+): Promise<AuthAttemptStart> {
+  return beginCoordinatedAuthAttempt(
+    currentUrl,
+    requestedNext,
+    browserLocalStorage(),
+    globalThis.crypto,
+    typeof navigator !== "undefined" ? navigator.locks : null,
+  );
 }
 
 /** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
@@ -186,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const callbackExchangeInFlight = useRef<
     Promise<{ session: Session | null; failed: boolean }> | null
   >(null);
+  const capturedCallback = useRef<CapturedAuthCallback | null | undefined>(undefined);
 
   useEffect(() => {
     const user = session?.user ?? null;
@@ -341,20 +348,26 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   }, [closeClaim, session]);
 
   useEffect(() => {
+    // Capture callback inputs once across React Strict Mode's effect replay and
+    // scrub the address bar synchronously, before any exchange/network await.
+    if (capturedCallback.current === undefined) {
+      capturedCallback.current = scrubAuthCallback(
+        window.location.href,
+        (cleanUrl) => window.history.replaceState(window.history.state, "", cleanUrl),
+        browserLocalStorage(),
+      );
+    }
+    const callbackAttempt = capturedCallback.current?.attempt ?? null;
     const supabase = getSupabaseBrowser();
-    const callbackAttempt = readAuthCallbackAttempt(window.location.href);
-    const cleanCallbackLocation = () => {
-      if (!callbackAttempt) return;
-      const cleanUrl = cleanAuthCallbackUrl(window.location.href, browserLocalStorage());
-      window.history.replaceState(window.history.state, "", cleanUrl);
-    };
     // Unconfigured / SSR-only: nothing to subscribe to. Flip loading off in a
     // microtask so we never setState synchronously in the effect body.
     if (!supabase) {
       let cancelled = false;
       queueMicrotask(() => {
         if (cancelled) return;
-        cleanCallbackLocation();
+        if (callbackAttempt?.attemptId) {
+          releaseAuthAttempt(callbackAttempt.attemptId, browserLocalStorage());
+        }
         if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
         setLoading(false);
       });
@@ -402,7 +415,8 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       await Promise.resolve();
       let exchangedSession: Session | null = null;
       let exchangeFailed = Boolean(
-        callbackAttempt && (callbackAttempt.providerError || !callbackAttempt.code),
+        callbackAttempt &&
+          (callbackAttempt.providerError || !callbackAttempt.code || !callbackAttempt.attemptId),
       );
       if (callbackAttempt?.code && !callbackAttempt.providerError) {
         if (!callbackExchangeInFlight.current) {
@@ -415,7 +429,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         exchangedSession = exchange.session;
         exchangeFailed = exchange.failed;
       }
-      cleanCallbackLocation();
+      if (callbackAttempt?.attemptId) {
+        releaseAuthAttempt(callbackAttempt.attemptId, browserLocalStorage());
+      }
       if (!active) return;
       if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
 
@@ -456,13 +472,20 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
     // origin is only read inside this handler (post-mount, browser-only), so it
     // is SSR-safe. redirectTo must be an allowed URL in Supabase Auth settings.
-    const callback = typeof window !== "undefined" ? prepareAuthCallback(window.location.href) : null;
-    if (!callback) return { error: "Sign-in is unavailable on this page." };
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: callback },
-    });
-    return { error: error ? error.message : null };
+    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    const attempt = await prepareAuthCallback(window.location.href);
+    if (!attempt.ok) return { error: attempt.message };
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: attempt.callbackUrl },
+      });
+      if (error) releaseAuthAttempt(attempt.id, browserLocalStorage());
+      return { error: error ? error.message : null };
+    } catch {
+      releaseAuthAttempt(attempt.id, browserLocalStorage());
+      return { error: "Sign-in could not be started. Try again." };
+    }
   }, []);
 
   const signInWithMicrosoft = useCallback(async (): Promise<{ error: string | null }> => {
@@ -470,18 +493,25 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     if (!supabase) {
       return { error: "Sign-in is not configured." };
     }
-    const callback = typeof window !== "undefined" ? prepareAuthCallback(window.location.href) : null;
-    if (!callback) return { error: "Sign-in is unavailable on this page." };
+    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    const attempt = await prepareAuthCallback(window.location.href);
+    if (!attempt.ok) return { error: attempt.message };
     // Supabase's Microsoft provider id is "azure". Request email so we can
     // derive a handle the same way as Google.
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "azure",
-      options: {
-        scopes: "email",
-        redirectTo: callback,
-      },
-    });
-    return { error: error ? error.message : null };
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "azure",
+        options: {
+          scopes: "email",
+          redirectTo: attempt.callbackUrl,
+        },
+      });
+      if (error) releaseAuthAttempt(attempt.id, browserLocalStorage());
+      return { error: error ? error.message : null };
+    } catch {
+      releaseAuthAttempt(attempt.id, browserLocalStorage());
+      return { error: "Sign-in could not be started. Try again." };
+    }
   }, []);
 
   const signInWithEmail = useCallback(
@@ -490,14 +520,16 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       if (!supabase) {
         return { status: "error", message: "Sign-in is not configured." };
       }
-      const callback =
-        typeof window !== "undefined"
-          ? prepareAuthCallback(window.location.href, next)
-          : null;
-      if (!callback) {
+      if (typeof window === "undefined") {
         return { status: "error", message: "Sign-in is unavailable on this page." };
       }
-      return requestMagicLink(supabase.auth, email, callback);
+      const attempt = await prepareAuthCallback(window.location.href, next);
+      if (!attempt.ok) return { status: "error", message: attempt.message };
+      const result = await requestMagicLink(supabase.auth, email, attempt.callbackUrl);
+      if (result.status !== "sent") {
+        releaseAuthAttempt(attempt.id, browserLocalStorage());
+      }
+      return result;
     },
     [],
   );

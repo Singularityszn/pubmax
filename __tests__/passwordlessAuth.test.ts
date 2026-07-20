@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  AUTH_ATTEMPT_IN_PROGRESS_MESSAGE,
+  beginAuthAttempt,
+  beginCoordinatedAuthAttempt,
   buildAuthCallbackUrl,
-  cleanAuthCallbackUrl,
+  captureAuthCallback,
   readAuthCallbackAttempt,
-  rememberAuthReturnFragment,
+  releaseAuthAttempt,
+  scrubAuthCallback,
+  type AuthAttemptStart,
 } from "@/lib/authRedirect";
 import {
   MAGIC_LINK_ERROR_MESSAGE,
@@ -75,6 +80,38 @@ describe("passwordless magic-link auth", () => {
     ).resolves.toEqual({ status: "sent", message: MAGIC_LINK_SENT_MESSAGE });
   });
 
+  it("keeps transport, authorization, and configuration failures actionable", async () => {
+    for (const error of [
+      { status: 408, code: "request_timeout" },
+      { status: 425, code: "too_early" },
+      { status: 401, code: "not_authorized" },
+      { status: 403, code: "forbidden" },
+      { status: 400, code: "email_provider_disabled" },
+      { status: 400, code: "email_address_not_authorized" },
+    ]) {
+      const auth: PasswordlessAuthClient = {
+        signInWithOtp: vi.fn().mockResolvedValue({ error }),
+      };
+      await expect(
+        requestMagicLink(auth, "person@example.com", "https://pubmaxxing.com/auth/callback"),
+      ).resolves.toEqual({ status: "error", message: MAGIC_LINK_ERROR_MESSAGE });
+    }
+  });
+
+  it("keeps stable account-state codes neutral even when they use 401 or 403", async () => {
+    for (const error of [
+      { status: 401, code: "user_not_found" },
+      { status: 403, code: "user_banned" },
+    ]) {
+      const auth: PasswordlessAuthClient = {
+        signInWithOtp: vi.fn().mockResolvedValue({ error }),
+      };
+      await expect(
+        requestMagicLink(auth, "person@example.com", "https://pubmaxxing.com/auth/callback"),
+      ).resolves.toEqual({ status: "sent", message: MAGIC_LINK_SENT_MESSAGE });
+    }
+  });
+
   it("normalizes provider failures that are not account-specific", async () => {
     const auth: PasswordlessAuthClient = {
       signInWithOtp: vi.fn().mockResolvedValue({
@@ -108,89 +145,184 @@ describe("passwordless magic-link auth", () => {
 });
 
 describe("auth callback URL safety", () => {
+  const ATTEMPT_A = "a".repeat(32);
+  const ATTEMPT_B = "b".repeat(32);
+
+  function memoryStorage() {
+    const values = new Map<string, string>();
+    return {
+      values,
+      storage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    };
+  }
+
+  function fixedCrypto(hexPair: number) {
+    return {
+      getRandomValues: <T extends ArrayBufferView | null>(array: T): T => {
+        if (array instanceof Uint8Array) array.fill(hexPair);
+        return array;
+      },
+    };
+  }
+
   it("preserves a same-origin deep link", () => {
-    expect(buildAuthCallbackUrl("https://pubmaxxing.com/map?area=soho#venue"))
-      .toBe("https://pubmaxxing.com/auth/callback?next=%2Fmap%3Farea%3Dsoho");
+    expect(buildAuthCallbackUrl("https://pubmaxxing.com/map?area=soho#venue", undefined, ATTEMPT_A))
+      .toBe(
+        `https://pubmaxxing.com/auth/callback?next=%2Fmap%3Farea%3Dsoho&_authAttempt=${ATTEMPT_A}`,
+      );
   });
 
-  it("keeps a capability fragment local and restores it only to the matching path", () => {
-    const values = new Map<string, string>();
-    const storage = {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-      removeItem: (key: string) => values.delete(key),
-    };
-    const current = "https://pubmaxxing.com/plan/abc#invite=SECRET-CAPABILITY";
+  it("locks the browser-wide verifier without losing tab A's invite", () => {
+    const { storage } = memoryStorage();
+    const first = beginAuthAttempt(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+      undefined,
+      storage,
+      fixedCrypto(0xaa),
+      1_000,
+    );
+    const second = beginAuthAttempt(
+      "https://pubmaxxing.com/map#venue-b",
+      undefined,
+      storage,
+      fixedCrypto(0xbb),
+      2_000,
+    );
 
-    rememberAuthReturnFragment(current, undefined, storage, 1_000);
-    const callback = buildAuthCallbackUrl(current);
+    expect(first).toMatchObject({ ok: true, id: ATTEMPT_A });
+    expect(second).toEqual({ ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE });
+    const captured = captureAuthCallback(
+      `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      storage,
+      3_000,
+    );
+    expect(captured?.cleanUrl).toBe("/plan/abc#invite=SECRET-A");
+  });
 
-    expect(callback).toBe("https://pubmaxxing.com/auth/callback?next=%2Fplan%2Fabc");
-    expect(callback).not.toContain("SECRET-CAPABILITY");
-    expect(
-      cleanAuthCallbackUrl(
-        "https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1",
+  it("serializes simultaneous tab A/B claims before either can overwrite the verifier", async () => {
+    const { storage } = memoryStorage();
+    let tail = Promise.resolve();
+    const locks = {
+      request: (_name: string, callback: () => AuthAttemptStart) => {
+        const result = tail.then(callback);
+        tail = result.then(() => undefined);
+        return result;
+      },
+    } as unknown as NonNullable<Parameters<typeof beginCoordinatedAuthAttempt>[4]>;
+
+    const [first, second] = await Promise.all([
+      beginCoordinatedAuthAttempt(
+        "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+        undefined,
         storage,
-        2_000,
+        fixedCrypto(0xaa),
+        locks,
+        1_000,
       ),
-    ).toBe("/plan/abc#invite=SECRET-CAPABILITY");
+      beginCoordinatedAuthAttempt(
+        "https://pubmaxxing.com/map#venue-b",
+        undefined,
+        storage,
+        fixedCrypto(0xbb),
+        locks,
+        1_000,
+      ),
+    ]);
+
+    expect(first).toMatchObject({ ok: true, id: ATTEMPT_A });
+    expect(second).toEqual({ ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE });
+  });
+
+  it("does not consume tab A's fragment for an unrelated attempt B", () => {
+    const { storage } = memoryStorage();
+    beginAuthAttempt(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+      undefined,
+      storage,
+      fixedCrypto(0xaa),
+      1_000,
+    );
+
+    const unrelated = captureAuthCallback(
+      `https://pubmaxxing.com/plan/abc?code=other&_authCallback=1&_authAttempt=${ATTEMPT_B}`,
+      storage,
+      2_000,
+    );
+    expect(unrelated?.cleanUrl).toBe("/plan/abc");
+
+    const original = captureAuthCallback(
+      `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      storage,
+      3_000,
+    );
+    expect(original?.cleanUrl).toBe("/plan/abc#invite=SECRET-A");
+  });
+
+  it("supports an attempt with no fragment and releases only its lock", () => {
+    const { storage, values } = memoryStorage();
+    const started = beginAuthAttempt(
+      "https://pubmaxxing.com/map?area=soho",
+      undefined,
+      storage,
+      fixedCrypto(0xbb),
+      1_000,
+    );
+    expect(started).toMatchObject({ ok: true, id: ATTEMPT_B });
+    const captured = captureAuthCallback(
+      `https://pubmaxxing.com/map?area=soho&code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_B}`,
+      storage,
+      2_000,
+    );
+    expect(captured?.cleanUrl).toBe("/map?area=soho");
+    releaseAuthAttempt(ATTEMPT_B, storage);
     expect(values.size).toBe(0);
   });
 
-  it("drops stored fragments on path mismatch or expiry", () => {
-    const values = new Map<string, string>();
-    const storage = {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-      removeItem: (key: string) => values.delete(key),
-    };
-
-    rememberAuthReturnFragment(
-      "https://pubmaxxing.com/plan/abc#invite=SECRET",
+  it("scrubs callback credentials synchronously before a hung exchange", () => {
+    const { storage } = memoryStorage();
+    beginAuthAttempt(
+      "https://pubmaxxing.com/map#venue",
       undefined,
       storage,
+      fixedCrypto(0xaa),
       1_000,
     );
-    expect(
-      cleanAuthCallbackUrl(
-        "https://pubmaxxing.com/plan/other?code=pkce&_authCallback=1",
-        storage,
-        2_000,
-      ),
-    ).toBe("/plan/other");
-
-    rememberAuthReturnFragment(
-      "https://pubmaxxing.com/plan/abc#invite=SECRET",
-      undefined,
+    const replaceUrl = vi.fn();
+    const neverSettles = new Promise(() => {});
+    const captured = scrubAuthCallback(
+      `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      replaceUrl,
       storage,
-      1_000,
+      2_000,
     );
-    expect(
-      cleanAuthCallbackUrl(
-        "https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1",
-        storage,
-        3_602_000,
-      ),
-    ).toBe("/plan/abc");
+
+    void neverSettles;
+    expect(captured?.attempt.code).toBe("pkce");
+    expect(replaceUrl).toHaveBeenCalledWith("/map#venue");
   });
 
-  it("recognizes only marked callback codes while accepting the legacy error flag", () => {
+  it("recognizes only marked callback codes with a valid attempt id", () => {
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?code=ordinary"))
       .toBeNull();
-    expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?code=pkce&_authCallback=1"))
-      .toEqual({ code: "pkce", providerError: false });
+    expect(
+      readAuthCallbackAttempt(
+        `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      ),
+    ).toEqual({ attemptId: ATTEMPT_A, code: "pkce", providerError: false });
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/?authError=1"))
-      .toEqual({ code: null, providerError: true });
+      .toEqual({ attemptId: null, code: null, providerError: true });
   });
 
   it("rejects external, protocol-relative, and backslash next targets", () => {
     const current = "https://pubmaxxing.com/map";
-    expect(buildAuthCallbackUrl(current, "https://evil.example/phish"))
-      .toBe("https://pubmaxxing.com/auth/callback");
-    expect(buildAuthCallbackUrl(current, "//evil.example/phish"))
-      .toBe("https://pubmaxxing.com/auth/callback");
-    expect(buildAuthCallbackUrl(current, "/\\evil.example/phish"))
-      .toBe("https://pubmaxxing.com/auth/callback");
+    const fallback = `https://pubmaxxing.com/auth/callback?_authAttempt=${ATTEMPT_A}`;
+    expect(buildAuthCallbackUrl(current, "https://evil.example/phish", ATTEMPT_A)).toBe(fallback);
+    expect(buildAuthCallbackUrl(current, "//evil.example/phish", ATTEMPT_A)).toBe(fallback);
+    expect(buildAuthCallbackUrl(current, "/\\evil.example/phish", ATTEMPT_A)).toBe(fallback);
   });
 
   it("fails closed for non-web and malformed current URLs", () => {

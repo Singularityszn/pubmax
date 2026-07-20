@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { GET, safeNext } from "@/app/auth/callback/route";
 
 const ORIGIN = "https://pubmaxxing.com";
+const ATTEMPT = "a".repeat(32);
 
 describe("safeNext (auth callback open-redirect guard)", () => {
   it("allows same-origin absolute paths", () => {
@@ -50,20 +51,27 @@ describe("safeNext (auth callback open-redirect guard)", () => {
 describe("auth callback flow", () => {
   it("forwards the PKCE code to an allowlisted deep link", async () => {
     const response = await GET(
-      new Request(`${ORIGIN}/auth/callback?code=pkce-code&next=%2Fmap%3Farea%3Dsoho`),
+      new Request(
+        `${ORIGIN}/auth/callback?code=pkce-code&next=%2Fmap%3Farea%3Dsoho&_authAttempt=${ATTEMPT}`,
+      ),
     );
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location"))
-      .toBe(`${ORIGIN}/map?area=soho&code=pkce-code&_authCallback=1`);
+      .toBe(
+        `${ORIGIN}/map?area=soho&code=pkce-code&_authCallback=1&_authAttempt=${ATTEMPT}`,
+      );
   });
 
   it("drops a hostile destination while still completing the callback", async () => {
     const response = await GET(
-      new Request(`${ORIGIN}/auth/callback?code=pkce-code&next=${encodeURIComponent("//evil.com")}`),
+      new Request(
+        `${ORIGIN}/auth/callback?code=pkce-code&next=${encodeURIComponent("//evil.com")}&_authAttempt=${ATTEMPT}`,
+      ),
     );
 
-    expect(response.headers.get("location")).toBe(`${ORIGIN}/?code=pkce-code&_authCallback=1`);
+    expect(response.headers.get("location"))
+      .toBe(`${ORIGIN}/?code=pkce-code&_authCallback=1&_authAttempt=${ATTEMPT}`);
   });
 
   it("returns safely to anonymous browsing when the link is invalid or expired", async () => {

@@ -19,9 +19,10 @@ import { LogIn } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
-
-export const AUTH_MENU_FOCUSABLE_SELECTOR =
-  "button:not(:disabled), input:not(:disabled), [href]";
+import {
+  AUTH_MENU_FOCUSABLE_SELECTOR,
+  authMenuFocusBoundary,
+} from "@/lib/authFocus";
 
 // The official multi-colour Google "G" mark. Kept inline so it renders in both
 // themes without an asset request; brand colours are fixed (never tokenized).
@@ -125,14 +126,14 @@ export default function SignInButton({
           AUTH_MENU_FOCUSABLE_SELECTOR,
         );
         if (!focusables || focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
+        const target = authMenuFocusBoundary(
+          Array.from(focusables),
+          document.activeElement instanceof HTMLElement ? document.activeElement : null,
+          event.shiftKey,
+        );
+        if (target) {
           event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
+          target.focus();
         }
       }
     };
