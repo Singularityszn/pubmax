@@ -4,6 +4,10 @@ import nextTypescript from "eslint-config-next/typescript";
 const eslintConfig = [
   {
     ignores: [
+      // Claude stores complete (including detached) Git worktrees beneath the
+      // checkout. They are independent branches, never source owned by this
+      // tree, and must not be allowed to fail this tree's lint gate.
+      ".claude/worktrees/",
       ".context/**",
       ".firecrawl/**",
       ".next/**",
