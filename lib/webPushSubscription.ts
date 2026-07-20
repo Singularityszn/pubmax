@@ -14,6 +14,49 @@ export type WebPushSubscription = {
   };
 };
 
+/** Exact production Push API service endpoints we currently accept. Never
+ * widen these to a user-controlled suffix: the endpoint is later fetched by
+ * web-push with server credentials and is therefore an SSRF boundary. */
+export const SUPPORTED_WEB_PUSH_SERVICES = [
+  { host: "fcm.googleapis.com", pathPrefixes: ["/fcm/send/", "/wp/"] },
+  { host: "updates.push.services.mozilla.com", pathPrefixes: ["/wpush/"] },
+  { host: "web.push.apple.com", pathPrefixes: ["/"] },
+] as const;
+
+function isIpLiteral(hostname: string): boolean {
+  if (hostname.startsWith("[") && hostname.endsWith("]")) return true;
+  const parts = hostname.split(".");
+  return parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part));
+}
+
+/** Validate the network destination independently of subscription key shape.
+ * HTTPS/default port, an exact maintained host, and a known endpoint path are
+ * all required. */
+export function isSupportedWebPushEndpoint(value: unknown): boolean {
+  if (typeof value !== "string" || value.length > 1_500) return false;
+  let endpoint: URL;
+  try {
+    endpoint = new URL(value);
+  } catch {
+    return false;
+  }
+  const hostname = endpoint.hostname.toLocaleLowerCase("en-GB");
+  if (
+    endpoint.protocol !== "https:"
+    || (endpoint.port !== "" && endpoint.port !== "443")
+    || endpoint.username
+    || endpoint.password
+    || endpoint.hash
+    || hostname === "localhost"
+    || isIpLiteral(hostname)
+  ) return false;
+  const service = SUPPORTED_WEB_PUSH_SERVICES.find((candidate) => candidate.host === hostname);
+  if (!service) return false;
+  return service.pathPrefixes.some((prefix) =>
+    endpoint.pathname.startsWith(prefix) && endpoint.pathname.length > prefix.length,
+  );
+}
+
 function webPushKey(value: unknown, maxLength: number): string | null {
   if (typeof value !== "string" || value.length < 8 || value.length > maxLength) return null;
   return /^[A-Za-z0-9_-]+$/.test(value) ? value : null;
@@ -28,9 +71,7 @@ export function validateWebPushSubscription(value: unknown): WebPushSubscription
   } catch {
     return null;
   }
-  if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password || endpoint.hash) {
-    return null;
-  }
+  if (!isSupportedWebPushEndpoint(endpoint.toString())) return null;
   const keys = row.keys && typeof row.keys === "object" && !Array.isArray(row.keys)
     ? row.keys as Record<string, unknown>
     : null;

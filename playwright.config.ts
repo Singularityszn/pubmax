@@ -7,6 +7,10 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.PW_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
+// Public-only deterministic test key. The private half is neither needed nor
+// present: E2E stubs the browser subscription while exercising the real UI and
+// registration POST. NEXT_PUBLIC_* must be present at Next build time.
+const E2E_VAPID_PUBLIC_KEY = "BJVNwV9XflSMFMBkpBQ8zuzYIfru_xnE_LnqA3x8ENQl2ehKJYw_20TE1UTVr_7vQ207rjQwC1FHbbKE9QeOk4w";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -119,8 +123,8 @@ export default defineConfig({
   ],
   webServer: {
     command: SCREENSHOT_RUN
-      ? `PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`
-      : `NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build && NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`,
+      ? `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`
+      : `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build && NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
     // Production build can take a while cold; give it room in CI.

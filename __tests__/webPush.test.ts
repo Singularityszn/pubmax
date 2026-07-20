@@ -11,7 +11,7 @@ function browserHarness() {
   const requestPermission = vi.fn(async () => "granted" as NotificationPermission);
   const subscription = {
     toJSON: () => ({
-      endpoint: "https://push.example.test/subscriptions/browser",
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/browser",
       expirationTime: null,
       keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
     }),

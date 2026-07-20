@@ -56,9 +56,12 @@ Plan member capability and use idempotency keys or atomic store operations.
   `lib/webPush.ts`, never on boot).
 - **Validation:** `validatePushToken` (`lib/pushTokenStore.ts`) — trimmed
   non-empty `token` ≤ 2048 chars, `platform` ∈ {`ios`, `android`, `web`}; web
-  values must decode to an HTTPS PushSubscription endpoint plus bounded
-  browser-generated `p256dh`/`auth` keys, and native platforms cannot smuggle a
-  web subscription; malformed or
+  values must decode to a PushSubscription with bounded browser-generated
+  `p256dh`/`auth` keys. Its network destination must match the maintained exact
+  Google FCM, Mozilla Autopush, or Apple Web Push HTTPS host/path allowlist on
+  the default TLS port; IP literals, localhost, arbitrary/lookalike hosts, and
+  custom ports are rejected again at provider send time. Native platforms
+  cannot smuggle a web subscription; malformed or
   invalid payloads 400 in the flat public envelope before the limiter or store
   is touched.
 - **Rate limit (dual boundary):** durable per-IP `isLimited` with key

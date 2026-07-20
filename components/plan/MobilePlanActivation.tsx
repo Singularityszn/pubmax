@@ -157,9 +157,9 @@ export function MobilePlanActivation({
         endings: generated.endings,
       });
       if (!user) writeDeviceNightContext(generated.context, cityId);
-      // First meaningful plan action inside the native shell (starting a
-      // round) — the contextual push pre-permission explainer's earliest
-      // opportunity. No-op on web/SSR.
+      // First meaningful plan action (starting a round): arms the native push
+      // explainer in Capacitor or the daily-brief explainer in an installed
+      // PWA. Both remain no-ops in an ordinary web tab and during SSR.
       recordPlanHighIntentAction();
       // Keep the planner result responsive while the map derives and paints
       // the route layers. Route activation is non-urgent and remains ordered.

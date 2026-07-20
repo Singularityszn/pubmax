@@ -13,10 +13,18 @@ import {
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const WEB_TOKEN = encodeWebPushSubscription({
-  endpoint: "https://push.example.test/subscriptions/abc",
+  endpoint: "https://updates.push.services.mozilla.com/wpush/v2/abc",
   expirationTime: null,
   keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
 })!;
+
+function uncheckedWebToken(endpoint: string): string {
+  return `webpush:${Buffer.from(JSON.stringify({
+    endpoint,
+    expirationTime: null,
+    keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+  })).toString("base64url")}`;
+}
 
 beforeEach(() => {
   __resetMemoryPushTokens();
@@ -58,6 +66,20 @@ describe("validatePushToken", () => {
     });
     expect(validatePushToken({ token: WEB_TOKEN, platform: "ios" }).ok).toBe(false);
     expect(validatePushToken({ token: "not-a-subscription", platform: "web" }).ok).toBe(false);
+  });
+
+  it("rejects SSRF endpoints before persistence", () => {
+    for (const endpoint of [
+      "https://127.0.0.1/wpush/token",
+      "https://10.0.0.8/wpush/token",
+      "https://169.254.169.254/latest/meta-data",
+      "https://[::1]/wpush/token",
+      "https://localhost/wpush/token",
+      "https://push.example.test/wpush/token",
+      "https://fcm.googleapis.com:444/fcm/send/token",
+    ]) {
+      expect(validatePushToken({ token: uncheckedWebToken(endpoint), platform: "web" }).ok, endpoint).toBe(false);
+    }
   });
 });
 

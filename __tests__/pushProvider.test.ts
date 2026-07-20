@@ -32,10 +32,18 @@ const APNS_ENV = {
 };
 
 const WEB_TOKEN = encodeWebPushSubscription({
-  endpoint: "https://push.example.test/subscriptions/provider",
+  endpoint: "https://updates.push.services.mozilla.com/wpush/v2/provider",
   expirationTime: null,
   keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
 })!;
+
+function uncheckedWebToken(endpoint: string): string {
+  return `webpush:${Buffer.from(JSON.stringify({
+    endpoint,
+    expirationTime: null,
+    keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+  })).toString("base64url")}`;
+}
 
 function stubApnsEnv(): void {
   for (const [k, v] of Object.entries(APNS_ENV)) vi.stubEnv(k, v);
@@ -150,7 +158,7 @@ describe("Web Push / VAPID provider", () => {
       data: { kind: "daily_brief", url: "/today" },
     })).toEqual([{ token: WEB_TOKEN, status: "sent" }]);
     expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: "https://push.example.test/subscriptions/provider" }),
+      expect.objectContaining({ endpoint: "https://updates.push.services.mozilla.com/wpush/v2/provider" }),
       JSON.stringify({
         title: "Today in London",
         body: "Warm and dry.",
@@ -184,6 +192,26 @@ describe("Web Push / VAPID provider", () => {
     expect(await provider.send(["webpush:broken"], { title: "T", body: "B" })).toEqual([
       { token: "webpush:broken", status: "invalid", reason: "malformed_web_subscription" },
     ]);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("revalidates stored endpoints at send time before any network call", async () => {
+    const send = vi.fn(async () => ({ statusCode: 201 }));
+    const provider = createWebPushProvider({ config: () => config, send });
+    const tokens = [
+      "https://127.0.0.1/wpush/token",
+      "https://10.0.0.8/wpush/token",
+      "https://169.254.169.254/latest/meta-data",
+      "https://[::1]/wpush/token",
+      "https://localhost/wpush/token",
+      "https://push.example.test/wpush/token",
+      "https://fcm.googleapis.com:444/fcm/send/token",
+    ].map(uncheckedWebToken);
+    const results = await provider.send(tokens, { title: "T", body: "B" });
+    expect(results).toHaveLength(tokens.length);
+    expect(results.every((result) =>
+      result.status === "invalid" && result.reason === "malformed_web_subscription",
+    )).toBe(true);
     expect(send).not.toHaveBeenCalled();
   });
 

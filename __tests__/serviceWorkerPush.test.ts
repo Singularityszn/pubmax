@@ -61,6 +61,38 @@ describe("service worker web push", () => {
     }));
   });
 
+  it.each([null, [], "text", 42])(
+    "normalizes non-object JSON payload %j to the fallback",
+    async (payload) => {
+      const { listeners, showNotification } = workerHarness();
+      let pending: Promise<unknown> = Promise.resolve();
+      listeners.get("push")!({
+        data: { json: () => payload },
+        waitUntil(value: Promise<unknown>) { pending = value; },
+      });
+      await pending;
+      expect(showNotification).toHaveBeenCalledWith("PUBMAXX", expect.objectContaining({
+        body: "Your London brief is ready.",
+        data: { url: "/today" },
+      }));
+    },
+  );
+
+  it("normalizes array notification data instead of reading array properties", async () => {
+    const { listeners, showNotification } = workerHarness();
+    let pending: Promise<unknown> = Promise.resolve();
+    const data: unknown[] & { url?: string } = [];
+    data.url = "/should-not-open";
+    listeners.get("push")!({
+      data: { json: () => ({ data }) },
+      waitUntil(value: Promise<unknown>) { pending = value; },
+    });
+    await pending;
+    expect(showNotification).toHaveBeenCalledWith("PUBMAXX", expect.objectContaining({
+      data: { url: "/today" },
+    }));
+  });
+
   it("opens only a same-origin URL when the notification is clicked", async () => {
     const { listeners, openWindow } = workerHarness();
     let pending: Promise<unknown> = Promise.resolve();

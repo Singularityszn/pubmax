@@ -167,7 +167,7 @@ describe("broadcastDailyBrief", () => {
   it("targets explicit web subscriptions only and deep-links to /today", async () => {
     await seed("native-token");
     const webToken = encodeWebPushSubscription({
-      endpoint: "https://push.example.test/subscriptions/daily",
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/daily",
       expirationTime: null,
       keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
     })!;

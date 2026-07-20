@@ -101,11 +101,14 @@ function safeNotificationPath(value) {
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
-    payload = event.data ? event.data.json() : {};
+    const parsed = event.data ? event.data.json() : {};
+    payload = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
   } catch {
     payload = {};
   }
-  const data = payload && typeof payload.data === "object" && payload.data !== null
+  const data = payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)
     ? payload.data
     : {};
   const url = safeNotificationPath(data.url);

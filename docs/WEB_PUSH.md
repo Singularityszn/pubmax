@@ -15,7 +15,9 @@ registrations. Plan/person targeting remains closed until Wave 1.4.
    `web` to the existing identity-free registry and raises the opaque-token
    bound to 2048; existing native rows do not change.
 4. Deploy. The UI must call `registerWebPush()` only after a real user action;
-   the library never requests permission on boot.
+   the installed-PWA prompt does so only after a successful plan action in the
+   current document. It participates in the shared prompt budget and never
+   appears in an ordinary browser tab, the native shell, or on boot.
 
 Without the VAPID pair the provider returns `vapid_not_configured` for every web
 subscription and logs an actionable skip. Keyless app development remains
@@ -47,3 +49,30 @@ first attempt's counts.
 
 The service worker accepts only same-origin click-through paths. Malformed or
 external URLs fall back to `/today`.
+
+## Push-service destination allowlist
+
+A browser-provided subscription endpoint becomes an outbound server request in
+the VAPID provider, so it is treated as a stored-SSRF boundary. Registration,
+storage, and delivery all require HTTPS on the default TLS port, an exact host,
+and a recognized path:
+
+| Browser service | Exact host | Accepted path |
+| --- | --- | --- |
+| Google FCM | `fcm.googleapis.com` | `/fcm/send/<token>` or `/wp/<token>` |
+| Mozilla Autopush | `updates.push.services.mozilla.com` | `/wpush/<token>` |
+| Apple Web Push | `web.push.apple.com` | `/<token>` |
+
+The Google endpoint forms are documented by the
+[Chrome Web Push guide](https://developer.chrome.com/blog/push-notifications-on-the-open-web)
+and [FCM reference](https://firebase.google.com/docs/reference/fcm/rest), the
+Mozilla production host/path by the
+[Autopush HTTP API](https://mozilla-services.github.io/autopush-rs/http.html),
+and Apple documents using the endpoint returned by the subscription in
+[Sending web push notifications](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers).
+
+Do not replace the exact hosts with suffix or wildcard matching. IP literals,
+localhost, arbitrary hosts, credentials, fragments, non-HTTPS schemes, and
+custom ports stay rejected. Supporting a new push service requires primary
+browser/vendor evidence plus acceptance and rejection tests at the codec,
+route/store, and provider-send boundaries.
