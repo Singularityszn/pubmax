@@ -16,9 +16,9 @@ import {
   awardForVenue,
   entriesForBorough,
   entriesForNightArea,
-  loadAreaNews,
   NEW_ROUND_HERE_CAP,
 } from "@/lib/areaNews";
+import { loadAreaNews } from "@/lib/areaNews.server";
 
 export async function GET(request: Request): Promise<Response> {
   try {

@@ -27,6 +27,15 @@ const dataset = JSON.parse(
   readFileSync(path.join(process.cwd(), "data", "area_news.json"), "utf8"),
 ) as AreaNewsDataset;
 
+describe("area-news browser/server boundary", () => {
+  it("keeps Node built-ins and the dataset loader out of the client-safe module", () => {
+    const clientSource = readFileSync(path.join(process.cwd(), "lib", "areaNews.ts"), "utf8");
+
+    expect(clientSource).not.toMatch(/node:(?:fs|path)/);
+    expect(clientSource).not.toContain("loadAreaNews");
+  });
+});
+
 describe("area_news.json dataset shape", () => {
   it("has a version, a generatedAt stamp and a healthy entry count", () => {
     expect(dataset.version).toBe(1);
@@ -103,7 +112,7 @@ describe("venueMatch integrity", () => {
 });
 
 import { GET } from "@/app/api/area-news/route";
-import { __resetAreaNewsCache } from "@/lib/areaNews";
+import { __resetAreaNewsCache } from "@/lib/areaNews.server";
 
 describe("GET /api/area-news", () => {
   it("returns capped, dated entries for an area", async () => {

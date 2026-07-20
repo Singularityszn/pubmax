@@ -22,7 +22,8 @@ import EmptyState from "@/components/EmptyState";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
 import AreaNewsList from "@/components/areanews/AreaNewsList";
-import { loadAreaNews, entriesForBorough, NEW_ROUND_HERE_CAP } from "@/lib/areaNews";
+import { entriesForBorough, NEW_ROUND_HERE_CAP } from "@/lib/areaNews";
+import { loadAreaNews } from "@/lib/areaNews.server";
 
 import "./borough.css";
 import "@/components/seo/factLayer.css";
