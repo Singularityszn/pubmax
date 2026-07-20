@@ -234,7 +234,7 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
     softRelaxations: [
       ...((constraints.groupSize ?? 0) >= 6 ? [{
         code: "group_fit_unverified" as const,
-        message: "Group size shaped ranking, but venue capacity is not evidenced in the dataset.",
+        message: "The requested group size could not shape ranking because venue capacity is not evidenced in the dataset.",
       }] : []),
       ...(constraints.budgetTier === "value"
         && constraints.budgetLimitPence === null

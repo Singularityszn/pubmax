@@ -451,6 +451,20 @@ describe("POST /api/plans/generate", () => {
     });
   });
 
+	it("reports end to end that unevidenced group capacity could not shape ranking", async () => {
+		const response = await POST(new Request("http://localhost/api/plans/generate", {
+			method: "POST",
+			body: JSON.stringify({ intake: generationIntake({ groupSize: 8 }) }),
+		}));
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.constraintReport.softRelaxations).toContainEqual({
+			code: "group_fit_unverified",
+			message: "The requested group size could not shape ranking because venue capacity is not evidenced in the dataset.",
+		});
+	});
+
 	it("fails closed when custom candidates cannot be joined to canonical price evidence", async () => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1", { cheapestPrice: 9 }),
