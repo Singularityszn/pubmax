@@ -172,7 +172,7 @@ export default function FeedPage() {
   // and the page shows a "follow people" prompt. `null` following = not yet
   // loaded (so we don't flash the empty state before the fetch resolves).
   // Wave I1: prefer the signed-in auth handle when present so Friends/For You
-  // match the Google-linked identity instead of a stale localStorage claim.
+  // match the signed-in identity instead of a stale localStorage claim.
   const { handle: authHandle } = useAuth();
   const [myHandle, setMyHandle] = useState("");
   const [followingHandles, setFollowingHandles] = useState<Set<string> | null>(null);

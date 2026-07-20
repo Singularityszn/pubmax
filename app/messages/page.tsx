@@ -109,7 +109,7 @@ export default function MessagesInboxPage(): React.JSX.Element {
         ) : needsSignIn || !user ? (
           <EmptyState
             title="Sign in to message"
-            body="Private messages need a Google-linked account so nobody can read or send as your handle."
+            body="Private messages need a signed-in account so nobody can read or send as your handle."
             action={<SignInButton />}
           />
         ) : conversations.length === 0 ? (
