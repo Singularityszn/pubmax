@@ -1,14 +1,27 @@
-# Supabase to Convex hybrid migration runbook
+# Pub Pal Convex containment and migration runbook
 
-Status: local foundation only. No Convex deployment is linked and no remote
-Supabase or Convex data has been changed.
+Status: containment accepted 2026-07-20. This ruling changes no production
+backend and migrates no remote Supabase or Convex data.
 
 ## Boundary decision
 
-Supabase Auth remains the identity provider. Supabase/Postgres remains the
-source of truth until each capability passes backfill, shadow-read, and rollback
-gates. Convex initially owns only Pub Pal, proposed/approved memory, mastery and
-unlocks, and Plan Completion.
+Convex is contained to the Pub Pal domain: Pal profile, explicitly confirmed Pal
+memories and preferences, mastery, and unlocks. Supabase Auth remains the
+identity provider. Supabase/Postgres remains authoritative for Plan and
+collaboration (including completion/PNC), entitlement, social, identity, and all
+other core product domains.
+
+The existing Convex `planCompletions` table, functions, DTO, migration entity,
+and `plan_completion` flag are frozen pre-ruling scaffolding. They are retained
+only to avoid a destructive schema/code removal in this decision. They do not
+authorize import, shadow reads, cutover, dual-write, or a Plan runtime path, and
+`plan_completion` must remain in `supabase` mode. Cleanup can happen in a
+separately reviewed, non-destructive change.
+
+`__tests__/convexContainment.test.ts` pins the current table allow-list and the
+Supabase Plan seam. Adding a non-Pal Convex table, capability, or runtime path
+requires an explicit owner-approved decision in the canonical Wayfinder map and
+a deliberate update to that fence in the same change.
 
 The browser never receives database credentials or provider secrets. Public
 Convex functions are read-only and call `ctx.auth.getUserIdentity()` before
@@ -30,8 +43,9 @@ verified JWT `issuer` and `subject`. Never trust either value from browser input
 5. Generate normal `convex/_generated` bindings after linking a non-production
    deployment. The local `convex/model.ts` builders exist only to preserve
    keyless development before that point.
-6. Create feature flags independently for `pal`, `memory`, `mastery`, and
-   `plan_completion`; valid modes are `supabase`, `shadow`, and `convex`.
+6. Create feature flags independently for `pal`, `memory`, and `mastery`; valid
+   modes are `supabase`, `shadow`, and `convex`. The legacy `plan_completion`
+   flag remains hard-off in `supabase` mode.
 
 ## Per-capability migration
 
@@ -50,8 +64,8 @@ verified JWT `issuer` and `subject`. Never trust either value from browser input
    a bounded rollback window; avoid open-ended dual-write.
 9. Stop the old write path only after the observation window.
 
-Recommended order: Pal appearance/personality, memory, mastery/unlocks, Plan
-Completion, then live Plan collaboration in a later project.
+Recommended order: Pal appearance/personality, memory, then mastery/unlocks.
+Plan Completion and live Plan collaboration are outside this runbook.
 
 ## Rollback
 

@@ -21,6 +21,7 @@ The complete loop live in London: anonymous grounded Plan, account claim, gated 
 - Six-tab nav + /tonight cold start STAYS (shipped and locked via #414, #422, #445). The five-tab clause in the Sol roadmap is superseded.
 - Full map, waved: near waves fully ticketed, far waves coarser slices with entry gates.
 - Sequencing deviation from the Sol roadmap: solo anonymous Plan activation plus analytics baseline ships BEFORE the collaborative trial build. Wave 4 entry is gated on Wave 2 acceptance data.
+- Convex is contained to the Pub Pal domain: Pal profile, explicitly confirmed Pal memories and preferences, mastery, and unlocks. Plan and collaboration (including completion/PNC), entitlement, social, identity, and core product authority remain on Supabase. Existing Convex `planCompletions` and its migration/DTO surfaces are frozen pre-ruling scaffolding, not an approved cutover path; `plan_completion` stays in `supabase` mode. Any new non-Pal Convex table, capability, or runtime path requires an explicit owner-approved decision recorded in this map and a matching architecture-fence update.
 - This map lives at docs/WAYFINDER_PRODUCT_MAP_2026-07-20.md and is the handoff artifact to Sol.
 
 ## Corrections to the Sol 5.6 roadmap (update your model before planning against it)
@@ -28,7 +29,7 @@ The complete loop live in London: anonymous grounded Plan, account claim, gated 
 1. **Nav.** Roadmap wants Today/Explore/Plan/Stories/You with Tonight inside Explore. Superseded: six-tab equal-rhythm nav shipped (#414, #422, count-driven CSS model in components/nav/mobileNav.css) and wrapped-app cold start lands /tonight (#445, lib/entryDecision.ts, owner-locked).
 2. **CI.** Roadmap claims hosted CI is unavailable and asks for per-handoff verification bundles. Wrong: Vercel runs the full ci script (tests inside builds) and gates every merge; it has been the green gate since #383. Only GitHub Actions crons are dead ($0 billing cap, owner item). The verification-bundle clause is dropped; the existing lane verification bar stands.
 3. **Analytics.** Roadmap says "add PostHog through explicit allow-listed events". The rail already EXISTS end to end: lib/analytics.ts (consent-gated, DNT-honouring, pseudonymous beacon), lib/analyticsEvents.ts (closed allow-list registry + sanitizeEvent), lib/analyticsIdentity.ts, lib/posthogServer.ts (server-side forwarder, consent-checked), app/api/events (rate-limited ingest), components/ConsentAwareVercelAnalytics.tsx. Remaining work is event COVERAGE for loop metrics, not integration.
-4. **Convex.** Roadmap says evaluate Convex only after measured Supabase pain. Overtaken by reality: Convex is already a live second backend for the Pal domain (convex/schema.ts: pubPals, palMemories, masteryEvents, palUnlocks, planCompletions, plus shadow-read migration tables and convex/migrations.ts tooling). Decision ticket in Wave 0: contain Convex to the Pal domain (default) or plan convergence. Nothing new lands on Convex until ruled.
+4. **Convex.** Roadmap says evaluate Convex only after measured Supabase pain. Overtaken by reality: the repository already carries a typed Convex foundation for the Pal domain (`convex/schema.ts`: `pubPals`, `palMemories`, `masteryEvents`, `palUnlocks`, plus frozen `planCompletions` and shadow-read migration scaffolding). Wave 0.6 is now ruled: Convex is contained to Pub Pal; Plan, collaboration, entitlement, social, identity, and core authority stay on Supabase. The exact schema allow-list is CI-fenced in `__tests__/convexContainment.test.ts`.
 5. **Webpack dev failure.** Roadmap opens with fixing a webpack development failure (area-news browser/server split). No live evidence of this failure in current session state. Wave 0 carries a cheap verification ticket; fix only if reproduced.
 6. **Assumed-new is largely built.** Much of roadmap phases 2, 4, and 5 already exists on main: plan generation, invites with hashed tokens, proposals and two vote systems, presence, recap pipeline with a single publish gate, propose-then-confirm Story publication, per-owner consent endpoints, offline read caching, PWA, account-claim seam. The corresponding tickets below are wire/extend, not greenfield. Read the named files first.
 
@@ -41,7 +42,7 @@ The complete loop live in London: anonymous grounded Plan, account claim, gated 
 | 0.3 | Lint scope repair: exclude .claude/worktrees and detached worktrees from lint globs so stray worktrees cannot fail main lint | per roadmap | Opus |
 | 0.4 | Route smoke coverage: cheap Playwright (or judge-shot harness) smoke over /today, /tonight, Explore/Map, /plan, /moment, Stories, You, public profile; scripts/judge_w2_shots.mjs is the reusable capture base | PARTIAL | Opus |
 | 0.5 | Loop-metrics event coverage: extend the closed registry in lib/analyticsEvents.ts with the activation and loop events the metrics section needs (plan_generated, plan_accepted, plan_saved, claim_started, claim_completed, plan_completed, memory_reviewed, story_published, qualifying core actions for Weekly Meaningful Pubmaxxers). Server-enforced consent path unchanged; no new payload PII; no raw coordinates | rail EXISTS | Opus |
-| 0.6 | Convex containment ruling (decision): contain Convex to Pal domain (default) or converge onto Supabase; record in this file's Decisions | decision | Fable + owner |
+| 0.6 | Convex containment ruling: contain Convex to Pub Pal; Plan, collaboration, completion/PNC, entitlement, social, identity, and core authority remain Supabase. Frozen pre-ruling Plan Completion scaffolding is not a cutover path; CI fences schema expansion | DECIDED | Fable + owner |
 | 0.7 | Worktree and branch hygiene: classify existing worktrees (patch-equivalent, uniquely salvageable, incomplete, abandoned), prune ~130 stale worktree-agent-* local branches and ~158 remote heads with squash-merge ancestry proof per branch; evaluate salvage of gnhf/objective-make-every-f07487 (possibly unmerged shareSheet + bar-tab OG work) | per handoff | Fable |
 | 0.8 | Judge-w2 polish tail (non-blocking, ranked in docs/JUDGE_W2_VERDICT_2026-07-20.md): pal mid-zone ~250px, /near header idiom, landing coach-chip transient overlap, map first-frame attitude (watch only) | backlog | Fable forks |
 
@@ -160,7 +161,6 @@ Exit gate: entitlement ledger authoritative across web checkout, trial, and gate
 
 ## Not yet specified
 
-- Convex containment ruling (0.6) and its consequences for planStore migration (deferred in #168 pending THE-LOCAL lane).
 - Numeric Wave 4 entry threshold (set from Wave 2 baseline with owner).
 - Sponsorship policy detail (3.6) beyond the separation invariants.
 - DM encryption implementation depth (6.8).
