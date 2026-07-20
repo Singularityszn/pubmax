@@ -1,9 +1,11 @@
 // Capacitor iOS wrap (remote-URL mode). The Next.js app is SERVER-RENDERED —
 // there is no static export, so the native shell loads the production origin
 // directly rather than a bundled webDir. `webDir` must still point at a real
-// directory for the CLI's copy step; a one-file stub keeps cap sync from
+// directory for the CLI's copy step; a two-file stub keeps cap sync from
 // baking public/'s ~6 MB of datasets into the binary as dead weight — the
-// stub is never actually served inside the shell.
+// placeholder index is not served in healthy remote-URL mode, while
+// offline.html is served only through server.errorPath after a main-frame
+// load failure.
 // See docs/CAPACITOR_WRAP.md for the full wrap runbook (signing, APNs, AASA).
 import type { CapacitorConfig } from "@capacitor/cli";
 

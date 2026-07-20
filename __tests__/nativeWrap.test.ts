@@ -59,8 +59,25 @@ describe("Capacitor wrapped-build contract", () => {
     ]);
 
     const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    const verifiedFilters = [
+      ...manifest.matchAll(
+        /<intent-filter android:autoVerify="true">([\s\S]*?)<\/intent-filter>/g,
+      ),
+    ].map((match) => match[1] ?? "");
+    expect(verifiedFilters).toHaveLength(3);
     for (const path of ["/plan/", "/rounds/", "/p/"]) {
       expect(manifest).toContain(`android:pathPrefix="${path}"`);
+      expect(
+        verifiedFilters.some((filter) =>
+          filter.includes(`android:pathPrefix="${path}"`),
+        ),
+      ).toBe(true);
+    }
+    for (const filter of verifiedFilters) {
+      expect(filter).toContain('android:name="android.intent.action.VIEW"');
+      expect(filter).toContain('android:name="android.intent.category.BROWSABLE"');
+      expect(filter).toContain('android:scheme="https"');
+      expect(filter).toContain('android:host="pubmaxxing.com"');
     }
     expect(manifest).toContain('android:host="pubmaxxing.com"');
     expect(manifest).toContain('android:launchMode="singleTask"');
