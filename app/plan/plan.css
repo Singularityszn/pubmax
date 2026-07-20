@@ -478,7 +478,11 @@
 .planIntake__stage { min-height: 244px; padding: clamp(28px, 5vw, 42px) 0 24px; }
 .planIntake__stage h2,
 .planIntake__summaryBody h2 { max-width: 650px; margin: 8px 0 0; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 0.98; letter-spacing: -0.035em; }
-.planIntake__stage h2:focus { outline: none; }
+.planIntake__stage h2:focus {
+  outline: 3px solid color-mix(in srgb, var(--plan-accent) 60%, transparent);
+  outline-offset: 6px;
+  border-radius: 4px;
+}
 .planIntake__note { max-width: 610px; margin: 12px 0 0; color: var(--ink-soft); font-size: 0.88rem; line-height: 1.5; }
 .planIntake__choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .planIntake__choices button,
@@ -500,6 +504,8 @@
 .planIntake__choices--cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .planIntake__choices--cards button { min-height: 74px; display: grid; align-content: center; gap: 3px; text-align: left; }
 .planIntake__choices--cards small { color: var(--muted); font-size: 0.69rem; font-weight: 650; line-height: 1.35; }
+.planIntake__exactTime { grid-column: 1 / -1; display: grid; gap: 7px; margin-top: 6px; color: var(--ink-soft); font-size: 0.78rem; }
+.planIntake__exactTime input { width: min(100%, 270px); }
 .planIntake__choices--access button { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 7px; text-align: left; }
 .planIntake__choices--access button > span { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; }
 .planIntake__group,

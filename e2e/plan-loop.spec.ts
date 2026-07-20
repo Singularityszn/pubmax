@@ -24,12 +24,13 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     )
     .toBeLessThanOrEqual(1);
 
+  await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Plan my night" }).click();
   await expect(page.getByText("Three grounded stops, shaped by the editable context below.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
-  await page.getByText("Night Area coverage").click();
+  await page.getByText("Area coverage", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Higher-confidence planning" })).toBeVisible();
   await expect
     .poll(async () =>
@@ -43,6 +44,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
   await expect(page.getByText("Karan", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.localStorage.getItem("pubmax:plan-intake:v1"))).toBeNull();
   const publicUrl = page.url();
 
   const mate = await browser.newContext();

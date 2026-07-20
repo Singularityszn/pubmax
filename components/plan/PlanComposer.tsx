@@ -20,14 +20,16 @@ import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import {
   buildPlanGenerationIntakeBody,
+  clearPlanIntakeDraft,
   createPlanIntakeDraft,
+  londonDateTimeInputFromIso,
+  londonDateTimeInputToIso,
   planIntakeHandoff,
   planIntakeNightContextPatch,
   readPlanIntakeDraft,
-  startDateTimeForWindow,
+  reopenPlanIntakeStep,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
-  type PlanTimeWindowId,
 } from "@/lib/planIntake";
 
 export type RouteRevision = string | number;
@@ -391,6 +393,7 @@ function PlanComposerForm({
   const [planIntake, setPlanIntake] = useState(recoveredIntake);
   const [conciergeNote, setConciergeNote] = useState("");
   const [nightContext, setNightContext] = useState<NightContext | null>(recoveredRouteDraft?.nightContext ?? null);
+  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(recoveredRouteDraft?.routeRevision ?? null);
   const [routeStale, setRouteStale] = useState(recoveredRouteDraft?.routeStale ?? false);
   const [sorting, setSorting] = useState(false);
@@ -473,11 +476,32 @@ function PlanComposerForm({
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after those planning details changed.");
     }
+    const exactStartInput = next.answers.exactStartIso
+      ? londonDateTimeInputFromIso(next.answers.exactStartIso)
+      : null;
+    if (exactStartInput) setStartTime(exactStartInput);
     setPlanIntake(next);
   }
 
-  function updateTimeWindow(windowId: PlanTimeWindowId) {
-    setStartTime((current) => startDateTimeForWindow(current, windowId));
+  function updatePlanStartTime(value: string) {
+    setStartTime(value);
+    const exactStartIso = londonDateTimeInputToIso(value);
+    if (planIntake.answers.timeWindow) {
+      const next = {
+        ...planIntake,
+        answers: { ...planIntake.answers, exactStartIso },
+      };
+      updatePlanIntake(exactStartIso ? next : reopenPlanIntakeStep(next, "time-window"));
+      if (nightContext) {
+        setRouteStale(true);
+        setRouteStatus("Route needs refreshing after the exact start time changed.");
+      }
+      return;
+    }
+    if (nightContext) {
+      setRouteStale(true);
+      setRouteStatus("Route needs refreshing after the exact start time changed.");
+    }
   }
 
   function chooseVenue(key: number, venueName: string) {
@@ -496,6 +520,7 @@ function PlanComposerForm({
       setRouteStatus("Route needs refreshing after that context change.");
     }
     setNightContext(next);
+    setExplicitNightContext((current) => ({ ...current, ...patch }));
     if (!user) writeDeviceNightContext(next);
   }
 
@@ -521,7 +546,12 @@ function PlanComposerForm({
       const response = await fetch("/api/plans/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(buildPlanGenerationIntakeBody(planIntake, conciergeQuery, nightContext)),
+        body: JSON.stringify(buildPlanGenerationIntakeBody(
+          planIntake,
+          conciergeQuery,
+          nightContext,
+          explicitNightContext,
+        )),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
@@ -578,10 +608,13 @@ function PlanComposerForm({
     setSubmitting(true);
     setError("");
     try {
+      const exactStartIso = planIntake.answers.exactStartIso
+        ?? londonDateTimeInputToIso(startTime);
+      if (!exactStartIso) throw new Error("Choose a valid London start time.");
       const createPayload = {
         title,
         creatorName,
-        startTime: new Date(startTime).toISOString(),
+        startTime: exactStartIso,
         stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
       };
       const operationKey = await persistentPlanMutationKey("create", createPayload);
@@ -624,6 +657,7 @@ function PlanComposerForm({
       try {
         sessionStorage.removeItem(PLAN_DRAFT_KEY);
         localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY);
+        clearPlanIntakeDraft();
       } catch { /* best effort */ }
       clearPersistentPlanMutationKey("create", operationKey);
       router.push(`/plan/${body.plan.plan.id}`);
@@ -639,7 +673,6 @@ function PlanComposerForm({
       <PlanIntake
         draft={planIntake}
         onChange={updatePlanIntake}
-        onTimeWindowChange={updateTimeWindow}
       />
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
         <div>
@@ -793,7 +826,7 @@ function PlanComposerForm({
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-time">First pint</label>
-        <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+        <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
       </div>
 
       <fieldset className="planComposer__stops">

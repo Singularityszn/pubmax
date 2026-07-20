@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import { Check, MapPin, RotateCcw } from "lucide-react";
 
 import { writeRememberedArea } from "@/lib/nightPatches";
@@ -9,6 +9,9 @@ import {
   PLAN_BUDGET_OPTIONS,
   PLAN_INTAKE_STEPS,
   PLAN_TIME_WINDOWS,
+  londonDateTimeInputFromIso,
+  londonDateTimeInputToIso,
+  nextLondonOccurrenceIso,
   planIntakeStepHasAnswer,
   planIntakeSummary,
   reopenPlanIntakeStep,
@@ -17,7 +20,6 @@ import {
   type PlanAccessibilityNeed,
   type PlanIntakeDraft,
   type PlanIntakeStep,
-  type PlanTimeWindowId,
 } from "@/lib/planIntake";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import type { Budget } from "@/lib/nightPlanning";
@@ -71,14 +73,23 @@ function updateAccessibility(
   };
 }
 
+function advanceSingleValueStep(
+  event: KeyboardEvent<HTMLInputElement>,
+  draft: PlanIntakeDraft,
+  onChange: (next: PlanIntakeDraft) => void,
+): void {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (planIntakeStepHasAnswer(draft)) onChange(settlePlanIntakeStep(draft));
+}
+
 export default function PlanIntake({
   draft,
   onChange,
-  onTimeWindowChange,
 }: {
   draft: PlanIntakeDraft;
   onChange: (next: PlanIntakeDraft) => void;
-  onTimeWindowChange: (windowId: PlanTimeWindowId) => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const hasRenderedRef = useRef(false);
@@ -185,13 +196,34 @@ export default function PlanIntake({
                 type="button"
                 aria-pressed={draft.answers.timeWindow === option.id}
                 onClick={() => {
-                  onTimeWindowChange(option.id);
-                  onChange({ ...draft, answers: { ...draft.answers, timeWindow: option.id } });
+                  onChange({
+                    ...draft,
+                    answers: {
+                      ...draft.answers,
+                      timeWindow: option.id,
+                      exactStartIso: nextLondonOccurrenceIso(option.id),
+                    },
+                  });
                 }}
               >
                 <strong>{option.label}</strong><small>{option.note}</small>
               </button>
             ))}
+            {draft.answers.timeWindow && draft.answers.exactStartIso ? (
+              <label className="planIntake__exactTime" htmlFor="plan-intake-exact-time">
+                Exact first pint
+                <input
+                  id="plan-intake-exact-time"
+                  type="datetime-local"
+                  value={londonDateTimeInputFromIso(draft.answers.exactStartIso) ?? ""}
+                  onChange={(event) => {
+                    const exactStartIso = londonDateTimeInputToIso(event.target.value);
+                    onChange({ ...draft, answers: { ...draft.answers, exactStartIso } });
+                  }}
+                  onKeyDown={(event) => advanceSingleValueStep(event, draft, onChange)}
+                />
+              </label>
+            ) : null}
           </div>
         ) : null}
 
@@ -220,6 +252,7 @@ export default function PlanIntake({
                 const groupSize = Number.isInteger(parsed) && parsed >= 1 && parsed <= 30 ? parsed : null;
                 onChange({ ...draft, answers: { ...draft.answers, groupSize } });
               }}
+              onKeyDown={(event) => advanceSingleValueStep(event, draft, onChange)}
             />
           </div>
         ) : null}
@@ -263,6 +296,7 @@ export default function PlanIntake({
                     },
                   });
                 }}
+                onKeyDown={(event) => advanceSingleValueStep(event, draft, onChange)}
               />
             </div>
           </div>
