@@ -20,6 +20,8 @@ function post(body: string, headers: Record<string, string> = {}): Request {
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.PLAN_IDEMPOTENCY_SECRET;
+  delete process.env.RATE_LIMIT_SALT;
   delete process.env.POSTHOG_PROJECT_API_KEY;
   __resetPintDrops();
   __resetMemoryAnalyticsReceipts();
@@ -27,6 +29,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.PLAN_IDEMPOTENCY_SECRET;
+  delete process.env.RATE_LIMIT_SALT;
 });
 
 describe("POST /api/events", () => {
@@ -213,6 +219,25 @@ describe("POST /api/events", () => {
     expect(response.headers.get("x-analytics-delivery")).toBe("delivered");
     const providerPayload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
     expect(providerPayload.timestamp).toBe(occurredAt);
+  });
+
+  it("retains a verified event for retry when the trusted signing key is temporarily unavailable", async () => {
+    const event = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
+    process.env.PLAN_IDEMPOTENCY_SECRET = "configured-random-signing-key-0123456789abcdef";
+    const deliveryToken = mintVerifiedAnalyticsToken(event, "plan:key-outage", new Date().toISOString());
+    process.env.SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
+    delete process.env.PLAN_IDEMPOTENCY_SECRET;
+
+    const response = await POST(post(JSON.stringify({
+      ...event,
+      deliveryToken,
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("x-analytics-delivery")).toBe("retry");
   });
 
   it("rejects spoofed acceptance and completion events without a server token", async () => {

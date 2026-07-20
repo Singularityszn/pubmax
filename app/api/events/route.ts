@@ -27,6 +27,7 @@ import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent } from "@/lib/posthogServer";
 import { analyticsReceiptStore } from "@/lib/analyticsReceiptStore";
 import { analyticsDeliveryTokenDigest, verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
+import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 export const runtime = "nodejs";
 
@@ -115,6 +116,16 @@ export async function POST(req: Request): Promise<Response> {
     // that could carry a token.
     const safePath = analyticsSurfaceFromPath(path);
     const verified = requiresVerifiedDelivery(event.name, event.props);
+    if (verified) {
+      try {
+        trustedSigningKey();
+      } catch (error) {
+        // Configuration loss is retryable: do not tell the browser to discard
+        // a token that may be valid again once the same secret is restored.
+        if (isTrustedSigningKeyUnavailableError(error)) return noContent("retry");
+        throw error;
+      }
+    }
     const delivery = verified ? verifyAnalyticsDeliveryToken(deliveryToken, event) : null;
     if (verified && !delivery) return noContent("discard");
     if (delivery) {

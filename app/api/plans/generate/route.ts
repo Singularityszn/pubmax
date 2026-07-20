@@ -10,6 +10,7 @@ import { cleanNightContext, cleanNightContextPatch, inferNightContext, type Nigh
 import type { PlanBudgetSummary, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { buildPlanEndingRecommendations } from "@/lib/planEndings";
 import { mintPlanGroundingProof } from "@/lib/planGrounding.server";
+import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { isPlanIdempotencyKey } from "@/lib/planStore";
 import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
 import { filterTonight, type WhatsOnRow } from "@/lib/whatsOn";
@@ -194,6 +195,8 @@ export async function POST(request: Request): Promise<Response> {
   if (!cityId) return publicApiError("cityId is invalid.", "CITY_INVALID", 400);
   const area = getNightArea(context.nightArea);
   if (area.cityId !== cityId) return publicApiError("That area isn't in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
+	const signingUnavailable = planSigningPreflightResponse();
+	if (signingUnavailable) return signingUnavailable;
 	const routeReady = isNightAreaRouteReady(area);
 	const coverage = publicNightAreaCoverage(area);
 	const requestNow = Date.now();
@@ -306,13 +309,21 @@ export async function POST(request: Request): Promise<Response> {
 		...[...alternativesByVenue.values()].flat().map(({ venue }) => venue.id),
 	];
 	const nightArea = { id: area.slug, ...coverage };
+	let groundingProof: string;
+	try {
+		groundingProof = mintPlanGroundingProof(groundingCandidateIds, operationKey, requestNow);
+	} catch (error) {
+		const unavailable = planSigningUnavailableResponse(error);
+		if (unavailable) return unavailable;
+		throw error;
+	}
   return jsonNoStore({
     // This response is assembled exclusively from the reviewed venue dataset
     // above and only exists when three canonical venue records were selected.
     // The explicit flag lets clients distinguish server-grounded generation
     // from a manual draft without guessing from unrelated revision metadata.
     grounded: true,
-    groundingProof: mintPlanGroundingProof(groundingCandidateIds, operationKey, requestNow),
+    groundingProof,
     operationKey,
     inferredContext: context,
     confidence: inferred.confidence,

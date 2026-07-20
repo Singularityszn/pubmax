@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
+
 const PROOF_VERSION = 1;
 const PROOF_MAX_LENGTH = 8_000;
 const VENUE_ID_MAX = 120;
@@ -13,12 +15,6 @@ type GroundingPayload = {
   expiresAt: number;
 };
 
-function groundingSecret(): string {
-  return process.env.PLAN_IDEMPOTENCY_SECRET
-    ?? process.env.RATE_LIMIT_SALT
-    ?? "pubmax-plan-grounding-development-only";
-}
-
 function canonicalVenueIds(values: readonly string[]): string[] | null {
   if (values.length < 3 || values.length > 100) return null;
   const ids = values.map((value) => value.trim());
@@ -26,14 +22,14 @@ function canonicalVenueIds(values: readonly string[]): string[] | null {
   return [...new Set(ids)].sort();
 }
 
-function signature(encodedPayload: string): Buffer {
-  return createHmac("sha256", groundingSecret())
+function signature(encodedPayload: string, key: Buffer): Buffer {
+  return createHmac("sha256", key)
     .update(`plan-grounding:v${PROOF_VERSION}:${encodedPayload}`)
     .digest();
 }
 
-function operationDigest(operationKey: string): string {
-  return createHmac("sha256", groundingSecret())
+function operationDigest(operationKey: string, key: Buffer): string {
+  return createHmac("sha256", key)
     .update(`plan-grounding-operation:v${PROOF_VERSION}:${operationKey.trim()}`)
     .digest("hex");
 }
@@ -48,15 +44,16 @@ export function mintPlanGroundingProof(
 ): string {
   const canonical = canonicalVenueIds(venueIds);
   if (!canonical || !operationKey.trim()) throw new Error("A grounding proof needs canonical venues and one create operation.");
+  const key = trustedSigningKey();
   const payload: GroundingPayload = {
     v: PROOF_VERSION,
     venueIds: canonical,
-    operationDigest: operationDigest(operationKey),
+    operationDigest: operationDigest(operationKey, key),
     issuedAt: now,
     expiresAt: now + PLAN_GROUNDING_PROOF_TTL_MS,
   };
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  return `${encoded}.${signature(encoded).toString("base64url")}`;
+  return `${encoded}.${signature(encoded, key).toString("base64url")}`;
 }
 
 /** Verify that exactly three accepted stops were covered by a server-minted proof. */
@@ -70,14 +67,15 @@ export function readPlanGroundingClaims(
   const parts = proof.split(".");
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   try {
+    const key = trustedSigningKey();
     const supplied = Buffer.from(parts[1], "base64url");
-    const expected = signature(parts[0]);
+    const expected = signature(parts[0], key);
     if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
     const payload = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as Partial<GroundingPayload>;
     if (payload.v !== PROOF_VERSION || !Array.isArray(payload.venueIds)) return null;
     const allowed = canonicalVenueIds(payload.venueIds);
     if (!allowed || allowed.length !== payload.venueIds.length) return null;
-    if (payload.operationDigest !== operationDigest(operationKey)) return null;
+    if (payload.operationDigest !== operationDigest(operationKey, key)) return null;
     if (typeof payload.issuedAt !== "number" || !Number.isSafeInteger(payload.issuedAt)
       || typeof payload.expiresAt !== "number" || !Number.isSafeInteger(payload.expiresAt)) return null;
     if (payload.expiresAt !== payload.issuedAt + PLAN_GROUNDING_PROOF_TTL_MS) return null;

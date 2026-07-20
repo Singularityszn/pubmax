@@ -191,6 +191,14 @@ ordinary events continue to use server receipt time and ignore client-supplied
 timestamps. This delivery rail is funnel telemetry only and
 does not change the PNC ledger authority below.
 
+The signing root is operator-configured (at least 32 random bytes) for every
+Supabase-backed or production process. A true keyless demo instead gets one
+random process-local key, matching its in-memory lifetime; there is no public
+development signing constant. If trusted signing is misconfigured, Plan
+generation, creation, and completion fail before mutation with a retryable 503,
+while verified event ingestion retains pending delivery for retry. Once a
+configured key is present, tokens with invalid signatures are discarded.
+
 Weekly Meaningful Pubmaxxers is the number of distinct pseudonymous identities
 with at least one `meaningful_core_action` in a seven-day window. Its `action`
 is a fixed enum and can only be one of:

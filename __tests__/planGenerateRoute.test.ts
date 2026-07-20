@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { isLimitedMock, loadConciergeVenuesMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async (...args: [
@@ -41,6 +41,14 @@ describe("POST /api/plans/generate", () => {
     isLimitedMock.mockClear();
     isLimitedMock.mockResolvedValue(false);
     loadConciergeVenuesMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.PLAN_IDEMPOTENCY_SECRET;
+    delete process.env.RATE_LIMIT_SALT;
   });
 
   it("warms stable planning data without creating a plan", async () => {
@@ -91,6 +99,27 @@ describe("POST /api/plans/generate", () => {
     expect(body.missingContextEvidence).toEqual([]);
     expect(body.explanations).toEqual(expect.arrayContaining([expect.objectContaining({ field: "nightArea" })]));
     expect(body).not.toHaveProperty("planId");
+  });
+
+  it("returns an actionable retry response when trusted proof signing is unavailable", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    process.env.SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
+    delete process.env.PLAN_IDEMPOTENCY_SECRET;
+    delete process.env.RATE_LIMIT_SALT;
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "Four of us after work in Clapham, cheap and lively" }),
+    }));
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("60");
+    expect(await response.json()).toEqual({
+      error: "Verified Plan signing is temporarily unavailable. Try again shortly.",
+      code: "PLAN_SIGNING_UNAVAILABLE",
+      retryable: true,
+    });
   });
 
   it("requires a description or explicit Night Context", async () => {

@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import { sanitizeEvent, type AnalyticsEvent } from "@/lib/analyticsEvents";
+import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 const TOKEN_VERSION = 1;
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -15,12 +16,6 @@ type VerifiedAnalyticsClaims = {
   expiresAt: number;
 };
 
-function secret(): string {
-  return process.env.PLAN_IDEMPOTENCY_SECRET
-    ?? process.env.RATE_LIMIT_SALT
-    ?? "pubmax-verified-analytics-development-only";
-}
-
 function canonicalEvent(event: AnalyticsEvent): AnalyticsEvent | null {
   const sanitized = sanitizeEvent(event.name, event.props);
   if (!sanitized) return null;
@@ -28,12 +23,12 @@ function canonicalEvent(event: AnalyticsEvent): AnalyticsEvent | null {
   return { name: sanitized.name, props };
 }
 
-function signature(encoded: string): Buffer {
-  return createHmac("sha256", secret()).update(`verified-analytics:v${TOKEN_VERSION}:${encoded}`).digest();
+function signature(encoded: string, key: Buffer): Buffer {
+  return createHmac("sha256", key).update(`verified-analytics:v${TOKEN_VERSION}:${encoded}`).digest();
 }
 
-function eventId(subject: string, event: AnalyticsEvent): string {
-  const hex = createHmac("sha256", secret())
+function eventId(subject: string, event: AnalyticsEvent, key: Buffer): string {
+  const hex = createHmac("sha256", key)
     .update(`verified-analytics-event:${subject}:${event.name}:${JSON.stringify(event.props)}`)
     .digest("hex")
     .slice(0, 32)
@@ -52,16 +47,17 @@ export function mintVerifiedAnalyticsToken(
   const canonical = canonicalEvent(event);
   const issuedAt = Date.parse(occurredAt);
   if (!canonical || !subject || !Number.isFinite(issuedAt)) throw new Error("Verified analytics needs a canonical event and occurrence.");
+  const key = trustedSigningKey();
   const claims: VerifiedAnalyticsClaims = {
     v: TOKEN_VERSION,
-    eventId: eventId(subject, canonical),
+    eventId: eventId(subject, canonical, key),
     name: canonical.name,
     props: canonical.props,
     issuedAt,
     expiresAt: issuedAt + TOKEN_TTL_MS,
   };
   const encoded = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
-  return `${encoded}.${signature(encoded).toString("base64url")}`;
+  return `${encoded}.${signature(encoded, key).toString("base64url")}`;
 }
 
 export function verifyAnalyticsDeliveryToken(
@@ -73,8 +69,9 @@ export function verifyAnalyticsDeliveryToken(
   const parts = token.split(".");
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   try {
+    const key = trustedSigningKey();
     const supplied = Buffer.from(parts[1], "base64url");
-    const expected = signature(parts[0]);
+    const expected = signature(parts[0], key);
     if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
     const claims = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as Partial<VerifiedAnalyticsClaims>;
     const canonical = canonicalEvent(event);

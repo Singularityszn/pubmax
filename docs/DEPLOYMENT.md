@@ -18,7 +18,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `NEXT_PUBLIC_SUPABASE_URL` | Public Supabase URL used by browser auth/realtime. Usually the same value as `SUPABASE_URL`. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public browser key for Supabase Auth/Realtime. Safe to expose; do **not** use the service-role key. |
 | `ADMIN_TOKEN` | Moderator auth for `/admin` and moderation APIs. Prefer the httpOnly session cookie from `POST /api/admin/session` (the admin console never needs to keep sending the raw token). The `x-admin-token` header remains accepted for scripts/back-compat. If unset, moderation is open **only** in dev/test (`NODE_ENV`) — always set it anywhere reachable, including preview deployments. **Required in production:** `assertServerEnv()` refuses to start if this is unset (FATAL at route import). |
-| `RATE_LIMIT_SALT` | Salt for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs). Defaults to `pubmax-rate-limit` in dev — set a unique secret in production so hashes aren't computable from public code. **Required in production:** `assertServerEnv()` refuses to start if this is unset or still the dev default. |
+| `RATE_LIMIT_SALT` | At least 32 random bytes for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs) and the fallback trusted Plan-signing key. Defaults are allowed only for non-trusted local helpers. **Required in production:** `assertServerEnv()` refuses to start if this is unset, short, or still the dev default. |
 
 ### Optional — The Landlord (heritage Q&A)
 
@@ -31,9 +31,21 @@ Set these in the Vercel project (Settings → Environment Variables).
 
 | Var | Purpose |
 |---|---|
+| `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
 | `EXA_API_KEY` | Powers the scheduled signals-ingestion job (sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
 | `TFL_APP_KEY` | Optional TfL app key for `/api/last-train`. The keyless TfL API is used by default; the key is only appended when present (higher rate limits). |
 | `ACTOR_HASH_SALT` / `PLAN_MEMBER_TOKEN_SALT` | Extra identity-hash salts. Both fall back safely (`ACTOR_HASH_SALT` → `RATE_LIMIT_SALT`; `PLAN_MEMBER_TOKEN_SALT` → `ACTOR_HASH_SALT`). Set distinct secrets in production. |
+
+### Keyless signing boundary
+
+Local demos with no Supabase and no signing secret use a cryptographically
+random process-local HMAC key. This keeps Plan grounding and verified analytics
+usable in the same in-memory process without creating a public forgeable key;
+tokens intentionally stop verifying after restart. Any Supabase-backed or
+deployed-production process must configure one of the trusted secrets above.
+Plan generation, creation, and completion return retryable
+`PLAN_SIGNING_UNAVAILABLE` (503) before mutation when that boundary is
+misconfigured.
 
 ### Vercel-injected (do not set by hand)
 

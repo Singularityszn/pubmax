@@ -5,6 +5,7 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { isLimited } from "@/lib/pintDrops";
 import { planRequestDigest, planStore } from "@/lib/planStore";
 import { verifyPlanGroundingProof, wasPlanGroundedAtCreation } from "@/lib/planGrounding.server";
+import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -22,6 +23,8 @@ export async function POST(request: Request): Promise<Response> {
   }
   const idempotencyKey = planMutationIdempotencyKey(request, body);
   if (!idempotencyKey) return publicApiError(PLAN_IDEMPOTENCY_ERROR.error, PLAN_IDEMPOTENCY_ERROR.code, 400);
+  const signingUnavailable = planSigningPreflightResponse();
+  if (signingUnavailable) return signingUnavailable;
   const limiterKey = `plan-create:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, undefined, undefined, { failClosed: true })) {
     return publicApiError("Too many Plans, slow down.", "PLAN_CREATE_RATE_LIMITED", 429, { retryable: true });
@@ -66,6 +69,19 @@ export async function POST(request: Request): Promise<Response> {
         idempotencyKey,
         result.plan.plan.createdAt,
       );
+  let eventTokens: ReturnType<typeof planLoopEventTokens>;
+  try {
+    eventTokens = planLoopEventTokens({
+      planId: result.plan.plan.id,
+      createdAt: result.plan.plan.createdAt,
+      stops: result.plan.stops.length,
+      grounded,
+    });
+  } catch (error) {
+    const unavailable = planSigningUnavailableResponse(error);
+    if (unavailable) return unavailable;
+    throw error;
+  }
   return attachPlanMemberSession(
     jsonNoStore({
       plan: result.plan,
@@ -75,12 +91,7 @@ export async function POST(request: Request): Promise<Response> {
       // The signature binds the accepted venue ids to a server-generated
       // candidate set. Client grounding flags and edited proofs are ignored.
       grounded,
-      eventTokens: planLoopEventTokens({
-        planId: result.plan.plan.id,
-        createdAt: result.plan.plan.createdAt,
-        stops: result.plan.stops.length,
-        grounded,
-      }),
+      eventTokens,
     }, { status: 201 }),
     request,
     result.plan.plan.id,

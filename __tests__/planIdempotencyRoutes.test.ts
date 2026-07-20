@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -41,6 +41,10 @@ async function create(key: string, body: Record<string, unknown> = payload) {
 }
 
 beforeEach(() => __resetMemoryPlans());
+afterEach(() => {
+  delete process.env.PLAN_IDEMPOTENCY_SECRET;
+  delete process.env.RATE_LIMIT_SALT;
+});
 
 describe("Plan mutation idempotency", () => {
   it("requires a retry key for every material public mutation", async () => {
@@ -73,6 +77,23 @@ describe("Plan mutation idempotency", () => {
     const conflict = await create("create-recovery-1", { ...payload, title: "Different intent" });
     expect(conflict.response.status).toBe(409);
     expect(conflict.body).toMatchObject({ code: "PLAN_IDEMPOTENCY_CONFLICT" });
+  });
+
+  it("fails before creating a Plan and succeeds cleanly after signing recovers", async () => {
+    process.env.PLAN_IDEMPOTENCY_SECRET = "too-short";
+    const unavailable = await create("create-signing-retry");
+
+    expect(unavailable.response.status).toBe(503);
+    expect(unavailable.response.headers.get("retry-after")).toBe("60");
+    expect(unavailable.body).toMatchObject({ code: "PLAN_SIGNING_UNAVAILABLE", retryable: true });
+
+    delete process.env.PLAN_IDEMPOTENCY_SECRET;
+    const retry = await create("create-signing-retry");
+    expect(retry.response.status).toBe(201);
+    expect(retry.body).toMatchObject({ created: true, eventTokens: {
+      planAccepted: expect.any(String),
+      meaningfulCoreAction: expect.any(String),
+    } });
   });
 
   it("attributes grounding only to an intact server-minted candidate proof", async () => {
