@@ -18,6 +18,19 @@ import {
 	type NightSignalClaim,
 } from "@/lib/nightSignalClaims";
 import { isLimited } from "@/lib/pintDrops";
+import type { PlanAccessibilityNeed } from "@/lib/planIntake";
+import {
+	parsePlanGenerationIntake,
+	parsedPlanIntakeContextPatch,
+	planCandidateAccessibility,
+	planOpeningEvidenceForVenues,
+	planVisitWindows,
+	selectGroundedPlanRoute,
+	type ParsedPlanGenerationIntake,
+	type PlanConstraintReport,
+	type PlanOpeningEvidence,
+	type PlanStopConstraintFlag,
+} from "@/lib/planRoute";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
 import { planningWeatherForArea, type PlanningWeather } from "@/lib/weatherSnapshots";
@@ -178,21 +191,64 @@ export async function POST(request: Request): Promise<Response> {
   try { body = await request.json() as Record<string, unknown>; } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
   const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });
+	const requestNow = Date.now();
+	let intake: ParsedPlanGenerationIntake | null = null;
+	if (Object.prototype.hasOwnProperty.call(body, "intake")) {
+		const parsed = parsePlanGenerationIntake(body.intake, new Date(requestNow));
+		if (!parsed.ok) return publicApiError(parsed.message, parsed.code, 400);
+		intake = parsed.value;
+		if (intake.unsupportedPatch) {
+			return publicApiError(
+				"Exact Plan generation is not available for this Night Patch yet.",
+				"NIGHT_PATCH_UNSUPPORTED",
+				422,
+				{ details: { patchId: intake.unsupportedPatch } },
+			);
+		}
+	}
   const query = typeof body.query === "string" ? body.query.trim() : "";
-  if (!query && !body.context) return publicApiError("Describe the night or provide Night Context.", "NIGHT_CONTEXT_REQUIRED", 400);
+  if (!query && !body.context && !intake?.exactNightArea) return publicApiError("Describe the night or provide Night Context.", "NIGHT_CONTEXT_REQUIRED", 400);
   const inferred = inferNightContext(query);
-  const context = mergeContext(inferred.context, body.context);
+  const mergedContext = mergeContext(inferred.context, body.context);
+  const context = intake ? { ...mergedContext, ...parsedPlanIntakeContextPatch(intake) } : mergedContext;
   if (!context.nightArea) return publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422);
   const cityId = typeof body.cityId === "string" ? parseCityId(body.cityId) : DEFAULT_CITY_ID;
   if (!cityId) return publicApiError("cityId is invalid.", "CITY_INVALID", 400);
   const area = getNightArea(context.nightArea);
   if (area.cityId !== cityId) return publicApiError("That area isn't in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
-	const routeReady = isNightAreaRouteReady(area);
+	const routeReady = isNightAreaRouteReady(area, new Date(requestNow));
 	const coverage = publicNightAreaCoverage(area);
-	const requestNow = Date.now();
+	if (intake?.exactNightArea && !isNightAreaRouteReady(area, new Date(requestNow))) {
+		return publicApiError(
+			`Grounded route generation is not ready for ${area.name} yet.`,
+			"NIGHT_PATCH_ROUTE_NOT_READY",
+			422,
+			{ details: { patchId: intake.handoff.area?.id, nightArea: area.slug, missingEvidence: area.missingEvidence } },
+		);
+	}
+	const visitWindows = intake ? planVisitWindows(intake) : [];
+	if (visitWindows === null) {
+		return publicApiError(
+			"The dated time window is too short for three grounded stops.",
+			"PLAN_TIME_WINDOW_INSUFFICIENT",
+			422,
+			{ details: { requiredMinutes: 170, windowEndIso: intake?.windowEndIso } },
+		);
+	}
 	const planningWeather = planningWeatherForArea(weatherSnapshot, area.slug, requestNow);
 	const tonightRows = baselineTonight(requestNow);
 	const reviewedSignalClaims = activeNightSignalClaims(nightSignalSnapshot, requestNow);
+	if (
+		claimsForEntity(reviewedSignalClaims, "night_area", area.slug)
+			.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid")
+	) {
+		return publicApiError(
+			"A reviewed active exclusion means this Night Area cannot be routed right now.",
+			"NIGHT_AREA_CONSTRAINT_BLOCKED",
+			422,
+			{ details: { nightArea: area.slug } },
+		);
+	}
 	const tonightByVenue = new Map<string, WhatsOnRow[]>();
 	for (const row of tonightRows) {
 		if (!row.venueId) continue;
@@ -208,12 +264,103 @@ export async function POST(request: Request): Promise<Response> {
 	      const scored = scoreVenueForContext(venue, context, distance, tonightEvents, signalClaims, planningWeather);
 	      return { venue, distance, tonightEvents, signalClaims, ...scored };
 	    })
-    .filter(({ distance }) => distance <= area.radiusKm)
+    .filter(({ distance, venue, signalClaims }) =>
+		distance <= area.radiusKm
+		&& venue.promoted !== true
+		&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
     .sort((a, b) => b.score - a.score);
-  const chosen = candidates.slice(0, 3);
+	type Candidate = (typeof candidates)[number];
+	let chosen: Candidate[];
+	let alternativesByPosition: readonly (readonly Candidate[])[] | null = null;
+	let constraintReport: PlanConstraintReport | null = null;
+	const selectedOpeningEvidence = new Map<string, PlanOpeningEvidence>();
+	const selectedConstraintFlags = new Map<string, PlanStopConstraintFlag[]>();
+	const alternativeOpeningEvidence = new Map<string, PlanOpeningEvidence>();
+	const alternativeConstraintFlags = new Map<string, PlanStopConstraintFlag[]>();
+	let accessibilityEnforced = false;
+	if (intake) {
+		const intakeAccessibilityIds = new Set<PlanAccessibilityNeed>([
+			"step-free",
+			"accessible-toilet",
+			"seating",
+			"low-noise",
+		]);
+		const requiredAccessibilityNeeds = [...new Set([
+			...intake.handoff.accessibilityNeeds,
+			...context.accessibility.filter((need): need is PlanAccessibilityNeed =>
+				intakeAccessibilityIds.has(need as PlanAccessibilityNeed)),
+		])];
+		accessibilityEnforced = requiredAccessibilityNeeds.length > 0;
+		const openingEvidence = await planOpeningEvidenceForVenues(
+			candidates.map(({ venue }) => venue),
+			visitWindows,
+		);
+		const selection = selectGroundedPlanRoute(
+			candidates.map((candidate) => ({
+				value: candidate,
+				venueId: candidate.venue.id,
+				venueName: candidate.venue.name,
+				score: candidate.score,
+				lat: candidate.venue.lat,
+				lng: candidate.venue.lng,
+				pricePence: candidate.venue.cheapestPrice === null
+					? null
+					: Math.round(candidate.venue.cheapestPrice * 100),
+				promoted: candidate.venue.promoted === true,
+				avoidedByReviewedSignal: candidate.signalClaims.some((claim) =>
+					canAffectRoute(claim) && claim.routeEffect === "avoid"),
+				accessibility: planCandidateAccessibility(candidate.venue.name, candidate.venue.area),
+				opening: openingEvidence.get(candidate.venue.id) ?? { openAtVisit: [null, null, null], source: null },
+			})),
+			{
+				exactArea: intake.exactNightArea,
+				accessibilityNeeds: requiredAccessibilityNeeds,
+				budgetLimitPence: context.budgetLimitPence,
+				budgetTier: context.budget,
+				groupSize: context.groupSize,
+				transportConstraints: context.transportConstraints,
+				visitWindows,
+			},
+		);
+		if (!selection.ok) {
+			return publicApiError(
+				`No three-stop route in ${area.name} can satisfy every required constraint with the evidence available.`,
+				"GROUNDED_CONSTRAINTS_UNSATISFIED",
+				422,
+				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, ...selection } },
+			);
+		}
+		chosen = selection.stops.map((stop) => {
+			selectedOpeningEvidence.set(stop.venueId, stop.opening);
+			selectedConstraintFlags.set(stop.venueId, stop.constraintFlags);
+			return stop.value;
+		});
+		alternativesByPosition = selection.alternatives.map((alternatives, position) =>
+			alternatives.map((alternative) => {
+				const key = `${position}:${alternative.venueId}`;
+				alternativeOpeningEvidence.set(key, alternative.opening);
+				alternativeConstraintFlags.set(key, alternative.opening.openAtVisit[position] === null && visitWindows.length === 3
+					? [{
+						code: "opening_hours_unconfirmed",
+						message: "Opening at this dated visit time is not confirmed. Check with the venue before relying on this stop.",
+					}]
+					: []);
+				return alternative.value;
+			}));
+		constraintReport = selection.constraintReport;
+	} else {
+		chosen = candidates.slice(0, 3);
+	}
   if (chosen.length < 3) return publicApiError(`Not enough grounded venues are available in ${area.name} yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length } });
 	const contextEvidenceGaps = missingContextEvidence(context);
-	const operationalEvidenceGaps = ["current_opening_hours"];
+	if (accessibilityEnforced) {
+		const accessibilityGap = contextEvidenceGaps.indexOf("venue_accessibility");
+		if (accessibilityGap >= 0) contextEvidenceGaps.splice(accessibilityGap, 1);
+	}
+	const operationalEvidenceGaps = intake?.exactStartIso
+		&& chosen.every(({ venue }) => selectedOpeningEvidence.get(venue.id)?.openAtVisit.every((state) => state === true))
+		? []
+		: ["current_opening_hours"];
 	if ((context.groupSize ?? 1) > 1) operationalEvidenceGaps.push("get_in_estimates");
 	if (
 		context.atmosphere.some((value) => ["lively", "music", "sports"].includes(value)) &&
@@ -269,7 +416,12 @@ export async function POST(request: Request): Promise<Response> {
 		distanceBasis: "straight-line",
 	};
 	const lastStop = chosen.at(-1)?.venue;
-	const extensions = candidates.slice(3, 5).map(({ venue }) => ({
+	const extensionCandidates = intake
+		? context.budgetLimitPence !== null
+			? []
+			: [...new Map((alternativesByPosition ?? []).flat().map((candidate) => [candidate.venue.id, candidate])).values()].slice(0, 2)
+		: candidates.slice(3, 5);
+	const extensions = extensionCandidates.map(({ venue }) => ({
 		venueId: venue.id,
 		venueName: venue.name,
 		distanceKm: lastStop ? distanceKm(lastStop, venue) : 0,
@@ -297,40 +449,69 @@ export async function POST(request: Request): Promise<Response> {
 		endingRecommendations,
 		weatherEvidence: planningWeather,
 		nightArea,
+		...(constraintReport ? { constraintReport } : {}),
 		// Back-compatible alias until every client has moved to Night Area.
 		district: nightArea,
     explanations: inferred.reasons,
-	    stops: chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => ({
-	      venueId: venue.id,
-	      venueName: venue.name,
-	      position: index,
+	    stops: chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
+			const opening = selectedOpeningEvidence.get(venue.id) ?? null;
+			const alternativeCandidates = alternativesByPosition?.[index]
+				?? candidates.filter(({ venue: alternative }) =>
+					!chosen.some(({ venue: selected }) => selected.id === alternative.id));
+			return {
+				venueId: venue.id,
+				venueName: venue.name,
+				position: index,
 			distanceKm: Number(distance.toFixed(2)),
 			estimatedPintPricePence: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
 			evidence: reasons,
+			constraintFlags: selectedConstraintFlags.get(venue.id) ?? [],
+			operationalEvidence: {
+				openingAtVisit: opening?.openAtVisit[index] ?? null,
+				openingSource: opening?.source ?? null,
+				visitWindow: visitWindows[index] ?? null,
+				transportBasis: "compact-straight-line",
+			},
 			provenance: [
 				{ kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
 				{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
 				...tonightEvents.map((event) => ({ kind: "night_signal" as const, label: `${event.source.label}: ${event.title}`, asOf: event.observedAt })),
 				...signalClaims.map((signal) => ({ kind: "night_signal" as const, label: `${signal.publisher}: ${signal.claim}`, asOf: signal.observedAt })),
+				...(opening?.source ? [{
+					kind: "night_signal" as const,
+					label: opening.source.label,
+					asOf: opening.source.observedAt,
+				}] : []),
 				...(planningWeather ? [{
 					kind: "night_signal" as const,
 					label: `${planningWeather.source.publisher}: ${planningWeather.condition}`,
 					asOf: planningWeather.observedAt,
 				}] : []),
 			],
-	      reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
-	      alternatives: candidates
-				.filter(({ venue: alternative }) => !chosen.some(({ venue: selected }) => selected.id === alternative.id))
-				.map(({ venue: alternative }) => ({
-					venueId: alternative.id,
-					venueName: alternative.name,
-					distanceKm: Number(distanceKm(venue, alternative).toFixed(2)),
-					estimatedPintPricePence: alternative.cheapestPrice === null ? null : Math.round(alternative.cheapestPrice * 100),
-					provenance: [{ kind: "venue_dataset", label: `PUBMAXX venue record for ${alternative.name}` }],
-				}))
+				reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
+				alternatives: alternativeCandidates
+				.map(({ venue: alternative }) => {
+					const key = `${index}:${alternative.id}`;
+					const alternativeOpening = alternativeOpeningEvidence.get(key) ?? null;
+					return {
+						venueId: alternative.id,
+						venueName: alternative.name,
+						distanceKm: Number(distanceKm(venue, alternative).toFixed(2)),
+						estimatedPintPricePence: alternative.cheapestPrice === null ? null : Math.round(alternative.cheapestPrice * 100),
+						constraintFlags: alternativeConstraintFlags.get(key) ?? [],
+						operationalEvidence: {
+							openingAtVisit: alternativeOpening?.openAtVisit[index] ?? null,
+							openingSource: alternativeOpening?.source ?? null,
+							visitWindow: visitWindows[index] ?? null,
+							transportBasis: "compact-straight-line",
+						},
+						provenance: [{ kind: "venue_dataset", label: `PUBMAXX venue record for ${alternative.name}` }],
+					};
+				})
 				.sort((left, right) => left.distanceKm - right.distanceKm)
 				.slice(0, 2),
-	    })),
+			};
+		}),
 	    contextEffects: [
 	      "budget",
 	      "daypart",
